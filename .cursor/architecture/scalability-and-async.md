@@ -80,6 +80,9 @@ Pre-compute heavy aggregations. Dashboard reads from views, not OLTP joins.
 | mv_subject_results | After exam period closes | student_grades |
 | mv_academic_performance | Nightly | annual_results, attendance |
 | mv_graduation_statistics | On graduation event | graduation.records |
+| mv_directorate_school_comparison | Nightly | 20-school comparison (45K) |
+| mv_section_attendance_weekly | Nightly | Section weekly stats |
+| mv_vocational_department_stats | Nightly | 5 departments × 20 schools |
 
 ```sql
 REFRESH MATERIALIZED VIEW CONCURRENTLY reports.mv_school_student_statistics;

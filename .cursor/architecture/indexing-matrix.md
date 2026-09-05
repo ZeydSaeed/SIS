@@ -32,6 +32,14 @@
 | (student_id, academic_year_id) | COMPOSITE | Student year lookup |
 | (student_id, academic_year_id) WHERE status=1 | PARTIAL UNIQUE | One active enrollment |
 
+### `attendance.daily_section_summary` ⚡ NEW
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (section_id, attendance_date) | PRIMARY KEY | One summary per section per day |
+| (school_id, attendance_date) | COMPOSITE | School daily dashboard (45K scenario) |
+| (academic_year_id, attendance_date) | COMPOSITE | Directorate 20-school report |
+
 ### `attendance.records` ⚡
 
 | Column(s) | Type | Reason |

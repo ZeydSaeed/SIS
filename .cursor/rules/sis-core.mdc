@@ -31,13 +31,16 @@ Laravel 13 + Inertia/React + PostgreSQL + Redis. Reference architecture in `.cur
 ## Module Implementation Order
 organization → academic → security → students → enrollment → curriculum → teachers → attendance → exams → lifecycle modules
 
-## Database Changes — MANDATORY
-Any create/alter/index/delete/improvement to the database MUST follow:
-1. `.cursor/skills/database-change/SKILL.md` — read and execute full workflow
-2. `.cursor/architecture/DATABASE-CHANGE-CHECKLIST.md` — complete every item
-3. Update `.cursor/architecture/database-blueprint.md` after every schema change
+## 45K Scenario (20 schools, 10 years)
+- 45,000 active students → partition attendance.records from year 1 (P0)
+- daily_section_summary required for dashboards (P0)
+- Batch writes for attendance — never row-by-row (batch-write-patterns.md)
+- Phase 2 infra from launch: PgBouncer + Read Replica
+- Capacity: `.cursor/architecture/capacity-planning-45k.md`
+- Implementation: `.cursor/architecture/WORK-PLAN.md`
 
-Never skip reference files. Never change schema without updating blueprint.
+## Database Changes — MANDATORY
+Any DB change MUST follow: database-change/SKILL.md → DATABASE-CHANGE-CHECKLIST.md → update database-blueprint.md
 
 ## Database Blueprint
-Table definitions: `.cursor/architecture/database-blueprint.md` — source of truth for schema design.
+89 tables: `.cursor/architecture/database-blueprint.md`

@@ -1,7 +1,7 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. No migrations created from this file.  
-> **Target:** 85 tables across 23 PostgreSQL schemas.  
+> **Target:** 86 tables across 23 PostgreSQL schemas.  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`
 
@@ -661,7 +661,7 @@
 
 ---
 
-## Schema: `attendance` (2 tables)
+## Schema: `attendance` (3 tables)
 
 ### `attendance.sessions`
 
@@ -672,35 +672,61 @@
 | subject_id | BIGINT | FK → curriculum.subjects |
 | academic_year_id | BIGINT | FK → academic_years |
 | session_date | DATE | NOT NULL |
-| period_id | SMALLINT | FK → timetable.periods |
+| period_id | SMALLINT | FK → timetable.periods, nullable |
 | teacher_id | BIGINT | FK → teachers.teachers |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(section_id, session_date)`, `BTREE(academic_year_id, session_date)`
 
-### `attendance.records` ⚡ PARTITION CANDIDATE
+### `attendance.records` ⚡ PARTITIONED (P0 for 45K scenario)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
+| id | BIGINT | PK (with academic_year_id) |
 | session_id | BIGINT | FK → sessions |
 | student_id | BIGINT | FK → students.students |
 | enrollment_id | BIGINT | FK → enrollment.enrollments |
-| academic_year_id | BIGINT | FK → academic_years |
+| academic_year_id | BIGINT | FK → academic_years, **PARTITION KEY** |
+| school_id | BIGINT | FK → organization.schools (denormalized for RLS) |
 | attendance_date | DATE | NOT NULL |
 | status | SMALLINT | NOT NULL |
 | notes | TEXT | |
-| recorded_by | BIGINT | FK → security.users |
+| recorded_by | BIGINT | FK → users |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Partition key:** `academic_year_id` or `attendance_date` (range by year)
+**Partition:** LIST by `academic_year_id` — **P0 from year 1** (45M rows/year at 45K students)
 
 **Indexes:**
 - `COMPOSITE(student_id, attendance_date)`
-- `COMPOSITE(session_id, student_id) UNIQUE`
+- `UNIQUE(session_id, student_id)`
 - `BTREE(academic_year_id, attendance_date)`
+- `BTREE(school_id, attendance_date)` — RLS + school reports
+
+### `attendance.daily_section_summary` ⚡ NEW (P0 for 45K scenario)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| section_id | BIGINT | FK → enrollment.sections |
+| school_id | BIGINT | FK → organization.schools |
+| academic_year_id | BIGINT | FK → academic_years |
+| attendance_date | DATE | NOT NULL |
+| total_students | SMALLINT | NOT NULL DEFAULT 0 |
+| present_count | SMALLINT | NOT NULL DEFAULT 0 |
+| absent_count | SMALLINT | NOT NULL DEFAULT 0 |
+| late_count | SMALLINT | NOT NULL DEFAULT 0 |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**PK:** `(section_id, attendance_date)`
+
+**Purpose:** Dashboard reads 900 rows instead of scanning 45,000 attendance records.
+
+**Indexes:**
+- `BTREE(school_id, attendance_date)` — school daily report
+- `BTREE(academic_year_id, attendance_date)` — directorate report
+
+**Refresh:** After each batch attendance write — see batch-write-patterns.md
 
 ---
 
@@ -1408,6 +1434,45 @@ These are **not** transactional OLTP tables. Populated by background jobs.
 | graduation_rate | NUMERIC(5,2) |
 | refreshed_at | TIMESTAMPTZ |
 
+### `reports.mv_directorate_school_comparison` ⚡ NEW (45K scenario)
+
+| Column | Type |
+|--------|------|
+| directorate_id | BIGINT |
+| school_id | BIGINT |
+| academic_year_id | BIGINT |
+| total_students | INTEGER |
+| attendance_percentage | NUMERIC(5,2) |
+| average_gpa | NUMERIC(4,2) |
+| pass_rate | NUMERIC(5,2) |
+| rank_in_directorate | SMALLINT |
+| refreshed_at | TIMESTAMPTZ |
+
+**Refresh:** Nightly. **Read by:** Directorate dashboard (20 schools).
+
+### `reports.mv_section_attendance_weekly` ⚡ NEW (45K scenario)
+
+| Column | Type |
+|--------|------|
+| section_id | BIGINT |
+| school_id | BIGINT |
+| academic_year_id | BIGINT |
+| week_start_date | DATE |
+| attendance_percentage | NUMERIC(5,2) |
+| refreshed_at | TIMESTAMPTZ |
+
+### `reports.mv_vocational_department_stats` ⚡ NEW (45K scenario)
+
+| Column | Type |
+|--------|------|
+| school_id | BIGINT |
+| specialization_id | BIGINT |
+| academic_year_id | BIGINT |
+| total_students | INTEGER |
+| pass_rate | NUMERIC(5,2) |
+| average_gpa | NUMERIC(4,2) |
+| refreshed_at | TIMESTAMPTZ |
+
 ---
 
 ## Relationship Summary
@@ -1455,7 +1520,7 @@ curriculum.subjects
 | teachers | 4 |
 | curriculum | 4 |
 | timetable | 3 |
-| attendance | 2 |
+| attendance | 3 |
 | exams | 5 |
 | results | 3 |
 | promotion | 2 |
@@ -1468,17 +1533,19 @@ curriculum.subjects
 | workflow | 2 |
 | security | 7 |
 | audit | 2 |
-| reports | 5 |
-| **Total** | **85** |
+| reports | 8 |
+| **Total** | **89** |
 
-## Partition Candidates (⚡)
+## Partition Strategy (⚡)
 
-| Table | Partition Key | Strategy |
-|-------|--------------|----------|
-| attendance.records | academic_year_id | LIST |
-| exams.student_grades | academic_year_id | LIST |
-| audit.audit_logs | created_at | RANGE (monthly) |
-| communication.messages | created_at | RANGE (monthly) |
-| finance.transactions | academic_year_id | LIST |
+| Table | Partition Key | Strategy | Priority (45K) |
+|-------|--------------|----------|----------------|
+| attendance.records | academic_year_id | LIST | **P0 — Year 1** (45M rows/year) |
+| exams.student_grades | academic_year_id | LIST | **P0 — Year 1** (2.7M rows/year) |
+| audit.audit_logs | created_at | RANGE (monthly) | P1 |
+| communication.messages | created_at | RANGE (monthly) | P1 |
+| finance.transactions | academic_year_id | LIST | P1 |
 
-Add partitioning when table exceeds ~10M rows or query performance degrades — not on day one.
+**45K scenario:** attendance.records and student_grades **must** be partitioned from first migration — not deferred.
+
+See: [capacity-planning-45k.md](./capacity-planning-45k.md), [phases/PHASE-C-OPERATIONS.md](./phases/PHASE-C-OPERATIONS.md)

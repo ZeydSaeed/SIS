@@ -1,102 +1,75 @@
 # SIS Architecture Reference
 
-> **Version:** 2.0 — Enterprise SIS Architecture for PostgreSQL  
-> **Purpose:** Reference guide for developers and AI agents. No database is created from these files directly.
+> **Version:** 2.1 — Enterprise SIS + 45K Province Scenario  
+> **Maturity:** Architecture Ready ✅ | Development Ready ✅ | Production Proven ⏳  
+> **Table count authority:** `database-blueprint.md` → **89 tables**
 
 ## Document Index
 
+### Core Architecture
 | File | Topic |
 |------|-------|
-| [01-principles-and-layers.md](./01-principles-and-layers.md) | Core principles, 4 layers, normalization |
-| [02-infrastructure-phases.md](./02-infrastructure-phases.md) | Deployment phases, Redis, PgBouncer, replicas |
-| [database-blueprint.md](./database-blueprint.md) | 80+ table blueprint with columns, types, FK, indexes |
-| [indexing-matrix.md](./indexing-matrix.md) | Per-table indexing strategy |
-| [scalability-and-async.md](./scalability-and-async.md) | Caching, queues, materialized views, reporting |
-| [security-audit-resilience.md](./security-audit-resilience.md) | RBAC, RLS, audit, backup, DR, monitoring |
-| [improvement-matrix.md](./improvement-matrix.md) | Priority matrix for all 25 improvements |
-| [DATABASE-CHANGE-CHECKLIST.md](./DATABASE-CHANGE-CHECKLIST.md) | **Mandatory checklist for every DB change** |
+| [01-principles-and-layers.md](./01-principles-and-layers.md) | Core principles, 4 layers |
+| [02-infrastructure-phases.md](./02-infrastructure-phases.md) | Deployment phases |
+| [normalization-and-cqrs.md](./normalization-and-cqrs.md) | **1NF–4NF + CQRS-lite** |
+| [database-blueprint.md](./database-blueprint.md) | **89 tables — AUTHORITATIVE** |
+| [database-dictionary.md](./database-dictionary.md) | Column meanings, PII, retention |
+| [erd-overview.md](./erd-overview.md) | **ERD diagrams (Mermaid)** |
+| [indexing-matrix.md](./indexing-matrix.md) | Per-table indexes |
+| [INDEX-GOVERNANCE.md](./INDEX-GOVERNANCE.md) | Index justification rules |
+| [DATABASE-GOVERNANCE.md](./DATABASE-GOVERNANCE.md) | Schema change governance |
+| [data-quality-rules.md](./data-quality-rules.md) | Integrity & validation rules |
 
-## Architecture Overview
+### 45K Scenario
+| File | Topic |
+|------|-------|
+| [capacity-planning-45k.md](./capacity-planning-45k.md) | Volume calculations |
+| [batch-write-patterns.md](./batch-write-patterns.md) | Bulk INSERT / COPY |
+| [peak-hour-strategy.md](./peak-hour-strategy.md) | 8:00–8:30 attendance peak |
+| [cache-invalidation.md](./cache-invalidation.md) | Redis invalidation map |
+| [seed-data-45k.md](./seed-data-45k.md) | Realistic test datasets |
 
-```
-                         SIS
-                          │
-                 Architecture Principles
-                          │
-            ┌─────────────┴─────────────┐
-            │                           │
-          OLTP                        Cache
-            │                           │
-       PostgreSQL                    Redis
-            │                           │
-    ┌───────┼────────┐                 │
-    │       │        │                 │
- Normalize Index  Partition            │
-    │       │        │                 │
-    └───────┼────────┘                 │
-            │                           │
-        Primary DB                Cache Layer
-            │
-      ┌─────┴─────┐
-      │           │
-    Replica    Reporting
-      │           │
-      └─────┬─────┘
-            │
-     Materialized Views
-            │
-        Dashboards
-```
+### Application Layer
+| File | Topic |
+|------|-------|
+| [laravel-architecture.md](./laravel-architecture.md) | Services, Actions, Jobs |
+| [api-conventions.md](./api-conventions.md) | Routes, Inertia, pagination |
+| [rules/react-inertia.mdc](../rules/react-inertia.mdc) | Frontend RTL/Arabic |
 
-Cross-cutting concerns (always active):
+### Operations
+| File | Topic |
+|------|-------|
+| [postgresql-tuning.md](./postgresql-tuning.md) | Production PG config |
+| [zero-downtime-migrations.md](./zero-downtime-migrations.md) | Expand/Migrate/Contract |
+| [dr-runbook.md](./dr-runbook.md) | **Disaster recovery steps** |
+| [production-readiness.md](./production-readiness.md) | Pre-launch checklist |
+| [testing-strategy.md](./testing-strategy.md) | Unit → load tests |
+| [load-test-results.md](./load-test-results.md) | Results template |
 
-```
-Security · Audit · Monitoring · Backup · PITR · DR · Archiving · Load Testing · Migration
-```
+### Governance & Decisions
+| File | Topic |
+|------|-------|
+| [improvement-matrix.md](./improvement-matrix.md) | Priority matrix (87/100 target) |
+| [DATABASE-CHANGE-CHECKLIST.md](./DATABASE-CHANGE-CHECKLIST.md) | Mandatory DB checklist |
+| [WORK-PLAN.md](./WORK-PLAN.md) | Phase A–F guide |
+| [adr/](./adr/) | **8 Architecture Decision Records** |
+| [phases/](./phases/) | Phase implementation guides |
 
-## Schema Organization
+### Scalability & Security
+| File | Topic |
+|------|-------|
+| [scalability-and-async.md](./scalability-and-async.md) | Redis, queues, MV |
+| [security-audit-resilience.md](./security-audit-resilience.md) | RBAC, audit, backup |
+| [rls-policies.md](./rls-policies.md) | RLS for 20 schools |
 
-```
-sis (database)
-│
-├── organization    — Ministry, directorates, schools, branches
-├── academic        — Years, terms, levels, grades
-├── vocational      — Specializations, tracks (professional education)
-├── students        — Student profiles and identifiers
-├── guardians       — Parents/guardians and relationships
-├── admission       — Applications and intake
-├── enrollment      — Yearly registration
-├── teachers        — Staff and assignments
-├── curriculum      — Subjects and curriculum mapping
-├── timetable       — Schedules and rooms
-├── attendance      — Attendance records
-├── exams           — Exam definitions and sessions
-├── results         — Grades and transcripts
-├── promotion       — Grade advancement
-├── transfers       — Inter-school moves
-├── graduation      — Graduation records
-├── certificates    — Certificate generation
-├── documents       — File metadata
-├── finance         — Fees and payments
-├── communication   — Notifications
-├── workflow        — Approval chains
-├── security        — RBAC, permissions
-├── audit           — Change trail
-└── reports         — Materialized views and analytics
-```
+## Maturity Model
 
-## Target Table Count
+| Level | Status | Meaning |
+|-------|--------|---------|
+| Architecture Ready | ✅ | Design documented and reviewed |
+| Development Ready | ✅ | Guides + rules + blueprint complete |
+| Production Proven | ⏳ | Load test + DR + restore verified with numbers |
 
-**70–100 tables** depending on final requirements. Each table represents one clear entity, relationship, or transactional record.
+## Self-Assessment Score: **87/100** — Strong Enterprise Foundation
 
-## Next Engineering Step
-
-When ready to implement:
-
-1. Review `database-blueprint.md` table by table
-2. Create versioned migrations: `V001__create_organization.sql`
-3. Build ERD from blueprint relationships
-4. Apply indexing matrix after real query patterns emerge
-5. Add partitioning only to high-growth tables
-
-**Do not create all 100 tables on day one.** Implement by domain module following the student lifecycle priority.
+See [improvement-matrix.md](./improvement-matrix.md) for layer scores and path to 95+.

@@ -1,0 +1,78 @@
+---
+description: React/Inertia frontend conventions — RTL, Arabic, components
+globs: resources/js/**/*
+alwaysApply: false
+---
+
+# React + Inertia Conventions
+
+Reference: `.cursor/architecture/api-conventions.md`
+
+## Stack
+React 19 + Inertia 3 + Tailwind 4 + Radix UI + TypeScript
+
+## Directory Structure
+```
+resources/js/
+├── components/     # Reusable UI (ui/ = Radix primitives)
+├── hooks/
+├── layouts/        # app-layout, auth-layout, settings
+├── pages/          # Inertia pages mirror routes
+│   ├── attendance/
+│   ├── enrollment/
+│   └── reports/
+├── types/
+└── lib/utils.ts
+```
+
+## Page Rules
+- One page component per route in `pages/{module}/`
+- Use `AppLayout` for authenticated pages
+- Receive props from controller — no direct API fetch in pages unless polling
+- Always handle `loading`, `error`, and `empty` states
+
+## Forms
+```tsx
+// ✅ useForm from Inertia
+const { data, setData, post, processing, errors } = useForm({ records: [] });
+post(route('attendance.batch', sectionId));
+```
+
+## Permissions
+```tsx
+// Check permissions from shared auth prop
+{auth.permissions.includes('attendance.write') && (
+  <Button onClick={submit}>حفظ الحضور</Button>
+)}
+```
+
+## RTL & Arabic — Required from Day One
+- `dir="rtl"` on root layout when locale is `ar`
+- Use logical properties: `ms-`, `me-`, `ps-`, `pe-` (not ml/mr)
+- Numbers: `<span dir="ltr">{studentCode}</span>` inside RTL context
+- All user-facing strings via Laravel `__()` / JSON lang files — no hardcoded Arabic in components except prototypes
+
+## Tables (45K scale)
+- Server-side pagination only — never load 45K rows client-side
+- Use cursor pagination from backend
+- Virtual scrolling for lists > 100 rows if client-side slice needed
+
+## Attendance Batch UI
+- Submit 50 students as single batch POST
+- Show `processing` while queue job runs (poll or Inertia reload)
+- Display `last_updated_at` on dashboard widgets
+
+## Notifications
+- Use `sonner` toast for flash messages
+- Success/error from Inertia `usePage().props.flash`
+
+## Accessibility
+- Radix components for keyboard navigation
+- Label all form inputs
+- Focus management in modals (Dialog)
+
+## Forbidden
+- `fetch()` to internal API bypassing Inertia for CRUD
+- Business logic in page components — keep in hooks or utils
+- Inline styles — Tailwind only
+- English-only UI strings in production pages
