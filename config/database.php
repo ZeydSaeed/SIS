@@ -89,13 +89,16 @@ return [
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
+            'database' => env('DB_DATABASE', 'sis'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            'search_path' => env(
+                'DB_SEARCH_PATH',
+                'public,organization,academic,vocational,students,guardians,enrollment,teachers,curriculum,timetable,attendance,exams,results,security,audit,reports',
+            ),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
