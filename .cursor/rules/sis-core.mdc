@@ -1,0 +1,43 @@
+---
+description: Core SIS project conventions — always apply
+alwaysApply: true
+---
+
+# SIS Core Conventions
+
+Read `.cursor/brain/PROJECT.md` for full context.
+
+## Stack
+Laravel 13 + Inertia/React + PostgreSQL + Redis. Reference architecture in `.cursor/architecture/`.
+
+## Non-Negotiable Rules
+1. Every academic operation scoped to `academic_year_id`
+2. Never hard-delete official academic records — use status + effective_to
+3. Heavy ops (bulk import, certificates, reports) via Laravel Queue — never in HTTP request
+4. PostgreSQL = source of truth; Redis = cache only
+5. No manual DB changes — always versioned migrations
+6. No `SELECT *` in production API queries
+7. No N+1 queries — eager load relationships
+8. Idempotency keys for payments, imports, certificates, notifications
+9. Correlation ID on every request for audit tracing
+10. Measure slow queries with EXPLAIN ANALYZE before adding indexes
+
+## Data Types (PostgreSQL)
+- PKs: `BIGINT GENERATED ALWAYS AS IDENTITY`
+- Status: `SMALLINT` (not TINYINT)
+- Money: `NUMERIC(12,2)`
+- Timestamps: `TIMESTAMPTZ`
+
+## Module Implementation Order
+organization → academic → security → students → enrollment → curriculum → teachers → attendance → exams → lifecycle modules
+
+## Database Changes — MANDATORY
+Any create/alter/index/delete/improvement to the database MUST follow:
+1. `.cursor/skills/database-change/SKILL.md` — read and execute full workflow
+2. `.cursor/architecture/DATABASE-CHANGE-CHECKLIST.md` — complete every item
+3. Update `.cursor/architecture/database-blueprint.md` after every schema change
+
+Never skip reference files. Never change schema without updating blueprint.
+
+## Database Blueprint
+Table definitions: `.cursor/architecture/database-blueprint.md` — source of truth for schema design.

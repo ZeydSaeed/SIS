@@ -1,0 +1,57 @@
+---
+description: Laravel model and service patterns for SIS
+globs: app/**/*.php
+alwaysApply: false
+---
+
+# Laravel Patterns
+
+## Models
+- One model per blueprint table; namespace by domain: `App\Models\Students\Student`
+- Always define `$casts` for dates (datetime), decimals, JSONB
+- Use `SoftDeletes` sparingly — prefer status fields for academic data
+- Scope queries by academic year: `scopeForAcademicYear($query, $yearId)`
+
+## Relationships
+```php
+// Enrollment belongs to student AND academic year
+public function student(): BelongsTo
+public function academicYear(): BelongsTo
+public function section(): BelongsTo
+```
+
+## Services for Business Logic
+Controllers stay thin. Complex logic in service classes:
+- `EnrollmentService`, `AttendanceService`, `GradeEntryService`
+- `CertificateGenerationService` (dispatches queue job)
+
+## Queue Jobs for Heavy Operations
+```php
+// ❌ BAD — blocks HTTP request
+foreach ($students as $student) { generateCertificate($student); }
+
+// ✅ GOOD
+GenerateCertificatesJob::dispatch($schoolId, $yearId)
+    ->withIdempotencyKey("cert-{$schoolId}-{$yearId}");
+```
+
+## Audit
+Log changes to academic records via `AuditService`:
+```php
+AuditService::log('updated', $enrollment, $oldValues, $newValues);
+```
+
+## Authorization
+Use Laravel Policies scoped to school/role:
+```php
+$this->authorize('update', $enrollment);
+```
+
+## Eager Loading
+```php
+// ❌ N+1
+Enrollment::all()->each(fn ($e) => $e->student->name);
+
+// ✅
+Enrollment::with(['student', 'section', 'academicYear'])->get();
+```

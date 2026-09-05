@@ -1,0 +1,54 @@
+---
+description: Database migration and model design standards for SIS
+globs: database/**/*
+alwaysApply: false
+---
+
+# Database Design Rules
+
+> **MANDATORY:** Read `.cursor/skills/database-change/SKILL.md` before ANY database work.
+> Complete `.cursor/architecture/DATABASE-CHANGE-CHECKLIST.md` before and after every change.
+> Update `database-blueprint.md` after every schema change — no exceptions.
+
+Reference: `.cursor/architecture/database-blueprint.md`
+
+## Migration Naming
+```
+YYYY_MM_DD_HHMMSS_create_{schema}_{table}_table.php
+```
+
+## Every Transactional Table Must Have
+```php
+$table->id(); // BIGINT
+$table->timestamps(); // created_at, updated_at TIMESTAMPTZ
+// Plus effective_from/effective_to for temporal entities
+```
+
+## Foreign Keys
+Always define FK constraints with explicit onDelete behavior:
+```php
+$table->foreignId('student_id')->constrained('students.students')->restrictOnDelete();
+$table->foreignId('academic_year_id')->constrained('academic.academic_years')->restrictOnDelete();
+```
+
+## Constraints in DB, Not Just App
+```php
+$table->decimal('grade', 5, 2);
+$table->check('grade >= 0 AND grade <= 100');
+$table->unique(['student_id', 'academic_year_id']); // where appropriate
+```
+
+## Index FK Columns Used in Queries
+```php
+$table->index(['school_id', 'academic_year_id']);
+$table->index(['student_id', 'attendance_date']);
+```
+
+## PostgreSQL Schemas
+Use PostgreSQL schemas matching domains: `organization`, `academic`, `students`, `enrollment`, etc.
+
+## Never
+- Use TINYINT (use smallInteger)
+- Skip FK constraints "for performance"
+- Store files in DB (metadata only; files in object storage)
+- Delete academic history rows

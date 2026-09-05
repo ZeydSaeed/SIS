@@ -1,0 +1,1484 @@
+# Database Blueprint — Reference Only
+
+> **Status:** Architecture reference. No migrations created from this file.  
+> **Target:** 85 tables across 23 PostgreSQL schemas.  
+> **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`  
+> **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`
+
+---
+
+## Schema: `organization` (6 tables)
+
+### `organization.ministries`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| name_en | VARCHAR(255) | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(code)`, `BTREE(status)`
+
+### `organization.directorates`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| ministry_id | BIGINT | FK → ministries |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| region | VARCHAR(100) | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(ministry_id)`, `UNIQUE(code)`
+
+### `organization.schools`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| directorate_id | BIGINT | FK → directorates |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| school_type | SMALLINT | NOT NULL |
+| address | TEXT | |
+| phone | VARCHAR(30) | |
+| email | VARCHAR(255) | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(directorate_id)`, `BTREE(status)`, `UNIQUE(code)`
+
+### `organization.branches`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| address | TEXT | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
+
+### `organization.departments`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| branch_id | BIGINT | FK → branches, nullable |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| department_type | SMALLINT | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `BTREE(branch_id)`
+
+### `organization.rooms`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| branch_id | BIGINT | FK → branches |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| capacity | SMALLINT | |
+| room_type | SMALLINT | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(branch_id)`, `UNIQUE(branch_id, code)`
+
+---
+
+## Schema: `academic` (5 tables)
+
+### `academic.academic_years`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| start_date | DATE | NOT NULL |
+| end_date | DATE | NOT NULL |
+| is_current | BOOLEAN | NOT NULL DEFAULT false |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(code)`, `PARTIAL(is_current) WHERE is_current = true`
+
+### `academic.terms`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| academic_year_id | BIGINT | FK → academic_years |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| start_date | DATE | NOT NULL |
+| end_date | DATE | NOT NULL |
+| term_order | SMALLINT | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(academic_year_id)`, `UNIQUE(academic_year_id, code)`
+
+### `academic.grade_levels`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SMALLINT | PK |
+| code | VARCHAR(10) | UNIQUE NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| level_order | SMALLINT | NOT NULL |
+| education_stage | SMALLINT | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+
+**Indexes:** `UNIQUE(code)`, `BTREE(level_order)`
+
+### `academic.holidays`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| academic_year_id | BIGINT | FK → academic_years |
+| school_id | BIGINT | FK → schools, nullable |
+| name | VARCHAR(255) | NOT NULL |
+| start_date | DATE | NOT NULL |
+| end_date | DATE | NOT NULL |
+| holiday_type | SMALLINT | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(academic_year_id)`, `BTREE(school_id, start_date)`
+
+### `academic.system_settings`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools, nullable |
+| setting_key | VARCHAR(100) | NOT NULL |
+| setting_value | JSONB | NOT NULL |
+| description | TEXT | |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(school_id, setting_key)`
+
+---
+
+## Schema: `vocational` (3 tables)
+
+### `vocational.specializations`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| description | TEXT | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
+
+### `vocational.tracks`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| specialization_id | BIGINT | FK → specializations |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(specialization_id)`
+
+### `vocational.specialization_subjects`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| specialization_id | BIGINT | FK → specializations |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| is_required | BOOLEAN | NOT NULL DEFAULT true |
+| credit_hours | SMALLINT | |
+
+**Indexes:** `UNIQUE(specialization_id, subject_id)`
+
+---
+
+## Schema: `students` (4 tables)
+
+### `students.students`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
+| student_code | VARCHAR(50) | UNIQUE NOT NULL |
+| national_id | VARCHAR(20) | UNIQUE |
+| first_name | VARCHAR(100) | NOT NULL |
+| middle_name | VARCHAR(100) | |
+| last_name | VARCHAR(100) | NOT NULL |
+| full_name | VARCHAR(255) | NOT NULL |
+| gender | SMALLINT | NOT NULL |
+| birth_date | DATE | NOT NULL |
+| birth_place | VARCHAR(255) | |
+| nationality | VARCHAR(50) | |
+| photo_storage_key | VARCHAR(500) | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+- `UNIQUE(student_code)`
+- `UNIQUE(national_id)` (partial: WHERE national_id IS NOT NULL)
+- `PARTIAL(status) WHERE status = 1` — active students
+- `INCLUDE(student_code, full_name) ON (status)` — covering for lists
+
+### `students.student_contacts`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students |
+| contact_type | SMALLINT | NOT NULL |
+| value | VARCHAR(255) | NOT NULL |
+| is_primary | BOOLEAN | NOT NULL DEFAULT false |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `BTREE(student_id, contact_type)`
+
+### `students.student_addresses`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students |
+| address_type | SMALLINT | NOT NULL |
+| address_line | TEXT | NOT NULL |
+| city | VARCHAR(100) | |
+| region | VARCHAR(100) | |
+| postal_code | VARCHAR(20) | |
+| is_current | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `PARTIAL(is_current) WHERE is_current = true`
+
+### `students.student_documents`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students |
+| document_type | SMALLINT | NOT NULL |
+| storage_key | VARCHAR(500) | NOT NULL |
+| file_name | VARCHAR(255) | NOT NULL |
+| mime_type | VARCHAR(100) | NOT NULL |
+| file_size | BIGINT | NOT NULL |
+| file_hash | VARCHAR(64) | NOT NULL |
+| uploaded_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `BTREE(student_id, document_type)`
+
+---
+
+## Schema: `guardians` (3 tables)
+
+### `guardians.guardians`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| national_id | VARCHAR(20) | UNIQUE |
+| first_name | VARCHAR(100) | NOT NULL |
+| last_name | VARCHAR(100) | NOT NULL |
+| full_name | VARCHAR(255) | NOT NULL |
+| phone | VARCHAR(30) | |
+| email | VARCHAR(255) | |
+| occupation | VARCHAR(100) | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(national_id)`, `BTREE(phone)`
+
+### `guardians.student_guardians`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students.students |
+| guardian_id | BIGINT | FK → guardians |
+| relationship_type | SMALLINT | NOT NULL |
+| is_primary | BOOLEAN | NOT NULL DEFAULT false |
+| is_emergency_contact | BOOLEAN | NOT NULL DEFAULT false |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `BTREE(guardian_id)`, `UNIQUE(student_id, guardian_id)`
+
+### `guardians.guardian_addresses`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| guardian_id | BIGINT | FK → guardians |
+| address_line | TEXT | NOT NULL |
+| city | VARCHAR(100) | |
+| is_current | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(guardian_id)`
+
+---
+
+## Schema: `admission` (3 tables)
+
+### `admission.application_periods`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| academic_year_id | BIGINT | FK → academic_years |
+| school_id | BIGINT | FK → schools |
+| name | VARCHAR(255) | NOT NULL |
+| start_date | TIMESTAMPTZ | NOT NULL |
+| end_date | TIMESTAMPTZ | NOT NULL |
+| max_applications | INTEGER | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(academic_year_id, school_id)`
+
+### `admission.applications`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| application_period_id | BIGINT | FK → application_periods |
+| application_number | VARCHAR(50) | UNIQUE NOT NULL |
+| first_name | VARCHAR(100) | NOT NULL |
+| last_name | VARCHAR(100) | NOT NULL |
+| national_id | VARCHAR(20) | |
+| birth_date | DATE | NOT NULL |
+| gender | SMALLINT | NOT NULL |
+| grade_level_id | SMALLINT | FK → grade_levels |
+| specialization_id | BIGINT | FK → specializations, nullable |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| submitted_at | TIMESTAMPTZ | |
+| reviewed_by | BIGINT | FK → security.users, nullable |
+| reviewed_at | TIMESTAMPTZ | |
+| notes | TEXT | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`
+
+### `admission.application_documents`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| application_id | BIGINT | FK → applications |
+| document_type | SMALLINT | NOT NULL |
+| storage_key | VARCHAR(500) | NOT NULL |
+| file_name | VARCHAR(255) | NOT NULL |
+| file_hash | VARCHAR(64) | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(application_id)`
+
+---
+
+## Schema: `enrollment` (4 tables)
+
+### `enrollment.classes`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| academic_year_id | BIGINT | FK → academic_years |
+| grade_level_id | SMALLINT | FK → grade_levels |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| capacity | SMALLINT | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, academic_year_id, code)`
+
+### `enrollment.sections`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| class_id | BIGINT | FK → classes |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| capacity | SMALLINT | |
+| homeroom_teacher_id | BIGINT | FK → teachers.teachers, nullable |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`
+
+### `enrollment.enrollments`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students.students |
+| academic_year_id | BIGINT | FK → academic_years |
+| school_id | BIGINT | FK → schools |
+| class_id | BIGINT | FK → classes |
+| section_id | BIGINT | FK → sections |
+| specialization_id | BIGINT | FK → specializations, nullable |
+| enrollment_number | VARCHAR(50) | UNIQUE NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| effective_from | DATE | NOT NULL |
+| effective_to | DATE | |
+| enrolled_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:**
+- `BTREE(student_id)`
+- `COMPOSITE(school_id, academic_year_id)`
+- `COMPOSITE(student_id, academic_year_id)`
+- `PARTIAL UNIQUE(student_id, academic_year_id) WHERE status = 1`
+
+### `enrollment.enrollment_subjects`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| enrollment_id | BIGINT | FK → enrollments |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| is_elective | BOOLEAN | NOT NULL DEFAULT false |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(enrollment_id)`, `UNIQUE(enrollment_id, subject_id)`
+
+---
+
+## Schema: `teachers` (4 tables)
+
+### `teachers.teachers`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| user_id | BIGINT | FK → security.users, nullable |
+| employee_code | VARCHAR(50) | UNIQUE NOT NULL |
+| national_id | VARCHAR(20) | UNIQUE |
+| first_name | VARCHAR(100) | NOT NULL |
+| last_name | VARCHAR(100) | NOT NULL |
+| full_name | VARCHAR(255) | NOT NULL |
+| specialization_field | VARCHAR(255) | |
+| hire_date | DATE | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(employee_code)`, `BTREE(status)`
+
+### `teachers.teacher_schools`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| teacher_id | BIGINT | FK → teachers |
+| school_id | BIGINT | FK → schools |
+| academic_year_id | BIGINT | FK → academic_years |
+| is_primary | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(teacher_id)`, `BTREE(school_id, academic_year_id)`
+
+### `teachers.teacher_subjects`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| teacher_id | BIGINT | FK → teachers |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| academic_year_id | BIGINT | FK → academic_years |
+| school_id | BIGINT | FK → schools |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(teacher_id, academic_year_id)`, `UNIQUE(teacher_id, subject_id, academic_year_id, school_id)`
+
+### `teachers.teacher_qualifications`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| teacher_id | BIGINT | FK → teachers |
+| qualification_type | SMALLINT | NOT NULL |
+| title | VARCHAR(255) | NOT NULL |
+| institution | VARCHAR(255) | |
+| year_obtained | SMALLINT | |
+| document_storage_key | VARCHAR(500) | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(teacher_id)`
+
+---
+
+## Schema: `curriculum` (4 tables)
+
+### `curriculum.subjects`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| name_en | VARCHAR(255) | |
+| subject_type | SMALLINT | NOT NULL |
+| credit_hours | SMALLINT | |
+| max_grade | SMALLINT | NOT NULL DEFAULT 100 |
+| pass_grade | SMALLINT | NOT NULL DEFAULT 50 |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(code)`, `BTREE(status)`
+
+### `curriculum.curricula`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| academic_year_id | BIGINT | FK → academic_years |
+| grade_level_id | SMALLINT | FK → grade_levels |
+| specialization_id | BIGINT | FK → specializations, nullable |
+| name | VARCHAR(255) | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)`
+
+### `curriculum.curriculum_subjects`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| curriculum_id | BIGINT | FK → curricula |
+| subject_id | BIGINT | FK → subjects |
+| weekly_hours | SMALLINT | |
+| is_required | BOOLEAN | NOT NULL DEFAULT true |
+| subject_order | SMALLINT | NOT NULL DEFAULT 0 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(curriculum_id)`, `UNIQUE(curriculum_id, subject_id)`
+
+### `curriculum.prerequisites`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| subject_id | BIGINT | FK → subjects |
+| prerequisite_subject_id | BIGINT | FK → subjects |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(subject_id, prerequisite_subject_id)`
+
+---
+
+## Schema: `timetable` (3 tables)
+
+### `timetable.periods`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SMALLINT | PK |
+| school_id | BIGINT | FK → schools |
+| period_number | SMALLINT | NOT NULL |
+| start_time | TIME | NOT NULL |
+| end_time | TIME | NOT NULL |
+| period_type | SMALLINT | NOT NULL DEFAULT 1 |
+
+**Indexes:** `UNIQUE(school_id, period_number)`
+
+### `timetable.schedules`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| section_id | BIGINT | FK → enrollment.sections |
+| academic_year_id | BIGINT | FK → academic_years |
+| day_of_week | SMALLINT | NOT NULL CHECK (day_of_week BETWEEN 1 AND 7) |
+| period_id | SMALLINT | FK → periods |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| teacher_id | BIGINT | FK → teachers.teachers |
+| room_id | BIGINT | FK → organization.rooms, nullable |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(section_id, academic_year_id)`, `BTREE(teacher_id, day_of_week)`, `UNIQUE(section_id, day_of_week, period_id, academic_year_id)`
+
+### `timetable.schedule_exceptions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| schedule_id | BIGINT | FK → schedules |
+| exception_date | DATE | NOT NULL |
+| substitute_teacher_id | BIGINT | FK → teachers, nullable |
+| substitute_room_id | BIGINT | FK → rooms, nullable |
+| reason | TEXT | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(schedule_id)`, `BTREE(exception_date)`
+
+---
+
+## Schema: `attendance` (2 tables)
+
+### `attendance.sessions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| section_id | BIGINT | FK → enrollment.sections |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| academic_year_id | BIGINT | FK → academic_years |
+| session_date | DATE | NOT NULL |
+| period_id | SMALLINT | FK → timetable.periods |
+| teacher_id | BIGINT | FK → teachers.teachers |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(section_id, session_date)`, `BTREE(academic_year_id, session_date)`
+
+### `attendance.records` ⚡ PARTITION CANDIDATE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| session_id | BIGINT | FK → sessions |
+| student_id | BIGINT | FK → students.students |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| academic_year_id | BIGINT | FK → academic_years |
+| attendance_date | DATE | NOT NULL |
+| status | SMALLINT | NOT NULL |
+| notes | TEXT | |
+| recorded_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Partition key:** `academic_year_id` or `attendance_date` (range by year)
+
+**Indexes:**
+- `COMPOSITE(student_id, attendance_date)`
+- `COMPOSITE(session_id, student_id) UNIQUE`
+- `BTREE(academic_year_id, attendance_date)`
+
+---
+
+## Schema: `exams` (5 tables)
+
+### `exams.exam_types`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SMALLINT | PK |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| weight_percentage | SMALLINT | CHECK (weight_percentage BETWEEN 0 AND 100) |
+
+### `exams.exams`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| academic_year_id | BIGINT | FK → academic_years |
+| school_id | BIGINT | FK → schools |
+| term_id | BIGINT | FK → academic.terms |
+| exam_type_id | SMALLINT | FK → exam_types |
+| name | VARCHAR(255) | NOT NULL |
+| start_date | DATE | NOT NULL |
+| end_date | DATE | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(academic_year_id, school_id)`, `BTREE(status)`
+
+### `exams.exam_sessions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| exam_id | BIGINT | FK → exams |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| session_date | DATE | NOT NULL |
+| start_time | TIME | NOT NULL |
+| end_time | TIME | NOT NULL |
+| room_id | BIGINT | FK → organization.rooms, nullable |
+| max_grade | SMALLINT | NOT NULL DEFAULT 100 |
+| pass_grade | SMALLINT | NOT NULL DEFAULT 50 |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(exam_id)`, `BTREE(subject_id, session_date)`
+
+### `exams.exam_enrollments`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| exam_session_id | BIGINT | FK → exam_sessions |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| seat_number | VARCHAR(10) | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(exam_session_id)`, `UNIQUE(exam_session_id, enrollment_id)`
+
+### `exams.student_grades` ⚡ PARTITION CANDIDATE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| exam_session_id | BIGINT | FK → exam_sessions |
+| student_id | BIGINT | FK → students.students |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| academic_year_id | BIGINT | FK → academic_years |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| grade | NUMERIC(5,2) | CHECK (grade >= 0) |
+| grade_letter | VARCHAR(5) | |
+| is_pass | BOOLEAN | |
+| is_absent | BOOLEAN | NOT NULL DEFAULT false |
+| entered_by | BIGINT | FK → security.users |
+| entered_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Partition key:** `academic_year_id`
+
+**Indexes:**
+- `COMPOSITE(student_id, academic_year_id)`
+- `COMPOSITE(subject_id, academic_year_id)`
+- `UNIQUE(exam_session_id, student_id)`
+
+---
+
+## Schema: `results` (3 tables)
+
+### `results.term_results`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| term_id | BIGINT | FK → academic.terms |
+| subject_id | BIGINT | FK → curriculum.subjects |
+| total_grade | NUMERIC(5,2) | |
+| grade_letter | VARCHAR(5) | |
+| is_pass | BOOLEAN | |
+| rank_in_section | SMALLINT | |
+| calculated_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(enrollment_id, term_id)`, `UNIQUE(enrollment_id, term_id, subject_id)`
+
+### `results.annual_results`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| academic_year_id | BIGINT | FK → academic_years |
+| gpa | NUMERIC(4,2) | |
+| total_credits | SMALLINT | |
+| rank_in_section | SMALLINT | |
+| rank_in_class | SMALLINT | |
+| final_status | SMALLINT | NOT NULL |
+| calculated_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(enrollment_id)`, `BTREE(academic_year_id, final_status)`
+
+### `results.transcripts`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students.students |
+| academic_year_id | BIGINT | FK → academic_years |
+| transcript_number | VARCHAR(50) | UNIQUE NOT NULL |
+| storage_key | VARCHAR(500) | |
+| file_hash | VARCHAR(64) | |
+| generated_by | BIGINT | FK → security.users |
+| generated_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `UNIQUE(transcript_number)`
+
+---
+
+## Schema: `promotion` (2 tables)
+
+### `promotion.rules`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| from_grade_level_id | SMALLINT | FK → grade_levels |
+| to_grade_level_id | SMALLINT | FK → grade_levels |
+| min_gpa | NUMERIC(4,2) | |
+| min_pass_subjects | SMALLINT | |
+| max_failed_subjects | SMALLINT | |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id, from_grade_level_id)`
+
+### `promotion.records`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| academic_year_id | BIGINT | FK → academic_years |
+| from_grade_level_id | SMALLINT | FK → grade_levels |
+| to_grade_level_id | SMALLINT | FK → grade_levels |
+| promotion_status | SMALLINT | NOT NULL |
+| gpa_at_promotion | NUMERIC(4,2) | |
+| decided_by | BIGINT | FK → security.users |
+| decided_at | TIMESTAMPTZ | NOT NULL |
+| notes | TEXT | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(enrollment_id)`, `BTREE(academic_year_id, promotion_status)`
+
+---
+
+## Schema: `transfers` (2 tables)
+
+### `transfers.transfer_requests`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students.students |
+| from_school_id | BIGINT | FK → schools |
+| to_school_id | BIGINT | FK → schools |
+| from_enrollment_id | BIGINT | FK → enrollment.enrollments |
+| academic_year_id | BIGINT | FK → academic_years |
+| reason | TEXT | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| requested_by | BIGINT | FK → security.users |
+| requested_at | TIMESTAMPTZ | NOT NULL |
+| approved_by | BIGINT | FK → security.users, nullable |
+| approved_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `BTREE(status)`, `BTREE(academic_year_id)`
+
+### `transfers.transfer_records`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| transfer_request_id | BIGINT | FK → transfer_requests |
+| student_id | BIGINT | FK → students.students |
+| from_enrollment_id | BIGINT | FK → enrollment.enrollments |
+| to_enrollment_id | BIGINT | FK → enrollment.enrollments |
+| effective_date | DATE | NOT NULL |
+| completed_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `BTREE(transfer_request_id)`
+
+---
+
+## Schema: `graduation` (2 tables)
+
+### `graduation.eligibility_rules`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| specialization_id | BIGINT | FK → specializations, nullable |
+| min_gpa | NUMERIC(4,2) | NOT NULL |
+| min_credit_hours | SMALLINT | |
+| required_subjects | JSONB | |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`
+
+### `graduation.records`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students.students |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| academic_year_id | BIGINT | FK → academic_years |
+| graduation_date | DATE | NOT NULL |
+| final_gpa | NUMERIC(4,2) | |
+| honors | SMALLINT | |
+| graduation_number | VARCHAR(50) | UNIQUE NOT NULL |
+| approved_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_id)`, `UNIQUE(graduation_number)`, `BTREE(academic_year_id)`
+
+---
+
+## Schema: `certificates` (3 tables)
+
+### `certificates.templates`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools, nullable |
+| certificate_type | SMALLINT | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| template_storage_key | VARCHAR(500) | NOT NULL |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id, certificate_type)`
+
+### `certificates.issued_certificates`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| certificate_number | VARCHAR(50) | UNIQUE NOT NULL |
+| student_id | BIGINT | FK → students.students |
+| graduation_id | BIGINT | FK → graduation.records, nullable |
+| template_id | BIGINT | FK → templates |
+| storage_key | VARCHAR(500) | |
+| file_hash | VARCHAR(64) | |
+| verification_code | VARCHAR(100) | UNIQUE NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| issued_by | BIGINT | FK → security.users |
+| issued_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(certificate_number)`, `UNIQUE(verification_code)`, `BTREE(student_id)`
+
+### `certificates.generation_jobs`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| job_id | UUID | UNIQUE NOT NULL |
+| school_id | BIGINT | FK → schools |
+| academic_year_id | BIGINT | FK → academic_years |
+| template_id | BIGINT | FK → templates |
+| total_count | INTEGER | NOT NULL |
+| processed_count | INTEGER | NOT NULL DEFAULT 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| idempotency_key | VARCHAR(100) | UNIQUE |
+| created_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| completed_at | TIMESTAMPTZ | |
+
+**Indexes:** `BTREE(status)`, `UNIQUE(idempotency_key)`
+
+---
+
+## Schema: `documents` (1 table)
+
+### `documents.files`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| entity_type | VARCHAR(50) | NOT NULL |
+| entity_id | BIGINT | NOT NULL |
+| document_type | SMALLINT | NOT NULL |
+| storage_key | VARCHAR(500) | NOT NULL |
+| file_name | VARCHAR(255) | NOT NULL |
+| mime_type | VARCHAR(100) | NOT NULL |
+| file_size | BIGINT | NOT NULL |
+| file_hash | VARCHAR(64) | NOT NULL |
+| uploaded_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(file_hash)`
+
+---
+
+## Schema: `finance` (4 tables)
+
+### `finance.fee_types`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| amount | NUMERIC(12,2) | NOT NULL |
+| is_recurring | BOOLEAN | NOT NULL DEFAULT false |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
+
+### `finance.student_fees`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| fee_type_id | BIGINT | FK → fee_types |
+| academic_year_id | BIGINT | FK → academic_years |
+| amount | NUMERIC(12,2) | NOT NULL |
+| due_date | DATE | |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(enrollment_id)`, `BTREE(academic_year_id, status)`
+
+### `finance.payments`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_fee_id | BIGINT | FK → student_fees |
+| amount | NUMERIC(12,2) | NOT NULL CHECK (amount > 0) |
+| payment_method | SMALLINT | NOT NULL |
+| payment_reference | VARCHAR(100) | |
+| idempotency_key | VARCHAR(100) | UNIQUE |
+| paid_at | TIMESTAMPTZ | NOT NULL |
+| received_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(student_fee_id)`, `UNIQUE(idempotency_key)`
+
+### `finance.transactions` ⚡ PARTITION CANDIDATE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| student_id | BIGINT | FK → students.students |
+| academic_year_id | BIGINT | FK → academic_years |
+| transaction_type | SMALLINT | NOT NULL |
+| amount | NUMERIC(12,2) | NOT NULL |
+| balance_after | NUMERIC(12,2) | |
+| reference_type | VARCHAR(50) | |
+| reference_id | BIGINT | |
+| notes | TEXT | |
+| created_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Partition key:** `academic_year_id` or `created_at`
+
+**Indexes:** `BTREE(student_id, academic_year_id)`, `BTREE(created_at)`
+
+---
+
+## Schema: `communication` (3 tables)
+
+### `communication.notification_templates`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| code | VARCHAR(50) | UNIQUE NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| channel | SMALLINT | NOT NULL |
+| subject_template | TEXT | |
+| body_template | TEXT | NOT NULL |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(code)`
+
+### `communication.messages` ⚡ PARTITION CANDIDATE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| template_id | BIGINT | FK → notification_templates, nullable |
+| recipient_type | VARCHAR(50) | NOT NULL |
+| recipient_id | BIGINT | NOT NULL |
+| channel | SMALLINT | NOT NULL |
+| subject | TEXT | |
+| body | TEXT | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| sent_at | TIMESTAMPTZ | |
+| idempotency_key | VARCHAR(100) | UNIQUE |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Partition key:** `created_at` (range monthly/yearly)
+
+**Indexes:** `BTREE(recipient_type, recipient_id)`, `BTREE(status)`, `BTREE(created_at)`
+
+### `communication.notification_jobs`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| job_id | UUID | UNIQUE NOT NULL |
+| template_id | BIGINT | FK → notification_templates |
+| target_filter | JSONB | NOT NULL |
+| total_count | INTEGER | NOT NULL |
+| sent_count | INTEGER | NOT NULL DEFAULT 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| idempotency_key | VARCHAR(100) | UNIQUE |
+| created_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| completed_at | TIMESTAMPTZ | |
+
+**Indexes:** `BTREE(status)`
+
+---
+
+## Schema: `workflow` (2 tables)
+
+### `workflow.approval_flows`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| entity_type | VARCHAR(50) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| steps | JSONB | NOT NULL |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(entity_type)`
+
+### `workflow.approval_requests`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| flow_id | BIGINT | FK → approval_flows |
+| entity_type | VARCHAR(50) | NOT NULL |
+| entity_id | BIGINT | NOT NULL |
+| current_step | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| requested_by | BIGINT | FK → security.users |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| completed_at | TIMESTAMPTZ | |
+
+**Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(status)`
+
+---
+
+## Schema: `security` (7 tables)
+
+### `security.users`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
+| email | VARCHAR(255) | UNIQUE NOT NULL |
+| password | VARCHAR(255) | |
+| first_name | VARCHAR(100) | NOT NULL |
+| last_name | VARCHAR(100) | NOT NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 |
+| last_login_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(email)`, `PARTIAL(status) WHERE status = 1`
+
+### `security.roles`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SMALLINT | PK |
+| code | VARCHAR(50) | UNIQUE NOT NULL |
+| name | VARCHAR(100) | NOT NULL |
+| description | TEXT | |
+| is_system | BOOLEAN | NOT NULL DEFAULT false |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(code)`
+
+### `security.permissions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SMALLINT | PK |
+| code | VARCHAR(100) | UNIQUE NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| module | VARCHAR(50) | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `UNIQUE(code)`, `BTREE(module)`
+
+### `security.role_permissions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| role_id | SMALLINT | FK → roles |
+| permission_id | SMALLINT | FK → permissions |
+
+**PK:** `(role_id, permission_id)`
+
+### `security.user_roles`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| user_id | BIGINT | FK → users |
+| role_id | SMALLINT | FK → roles |
+| school_id | BIGINT | FK → schools, nullable |
+| directorate_id | BIGINT | FK → directorates, nullable |
+| effective_from | DATE | NOT NULL |
+| effective_to | DATE | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(user_id)`, `BTREE(school_id)`, `BTREE(user_id, role_id)`
+
+### `security.scopes`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| user_id | BIGINT | FK → users |
+| scope_type | VARCHAR(50) | NOT NULL |
+| scope_id | BIGINT | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(user_id)`, `UNIQUE(user_id, scope_type, scope_id)`
+
+### `security.sessions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| user_id | BIGINT | FK → users |
+| token_hash | VARCHAR(64) | UNIQUE NOT NULL |
+| ip_address | INET | |
+| user_agent | TEXT | |
+| expires_at | TIMESTAMPTZ | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(user_id)`, `UNIQUE(token_hash)`, `BTREE(expires_at)`
+
+---
+
+## Schema: `audit` (2 tables)
+
+### `audit.audit_logs` ⚡ PARTITION CANDIDATE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| user_id | BIGINT | FK → security.users, nullable |
+| action | VARCHAR(50) | NOT NULL |
+| entity_type | VARCHAR(50) | NOT NULL |
+| entity_id | BIGINT | |
+| old_values | JSONB | |
+| new_values | JSONB | |
+| ip_address | INET | |
+| user_agent | TEXT | |
+| correlation_id | VARCHAR(100) | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Partition key:** `created_at` (range monthly)
+
+**Indexes:**
+- `BTREE(entity_type, entity_id)`
+- `BTREE(user_id, created_at)`
+- `BTREE(correlation_id)`
+- `BRIN(created_at)` — for time-range scans
+
+### `audit.login_history`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| user_id | BIGINT | FK → security.users |
+| ip_address | INET | |
+| user_agent | TEXT | |
+| login_status | SMALLINT | NOT NULL |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(user_id, created_at)`, `BRIN(created_at)`
+
+---
+
+## Schema: `reports` (5 materialized views / tables)
+
+These are **not** transactional OLTP tables. Populated by background jobs.
+
+### `reports.mv_school_student_statistics`
+
+| Column | Type |
+|--------|------|
+| school_id | BIGINT |
+| academic_year_id | BIGINT |
+| total_students | INTEGER |
+| active_students | INTEGER |
+| male_count | INTEGER |
+| female_count | INTEGER |
+| graduated_count | INTEGER |
+| refreshed_at | TIMESTAMPTZ |
+
+**Refresh:** Nightly or on-demand via queue job.
+
+### `reports.mv_daily_attendance`
+
+| Column | Type |
+|--------|------|
+| school_id | BIGINT |
+| section_id | BIGINT |
+| academic_year_id | BIGINT |
+| attendance_date | DATE |
+| total_students | INTEGER |
+| present_count | INTEGER |
+| absent_count | INTEGER |
+| attendance_percentage | NUMERIC(5,2) |
+| refreshed_at | TIMESTAMPTZ |
+
+### `reports.mv_subject_results`
+
+| Column | Type |
+|--------|------|
+| school_id | BIGINT |
+| subject_id | BIGINT |
+| academic_year_id | BIGINT |
+| exam_type_id | SMALLINT |
+| total_students | INTEGER |
+| pass_count | INTEGER |
+| fail_count | INTEGER |
+| average_grade | NUMERIC(5,2) |
+| pass_rate | NUMERIC(5,2) |
+| refreshed_at | TIMESTAMPTZ |
+
+### `reports.mv_academic_performance`
+
+| Column | Type |
+|--------|------|
+| enrollment_id | BIGINT |
+| student_id | BIGINT |
+| academic_year_id | BIGINT |
+| gpa | NUMERIC(4,2) |
+| attendance_percentage | NUMERIC(5,2) |
+| rank_in_section | SMALLINT |
+| final_status | SMALLINT |
+| refreshed_at | TIMESTAMPTZ |
+
+### `reports.mv_graduation_statistics`
+
+| Column | Type |
+|--------|------|
+| school_id | BIGINT |
+| academic_year_id | BIGINT |
+| specialization_id | BIGINT |
+| eligible_count | INTEGER |
+| graduated_count | INTEGER |
+| graduation_rate | NUMERIC(5,2) |
+| refreshed_at | TIMESTAMPTZ |
+
+---
+
+## Relationship Summary
+
+```
+organization.schools
+    ├── enrollment.classes → enrollment.sections → enrollment.enrollments
+    ├── teachers.teacher_schools
+    └── curriculum.curricula
+
+students.students
+    ├── guardians.student_guardians
+    ├── enrollment.enrollments (1:N per year)
+    ├── attendance.records
+    ├── exams.student_grades
+    └── graduation.records
+
+enrollment.enrollments
+    ├── enrollment.enrollment_subjects
+    ├── attendance.records
+    ├── exams.student_grades
+    ├── results.term_results
+    ├── results.annual_results
+    └── finance.student_fees
+
+curriculum.subjects
+    ├── curriculum.curriculum_subjects
+    ├── teachers.teacher_subjects
+    ├── timetable.schedules
+    ├── attendance.sessions
+    └── exams.exam_sessions
+```
+
+## Table Count Summary
+
+| Schema | Tables |
+|--------|--------|
+| organization | 6 |
+| academic | 5 |
+| vocational | 3 |
+| students | 4 |
+| guardians | 3 |
+| admission | 3 |
+| enrollment | 4 |
+| teachers | 4 |
+| curriculum | 4 |
+| timetable | 3 |
+| attendance | 2 |
+| exams | 5 |
+| results | 3 |
+| promotion | 2 |
+| transfers | 2 |
+| graduation | 2 |
+| certificates | 3 |
+| documents | 1 |
+| finance | 4 |
+| communication | 3 |
+| workflow | 2 |
+| security | 7 |
+| audit | 2 |
+| reports | 5 |
+| **Total** | **85** |
+
+## Partition Candidates (⚡)
+
+| Table | Partition Key | Strategy |
+|-------|--------------|----------|
+| attendance.records | academic_year_id | LIST |
+| exams.student_grades | academic_year_id | LIST |
+| audit.audit_logs | created_at | RANGE (monthly) |
+| communication.messages | created_at | RANGE (monthly) |
+| finance.transactions | academic_year_id | LIST |
+
+Add partitioning when table exceeds ~10M rows or query performance degrades — not on day one.

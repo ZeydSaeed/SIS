@@ -1,0 +1,51 @@
+---
+description: MANDATORY — any database create/alter/index/delete/improvement must follow SIS architecture guides
+globs: database/**/*,app/Models/**/*
+alwaysApply: false
+---
+
+# Database Changes — Mandatory Compliance
+
+> **STOP.** Before any database work, read and follow:
+> `.cursor/skills/database-change/SKILL.md`
+> `.cursor/architecture/DATABASE-CHANGE-CHECKLIST.md`
+
+## Trigger — This Rule Applies When You
+
+- Create, alter, or drop a migration
+- Add/remove/modify a column, index, FK, or constraint
+- Create or modify an Eloquent model schema
+- Improve database performance (indexes, partitioning)
+- Update `database-blueprint.md`
+
+## Mandatory Workflow (No Skipping)
+
+```
+1. READ  database-blueprint.md        → table must exist or be added first
+2. READ  01-principles-and-layers.md  → data types, temporal rules
+3. READ  indexing-matrix.md           → if indexes involved
+4. FILL  DATABASE-CHANGE-CHECKLIST.md → every checkbox
+5. WRITE migration + model
+6. UPDATE database-blueprint.md       → ALWAYS sync reference
+7. UPDATE indexing-matrix.md          → if indexes changed
+8. VERIFY migrate up + rollback
+```
+
+## Hard Rules
+
+- Migration only — never manual production SQL
+- `$table->id()` (BIGINT) — never UUID as internal PK unless blueprint says so
+- `smallInteger` for status — never `tinyInteger`
+- FK: `->constrained()->restrictOnDelete()` — never cascade on academic tables
+- Index every FK column used in queries
+- `academic_year_id` on all academic transactional tables
+- Never hard-delete academic history — use status + effective_to
+- Blueprint MUST be updated after every schema change
+
+## If Blueprint and Request Conflict
+
+Stop and ask the user. Do not invent schema. Blueprint is the source of truth unless user explicitly approves deviation (then update blueprint first).
+
+## Skill Reference
+
+Full workflow: `.cursor/skills/database-change/SKILL.md`

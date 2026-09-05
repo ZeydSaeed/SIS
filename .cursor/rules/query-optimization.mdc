@@ -1,0 +1,63 @@
+---
+description: Query optimization and performance standards
+globs: app/**/*.php
+alwaysApply: false
+---
+
+# Query Optimization
+
+Reference: `.cursor/architecture/indexing-matrix.md`
+
+## Forbidden in Production
+```php
+// ❌ SELECT *
+Student::all();
+
+// ❌ N+1
+$enrollments = Enrollment::all();
+foreach ($enrollments as $e) { $e->student; }
+
+// ❌ Unbounded queries
+Attendance::where('school_id', $id)->get(); // no date limit
+```
+
+## Required Patterns
+```php
+// ✅ Select only needed columns
+Student::select(['id', 'student_code', 'full_name'])->...
+
+// ✅ Eager load
+Enrollment::with(['student:id,full_name', 'section'])->...
+
+// ✅ Paginate or cursor
+Enrollment::where('academic_year_id', $yearId)->cursorPaginate(50);
+
+// ✅ Scope by academic year always
+Attendance::forAcademicYear($yearId)->where('student_id', $id)->...
+```
+
+## Cache Reference Data
+```php
+Cache::remember("schools.{$directorateId}", 3600, fn () =>
+    School::where('directorate_id', $directorateId)->where('status', 1)->get()
+);
+```
+
+## Before Adding an Index
+1. Identify slow query via logs/monitoring
+2. Run EXPLAIN ANALYZE
+3. Check if existing index covers it
+4. Add index via migration
+5. Re-measure
+
+## Bulk Operations
+```php
+// ✅ Batch insert
+Student::insert($rows); // chunks of 500
+
+// ✅ Queue for 1000+ records
+ImportStudentsJob::dispatch($filePath, $idempotencyKey);
+```
+
+## Reports
+Dashboard reads from materialized views or cached aggregates — not live JOINs across 10+ OLTP tables.
