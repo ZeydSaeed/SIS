@@ -1548,4 +1548,4 @@ curriculum.subjects
 
 **45K scenario:** attendance.records and student_grades **must** be partitioned from first migration — not deferred.
 
-See: [capacity-planning-45k.md](./capacity-planning-45k.md), [phases/PHASE-C-OPERATIONS.md](./phases/PHASE-C-OPERATIONS.md)
+See: [capacity-planning.md](./capacity-planning.md) (authoritative), [capacity-planning-45k.md](./capacity-planning-45k.md) (baseline snapshot), [phases/PHASE-C-OPERATIONS.md](./phases/PHASE-C-OPERATIONS.md)

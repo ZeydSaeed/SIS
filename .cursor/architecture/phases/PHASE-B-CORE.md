@@ -97,5 +97,5 @@ ALTER TABLE enrollment.enrollments ENABLE ROW LEVEL SECURITY;
 ## مراجع
 
 - Blueprint: students, guardians, enrollment, curriculum, vocational, teachers
-- Capacity: `capacity-planning-45k.md`
+- Capacity: `capacity-planning.md` (45K = baseline)
 - Indexing: `indexing-matrix.md`

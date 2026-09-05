@@ -1,7 +1,7 @@
 # Improvement Priority Matrix
 
-> **Updated for:** 45K student province scenario (20 schools × 10 years)  
-> **See also:** [capacity-planning-45k.md](./capacity-planning-45k.md)
+> **Updated for:** Adaptive governance + 45K baseline (20 schools × 10 years)  
+> **See also:** [capacity-planning.md](./capacity-planning.md) (authoritative) · [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)
 
 ## Full Matrix — Standard
 
@@ -58,7 +58,8 @@ These items change priority for the province deployment:
 | 28 | Batch attendance writes | **P0** | batch-write-patterns.md |
 | 29 | Peak hour queue scaling | **P0** | peak-hour-strategy.md |
 | 30 | PostgreSQL production tuning | **P0** | postgresql-tuning.md |
-| 31 | Capacity planning 45K | **P0** | capacity-planning-45k.md |
+| 31 | Capacity planning (dynamic) | **P0** | capacity-planning.md |
+| 31b | Capacity baseline 45K snapshot | **P0** | capacity-planning-45k.md |
 | 32 | Production readiness checklist | **P0** | production-readiness.md |
 | 33 | Phase implementation guides | **P0** | phases/PHASE-*.md |
 | 34 | RLS policies (20 schools) | **P0** | rls-policies.md |
@@ -77,34 +78,47 @@ These items change priority for the province deployment:
 | 47 | React/Inertia rules | **P1** | rules/react-inertia.mdc |
 | 48 | Normalization 1NF–4NF + CQRS | **P0** | normalization-and-cqrs.md |
 | 49 | Data quality rules | **P1** | data-quality-rules.md |
-| 50 | ADRs (8 decisions) | **P1** | adr/*.md |
+| 50 | ADRs (9 decisions) | **P1** | adr/*.md |
+| 51 | Adaptive Database Governance | **P0** | DATABASE-ADAPTIVE-GOVERNANCE.md |
+| 52 | Performance Budget | **P0** | PERFORMANCE-BUDGET.md |
+| 53 | Data Lifecycle Matrix | **P1** | DATA-LIFECYCLE-MATRIX.md |
+| 54 | Schema Change Impact Analysis | **P0** | schema-change-impact.md |
+| 55 | Logical Data Architecture | **P1** | logical-data-architecture.md |
+| 56 | Database Intelligence Layer | **P1** | DATABASE-INTELLIGENCE-LAYER.md |
+| 57 | Expert Knowledge Base | **P1** | DATABASE-KNOWLEDGE-BASE.md |
+| 58 | Optimization Learning | **P2** | DATABASE-OPTIMIZATION-LEARNING.md |
+| 59 | Self-Healing Runbook | **P2** | SELF-HEALING-RUNBOOK.md |
+| 60 | ADR-010 Intelligence Layer | **P1** | adr/ADR-010-intelligence-layer.md |
 
-## Self-Assessment — v2.1 (Post-Documentation)
+## Self-Assessment — v3.0 (Intelligence Layer)
 
 | Layer | Score | Notes |
 |-------|------:|-------|
 | Database Architecture | 92 | 89 tables, blueprint + dictionary |
 | Data Integrity | 94 | Constraints + governance |
 | PostgreSQL Design | 91 | Partitioning, RLS, types |
-| Indexing | 90 | Matrix + INDEX-GOVERNANCE |
-| Partitioning | 92 | P0 from year 1 for 45K |
-| Performance Design | 90 | Batch, summary, MV |
-| Scalability 45K | 90 | Capacity doc complete |
+| Indexing | 91 | Matrix + adaptive INDEX-GOVERNANCE |
+| Partitioning | 92 | P0 from year 1 for 45K baseline |
+| Performance Design | 91 | Batch, summary, MV + PERFORMANCE-BUDGET |
+| Scalability 45K | 91 | Dynamic capacity model |
+| Adaptive Governance | 92 | Feedback loop + measurement-based |
+| **Intelligence Layer** | **88** | Expert KB + learning design — ops pending |
+| **Self-Healing** | **85** | Runbook documented — not operational |
 | Redis/Caching | 88 | + invalidation map |
-| Reporting | 89 | 8 MV + CQRS read side |
+| Reporting | 89 | MV candidates (not fixed count) |
 | Security/RLS/Audit | 88 | RLS + policies doc |
 | Backup/PITR | 80 | Config documented |
 | Disaster Recovery | **88** | dr-runbook added |
-| Monitoring | 80 | Thresholds in production-readiness |
+| Monitoring | 82 | + intelligence layer requirements |
 | Load/Stress Testing | **75** | Strategy + template (not executed) |
 | Laravel Architecture | **82** | laravel-architecture.md |
 | React/Inertia | **75** | react-inertia.mdc |
-| Dev Governance / Cursor | 96 | Skills + rules + ADRs |
+| Dev Governance / Cursor | 98 | Skills + rules + ADR-009/010 |
 | Production Readiness | **85** | Checklists complete, not proven |
 
-### **Overall: 87/100 — Strong Enterprise Foundation**
+### **Overall: 91/100 — Adaptive Expert Database Architecture**
 
-Path to **95+:** Execute load tests, DR drill, seed 45K, fill load-test-results.md.
+Path to **95+:** Operationalize Phases 2–3 (monitoring + rule engine), execute load tests, DR drill, populate optimization event log.
 
 ## Maturity Levels
 

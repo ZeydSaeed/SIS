@@ -10,7 +10,12 @@
 
 | الملف | الحالة | الغرض |
 |-------|--------|-------|
-| `capacity-planning-45k.md` | ✅ | حسابات الحجم |
+| `capacity-planning.md` | ✅ | نموذج السعة الديناميكي (مرجعي) |
+| `capacity-planning-45k.md` | ✅ | لقطة baseline 45K |
+| `DATABASE-INTELLIGENCE-LAYER.md` | ✅ | طبقة الذكاء — Expert + Learning |
+| `DATABASE-KNOWLEDGE-BASE.md` | ✅ | قاعدة المعرفة |
+| `SELF-HEALING-RUNBOOK.md` | ✅ | إصلاح ذاتي آمن |
+| `PERFORMANCE-BUDGET.md` | ✅ | أهداف أداء قابلة للقياس |
 | `batch-write-patterns.md` | ✅ | كتابة جماعية للحضور |
 | `postgresql-tuning.md` | ✅ | إعدادات PostgreSQL |
 | `peak-hour-strategy.md` | ✅ | ذروة 8:00–8:30 |
@@ -92,7 +97,7 @@
 |--------|--------|
 | PgBouncer + Read Replica | production-readiness.md |
 | PostgreSQL tuning | postgresql-tuning.md |
-| Load testing | capacity-planning-45k.md + load-test-results.md |
+| Load testing | capacity-planning.md + load-test-results.md |
 | Monitoring + PITR | production-readiness.md |
 
 ---
@@ -125,7 +130,10 @@ production-readiness checklist → go-live
 
 | الموضوع | الملف |
 |---------|-------|
-| حجم 45K | [capacity-planning-45k.md](./capacity-planning-45k.md) |
+| حجم / سعة | [capacity-planning.md](./capacity-planning.md) |
+| baseline 45K | [capacity-planning-45k.md](./capacity-planning-45k.md) |
+| حوكمة تكيفية | [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md) |
+| طبقة الذكاء | [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md) |
 | أولويات | [improvement-matrix.md](./improvement-matrix.md) |
 | Phase A | [phases/PHASE-A-FOUNDATION.md](./phases/PHASE-A-FOUNDATION.md) |
 | Phase B | [phases/PHASE-B-CORE.md](./phases/PHASE-B-CORE.md) |

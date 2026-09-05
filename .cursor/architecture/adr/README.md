@@ -12,6 +12,8 @@
 | [ADR-006](./ADR-006-read-replica.md) | Read replica at launch | Accepted |
 | [ADR-007](./ADR-007-reporting.md) | Materialized views | Accepted |
 | [ADR-008](./ADR-008-cqrs-lite.md) | CQRS-lite, no microservices | Accepted |
+| [ADR-009](./ADR-009-adaptive-governance.md) | Adaptive Database Governance | Accepted |
+| [ADR-010](./ADR-010-intelligence-layer.md) | Database Intelligence Layer | Accepted |
 
 ## When to Create New ADR
 

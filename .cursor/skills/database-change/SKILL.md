@@ -24,6 +24,9 @@ Read the relevant sections from these files **before** creating or editing anyth
 | `.cursor/architecture/improvement-matrix.md` | Partitioning, performance improvements |
 | `.cursor/brain/student-lifecycle.md` | Tables tied to enrollment, grades, attendance |
 | `.cursor/architecture/DATABASE-CHANGE-CHECKLIST.md` | Always — complete the checklist |
+| `.cursor/architecture/schema-change-impact.md` | Always — impact analysis per change |
+| `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md` | Indexes, partitions, cache, MV decisions |
+| `.cursor/architecture/PERFORMANCE-BUDGET.md` | Performance claims require before/after metrics |
 
 ## Step 1 — Classify the Change
 
@@ -31,8 +34,8 @@ Read the relevant sections from these files **before** creating or editing anyth
 |------|----------|-------------------|
 | **CREATE** | New table | Define in blueprint first if missing; pick correct schema |
 | **ALTER** | Add/drop/modify column | Never drop academic history columns; prefer additive changes |
-| **INDEX** | Add/drop/improve index | Must justify via query pattern; read indexing-matrix |
-| **FK** | Add/change relationship | Index the FK column; explicit onDelete behavior |
+| **INDEX** | Add/drop/improve index | Must justify via query pattern + EXPLAIN; read INDEX-GOVERNANCE + adaptive rules |
+| **FK** | Add/change relationship | Index FK column **only if** used in JOINs/WHERE (not automatic) |
 | **CONSTRAINT** | CHECK, UNIQUE | Enforce in DB, not app-only |
 | **PARTITION** | High-growth table | Only per improvement-matrix; academic_year_id or created_at |
 | **DELETE** | Drop table/column | **Forbidden** for official academic data; require explicit user approval |
@@ -47,7 +50,7 @@ Answer ALL before writing migration:
 [ ] PK is BIGINT IDENTITY ($table->id())
 [ ] academic_year_id included if table is academic/transactional
 [ ] FK constraints defined with restrictOnDelete() (not cascade for academic data)
-[ ] FK columns have B-Tree index if used in JOINs/WHERE
+[ ] FK columns have B-Tree index ONLY if used in JOINs/WHERE (not every FK)
 [ ] No TINYINT — use smallInteger() for status/enums
 [ ] Timestamps: timestamps() on transactional tables
 [ ] Temporal entities have effective_from / effective_to
@@ -55,7 +58,9 @@ Answer ALL before writing migration:
 [ ] CHECK constraints for bounded values (grades 0–100, etc.)
 [ ] File content stored in object storage — DB stores metadata only
 [ ] Index additions justified (not speculative)
-[ ] Partition only if table is in partition candidates list
+[ ] Partition only if decision tree in DATABASE-ADAPTIVE-GOVERNANCE says YES
+[ ] schema-change-impact.md checklist completed for this change
+[ ] Performance claims include before/after metrics if optimizing
 ```
 
 ## Step 3 — Write Migration
@@ -173,11 +178,13 @@ Verify migrate up/down
 
 ## When User Says "Improve Performance"
 
-1. Read `.cursor/architecture/indexing-matrix.md`
-2. Identify slow query pattern (must be stated or inferred from context)
-3. Check if existing index covers the query
-4. Add index via migration — not raw SQL
-5. Update indexing-matrix.md with new index entry
-6. Document expected query improvement
+1. Read `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md`
+2. Read `.cursor/architecture/indexing-matrix.md`
+3. Identify slow query pattern — require EXPLAIN ANALYZE before/after
+4. Check if existing index covers the query
+5. Document evidence: P95 before → P95 after (PERFORMANCE-BUDGET.md)
+6. Add index via migration — not raw SQL
+7. Update indexing-matrix.md with new index entry
 
-Never add indexes "just in case" — every index must have a stated query purpose.
+Never add indexes "just in case" — every index must have measured query purpose.
+Never optimize for a fixed student count — optimize for measured workload.

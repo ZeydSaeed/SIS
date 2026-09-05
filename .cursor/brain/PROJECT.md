@@ -5,10 +5,10 @@
 Enterprise Student Information System (SIS) designed for long-term growth, high concurrency, and 20+ years of academic data retention.
 
 **Stack:** Laravel 13 + Inertia.js + React 19 + PostgreSQL + Redis  
-**Status:** Reference documentation v2.1 complete — no database deployed.  
+**Status:** Reference documentation v3.0 complete — no database deployed.  
 **Maturity:** Architecture Ready ✅ | Development Ready ✅ | Production Proven ⏳  
-**Score:** 87/100 — Strong Enterprise Foundation  
-**Target scale:** 45,000 students, 20 schools, 10 years — see `capacity-planning-45k.md`
+**Score:** 91/100 — Adaptive Expert Database Architecture  
+**Baseline scale:** 45,000 students, 20 schools, 10 years — see `capacity-planning.md` (45K is baseline, not ceiling)
 
 ## What This System Is
 
@@ -58,8 +58,12 @@ Every academic operation is scoped to an **Academic Year**.
 6. Heavy operations run asynchronously (queues).
 7. Heavy reports read from materialized views, not raw OLTP joins.
 8. Every important query must be measured (`EXPLAIN ANALYZE`).
-9. Add indexes only based on real usage.
+9. Add indexes only based on real usage — never auto-index every FK.
 10. Design must allow growth without full rebuild.
+11. **DO NOT OPTIMIZE FOR A NUMBER. OPTIMIZE FOR A MEASURED WORKLOAD.**
+12. Optimization must never change business correctness (Correctness > Performance).
+13. **PostgreSQL = source of truth.** Intelligence layer recommends — never auto-modifies schema.
+14. Self-Healing limited to Tier 1 safe ops (pool, replica routing) — see SELF-HEALING-RUNBOOK.md.
 
 ## Four Architecture Layers
 
@@ -82,6 +86,11 @@ Layer 4 — Resilience        : Backup, PITR, DR, Monitoring, Archiving, Load Te
 
 - Index: `.cursor/architecture/README.md`
 - Work plan: `.cursor/architecture/WORK-PLAN.md`
+- Intelligence layer: `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md`
+- Knowledge base: `.cursor/architecture/DATABASE-KNOWLEDGE-BASE.md`
+- Adaptive governance: `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md`
+- Capacity model: `.cursor/architecture/capacity-planning.md`
+- Performance budget: `.cursor/architecture/PERFORMANCE-BUDGET.md`
 - Blueprint: `.cursor/architecture/database-blueprint.md` (**89 tables**)
 - ERD: `.cursor/architecture/erd-overview.md`
 - Dictionary: `.cursor/architecture/database-dictionary.md`

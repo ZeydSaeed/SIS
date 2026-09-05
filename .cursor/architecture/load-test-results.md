@@ -2,7 +2,7 @@
 
 > **Scenario:** 45K students, 20 schools, 900 sections  
 > **Environment:** Staging (must mirror production hardware)  
-> **Reference:** [capacity-planning-45k.md](./capacity-planning-45k.md)
+> **Reference:** [capacity-planning.md](./capacity-planning.md) · [capacity-planning-45k.md](./capacity-planning-45k.md) (baseline)
 
 ## Test Environment
 

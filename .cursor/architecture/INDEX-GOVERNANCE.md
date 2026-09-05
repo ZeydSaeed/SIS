@@ -1,7 +1,8 @@
 # Index Governance
 
 > Every index must be justified, measured, and reviewable.  
-> **Rule:** No index without documented query purpose.
+> **Rule:** No index without documented query purpose.  
+> **Adaptive rule:** Indexes are governed by query frequency, latency, selectivity, write overhead, and table cardinality — not by static lists forever.
 
 ## Why This Exists
 
@@ -69,10 +70,35 @@ Store completed templates in migration PR description or team wiki.
 | Trigger | Action |
 |---------|--------|
 | New migration with index | PR review + template filled |
+| New table / FK added | Impact analysis — index only if JOIN/WHERE proven |
 | Quarterly | Review pg_stat_user_indexes unused indexes |
 | After bulk import | ANALYZE affected tables |
 | dead_pct > 30% | REINDEX CONCURRENTLY |
 | Table > 10M rows | Review partition vs new index |
+| Student count ±50% from baseline | Capacity review → index reassessment |
+| idx_scan = 0 for 90 days | Review/Remove candidate (see adaptive governance) |
+
+---
+
+## Adaptive Index Decisions
+
+| Signal | Decision |
+|--------|----------|
+| High usage + high latency | Keep or improve |
+| High usage + acceptable latency | Keep |
+| Zero usage (90+ days) | Review → Remove if confirmed unused |
+| Low-cardinality table (< 10K rows) | Defer index unless query proven slow |
+| Write-heavy table + marginal benefit | Reject or partial index |
+
+See [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md) § Index Adaptation.
+
+**Evidence required:**
+
+```text
+Before: P95 = X ms (EXPLAIN)
+After:  P95 = Y ms (EXPLAIN)
+Write overhead estimate: Z%
+```
 
 ---
 
@@ -90,9 +116,9 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 
 ---
 
-## 45K Scenario — Approved Core Indexes
+## 45K Baseline — Core Indexes (Starting Point)
 
-See `indexing-matrix.md` for full list. These are **P0 — do not remove**:
+See `indexing-matrix.md` for full list. These are **P0 at baseline** — re-evaluate if workload changes:
 
 - `enrollment.enrollments (school_id, academic_year_id)`
 - `attendance.records (student_id, attendance_date)`
@@ -100,10 +126,13 @@ See `indexing-matrix.md` for full list. These are **P0 — do not remove**:
 - `exams.student_grades (student_id, academic_year_id)`
 - Partial: `students WHERE status = 1`
 
+**Do not remove** without quarterly review + evidence that queries no longer need them.
+
 ---
 
 ## Related
 
+- [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)
 - [indexing-matrix.md](./indexing-matrix.md)
 - [DATABASE-GOVERNANCE.md](./DATABASE-GOVERNANCE.md)
 - [postgresql-tuning.md](./postgresql-tuning.md)

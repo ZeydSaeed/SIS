@@ -103,5 +103,5 @@ schedules → Phase C+ (when UI ready)
 
 - `batch-write-patterns.md`
 - `peak-hour-strategy.md`
-- `capacity-planning-45k.md`
+- `capacity-planning.md`
 - `indexing-matrix.md` → attendance section

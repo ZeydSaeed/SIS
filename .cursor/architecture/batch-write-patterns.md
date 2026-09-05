@@ -1,7 +1,7 @@
 # Batch Write Patterns
 
 > **Mandatory for:** Attendance, bulk import, mass grade entry, certificate generation  
-> **Scale context:** 45,000 students — see [capacity-planning-45k.md](./capacity-planning-45k.md)
+> **Scale context:** 45,000 students baseline — see [capacity-planning.md](./capacity-planning.md)
 
 ## Rule
 

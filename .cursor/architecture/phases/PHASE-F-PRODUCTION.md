@@ -30,7 +30,7 @@ Read Replica (8 vCPU, 16GB)
 
 ```
 Week -4: Load test environment (copy of production schema + synthetic 45K data)
-Week -3: Load tests 1–7 (capacity-planning-45k.md)
+Week -3: Load tests 1–7 (capacity-planning.md)
 Week -2: PITR restore test, DR drill
 Week -1: production-readiness.md checklist 100%
 Day 0:  Go-live with monitoring
@@ -99,6 +99,7 @@ Monthly: full restore test to staging
 
 - `production-readiness.md`
 - `postgresql-tuning.md`
-- `capacity-planning-45k.md`
+- `capacity-planning.md` (authoritative)
+- `capacity-planning-45k.md` (baseline snapshot)
 - `peak-hour-strategy.md`
 - `load-test-results.md`

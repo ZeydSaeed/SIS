@@ -38,7 +38,7 @@
 
 ## Load Testing Checklist
 
-Run before production (see [capacity-planning-45k.md](./capacity-planning-45k.md)):
+Run before production (see [capacity-planning.md](./capacity-planning.md)):
 
 | # | Scenario | Concurrent | Pass |
 |---|----------|-----------|------|

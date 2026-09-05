@@ -42,5 +42,6 @@ Academic year matches query patterns:
 
 ## Related
 
-- [capacity-planning-45k.md](../capacity-planning-45k.md)
+- [capacity-planning.md](../capacity-planning.md) (authoritative)
+- [capacity-planning-45k.md](../capacity-planning-45k.md) (baseline snapshot)
 - [phases/PHASE-C-OPERATIONS.md](../phases/PHASE-C-OPERATIONS.md)

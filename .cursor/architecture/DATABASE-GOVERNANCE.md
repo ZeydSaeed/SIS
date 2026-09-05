@@ -36,6 +36,8 @@ Change Request
      ↓
 Read database-blueprint.md + DATABASE-CHANGE-CHECKLIST.md
      ↓
+Schema change impact analysis (schema-change-impact.md)
+     ↓
 Write migration (versioned)
      ↓
 Code review (schema + performance impact)
@@ -50,6 +52,41 @@ Deploy staging → verify → production
      ↓
 Post-deploy: ANALYZE if bulk change
 ```
+
+---
+
+## Governance Stack
+
+```text
+DATABASE GOVERNANCE
+│
+├── DATABASE-GOVERNANCE.md              ← change control (this file)
+├── DATABASE-ADAPTIVE-GOVERNANCE.md     ← optimization by measurement
+├── DATABASE-INTELLIGENCE-LAYER.md      ← expert + learning + self-healing (v3.0)
+├── DATABASE-KNOWLEDGE-BASE.md
+├── DATABASE-OPTIMIZATION-LEARNING.md
+├── SELF-HEALING-RUNBOOK.md
+├── schema-change-impact.md             ← per-change impact analysis
+├── DATABASE-CHANGE-CHECKLIST.md
+├── INDEX-GOVERNANCE.md
+├── DATA-LIFECYCLE-MATRIX.md
+├── PERFORMANCE-BUDGET.md
+├── capacity-planning.md                ← dynamic model (45K = baseline)
+├── ZERO-DOWNTIME-MIGRATIONS.md
+├── DATA-QUALITY-RULES.md
+├── DR-RUNBOOK.md
+└── adr/ (001–009)
+```
+
+**Principle:** DO NOT OPTIMIZE FOR A NUMBER. OPTIMIZE FOR A MEASURED WORKLOAD.
+
+**Priority stack:**
+
+```text
+Correctness > Security > Integrity > Availability > Performance > Storage
+```
+
+Optimization must never change business correctness.
 
 ---
 
@@ -73,6 +110,11 @@ Post-deploy: ANALYZE if bulk change
 | Index strategy | `indexing-matrix.md` + `INDEX-GOVERNANCE.md` |
 | Column meanings | `database-dictionary.md` |
 | Priorities (45K) | `improvement-matrix.md` |
+| Capacity model | `capacity-planning.md` (45K = baseline, not ceiling) |
+| Adaptive optimization | `DATABASE-ADAPTIVE-GOVERNANCE.md` |
+| Intelligence layer | `DATABASE-INTELLIGENCE-LAYER.md` |
+| Expert knowledge base | `DATABASE-KNOWLEDGE-BASE.md` |
+| Performance targets | `PERFORMANCE-BUDGET.md` |
 | Architecture decisions | `adr/*.md` |
 
 **Rule:** If WORK-PLAN or other docs disagree with blueprint table count — **blueprint wins**.
@@ -103,6 +145,9 @@ Post-deploy: ANALYZE if bulk change
 
 ## Related Documents
 
+- [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)
+- [schema-change-impact.md](./schema-change-impact.md)
+- [PERFORMANCE-BUDGET.md](./PERFORMANCE-BUDGET.md)
 - [INDEX-GOVERNANCE.md](./INDEX-GOVERNANCE.md)
 - [zero-downtime-migrations.md](./zero-downtime-migrations.md)
 - [DATABASE-CHANGE-CHECKLIST.md](./DATABASE-CHANGE-CHECKLIST.md)

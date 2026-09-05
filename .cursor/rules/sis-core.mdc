@@ -21,6 +21,10 @@ Laravel 13 + Inertia/React + PostgreSQL + Redis. Reference architecture in `.cur
 8. Idempotency keys for payments, imports, certificates, notifications
 9. Correlation ID on every request for audit tracing
 10. Measure slow queries with EXPLAIN ANALYZE before adding indexes
+11. DO NOT OPTIMIZE FOR A NUMBER — optimize for measured workload (DATABASE-ADAPTIVE-GOVERNANCE.md)
+12. Every optimization requires before/after evidence (PERFORMANCE-BUDGET.md)
+13. PostgreSQL = source of truth — intelligence layer recommends only, never auto-modifies schema (DATABASE-INTELLIGENCE-LAYER.md)
+14. Self-Healing: Tier 1 safe ops only — pool resize, replica routing (SELF-HEALING-RUNBOOK.md)
 
 ## Data Types (PostgreSQL)
 - PKs: `BIGINT GENERATED ALWAYS AS IDENTITY`
@@ -31,16 +35,18 @@ Laravel 13 + Inertia/React + PostgreSQL + Redis. Reference architecture in `.cur
 ## Module Implementation Order
 organization → academic → security → students → enrollment → curriculum → teachers → attendance → exams → lifecycle modules
 
-## 45K Scenario (20 schools, 10 years)
-- 45,000 active students → partition attendance.records from year 1 (P0)
+## 45K Baseline (20 schools, 10 years)
+- 45,000 active students = **baseline**, not architectural ceiling
+- Partition attendance.records from year 1 at baseline (P0) — re-evaluate if volume drops
 - daily_section_summary required for dashboards (P0)
 - Batch writes for attendance — never row-by-row (batch-write-patterns.md)
 - Phase 2 infra from launch: PgBouncer + Read Replica
-- Capacity: `.cursor/architecture/capacity-planning-45k.md`
+- Capacity: `.cursor/architecture/capacity-planning.md` (dynamic model)
+- Adaptive rules: `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md`
 - Implementation: `.cursor/architecture/WORK-PLAN.md`
 
 ## Database Changes — MANDATORY
-Any DB change MUST follow: database-change/SKILL.md → DATABASE-CHANGE-CHECKLIST.md → update database-blueprint.md
+Any DB change MUST follow: database-change/SKILL.md → schema-change-impact.md → DATABASE-CHANGE-CHECKLIST.md → update database-blueprint.md
 
 ## Database Blueprint
 89 tables: `.cursor/architecture/database-blueprint.md`
