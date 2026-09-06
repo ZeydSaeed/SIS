@@ -1549,3 +1549,24 @@ curriculum.subjects
 **45K scenario:** attendance.records and student_grades **must** be partitioned from first migration — not deferred.
 
 See: [capacity-planning.md](./capacity-planning.md) (authoritative), [capacity-planning-45k.md](./capacity-planning-45k.md) (baseline snapshot), [phases/PHASE-C-OPERATIONS.md](./phases/PHASE-C-OPERATIONS.md)
+
+---
+
+## Schema: `intelligence` (9 tables — Runtime Platform)
+
+> **Not counted in the 89 academic tables.** Operational intelligence layer — see `DATABASE-INTELLIGENCE-LAYER.md`.
+
+| Table | Purpose |
+|-------|---------|
+| `monitoring_snapshots` | Health metrics (size, connections, cache hit, replica lag) |
+| `table_metrics` | Per-table size, growth, seq_scan ratio |
+| `query_metrics` | P50/P95/P99, degradation vs baseline |
+| `detections` | Threshold + expert detections |
+| `recommendations` | Explainability package pending approval |
+| `optimization_events` | Before/after logged optimizations (Tier 2+) |
+| `baseline_snapshots` | Adaptive threshold baselines |
+| `human_feedback_events` | Approved/rejected/modified learning signal |
+| `self_healing_actions` | Tier 1 auto-healing audit trail |
+
+**Migration:** `2026_09_06_100000_create_intelligence_tables.php`  
+**Runtime:** `app/Intelligence/` + `config/intelligence.php` + `php artisan intelligence:guardian`

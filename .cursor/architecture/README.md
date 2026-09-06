@@ -55,6 +55,7 @@
 ### Application Layer
 | File | Topic |
 |------|-------|
+| [ARCHITECTURE-STACK.md](./ARCHITECTURE-STACK.md) | **Clean + DDD + CQRS — enforced stack** |
 | [laravel-architecture.md](./laravel-architecture.md) | Services, Actions, Jobs |
 | [api-conventions.md](./api-conventions.md) | Routes, Inertia, pagination |
 | [rules/react-inertia.mdc](../rules/react-inertia.mdc) | Frontend RTL/Arabic |

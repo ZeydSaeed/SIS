@@ -1,0 +1,110 @@
+---
+description: Clean Architecture + DDD + CQRS enforcement for all app/ code — mandatory layer rules
+globs: app/**/*.php
+alwaysApply: false
+---
+
+# Clean Architecture — Mandatory (SIS)
+
+Read `.cursor/architecture/ARCHITECTURE-STACK.md` before creating or editing application code.
+
+## Where New Code Goes
+
+| You are building | Location | Never put it in |
+|------------------|----------|-----------------|
+| Business rules | `app/Domain/{Context}/` | Controller, Model |
+| Write use case | `app/Application/{Context}/Commands/` | Controller |
+| Read use case | `app/Application/{Context}/Queries/` | Controller |
+| Eloquent / DB | `app/Infrastructure/Persistence/` | Domain |
+| HTTP entry | `app/Http/Controllers/` | — |
+| Authorization | Policy + `SchoolContextMiddleware` | Controller if/else |
+
+## Controller Rules (thin)
+
+```php
+// ✅ GOOD
+public function store(EnrollStudentRequest $request, EnrollStudentHandler $handler): RedirectResponse
+{
+    $this->authorize('create', Enrollment::class);
+    $handler->handle(EnrollStudentCommand::fromRequest($request));
+    return redirect()->back();
+}
+
+// ❌ BAD — business logic + DB in controller
+public function store(Request $request) {
+    DB::transaction(function () { Enrollment::create(...); });
+}
+```
+
+## Domain Layer — Forbidden Imports
+
+In `app/Domain/**` never use:
+
+- `Illuminate\*`
+- `App\Models\*`
+- `DB`, `Cache`, `Queue`, Eloquent
+
+Use pure PHP, `DateTimeImmutable`, domain interfaces.
+
+## Application Layer
+
+- Handlers inject **repository interfaces** (ports) from Domain
+- Use `UnitOfWork` for transactions — not raw `DB::` in handlers when avoidable
+- Dispatch domain events **after** successful commit
+- Heavy work → `Job::dispatch()` — never block HTTP
+
+## CQRS
+
+- **Command** = changes state, returns void or ID
+- **Query** = read-only, returns DTO/array, no side effects
+- Do not mix write + read in same handler class
+
+## DDD Bounded Contexts
+
+Use context folder names: `Student`, `Enrollment`, `Attendance`, `Exams`, `School`, `Security`, `Shared`.
+
+One aggregate root per transaction when possible.
+
+## Specification Pattern
+
+Complex eligibility rules → `Domain\{Context}\Specifications\*Specification` implementing `Specification` interface.
+
+## Repository Pattern
+
+- Interface: `Domain\{Context}\Repositories\{Entity}RepositoryInterface`
+- Implementation: `Infrastructure\Persistence\{Context}\Eloquent{Entity}Repository`
+- Bind in `ArchitectureServiceProvider`
+
+Do **not** create repository for every model — only when query complexity or testing isolation warrants it.
+
+## Events
+
+- Domain event class in `Domain\{Context}\Events\`
+- Listener in `app/Listeners/` or `Infrastructure/` — audit, cache, intelligence
+
+## Security (dual layer)
+
+1. Laravel Policy + Form Request authorization
+2. `school_id` + `academic_year_id` on all academic commands
+3. RLS via `SchoolContextMiddleware` on authenticated routes
+
+## Scaffolding
+
+Use artisan generators (do not hand-create wrong structure):
+
+```bash
+php artisan sis:make-command Enrollment EnrollStudent
+php artisan sis:make-query Student GetStudentProfile
+php artisan architecture:validate
+```
+
+## Legacy Code
+
+Existing `app/Services/*` and `app/Models/*` — migrate to Application/Infrastructure when touched. Do not add new business logic to legacy paths.
+
+## Principles
+
+- **SOLID** — single responsibility per handler/service
+- **DRY** — shared specs/value objects in Domain/Shared
+- **KISS** — no pattern without measured need
+- **YAGNI** — P0/P1 first; CQRS only where read/write paths diverge

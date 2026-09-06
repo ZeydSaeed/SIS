@@ -35,6 +35,7 @@ class SchemaHelper
             'security',
             'audit',
             'reports',
+            'intelligence',
         ];
     }
 

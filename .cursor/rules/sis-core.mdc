@@ -25,6 +25,12 @@ Laravel 13 + Inertia/React + PostgreSQL + Redis. Reference architecture in `.cur
 12. Every optimization requires before/after evidence (PERFORMANCE-BUDGET.md)
 13. PostgreSQL = source of truth — intelligence layer recommends only, never auto-modifies schema (DATABASE-INTELLIGENCE-LAYER.md)
 14. Self-Healing: Tier 1 safe ops only — pool resize, replica routing (SELF-HEALING-RUNBOOK.md)
+15. Application code follows Clean Architecture — Domain/Application/Infrastructure; use `application-feature` skill + `architecture:validate`
+
+## Application Architecture
+- Read `.cursor/architecture/ARCHITECTURE-STACK.md` before new features
+- Use `php artisan sis:make-command` / `sis:make-query` — do not hand-scaffold wrong layers
+- Controllers delegate to Application handlers — no DB:: or Eloquent in controllers
 
 ## Data Types (PostgreSQL)
 - PKs: `BIGINT GENERATED ALWAYS AS IDENTITY`

@@ -1,7 +1,8 @@
 # Laravel Application Architecture
 
-> **Target:** Thin controllers, testable services, clear data flow  
-> **Current maturity:** ~65–70% documented → target 82%+ with this guide
+> **Authoritative stack:** [ARCHITECTURE-STACK.md](./ARCHITECTURE-STACK.md) — Clean + DDD + CQRS + enforcement  
+> **Target:** Thin controllers, testable use cases, domain independent of Laravel  
+> **Enforcement:** `.cursor/rules/clean-architecture.mdc` + `php artisan architecture:validate`
 
 ## Layer Diagram
 
