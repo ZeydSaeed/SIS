@@ -78,7 +78,7 @@ These items change priority for the province deployment:
 | 47 | React/Inertia rules | **P1** | rules/react-inertia.mdc |
 | 48 | Normalization 1NF–4NF + CQRS | **P0** | normalization-and-cqrs.md |
 | 49 | Data quality rules | **P1** | data-quality-rules.md |
-| 50 | ADRs (9 decisions) | **P1** | adr/*.md |
+| 50 | ADRs (11 decisions) | **P1** | adr/*.md |
 | 51 | Adaptive Database Governance | **P0** | DATABASE-ADAPTIVE-GOVERNANCE.md |
 | 52 | Performance Budget | **P0** | PERFORMANCE-BUDGET.md |
 | 53 | Data Lifecycle Matrix | **P1** | DATA-LIFECYCLE-MATRIX.md |
@@ -89,8 +89,15 @@ These items change priority for the province deployment:
 | 58 | Optimization Learning | **P2** | DATABASE-OPTIMIZATION-LEARNING.md |
 | 59 | Self-Healing Runbook | **P2** | SELF-HEALING-RUNBOOK.md |
 | 60 | ADR-010 Intelligence Layer | **P1** | adr/ADR-010-intelligence-layer.md |
+| 61 | Intelligence Safety | **P0** | DATABASE-INTELLIGENCE-SAFETY.md |
+| 62 | Optimization Context Fingerprint | **P0** | DATABASE-OPTIMIZATION-CONTEXT.md |
+| 63 | Workload Classification | **P1** | DATABASE-WORKLOAD-CLASSIFICATION.md |
+| 64 | Knowledge Drift Management | **P1** | DATABASE-KNOWLEDGE-DRIFT.md |
+| 65 | Optimization Cost Model | **P1** | DATABASE-COST-MODEL.md |
+| 66 | Simulation / What-If Policy | **P1** | DATABASE-SIMULATION-POLICY.md |
+| 67 | SIS Domain Knowledge Base | **P0** | SIS-DOMAIN-KNOWLEDGE-BASE.md |
 
-## Self-Assessment — v3.0 (Intelligence Layer)
+## Self-Assessment — v3.1 (Design Complete)
 
 | Layer | Score | Notes |
 |-------|------:|-------|
@@ -99,26 +106,24 @@ These items change priority for the province deployment:
 | PostgreSQL Design | 91 | Partitioning, RLS, types |
 | Indexing | 91 | Matrix + adaptive INDEX-GOVERNANCE |
 | Partitioning | 92 | P0 from year 1 for 45K baseline |
-| Performance Design | 91 | Batch, summary, MV + PERFORMANCE-BUDGET |
+| Performance Design | 92 | Budget versioned + workload-aware |
 | Scalability 45K | 91 | Dynamic capacity model |
 | Adaptive Governance | 92 | Feedback loop + measurement-based |
-| **Intelligence Layer** | **88** | Expert KB + learning design — ops pending |
-| **Self-Healing** | **85** | Runbook documented — not operational |
-| Redis/Caching | 88 | + invalidation map |
-| Reporting | 89 | MV candidates (not fixed count) |
-| Security/RLS/Audit | 88 | RLS + policies doc |
-| Backup/PITR | 80 | Config documented |
-| Disaster Recovery | **88** | dr-runbook added |
-| Monitoring | 82 | + intelligence layer requirements |
-| Load/Stress Testing | **75** | Strategy + template (not executed) |
-| Laravel Architecture | **82** | laravel-architecture.md |
-| React/Inertia | **75** | react-inertia.mdc |
-| Dev Governance / Cursor | 98 | Skills + rules + ADR-009/010 |
-| Production Readiness | **85** | Checklists complete, not proven |
+| Intelligence Layer Design | **93** | Full v3.1 stack documented |
+| Explainability | **90** | Mandatory evidence package |
+| Context Awareness | **88** | Fingerprint + similarity scoring |
+| Simulation / What-if | **85** | Policy documented — ops pending |
+| Cost Optimization | **85** | Cost model documented |
+| SIS Domain Intelligence | **88** | Criticality map + domain rules |
+| Drift Detection | **87** | Formal drift management |
+| Self-Healing | **85** | Runbook — not operational |
+| **Operational Implementation** | **60** | Prometheus, events, automation ⏳ |
+| Dev Governance / Cursor | 99 | v3.1 complete |
+| Production Readiness | **85** | Checklists — not proven |
 
-### **Overall: 91/100 — Adaptive Expert Database Architecture**
+### **Design: 93/100 · Operational: ~60/100**
 
-Path to **95+:** Operationalize Phases 2–3 (monitoring + rule engine), execute load tests, DR drill, populate optimization event log.
+Path to **Production Proven (95+):** Phases 2–6 — Prometheus, pg_stat, optimization_events, staging simulation, controlled Tier 1 automation.
 
 ## Maturity Levels
 

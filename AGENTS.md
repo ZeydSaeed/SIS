@@ -8,7 +8,7 @@
 | Development Ready | ✅ |
 | Production Proven | ⏳ (needs load test + DR drill) |
 
-**Score:** 91/100 — Adaptive Expert Database Architecture
+**Score:** 93/100 (Design) · Operational Phases 2–6 ⏳
 
 ## Read First
 
@@ -72,7 +72,17 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `query-optimization.mdc` — app/**
 - `react-inertia.mdc` — resources/js/**
 
-## Key New Docs (v3.0)
+## Key Docs (v3.1 Intelligence Stack)
+
+- `DATABASE-INTELLIGENCE-SAFETY.md` — tiers, integrity gate, explainability
+- `DATABASE-OPTIMIZATION-CONTEXT.md` — context fingerprint
+- `DATABASE-SIMULATION-POLICY.md` — what-if before production
+- `DATABASE-COST-MODEL.md` — total cost ranking
+- `DATABASE-KNOWLEDGE-DRIFT.md` — drift + pattern deprecation
+- `SIS-DOMAIN-KNOWLEDGE-BASE.md` — business criticality
+- `DATABASE-WORKLOAD-CLASSIFICATION.md` — workload-aware SLOs
+
+## Key New Docs (v3.0–v3.1)
 
 - `DATABASE-INTELLIGENCE-LAYER.md` — expert + learning + self-healing architecture
 - `DATABASE-KNOWLEDGE-BASE.md` — inference rules & heuristics
@@ -93,7 +103,7 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `cache-invalidation.md` — Redis map
 - `laravel-architecture.md` — app layers
 - `api-conventions.md` — HTTP/Inertia
-- `adr/` — 10 architecture decisions (incl. ADR-009 adaptive, ADR-010 intelligence)
+- `adr/` — 11 architecture decisions (ADR-009–011 intelligence stack)
 
 ## When Implementing
 

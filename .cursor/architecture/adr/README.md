@@ -14,6 +14,7 @@
 | [ADR-008](./ADR-008-cqrs-lite.md) | CQRS-lite, no microservices | Accepted |
 | [ADR-009](./ADR-009-adaptive-governance.md) | Adaptive Database Governance | Accepted |
 | [ADR-010](./ADR-010-intelligence-layer.md) | Database Intelligence Layer | Accepted |
+| [ADR-011](./ADR-011-intelligence-v31.md) | Intelligence Layer v3.1 enhancements | Accepted |
 
 ## When to Create New ADR
 

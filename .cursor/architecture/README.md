@@ -1,10 +1,10 @@
 # SIS Architecture Reference
 
-> **Version:** 3.0 — Adaptive Expert Database Architecture  
+> **Version:** 3.1 — Adaptive Expert Database Architecture (Design Complete)  
 > **Maturity:** Architecture Ready ✅ | Development Ready ✅ | Production Proven ⏳  
 > **Table count authority:** `database-blueprint.md` → **89 tables**  
-> **Core principle:** DO NOT OPTIMIZE FOR A NUMBER. OPTIMIZE FOR A MEASURED WORKLOAD.  
-> **Intelligence:** Expert-Assisted + Controlled Self-Learning — PostgreSQL remains source of truth.
+> **Design Score:** 93/100 · **Operational Score:** ~60/100 (Phases 2–6 pending)  
+> **Core principle:** DO NOT OPTIMIZE FOR A NUMBER. OPTIMIZE FOR A MEASURED WORKLOAD.
 
 ## Document Index
 
@@ -27,12 +27,19 @@
 | [DATA-LIFECYCLE-MATRIX.md](./DATA-LIFECYCLE-MATRIX.md) | Retention & archival rules |
 | [data-quality-rules.md](./data-quality-rules.md) | Integrity & validation rules |
 
-### Intelligence Layer (v3.0)
+### Intelligence Layer (v3.1)
 | File | Topic |
 |------|-------|
 | [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md) | **Expert + Learning + Self-Healing design** |
-| [DATABASE-KNOWLEDGE-BASE.md](./DATABASE-KNOWLEDGE-BASE.md) | Inference rules & heuristics |
-| [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md) | Historical optimization learning |
+| [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md) | Tiers, integrity gate, explainability, versioning |
+| [DATABASE-KNOWLEDGE-BASE.md](./DATABASE-KNOWLEDGE-BASE.md) | PostgreSQL inference rules |
+| [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md) | **SIS business criticality + domain rules** |
+| [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md) | Historical learning + pattern lifecycle |
+| [DATABASE-OPTIMIZATION-CONTEXT.md](./DATABASE-OPTIMIZATION-CONTEXT.md) | **Context fingerprint + similarity** |
+| [DATABASE-KNOWLEDGE-DRIFT.md](./DATABASE-KNOWLEDGE-DRIFT.md) | **Drift detection + pattern deprecation** |
+| [DATABASE-WORKLOAD-CLASSIFICATION.md](./DATABASE-WORKLOAD-CLASSIFICATION.md) | OLTP vs dashboard vs bulk SLOs |
+| [DATABASE-COST-MODEL.md](./DATABASE-COST-MODEL.md) | Performance + ops cost ranking |
+| [DATABASE-SIMULATION-POLICY.md](./DATABASE-SIMULATION-POLICY.md) | **What-if before production** |
 | [SELF-HEALING-RUNBOOK.md](./SELF-HEALING-RUNBOOK.md) | Safe automated operational responses |
 
 ### 45K Baseline Scenario
@@ -65,10 +72,10 @@
 ### Governance & Decisions
 | File | Topic |
 |------|-------|
-| [improvement-matrix.md](./improvement-matrix.md) | Priority matrix (91/100 target) |
+| [improvement-matrix.md](./improvement-matrix.md) | Priority matrix (93/100 design target) |
 | [DATABASE-CHANGE-CHECKLIST.md](./DATABASE-CHANGE-CHECKLIST.md) | Mandatory DB checklist |
 | [WORK-PLAN.md](./WORK-PLAN.md) | Phase A–F guide |
-| [adr/](./adr/) | **10 Architecture Decision Records** |
+| [adr/](./adr/) | **11 Architecture Decision Records** |
 | [phases/](./phases/) | Phase implementation guides |
 
 ### Scalability & Security
@@ -86,6 +93,6 @@
 | Development Ready | ✅ | Guides + rules + blueprint complete |
 | Production Proven | ⏳ | Load test + DR + restore verified with numbers |
 
-## Self-Assessment Score: **91/100** — Adaptive Expert Database Architecture
+## Self-Assessment Score: **93/100** — Design Complete · Ops Phases 2–6 Pending
 
-See [improvement-matrix.md](./improvement-matrix.md) for layer scores and path to 95+.
+See [improvement-matrix.md](./improvement-matrix.md) for layer scores. **Design ≠ Production Smart/Expert until monitoring + optimization_events operational.**

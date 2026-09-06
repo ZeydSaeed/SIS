@@ -354,6 +354,12 @@ Logical model → Compatibility analysis → Physical redesign → Dual validati
 
 ---
 
+## 11. Knowledge Drift
+
+Rules and patterns may become wrong as workload evolves. Re-evaluate on drift — see DATABASE-KNOWLEDGE-DRIFT.md.
+
+---
+
 ## Governance Document Stack
 
 ```text

@@ -5,9 +5,8 @@
 Enterprise Student Information System (SIS) designed for long-term growth, high concurrency, and 20+ years of academic data retention.
 
 **Stack:** Laravel 13 + Inertia.js + React 19 + PostgreSQL + Redis  
-**Status:** Reference documentation v3.0 complete — no database deployed.  
-**Maturity:** Architecture Ready ✅ | Development Ready ✅ | Production Proven ⏳  
-**Score:** 91/100 — Adaptive Expert Database Architecture  
+**Status:** Reference documentation v3.1 complete — no database deployed.  
+**Score:** 93/100 (Design) · ~60/100 (Operational — Phases 2–6 pending)
 **Baseline scale:** 45,000 students, 20 schools, 10 years — see `capacity-planning.md` (45K is baseline, not ceiling)
 
 ## What This System Is

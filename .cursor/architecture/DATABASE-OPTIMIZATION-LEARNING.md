@@ -47,25 +47,57 @@ optimization_event:
   results:
     p95_after_ms: 380
     write_overhead_pct: 2
-  outcome: success                         # success | partial | failure | rolled_back
+  outcome: success
   rollback_required: false
+  rollback_verified: null              # true after rollback confirmation
   reviewer: "DBA + Tech Lead"
   adr_reference: ADR-002-partitioning
+  context_fingerprint:                 # REQUIRED — see DATABASE-OPTIMIZATION-CONTEXT.md
+    postgres_version: "16.2"
+    active_students: 45000
+    schools: 20
+    table_rows: 820000000
+    query_pattern: "school_id + date_range"
+    workload_class: dashboard
+    hardware_profile: "16vcpu_32gb_nvme"
+  simulation_id: SIM-2026-0912-001     # see DATABASE-SIMULATION-POLICY.md
+  rule_id: PART-003
+  rule_version: 2
+  knowledge_version: KB-2026.09
 ```
 
 Store in: team wiki, `optimization_events/` table (future), or migration PR descriptions.
 
 ---
 
-## Pattern Extraction (Manual → Semi-Automated)
+## Pattern Lifecycle (Never Direct KB Update)
 
-After **N ≥ 20** similar events, extract patterns:
+```text
+Candidate → Validated → Active → Deprecated
+```
+
+| Status | Meaning |
+|--------|---------|
+| **candidate** | Extracted from events — not used in production recommendations |
+| **validated** | DBA review + benchmark + historical validation passed |
+| **active** | Promoted — used by Expert Engine with confidence |
+| **deprecated** | Drift or success rate < 40% — do not use |
+
+Promotion requires human review. See [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md).
+
+---
+
+## Pattern Extraction (Context-Aware)
+
+After **N ≥ 20** similar events **with context similarity > 0.70**:
 
 ```yaml
 learned_pattern:
   id: LP-001
-  confidence: 0.82                          # 82/100 similar events succeeded
+  version: 2
+  confidence: 0.82
   sample_size: 100
+  context_matched_samples: 47          # similarity > 0.70
   conditions:
     - table: attendance.records
     - rows: "> 500000000"
@@ -74,10 +106,11 @@ learned_pattern:
   successful_action: "sub-partition or composite partition key"
   failed_action: "add more indexes without partition change"
   last_validated: 2026-09-01
-  status: active                            # active | deprecated | under_review
+  status: validated                    # candidate | validated | active | deprecated
+  knowledge_version: KB-2026.09
 ```
 
-**Human review required** before promoting pattern to Knowledge Base.
+**20 events in 20-school env ≠ 20 events in 2000-school env** — use context similarity, not count alone.
 
 ---
 
@@ -94,16 +127,25 @@ Failed events are **equally valuable** — update Knowledge Base to avoid repeat
 
 ---
 
-## Confidence Scoring for Recommendations
-
-When Expert Engine proposes an action, attach confidence:
+## Confidence Scoring (Statistical + Context)
 
 ```text
-Confidence = f(historical_success_rate, sample_size, context_match, risk_tier)
+Confidence = f(
+  historical_success_rate,
+  sample_size,
+  context_similarity,        # REQUIRED — DATABASE-OPTIMIZATION-CONTEXT.md
+  risk_tier,
+  data_criticality           # SIS-DOMAIN-KNOWLEDGE-BASE.md
+)
+
+Adjusted confidence = raw_success_rate × context_similarity
+```
 
 Example:
-  "Add index on (student_id, academic_year_id) for enrollment lookup"
-  Confidence: 0.91 (47/52 similar events succeeded, high context match, Tier 2)
+
+```text
+LP-001: 82% success, 100 events, context_similarity 0.55 → adjusted 0.45 → research only
+LP-002: 78% success, 22 events, context_similarity 0.94 → adjusted 0.73 → standard workflow
 ```
 
 | Confidence | UI / Process |
@@ -146,7 +188,7 @@ Example:
 2. Calculate success rate by type (index, partition, mv, cache)
 3. Identify top 3 successful patterns → propose Knowledge Base update
 4. Identify top 3 failures → add anti-patterns
-5. Deprecate patterns with success rate < 40% over 10+ samples
+5. Deprecate patterns with success rate < 40% OR drift_score > 0.50 — see DATABASE-KNOWLEDGE-DRIFT.md
 6. Update confidence scores
 7. Document in improvement-matrix or ADR if strategy shifts
 ```
@@ -177,6 +219,9 @@ Phase 7+ may add ML for anomaly detection — still with human gate for schema c
 
 ## Related
 
+- [DATABASE-OPTIMIZATION-CONTEXT.md](./DATABASE-OPTIMIZATION-CONTEXT.md)
+- [DATABASE-KNOWLEDGE-DRIFT.md](./DATABASE-KNOWLEDGE-DRIFT.md)
+- [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md)
 - [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md)
 - [DATABASE-KNOWLEDGE-BASE.md](./DATABASE-KNOWLEDGE-BASE.md)
 - [PERFORMANCE-BUDGET.md](./PERFORMANCE-BUDGET.md)

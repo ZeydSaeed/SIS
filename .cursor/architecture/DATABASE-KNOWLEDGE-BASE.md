@@ -1,7 +1,25 @@
 # Database Knowledge Base
 
-> **Purpose:** Expert inference rules for the Intelligence Layer — not executable code.  
-> **Usage:** Rule Engine + human reviewers reference this when diagnosing database issues.
+> **Version:** KB-2026.09 — bump on drift or quarterly review  
+> **Purpose:** Expert inference rules — not executable code.  
+> **Companion:** [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md) for business criticality.
+
+---
+
+## Rule Versioning
+
+Every rule is versioned and auditable:
+
+```yaml
+rule:
+  id: IDX-007
+  version: 3
+  knowledge_version: KB-2026.09
+  status: active                    # candidate | active | deprecated
+  superseded_by: null               # IDX-007 v4 if replaced
+```
+
+Recommendations MUST cite: `rule_id`, `rule_version`, `knowledge_version`.
 
 ---
 
@@ -18,7 +36,8 @@ Knowledge Base
 ├── Capacity Knowledge
 ├── Security Knowledge
 ├── Data Lifecycle Knowledge
-└── Failure / Recovery Knowledge
+├── Failure / Recovery Knowledge
+└── SIS Domain Knowledge  →  SIS-DOMAIN-KNOWLEDGE-BASE.md
 ```
 
 Each domain contains: **signals**, **inference rules**, **recommended actions**, **risk tier**, **evidence required**.
@@ -257,16 +276,17 @@ Cross-reference [dr-runbook.md](./dr-runbook.md) and [SELF-HEALING-RUNBOOK.md](.
 | Activity | Frequency | Owner |
 |----------|-----------|-------|
 | Review inference rules vs production metrics | Quarterly | DBA + Tech Lead |
+| Drift detection on active patterns | Weekly (when operational) | See DATABASE-KNOWLEDGE-DRIFT.md |
 | Add rule from successful optimization | After each Tier 3 change | Developer |
-| Deprecate rule if consistently wrong | After 3 failed inferences | DBA |
+| Deprecate rule if consistently wrong | After 3 failed inferences or drift | DBA |
 | Sync with ADRs | On new ADR | Tech Lead |
-
-Successful optimizations feed [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md).
+| Bump knowledge_version | On material rule change | DBA + PR |
 
 ---
 
 ## Related
 
+- [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md)
+- [DATABASE-KNOWLEDGE-DRIFT.md](./DATABASE-KNOWLEDGE-DRIFT.md)
+- [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md)
 - [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md)
-- [INDEX-GOVERNANCE.md](./INDEX-GOVERNANCE.md)
-- [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

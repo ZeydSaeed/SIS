@@ -62,9 +62,16 @@ DATABASE GOVERNANCE
 │
 ├── DATABASE-GOVERNANCE.md              ← change control (this file)
 ├── DATABASE-ADAPTIVE-GOVERNANCE.md     ← optimization by measurement
-├── DATABASE-INTELLIGENCE-LAYER.md      ← expert + learning + self-healing (v3.0)
+├── DATABASE-INTELLIGENCE-LAYER.md      ← expert + learning + self-healing (v3.1)
+├── DATABASE-INTELLIGENCE-SAFETY.md     ← safety, explainability, versioning
 ├── DATABASE-KNOWLEDGE-BASE.md
+├── SIS-DOMAIN-KNOWLEDGE-BASE.md
 ├── DATABASE-OPTIMIZATION-LEARNING.md
+├── DATABASE-OPTIMIZATION-CONTEXT.md
+├── DATABASE-KNOWLEDGE-DRIFT.md
+├── DATABASE-WORKLOAD-CLASSIFICATION.md
+├── DATABASE-COST-MODEL.md
+├── DATABASE-SIMULATION-POLICY.md
 ├── SELF-HEALING-RUNBOOK.md
 ├── schema-change-impact.md             ← per-change impact analysis
 ├── DATABASE-CHANGE-CHECKLIST.md

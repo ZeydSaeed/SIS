@@ -1,7 +1,8 @@
 # Database Intelligence Layer
 
-> **Version:** SIS v3.0 — Adaptive Expert Database Architecture  
+> **Version:** SIS v3.1 — Adaptive Expert Database Architecture (Design Complete)  
 > **Goal:** Adaptive Expert Database Architecture with Controlled Self-Learning and Self-Healing  
+> **Maturity:** Design 93/100 · Operational implementation Phases 2–6 ⏳  
 > **Non-negotiable:** PostgreSQL = source of truth. Intelligence layer = analysis + recommendation only.
 
 ---
@@ -17,11 +18,76 @@
 | **Self-Healing** | Detects known failures → applies safe automated fixes | **v3.0 — limited scope** |
 | **Autonomous** | Detect → analyze → decide → execute → verify → rollback | **Not target for SIS** |
 
-**Honest assessment:** Current docs provide an **Adaptive Foundation**. This layer adds the path to Expert-Assisted and Controlled Self-Learning — not full autonomy.
+**Honest assessment:** Design covers Smart + Expert + Controlled Self-Learning. **Production Smart/Expert/Self-Learning requires Phases 2–6 operational** (Prometheus, optimization_events, staging simulation).
 
 ```text
 DO NOT OPTIMIZE FOR A NUMBER.     OPTIMIZE FOR A MEASURED WORKLOAD.
-AI DOES NOT OWN THE DATABASE.     PostgreSQL + FK + RLS + Audit DO.
+AI/LLM DOES NOT EXECUTE ON DB.    Policy → Risk → Approval → Execution.
+```
+
+---
+
+## v3.1 Full Pipeline
+
+```text
+                         SIS Application
+                                │
+                                ▼
+                      ┌──────────────────┐
+                      │ Observability    │
+                      │ Metrics/Logs/EXPLAIN│
+                      └────────┬─────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │ Smart / Adaptive │
+                      │ Detection·Drift  │
+                      └────────┬─────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │ Expert Engine    │
+                      │ KB + SIS Domain  │
+                      │ Inference        │
+                      └────────┬─────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │ Self-Learning    │
+                      │ Context·Patterns │
+                      │ Confidence       │
+                      └────────┬─────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │ What-If Simulation│
+                      │ Cost Model       │
+                      └────────┬─────────┘
+                               │
+                               ▼
+                      ┌──────────────────┐
+                      │ Risk Engine      │
+                      │ Tier 0–4 + Safety│
+                      └────────┬─────────┘
+                               │
+              ┌────────────────┴────────────────┐
+              ▼                                 ▼
+        Tier 0–1 Auto                    Tier 2–4 Human Gate
+              │                                 │
+              └────────────────┬────────────────┘
+                               ▼
+                          Staging Sim
+                               │
+                               ▼
+                    Benchmark + Integrity Gate
+                               │
+                               ▼
+                         Production
+                               │
+                               ▼
+                    Monitor + Rollback Verify
+                               │
+                               └──────→ Optimization Log → Learning
 ```
 
 ---
@@ -207,26 +273,62 @@ Do **not** start with ML. Build on existing governance (ADRs, capacity planning,
 
 ---
 
-## Document Stack (v3.0)
+## Document Stack (v3.1)
 
 ```text
 DATABASE GOVERNANCE
-├── DATABASE-GOVERNANCE.md              — change control
-├── DATABASE-ADAPTIVE-GOVERNANCE.md     — adaptive policies
-├── DATABASE-INTELLIGENCE-LAYER.md      — this file — expert + learning design
-├── DATABASE-KNOWLEDGE-BASE.md          — inference rules & heuristics
-├── DATABASE-OPTIMIZATION-LEARNING.md   — historical learning log
-├── SELF-HEALING-RUNBOOK.md             — safe automated responses
-├── schema-change-impact.md
-├── PERFORMANCE-BUDGET.md
-├── capacity-planning.md
+├── DATABASE-GOVERNANCE.md
+├── DATABASE-ADAPTIVE-GOVERNANCE.md
+├── DATABASE-INTELLIGENCE-LAYER.md      — this file
+├── DATABASE-INTELLIGENCE-SAFETY.md     — tiers, integrity gate, explainability, versioning
+├── DATABASE-KNOWLEDGE-BASE.md          — PostgreSQL inference rules
+├── SIS-DOMAIN-KNOWLEDGE-BASE.md        — business criticality + domain rules
+├── DATABASE-OPTIMIZATION-LEARNING.md   — historical learning
+├── DATABASE-OPTIMIZATION-CONTEXT.md    — context fingerprint + similarity
+├── DATABASE-KNOWLEDGE-DRIFT.md         — drift detection + pattern deprecation
+├── DATABASE-WORKLOAD-CLASSIFICATION.md — OLTP vs dashboard vs bulk
+├── DATABASE-COST-MODEL.md              — performance + ops cost
+├── DATABASE-SIMULATION-POLICY.md       — what-if before production
+├── SELF-HEALING-RUNBOOK.md
+├── PERFORMANCE-BUDGET.md               — versioned, workload-aware
 └── adr/ (001–010)
 ```
 
 ---
 
+## Explainability (Mandatory)
+
+Every recommendation outputs: **WHY · WHAT · EVIDENCE · ALTERNATIVES · RISK · EXPECTED RESULT · ROLLBACK · CONFIDENCE · VERSION**
+
+Template: [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md)
+
+---
+
+## LLM Policy (Optional Future Layer)
+
+**Not required for Smart/Expert/Self-Learning.** Phase 1–6 uses metrics + rules + statistics.
+
+If LLM added later:
+
+```text
+LLM → NL explanation / pattern discovery assist
+   ↓
+Structured recommendation (JSON)
+   ↓
+Policy Engine → Risk → Approval → Execution
+```
+
+Never: `LLM → DROP INDEX` or `LLM → ALTER TABLE` directly.
+
+---
+
 ## Related
 
+- [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md)
+- [DATABASE-OPTIMIZATION-CONTEXT.md](./DATABASE-OPTIMIZATION-CONTEXT.md)
+- [DATABASE-SIMULATION-POLICY.md](./DATABASE-SIMULATION-POLICY.md)
+- [DATABASE-COST-MODEL.md](./DATABASE-COST-MODEL.md)
+- [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md)
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)
 - [DATABASE-KNOWLEDGE-BASE.md](./DATABASE-KNOWLEDGE-BASE.md)
 - [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md)
