@@ -1,5 +1,6 @@
 <?php
 
+/** @architecture-legacy-allowed migrate to Application/Attendance */
 namespace App\Services\Attendance;
 
 use App\Database\SchemaHelper;

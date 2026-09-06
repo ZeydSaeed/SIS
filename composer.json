@@ -72,7 +72,7 @@
             "@php artisan config:clear --ansi",
             "@lint:check",
             "@types:check",
-            "@php artisan architecture:validate",
+            "@php artisan architecture:validate --fitness",
             "@php artisan test"
         ],
         "post-autoload-dump": [

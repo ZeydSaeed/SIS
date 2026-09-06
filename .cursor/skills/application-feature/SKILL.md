@@ -17,6 +17,8 @@ description: >-
 | `.cursor/architecture/ARCHITECTURE-STACK.md` | Always |
 | `.cursor/architecture/laravel-architecture.md` | Always |
 | `.cursor/rules/clean-architecture.mdc` | Always |
+| `.cursor/rules/architecture-governance.mdc` | Always — no Laravel-style features |
+| `.cursor/architecture/FEATURE-DONE.md` | Definition of Done checklist |
 | `.cursor/architecture/database-blueprint.md` | If touching DB/models |
 | `.cursor/skills/database-change/SKILL.md` | If migration needed |
 
@@ -24,8 +26,10 @@ description: >-
 
 | Type | Create |
 |------|--------|
-| **Write** (create/update/delete) | Command + Handler + optional Domain event |
+| **Write** (create/update/delete) | Command + Handler + Result + Domain event (via Outbox) |
 | **Read** (list/show/report) | Query + Handler + DTO |
+| **Domain entity** | Entity with encapsulated behavior (`canEnroll()`, `activate()`) |
+| **Value Object** | `Domain/Shared/ValueObjects/` or context-specific |
 | **Domain rule** | Specification or Domain service |
 | **Persistence** | Repository interface (Domain) + Eloquent adapter (Infrastructure) |
 | **HTTP** | Controller + Form Request + Policy |
@@ -35,6 +39,10 @@ description: >-
 ## Step 2 — Scaffold (use generators)
 
 ```bash
+# Full bounded context skeleton
+php artisan sis:make-feature {Context}
+# Example: php artisan sis:make-feature Teacher --command=RegisterTeacher --query=GetTeacherProfile
+
 # Write use case
 php artisan sis:make-command {Context} {Name}
 # Example: php artisan sis:make-command Enrollment EnrollStudent
@@ -44,19 +52,24 @@ php artisan sis:make-query {Context} {Name}
 # Example: php artisan sis:make-query Student GetStudentProfile
 ```
 
-Then implement Domain logic and Infrastructure bindings.
+**Short user prompt is enough** (e.g. "أنشئ Feature تسجيل طالب") — Rules + this skill enforce architecture. CI validates via `architecture:validate --fitness`.
 
 ## Step 3 — Layer checklist
 
 ```
-[ ] Domain has zero Illuminate imports
+[ ] Domain has zero Illuminate/Application imports
+[ ] Domain Entity encapsulates behavior (not anemic data bag)
 [ ] Controller only authorizes + delegates to handler
+[ ] Handler returns Result object (not bare bool/int) for writes
+[ ] DTOs in Application/{Context}/DTOs/ for read responses
+[ ] Domain events staged via OutboxRepository inside transaction
+[ ] Sensitive commands accept idempotencyKey
 [ ] academic_year_id + school_id on academic operations
-[ ] Transaction via UnitOfWork or single handler transaction
+[ ] Transaction owned by Handler via UnitOfWork only
 [ ] Heavy ops dispatched to queue — not HTTP
-[ ] Policy registered for new resource
-[ ] Repository interface in Domain, implementation in Infrastructure
-[ ] architecture:validate passes
+[ ] Repository interface in Domain/Application port, implementation in Infrastructure
+[ ] architecture:validate --fitness passes
+[ ] architecture:graph shows zero violations
 ```
 
 ## Step 4 — Wire DI
@@ -69,15 +82,18 @@ $this->app->bind(StudentRepositoryInterface::class, EloquentStudentRepository::c
 
 ## Step 5 — Test
 
-- Unit test: Domain specifications / value objects
+- Unit test: Domain entities, specifications, value objects
+- Unit test: Handler with mocked ports
 - Feature test: HTTP endpoint (if applicable)
 - Run: `php artisan architecture:validate`
 
 ## Anti-Patterns (reject)
 
 - Controller with `DB::` or `Model::create`
-- Domain importing Eloquent
-- God service with 500+ lines
+- Domain importing Eloquent or Application DTOs
+- Application handler importing Http Request or Eloquent models
+- God handler with validation + DB + notifications + audit
+- Direct `event()` dispatch inside transaction — use Outbox
 - Repository wrapping every model without need
 - CQRS on trivial CRUD with no performance need
 

@@ -2,16 +2,11 @@
 
 namespace App\Domain\Enrollment\Specifications;
 
-use App\Domain\Enrollment\Data\StudentEnrollmentView;
 use App\Domain\Shared\AbstractSpecification;
-use App\Domain\Student\Specifications\ActiveStudentSpecification;
+use App\Domain\Student\Entities\Student;
 
 final class EligibleForEnrollmentSpecification extends AbstractSpecification
 {
-    public function __construct(
-        private readonly ActiveStudentSpecification $activeStudent = new ActiveStudentSpecification,
-    ) {}
-
     public function isSatisfiedBy(object $candidate): bool
     {
         return $this->unsatisfiedReasons($candidate) === [];
@@ -22,10 +17,14 @@ final class EligibleForEnrollmentSpecification extends AbstractSpecification
      */
     public function unsatisfiedReasons(object $candidate): array
     {
-        if (! $candidate instanceof StudentEnrollmentView) {
+        if (! $candidate instanceof Student) {
             return ['Invalid student context for enrollment'];
         }
 
-        return $this->activeStudent->unsatisfiedReasons($candidate);
+        if (! $candidate->canEnroll()) {
+            return ['Student is not active or eligible for enrollment'];
+        }
+
+        return [];
     }
 }

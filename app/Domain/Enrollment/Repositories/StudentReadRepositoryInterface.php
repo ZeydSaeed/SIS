@@ -2,9 +2,9 @@
 
 namespace App\Domain\Enrollment\Repositories;
 
-use App\Domain\Enrollment\Data\StudentEnrollmentView;
+use App\Domain\Student\Entities\Student;
 
 interface StudentReadRepositoryInterface
 {
-    public function findForEnrollment(int $studentId): ?StudentEnrollmentView;
+    public function findById(int $studentId): ?Student;
 }

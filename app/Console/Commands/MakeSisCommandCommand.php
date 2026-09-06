@@ -33,10 +33,19 @@ class MakeSisCommandCommand extends Command
         }
 
         file_put_contents($commandPath, $this->commandStub($context, $commandClass));
-        file_put_contents($handlerPath, $this->handlerStub($context, $commandClass, $handlerClass));
+        file_put_contents($handlerPath, $this->handlerStub($context, $name, $commandClass, $handlerClass));
+
+        $resultPath = app_path("Application/{$context}/Results/{$name}Result.php");
+        if (! is_dir(dirname($resultPath))) {
+            mkdir(dirname($resultPath), 0755, true);
+        }
+        if (! file_exists($resultPath)) {
+            file_put_contents($resultPath, $this->resultStub($context, $name));
+        }
 
         $this->info("Created {$commandPath}");
         $this->info("Created {$handlerPath}");
+        $this->info("Created {$resultPath}");
         $this->line('Register handler binding in ArchitectureServiceProvider if using interface binding.');
 
         return self::SUCCESS;
@@ -56,14 +65,15 @@ final readonly class {$commandClass} implements Command
     public function __construct(
         public int \$schoolId,
         public int \$academicYearId,
-        // TODO: add command properties
+        public ?int \$enrolledBy = null,
+        public ?string \$idempotencyKey = null,
     ) {}
 }
 
 PHP;
     }
 
-    private function handlerStub(string $context, string $commandClass, string $handlerClass): string
+    private function handlerStub(string $context, string $name, string $commandClass, string $handlerClass): string
     {
         return <<<PHP
 <?php
@@ -72,22 +82,62 @@ namespace App\\Application\\{$context}\\Commands;
 
 use App\\Application\\Contracts\\Command;
 use App\\Application\\Contracts\\CommandHandler;
+use App\\Application\\Contracts\\OutboxRepository;
 use App\\Application\\Contracts\\UnitOfWork;
+use App\\Application\\{$context}\\Results\\{$name}Result;
 
 final class {$handlerClass} implements CommandHandler
 {
     public function __construct(
         private readonly UnitOfWork \$unitOfWork,
+        private readonly OutboxRepository \$outbox,
     ) {}
 
-    public function handle(Command \$command): mixed
+    public function handle(Command \$command): {$name}Result
     {
         assert(\$command instanceof {$commandClass});
 
         return \$this->unitOfWork->transaction(function () use (\$command) {
-            // TODO: orchestrate domain + infrastructure
-            return null;
+            // TODO: orchestrate domain + infrastructure + outbox->stage()
+            return {$name}Result::success(/* ... */);
         });
+    }
+}
+
+PHP;
+    }
+
+    private function resultStub(string $context, string $name): string
+    {
+        return <<<PHP
+<?php
+
+namespace App\\Application\\{$context}\\Results;
+
+use App\\Application\\Shared\\Results\\ApplicationResult;
+
+final readonly class {$name}Result extends ApplicationResult
+{
+    private function __construct(
+        bool \$success,
+        array \$errors = [],
+        array \$warnings = [],
+        bool \$fromIdempotencyCache = false,
+    ) {
+        parent::__construct(\$success, \$errors, \$warnings, \$fromIdempotencyCache);
+    }
+
+    public static function success(): self
+    {
+        return new self(true);
+    }
+
+    /**
+     * @param  list<string>  \$errors
+     */
+    public static function failure(array \$errors): self
+    {
+        return new self(false, errors: \$errors);
     }
 }
 

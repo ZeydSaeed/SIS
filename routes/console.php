@@ -1,5 +1,6 @@
 <?php
 
+use App\Infrastructure\Jobs\ProcessOutboxJob;
 use App\Intelligence\Jobs\RunGrowthOptimizationJob;
 use App\Intelligence\Jobs\RunHealthMonitorJob;
 use App\Intelligence\Jobs\RunPerformanceAnalysisJob;
@@ -17,6 +18,7 @@ if (config('intelligence.enabled', true)) {
     Schedule::job(new RunPerformanceAnalysisJob)->everyFiveMinutes()->name('intelligence:performance');
     Schedule::job(new RunGrowthOptimizationJob)->hourly()->name('intelligence:growth');
     Schedule::job(new RunSchemaGuardianJob)->daily()->name('intelligence:schema');
+    Schedule::job(new ProcessOutboxJob)->everyMinute()->name('architecture:outbox');
     Schedule::command('queue:work database --stop-when-empty --max-time=55')
         ->everyMinute()
         ->name('intelligence:queue-worker')

@@ -14,7 +14,8 @@ Read `.cursor/architecture/ARCHITECTURE-STACK.md` before creating or editing app
 |------------------|----------|-----------------|
 | Business rules | `app/Domain/{Context}/` | Controller, Model |
 | Write use case | `app/Application/{Context}/Commands/` | Controller |
-| Read use case | `app/Application/{Context}/Queries/` | Controller |
+| Read response | `app/Application/{Context}/DTOs/` | Eloquent model to controller |
+| Command result | `app/Application/{Context}/Results/` | bare `bool` / `int` |
 | Eloquent / DB | `app/Infrastructure/Persistence/` | Domain |
 | HTTP entry | `app/Http/Controllers/` | — |
 | Authorization | Policy + `SchoolContextMiddleware` | Controller if/else |
@@ -48,10 +49,42 @@ Use pure PHP, `DateTimeImmutable`, domain interfaces.
 
 ## Application Layer
 
-- Handlers inject **repository interfaces** (ports) from Domain
-- Use `UnitOfWork` for transactions — not raw `DB::` in handlers when avoidable
-- Dispatch domain events **after** successful commit
+- Handlers inject **repository interfaces** (ports) from Domain/Application
+- Use `UnitOfWork` for transactions — Handler owns transaction boundary
+- Stage domain events via **`OutboxRepository::stage()` inside transaction**
+- Sensitive commands accept **`idempotencyKey`** — check `IdempotencyStore` first
+- Return **Result objects** from write handlers (`EnrollStudentResult`)
 - Heavy work → `Job::dispatch()` — never block HTTP
+
+## DTOs vs Commands vs Results
+
+| Type | Purpose |
+|------|---------|
+| `*Command` | Write intent + input (DTO-like) |
+| `*Query` | Read intent |
+| `*DTO` | Layer-safe data for reads/API |
+| `*Result` | Structured write outcome |
+
+## Domain Entities (rich model)
+
+```php
+// ✅ GOOD — behavior inside entity
+$student->canEnroll();
+$student->activate();
+
+// ❌ BAD — anemic + external rules
+if ($student->status === 1) { ... }
+```
+
+## Events (Transactional Outbox)
+
+```php
+// ✅ Inside UnitOfWork transaction
+$this->outbox->stage(new StudentEnrolled(...));
+
+// ❌ Direct dispatch before commit
+event(new StudentEnrolled(...));
+```
 
 ## CQRS
 

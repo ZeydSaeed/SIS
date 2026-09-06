@@ -2,13 +2,15 @@
 
 namespace App\Infrastructure\Persistence\Student;
 
-use App\Domain\Enrollment\Data\StudentEnrollmentView;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
+use App\Domain\Student\Entities\Student;
+use App\Domain\Student\ValueObjects\StudentCode;
+use App\Domain\Student\ValueObjects\StudentStatus;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 
 final class EloquentStudentReadRepository implements StudentReadRepositoryInterface
 {
-    public function findForEnrollment(int $studentId): ?StudentEnrollmentView
+    public function findById(int $studentId): ?Student
     {
         $record = StudentRecord::query()->find($studentId);
 
@@ -16,11 +18,11 @@ final class EloquentStudentReadRepository implements StudentReadRepositoryInterf
             return null;
         }
 
-        return new StudentEnrollmentView(
+        return Student::reconstitute(
             id: (int) $record->getKey(),
-            status: (int) $record->status,
-            studentCode: (string) $record->student_code,
+            code: new StudentCode((string) $record->student_code),
             fullName: (string) $record->full_name,
+            status: StudentStatus::from((int) $record->status),
         );
     }
 }

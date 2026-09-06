@@ -29,8 +29,9 @@
 1. .cursor/skills/application-feature/SKILL.md
 2. .cursor/architecture/ARCHITECTURE-STACK.md
 3. .cursor/rules/clean-architecture.mdc
-4. php artisan sis:make-command / sis:make-query (scaffold)
-5. php artisan architecture:validate (must pass)
+4. php artisan sis:make-feature / sis:make-command / sis:make-query (scaffold)
+5. php artisan architecture:validate --fitness (must pass)
+6. php artisan architecture:graph (dependency audit)
 ```
 
 ## 45K Baseline (Not Architectural Ceiling)
@@ -79,6 +80,7 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `sis-core.mdc` — always apply
 - `database-changes-mandatory.mdc` — database/**, app/Models/**
 - `database-design.mdc` — database/**
+- `architecture-governance.mdc` — app/** (feature creation workflow)
 - `clean-architecture.mdc` — app/** (Clean + DDD + CQRS)
 - `laravel-patterns.mdc` — app/**
 - `query-optimization.mdc` — app/**

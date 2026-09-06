@@ -1,0 +1,64 @@
+---
+description: Architecture governance — no traditional Laravel features; enforce Clean Architecture automatically
+globs: app/**/*.php
+alwaysApply: false
+---
+
+# Architecture Governance (SIS)
+
+> **Source of truth:** `ARCHITECTURE-STACK.md` → Rules → `architecture:validate` → Tests → CI.  
+> Cursor assists; **Validator + CI enforce.**
+
+## When User Asks to Create a Feature / Model / Class
+
+**STOP.** Do not default to Laravel CRUD:
+
+```text
+❌ app/Models/Teacher.php + Controller with DB/Eloquent
+```
+
+**DO** this workflow:
+
+1. Read `.cursor/skills/application-feature/SKILL.md`
+2. Run or follow `php artisan sis:make-feature {Context}`
+3. Domain Entity + Value Objects first
+4. Command/Query + Handler + DTO/Result
+5. Repository port only if needed
+6. Infrastructure Eloquent adapter (`*Record` in Infrastructure/Persistence)
+7. Thin Controller delegates to Handler
+8. Tests + `php artisan architecture:validate --fitness`
+
+## Eloquent vs Domain Entity
+
+| Layer | Class | Role |
+|-------|-------|------|
+| Domain | `Student` entity | Business rules, `canEnroll()` |
+| Infrastructure | `StudentRecord` | PostgreSQL persistence |
+| Legacy | `app/Models/*` | Migrate away — no new business logic |
+
+## Dependency Direction (enforced)
+
+```text
+Controller → Application Handler → Domain ← Infrastructure
+```
+
+Forbidden:
+- Domain → Illuminate, Application, Infrastructure, Http
+- Application → Http, Infrastructure impl, Eloquent, DB
+- Controller → DB, Eloquent, business rules
+
+Verify: `php artisan architecture:graph`
+
+## Intelligence Module
+
+Same rules — no Eloquent in Controllers or Application handlers.
+
+Use Application/Intelligence Commands, Queries, DTOs, Contracts (ports).
+
+## Definition of Done
+
+See `.cursor/architecture/FEATURE-DONE.md` before marking feature complete.
+
+## Short User Prompts Are OK
+
+User may say: "أنشئ Feature تسجيل طالب" — architecture comes from Rules + Skill + Validator, not a long prompt.

@@ -8,8 +8,8 @@
 | Priority | Stack | Status |
 |----------|-------|--------|
 | **P0** | Clean + Layered + SOLID + DI + Security + RLS | ✅ Foundation |
-| **P1** | DDD + UseCase + Repository + Specification + Events | ✅ Foundation |
-| **P2** | CQRS + Queue + Redis + Observability | ⏳ Partial |
+| **P1** | DDD + UseCase + Repository + Specification + Events + DTOs + Results | ✅ Foundation |
+| **P2** | CQRS + Queue + Outbox + Idempotency + Observability | ⏳ Partial |
 | **P3** | Intelligence + Simulation + Self-Healing | ✅ Runtime |
 | **P4** | Self-Learning adaptive optimization | ⏳ Partial |
 
@@ -50,8 +50,9 @@ app/
 │   └── {Context}/
 │       ├── Commands/          # Write side (CQRS)
 │       ├── Queries/           # Read side (CQRS)
-│       ├── DTOs/
-│       └── Handlers/
+│       ├── DTOs/              # Read/write data carriers (not Eloquent)
+│       ├── Results/           # Command outcomes (EnrollStudentResult)
+│       └── Contracts/         # Ports for cross-context reads/writes
 │
 ├── Infrastructure/            # Adapters (hexagonal)
 │   ├── Persistence/
@@ -70,8 +71,8 @@ app/
 
 | From | May depend on | Must NOT depend on |
 |------|---------------|-------------------|
-| **Domain** | Domain, PHP std | Laravel, Eloquent, HTTP, DB, Redis |
-| **Application** | Domain, Application contracts | Controllers, Blade, Inertia |
+| **Domain** | Domain, PHP std | Laravel, Eloquent, HTTP, DB, Application DTOs |
+| **Application** | Domain, Application contracts | Controllers, Http Request, Eloquent models |
 | **Infrastructure** | Domain ports, Laravel, Eloquent | Controllers |
 | **Http/Controllers** | Application handlers, Form Requests | DB::, Eloquent (direct), business rules |
 | **Intelligence** | Infrastructure metrics, config | Domain entities (optional read-only) |
@@ -83,17 +84,49 @@ app/
 
 Heavy reads → Materialized views / cache (see `normalization-and-cqrs.md`).
 
-## Event-Driven
+## Event-Driven (Transactional Outbox)
 
 ```text
-Domain Event (e.g. StudentEnrolled)
-    → Listener: Audit
-    → Listener: Cache invalidation
-    → Listener: Intelligence metric
-    → Job: Notification (async)
+Handler (inside UnitOfWork transaction)
+    → OutboxRepository::stage(StudentEnrolled)
+    → COMMIT
+ProcessOutboxJob (scheduled)
+    → Laravel bridge event
+    → Listeners: Audit · Cache · Intelligence · Notification
 ```
 
-Dispatch from **Application handler** after successful UnitOfWork commit.
+See [ADR-013-outbox-pattern.md](./adr/ADR-013-outbox-pattern.md).
+
+## DTOs vs Commands vs Results
+
+| Type | Role | Example |
+|------|------|---------|
+| **Command** | Write intent + input data | `EnrollStudentCommand` |
+| **Query** | Read intent | `GetStudentDashboardQuery` |
+| **DTO** | Layer-safe data transfer | `EnrollmentDTO`, `StudentSummaryDTO` |
+| **Result** | Structured command outcome | `EnrollStudentResult` |
+| **Entity** | Business state + behavior | `Student::canEnroll()` |
+
+Commands/Queries are DTO-like carriers; explicit DTOs used for reads and API responses.
+
+## Idempotency
+
+Sensitive commands accept `?string $idempotencyKey`. Stored in `audit.idempotency_keys` with TTL.  
+See [ADR-014-idempotency-commands.md](./adr/ADR-014-idempotency-commands.md).
+
+## OOP Requirements
+
+- **Encapsulation:** state changes via entity methods, not public property mutation.
+- **Value Objects:** `StudentCode`, `SchoolId`, `AcademicYearId` enforce invariants.
+- **Polymorphism:** Specifications compose with `and()` / `or()`.
+- **Composition:** Handlers orchestrate — no God classes.
+- **Interfaces:** Repository ports in Domain; adapters in Infrastructure.
+
+See [ADR-015-rich-domain-dtos.md](./adr/ADR-015-rich-domain-dtos.md).
+
+## Event-Driven (legacy note)
+
+Dispatch from **Application handler** inside transaction via Outbox — not direct `event()` after commit.
 
 ## Patterns in Use
 
@@ -122,7 +155,8 @@ Two layers:
 
 ## Resilience (P2)
 
-- Idempotency keys on payments, imports, certificates
+- **Idempotency keys** on enrollment, payments, imports, certificates
+- **Transactional outbox** for domain events
 - Queue for heavy ops — never in HTTP
 - Retry on jobs with backoff
 
@@ -130,11 +164,17 @@ Two layers:
 
 | Mechanism | When |
 |-----------|------|
+| `.cursor/rules/architecture-governance.mdc` | AI creates any feature — **no Laravel-style Model+Controller** |
 | `.cursor/rules/clean-architecture.mdc` | AI edits `app/**` |
 | `.cursor/skills/application-feature/SKILL.md` | AI creates feature |
-| `php artisan architecture:validate` | Manual + CI |
+| `php artisan sis:make-feature` | Bounded context scaffold |
+| `php artisan architecture:validate --fitness` | Manual + CI |
+| `php artisan architecture:graph` | Dependency direction audit |
 | `tests/Architecture/*` | PHPUnit on every test run |
-| `php artisan sis:make-command` / `sis:make-query` | Scaffolding |
+
+**Source of truth:** Validator + Tests + CI — Cursor is assistant only.
+
+See [FEATURE-DONE.md](./FEATURE-DONE.md) for per-feature checklist.
 
 ## Related
 

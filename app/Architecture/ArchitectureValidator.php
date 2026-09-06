@@ -8,6 +8,10 @@ use SplFileInfo;
 
 final class ArchitectureValidator
 {
+    public function __construct(
+        private readonly ArchitectureDependencyGraph $graph = new ArchitectureDependencyGraph,
+    ) {}
+
     /** @var list<string> */
     private array $violations = [];
 
@@ -19,15 +23,24 @@ final class ArchitectureValidator
         $this->violations = [];
 
         $this->validateDomainLayer();
-        $this->validateControllers();
         $this->validateApplicationLayer();
+        $this->validateControllers();
+        $this->validateLegacyPaths();
 
-        return $this->violations;
+        return array_values(array_unique([
+            ...$this->violations,
+            ...$this->graph->validate(),
+        ]));
     }
 
     public function passes(): bool
     {
         return $this->validate() === [];
+    }
+
+    public function dependencyGraph(): ArchitectureDependencyGraph
+    {
+        return $this->graph;
     }
 
     private function validateDomainLayer(): void
@@ -38,21 +51,26 @@ final class ArchitectureValidator
         }
 
         foreach ($this->phpFiles($domainPath) as $file) {
-            $content = file_get_contents($file->getPathname());
-            if ($content === false) {
+            $content = $this->read($file);
+            if ($content === null) {
                 continue;
             }
 
-            if (preg_match('/\buse Illuminate\\\\/', $content) === 1) {
-                $this->violations[] = "{$this->relative($file)}: Domain must not import Illuminate";
-            }
-
-            if (preg_match('/\buse App\\\\Models\\\\/', $content) === 1) {
-                $this->violations[] = "{$this->relative($file)}: Domain must not import Eloquent models";
-            }
+            $this->forbidImports($file, $content, [
+                'Illuminate\\' => 'Domain must not import Illuminate',
+                'App\\Application\\' => 'Domain must not import Application layer',
+                'App\\Infrastructure\\' => 'Domain must not import Infrastructure layer',
+                'App\\Http\\' => 'Domain must not import Http layer',
+                'App\\Models\\' => 'Domain must not import Eloquent models',
+                'App\\Intelligence\\' => 'Domain must not import Intelligence runtime',
+            ]);
 
             if (preg_match('/\bDB::/', $content) === 1) {
                 $this->violations[] = "{$this->relative($file)}: Domain must not use DB facade";
+            }
+
+            if (preg_match('/\bextends\s+Model\b/', $content) === 1) {
+                $this->violations[] = "{$this->relative($file)}: Domain must not extend Eloquent Model";
             }
         }
     }
@@ -65,8 +83,8 @@ final class ArchitectureValidator
         }
 
         foreach ($this->phpFiles($path) as $file) {
-            $content = file_get_contents($file->getPathname());
-            if ($content === false) {
+            $content = $this->read($file);
+            if ($content === null) {
                 continue;
             }
 
@@ -74,8 +92,24 @@ final class ArchitectureValidator
                 continue;
             }
 
+            $this->forbidImports($file, $content, [
+                'App\\Http\\' => 'Application must not import Http layer',
+                'App\\Infrastructure\\' => 'Application must not import Infrastructure implementations — use ports',
+                'App\\Models\\' => 'Application must not import Eloquent models — use repository ports',
+                'App\\Intelligence\\Models\\' => 'Application must not import Intelligence models — use ports',
+                'Illuminate\\Http\\Request' => 'Application must not depend on HTTP Request',
+            ]);
+
             if (preg_match('/extends\s+Controller/', $content) === 1) {
                 $this->violations[] = "{$this->relative($file)}: Application must not extend Controller";
+            }
+
+            if ($this->isHandler($file) && preg_match('/\bDB::(transaction|table|select|insert|update|delete|statement)\s*\(/', $content) === 1) {
+                $this->violations[] = "{$this->relative($file)}: Handlers must use UnitOfWork/repositories, not DB facade";
+            }
+
+            if ($this->isHandler($file) && preg_match('/\buse Illuminate\\\\Support\\\\Facades\\\\DB\b/', $content) === 1) {
+                $this->violations[] = "{$this->relative($file)}: Handlers must not import DB facade";
             }
         }
     }
@@ -88,12 +122,8 @@ final class ArchitectureValidator
         }
 
         foreach ($this->phpFiles($path) as $file) {
-            if (str_contains($file->getPathname(), DIRECTORY_SEPARATOR.'Intelligence'.DIRECTORY_SEPARATOR)) {
-                continue;
-            }
-
-            $content = file_get_contents($file->getPathname());
-            if ($content === false) {
+            $content = $this->read($file);
+            if ($content === null) {
                 continue;
             }
 
@@ -101,11 +131,66 @@ final class ArchitectureValidator
                 $this->violations[] = "{$this->relative($file)}: Controller must not use DB directly — use Application handler";
             }
 
-            if (preg_match('/\b[A-Za-z0-9_]+::(create|update|destroy|query)\s*\(/', $content) === 1
-                && preg_match('/\buse App\\\\Models\\\\/', $content) === 1) {
+            if (preg_match('/\buse App\\\\Models\\\\/', $content) === 1
+                && preg_match('/\b[A-Za-z0-9_]+::(create|update|destroy|query)\s*\(/', $content) === 1) {
                 $this->violations[] = "{$this->relative($file)}: Controller must not call Eloquent directly — use Application layer";
             }
+
+            if (preg_match('/\buse App\\\\Intelligence\\\\Models\\\\/', $content) === 1
+                && preg_match('/\b[A-Za-z0-9_]+::(create|update|destroy|query|find)\s*\(/', $content) === 1) {
+                $this->violations[] = "{$this->relative($file)}: Controller must not call Intelligence models directly — use Application handler";
+            }
+
+            if (preg_match('/\buse App\\\\Domain\\\\/', $content) === 1
+                && ! str_contains($file->getPathname(), 'Controller.php')
+                && preg_match('/new\s+[A-Za-z0-9_\\\\]+\(/', $content) === 1) {
+                // Controllers may catch domain exceptions; avoid constructing domain objects in controllers.
+            }
         }
+    }
+
+    /**
+     * Warn when new business logic is added to legacy paths (Services without migration plan).
+     */
+    private function validateLegacyPaths(): void
+    {
+        $legacyService = app_path('Services');
+        if (! is_dir($legacyService)) {
+            return;
+        }
+
+        foreach ($this->phpFiles($legacyService) as $file) {
+            $content = $this->read($file);
+            if ($content === null) {
+                continue;
+            }
+
+            if (preg_match('/@architecture-legacy-allowed/', $content) === 1) {
+                continue;
+            }
+
+            if (preg_match('/\bclass\s+\w+/', $content) === 1 && filemtime($file->getPathname()) > strtotime('-1 day')) {
+                $this->violations[] = "{$this->relative($file)}: Do not add new business logic to app/Services — use Application/{Context}. Add @architecture-legacy-allowed if migrating.";
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $patterns
+     */
+    private function forbidImports(SplFileInfo $file, string $content, array $patterns): void
+    {
+        foreach ($patterns as $prefix => $message) {
+            $escaped = preg_quote($prefix, '/');
+            if (preg_match('/\buse '.$escaped.'/', $content) === 1) {
+                $this->violations[] = "{$this->relative($file)}: {$message}";
+            }
+        }
+    }
+
+    private function isHandler(SplFileInfo $file): bool
+    {
+        return str_ends_with($file->getFilename(), 'Handler.php');
     }
 
     /**
@@ -123,6 +208,13 @@ final class ArchitectureValidator
         }
 
         return $files;
+    }
+
+    private function read(SplFileInfo $file): ?string
+    {
+        $content = file_get_contents($file->getPathname());
+
+        return $content === false ? null : $content;
     }
 
     private function relative(SplFileInfo $file): string
