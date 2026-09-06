@@ -1,10 +1,7 @@
 # SIS Architecture Reference
 
-> **Version:** 3.1 — Adaptive Expert Database Architecture (Design Complete)  
-> **Maturity:** Architecture Ready ✅ | Development Ready ✅ | Production Proven ⏳  
-> **Table count authority:** `database-blueprint.md` → **89 tables**  
-> **Design Score:** 93/100 · **Operational Score:** ~60/100 (Phases 2–6 pending)  
-> **Core principle:** DO NOT OPTIMIZE FOR A NUMBER. OPTIMIZE FOR A MEASURED WORKLOAD.
+> **Version:** 3.2 — Adaptive Expert Database Architecture (Design Complete)  
+> **Design Score:** 93–94/100 · **Operational Score:** ~60/100
 
 ## Document Index
 
@@ -27,20 +24,23 @@
 | [DATA-LIFECYCLE-MATRIX.md](./DATA-LIFECYCLE-MATRIX.md) | Retention & archival rules |
 | [data-quality-rules.md](./data-quality-rules.md) | Integrity & validation rules |
 
-### Intelligence Layer (v3.1)
+### Intelligence Layer (v3.2)
 | File | Topic |
 |------|-------|
-| [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md) | **Expert + Learning + Self-Healing design** |
-| [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md) | Tiers, integrity gate, explainability, versioning |
+| [INTELLIGENCE-GLOSSARY.md](./INTELLIGENCE-GLOSSARY.md) | **Terminology — Prometheus, P95, ADR, etc.** |
+| [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md) | Full pipeline + Phases 1–10 |
+| [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md) | Tiers, integrity, confidence ≠ authorization |
+| [DATABASE-DEPENDENCY-GRAPH.md](./DATABASE-DEPENDENCY-GRAPH.md) | **Blast radius + dependency discovery** |
+| [DATABASE-EVIDENCE-THRESHOLDS.md](./DATABASE-EVIDENCE-THRESHOLDS.md) | **Adaptive thresholds from measurements** |
 | [DATABASE-KNOWLEDGE-BASE.md](./DATABASE-KNOWLEDGE-BASE.md) | PostgreSQL inference rules |
-| [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md) | **SIS business criticality + domain rules** |
-| [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md) | Historical learning + pattern lifecycle |
-| [DATABASE-OPTIMIZATION-CONTEXT.md](./DATABASE-OPTIMIZATION-CONTEXT.md) | **Context fingerprint + similarity** |
-| [DATABASE-KNOWLEDGE-DRIFT.md](./DATABASE-KNOWLEDGE-DRIFT.md) | **Drift detection + pattern deprecation** |
-| [DATABASE-WORKLOAD-CLASSIFICATION.md](./DATABASE-WORKLOAD-CLASSIFICATION.md) | OLTP vs dashboard vs bulk SLOs |
-| [DATABASE-COST-MODEL.md](./DATABASE-COST-MODEL.md) | Performance + ops cost ranking |
-| [DATABASE-SIMULATION-POLICY.md](./DATABASE-SIMULATION-POLICY.md) | **What-if before production** |
-| [SELF-HEALING-RUNBOOK.md](./SELF-HEALING-RUNBOOK.md) | Safe automated operational responses |
+| [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md) | SIS business criticality |
+| [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md) | Learning + calibration + human feedback |
+| [DATABASE-OPTIMIZATION-CONTEXT.md](./DATABASE-OPTIMIZATION-CONTEXT.md) | Context fingerprint + data distribution |
+| [DATABASE-KNOWLEDGE-DRIFT.md](./DATABASE-KNOWLEDGE-DRIFT.md) | Drift detection |
+| [DATABASE-WORKLOAD-CLASSIFICATION.md](./DATABASE-WORKLOAD-CLASSIFICATION.md) | Workload-aware SLOs |
+| [DATABASE-COST-MODEL.md](./DATABASE-COST-MODEL.md) | Total cost ranking |
+| [DATABASE-SIMULATION-POLICY.md](./DATABASE-SIMULATION-POLICY.md) | What-if staging |
+| [SELF-HEALING-RUNBOOK.md](./SELF-HEALING-RUNBOOK.md) | Tier 1 auto-responses |
 
 ### 45K Baseline Scenario
 | File | Topic |
@@ -75,7 +75,7 @@
 | [improvement-matrix.md](./improvement-matrix.md) | Priority matrix (93/100 design target) |
 | [DATABASE-CHANGE-CHECKLIST.md](./DATABASE-CHANGE-CHECKLIST.md) | Mandatory DB checklist |
 | [WORK-PLAN.md](./WORK-PLAN.md) | Phase A–F guide |
-| [adr/](./adr/) | **11 Architecture Decision Records** |
+| [adr/](./adr/) | **12 Architecture Decision Records** |
 | [phases/](./phases/) | Phase implementation guides |
 
 ### Scalability & Security
@@ -93,6 +93,6 @@
 | Development Ready | ✅ | Guides + rules + blueprint complete |
 | Production Proven | ⏳ | Load test + DR + restore verified with numbers |
 
-## Self-Assessment Score: **93/100** — Design Complete · Ops Phases 2–6 Pending
+## Self-Assessment: **Design 93–94/100** · **Operational ~60/100**
 
-See [improvement-matrix.md](./improvement-matrix.md) for layer scores. **Design ≠ Production Smart/Expert until monitoring + optimization_events operational.**
+Designed Controlled Self-Learning — not operational until Phases 2–7. Glossary: [INTELLIGENCE-GLOSSARY.md](./INTELLIGENCE-GLOSSARY.md)

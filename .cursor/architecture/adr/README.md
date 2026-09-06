@@ -15,6 +15,7 @@
 | [ADR-009](./ADR-009-adaptive-governance.md) | Adaptive Database Governance | Accepted |
 | [ADR-010](./ADR-010-intelligence-layer.md) | Database Intelligence Layer | Accepted |
 | [ADR-011](./ADR-011-intelligence-v31.md) | Intelligence Layer v3.1 enhancements | Accepted |
+| [ADR-012](./ADR-012-intelligence-v32.md) | Intelligence Layer v3.2 refinements | Accepted |
 
 ## When to Create New ADR
 

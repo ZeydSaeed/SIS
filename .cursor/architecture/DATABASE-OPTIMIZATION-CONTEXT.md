@@ -50,12 +50,19 @@ context_fingerprint:
   cache_strategy: "redis_reference_data"
   read_replica_in_use: true
 
+  # Data distribution (v3.2 — affects selectivity, indexes, partial indexes)
+  data_distribution:
+    status_active_pct: 0.12          # e.g. 12% active students
+    top_filter_selectivity: 0.08     # estimated rows matching dominant WHERE
+    null_pct_on_filter_column: 0.01
+    skew_notes: "Top 5 schools = 40% of rows"
+
   # Governance snapshot
   knowledge_version: "KB-2026.09"
   performance_budget_version: "PB-2026.09"
 ```
 
-Store alongside event in [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md).
+**10M rows with 99% one status value ≠ 10M rows with uniform distribution** — always include distribution in fingerprint for index/partition decisions.
 
 ---
 

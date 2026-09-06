@@ -1,6 +1,6 @@
 # Improvement Priority Matrix
 
-> **Updated for:** Adaptive governance + 45K baseline (20 schools × 10 years)  
+> **Updated for:** v3.2 Adaptive Expert Architecture + 45K baseline  
 > **See also:** [capacity-planning.md](./capacity-planning.md) (authoritative) · [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)
 
 ## Full Matrix — Standard
@@ -96,34 +96,29 @@ These items change priority for the province deployment:
 | 65 | Optimization Cost Model | **P1** | DATABASE-COST-MODEL.md |
 | 66 | Simulation / What-If Policy | **P1** | DATABASE-SIMULATION-POLICY.md |
 | 67 | SIS Domain Knowledge Base | **P0** | SIS-DOMAIN-KNOWLEDGE-BASE.md |
+| 68 | Intelligence Glossary | **P1** | INTELLIGENCE-GLOSSARY.md |
+| 69 | Dependency Graph + Blast Radius | **P0** | DATABASE-DEPENDENCY-GRAPH.md |
+| 70 | Evidence-Based Thresholds | **P1** | DATABASE-EVIDENCE-THRESHOLDS.md |
+| 71 | ADR-012 v3.2 Refinements | **P1** | adr/ADR-012-intelligence-v32.md |
 
-## Self-Assessment — v3.1 (Design Complete)
+## Self-Assessment — v3.2
 
 | Layer | Score | Notes |
 |-------|------:|-------|
-| Database Architecture | 92 | 89 tables, blueprint + dictionary |
-| Data Integrity | 94 | Constraints + governance |
-| PostgreSQL Design | 91 | Partitioning, RLS, types |
-| Indexing | 91 | Matrix + adaptive INDEX-GOVERNANCE |
-| Partitioning | 92 | P0 from year 1 for 45K baseline |
-| Performance Design | 92 | Budget versioned + workload-aware |
-| Scalability 45K | 91 | Dynamic capacity model |
-| Adaptive Governance | 92 | Feedback loop + measurement-based |
-| Intelligence Layer Design | **93** | Full v3.1 stack documented |
-| Explainability | **90** | Mandatory evidence package |
-| Context Awareness | **88** | Fingerprint + similarity scoring |
-| Simulation / What-if | **85** | Policy documented — ops pending |
-| Cost Optimization | **85** | Cost model documented |
-| SIS Domain Intelligence | **88** | Criticality map + domain rules |
-| Drift Detection | **87** | Formal drift management |
+| Intelligence Layer Design | **94** | v3.2 — calibration, blast radius, glossary |
+| Context Awareness | **92** | + data distribution in fingerprint |
+| Confidence / Learning | **90** | Multi-factor + human feedback + recency |
+| Drift + Evidence Thresholds | **90** | Static → measured thresholds |
+| Explainability | **94** | + blast radius in package |
+| Dependency / Blast Radius | **91** | DATABASE-DEPENDENCY-GRAPH.md |
+| Safety / Governance | **97** | Confidence ≠ authorization |
 | Self-Healing | **85** | Runbook — not operational |
-| **Operational Implementation** | **60** | Prometheus, events, automation ⏳ |
-| Dev Governance / Cursor | 99 | v3.1 complete |
-| Production Readiness | **85** | Checklists — not proven |
+| **Operational Implementation** | **60** | Phase 2 Observability next |
+| Dev Governance / Cursor | **99** | v3.2 complete |
 
-### **Design: 93/100 · Operational: ~60/100**
+### **Design: 93–94/100 · Operational: ~60/100**
 
-Path to **Production Proven (95+):** Phases 2–6 — Prometheus, pg_stat, optimization_events, staging simulation, controlled Tier 1 automation.
+Path to **Production Proven:** Phase 2–4 live + 20 validated optimization events + load test + DR drill.
 
 ## Maturity Levels
 

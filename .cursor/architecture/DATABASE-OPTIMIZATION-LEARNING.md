@@ -64,9 +64,142 @@ optimization_event:
   rule_id: PART-003
   rule_version: 2
   knowledge_version: KB-2026.09
+  human_decision: approved              # approved | rejected | modified
+  human_decision_reason: "Best cost score on staging"
+  recency_weight: 1.0                   # see Recency Weighting below
 ```
 
 Store in: team wiki, `optimization_events/` table (future), or migration PR descriptions.
+
+**Prerequisite:** Do not start learning until Observability (Phase 2) produces reliable events. Garbage in → garbage knowledge.
+
+---
+
+## Human Feedback Learning
+
+Learning from outcomes **and** expert decisions:
+
+| human_decision | Learning action |
+|----------------|-----------------|
+| **approved** | Reinforce pattern if production success |
+| **rejected** | Log anti-pattern with `human_decision_reason` |
+| **modified** | Log what DBA chose instead — often more valuable than auto success |
+
+```yaml
+human_feedback_event:
+  recommendation_id: REC-2026-0912-004
+  expert_suggested: "Sub-partition by school_id"
+  human_decision: rejected
+  human_decision_reason: "Operational complexity too high for current team size"
+  human_chose_instead: "Materialized View directorate_daily_summary"
+  outcome_of_human_choice: success
+```
+
+Feed rejected/modified events into Knowledge Base anti-patterns and cost model weights.
+
+---
+
+## Recency Weighting
+
+Recent events matter more than old ones:
+
+| Event age | Default weight |
+|-----------|----------------|
+| 0–6 months | 1.0 |
+| 6–12 months | 0.8 |
+| 12–24 months | 0.6 |
+| > 24 months | 0.4 (review for deprecation) |
+
+Apply to success rate aggregation:
+
+```text
+weighted_success = Σ(outcome_success × recency_weight) / Σ(recency_weight)
+```
+
+Tune weights from calibration data — not fixed forever.
+
+---
+
+## Confidence Scoring (Multi-Factor)
+
+`success_rate × context_similarity` is a **starting heuristic only**. Prefer:
+
+```text
+confidence = f(
+  weighted_success_rate,     # with recency
+  sample_size,               # 20/20 ≠ 900/1000
+  context_similarity,
+  bayesian_prior,            # domain baseline success for this change type
+  risk_tier,
+  data_criticality
+)
+```
+
+### Sample size dampening
+
+| Success rate | Sample | Interpretation |
+|--------------|--------|----------------|
+| 20/20 (100%) | 20 | Low confidence — small sample |
+| 900/1000 (90%) | 1000 | High confidence |
+
+Use Wilson score or Beta distribution for small samples (implementation Phase 8).
+
+### Adjusted confidence (heuristic fallback)
+
+```text
+adjusted = weighted_success_rate × context_similarity × sample_factor
+
+sample_factor:
+  n < 10  → 0.5
+  n < 30  → 0.7
+  n ≥ 30  → min(1.0, n / 50)
+```
+
+Example:
+
+```text
+LP-001: 82% success, n=100, similarity 0.55 → adjusted ~0.45 → research only
+LP-002: 78% success, n=22, similarity 0.94 → adjusted ~0.73 → standard workflow
+```
+
+---
+
+## Confidence Calibration
+
+Track whether stated confidence matches reality:
+
+```yaml
+calibration_report:
+  period: 2026-Q3
+  buckets:
+    - predicted_confidence: 0.70-0.85
+      recommendations: 24
+      actual_success_rate: 0.71
+      status: well_calibrated
+    - predicted_confidence: 0.85-1.00
+      recommendations: 12
+      actual_success_rate: 0.58
+      status: overconfident    # adjust formula or thresholds
+```
+
+Run quarterly with DBA review. Overconfident buckets → tighten promotion to Active patterns.
+
+---
+
+## Confidence ≠ Authorization
+
+```text
+Confidence = how likely the recommendation succeeds IF approved
+Authorization = Risk Tier + Human Gate + Blast Radius
+```
+
+| Scenario | Result |
+|----------|--------|
+| Confidence 99% + Tier 4 (DROP FK) | **Forbidden** — never auto |
+| Confidence 40% + Tier 1 (ANALYZE) | May auto with audit |
+| Confidence 85% + Tier 3 | Human + ADR required |
+
+See [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md).
 
 ---
 
@@ -84,6 +217,12 @@ Candidate → Validated → Active → Deprecated
 | **deprecated** | Drift or success rate < 40% — do not use |
 
 Promotion requires human review. See [DATABASE-INTELLIGENCE-SAFETY.md](./DATABASE-INTELLIGENCE-SAFETY.md).
+
+**Do not start Phase 8 (Self-Learning jobs) before:**
+- Phase 2 Observability live
+- Phase 7 Optimization events table with validated data
+- Baseline snapshot recorded
+- Minimum 20 Tier 2+ events with integrity verification
 
 ---
 
@@ -118,8 +257,8 @@ learned_pattern:
 
 | Outcome | Criteria |
 |---------|----------|
-| **Success** | P95 improved ≥ 30% · no write regression > 10% · no correctness issues · stable 72h |
-| **Partial** | P95 improved but write regression 10–25% · monitor longer |
+| **Success** | **P95 reduction ≥ 30%** (lower is better) · write regression ≤ 10% · no correctness issues · stable 72h |
+| **Partial** | P95 reduced but write regression 10–25% · monitor longer |
 | **Failure** | P95 unchanged or worse · correctness issue · rolled back |
 | **Rolled back** | Production regression within monitoring window |
 
@@ -129,24 +268,7 @@ Failed events are **equally valuable** — update Knowledge Base to avoid repeat
 
 ## Confidence Scoring (Statistical + Context)
 
-```text
-Confidence = f(
-  historical_success_rate,
-  sample_size,
-  context_similarity,        # REQUIRED — DATABASE-OPTIMIZATION-CONTEXT.md
-  risk_tier,
-  data_criticality           # SIS-DOMAIN-KNOWLEDGE-BASE.md
-)
-
-Adjusted confidence = raw_success_rate × context_similarity
-```
-
-Example:
-
-```text
-LP-001: 82% success, 100 events, context_similarity 0.55 → adjusted 0.45 → research only
-LP-002: 78% success, 22 events, context_similarity 0.94 → adjusted 0.73 → standard workflow
-```
+See **Multi-Factor Confidence**, **Recency Weighting**, **Calibration**, and **Confidence ≠ Authorization** sections above.
 
 | Confidence | UI / Process |
 |------------|--------------|
@@ -195,25 +317,23 @@ LP-002: 78% success, 22 events, context_similarity 0.94 → adjusted 0.73 → st
 
 ---
 
-## Future Implementation (Phase 6)
+## Future Implementation (Phases 7–8)
 
 When operational:
 
 ```text
-PostgreSQL pg_stat + application metrics
+Phase 2 Observability (Prometheus + pg_stat + APM)
      ↓
-optimization_events table (append-only audit)
+Phase 7 optimization_events table (append-only, validated)
      ↓
-Batch analysis job (weekly — Laravel Queue)
+Phase 8 weekly learning job (Laravel Queue)
      ↓
-Pattern report → DBA review
+Pattern report + calibration report → DBA review
      ↓
-Knowledge Base YAML update (PR + approval)
+Knowledge Base version bump (PR + approval)
 ```
 
-No ML required for Phase 6. Statistical aggregation + human review is sufficient.
-
-Phase 7+ may add ML for anomaly detection — still with human gate for schema changes.
+No ML required initially. Wilson/Beta confidence optional in Phase 8+. LLM optional for NL explanation only — never direct DB execution.
 
 ---
 

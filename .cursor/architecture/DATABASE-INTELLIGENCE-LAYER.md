@@ -1,9 +1,8 @@
 # Database Intelligence Layer
 
-> **Version:** SIS v3.1 — Adaptive Expert Database Architecture (Design Complete)  
-> **Goal:** Adaptive Expert Database Architecture with Controlled Self-Learning and Self-Healing  
-> **Maturity:** Design 93/100 · Operational implementation Phases 2–6 ⏳  
-> **Non-negotiable:** PostgreSQL = source of truth. Intelligence layer = analysis + recommendation only.
+> **Version:** SIS v3.2 — Adaptive Expert Database Architecture (Design Complete)  
+> **Design Score:** 93–94/100 · **Operational Score:** ~60/100  
+> **Label:** *Designed Controlled Self-Learning Architecture* — not *Operational Self-Learning* until Phases 2–7 live.
 
 ---
 
@@ -254,44 +253,52 @@ See [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md) for
 
 ---
 
-## Phased Implementation Roadmap
+## Phased Implementation Roadmap (v3.2)
 
-Do **not** start with ML. Build on existing governance (ADRs, capacity planning, indexing, zero-downtime, DR).
+Do **not** start Self-Learning before reliable optimization events. Do **not** start ML/LLM before rules + statistics work.
 
 | Phase | Name | Status | Deliverable |
 |-------|------|--------|-------------|
 | **1** | Governance | ✅ Done | DATABASE-GOVERNANCE, ADRs, blueprint |
-| **2** | Monitoring + Metrics | ⏳ Design | Prometheus, pg_stat, query logging |
-| **3** | Rule Engine | ⏳ Design | Threshold alerts → recommendations |
-| **4** | Expert Knowledge Base | ✅ Documented | DATABASE-KNOWLEDGE-BASE.md |
-| **5** | Recommendation Engine | ⏳ Design | Diagnosis templates + risk scoring |
-| **6** | Historical Learning | ⏳ Design | Optimization event log + patterns |
-| **7** | Controlled Automation | ⏳ Design | Tier 0–1 auto-actions only |
-| **8** | Self-Healing | ⏳ Design | SELF-HEALING-RUNBOOK.md |
+| **2** | Observability | ⏳ | Prometheus, pg_stat_statements, APM, query logging |
+| **3** | Workload Classification | ⏳ | Tag queries/events by workload class |
+| **4** | Rule Engine | ⏳ | Evidence thresholds + alerts → recommendations |
+| **5** | Expert Engine | ✅ Documented | KB + inference + explainability |
+| **6** | Simulation + Cost Model | ✅ Documented | Staging what-if + cost ranking |
+| **7** | Optimization Events | ⏳ | Append-only event log + integrity validation |
+| **8** | Self-Learning | ⏳ | Patterns, recency, calibration, human feedback |
+| **9** | Controlled Automation | ⏳ | Tier 0–1 only + audit |
+| **10** | Self-Healing | ⏳ | SELF-HEALING-RUNBOOK operational |
 
-**Production Proven** requires Phases 2–3 operational with measured results.
+**Production Proven** = Phases 2–4 operational + first 20 validated optimization events + load test + DR drill.
+
+**Next step:** Phase 2 (Prometheus + pg_stat_statements) — not more documentation.
+
+Glossary: [INTELLIGENCE-GLOSSARY.md](./INTELLIGENCE-GLOSSARY.md)
 
 ---
 
-## Document Stack (v3.1)
+## Document Stack (v3.2)
 
 ```text
 DATABASE GOVERNANCE
-├── DATABASE-GOVERNANCE.md
-├── DATABASE-ADAPTIVE-GOVERNANCE.md
 ├── DATABASE-INTELLIGENCE-LAYER.md      — this file
-├── DATABASE-INTELLIGENCE-SAFETY.md     — tiers, integrity gate, explainability, versioning
-├── DATABASE-KNOWLEDGE-BASE.md          — PostgreSQL inference rules
-├── SIS-DOMAIN-KNOWLEDGE-BASE.md        — business criticality + domain rules
-├── DATABASE-OPTIMIZATION-LEARNING.md   — historical learning
-├── DATABASE-OPTIMIZATION-CONTEXT.md    — context fingerprint + similarity
-├── DATABASE-KNOWLEDGE-DRIFT.md         — drift detection + pattern deprecation
-├── DATABASE-WORKLOAD-CLASSIFICATION.md — OLTP vs dashboard vs bulk
-├── DATABASE-COST-MODEL.md              — performance + ops cost
-├── DATABASE-SIMULATION-POLICY.md       — what-if before production
+├── INTELLIGENCE-GLOSSARY.md            — terminology reference
+├── DATABASE-INTELLIGENCE-SAFETY.md
+├── DATABASE-KNOWLEDGE-BASE.md
+├── SIS-DOMAIN-KNOWLEDGE-BASE.md
+├── DATABASE-DEPENDENCY-GRAPH.md        — blast radius + dependency discovery
+├── DATABASE-OPTIMIZATION-LEARNING.md
+├── DATABASE-OPTIMIZATION-CONTEXT.md
+├── DATABASE-KNOWLEDGE-DRIFT.md
+├── DATABASE-EVIDENCE-THRESHOLDS.md     — adaptive thresholds from measurements
+├── DATABASE-WORKLOAD-CLASSIFICATION.md
+├── DATABASE-COST-MODEL.md
+├── DATABASE-SIMULATION-POLICY.md
+├── DATABASE-ADAPTIVE-GOVERNANCE.md
 ├── SELF-HEALING-RUNBOOK.md
-├── PERFORMANCE-BUDGET.md               — versioned, workload-aware
-└── adr/ (001–010)
+├── PERFORMANCE-BUDGET.md
+└── adr/ (001–012)
 ```
 
 ---

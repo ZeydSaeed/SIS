@@ -124,7 +124,7 @@ capacity_model:
   annual_growth_rate:    variable    # measure annually
 ```
 
-**Review thresholds** (triggers capacity review — not automatic redesign):
+**Review thresholds** (triggers capacity review — starting points; replace with evidence — see DATABASE-EVIDENCE-THRESHOLDS.md):
 
 | Metric | Review Trigger |
 |--------|----------------|
@@ -158,7 +158,7 @@ Indexes are **not mandatory forever**. Governed by:
 |--------|--------|
 | idx_scan = 0 for 90 days | Review for removal |
 | Seq Scan on large table + frequent query | Candidate for new index |
-| P95 improved > 30% after index | Keep, document in INDEX-GOVERNANCE |
+| P95 reduction ≥ 30% after index | Keep, document in INDEX-GOVERNANCE |
 | Write rate high + marginal read benefit | Reject index |
 
 **New table with 10K rows:** do not auto-index every FK — analyze JOIN/WHERE patterns first.

@@ -110,7 +110,7 @@ Every Expert recommendation MUST include:
 | **EXPECTED RESULT** | P95, write overhead, storage |
 | **ROLLBACK** | Exact rollback steps |
 | **CONFIDENCE** | Score + context similarity |
-| **VERSION** | rule_id, rule_version, knowledge_version |
+| **BLAST RADIUS** | Dependency scope — see DATABASE-DEPENDENCY-GRAPH.md |
 
 Example template:
 
@@ -135,12 +135,41 @@ recommendation:
   context_similarity: 0.88
   rule_id: IDX-007
   rule_version: 3
-  knowledge_version: KB-2026.09
+  blast_radius: local              # local | module | cross_module | system_wide
+  blast_radius_score: 28
 ```
 
 ---
 
-## Rule & Knowledge Versioning
+## Confidence ≠ Authorization
+
+```text
+Confidence  = probability recommendation succeeds IF executed
+Authorization = Risk Tier + Human Gate + Blast Radius + Data Criticality
+```
+
+| Case | Action |
+|------|--------|
+| Confidence 99% + Tier 4 | **Forbidden** — confidence does not override |
+| Confidence 99% + Tier 3 | ADR + DBA — still required |
+| Confidence 30% + Tier 1 | May proceed with audit if policy allows |
+| High confidence | Never skips integrity gate or rollback plan |
+
+Document in every recommendation: `confidence` and `authorization_required` separately.
+
+---
+
+## Blast Radius (Combined Risk)
+
+See [DATABASE-DEPENDENCY-GRAPH.md](./DATABASE-DEPENDENCY-GRAPH.md).
+
+```text
+final_caution = f(risk_tier, data_criticality, blast_radius_level)
+```
+
+Same technical change on `notifications` (local, MEDIUM) vs `student_grades` (system-wide, CRITICAL) → different approval path.
+
+---
 
 Nothing is permanent. Every rule and pattern is versioned:
 
@@ -209,4 +238,5 @@ pattern:
 - [DATABASE-INTELLIGENCE-LAYER.md](./DATABASE-INTELLIGENCE-LAYER.md)
 - [DATABASE-OPTIMIZATION-CONTEXT.md](./DATABASE-OPTIMIZATION-CONTEXT.md)
 - [DATABASE-SIMULATION-POLICY.md](./DATABASE-SIMULATION-POLICY.md)
-- [SIS-DOMAIN-KNOWLEDGE-BASE.md](./SIS-DOMAIN-KNOWLEDGE-BASE.md)
+- [DATABASE-DEPENDENCY-GRAPH.md](./DATABASE-DEPENDENCY-GRAPH.md)
+- [DATABASE-OPTIMIZATION-LEARNING.md](./DATABASE-OPTIMIZATION-LEARNING.md)

@@ -8,7 +8,7 @@
 | Development Ready | ✅ |
 | Production Proven | ⏳ (needs load test + DR drill) |
 
-**Score:** 93/100 (Design) · Operational Phases 2–6 ⏳
+**Score:** Design 93–94/100 · Operational ~60/100
 
 ## Read First
 
@@ -72,17 +72,14 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `query-optimization.mdc` — app/**
 - `react-inertia.mdc` — resources/js/**
 
-## Key Docs (v3.1 Intelligence Stack)
+## Key Docs (v3.2)
 
-- `DATABASE-INTELLIGENCE-SAFETY.md` — tiers, integrity gate, explainability
-- `DATABASE-OPTIMIZATION-CONTEXT.md` — context fingerprint
-- `DATABASE-SIMULATION-POLICY.md` — what-if before production
-- `DATABASE-COST-MODEL.md` — total cost ranking
-- `DATABASE-KNOWLEDGE-DRIFT.md` — drift + pattern deprecation
-- `SIS-DOMAIN-KNOWLEDGE-BASE.md` — business criticality
-- `DATABASE-WORKLOAD-CLASSIFICATION.md` — workload-aware SLOs
+- `INTELLIGENCE-GLOSSARY.md` — Prometheus, P95, ADR, confidence, etc.
+- `DATABASE-DEPENDENCY-GRAPH.md` — blast radius before schema changes
+- `DATABASE-EVIDENCE-THRESHOLDS.md` — static → measured thresholds
+- `DATABASE-OPTIMIZATION-LEARNING.md` — calibration, recency, human feedback
 
-## Key New Docs (v3.0–v3.1)
+**Next implementation step:** Phase 2 Observability — not more documentation.
 
 - `DATABASE-INTELLIGENCE-LAYER.md` — expert + learning + self-healing architecture
 - `DATABASE-KNOWLEDGE-BASE.md` — inference rules & heuristics
@@ -103,7 +100,7 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `cache-invalidation.md` — Redis map
 - `laravel-architecture.md` — app layers
 - `api-conventions.md` — HTTP/Inertia
-- `adr/` — 11 architecture decisions (ADR-009–011 intelligence stack)
+- `adr/` — 12 architecture decisions (ADR-009–012 intelligence stack)
 
 ## When Implementing
 
