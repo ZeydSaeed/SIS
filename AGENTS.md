@@ -31,7 +31,8 @@
 3. .cursor/rules/clean-architecture.mdc
 4. php artisan sis:make-feature / sis:make-command / sis:make-query (scaffold)
 5. php artisan architecture:validate --fitness (must pass)
-6. php artisan architecture:graph (dependency audit)
+6. php artisan architecture:feature-check {Context} (feature contract)
+7. php artisan architecture:graph (dependency audit)
 ```
 
 ## 45K Baseline (Not Architectural Ceiling)

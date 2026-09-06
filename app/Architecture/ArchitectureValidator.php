@@ -10,6 +10,12 @@ final class ArchitectureValidator
 {
     public function __construct(
         private readonly ArchitectureDependencyGraph $graph = new ArchitectureDependencyGraph,
+        private readonly ArchitectureStaticAnalyzer $staticAnalyzer = new ArchitectureStaticAnalyzer,
+        private readonly ComplexityGateChecker $complexity = new ComplexityGateChecker,
+        private readonly FeatureContractValidator $featureContract = new FeatureContractValidator,
+        private readonly SecurityFitnessChecker $security = new SecurityFitnessChecker,
+        private readonly IntelligenceGovernanceChecker $intelligence = new IntelligenceGovernanceChecker,
+        private readonly ArchitectureBaseline $baseline = new ArchitectureBaseline,
     ) {}
 
     /** @var list<string> */
@@ -30,6 +36,11 @@ final class ArchitectureValidator
         return array_values(array_unique([
             ...$this->violations,
             ...$this->graph->validate(),
+            ...$this->staticAnalyzer->validate(),
+            ...$this->complexity->validate(),
+            ...$this->featureContract->validate(),
+            ...$this->security->validate(),
+            ...$this->intelligence->validate(),
         ]));
     }
 
@@ -41,6 +52,21 @@ final class ArchitectureValidator
     public function dependencyGraph(): ArchitectureDependencyGraph
     {
         return $this->graph;
+    }
+
+    public function complexityChecker(): ComplexityGateChecker
+    {
+        return $this->complexity;
+    }
+
+    public function featureContract(): FeatureContractValidator
+    {
+        return $this->featureContract;
+    }
+
+    public function baseline(): ArchitectureBaseline
+    {
+        return $this->baseline;
     }
 
     private function validateDomainLayer(): void
@@ -140,18 +166,9 @@ final class ArchitectureValidator
                 && preg_match('/\b[A-Za-z0-9_]+::(create|update|destroy|query|find)\s*\(/', $content) === 1) {
                 $this->violations[] = "{$this->relative($file)}: Controller must not call Intelligence models directly — use Application handler";
             }
-
-            if (preg_match('/\buse App\\\\Domain\\\\/', $content) === 1
-                && ! str_contains($file->getPathname(), 'Controller.php')
-                && preg_match('/new\s+[A-Za-z0-9_\\\\]+\(/', $content) === 1) {
-                // Controllers may catch domain exceptions; avoid constructing domain objects in controllers.
-            }
         }
     }
 
-    /**
-     * Warn when new business logic is added to legacy paths (Services without migration plan).
-     */
     private function validateLegacyPaths(): void
     {
         $legacyService = app_path('Services');

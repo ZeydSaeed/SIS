@@ -68,7 +68,9 @@ Then implement layers bottom-up: Domain → Application → Infrastructure → H
 | `handler_rules` | Handlers use UnitOfWork + ports |
 | `intelligence_alignment` | Intelligence UI uses Application handlers |
 
-Run: `php artisan architecture:validate --fitness`
+Run: `php artisan architecture:validate --fitness`  
+Run: `php artisan architecture:feature-check {Context}`  
+Baseline: `.cursor/architecture/ARCHITECTURE-BASELINE.json`
 
 ---
 

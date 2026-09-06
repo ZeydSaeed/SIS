@@ -47,7 +47,7 @@ Forbidden:
 - Application → Http, Infrastructure impl, Eloquent, DB
 - Controller → DB, Eloquent, business rules
 
-Verify: `php artisan architecture:graph`
+Verify: `php artisan architecture:graph` · `php artisan architecture:feature-check {Context}`
 
 ## Intelligence Module
 

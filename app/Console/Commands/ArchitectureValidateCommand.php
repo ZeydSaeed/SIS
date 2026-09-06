@@ -19,7 +19,7 @@ class ArchitectureValidateCommand extends Command
         $violations = $validator->validate();
 
         if ($this->option('fitness') || $violations !== []) {
-            $this->line('Architecture Fitness');
+            $this->line('Architecture Fitness (baseline v'.$validator->baseline()->version().')');
             foreach ($fitness->categories() as $name => $category) {
                 $mark = $category['status'] === 'PASS' ? 'PASS' : 'FAIL';
                 $this->line("  {$name}: {$mark} — {$category['detail']}");

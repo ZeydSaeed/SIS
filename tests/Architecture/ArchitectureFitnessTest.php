@@ -22,8 +22,11 @@ class ArchitectureFitnessTest extends TestCase
         $this->assertArrayHasKey('dependency_direction', $categories);
         $this->assertArrayHasKey('application_isolation', $categories);
         $this->assertArrayHasKey('controller_thinness', $categories);
-        $this->assertArrayHasKey('handler_rules', $categories);
-        $this->assertArrayHasKey('intelligence_alignment', $categories);
+        $this->assertArrayHasKey('static_analysis', $categories);
+        $this->assertArrayHasKey('complexity_gate', $categories);
+        $this->assertArrayHasKey('feature_contract', $categories);
+        $this->assertArrayHasKey('security_fitness', $categories);
+        $this->assertArrayHasKey('intelligence_governance', $categories);
 
         foreach ($categories as $name => $category) {
             $this->assertSame(

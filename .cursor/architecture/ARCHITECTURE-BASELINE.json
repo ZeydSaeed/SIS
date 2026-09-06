@@ -1,0 +1,85 @@
+{
+  "version": "1.0",
+  "description": "Authoritative architecture baseline for SIS — validated by architecture:validate",
+  "layers": {
+    "Presentation": {
+      "may_depend_on": ["Application"]
+    },
+    "Application": {
+      "may_depend_on": ["Domain"]
+    },
+    "Domain": {
+      "may_depend_on": []
+    },
+    "Infrastructure": {
+      "may_depend_on": ["Domain", "Application"]
+    },
+    "IntelligenceRuntime": {
+      "may_depend_on": ["Domain", "Application", "Infrastructure"]
+    }
+  },
+  "forbidden_references": {
+    "Domain": [
+      "Illuminate\\",
+      "App\\Application\\",
+      "App\\Infrastructure\\",
+      "App\\Http\\",
+      "App\\Models\\",
+      "App\\Intelligence\\"
+    ],
+    "Application": [
+      "App\\Http\\",
+      "App\\Infrastructure\\",
+      "App\\Models\\",
+      "App\\Intelligence\\Models\\",
+      "Illuminate\\Support\\Facades\\DB",
+      "Illuminate\\Http\\Request"
+    ],
+    "Presentation": []
+  },
+  "bypass_patterns": [
+    "app\\\\(\\\\App\\\\Infrastructure\\\\",
+    "resolve\\\\(\\\\App\\\\Infrastructure\\\\",
+    "app\\\\(\\\\App\\\\Models\\\\",
+    "\\\\App\\\\Infrastructure\\\\[A-Za-z0-9_\\\\]+::class",
+    "\\\\App\\\\Models\\\\[A-Za-z0-9_\\\\]+::class",
+    "\\\\Illuminate\\\\Support\\\\Facades\\\\DB::"
+  ],
+  "complexity": {
+    "handler_warn_lines": 50,
+    "handler_fail_lines": 150,
+    "handler_warn_cyclomatic": 8,
+    "handler_fail_cyclomatic": 10
+  },
+  "feature_contract": {
+    "write_command": {
+      "required_suffixes": ["Command", "Handler"],
+      "required_result_class": true,
+      "sensitive_name_patterns": ["Enroll", "Payment", "Import", "Transfer", "Withdraw"],
+      "require_idempotency_key_when_sensitive": true
+    },
+    "read_query": {
+      "required_suffixes": ["Query", "Handler"]
+    }
+  },
+  "security": {
+    "school_context_middleware": "App\\Security\\Middleware\\SchoolContextMiddleware",
+    "rls_migration": "database/migrations/2026_09_05_100900_enable_row_level_security.php",
+    "rls_tables": ["enrollment.enrollments", "attendance.records"]
+  },
+  "intelligence_governance": {
+    "max_auto_execute_tier": 1,
+    "forbidden_auto_actions_minimum": [
+      "drop_table",
+      "drop_index",
+      "alter_column_type",
+      "disable_rls",
+      "schema_restructure"
+    ],
+    "learning_must_not_modify": [
+      "auto_execute_max_tier",
+      "forbidden_auto_actions",
+      "RiskPolicy"
+    ]
+  }
+}

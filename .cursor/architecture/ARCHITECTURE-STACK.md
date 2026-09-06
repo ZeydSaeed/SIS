@@ -169,7 +169,8 @@ Two layers:
 | `.cursor/skills/application-feature/SKILL.md` | AI creates feature |
 | `php artisan sis:make-feature` | Bounded context scaffold |
 | `php artisan architecture:validate --fitness` | Manual + CI |
-| `php artisan architecture:graph` | Dependency direction audit |
+| `php artisan architecture:feature-check {Context}` | Per-feature contract |
+| `ARCHITECTURE-BASELINE.json` | Versioned rules (layers, complexity, security) |
 | `tests/Architecture/*` | PHPUnit on every test run |
 
 **Source of truth:** Validator + Tests + CI — Cursor is assistant only.

@@ -7,6 +7,11 @@ final class ArchitectureFitnessReport
     public function __construct(
         private readonly ArchitectureValidator $validator,
         private readonly ArchitectureDependencyGraph $graph,
+        private readonly ArchitectureStaticAnalyzer $staticAnalyzer = new ArchitectureStaticAnalyzer,
+        private readonly ComplexityGateChecker $complexity = new ComplexityGateChecker,
+        private readonly FeatureContractValidator $featureContract = new FeatureContractValidator,
+        private readonly SecurityFitnessChecker $security = new SecurityFitnessChecker,
+        private readonly IntelligenceGovernanceChecker $intelligence = new IntelligenceGovernanceChecker,
     ) {}
 
     /**
@@ -15,39 +20,50 @@ final class ArchitectureFitnessReport
     public function categories(): array
     {
         $validatorViolations = $this->validator->validate();
-        $graphViolations = $this->graph->validate();
 
         return [
             'domain_purity' => $this->category(
-                $this->filterViolations($validatorViolations, 'Domain must not'),
-                'Domain has zero Laravel/Application/Infrastructure imports',
+                $this->mergeFilters($validatorViolations, ['Domain must not', '[ARCH-001]', '[ARCH-003]', '[ARCH-004]']),
+                'Domain has zero forbidden imports and FQCN references',
             ),
             'dependency_direction' => $this->category(
-                $graphViolations,
+                $this->graph->validate(),
                 'Layer imports follow Presentation → Application → Domain ← Infrastructure',
             ),
+            'static_analysis' => $this->category(
+                $this->staticAnalyzer->validate(),
+                'No app()/resolve()/FQCN bypass of layer rules',
+            ),
             'application_isolation' => $this->category(
-                $this->filterViolations($validatorViolations, 'Application must not'),
+                $this->mergeFilters($validatorViolations, ['Application must not', 'Handlers must']),
                 'Application has no Http/Eloquent/DB dependencies',
             ),
             'controller_thinness' => $this->category(
-                $this->filterViolations($validatorViolations, 'Controller must not'),
+                $this->mergeFilters($validatorViolations, ['Controller must not']),
                 'Controllers delegate to handlers only',
             ),
-            'handler_rules' => $this->category(
-                $this->filterViolations($validatorViolations, 'Handlers must'),
-                'Handlers use UnitOfWork and repository ports',
+            'complexity_gate' => $this->category(
+                $this->complexity->validate(),
+                'Handler line count and cyclomatic complexity within baseline',
             ),
-            'intelligence_alignment' => $this->category(
-                $this->filterViolations($validatorViolations, 'Intelligence'),
-                'Intelligence HTTP entry uses Application handlers',
+            'feature_contract' => $this->category(
+                $this->featureContract->validate(),
+                'Commands/Queries have handlers, results, idempotency when required',
+            ),
+            'security_fitness' => $this->category(
+                $this->security->validate(),
+                'RLS migration, SchoolContext middleware, tenant isolation hooks',
+            ),
+            'intelligence_governance' => $this->category(
+                $this->intelligence->validate(),
+                'Risk tiers, forbidden auto-actions, learning cannot escalate permissions',
             ),
         ];
     }
 
     public function allPass(): bool
     {
-        return $this->validator->passes() && $this->graph->passes();
+        return $this->validator->passes();
     }
 
     /**
@@ -55,21 +71,27 @@ final class ArchitectureFitnessReport
      */
     public function allViolations(): array
     {
-        return array_values(array_unique([
-            ...$this->validator->validate(),
-            ...$this->graph->validate(),
-        ]));
+        return array_values(array_unique($this->validator->validate()));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function warnings(): array
+    {
+        return $this->complexity->warnings();
     }
 
     /**
      * @param  list<string>  $violations
+     * @param  list<string>  $needles
      * @return list<string>
      */
-    private function filterViolations(array $violations, string $needle): array
+    private function mergeFilters(array $violations, array $needles): array
     {
         return array_values(array_filter(
             $violations,
-            fn (string $v) => str_contains($v, $needle),
+            fn (string $v) => collect($needles)->contains(fn (string $n) => str_contains($v, $n)),
         ));
     }
 
