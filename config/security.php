@@ -6,6 +6,8 @@ return [
         'students.create' => 'Create student records',
         'students.update' => 'Update student records',
         'students.view_pii' => 'View student PII (national ID)',
+        'enrollment.view' => 'View enrollment records',
+        'enrollment.create' => 'Create enrollment records',
         'security.manage_users' => 'Manage users and security settings',
     ],
 
@@ -17,6 +19,15 @@ return [
             'students.view_pii',
         ],
         'student_viewer' => [
+            'students.view',
+        ],
+        'enrollment_manager' => [
+            'enrollment.view',
+            'enrollment.create',
+            'students.view',
+        ],
+        'enrollment_viewer' => [
+            'enrollment.view',
             'students.view',
         ],
     ],

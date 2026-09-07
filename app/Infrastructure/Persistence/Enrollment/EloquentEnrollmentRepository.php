@@ -22,7 +22,8 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
 
     public function save(CreateEnrollmentData $data): int
     {
-        $record = EnrollmentRecord::query()->create([
+        $record = new EnrollmentRecord;
+        $record->forceFill([
             'student_id' => $data->studentId,
             'academic_year_id' => $data->academicYearId,
             'school_id' => $data->schoolId,
@@ -34,6 +35,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             'effective_from' => $data->effectiveFrom,
             'enrolled_by' => $data->enrolledBy,
         ]);
+        $record->save();
 
         return (int) $record->getKey();
     }

@@ -9,8 +9,10 @@ use App\Application\Enrollment\Commands\EnrollStudentCommand;
 use App\Application\Enrollment\Commands\EnrollStudentHandler;
 use App\Domain\Enrollment\Data\CreateEnrollmentData;
 use App\Domain\Enrollment\Events\StudentEnrolled;
+use App\Domain\Enrollment\Exceptions\InvalidEnrollmentPlacementException;
 use App\Domain\Enrollment\Exceptions\StudentAlreadyEnrolledException;
 use App\Domain\Enrollment\Exceptions\StudentInactiveException;
+use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Student\Entities\Student;
@@ -56,7 +58,12 @@ class EnrollStudentHandlerTest extends TestCase
         $idempotency = $this->createMock(IdempotencyStore::class);
         $idempotency->expects($this->never())->method('store');
 
-        $handler = new EnrollStudentHandler($unitOfWork, $enrollments, $students, $outbox, $idempotency);
+        $placement = $this->createMock(EnrollmentPlacementRepositoryInterface::class);
+        $placement->method('studentBelongsToSchool')->willReturn(true);
+        $placement->method('classBelongsToSchool')->willReturn(true);
+        $placement->method('sectionBelongsToClass')->willReturn(true);
+
+        $handler = new EnrollStudentHandler($unitOfWork, $enrollments, $students, $outbox, $idempotency, $placement);
 
         $result = $handler->handle($command);
 
@@ -82,6 +89,7 @@ class EnrollStudentHandlerTest extends TestCase
             $students,
             $this->createMock(OutboxRepository::class),
             $idempotency,
+            $this->createMock(EnrollmentPlacementRepositoryInterface::class),
         );
 
         $result = $handler->handle(new EnrollStudentCommand(
@@ -104,6 +112,7 @@ class EnrollStudentHandlerTest extends TestCase
             $students,
             $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            $this->createMock(EnrollmentPlacementRepositoryInterface::class),
         );
 
         $this->expectException(StudentInactiveException::class);
@@ -125,6 +134,7 @@ class EnrollStudentHandlerTest extends TestCase
             $students,
             $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            $this->createMock(EnrollmentPlacementRepositoryInterface::class),
         );
 
         $this->expectException(StudentAlreadyEnrolledException::class);
@@ -142,9 +152,35 @@ class EnrollStudentHandlerTest extends TestCase
             $students,
             $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            $this->createMock(EnrollmentPlacementRepositoryInterface::class),
         );
 
         $this->expectException(StudentNotFoundException::class);
+        $handler->handle(new EnrollStudentCommand(10, 2026, 1, 5, 12, '2026-09-01'));
+    }
+
+    public function test_rejects_cross_school_student_placement(): void
+    {
+        $student = Student::reconstitute(1, new StudentCode('STU-001'), 'Ali Hassan', StudentStatus::Active);
+        $students = $this->createMock(StudentReadRepositoryInterface::class);
+        $students->method('findById')->willReturn($student);
+
+        $enrollments = $this->createMock(EnrollmentRepositoryInterface::class);
+        $enrollments->method('hasActiveEnrollment')->willReturn(false);
+
+        $placement = $this->createMock(EnrollmentPlacementRepositoryInterface::class);
+        $placement->method('studentBelongsToSchool')->willReturn(false);
+
+        $handler = new EnrollStudentHandler(
+            $this->createMock(UnitOfWork::class),
+            $enrollments,
+            $students,
+            $this->createMock(OutboxRepository::class),
+            $this->createMock(IdempotencyStore::class),
+            $placement,
+        );
+
+        $this->expectException(InvalidEnrollmentPlacementException::class);
         $handler->handle(new EnrollStudentCommand(10, 2026, 1, 5, 12, '2026-09-01'));
     }
 }

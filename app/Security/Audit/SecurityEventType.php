@@ -19,4 +19,6 @@ enum SecurityEventType: string
     case SuspiciousRequest = 'SEC_SUSPICIOUS_REQUEST';
     case StudentDataAccess = 'SEC_STUDENT_DATA_ACCESS';
     case StudentDataModified = 'SEC_STUDENT_DATA_MODIFIED';
+    case EnrollmentDataAccess = 'SEC_ENROLLMENT_DATA_ACCESS';
+    case EnrollmentDataModified = 'SEC_ENROLLMENT_DATA_MODIFIED';
 }

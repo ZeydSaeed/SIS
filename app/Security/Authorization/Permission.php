@@ -12,6 +12,10 @@ final class Permission
 
     public const STUDENTS_VIEW_PII = 'students.view_pii';
 
+    public const ENROLLMENT_VIEW = 'enrollment.view';
+
+    public const ENROLLMENT_CREATE = 'enrollment.create';
+
     public const SECURITY_MANAGE_USERS = 'security.manage_users';
 
     /**
@@ -24,6 +28,8 @@ final class Permission
             self::STUDENTS_CREATE,
             self::STUDENTS_UPDATE,
             self::STUDENTS_VIEW_PII,
+            self::ENROLLMENT_VIEW,
+            self::ENROLLMENT_CREATE,
         ];
     }
 }

@@ -3,6 +3,8 @@
 namespace Tests\Concerns;
 
 use App\Database\SchemaHelper;
+use App\Infrastructure\Persistence\Eloquent\EnrollmentClassRecord;
+use App\Infrastructure\Persistence\Eloquent\EnrollmentSectionRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
 use Database\Seeders\SecurityPermissionSeeder;
@@ -89,6 +91,95 @@ trait InteractsWithSecurity
         $this->withHeader('X-School-Id', (string) $schoolId);
 
         return $user;
+    }
+
+    protected function actingAsEnrollmentManager(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantEnrollmentManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsEnrollmentManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantEnrollmentManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function createAcademicYear(string $code = 'AY-2026'): int
+    {
+        $table = SchemaHelper::qualified('academic', 'academic_years');
+        $existing = DB::table($table)->where('code', $code)->value('id');
+        if ($existing !== null) {
+            return (int) $existing;
+        }
+
+        return (int) DB::table($table)->insertGetId([
+            'code' => $code,
+            'name' => 'Academic Year '.$code,
+            'start_date' => '2026-09-01',
+            'end_date' => '2027-06-30',
+            'is_current' => true,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    protected function createGradeLevel(string $code = 'G10'): int
+    {
+        $table = SchemaHelper::qualified('academic', 'grade_levels');
+        $existing = DB::table($table)->where('code', $code)->value('id');
+        if ($existing !== null) {
+            return (int) $existing;
+        }
+
+        return (int) DB::table($table)->insertGetId([
+            'code' => $code,
+            'name' => 'Grade '.$code,
+            'level_order' => 10,
+            'education_stage' => 2,
+            'status' => 1,
+        ]);
+    }
+
+    protected function createClassForSchool(int $schoolId, int $academicYearId, ?int $gradeLevelId = null): EnrollmentClassRecord
+    {
+        $gradeLevelId ??= $this->createGradeLevel();
+        $record = new EnrollmentClassRecord;
+        $record->forceFill([
+            'school_id' => $schoolId,
+            'academic_year_id' => $academicYearId,
+            'grade_level_id' => $gradeLevelId,
+            'code' => 'CLS-'.uniqid(),
+            'name' => 'Test Class',
+            'status' => 1,
+        ]);
+        $record->save();
+
+        return $record;
+    }
+
+    protected function createSectionForClass(int $classId): EnrollmentSectionRecord
+    {
+        $record = new EnrollmentSectionRecord;
+        $record->forceFill([
+            'class_id' => $classId,
+            'code' => 'SEC-'.uniqid(),
+            'name' => 'Test Section',
+            'status' => 1,
+        ]);
+        $record->save();
+
+        return $record;
     }
 
     protected function createStudentForSchool(int $schoolId, array $attributes = []): StudentRecord

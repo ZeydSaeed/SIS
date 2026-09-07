@@ -10,8 +10,10 @@ use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\EnrollStudentResult;
 use App\Domain\Enrollment\Data\CreateEnrollmentData;
 use App\Domain\Enrollment\Events\StudentEnrolled;
+use App\Domain\Enrollment\Exceptions\InvalidEnrollmentPlacementException;
 use App\Domain\Enrollment\Exceptions\StudentAlreadyEnrolledException;
 use App\Domain\Enrollment\Exceptions\StudentInactiveException;
+use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Enrollment\Specifications\EligibleForEnrollmentSpecification;
@@ -27,6 +29,7 @@ final class EnrollStudentHandler implements CommandHandler
         private readonly StudentReadRepositoryInterface $students,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly EnrollmentPlacementRepositoryInterface $placement,
         private readonly EligibleForEnrollmentSpecification $eligibility = new EligibleForEnrollmentSpecification,
     ) {}
 
@@ -57,6 +60,8 @@ final class EnrollStudentHandler implements CommandHandler
         if ($this->enrollments->hasActiveEnrollment($command->studentId, $command->academicYearId)) {
             throw StudentAlreadyEnrolledException::forYear($command->studentId, $command->academicYearId);
         }
+
+        $this->assertValidPlacement($command);
 
         $result = $this->unitOfWork->transaction(function () use ($command): array {
             $enrollmentNumber = $this->enrollments->generateEnrollmentNumber(
@@ -99,5 +104,26 @@ final class EnrollStudentHandler implements CommandHandler
         }
 
         return EnrollStudentResult::success($result['id'], $result['enrollment_number']);
+    }
+
+    private function assertValidPlacement(EnrollStudentCommand $command): void
+    {
+        if (! $this->placement->studentBelongsToSchool($command->studentId, $command->schoolId)) {
+            throw InvalidEnrollmentPlacementException::forReason(
+                'Student does not belong to the requested school.',
+            );
+        }
+
+        if (! $this->placement->classBelongsToSchool($command->classId, $command->schoolId, $command->academicYearId)) {
+            throw InvalidEnrollmentPlacementException::forReason(
+                'Class does not belong to the requested school and academic year.',
+            );
+        }
+
+        if (! $this->placement->sectionBelongsToClass($command->sectionId, $command->classId)) {
+            throw InvalidEnrollmentPlacementException::forReason(
+                'Section does not belong to the requested class.',
+            );
+        }
     }
 }

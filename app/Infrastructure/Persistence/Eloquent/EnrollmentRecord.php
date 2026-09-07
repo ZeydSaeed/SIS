@@ -9,19 +9,8 @@ class EnrollmentRecord extends Model
 {
     protected $table;
 
-    protected $fillable = [
-        'student_id',
-        'academic_year_id',
-        'school_id',
-        'class_id',
-        'section_id',
-        'specialization_id',
-        'enrollment_number',
-        'status',
-        'effective_from',
-        'effective_to',
-        'enrolled_by',
-    ];
+    /** @var list<string> */
+    protected $fillable = [];
 
     public function __construct(array $attributes = [])
     {

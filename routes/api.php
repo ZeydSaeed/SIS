@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\StudentController;
 use App\Security\Middleware\RequireSchoolContextMiddleware;
@@ -33,5 +34,11 @@ Route::prefix('v1')->group(function (): void {
 
             return response()->json(['status' => 'ok']);
         })->name('api.security.admin_probe');
+
+        Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store'])->names([
+            'index' => 'api.enrollments.index',
+            'show' => 'api.enrollments.show',
+            'store' => 'api.enrollments.store',
+        ]);
     });
 });
