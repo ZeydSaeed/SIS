@@ -63,8 +63,21 @@ class VerificationService
             return null;
         }
 
-        $metric = QueryMetric::query()->orderByDesc('captured_at')->first();
+        $metrics = QueryMetric::query()
+            ->where('captured_at', '>=', now()->subHours(24))
+            ->where(function ($query) use ($schema, $table) {
+                $query->where('query_label', 'like', "%{$table}%")
+                    ->orWhere('context->table_name', $table)
+                    ->orWhere('context->schema_name', $schema);
+            })
+            ->orderByDesc('captured_at')
+            ->limit(20)
+            ->get();
 
-        return $metric ? (float) $metric->p95_ms : null;
+        if ($metrics->isEmpty()) {
+            return null;
+        }
+
+        return (float) $metrics->avg('p95_ms');
     }
 }

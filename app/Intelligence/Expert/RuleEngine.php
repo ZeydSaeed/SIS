@@ -4,6 +4,7 @@ namespace App\Intelligence\Expert;
 
 use App\Intelligence\Models\Detection;
 use App\Intelligence\Models\Recommendation;
+use App\Intelligence\Simulation\CostEstimator;
 use App\Intelligence\Support\ConditionEvaluator;
 use App\Intelligence\Support\CorrelationContext;
 use Illuminate\Support\Collection;
@@ -13,6 +14,7 @@ class RuleEngine
 {
     public function __construct(
         private readonly ConditionEvaluator $evaluator,
+        private readonly CostEstimator $costEstimator,
     ) {}
 
     /**
@@ -45,6 +47,7 @@ class RuleEngine
     public function createRecommendation(Detection $detection, array $diagnosis, float $confidence = 0.75): Recommendation
     {
         $code = 'REC-'.now()->format('Ymd').'-'.Str::upper(Str::random(6));
+        $costAnalysis = $this->buildCostAnalysis($diagnosis);
 
         return Recommendation::query()->create([
             'recommendation_code' => $code,
@@ -64,7 +67,7 @@ class RuleEngine
             'expected_impact' => [
                 'expected_improvement_pct' => $this->expectedImprovement($diagnosis['recommendation_type']),
             ],
-            'cost_analysis' => null,
+            'cost_analysis' => $costAnalysis,
             'rollback_plan' => $this->rollbackPlan($diagnosis),
             'confidence' => $confidence,
             'context_similarity' => null,
@@ -114,5 +117,48 @@ class RuleEngine
             'schema_review' => 90,
             default => 40,
         };
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildCostAnalysis(array $diagnosis): ?array
+    {
+        $options = collect($diagnosis['alternatives'] ?? [])
+            ->map(fn (string $alt) => [
+                'option' => $alt,
+                'performance_score' => $this->expectedImprovement($diagnosis['recommendation_type']),
+                'storage_cost_score' => match ($diagnosis['recommendation_type']) {
+                    'index_add' => 40,
+                    'partition_review' => 60,
+                    default => 20,
+                },
+                'maintenance_cost_score' => match ($diagnosis['recommendation_type']) {
+                    'analyze' => 10,
+                    'index_add' => 35,
+                    default => 50,
+                },
+                'complexity_score' => $this->blastRadiusScore($diagnosis),
+                'risk_score' => (int) $diagnosis['risk_tier'] * 25,
+                'expected_improvement_pct' => $this->expectedImprovement($diagnosis['recommendation_type']),
+                'write_overhead_pct' => match ($diagnosis['recommendation_type']) {
+                    'index_add' => 15,
+                    default => 5,
+                },
+            ])
+            ->all();
+
+        if ($options === []) {
+            return null;
+        }
+
+        $ranked = $this->costEstimator->rankOptions($options);
+        $best = $ranked[0] ?? null;
+
+        return [
+            'ranked_options' => $ranked,
+            'recommended_option' => $best['option'] ?? null,
+            'should_reject' => $best !== null && $this->costEstimator->shouldReject($best),
+        ];
     }
 }

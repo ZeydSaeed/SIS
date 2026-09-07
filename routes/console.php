@@ -5,6 +5,8 @@ use App\Intelligence\Jobs\RunGrowthOptimizationJob;
 use App\Intelligence\Jobs\RunHealthMonitorJob;
 use App\Intelligence\Jobs\RunPerformanceAnalysisJob;
 use App\Intelligence\Jobs\RunSchemaGuardianJob;
+use App\Optimization\Jobs\CaptureBaselineSnapshotJob;
+use App\Optimization\Jobs\RunOptimizationObserveJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -23,4 +25,9 @@ if (config('intelligence.enabled', true)) {
         ->everyMinute()
         ->name('intelligence:queue-worker')
         ->withoutOverlapping();
+}
+
+if (config('optimization.enabled', true)) {
+    Schedule::job(new RunOptimizationObserveJob)->everyFiveMinutes()->name('optimization:observe');
+    Schedule::job(new CaptureBaselineSnapshotJob)->weekly()->name('optimization:baseline');
 }

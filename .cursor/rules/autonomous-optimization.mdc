@@ -1,0 +1,39 @@
+---
+description: Autonomous optimization workflow — observe, measure, baseline, one change at a time
+globs:
+  - app/Optimization/**
+  - config/optimization.php
+  - .cursor/architecture/optimization/**
+alwaysApply: false
+---
+
+# Autonomous Optimization
+
+Read `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md` before any performance work.
+
+## Default Mode
+
+`OPTIMIZATION_MODE=observe` — **no code changes** during audit.
+
+## Mandatory Flow
+
+1. `php artisan optimization:observe`
+2. Analyze evidence → update BOTTLENECK-REPORT
+3. `php artisan optimization:recommend` — wait for approval
+4. Only Tier-1 low-risk: `php artisan optimization:run` (autonomous mode)
+
+## One Rule
+
+**ONE PROBLEM → ONE OPTIMIZATION → ONE VALIDATION**
+
+## Gates (never bypass)
+
+- `php artisan architecture:validate --fitness`
+- Intelligence Tier-1 max for auto-execute
+- Cross-metric regression guard
+- Database-change skill for schema
+- Application-feature skill for app code
+
+## Forbidden Without Approval
+
+Schema, auth, grades, financial logic, API breaking changes, audit log removal.

@@ -22,6 +22,7 @@
 | 6 | `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md` | **Expert + Learning + Self-Healing** |
 | 7 | `.cursor/architecture/normalization-and-cqrs.md` | 1NF–4NF + CQRS-lite |
 | 8 | `.cursor/architecture/ARCHITECTURE-STACK.md` | **Clean + DDD + CQRS — enforced** |
+| 9 | `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md` | **Observe → Recommend → Autonomous engine** |
 
 ## Application Code — MANDATORY
 
@@ -33,6 +34,16 @@
 5. php artisan architecture:validate --fitness (must pass)
 6. php artisan architecture:feature-check {Context} (feature contract)
 7. php artisan architecture:graph (dependency audit)
+```
+
+## Performance Optimization — MANDATORY
+
+```
+1. .cursor/skills/autonomous-optimization/SKILL.md
+2. .cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md
+3. OPTIMIZATION_MODE=observe (default — no blind auto-modify)
+4. php artisan optimization:observe → optimization:recommend → (autonomous only if approved)
+5. ONE PROBLEM → ONE OPTIMIZATION → ONE VALIDATION
 ```
 
 ## 45K Baseline (Not Architectural Ceiling)
