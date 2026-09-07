@@ -6,7 +6,7 @@ use App\Intelligence\Jobs\RunHealthMonitorJob;
 use App\Intelligence\Jobs\RunPerformanceAnalysisJob;
 use App\Intelligence\Jobs\RunSchemaGuardianJob;
 use App\Optimization\Jobs\CaptureBaselineSnapshotJob;
-use App\Optimization\Jobs\RunOptimizationObserveJob;
+use App\Optimization\Jobs\RunSelfHealingCycleJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -28,6 +28,6 @@ if (config('intelligence.enabled', true)) {
 }
 
 if (config('optimization.enabled', true)) {
-    Schedule::job(new RunOptimizationObserveJob)->everyFiveMinutes()->name('optimization:observe');
+    Schedule::job(new RunSelfHealingCycleJob)->everyFiveMinutes()->name('optimization:self-healing');
     Schedule::job(new CaptureBaselineSnapshotJob)->weekly()->name('optimization:baseline');
 }

@@ -22,7 +22,8 @@
 | 6 | `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md` | **Expert + Learning + Self-Healing** |
 | 7 | `.cursor/architecture/normalization-and-cqrs.md` | 1NF–4NF + CQRS-lite |
 | 8 | `.cursor/architecture/ARCHITECTURE-STACK.md` | **Clean + DDD + CQRS — enforced** |
-| 9 | `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md` | **Observe → Recommend → Autonomous engine** |
+| 9 | `.cursor/architecture/optimization/SELF-HEALING-PERFORMANCE-PROMPT.md` | **Self-healing adaptive engine (24/7)** |
+| 10 | `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md` | Observe → Recommend → Autonomous |
 
 ## Application Code — MANDATORY
 
@@ -40,10 +41,11 @@
 
 ```
 1. .cursor/skills/autonomous-optimization/SKILL.md
-2. .cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md
-3. OPTIMIZATION_MODE=observe (default — no blind auto-modify)
-4. php artisan optimization:observe → optimization:recommend → (autonomous only if approved)
-5. ONE PROBLEM → ONE OPTIMIZATION → ONE VALIDATION
+2. .cursor/architecture/optimization/SELF-HEALING-PERFORMANCE-PROMPT.md
+3. OPTIMIZATION_MODE=observe (default — monitor only, no blind auto-modify)
+4. Background: RunSelfHealingCycleJob every 5 min (no manual observe required)
+5. php artisan optimization:status / optimization:health
+6. ONE PROBLEM → ONE OPTIMIZATION → ONE VALIDATION
 ```
 
 ## 45K Baseline (Not Architectural Ceiling)

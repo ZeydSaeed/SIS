@@ -1,5 +1,5 @@
 ---
-description: Autonomous optimization workflow — observe, measure, baseline, one change at a time
+description: Self-healing adaptive performance — continuous monitor, baseline, heal, rollback
 globs:
   - app/Optimization/**
   - config/optimization.php
@@ -7,33 +7,42 @@ globs:
 alwaysApply: false
 ---
 
-# Autonomous Optimization
+# Self-Healing Performance Engine
 
-Read `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md` before any performance work.
+Read `.cursor/architecture/optimization/SELF-HEALING-PERFORMANCE-PROMPT.md` before performance/self-healing work.
+
+## Background Operation
+
+Monitoring runs automatically via `RunSelfHealingCycleJob` every 5 minutes.
+Do NOT require manual `optimization:observe` for each cycle.
 
 ## Default Mode
 
-`OPTIMIZATION_MODE=observe` — **no code changes** during audit.
+`OPTIMIZATION_MODE=observe` — continuous monitoring, **no auto modification**.
 
 ## Mandatory Flow
 
-1. `php artisan optimization:observe`
-2. Analyze evidence → update BOTTLENECK-REPORT
-3. `php artisan optimization:recommend` — wait for approval
-4. Only Tier-1 low-risk: `php artisan optimization:run` (autonomous mode)
+1. Background: `SelfHealingPerformanceEngine::runCycle()`
+2. Degradation detected (hysteresis) → root cause with confidence
+3. `recommend` mode → reports only
+4. `autonomous` mode → Tier-1 heal + stabilization + rollback on failure
+
+## Safety (never bypass)
+
+- Adaptive baseline anti-poisoning
+- Hysteresis (3 consecutive observations)
+- Circuit breaker → safe mode after 3 failures
+- Cooldown per target (60 min)
+- Target lock (one optimization per component)
+- Stabilization window (30 min)
+- Failure containment — optimizer crash ≠ app crash
+- `architecture:validate --fitness`
+
+## Immutable Contract
+
+**Never change application behavior** for performance.
+Business rules, grades, financial, auth, API contracts are protected.
 
 ## One Rule
 
 **ONE PROBLEM → ONE OPTIMIZATION → ONE VALIDATION**
-
-## Gates (never bypass)
-
-- `php artisan architecture:validate --fitness`
-- Intelligence Tier-1 max for auto-execute
-- Cross-metric regression guard
-- Database-change skill for schema
-- Application-feature skill for app code
-
-## Forbidden Without Approval
-
-Schema, auth, grades, financial logic, API breaking changes, audit log removal.

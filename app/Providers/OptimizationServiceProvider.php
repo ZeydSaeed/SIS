@@ -2,9 +2,15 @@
 
 namespace App\Providers;
 
+use App\Optimization\Commands\OptimizationBaselineCommand;
+use App\Optimization\Commands\OptimizationHealthCommand;
+use App\Optimization\Commands\OptimizationHistoryCommand;
 use App\Optimization\Commands\OptimizationObserveCommand;
 use App\Optimization\Commands\OptimizationRecommendCommand;
+use App\Optimization\Commands\OptimizationRollbackCommand;
 use App\Optimization\Commands\OptimizationRunCommand;
+use App\Optimization\Commands\OptimizationStatusCommand;
+use App\Optimization\Commands\OptimizationWorkerCommand;
 use Illuminate\Support\ServiceProvider;
 
 class OptimizationServiceProvider extends ServiceProvider
@@ -24,6 +30,12 @@ class OptimizationServiceProvider extends ServiceProvider
             OptimizationObserveCommand::class,
             OptimizationRecommendCommand::class,
             OptimizationRunCommand::class,
+            OptimizationStatusCommand::class,
+            OptimizationHealthCommand::class,
+            OptimizationBaselineCommand::class,
+            OptimizationHistoryCommand::class,
+            OptimizationRollbackCommand::class,
+            OptimizationWorkerCommand::class,
         ]);
     }
 }

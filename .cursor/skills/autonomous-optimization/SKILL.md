@@ -1,72 +1,65 @@
-# Autonomous Optimization Skill
+# Autonomous Optimization / Self-Healing Skill
 
-Use when the user asks for performance optimization, bottleneck analysis, baseline capture, or autonomous optimization.
+Use when the user asks for performance optimization, self-healing, adaptive baselines, or continuous monitoring.
 
 ## Read First
 
-1. `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md`
-2. `.cursor/architecture/optimization/README.md`
-3. `.cursor/architecture/PERFORMANCE-BUDGET.md`
-4. `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md`
+1. `.cursor/architecture/optimization/SELF-HEALING-PERFORMANCE-PROMPT.md`
+2. `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md`
+3. `.cursor/architecture/optimization/README.md`
 
-If touching application code: also read `application-feature/SKILL.md`.
-If touching database: also read `database-change/SKILL.md`.
+## Background Monitoring (24/7)
 
-## Steps
+The system runs automatically:
 
-### 1. Confirm mode
-
-```bash
-# Check config/optimization.php or .env
-OPTIMIZATION_MODE=observe   # default — safe
+```text
+Scheduler → RunSelfHealingCycleJob (every 5 min)
 ```
 
-### 2. Observe (Level 0)
+Check status:
 
 ```bash
-php artisan optimization:observe
+php artisan optimization:status
+php artisan optimization:health
 ```
 
-No production code changes in this phase.
-
-### 3. Recommend (Level 1)
+Manual single cycle:
 
 ```bash
-php artisan optimization:recommend
+php artisan optimization:worker --once
 ```
 
-Review `.cursor/architecture/optimization/BOTTLENECK-REPORT.md`.
-Present findings with evidence. Wait for approval before implementing.
+## Modes
 
-### 4. Implement ONE change (if approved)
+| Mode | Behavior |
+|------|----------|
+| `observe` (default) | Monitor + baseline — no changes |
+| `recommend` | + RCA reports when degraded |
+| `autonomous` | + Tier-1 self-heal with rollback |
 
-- Smallest isolated fix
-- Run `composer test` and `php artisan architecture:validate --fitness`
-- Document before/after metrics
+## Self-Healing Safety
 
-### 5. Autonomous (Level 2 — optional)
+- Hysteresis before acting
+- Adaptive baseline (no poisoning)
+- Circuit breaker → safe mode
+- Cooldown + target lock
+- Stabilization window post-accept
+- Failure contained — never crash app
 
-Only when user explicitly sets `OPTIMIZATION_MODE=autonomous`:
+## Commands
 
 ```bash
-php artisan optimization:run
+php artisan optimization:status
+php artisan optimization:health
+php artisan optimization:baseline [--capture]
+php artisan optimization:history
+php artisan optimization:rollback {id} [--reset-safe-mode]
+php artisan optimization:worker [--once]
 ```
-
-Delegates to `SafeAutoExecutor` for Tier-1 ANALYZE only.
-
-## Scoring
-
-Use `OptimizationScorer`: (Impact × Confidence) / (Risk × Complexity).
-
-Prioritize: High Impact + High Confidence + Low Risk.
-
-## History
-
-Records stored in `storage/app/optimization/history/`.
 
 ## Never
 
-- Optimize without baseline
-- Combine unrelated optimizations
-- Auto-modify source code in observe/recommend mode
-- Bypass architecture or intelligence gates
+- Change business behavior for performance
+- Skip baseline or root cause evidence
+- Bypass circuit breaker or architecture gates
+- Auto-modify schema/auth/grades/financial logic

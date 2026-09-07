@@ -10,6 +10,18 @@ DETECT → MEASURE → BASELINE → ANALYZE → ISOLATE → OPTIMIZE → VALIDAT
 
 **ONE PROBLEM → ONE OPTIMIZATION → ONE VALIDATION**
 
+## Self-Healing Layer (v2)
+
+Continuous background monitoring via `SelfHealingPerformanceEngine`:
+
+```text
+Scheduler (5 min) → RunSelfHealingCycleJob → runCycle()
+  → Adaptive Baseline + Health Score + Hysteresis
+  → Root Cause (confidence) → [autonomous] Heal + Stabilize + Rollback
+```
+
+See [SELF-HEALING-PERFORMANCE-PROMPT.md](./SELF-HEALING-PERFORMANCE-PROMPT.md) and [ADR-019](../adr/ADR-019-self-healing-performance-engine.md).
+
 ## Levels
 
 | Level | Mode | Env | Behavior |
@@ -21,7 +33,13 @@ DETECT → MEASURE → BASELINE → ANALYZE → ISOLATE → OPTIMIZE → VALIDAT
 ## Commands
 
 ```bash
-php artisan optimization:observe      # Level 0
+php artisan optimization:status       # Engine status + safe mode
+php artisan optimization:health       # Health score + anomalies
+php artisan optimization:baseline     # Adaptive baseline [--capture]
+php artisan optimization:history      # Recent optimization records
+php artisan optimization:rollback     # Rollback by history ID
+php artisan optimization:worker       # Background worker [--once]
+php artisan optimization:observe      # Level 0 (manual)
 php artisan optimization:recommend    # Level 1
 php artisan optimization:run          # Level 2 (gated)
 ```
@@ -29,14 +47,16 @@ php artisan optimization:run          # Level 2 (gated)
 ## Integration
 
 ```text
-OptimizationEngine
-    ├── DatabaseGuardian (Intelligence)
-    ├── BaselineSnapshotService → intelligence.baseline_snapshots
-    ├── BottleneckAnalyzer + OptimizationScorer
-    ├── IsolatedOptimizationRunner → SafeAutoExecutor (ANALYZE only)
-    ├── ArchitectureOptimizationGate → architecture:validate
-    ├── CrossMetricGuard
-    └── OptimizationHistoryRecorder → storage/app/optimization/history/
+SelfHealingPerformanceEngine
+    └── OptimizationEngine
+            ├── DatabaseGuardian (Intelligence)
+            ├── BaselineSnapshotService → intelligence.baseline_snapshots
+            ├── AdaptiveBaselineEngine → storage/adaptive-baseline.json
+            ├── BottleneckAnalyzer + OptimizationScorer
+            ├── IsolatedOptimizationRunner → SafeAutoExecutor (ANALYZE only)
+            ├── ArchitectureOptimizationGate → architecture:validate
+            ├── CrossMetricGuard + CircuitBreaker + Cooldown + TargetLock
+            └── OptimizationHistoryRecorder → storage/app/optimization/history/
 ```
 
 ## Safety Boundaries (Approval Required)
