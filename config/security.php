@@ -8,6 +8,8 @@ return [
         'students.view_pii' => 'View student PII (national ID)',
         'enrollment.view' => 'View enrollment records',
         'enrollment.create' => 'Create enrollment records',
+        'enrollment.update' => 'Update enrollment placement',
+        'enrollment.cancel' => 'Cancel enrollment records',
         'security.manage_users' => 'Manage users and security settings',
     ],
 
@@ -24,6 +26,8 @@ return [
         'enrollment_manager' => [
             'enrollment.view',
             'enrollment.create',
+            'enrollment.update',
+            'enrollment.cancel',
             'students.view',
         ],
         'enrollment_viewer' => [

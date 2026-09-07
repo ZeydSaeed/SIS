@@ -60,4 +60,32 @@ class EnrollmentMassAssignmentTest extends TestCase
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['status']);
     }
+
+    #[Test]
+    public function update_rejects_status_injection(): void
+    {
+        $schoolId = $this->createSchool('SCHOOL-A', 'School A');
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId);
+        $this->actingAsEnrollmentManager(schoolId: $schoolId);
+
+        $this->patchJson('/api/v1/enrollments/'.$enrollment->id, [
+            'class_id' => 1,
+            'section_id' => 1,
+            'status' => 99,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
+    }
+
+    #[Test]
+    public function cancel_rejects_status_injection(): void
+    {
+        $schoolId = $this->createSchool('SCHOOL-A', 'School A');
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId);
+        $this->actingAsEnrollmentManager(schoolId: $schoolId);
+
+        $this->postJson('/api/v1/enrollments/'.$enrollment->id.'/cancel', [
+            'status' => 1,
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
+    }
 }

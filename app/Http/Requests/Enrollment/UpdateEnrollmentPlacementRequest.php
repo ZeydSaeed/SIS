@@ -6,11 +6,15 @@ use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
 
-class EnrollStudentRequest extends FormRequest
+class UpdateEnrollmentPlacementRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('create', EnrollmentRecord::class) ?? false;
+        $enrollment = $this->route('enrollment');
+
+        return $this->user()?->can('update', $enrollment instanceof EnrollmentRecord
+            ? $enrollment
+            : EnrollmentRecord::query()->find($enrollment)) ?? false;
     }
 
     /**
@@ -19,13 +23,9 @@ class EnrollStudentRequest extends FormRequest
     public function rules(): array
     {
         return array_merge([
-            'student_id' => ['required', 'integer', 'min:1'],
-            'academic_year_id' => ['required', 'integer', 'min:1'],
             'class_id' => ['required', 'integer', 'min:1'],
             'section_id' => ['required', 'integer', 'min:1'],
-            'effective_from' => ['required', 'date'],
             'specialization_id' => ['nullable', 'integer', 'min:1'],
-            'effective_to' => ['prohibited'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());
     }
 }

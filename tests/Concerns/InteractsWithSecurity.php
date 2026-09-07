@@ -4,6 +4,7 @@ namespace Tests\Concerns;
 
 use App\Database\SchemaHelper;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentClassRecord;
+use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentSectionRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
@@ -198,5 +199,31 @@ trait InteractsWithSecurity
         $record->save();
 
         return $record;
+    }
+
+    protected function createActiveEnrollmentForSchool(
+        int $schoolId,
+        ?int $yearId = null,
+        ?StudentRecord $student = null,
+    ): EnrollmentRecord {
+        $yearId ??= $this->createAcademicYear();
+        $student ??= $this->createStudentForSchool($schoolId);
+        $class = $this->createClassForSchool($schoolId, $yearId);
+        $section = $this->createSectionForClass((int) $class->id);
+
+        $enrollment = new EnrollmentRecord;
+        $enrollment->forceFill([
+            'student_id' => $student->id,
+            'academic_year_id' => $yearId,
+            'school_id' => $schoolId,
+            'class_id' => $class->id,
+            'section_id' => $section->id,
+            'enrollment_number' => 'ENR-'.uniqid(),
+            'status' => 1,
+            'effective_from' => '2026-09-01',
+        ]);
+        $enrollment->save();
+
+        return $enrollment;
     }
 }

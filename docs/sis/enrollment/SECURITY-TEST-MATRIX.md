@@ -13,12 +13,12 @@
 | SEC-001 | Unauthenticated read enrollment | Deny (401) | **PASS** | `EnrollmentApiAuthorizationTest::unauthenticated_enrollment_requests_are_rejected` |
 | SEC-002 | Unauthorized read (no permission) | Deny (403) | **PASS** | `EnrollmentApiAuthorizationTest::authenticated_user_without_enrollment_permission_is_forbidden` |
 | SEC-003 | Cross-school read by ID | Deny (403/404) | **PASS** | `CrossSchoolEnrollmentTest::school_a_user_cannot_view_school_b_enrollment_by_id` |
-| SEC-004 | Cross-school update | Deny (403) | **N/A** | No update endpoint (Phase A) |
-| SEC-005 | Cross-school delete/cancel | Deny (403) | **N/A** | No cancel endpoint (Phase A) |
+| SEC-004 | Cross-school update | Deny (403) | **PASS** | `CrossSchoolEnrollmentTest::school_a_user_cannot_update_school_b_enrollment` |
+| SEC-005 | Cross-school delete/cancel | Deny (403) | **PASS** | `CrossSchoolEnrollmentTest::school_a_user_cannot_cancel_school_b_enrollment` |
 | SEC-006 | Enroll invalid / other-school student | Deny | **PASS** | `EnrollStudentHandlerTest::test_rejects_cross_school_student_placement` |
 | SEC-007 | Enroll with invalid / cross-school class | Deny | **PASS** | `CrossSchoolEnrollmentTest::school_a_user_cannot_enroll_with_school_b_class` |
 | SEC-008 | Duplicate active enrollment same year | Deny | **PASS** | `EnrollStudentHandlerTest::test_rejects_duplicate_enrollment` |
-| SEC-009 | Invalid state transition | Deny | **N/A** | No workflow states |
+| SEC-009 | Invalid state transition | Deny | **PASS** | `UpdateEnrollmentApiTest`, `CancelEnrollmentApiTest` |
 | SEC-010 | Mass assignment — school_id injection | Deny (422) | **PASS** | `EnrollmentMassAssignmentTest::enroll_rejects_school_id_injection` |
 | SEC-011 | Mass assignment — enrolled_by injection | Deny (422) | **PASS** | `EnrollmentMassAssignmentTest::enroll_rejects_enrolled_by_injection` |
 | SEC-012 | Unsafe bulk operation | Deny | **N/A** | No bulk ops |
@@ -76,4 +76,4 @@ php artisan security:validate
 php artisan architecture:feature-check Enrollment
 ```
 
-**Last run (2026-09-07):** 21 passed, 2 skipped, 0 failed (`--filter=Enrollment`)
+**Last run (Phase B, 2026-09-07):** 34 passed, 2 skipped, 0 failed (`--filter=Enrollment`)

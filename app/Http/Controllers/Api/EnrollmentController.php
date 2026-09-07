@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Enrollment\Commands\CancelEnrollmentCommand;
+use App\Application\Enrollment\Commands\CancelEnrollmentHandler;
 use App\Application\Enrollment\Commands\EnrollStudentCommand;
 use App\Application\Enrollment\Commands\EnrollStudentHandler;
+use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementCommand;
+use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementHandler;
 use App\Application\Enrollment\Queries\GetEnrollmentHandler;
 use App\Application\Enrollment\Queries\GetEnrollmentQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentsQuery;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Enrollment\CancelEnrollmentRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
+use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -129,5 +135,126 @@ class EnrollmentController extends Controller
                 'correlation_id' => CorrelationContext::id(),
             ],
         ], 201);
+    }
+
+    public function update(
+        UpdateEnrollmentPlacementRequest $request,
+        int $enrollment,
+        UpdateEnrollmentPlacementHandler $handler,
+    ): JsonResponse {
+        $record = EnrollmentRecord::query()->find($enrollment);
+
+        if ($record === null) {
+            throw EnrollmentNotFoundException::forId($enrollment);
+        }
+
+        try {
+            $this->authorize('update', $record);
+        } catch (AuthorizationException) {
+            $this->securityAudit->record(
+                SecurityEventType::IdorBlocked,
+                'enrollments.update',
+                'denied',
+                $request->user(),
+                "enrollment:{$enrollment}",
+            );
+
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+
+        $result = $handler->handle(new UpdateEnrollmentPlacementCommand(
+            enrollmentId: $enrollment,
+            schoolId: $schoolId,
+            classId: (int) $request->validated('class_id'),
+            sectionId: (int) $request->validated('section_id'),
+            specializationId: $request->validated('specialization_id'),
+            updatedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.update',
+            'updated',
+            $request->user(),
+            "enrollment:{$enrollment}",
+            [
+                'class_id' => $result->classId,
+                'section_id' => $result->sectionId,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->enrollmentId,
+                'class_id' => $result->classId,
+                'section_id' => $result->sectionId,
+            ],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
+    }
+
+    public function cancel(
+        CancelEnrollmentRequest $request,
+        int $enrollment,
+        CancelEnrollmentHandler $handler,
+    ): JsonResponse {
+        $record = EnrollmentRecord::query()->find($enrollment);
+
+        if ($record === null) {
+            throw EnrollmentNotFoundException::forId($enrollment);
+        }
+
+        try {
+            $this->authorize('cancel', $record);
+        } catch (AuthorizationException) {
+            $this->securityAudit->record(
+                SecurityEventType::IdorBlocked,
+                'enrollments.cancel',
+                'denied',
+                $request->user(),
+                "enrollment:{$enrollment}",
+            );
+
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+        $effectiveTo = $request->validated('effective_to')
+            ?? now()->format('Y-m-d');
+
+        $result = $handler->handle(new CancelEnrollmentCommand(
+            enrollmentId: $enrollment,
+            schoolId: $schoolId,
+            effectiveTo: $effectiveTo,
+            cancelledBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.cancel',
+            'cancelled',
+            $request->user(),
+            "enrollment:{$enrollment}",
+            ['effective_to' => $result->effectiveTo],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->enrollmentId,
+                'effective_to' => $result->effectiveTo,
+                'status' => $result->status,
+            ],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
     }
 }

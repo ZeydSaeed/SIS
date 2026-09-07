@@ -13,7 +13,6 @@ final class SecuritySensitiveFieldGuard
         'school_id',
         'enrolled_by',
         'status',
-        'effective_to',
         'created_by',
         'approved_by',
         'is_admin',

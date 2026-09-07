@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Security;
 
+use App\Models\User;
+use Database\Seeders\SecurityPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\TestCase;
@@ -32,6 +35,26 @@ class EnrollmentApiAuthorizationTest extends TestCase
             'section_id' => 1,
             'effective_from' => '2026-09-01',
         ])->assertForbidden();
+    }
+
+    #[Test]
+    public function enrollment_viewer_cannot_update_or_cancel(): void
+    {
+        $schoolId = $this->createSchool('SCHOOL-A', 'School A');
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId);
+
+        $user = User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantEnrollmentViewer($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        $this->patchJson('/api/v1/enrollments/'.$enrollment->id, [
+            'class_id' => 1,
+            'section_id' => 1,
+        ])->assertForbidden();
+
+        $this->postJson('/api/v1/enrollments/'.$enrollment->id.'/cancel')
+            ->assertForbidden();
     }
 
     #[Test]

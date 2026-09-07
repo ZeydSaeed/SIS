@@ -16,6 +16,8 @@ use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
+use App\Infrastructure\Events\EnrollmentCancelledBridgeEvent;
+use App\Infrastructure\Events\EnrollmentPlacementUpdatedBridgeEvent;
 use App\Infrastructure\Events\StudentEnrolledBridgeEvent;
 use App\Infrastructure\Intelligence\PgStatDatabaseMonitoringAdapter;
 use App\Infrastructure\Intelligence\RecommendationCommandAdapter;
@@ -31,6 +33,8 @@ use App\Infrastructure\Persistence\Outbox\EloquentOutboxRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentManagementReadRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentReadRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentRepository;
+use App\Listeners\Enrollment\RecordEnrollmentCancelledAudit;
+use App\Listeners\Enrollment\RecordEnrollmentPlacementUpdatedAudit;
 use App\Listeners\Enrollment\RecordStudentEnrolledAudit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -59,5 +63,7 @@ class ArchitectureServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(StudentEnrolledBridgeEvent::class, RecordStudentEnrolledAudit::class);
+        Event::listen(EnrollmentCancelledBridgeEvent::class, RecordEnrollmentCancelledAudit::class);
+        Event::listen(EnrollmentPlacementUpdatedBridgeEvent::class, RecordEnrollmentPlacementUpdatedAudit::class);
     }
 }

@@ -36,4 +36,24 @@ final class EnrollmentPolicy
         return $this->authorization->userHasPermission($user, Permission::ENROLLMENT_CREATE)
             && $this->schoolAccess->canAccessEnrollment($user);
     }
+
+    public function update(User $user, EnrollmentRecord|string|int|null $enrollment = null): bool
+    {
+        if ($enrollment === null) {
+            return false;
+        }
+
+        return $this->authorization->userHasPermission($user, Permission::ENROLLMENT_UPDATE)
+            && $this->schoolAccess->canAccessEnrollment($user, $enrollment);
+    }
+
+    public function cancel(User $user, EnrollmentRecord|string|int|null $enrollment = null): bool
+    {
+        if ($enrollment === null) {
+            return false;
+        }
+
+        return $this->authorization->userHasPermission($user, Permission::ENROLLMENT_CANCEL)
+            && $this->schoolAccess->canAccessEnrollment($user, $enrollment);
+    }
 }

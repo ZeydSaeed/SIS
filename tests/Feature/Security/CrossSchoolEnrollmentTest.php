@@ -101,4 +101,32 @@ class CrossSchoolEnrollmentTest extends TestCase
             'school_id' => $schoolA,
         ]);
     }
+
+    #[Test]
+    public function school_a_user_cannot_update_school_b_enrollment(): void
+    {
+        $schoolA = $this->createSchool('SCHOOL-A', 'School A');
+        $schoolB = $this->createSchool('SCHOOL-B', 'School B');
+        $enrollmentB = $this->createActiveEnrollmentForSchool($schoolB);
+
+        $this->actingAsEnrollmentManagerForSchool($schoolA);
+
+        $this->patchJson('/api/v1/enrollments/'.$enrollmentB->id, [
+            'class_id' => 1,
+            'section_id' => 1,
+        ])->assertForbidden();
+    }
+
+    #[Test]
+    public function school_a_user_cannot_cancel_school_b_enrollment(): void
+    {
+        $schoolA = $this->createSchool('SCHOOL-A', 'School A');
+        $schoolB = $this->createSchool('SCHOOL-B', 'School B');
+        $enrollmentB = $this->createActiveEnrollmentForSchool($schoolB);
+
+        $this->actingAsEnrollmentManagerForSchool($schoolA);
+
+        $this->postJson('/api/v1/enrollments/'.$enrollmentB->id.'/cancel')
+            ->assertForbidden();
+    }
 }

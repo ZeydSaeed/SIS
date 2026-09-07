@@ -35,10 +35,14 @@ Route::prefix('v1')->group(function (): void {
             return response()->json(['status' => 'ok']);
         })->name('api.security.admin_probe');
 
-        Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store'])->names([
+        Route::post('enrollments/{enrollment}/cancel', [EnrollmentController::class, 'cancel'])
+            ->name('api.enrollments.cancel');
+
+        Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store', 'update'])->names([
             'index' => 'api.enrollments.index',
             'show' => 'api.enrollments.show',
             'store' => 'api.enrollments.store',
+            'update' => 'api.enrollments.update',
         ]);
     });
 });
