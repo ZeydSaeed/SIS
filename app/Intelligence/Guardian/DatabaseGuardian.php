@@ -8,6 +8,7 @@ use App\Intelligence\Learning\ConfidenceEngine;
 use App\Intelligence\Monitoring\DatabaseMonitor;
 use App\Intelligence\Monitoring\PgStatStatementsCollector;
 use App\Intelligence\Monitoring\QueryMonitor;
+use App\Observability\Monitoring\HttpRequestTelemetryMonitor;
 use App\Intelligence\Optimization\SafeAutoExecutor;
 use App\Intelligence\SelfHealing\SelfHealingEngine;
 use App\Intelligence\Support\CorrelationContext;
@@ -18,6 +19,7 @@ class DatabaseGuardian
     public function __construct(
         private readonly DatabaseMonitor $databaseMonitor,
         private readonly QueryMonitor $queryMonitor,
+        private readonly HttpRequestTelemetryMonitor $httpRequestTelemetryMonitor,
         private readonly PgStatStatementsCollector $pgStatStatementsCollector,
         private readonly ThresholdEngine $thresholdEngine,
         private readonly RuleEngine $ruleEngine,
@@ -50,6 +52,7 @@ class DatabaseGuardian
     {
         CorrelationContext::reset();
 
+        $httpSnapshots = $this->httpRequestTelemetryMonitor->flush();
         $queryMetrics = $this->queryMonitor->flushRuntimeSamples();
         $pgStatMetrics = $this->pgStatStatementsCollector->collect();
         $allMetrics = $queryMetrics->merge($pgStatMetrics);
@@ -57,6 +60,24 @@ class DatabaseGuardian
         $detections = collect();
         $recommendations = collect();
         $executions = collect();
+
+        foreach ($httpSnapshots as $snapshot) {
+            $metrics = $snapshot->metrics ?? [];
+            if (! is_array($metrics)) {
+                continue;
+            }
+
+            foreach ($this->thresholdEngine->evaluateHttpWorkload($metrics) as $match) {
+                $detection = $this->thresholdEngine->persistDetection($match, 'warning');
+                $detections->push($detection);
+
+                foreach ($this->ruleEngine->diagnose($match['signals'], $match['context']) as $diagnosis) {
+                    $confidence = $this->confidenceEngine->calculateForRule($diagnosis['rule_id']);
+                    $recommendation = $this->ruleEngine->createRecommendation($detection, $diagnosis, $confidence);
+                    $recommendations->push($recommendation);
+                }
+            }
+        }
 
         foreach ($allMetrics as $metric) {
             foreach ($this->thresholdEngine->evaluateQueryMetric($metric) as $match) {
@@ -80,6 +101,7 @@ class DatabaseGuardian
         }
 
         return [
+            'http_workload_snapshots' => $httpSnapshots->count(),
             'query_metrics' => $allMetrics->count(),
             'pg_stat_metrics' => $pgStatMetrics->count(),
             'detections' => $detections->count(),

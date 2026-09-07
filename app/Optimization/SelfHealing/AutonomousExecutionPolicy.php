@@ -46,6 +46,11 @@ final class AutonomousExecutionPolicy
         }
         $checks['mode'] = 'pass';
 
+        if ($this->isProductionAutonomousBlocked()) {
+            return $this->deny('production_forbidden', 'Production autonomous ANALYZE is permanently blocked', $checks);
+        }
+        $checks['production_block'] = 'pass';
+
         if (! $this->isControlledEnvironment()) {
             return $this->deny('environment_unauthorized', 'Environment not authorized for autonomous ANALYZE', $checks);
         }
@@ -130,8 +135,21 @@ final class AutonomousExecutionPolicy
         ];
     }
 
+    public function isProductionAutonomousBlocked(): bool
+    {
+        if (! config('optimization.autonomous.block_production', true)) {
+            return false;
+        }
+
+        return (string) config('app.env') === 'production';
+    }
+
     public function isControlledEnvironment(): bool
     {
+        if ($this->isProductionAutonomousBlocked()) {
+            return false;
+        }
+
         if (! config('optimization.autonomous.require_controlled_environment', true)) {
             return true;
         }

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Phase3Application">
+            <directory>tests/Feature/Api</directory>
+            <directory>tests/Feature/Observability</directory>
+            <directory>tests/Feature/Intelligence</directory>
+            <directory>tests/Feature/Integration</directory>
+            <directory>tests/Feature/Database</directory>
+            <directory>tests/Unit/Student</directory>
+            <directory>tests/Unit/Observability</directory>
+            <directory>tests/Unit/Intelligence</directory>
+            <directory>tests/Unit/Config</directory>
+            <directory>tests/Unit/Database</directory>
+            <file>tests/Unit/Optimization/SelfHealing/AutonomousExecutionPolicyTest.php</file>
+        </testsuite>
+        <testsuite name="Phase3Architecture">
+            <directory>tests/Architecture</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="SIS_ENV_PROFILE" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="INTELLIGENCE_ENABLED" value="true"/>
+        <env name="OPTIMIZATION_ENABLED" value="true"/>
+        <env name="OPTIMIZATION_MODE" value="observe"/>
+        <env name="OPTIMIZATION_AUTONOMOUS_BLOCK_PRODUCTION" value="true"/>
+        <env name="SIS_SCHEDULER_INTELLIGENCE" value="false"/>
+        <env name="SIS_SCHEDULER_OPTIMIZATION" value="false"/>
+    </php>
+</phpunit>

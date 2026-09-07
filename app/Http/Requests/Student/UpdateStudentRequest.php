@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Http\Requests\Student;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateStudentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'first_name' => ['required', 'string', 'max:100'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'gender' => ['required', 'integer', 'in:1,2'],
+            'birth_date' => ['required', 'date', 'before:today'],
+            'national_id' => ['nullable', 'string', 'max:20'],
+            'birth_place' => ['nullable', 'string', 'max:255'],
+            'nationality' => ['nullable', 'string', 'max:50'],
+        ];
+    }
+}

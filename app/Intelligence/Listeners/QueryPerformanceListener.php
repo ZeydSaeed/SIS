@@ -3,6 +3,7 @@
 namespace App\Intelligence\Listeners;
 
 use App\Intelligence\Monitoring\QueryMonitor;
+use App\Observability\RequestTelemetryContext;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Str;
 
@@ -18,7 +19,7 @@ class QueryPerformanceListener
             return;
         }
 
-        if ($event->time < 50) {
+        if ($event->time < ($this->slowQueryThresholdMs())) {
             return;
         }
 
@@ -28,6 +29,19 @@ class QueryPerformanceListener
         }
 
         $fingerprint = hash('sha256', preg_replace('/\s+/', ' ', $sql) ?? $sql);
-        $this->queryMonitor->recordRuntimeSample($fingerprint, (float) $event->time);
+        $this->queryMonitor->recordRuntimeSample(
+            $fingerprint,
+            (float) $event->time,
+            RequestTelemetryContext::queryLabel(),
+        );
+    }
+
+    private function slowQueryThresholdMs(): float
+    {
+        if (RequestTelemetryContext::active()) {
+            return (float) config('sis.observability.slow_query_threshold_ms', 10);
+        }
+
+        return 50.0;
     }
 }

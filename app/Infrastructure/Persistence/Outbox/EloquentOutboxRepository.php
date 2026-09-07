@@ -15,7 +15,7 @@ final class EloquentOutboxRepository implements OutboxRepository
         OutboxMessageRecord::query()->create([
             'event_type' => $event::class,
             'payload' => $event->payload(),
-            'correlation_id' => $correlationId ?? CorrelationContext::get(),
+            'correlation_id' => $correlationId ?? CorrelationContext::id(),
             'occurred_at' => $event->occurredAt(),
             'created_at' => now(),
         ]);

@@ -156,6 +156,27 @@ return [
             'action' => 'growth_review',
             'message' => 'Abnormal daily table growth detected',
         ],
+        [
+            'id' => 'http_budget_exceeded',
+            'risk_tier' => 0,
+            'condition' => ['budget_exceeded' => 'true'],
+            'action' => 'investigate',
+            'message' => 'HTTP workload exceeded performance budget P95',
+        ],
+        [
+            'id' => 'http_high_error_rate',
+            'risk_tier' => 0,
+            'condition' => ['error_rate_pct' => '> 5'],
+            'action' => 'investigate',
+            'message' => 'HTTP workload error rate exceeds safe threshold',
+        ],
+        [
+            'id' => 'http_query_heavy',
+            'risk_tier' => 0,
+            'condition' => ['mean_db_queries_per_request' => '> 10'],
+            'action' => 'investigate',
+            'message' => 'High DB query count per HTTP request detected',
+        ],
     ],
 
     /*
@@ -205,13 +226,42 @@ return [
             'recommendation_type' => 'add_foreign_key',
             'alternatives' => [],
         ],
+        [
+            'id' => 'APP-001',
+            'risk_tier' => 0,
+            'when' => ['budget_exceeded' => 'true'],
+            'diagnosis' => 'Application workload P95 exceeds configured performance budget — investigate API latency and query patterns',
+            'recommendation_type' => 'investigate',
+            'alternatives' => ['query_optimize', 'cache_warm'],
+        ],
+        [
+            'id' => 'APP-002',
+            'risk_tier' => 0,
+            'when' => ['mean_db_queries_per_request' => '> 10'],
+            'diagnosis' => 'High DB query count per HTTP request — N+1 or missing eager load candidate',
+            'recommendation_type' => 'query_optimize',
+            'alternatives' => ['index_add', 'cache_read'],
+        ],
+        [
+            'id' => 'APP-003',
+            'risk_tier' => 0,
+            'when' => ['error_rate_pct' => '> 5'],
+            'diagnosis' => 'Elevated HTTP error rate on workload — application or dependency failure',
+            'recommendation_type' => 'investigate',
+            'alternatives' => [],
+        ],
     ],
 
     'performance_budgets' => [
-        'student_search' => ['workload' => 'oltp', 'p95_ms' => 200],
-        'school_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 1000],
-        'directorate_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 3000],
-        'attendance_batch' => ['workload' => 'bulk', 'p95_ms' => 2000],
+        'student_search' => [
+            'workload' => 'oltp',
+            'p95_ms' => 200,
+            'p99_ms' => 500,
+            'max_db_queries_per_request' => 3,
+        ],
+        'school_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 1000, 'p99_ms' => 2500, 'max_db_queries_per_request' => 2],
+        'directorate_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 3000, 'p99_ms' => 6000, 'max_db_queries_per_request' => 1],
+        'attendance_batch' => ['workload' => 'bulk', 'p95_ms' => 2000, 'p99_ms' => 5000, 'max_db_queries_per_request' => 2],
     ],
 
     'pg_stat_statements' => [

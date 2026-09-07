@@ -22,6 +22,7 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <env name="SIS_ENV_PROFILE" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
@@ -36,5 +37,10 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="INTELLIGENCE_ENABLED" value="true"/>
+        <env name="OPTIMIZATION_ENABLED" value="true"/>
+        <env name="OPTIMIZATION_MODE" value="observe"/>
+        <env name="OPTIMIZATION_AUTONOMOUS_BLOCK_PRODUCTION" value="true"/>
+        <env name="SIS_SCHEDULER_INTELLIGENCE" value="false"/>
+        <env name="SIS_SCHEDULER_OPTIMIZATION" value="false"/>
     </php>
 </phpunit>

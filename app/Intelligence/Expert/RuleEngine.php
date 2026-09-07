@@ -85,6 +85,8 @@ class RuleEngine
             'partition_review' => 'Review partition strategy — simulation and ADR required',
             'schema_review' => 'Review schema normalization — migration proposal required',
             'add_foreign_key' => 'Add missing foreign key with restrictOnDelete',
+            'investigate' => 'Investigate application workload latency, errors, and query patterns',
+            'query_optimize' => 'Review query count per request — eager loading, caching, or index candidates',
             default => 'Review expert recommendation '.$diagnosis['rule_id'],
         };
     }
@@ -95,6 +97,8 @@ class RuleEngine
             'analyze' => 15,
             'index_add' => 65,
             'partition_review' => 70,
+            'query_optimize' => 40,
+            'investigate' => 10,
             default => 20,
         };
     }
@@ -115,6 +119,8 @@ class RuleEngine
             'index_add' => 25,
             'partition_review' => 75,
             'schema_review' => 90,
+            'investigate' => 5,
+            'query_optimize' => 15,
             default => 40,
         };
     }

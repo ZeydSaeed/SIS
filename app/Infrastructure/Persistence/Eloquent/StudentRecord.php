@@ -10,6 +10,7 @@ class StudentRecord extends Model
     protected $table;
 
     protected $fillable = [
+        'public_id',
         'student_code',
         'national_id',
         'first_name',
@@ -18,6 +19,9 @@ class StudentRecord extends Model
         'full_name',
         'gender',
         'birth_date',
+        'birth_place',
+        'nationality',
+        'photo_storage_key',
         'status',
     ];
 

@@ -15,7 +15,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-if (config('intelligence.enabled', true)) {
+if (config('intelligence.enabled', true) && config('sis.scheduler.intelligence_enabled', true)) {
     Schedule::job(new RunHealthMonitorJob)->everyMinute()->name('intelligence:health');
     Schedule::job(new RunPerformanceAnalysisJob)->everyFiveMinutes()->name('intelligence:performance');
     Schedule::job(new RunGrowthOptimizationJob)->hourly()->name('intelligence:growth');
@@ -27,7 +27,7 @@ if (config('intelligence.enabled', true)) {
         ->withoutOverlapping();
 }
 
-if (config('optimization.enabled', true)) {
+if (config('optimization.enabled', true) && config('sis.scheduler.optimization_enabled', true)) {
     Schedule::job(new RunSelfHealingCycleJob)->everyFiveMinutes()->name('optimization:self-healing');
     Schedule::job(new CaptureBaselineSnapshotJob)->weekly()->name('optimization:baseline');
 }

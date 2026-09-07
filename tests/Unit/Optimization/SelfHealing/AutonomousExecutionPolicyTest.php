@@ -48,7 +48,23 @@ class AutonomousExecutionPolicyTest extends TestCase
         $result = $this->evaluatePolicy();
 
         $this->assertFalse($result['allowed']);
-        $this->assertSame('environment_unauthorized', $result['code']);
+        $this->assertSame('production_forbidden', $result['code']);
+    }
+
+    #[Test]
+    public function production_hard_block_applies_even_when_controlled_environments_include_production(): void
+    {
+        config([
+            'app.env' => 'production',
+            'optimization.autonomous.controlled_environments' => ['production'],
+            'optimization.autonomous.block_production' => true,
+        ]);
+
+        $result = $this->evaluatePolicy();
+
+        $this->assertFalse($result['allowed']);
+        $this->assertSame('production_forbidden', $result['code']);
+        $this->assertFalse($this->policy->isControlledEnvironment());
     }
 
     #[Test]

@@ -64,7 +64,7 @@ final class OperationalSoakTest extends PostgreSqlOptimizationTestCase
         $result = $this->runAutonomousCycle();
 
         $this->assertNotSame('heal_applied', $result['outcome'] ?? null);
-        $this->assertSame('environment_unauthorized', $result['policy_code'] ?? null);
+        $this->assertSame('production_forbidden', $result['policy_code'] ?? null);
     }
 
     #[Test]

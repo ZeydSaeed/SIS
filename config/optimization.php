@@ -128,6 +128,11 @@ return [
     | autonomous ANALYZE. Production must NOT appear here.
     */
     'autonomous' => [
+        /*
+         * Hard block: production must NEVER run autonomous ANALYZE, even if
+         * OPTIMIZATION_MODE=autonomous and production appears in controlled_environments.
+         */
+        'block_production' => env('OPTIMIZATION_AUTONOMOUS_BLOCK_PRODUCTION', true),
         'require_controlled_environment' => env('OPTIMIZATION_AUTONOMOUS_REQUIRE_CONTROLLED_ENV', true),
         'controlled_environments' => env('OPTIMIZATION_AUTONOMOUS_CONTROLLED_ENVIRONMENTS')
             ? array_values(array_filter(array_map('trim', explode(',', (string) env('OPTIMIZATION_AUTONOMOUS_CONTROLLED_ENVIRONMENTS')))))

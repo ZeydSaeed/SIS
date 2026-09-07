@@ -99,7 +99,7 @@ final class ControlledAutonomousAnalyzeTest extends PostgreSqlOptimizationTestCa
         $result = $this->runAutonomousCycle();
 
         $this->assertNotSame('heal_applied', $result['outcome'] ?? null);
-        $this->assertContains($result['policy_code'] ?? '', ['environment_unauthorized', 'mode_not_autonomous', 'baseline_incompatible']);
+        $this->assertContains($result['policy_code'] ?? '', ['production_forbidden', 'environment_unauthorized', 'mode_not_autonomous', 'baseline_incompatible']);
     }
 
     #[Test]

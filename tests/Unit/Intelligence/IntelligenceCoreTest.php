@@ -22,6 +22,16 @@ class IntelligenceCoreTest extends TestCase
             ['query_p95_ms' => '> 500'],
             ['query_p95_ms' => 120]
         ));
+
+        $this->assertTrue($evaluator->matches(
+            ['budget_exceeded' => 'true'],
+            ['budget_exceeded' => true]
+        ));
+
+        $this->assertFalse($evaluator->matches(
+            ['budget_exceeded' => 'true'],
+            ['budget_exceeded' => false]
+        ));
     }
 
     public function test_risk_policy_marks_forbidden_actions(): void

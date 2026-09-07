@@ -51,6 +51,28 @@ class ThresholdEngine
     }
 
     /**
+     * @param  array<string, mixed>  $metrics  HTTP workload snapshot metrics
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function evaluateHttpWorkload(array $metrics): Collection
+    {
+        $signals = [
+            'http_p95_ms' => (float) ($metrics['p95_ms'] ?? 0),
+            'budget_exceeded' => ($metrics['budget_exceeded'] ?? false) === true,
+            'error_rate_pct' => (float) ($metrics['error_rate_pct'] ?? 0),
+            'mean_db_queries_per_request' => (float) ($metrics['mean_db_queries_per_request'] ?? 0),
+            'sample_count' => (float) ($metrics['sample_count'] ?? 0),
+        ];
+
+        return $this->matchRules($signals, [
+            'workload' => $metrics['workload'] ?? null,
+            'routes' => $metrics['routes'] ?? [],
+            'performance_budget_p95_ms' => $metrics['performance_budget_p95_ms'] ?? null,
+            'source' => $metrics['source'] ?? 'http_request_telemetry',
+        ]);
+    }
+
+    /**
      * @param  array<string, float>  $signals
      * @param  array<string, mixed>  $context
      * @return Collection<int, array<string, mixed>>
@@ -89,11 +111,34 @@ class ThresholdEngine
             'query_fingerprint' => $match['context']['query_fingerprint'] ?? null,
             'title' => $match['message'],
             'diagnosis' => $match['message'],
-            'evidence' => $match['signals'],
-            'degradation_score' => $match['signals']['degradation_pct'] ?? null,
+            'evidence' => array_merge($match['signals'], array_filter($match['context'] ?? [], fn ($value) => $value !== null && $value !== [])),
+            'degradation_score' => $this->degradationScore($match),
             'status' => 'open',
             'correlation_id' => CorrelationContext::id(),
             'detected_at' => now(),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $match
+     */
+    private function degradationScore(array $match): ?float
+    {
+        if (isset($match['signals']['degradation_pct'])) {
+            return (float) $match['signals']['degradation_pct'];
+        }
+
+        if (($match['signals']['budget_exceeded'] ?? false) !== true) {
+            return null;
+        }
+
+        $p95 = (float) ($match['signals']['http_p95_ms'] ?? 0);
+        $budget = (float) ($match['context']['performance_budget_p95_ms'] ?? 0);
+
+        if ($budget <= 0) {
+            return null;
+        }
+
+        return round((($p95 - $budget) / $budget) * 100, 2);
     }
 }
