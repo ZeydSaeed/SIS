@@ -52,7 +52,18 @@ final class EnvironmentProfileService
         $keys = ['cpu_cores', 'memory_limit_mb', 'php_version', 'environment'];
 
         foreach ($keys as $key) {
-            if (($previous[$key] ?? null) !== ($current[$key] ?? null)) {
+            $prev = $previous[$key] ?? null;
+            $curr = $current[$key] ?? null;
+
+            if (is_numeric($prev) && is_numeric($curr)) {
+                if ((float) $prev !== (float) $curr) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($prev !== $curr) {
                 return true;
             }
         }

@@ -10,8 +10,16 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+/**
+ * Ops Tier-1 self-healing — infrastructure playbooks (NOT optimization performance actions).
+ * Governed by OpsSelfHealingSafetyGate.
+ */
 class SelfHealingEngine
 {
+    public function __construct(
+        private readonly OpsSelfHealingSafetyGate $safetyGate,
+    ) {}
+
     public function evaluate(MonitoringSnapshot $snapshot): ?SelfHealingAction
     {
         if (! config('intelligence.self_healing.enabled', true)) {
@@ -19,7 +27,7 @@ class SelfHealingEngine
         }
 
         if ($this->shouldRouteReadsToPrimary($snapshot)) {
-            return $this->recordAction(
+            return $this->executePlaybook(
                 'replica_lag',
                 'Route eligible reads to primary — replica lag exceeded threshold',
                 ['replication_lag_seconds' => $snapshot->replication_lag_seconds],
@@ -28,7 +36,7 @@ class SelfHealingEngine
         }
 
         if ($this->shouldSignalConnectionSaturation($snapshot)) {
-            return $this->recordAction(
+            return $this->executePlaybook(
                 'connection_saturation',
                 'Connection saturation detected — alert ops and extend safe cache TTL',
                 [
@@ -53,8 +61,6 @@ class SelfHealingEngine
 
     private function shouldSignalConnectionSaturation(MonitoringSnapshot $snapshot): bool
     {
-        $maxConnections = (int) config('intelligence.self_healing.max_connections_pct', 85);
-
         return $snapshot->connection_count !== null
             && $snapshot->connection_count > 0
             && ! Cache::has('intelligence.connection_saturation');
@@ -63,14 +69,26 @@ class SelfHealingEngine
     /**
      * @param  array<string, mixed>  $metricsBefore
      */
-    private function recordAction(string $playbookId, string $reason, array $metricsBefore, callable $action): SelfHealingAction
+    private function executePlaybook(string $playbookId, string $reason, array $metricsBefore, callable $action): ?SelfHealingAction
     {
-        $action();
+        $auth = $this->safetyGate->authorize($playbookId, $metricsBefore);
+        if (! ($auth['allowed'] ?? false)) {
+            Log::info('OPS_SELF_HEALING:ACTION_REJECTED', [
+                'playbook_id' => $playbookId,
+                'reason' => $auth['reason'] ?? 'denied',
+            ]);
 
-        Log::info('Intelligence self-healing action executed', [
-            'playbook' => $playbookId,
-            'reason' => $reason,
-        ]);
+            return null;
+        }
+
+        try {
+            $action();
+            $this->safetyGate->recordExecution($playbookId);
+        } catch (\Throwable $e) {
+            $this->safetyGate->recordFailure($e->getMessage());
+
+            return null;
+        }
 
         return SelfHealingAction::query()->create([
             'action_code' => 'SH-'.now()->format('Ymd').'-'.Str::upper(Str::random(6)),

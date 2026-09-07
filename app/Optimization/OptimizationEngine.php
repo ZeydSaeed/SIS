@@ -7,9 +7,13 @@ use App\Intelligence\Models\Recommendation;
 use App\Optimization\Analysis\BottleneckAnalyzer;
 use App\Optimization\Analysis\OptimizationScorer;
 use App\Optimization\Baseline\BaselineSnapshotService;
+use App\Optimization\Contracts\IncidentReport;
+use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\Enums\OptimizationMode;
 use App\Optimization\Execution\IsolatedOptimizationRunner;
 use App\Optimization\Memory\OptimizationHistoryRecorder;
+use App\Optimization\SelfHealing\IncidentRecommendationResolver;
+use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use Illuminate\Support\Facades\File;
 
 final class OptimizationEngine
@@ -21,6 +25,8 @@ final class OptimizationEngine
         private readonly OptimizationScorer $scorer,
         private readonly IsolatedOptimizationRunner $runner,
         private readonly OptimizationHistoryRecorder $history,
+        private readonly IncidentRecommendationResolver $incidentResolver,
+        private readonly MetricSnapshotCapturer $metricCapturer,
     ) {}
 
     public function mode(): OptimizationMode
@@ -30,8 +36,6 @@ final class OptimizationEngine
     }
 
     /**
-     * Level 0 — Observe: collect metrics, capture baseline, NO changes.
-     *
      * @return array<string, mixed>
      */
     public function observe(): array
@@ -49,8 +53,6 @@ final class OptimizationEngine
     }
 
     /**
-     * Level 1 — Recommend: analyze bottlenecks, score candidates, write reports.
-     *
      * @return array<string, mixed>
      */
     public function recommend(): array
@@ -81,11 +83,11 @@ final class OptimizationEngine
     }
 
     /**
-     * Level 2 — Autonomous: ONE low-risk optimization via isolated runner.
+     * Execute optimization for a specific incident — RCA drives recommendation selection.
      *
      * @return array<string, mixed>
      */
-    public function runAutonomous(): array
+    public function runForIncident(IncidentReport $incident, ?string $checkpointId = null): array
     {
         if ($this->mode() !== OptimizationMode::Autonomous) {
             return [
@@ -94,34 +96,42 @@ final class OptimizationEngine
             ];
         }
 
-        $this->guardian->runPerformanceCycle();
-
-        $pending = Recommendation::query()
-            ->where('status', 'pending')
-            ->where('risk_tier', '<=', config('optimization.scoring.max_risk_tier_autonomous', 1))
-            ->orderByDesc('confidence')
-            ->first();
-
-        if ($pending === null) {
+        if ($incident->candidateActions === []) {
             return [
                 'executed' => false,
-                'reason' => 'No eligible pending recommendations for autonomous execution',
+                'reason' => 'No autonomous actions available for incident root cause',
             ];
         }
 
-        $baseline = $this->baselineService->latest();
-        $baselineMetrics = [
-            'p95_latency_ms' => 0,
-            'db_queries_per_request' => 0,
-        ];
-
-        if ($baseline !== null) {
-            $queryBaselines = $baseline->query_baselines ?? [];
-            $p95Values = collect($queryBaselines)->pluck('p95_ms')->filter();
-            $baselineMetrics['p95_latency_ms'] = $p95Values->avg() ?? 0;
+        $resolved = $this->incidentResolver->resolve($incident);
+        if (! ($resolved['matched'] ?? false) || $resolved['recommendation'] === null) {
+            return [
+                'executed' => false,
+                'reason' => $resolved['reason'] ?? 'No matching recommendation for incident',
+                'incident_id' => $incident->incidentId,
+                'target' => $incident->target,
+            ];
         }
 
-        return $this->runner->run($pending, $baselineMetrics);
+        /** @var Recommendation $recommendation */
+        $recommendation = $resolved['recommendation'];
+        $this->incidentResolver->assertMatches($incident, $recommendation);
+
+        $beforeMetrics = $this->metricCapturer->capture();
+
+        return $this->runner->run($recommendation, $beforeMetrics, $checkpointId);
+    }
+
+    /**
+     * @deprecated Use runForIncident() from SelfHealingPerformanceEngine
+     * @return array<string, mixed>
+     */
+    public function runAutonomous(): array
+    {
+        return [
+            'executed' => false,
+            'reason' => 'Direct autonomous execution disabled — use incident-driven runForIncident()',
+        ];
     }
 
     /**

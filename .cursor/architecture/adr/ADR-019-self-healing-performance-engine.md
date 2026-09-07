@@ -20,15 +20,21 @@ Extend `app/Optimization/SelfHealing/` as an orchestration layer **on top of** `
 
 ```text
 SelfHealingPerformanceEngine
-  → TelemetryCollector (lightweight)
-  → AdaptiveBaselineEngine (anti-poisoning)
+  → TelemetryCollector (lightweight, null for unavailable metrics)
+  → AdaptiveBaselineEngine (anti-poisoning, adaptation_max_shift_pct, stale on env change)
   → HealthScoreEngine
   → AnomalyDetector (hysteresis)
-  → RootCauseAnalyzer (confidence)
+  → RootCauseAnalyzer → IncidentReport contract
+  → IncidentRecommendationResolver (RCA-matched recommendation ONLY)
   → [gates] CircuitBreaker, Cooldown, TargetLock, Checkpoint
-  → OptimizationEngine::runAutonomous() (Tier-1 only)
-  → StabilizationMonitor + RollbackCoordinator
+  → OptimizationEngine::runForIncident() (Tier-1 only — runAutonomous DISABLED)
+  → IsolatedOptimizationRunner (real before/after + OptimizationOperation registry)
+  → CrossMetricGuard (unknown critical → no autonomous accept)
+  → StabilizationMonitor + RollbackCoordinator (honest rollback semantics)
+  → SelfHealingLearningRecorder (confidence only — no tier escalation)
 ```
+
+**Phase 1.5 (2026-09-07):** Incident-driven execution replaces "first pending recommendation" pattern. `DatabaseGuardian` auto-exec gated by `unified_safety_pipeline`. Auto-Patching explicitly deferred.
 
 **Scheduler:** `RunSelfHealingCycleJob` every 5 minutes replaces observe-only job.
 

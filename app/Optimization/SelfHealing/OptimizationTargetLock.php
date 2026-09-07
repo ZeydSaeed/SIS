@@ -6,25 +6,33 @@ use Illuminate\Support\Facades\Cache;
 
 final class OptimizationTargetLock
 {
-    public function acquire(string $target): bool
+    public function __construct(
+        private readonly TargetNormalizer $normalizer,
+    ) {}
+
+    public function acquire(string $target, ?string $schemaName = null, ?string $tableName = null): bool
     {
         $ttl = (int) config('optimization.worker.lock_ttl_seconds', 600);
 
-        return Cache::add($this->lockKey($target), now()->toIso8601String(), $ttl);
+        return Cache::add(
+            $this->normalizer->lockKey($target, $schemaName, $tableName),
+            now()->toIso8601String(),
+            $ttl,
+        );
     }
 
-    public function release(string $target): void
+    public function release(string $target, ?string $schemaName = null, ?string $tableName = null): void
     {
-        Cache::forget($this->lockKey($target));
+        Cache::forget($this->normalizer->lockKey($target, $schemaName, $tableName));
     }
 
-    public function isLocked(string $target): bool
+    public function isLocked(string $target, ?string $schemaName = null, ?string $tableName = null): bool
     {
-        return Cache::has($this->lockKey($target));
+        return Cache::has($this->normalizer->lockKey($target, $schemaName, $tableName));
     }
 
-    private function lockKey(string $target): string
+    public function normalize(string $target, ?string $schemaName = null, ?string $tableName = null): string
     {
-        return 'optimization:target-lock:'.md5($target);
+        return $this->normalizer->normalize($target, $schemaName, $tableName);
     }
 }

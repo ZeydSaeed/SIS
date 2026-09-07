@@ -122,9 +122,11 @@ class DatabaseGuardian
                     $recommendation = $this->ruleEngine->createRecommendation($detection, $diagnosis, $confidence);
                     $recommendations->push($recommendation);
 
-                    $event = $this->safeAutoExecutor->attempt($recommendation);
-                    if ($event !== null) {
-                        $executions->push($event);
+                    if (! config('optimization.unified_safety_pipeline', true)) {
+                        $event = $this->safeAutoExecutor->attempt($recommendation);
+                        if ($event !== null) {
+                            $executions->push($event);
+                        }
                     }
                 }
             }

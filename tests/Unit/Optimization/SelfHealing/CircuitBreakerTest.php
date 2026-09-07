@@ -3,6 +3,7 @@
 namespace Tests\Unit\Optimization\SelfHealing;
 
 use App\Optimization\SelfHealing\CircuitBreaker;
+use App\Optimization\SelfHealing\SelfHealingEventLogger;
 use App\Optimization\SelfHealing\SelfHealingStateStore;
 use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
@@ -21,7 +22,7 @@ class CircuitBreakerTest extends TestCase
     #[Test]
     public function it_enters_safe_mode_after_max_failures(): void
     {
-        $breaker = new CircuitBreaker(new SelfHealingStateStore);
+        $breaker = new CircuitBreaker(new SelfHealingStateStore, new SelfHealingEventLogger);
 
         $breaker->recordFailure('a');
         $breaker->recordFailure('b');
@@ -34,7 +35,7 @@ class CircuitBreakerTest extends TestCase
     #[Test]
     public function it_resets_on_manual_clear(): void
     {
-        $breaker = new CircuitBreaker(new SelfHealingStateStore);
+        $breaker = new CircuitBreaker(new SelfHealingStateStore, new SelfHealingEventLogger);
 
         $breaker->recordFailure('x');
         $breaker->recordFailure('x');

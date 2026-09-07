@@ -2,20 +2,14 @@
 
 namespace App\Optimization\SelfHealing;
 
-use App\Optimization\Analysis\RootCauseReport;
+use App\Optimization\Contracts\IncidentReport;
+use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\Enums\OptimizationMode;
 use App\Optimization\OptimizationEngine;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
-/**
- * Continuous self-monitoring, self-diagnosing, and self-healing orchestrator.
- * Built ON TOP of OptimizationEngine — does not replace Intelligence Layer.
- *
- * Failure containment: all cycles wrapped in try/catch — optimization failure
- * MUST NOT crash the application.
- */
 final class SelfHealingPerformanceEngine
 {
     private const WORKER_LOCK = 'optimization:self-healing:worker';
@@ -35,11 +29,16 @@ final class SelfHealingPerformanceEngine
         private readonly StabilizationMonitor $stabilization,
         private readonly RollbackCoordinator $rollback,
         private readonly SelfHealingStateStore $stateStore,
+        private readonly MetricSnapshotCapturer $metricCapturer,
+        private readonly SelfHealingEventLogger $events,
+        private readonly SelfHealingLearningRecorder $learning,
+        private readonly CheckpointRecoveryService $checkpointRecovery,
+        private readonly DataScaleContext $dataScale,
+        private readonly AutonomousExecutionPolicy $autonomousPolicy,
+        private readonly AutonomousRateLimiter $rateLimiter,
     ) {}
 
     /**
-     * Main continuous cycle — lightweight observe always; heal only when degraded.
-     *
      * @return array<string, mixed>
      */
     public function runCycle(): array
@@ -48,16 +47,18 @@ final class SelfHealingPerformanceEngine
             return ['skipped' => true, 'reason' => 'optimization disabled'];
         }
 
+        $cycleId = 'CYC-'.Str::upper(Str::random(8));
+        $this->events->emit('SELF_HEALING_CYCLE_STARTED', ['cycle_id' => $cycleId]);
+
         try {
-            return $this->executeCycle();
+            return $this->executeCycle($cycleId);
         } catch (\Throwable $e) {
-            Log::error('Self-healing cycle failed — contained, application unaffected', [
-                'error' => $e->getMessage(),
-            ]);
+            $this->events->emit('SELF_HEALING_CYCLE_FAILED', ['cycle_id' => $cycleId, 'error' => $e->getMessage()]);
 
             $this->stateStore->mutate(function (array $state) use ($e) {
                 $state['last_cycle_at'] = now()->toIso8601String();
                 $state['last_cycle_outcome'] = 'error_contained';
+                $state['last_failed_cycle_at'] = now()->toIso8601String();
                 $state['last_error'] = $e->getMessage();
 
                 return $state;
@@ -82,14 +83,24 @@ final class SelfHealingPerformanceEngine
         return [
             'mode' => $this->effectiveMode()->value,
             'configured_mode' => config('optimization.mode'),
+            'unified_safety_pipeline' => config('optimization.unified_safety_pipeline', true),
             'safe_mode' => $state['safe_mode'] ?? false,
+            'circuit_breaker_open' => $this->circuitBreaker->isOpen(),
             'safe_mode_reason' => $state['safe_mode_reason'] ?? null,
             'consecutive_failures' => $state['consecutive_failures'] ?? 0,
             'last_cycle_at' => $state['last_cycle_at'] ?? null,
+            'last_successful_cycle_at' => $state['last_successful_cycle_at'] ?? null,
+            'last_failed_cycle_at' => $state['last_failed_cycle_at'] ?? null,
             'last_cycle_outcome' => $state['last_cycle_outcome'] ?? null,
             'active_stabilizations' => count($state['active_stabilizations'] ?? []),
             'baseline_metrics' => count($baseline['metrics'] ?? []),
+            'baseline_stale' => $baseline['stale'] ?? false,
+            'baseline_stale_reason' => $baseline['stale_reason'] ?? null,
             'environment' => $env['environment'] ?? config('app.env'),
+            'scheduler_defined' => true,
+            'worker_lock_active' => Cache::has(self::WORKER_LOCK),
+            'cooldowns' => $state['cooldowns'] ?? [],
+            'last_telemetry_at' => $this->telemetry->collect()['collected_at'] ?? null,
         ];
     }
 
@@ -114,7 +125,7 @@ final class SelfHealingPerformanceEngine
     /**
      * @return array<string, mixed>
      */
-    private function executeCycle(): array
+    private function executeCycle(string $cycleId): array
     {
         $lockTtl = (int) config('optimization.worker.lock_ttl_seconds', 600);
         $lock = Cache::lock(self::WORKER_LOCK, $lockTtl);
@@ -124,24 +135,42 @@ final class SelfHealingPerformanceEngine
         }
 
         try {
+            $this->checkpointRecovery->recoverIncomplete();
+
             $previousEnv = $this->environment->current();
             $env = $this->environment->capture();
             if ($this->environment->hasEnvironmentChanged($previousEnv, $env)) {
-                Log::info('Self-healing: environment change detected — baseline context updated');
+                $this->adaptiveBaseline->markStale('environment_change');
+                $this->events->emit('BASELINE_STALE', ['reason' => 'environment_change']);
+            }
+
+            if ($this->adaptiveBaseline->isStale()) {
+                $outcome = [
+                    'outcome' => 'baseline_warmup',
+                    'message' => 'Baseline recalibration — no aggressive optimization',
+                ];
+                $this->optimizationEngine->observe();
+                $telemetry = $this->telemetry->collect();
+                $this->adaptiveBaseline->update($telemetry, []);
+                $this->finalizeCycle($outcome);
+
+                return $outcome;
             }
 
             $this->optimizationEngine->observe();
 
             $telemetry = $this->telemetry->collect();
-            $health = $this->healthScore->evaluate($telemetry, $this->adaptiveBaseline->load());
+            $baseline = $this->adaptiveBaseline->loadCompatible($telemetry);
+            $health = $this->healthScore->evaluate($telemetry, $baseline);
             $anomalies = $this->anomalyDetector->detect($telemetry, $health);
-            $adaptiveBaseline = $this->adaptiveBaseline->update($telemetry, $anomalies);
+            $this->adaptiveBaseline->update($telemetry, $anomalies);
 
             $this->writeHealthReport($health, $anomalies, $telemetry);
             $stabilizationResults = $this->stabilization->checkPending();
 
             $outcome = [
                 'outcome' => 'monitor',
+                'cycle_id' => $cycleId,
                 'health_score' => $health['overall_score'],
                 'health_status' => $health['status'],
                 'anomalies' => count($anomalies),
@@ -150,29 +179,53 @@ final class SelfHealingPerformanceEngine
             ];
 
             if ($anomalies !== []) {
-                $rca = $this->rootCauseAnalyzer->analyze($telemetry, $anomalies);
-                $this->writeRootCauseReport($rca, $anomalies);
-                $outcome['root_cause_confidence'] = $this->confidenceFromRca($rca);
+                $this->events->emit('ANOMALY_DETECTED', ['cycle_id' => $cycleId, 'count' => count($anomalies)]);
 
-                if ($this->effectiveMode() === OptimizationMode::Recommend) {
-                    $recommend = $this->optimizationEngine->recommend();
-                    $outcome['recommend'] = $recommend;
-                    $outcome['outcome'] = 'recommend';
-                } elseif ($this->canAttemptSelfHeal($rca, $anomalies)) {
-                    $heal = $this->attemptSelfHeal($rca, $telemetry, $anomalies[0]);
-                    $outcome = array_merge($outcome, $heal);
-                } else {
-                    $outcome['outcome'] = 'degraded_observed';
-                    $outcome['self_heal'] = 'skipped — safe mode, low confidence, cooldown, or observe mode';
+                $incident = $this->rootCauseAnalyzer->analyze($telemetry, $anomalies);
+                $this->writeRootCauseReport($incident, $anomalies);
+
+                if ($incident !== null) {
+                    $this->events->emit('RCA_COMPLETED', [
+                        'cycle_id' => $cycleId,
+                        'incident_id' => $incident->incidentId,
+                        'target' => $incident->target,
+                        'confidence' => $incident->confidence,
+                    ]);
+                    $outcome['incident_id'] = $incident->incidentId;
+                    $outcome['root_cause_confidence'] = $incident->confidence;
+
+                    if ($this->effectiveMode() === OptimizationMode::Recommend) {
+                        $recommend = $this->optimizationEngine->recommend();
+                        $outcome['recommend'] = $recommend;
+                        $outcome['outcome'] = 'recommend';
+                    } else {
+                        $policy = $this->evaluateAutonomousPolicy($incident, $cycleId);
+                        $this->events->emit('AUTONOMOUS_POLICY_EVALUATED', $policy);
+
+                        if ($policy['allowed']) {
+                            $heal = $this->attemptSelfHeal($incident, $anomalies[0], $cycleId);
+                            $outcome = array_merge($outcome, $heal);
+                        } else {
+                            $outcome['outcome'] = 'degraded_observed';
+                            $outcome['self_heal'] = $policy['reason'] ?? 'autonomous policy denied';
+                            $outcome['policy_code'] = $policy['code'] ?? 'denied';
+                            $this->events->emit('AUTONOMOUS_POLICY_DENIED', [
+                                'cycle_id' => $cycleId,
+                                'incident_id' => $incident->incidentId,
+                                'code' => $policy['code'] ?? 'denied',
+                                'reason' => $policy['reason'] ?? null,
+                            ]);
+                            $this->events->emit('OPTIMIZATION_REJECTED', [
+                                'cycle_id' => $cycleId,
+                                'reason' => $outcome['self_heal'],
+                                'policy_code' => $policy['code'] ?? 'denied',
+                            ]);
+                        }
+                    }
                 }
             }
 
-            $this->stateStore->mutate(function (array $state) use ($outcome) {
-                $state['last_cycle_at'] = now()->toIso8601String();
-                $state['last_cycle_outcome'] = $outcome['outcome'];
-
-                return $state;
-            });
+            $this->finalizeCycle($outcome);
 
             return $outcome;
         } finally {
@@ -181,65 +234,77 @@ final class SelfHealingPerformanceEngine
     }
 
     /**
-     * @param  list<array<string, mixed>>  $anomalies
+     * @return array{allowed: bool, code: string, reason: ?string, checks: array<string, string>}
      */
-    private function canAttemptSelfHeal(?RootCauseReport $rca, array $anomalies): bool
+    private function evaluateAutonomousPolicy(IncidentReport $incident, string $cycleId): array
     {
-        if ($this->effectiveMode() !== OptimizationMode::Autonomous) {
-            return false;
-        }
+        $target = $this->targetLock->normalize($incident->target, $incident->schemaName, $incident->tableName);
 
-        if ($this->circuitBreaker->isOpen()) {
-            return false;
-        }
-
-        if ($rca === null) {
-            return false;
-        }
-
-        $minConfidence = (float) config('optimization.scoring.min_confidence_for_autonomous', 0.75);
-        if ($this->confidenceFromRca($rca) < $minConfidence) {
-            return false;
-        }
-
-        $target = $rca->affectedComponent;
-        if ($this->cooldown->isOnCooldown($target)) {
-            return false;
-        }
-
-        if ($this->targetLock->isLocked($target)) {
-            return false;
-        }
-
-        return $anomalies !== [];
+        return $this->autonomousPolicy->evaluate(
+            incident: $incident,
+            effectiveMode: $this->effectiveMode(),
+            circuitOpen: $this->circuitBreaker->isOpen(),
+            baselineStale: $this->adaptiveBaseline->isStale(),
+            targetLocked: $this->targetLock->isLocked($incident->target, $incident->schemaName, $incident->tableName),
+            onCooldown: $this->cooldown->isOnCooldown($incident->target),
+            scaleBlocked: ! $this->dataScale->allowsAutonomousOptimization($this->dataScale->capture()),
+            checkpointBlocks: $this->checkpointRecovery->blocksAutonomousRetry($target),
+            metrics: $this->metricCapturer->capture(),
+            normalizedTarget: $target,
+            cycleId: $cycleId,
+        );
     }
 
     /**
-     * @param  array<string, mixed>  $telemetry
      * @param  array<string, mixed>  $primaryAnomaly
      * @return array<string, mixed>
      */
-    private function attemptSelfHeal(RootCauseReport $rca, array $telemetry, array $primaryAnomaly): array
+    private function attemptSelfHeal(IncidentReport $incident, array $primaryAnomaly, string $cycleId): array
     {
-        $target = $rca->affectedComponent;
+        $target = $this->targetLock->normalize($incident->target, $incident->schemaName, $incident->tableName);
 
-        if (! $this->targetLock->acquire($target)) {
+        if (! $this->targetLock->acquire($target, $incident->schemaName, $incident->tableName)) {
+            $this->events->emit('TARGET_LOCK_DENIED', ['target' => $target, 'incident_id' => $incident->incidentId]);
+
             return ['outcome' => 'locked', 'target' => $target];
         }
 
+        $this->events->emit('TARGET_LOCK_ACQUIRED', ['target' => $target, 'incident_id' => $incident->incidentId]);
+
         try {
+            $this->rateLimiter->recordExecution($target, $cycleId);
+
+            $beforeMetrics = $this->metricCapturer->capture();
+
             $checkpointId = $this->checkpoint->create([
+                'operation_id' => 'OP-'.Str::upper(Str::random(6)),
+                'incident_id' => $incident->incidentId,
+                'cycle_id' => $cycleId,
                 'target' => $target,
-                'root_cause' => $rca->toArray(),
-                'baseline_metrics' => $telemetry,
+                'action' => $incident->candidateActions[0] ?? 'analyze',
+                'root_cause' => $incident->toArray(),
+                'before_state' => $beforeMetrics->toArray(),
+                'rollback_supported' => false,
+                'restore_strategy' => 'non_reversible_safe',
                 'anomaly' => $primaryAnomaly,
             ]);
 
-            $result = $this->optimizationEngine->runAutonomous();
+            $this->events->emit('CHECKPOINT_CREATED', ['checkpoint_id' => $checkpointId, 'incident_id' => $incident->incidentId]);
+            $this->events->emit('OPTIMIZATION_STARTED', ['incident_id' => $incident->incidentId, 'target' => $target, 'checkpoint_id' => $checkpointId]);
+            $this->events->emit('EXECUTION_STARTED', ['incident_id' => $incident->incidentId, 'target' => $target, 'checkpoint_id' => $checkpointId]);
+
+            $result = $this->optimizationEngine->runForIncident($incident, $checkpointId);
 
             if (! ($result['executed'] ?? false)) {
+                $this->events->emit('EXECUTION_FAILED', ['incident_id' => $incident->incidentId, 'checkpoint_id' => $checkpointId, 'result' => $result]);
+                $this->events->emit('OPTIMIZATION_REJECTED', ['incident_id' => $incident->incidentId, 'result' => $result, 'checkpoint_id' => $checkpointId]);
+                $this->checkpoint->transition($checkpointId, CheckpointStatus::Rejected, [
+                    'final_outcome' => 'REJECTED',
+                    'result' => $result,
+                ]);
                 $this->rollback->handleFailedOptimization($result);
                 $this->cooldown->startCooldown($target);
+                $this->learning->record($incident, $beforeMetrics, null, $result, 'REJECTED');
 
                 return [
                     'outcome' => 'heal_failed',
@@ -252,14 +317,36 @@ final class SelfHealingPerformanceEngine
             $this->circuitBreaker->recordSuccess();
             $this->cooldown->startCooldown($target);
 
+            $afterMetrics = isset($result['after_metrics'])
+                ? MetricSnapshot::fromArray($result['after_metrics'])
+                : $this->metricCapturer->capture();
+
+            $this->learning->record(
+                $incident,
+                $beforeMetrics,
+                $afterMetrics,
+                $result,
+                (string) ($result['decision'] ?? 'ACCEPTED'),
+            );
+
             $optimizationId = $result['history_id'] ?? $checkpointId;
             $this->stabilization->start($optimizationId, [
                 'target' => $target,
+                'incident_id' => $incident->incidentId,
                 'checkpoint_id' => $checkpointId,
                 'recommendation_id' => $result['checkpoint']['recommendation_id'] ?? null,
                 'event_code' => $result['event_code'] ?? null,
+                'before_metrics' => $beforeMetrics->toArray(),
             ]);
 
+            $this->checkpoint->transition($checkpointId, CheckpointStatus::StabilizationStarted, [
+                'stabilization_status' => 'started',
+                'recommendation_id' => $result['checkpoint']['recommendation_id'] ?? null,
+            ]);
+
+            $this->events->emit('STABILIZATION_STARTED', ['incident_id' => $incident->incidentId, 'checkpoint_id' => $checkpointId]);
+            $this->events->emit('EXECUTION_COMPLETED', ['incident_id' => $incident->incidentId, 'checkpoint_id' => $checkpointId, 'decision' => $result['decision'] ?? null]);
+            $this->events->emit('OPTIMIZATION_COMPLETED', ['incident_id' => $incident->incidentId, 'decision' => $result['decision'] ?? null]);
             $this->writeSelfHealingStatus('ACCEPTED', $target, $result);
 
             return [
@@ -270,8 +357,24 @@ final class SelfHealingPerformanceEngine
                 'stabilization_started' => true,
             ];
         } finally {
-            $this->targetLock->release($target);
+            $this->targetLock->release($target, $incident->schemaName, $incident->tableName);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $outcome
+     */
+    private function finalizeCycle(array $outcome): void
+    {
+        $this->stateStore->mutate(function (array $state) use ($outcome) {
+            $state['last_cycle_at'] = now()->toIso8601String();
+            $state['last_cycle_outcome'] = $outcome['outcome'];
+            if (($outcome['outcome'] ?? '') !== 'error_contained') {
+                $state['last_successful_cycle_at'] = now()->toIso8601String();
+            }
+
+            return $state;
+        });
     }
 
     private function effectiveMode(): OptimizationMode
@@ -282,27 +385,6 @@ final class SelfHealingPerformanceEngine
 
         return OptimizationMode::tryFrom(config('optimization.mode', 'observe'))
             ?? OptimizationMode::Observe;
-    }
-
-    private function confidenceFromRca(?RootCauseReport $rca): float
-    {
-        if ($rca === null) {
-            return 0.0;
-        }
-
-        $evidence = $rca->evidence;
-        $score = 0.5;
-        if (($evidence['consecutive_observations'] ?? 0) >= 3) {
-            $score += 0.15;
-        }
-        if (($evidence['degradation_pct'] ?? 0) >= 20) {
-            $score += 0.15;
-        }
-        if (($evidence['db_queries_per_request'] ?? 0) > 10) {
-            $score += 0.1;
-        }
-
-        return min(0.99, $score);
     }
 
     /**
@@ -338,14 +420,14 @@ final class SelfHealingPerformanceEngine
     /**
      * @param  list<array<string, mixed>>  $anomalies
      */
-    private function writeRootCauseReport(?RootCauseReport $rca, array $anomalies): void
+    private function writeRootCauseReport(?IncidentReport $incident, array $anomalies): void
     {
-        if ($rca === null) {
+        if ($incident === null) {
             return;
         }
 
         $content = "# Root Cause Report\n\nGenerated: ".now()->toIso8601String()."\n\n";
-        $content .= json_encode($rca->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $content .= json_encode($incident->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         $content .= "\n\n## Anomalies\n\n".json_encode($anomalies, JSON_PRETTY_PRINT);
 
         $this->writeReport('ROOT-CAUSE-REPORT.md', $content);

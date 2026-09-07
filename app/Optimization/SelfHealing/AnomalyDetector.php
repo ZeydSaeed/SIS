@@ -5,7 +5,6 @@ namespace App\Optimization\SelfHealing;
 final class AnomalyDetector
 {
     public function __construct(
-        private readonly AdaptiveBaselineEngine $baselineEngine,
         private readonly SelfHealingStateStore $stateStore,
     ) {}
 
@@ -18,19 +17,29 @@ final class AnomalyDetector
     {
         $anomalies = [];
         $required = (int) config('optimization.anomaly.consecutive_observations_required', 3);
+        $sustainedMinutes = (int) config('optimization.anomaly.sustained_degradation_minutes', 15);
         $state = $this->stateStore->read();
         $streaks = $state['degradation_streaks'] ?? [];
+        $degradationStartedAt = $state['degradation_started_at'] ?? [];
 
         foreach ($healthScore['dimensions'] as $metric => $dimension) {
             if ($dimension['status'] !== 'degraded') {
-                unset($streaks[$metric]);
+                unset($streaks[$metric], $degradationStartedAt[$metric]);
 
                 continue;
+            }
+
+            if (! isset($degradationStartedAt[$metric])) {
+                $degradationStartedAt[$metric] = now()->toIso8601String();
             }
 
             $streaks[$metric] = ($streaks[$metric] ?? 0) + 1;
 
             if ($streaks[$metric] < $required) {
+                continue;
+            }
+
+            if (! $this->hasSustainedDegradation($degradationStartedAt[$metric], $sustainedMinutes)) {
                 continue;
             }
 
@@ -42,17 +51,29 @@ final class AnomalyDetector
                 'current' => $dimension['current'],
                 'baseline' => $dimension['baseline'],
                 'consecutive_observations' => $streaks[$metric],
+                'sustained_degradation_minutes' => $sustainedMinutes,
+                'degradation_started_at' => $degradationStartedAt[$metric],
                 'priority' => $dimension['degradation_pct'] >= 50 ? 'P0' : 'P1',
             ];
         }
 
-        $this->stateStore->mutate(function (array $state) use ($streaks) {
+        $this->stateStore->mutate(function (array $state) use ($streaks, $degradationStartedAt) {
             $state['degradation_streaks'] = $streaks;
+            $state['degradation_started_at'] = $degradationStartedAt;
 
             return $state;
         });
 
         return $anomalies;
+    }
+
+    private function hasSustainedDegradation(string $startedAt, int $requiredMinutes): bool
+    {
+        if ($requiredMinutes <= 0) {
+            return true;
+        }
+
+        return now()->diffInMinutes($startedAt) >= $requiredMinutes;
     }
 
     private function domainFor(string $metric): string

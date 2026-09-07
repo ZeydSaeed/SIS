@@ -3,6 +3,7 @@
 namespace Tests\Unit\Optimization\SelfHealing;
 
 use App\Optimization\SelfHealing\AdaptiveBaselineEngine;
+use App\Optimization\SelfHealing\BaselineContextMatcher;
 use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -20,7 +21,7 @@ class AdaptiveBaselineEngineTest extends TestCase
     #[Test]
     public function it_does_not_poison_baseline_with_degraded_observations(): void
     {
-        $engine = new AdaptiveBaselineEngine;
+        $engine = new AdaptiveBaselineEngine(new BaselineContextMatcher);
 
         $engine->update(['p95_latency_ms' => 100]);
         $engine->update(['p95_latency_ms' => 500], [['metric' => 'p95_latency_ms']]);
@@ -35,7 +36,7 @@ class AdaptiveBaselineEngineTest extends TestCase
     #[Test]
     public function it_adapts_baseline_after_healthy_streak(): void
     {
-        $engine = new AdaptiveBaselineEngine;
+        $engine = new AdaptiveBaselineEngine(new BaselineContextMatcher);
 
         $engine->update(['p95_latency_ms' => 100]);
         $engine->update(['p95_latency_ms' => 110]);

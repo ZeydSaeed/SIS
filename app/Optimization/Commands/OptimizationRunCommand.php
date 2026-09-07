@@ -13,17 +13,12 @@ class OptimizationRunCommand extends Command
 
     public function handle(OptimizationEngine $engine): int
     {
+        $this->warn('Direct optimization:run is disabled — use incident-driven self-healing cycle.');
+        $this->line('Run: php artisan optimization:worker or wait for scheduled RunSelfHealingCycleJob.');
+
         $result = $engine->runAutonomous();
 
-        if (! ($result['executed'] ?? false)) {
-            $this->warn($result['reason'] ?? 'No optimization executed');
-
-            return self::SUCCESS;
-        }
-
-        $this->info('Optimization executed: '.($result['event_code'] ?? 'n/a'));
-        $this->line('Decision: '.($result['decision'] ?? 'unknown'));
-        $this->line('History: '.($result['history_id'] ?? 'n/a'));
+        $this->warn($result['reason'] ?? 'No optimization executed');
 
         return self::SUCCESS;
     }

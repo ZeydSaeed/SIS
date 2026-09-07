@@ -2,15 +2,21 @@
 
 namespace App\Optimization\SelfHealing;
 
-use App\Optimization\Analysis\RootCauseReport;
+use App\Optimization\Analysis\BottleneckAnalyzer;
+use App\Optimization\Contracts\IncidentReport;
+use Illuminate\Support\Str;
 
 final class RootCauseAnalyzer
 {
+    public function __construct(
+        private readonly BottleneckAnalyzer $bottleneckAnalyzer,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $telemetry
      * @param  list<array<string, mixed>>  $anomalies
      */
-    public function analyze(array $telemetry, array $anomalies): ?RootCauseReport
+    public function analyze(array $telemetry, array $anomalies): ?IncidentReport
     {
         if ($anomalies === []) {
             return null;
@@ -18,73 +24,101 @@ final class RootCauseAnalyzer
 
         $primary = collect($anomalies)->sortByDesc('degradation_pct')->first();
         $domain = (string) ($primary['domain'] ?? 'application');
+        $incidentId = 'INC-'.now()->format('Ymd').'-'.Str::upper(Str::random(8));
+
+        $bottleneck = $this->resolveDatabaseBottleneck($domain);
+
+        $target = $bottleneck['target'] ?? (string) ($primary['component'] ?? $domain);
+        $schemaName = $bottleneck['schema_name'] ?? null;
+        $tableName = $bottleneck['table_name'] ?? null;
+        $queryFingerprint = $bottleneck['query_fingerprint'] ?? null;
 
         $evidence = [
-            'primary_metric' => $primary['metric'],
-            'degradation_pct' => $primary['degradation_pct'],
-            'consecutive_observations' => $primary['consecutive_observations'],
-            'p95_latency_ms' => $telemetry['p95_latency_ms'] ?? 0,
-            'db_queries_per_request' => $telemetry['db_queries_per_request'] ?? 0,
-            'cache_hit_ratio' => $telemetry['cache_hit_ratio'] ?? 0,
-            'cpu_pct' => $telemetry['cpu_pct'] ?? 0,
-            'memory_pct' => $telemetry['memory_pct'] ?? 0,
+            'primary_metric' => $primary['metric'] ?? null,
+            'degradation_pct' => $primary['degradation_pct'] ?? 0,
+            'consecutive_observations' => $primary['consecutive_observations'] ?? 0,
+            'p95_latency_ms' => $telemetry['p95_latency_ms'] ?? null,
+            'db_queries_per_request' => $telemetry['db_queries_per_request'] ?? null,
+            'cache_hit_ratio' => $telemetry['cache_hit_ratio'] ?? null,
+            'cpu_pct' => $telemetry['cpu_pct'] ?? null,
+            'memory_pct' => $telemetry['memory_pct'] ?? null,
         ];
 
-        [$rootCause, $candidate, $confidence] = $this->inferRootCause($domain, $evidence);
+        [$rootCause, $candidateActions, $confidence] = $this->inferRootCause($domain, $evidence, $bottleneck);
 
-        return new RootCauseReport(
-            problem: "Performance degradation in {$domain}",
-            evidence: $evidence,
+        return new IncidentReport(
+            incidentId: $incidentId,
+            timestamp: now()->toIso8601String(),
+            primaryComponent: $domain,
+            affectedComponent: $target,
+            target: $target,
             rootCause: $rootCause,
-            affectedComponent: (string) ($primary['component'] ?? $domain),
-            optimizationCandidate: $candidate,
-            expectedImprovementPct: 20.0,
-            riskTier: 1,
-            validationMethod: 'VerifyOptimizationJob + CrossMetricGuard',
-            rollbackStrategy: 'Mark recommendation rolled back; ANALYZE requires no schema rollback',
-            potentialSideEffects: $this->potentialSideEffects($domain),
+            confidence: $confidence,
+            evidence: $evidence,
+            supportingMetrics: $telemetry,
+            candidateActions: $candidateActions,
+            risk: 'low',
+            severity: (string) ($primary['priority'] ?? 'P1'),
+            schemaName: $schemaName,
+            tableName: $tableName,
+            queryFingerprint: $queryFingerprint,
         );
     }
 
     /**
-     * @param  array<string, mixed>  $evidence
-     * @return array{0: string, 1: string, 2: float}
+     * @return array{target: ?string, schema_name: ?string, table_name: ?string, query_fingerprint: ?string}
      */
-    private function inferRootCause(string $domain, array $evidence): array
+    private function resolveDatabaseBottleneck(string $domain): array
+    {
+        if ($domain !== 'database') {
+            return ['target' => null, 'schema_name' => null, 'table_name' => null, 'query_fingerprint' => null];
+        }
+
+        $bottlenecks = $this->bottleneckAnalyzer->analyze();
+        $top = $bottlenecks[0] ?? null;
+        if ($top === null) {
+            return ['target' => null, 'schema_name' => null, 'table_name' => null, 'query_fingerprint' => null];
+        }
+
+        $component = (string) $top['component'];
+        $parts = str_contains($component, '.') ? explode('.', $component, 2) : [null, $component];
+
+        return [
+            'target' => $component,
+            'schema_name' => $parts[0],
+            'table_name' => $parts[1] ?? $component,
+            'query_fingerprint' => $top['evidence']['query_fingerprint'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     * @param  array<string, mixed>  $bottleneck
+     * @return array{0: string, 1: list<string>, 2: float}
+     */
+    private function inferRootCause(string $domain, array $evidence, array $bottleneck): array
     {
         if ($domain === 'database') {
             $querySpike = ($evidence['db_queries_per_request'] ?? 0) > 10;
             if ($querySpike) {
-                return ['N+1 or query frequency regression', 'analyze', 0.85];
+                return ['query_frequency_regression', ['analyze'], 0.87];
             }
 
-            return ['Stale planner statistics or missing index', 'analyze', 0.78];
+            return ['stale_planner_statistics_or_missing_index', ['analyze'], 0.78];
         }
 
         if ($domain === 'cache') {
-            return ['Cache hit ratio degradation — invalidation or TTL issue', 'cache_ttl_adjust', 0.72];
+            return ['cache_hit_ratio_degradation', [], 0.72];
         }
 
         if ($domain === 'cpu') {
-            return ['CPU pressure — computational hotspot', 'remove_redundant_computation', 0.65];
+            return ['cpu_pressure_computational_hotspot', [], 0.65];
         }
 
         if ($domain === 'memory') {
-            return ['Memory pressure — allocation growth or cache expansion', 'cache_ttl_adjust', 0.68];
+            return ['memory_pressure_allocation_growth', [], 0.68];
         }
 
-        return ['Unlocalized application degradation', 'analyze', 0.55];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function potentialSideEffects(string $domain): array
-    {
-        return match ($domain) {
-            'database' => ['Increased CPU during ANALYZE', 'Temporary lock contention'],
-            'cache' => ['Temporary cache miss spike during TTL change'],
-            default => ['Cross-metric regression possible'],
-        };
+        return ['unlocalized_application_degradation', ['analyze'], 0.55];
     }
 }

@@ -49,11 +49,13 @@ return [
         'adaptation_max_shift_pct' => (float) env('OPTIMIZATION_BASELINE_MAX_SHIFT_PCT', 15),
         'percentiles' => ['p50', 'p75', 'p90', 'p95', 'p99'],
         'prevent_poisoning' => true,
+        'context_match_keys' => ['environment', 'cpu_cores', 'memory_limit_mb'],
     ],
 
     'stabilization' => [
         'window_minutes' => (int) env('OPTIMIZATION_STABILIZATION_MINUTES', 30),
         'min_observations' => (int) env('OPTIMIZATION_STABILIZATION_OBSERVATIONS', 5),
+        'max_window_minutes' => (int) env('OPTIMIZATION_STABILIZATION_MAX_MINUTES', 120),
     ],
 
     'cooldown' => [
@@ -99,11 +101,50 @@ return [
     ],
 
     'low_risk_auto_actions' => [
+        // Documentation only — only `analyze` is registered for autonomous execution.
         'analyze',
-        'cache_ttl_adjust',
-        'query_projection',
-        'eager_load',
-        'remove_redundant_computation',
+    ],
+
+    'autonomous_actions' => [
+        'analyze',
+    ],
+
+    'analyze' => [
+        /*
+         * Fail-closed: empty/missing allowlist blocks autonomous ANALYZE.
+         * Set OPTIMIZATION_ANALYZE_ALLOWED_TARGETS=schema.table for explicit approval.
+         */
+        'allowed_targets' => env('OPTIMIZATION_ANALYZE_ALLOWED_TARGETS')
+            ? array_values(array_filter(array_map('trim', explode(',', (string) env('OPTIMIZATION_ANALYZE_ALLOWED_TARGETS')))))
+            : [],
+        'execution_timeout_seconds' => (int) env('OPTIMIZATION_ANALYZE_TIMEOUT_SECONDS', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Controlled autonomous ANALYZE — environment gate (fail-closed)
+    |--------------------------------------------------------------------------
+    | Autonomous mode alone is insufficient. Only listed app.env values may run
+    | autonomous ANALYZE. Production must NOT appear here.
+    */
+    'autonomous' => [
+        'require_controlled_environment' => env('OPTIMIZATION_AUTONOMOUS_REQUIRE_CONTROLLED_ENV', true),
+        'controlled_environments' => env('OPTIMIZATION_AUTONOMOUS_CONTROLLED_ENVIRONMENTS')
+            ? array_values(array_filter(array_map('trim', explode(',', (string) env('OPTIMIZATION_AUTONOMOUS_CONTROLLED_ENVIRONMENTS')))))
+            : [],
+        'kill_switch' => env('OPTIMIZATION_AUTONOMOUS_KILL_SWITCH', false),
+        'rate_limits' => [
+            'max_per_cycle' => (int) env('OPTIMIZATION_AUTONOMOUS_MAX_PER_CYCLE', 1),
+            'max_per_target_per_window' => (int) env('OPTIMIZATION_AUTONOMOUS_MAX_PER_TARGET_PER_HOUR', 3),
+            'max_global_per_window' => (int) env('OPTIMIZATION_AUTONOMOUS_MAX_GLOBAL_PER_HOUR', 10),
+            'window_minutes' => (int) env('OPTIMIZATION_AUTONOMOUS_RATE_WINDOW_MINUTES', 60),
+        ],
+    ],
+
+    'data_scale' => [
+        'small_max_mb' => (float) env('OPTIMIZATION_DATA_SCALE_SMALL_MB', 1024),
+        'medium_max_mb' => (float) env('OPTIMIZATION_DATA_SCALE_MEDIUM_MB', 10240),
+        'block_autonomous_on_unknown' => env('OPTIMIZATION_BLOCK_ON_UNKNOWN_SCALE', true),
     ],
 
     'protected_metrics' => [
@@ -116,11 +157,22 @@ return [
         'cache_hit_ratio',
     ],
 
+    'unified_safety_pipeline' => env('OPTIMIZATION_UNIFIED_SAFETY_PIPELINE', true),
+
+    'measurement' => [
+        'post_delay_seconds' => (int) env('OPTIMIZATION_POST_MEASUREMENT_DELAY', 2),
+    ],
+
     'gates' => [
         'architecture_validate_before_code_change' => true,
         'intelligence_governance' => true,
         'cross_metric_regression_block' => true,
         'rollback_enabled' => env('OPTIMIZATION_ROLLBACK_ENABLED', true),
+        'block_autonomous_on_unknown_critical' => true,
+        'cross_metric_latency_regression_pct' => 20,
+        'cross_metric_memory_regression_pct' => 20,
+        'cross_metric_cache_decrease_pct' => 10,
+        'cross_metric_error_regression_pct' => 5,
     ],
 
     'state_path' => storage_path('app/optimization/state'),

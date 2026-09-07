@@ -45,6 +45,13 @@ return [
         'connection_saturation_threshold_pct' => (int) env('INTELLIGENCE_CONNECTION_SATURATION_PCT', 85),
     ],
 
+    'ops_self_healing' => [
+        'enabled' => env('INTELLIGENCE_OPS_SELF_HEALING', true),
+        'allowlist' => ['replica_lag', 'connection_saturation'],
+        'cooldown_minutes' => (int) env('INTELLIGENCE_OPS_COOLDOWN_MINUTES', 15),
+        'max_failures' => (int) env('INTELLIGENCE_OPS_MAX_FAILURES', 5),
+    ],
+
     'verification' => [
         'window_minutes' => (int) env('INTELLIGENCE_VERIFY_WINDOW', 15),
         'success_p95_reduction_pct' => (float) env('INTELLIGENCE_SUCCESS_P95_REDUCTION', 30.0),

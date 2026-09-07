@@ -4,6 +4,8 @@ namespace App\Intelligence\Models;
 
 class BaselineSnapshot extends IntelligenceModel
 {
+    public const UPDATED_AT = null;
+
     protected $table;
 
     protected $fillable = [

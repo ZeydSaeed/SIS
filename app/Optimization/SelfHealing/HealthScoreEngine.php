@@ -15,13 +15,25 @@ final class HealthScoreEngine
         $degradedCount = 0;
 
         foreach (config('optimization.protected_metrics', []) as $metric) {
-            $current = (float) ($telemetry[$metric] ?? 0);
+            $raw = $telemetry[$metric] ?? null;
+            $current = $raw === null ? null : (float) $raw;
             $baselineMetric = $adaptiveBaseline['metrics'][$metric] ?? null;
             $baseline = (float) ($baselineMetric['baseline_value'] ?? 0);
 
             $score = 100.0;
             $status = 'healthy';
             $degradationPct = 0.0;
+
+            if ($current === null || $current <= 0) {
+                $dimensions[$metric] = [
+                    'current' => null,
+                    'baseline' => $baseline,
+                    'degradation_pct' => 0.0,
+                    'status' => 'unknown',
+                    'score' => 100.0,
+                ];
+                continue;
+            }
 
             if ($baseline > 0 && $current > 0) {
                 if (str_contains($metric, 'hit_ratio')) {

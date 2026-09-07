@@ -6,6 +6,29 @@ use Illuminate\Support\Facades\File;
 
 final class AdaptiveBaselineEngine
 {
+    public function __construct(
+        private readonly BaselineContextMatcher $contextMatcher,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $telemetry
+     * @return array<string, mixed>
+     */
+    public function loadCompatible(array $telemetry): array
+    {
+        $baseline = $this->load();
+        $fingerprint = $this->contextMatcher->fingerprintFromTelemetry($telemetry);
+
+        if (($baseline['metrics'] ?? []) !== []
+            && ! $this->contextMatcher->isCompatible($baseline, $fingerprint)) {
+            $this->markStale('context_mismatch');
+
+            return $this->emptyBaseline();
+        }
+
+        return $baseline;
+    }
+
     /**
      * @param  array<string, mixed>  $telemetry
      * @return array<string, mixed>
@@ -61,8 +84,15 @@ final class AdaptiveBaselineEngine
             $metric['percentiles'] = $this->computePercentiles($metric['observations']);
 
             if (! $hasActiveAnomaly && $this->canAdapt($metric)) {
-                $metric['baseline_value'] = $metric['percentiles']['p95'] ?? $current;
-                $metric['last_adapted_at'] = now()->toIso8601String();
+                $newBaseline = $metric['percentiles']['p95'] ?? $current;
+                $oldBaseline = (float) ($metric['baseline_value'] ?? $current);
+                $maxShiftPct = (float) config('optimization.baseline.adaptation_max_shift_pct', 15);
+                $shiftPct = $oldBaseline > 0 ? abs(($newBaseline - $oldBaseline) / $oldBaseline) * 100 : 0;
+
+                if ($shiftPct <= $maxShiftPct) {
+                    $metric['baseline_value'] = $newBaseline;
+                    $metric['last_adapted_at'] = now()->toIso8601String();
+                }
             }
 
             $baseline['metrics'][$key] = $metric;
@@ -71,10 +101,41 @@ final class AdaptiveBaselineEngine
         $baseline['updated_at'] = now()->toIso8601String();
         $baseline['context_fingerprint'] = $telemetry['context_fingerprint'] ?? [];
 
+        if (($baseline['stale'] ?? false) && $this->warmupComplete($baseline)) {
+            $baseline['stale'] = false;
+            $baseline['stale_reason'] = null;
+        }
+
         File::ensureDirectoryExists(dirname(config('optimization.adaptive_baseline_path')));
         File::put(config('optimization.adaptive_baseline_path'), json_encode($baseline, JSON_PRETTY_PRINT));
 
         return $baseline;
+    }
+
+    public function isStale(): bool
+    {
+        $baseline = $this->load();
+
+        return ($baseline['stale'] ?? false) === true;
+    }
+
+    public function markStale(string $reason): void
+    {
+        $baseline = $this->load();
+        $baseline['stale'] = true;
+        $baseline['stale_reason'] = $reason;
+        $baseline['stale_at'] = now()->toIso8601String();
+
+        File::ensureDirectoryExists(dirname(config('optimization.adaptive_baseline_path')));
+        File::put(config('optimization.adaptive_baseline_path'), json_encode($baseline, JSON_PRETTY_PRINT));
+    }
+
+    public function clearStale(): void
+    {
+        $baseline = $this->load();
+        $baseline['stale'] = false;
+        $baseline['stale_reason'] = null;
+        File::put(config('optimization.adaptive_baseline_path'), json_encode($baseline, JSON_PRETTY_PRINT));
     }
 
     /**
@@ -91,6 +152,22 @@ final class AdaptiveBaselineEngine
         $threshold = (float) config('optimization.anomaly.p95_degradation_pct', 20);
 
         return $degradationPct >= $threshold;
+    }
+
+    /**
+     * @param  array<string, mixed>  $baseline
+     */
+    private function warmupComplete(array $baseline): bool
+    {
+        $required = (int) config('optimization.baseline.min_healthy_observations_to_adapt', 10);
+
+        foreach ($baseline['metrics'] ?? [] as $metric) {
+            if (($metric['healthy_streak'] ?? 0) < $required) {
+                return false;
+            }
+        }
+
+        return ($baseline['metrics'] ?? []) !== [];
     }
 
     /**

@@ -39,6 +39,8 @@ final class BottleneckAnalyzer
                         'baseline_p95_ms' => $baselineP95,
                         'degradation_pct' => round($degradationPct, 2),
                         'call_count' => (int) $metric->call_count,
+                        'query_fingerprint' => $metric->query_fingerprint,
+                        'query_label' => $metric->query_label,
                     ],
                     'priority' => $degradationPct >= 50 ? 'P0' : ($degradationPct >= 20 ? 'P1' : 'P2'),
                 ];

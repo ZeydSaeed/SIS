@@ -2,16 +2,13 @@
 
 namespace App\Optimization\SelfHealing;
 
-use App\Intelligence\Enums\OptimizationOutcome;
-use App\Intelligence\Enums\RecommendationStatus;
-use App\Intelligence\Models\OptimizationEvent;
-use App\Intelligence\Models\Recommendation;
 use App\Optimization\Memory\OptimizationHistoryRecorder;
-use Illuminate\Support\Facades\Log;
+use App\Optimization\Rollback\RollbackManager;
 
 final class RollbackCoordinator
 {
     public function __construct(
+        private readonly RollbackManager $rollbackManager,
         private readonly OptimizationHistoryRecorder $history,
         private readonly CircuitBreaker $circuitBreaker,
         private readonly OptimizationCooldownManager $cooldown,
@@ -42,33 +39,15 @@ final class RollbackCoordinator
             return;
         }
 
-        $recommendationId = $entry['recommendation_id'] ?? null;
-        if ($recommendationId !== null) {
-            Recommendation::query()
-                ->where('id', $recommendationId)
-                ->update(['status' => RecommendationStatus::RolledBack->value]);
-        }
-
-        $eventCode = $entry['event_code'] ?? null;
-        if ($eventCode !== null) {
-            OptimizationEvent::query()
-                ->where('event_code', $eventCode)
-                ->update(['outcome' => OptimizationOutcome::RolledBack->value]);
-        }
-
         $target = $entry['target'] ?? 'unknown';
         $this->cooldown->startCooldown($target);
-
-        Log::warning('Self-healing: rollback during stabilization', [
-            'target' => $target,
-            'event_code' => $eventCode,
-        ]);
 
         $this->history->record([
             'component' => $target,
             'decision' => 'ROLLBACK',
             'rollback' => true,
-            'lessons_learned' => 'Degradation detected during stabilization window',
+            'rollback_supported' => false,
+            'lessons_learned' => 'Degradation detected during stabilization window — status marked only',
         ]);
     }
 
