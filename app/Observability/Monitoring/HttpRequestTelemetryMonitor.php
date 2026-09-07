@@ -115,4 +115,3 @@ final class HttpRequestTelemetryMonitor
         self::$samplesByWorkload = [];
     }
 }
-

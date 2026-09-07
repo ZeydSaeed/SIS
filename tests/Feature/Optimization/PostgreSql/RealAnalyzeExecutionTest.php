@@ -13,10 +13,9 @@ use App\Optimization\SelfHealing\CheckpointRecoveryService;
 use App\Optimization\SelfHealing\CheckpointService;
 use App\Optimization\SelfHealing\CheckpointStatus;
 use App\Optimization\SelfHealing\CircuitBreaker;
+use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use App\Optimization\SelfHealing\OptimizationTargetLock;
 use App\Optimization\SelfHealing\SelfHealingPerformanceEngine;
-use App\Optimization\SelfHealing\SelfHealingStateStore;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\Optimization\PostgreSqlAnalyzeEvidence;
@@ -95,7 +94,7 @@ final class RealAnalyzeExecutionTest extends PostgreSqlOptimizationTestCase
         );
 
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([$before, $before, $after, $after, $after]),
         );
 

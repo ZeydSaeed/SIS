@@ -9,13 +9,13 @@ use App\Intelligence\Models\OptimizationEvent;
 use App\Intelligence\Models\QueryMetric;
 use App\Intelligence\Models\Recommendation;
 use App\Intelligence\Optimization\SafeAutoExecutor;
-use App\Optimization\Contracts\IncidentReport;
 use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\SelfHealing\AutonomousExecutionPolicy;
 use App\Optimization\SelfHealing\CheckpointRecoveryService;
 use App\Optimization\SelfHealing\CheckpointService;
 use App\Optimization\SelfHealing\CheckpointStatus;
 use App\Optimization\SelfHealing\CircuitBreaker;
+use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use App\Optimization\SelfHealing\OptimizationTargetLock;
 use App\Optimization\SelfHealing\RecommendationRanker;
 use App\Optimization\SelfHealing\SelfHealingPerformanceEngine;
@@ -170,7 +170,7 @@ final class ControlledAutonomousAnalyzeTest extends PostgreSqlOptimizationTestCa
     {
         $this->bindHealthyMetrics();
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([
                 new MetricSnapshot(capturedAt: now()->toIso8601String(), p95LatencyMs: null, cacheHitRatio: null),
             ]),
@@ -280,7 +280,7 @@ final class ControlledAutonomousAnalyzeTest extends PostgreSqlOptimizationTestCa
         );
 
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([$before, $before, $before, $afterBad, $afterBad]),
         );
 
@@ -429,7 +429,7 @@ final class ControlledAutonomousAnalyzeTest extends PostgreSqlOptimizationTestCa
         );
 
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([$healthy]),
         );
     }

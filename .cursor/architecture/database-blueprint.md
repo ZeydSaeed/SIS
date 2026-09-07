@@ -235,6 +235,7 @@
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → organization.schools, nullable |
 | public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
 | student_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
@@ -252,6 +253,7 @@
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:**
+- `BTREE(school_id)`
 - `UNIQUE(student_code)`
 - `UNIQUE(national_id)` (partial: WHERE national_id IS NOT NULL)
 - `PARTIAL(status) WHERE status = 1` — active students
@@ -1224,7 +1226,7 @@
 
 ---
 
-## Schema: `security` (7 tables)
+## Schema: `security` (8 tables)
 
 ### `security.users`
 
@@ -1317,6 +1319,26 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(user_id)`, `UNIQUE(token_hash)`, `BTREE(expires_at)`
+
+### `security.security_audit_logs`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| event_id | VARCHAR(64) | NOT NULL |
+| occurred_at | TIMESTAMPTZ | NOT NULL |
+| actor_id | BIGINT | nullable |
+| actor_type | VARCHAR(50) | NOT NULL DEFAULT 'user' |
+| action | VARCHAR(100) | NOT NULL |
+| target_type | VARCHAR(50) | nullable |
+| target_id | VARCHAR(100) | nullable |
+| school_id | BIGINT | nullable |
+| result | VARCHAR(50) | NOT NULL |
+| correlation_id | VARCHAR(100) | nullable |
+| metadata | JSONB | nullable |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(event_id)`, `BTREE(occurred_at)`, `BTREE(actor_id)`, `BTREE(school_id)`, `BTREE(correlation_id)`
 
 ---
 

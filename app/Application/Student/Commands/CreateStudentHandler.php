@@ -67,6 +67,7 @@ final class CreateStudentHandler implements CommandHandler
                 nationalId: $command->nationalId,
                 birthPlace: $command->birthPlace,
                 nationality: $command->nationality,
+                schoolId: $command->schoolId,
             ));
 
             $this->outbox->stage(new StudentRegistered(

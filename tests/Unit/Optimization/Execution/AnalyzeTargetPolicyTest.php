@@ -3,8 +3,10 @@
 namespace Tests\Unit\Optimization\Execution;
 
 use App\Intelligence\Models\Recommendation;
-use App\Intelligence\Optimization\SafeAutoExecutor;
+use App\Optimization\Enums\OptimizationMode;
 use App\Optimization\Execution\AnalyzeTargetPolicy;
+use App\Optimization\OptimizationEngine;
+use App\Optimization\SelfHealing\RecommendationRanker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -53,9 +55,9 @@ class AnalyzeTargetPolicyTest extends TestCase
         $this->assertSame('observe', $defaults['mode'] ?? 'observe');
 
         config(['optimization.mode' => 'observe']);
-        $engine = app(\App\Optimization\OptimizationEngine::class);
+        $engine = app(OptimizationEngine::class);
         $this->assertSame(
-            \App\Optimization\Enums\OptimizationMode::Observe,
+            OptimizationMode::Observe,
             $engine->mode(),
         );
     }
@@ -102,7 +104,7 @@ class AnalyzeTargetPolicyTest extends TestCase
             'optimization.environments.testing.max_risk_tier_autonomous' => 1,
         ]);
 
-        $ranker = app(\App\Optimization\SelfHealing\RecommendationRanker::class);
+        $ranker = app(RecommendationRanker::class);
         $this->assertSame(1, $ranker->maxAutonomousRiskTier());
 
         $recommendation = new Recommendation([

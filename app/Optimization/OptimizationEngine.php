@@ -8,7 +8,6 @@ use App\Optimization\Analysis\BottleneckAnalyzer;
 use App\Optimization\Analysis\OptimizationScorer;
 use App\Optimization\Baseline\BaselineSnapshotService;
 use App\Optimization\Contracts\IncidentReport;
-use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\Enums\OptimizationMode;
 use App\Optimization\Execution\IsolatedOptimizationRunner;
 use App\Optimization\Memory\OptimizationHistoryRecorder;
@@ -124,6 +123,7 @@ final class OptimizationEngine
 
     /**
      * @deprecated Use runForIncident() from SelfHealingPerformanceEngine
+     *
      * @return array<string, mixed>
      */
     public function runAutonomous(): array

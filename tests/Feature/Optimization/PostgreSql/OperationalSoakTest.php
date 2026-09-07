@@ -5,16 +5,17 @@ namespace Tests\Feature\Optimization\PostgreSql;
 use App\Intelligence\Guardian\DatabaseGuardian;
 use App\Intelligence\Models\MonitoringSnapshot;
 use App\Intelligence\Models\OptimizationEvent;
-use App\Intelligence\Models\Recommendation;
 use App\Intelligence\Optimization\SafeAutoExecutor;
 use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\Execution\OptimizationOperationRegistry;
 use App\Optimization\SelfHealing\AdaptiveBaselineEngine;
+use App\Optimization\SelfHealing\AutonomousKillSwitch;
 use App\Optimization\SelfHealing\AutonomousRateLimiter;
 use App\Optimization\SelfHealing\CheckpointRecoveryService;
 use App\Optimization\SelfHealing\CheckpointService;
 use App\Optimization\SelfHealing\CheckpointStatus;
 use App\Optimization\SelfHealing\CircuitBreaker;
+use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use App\Optimization\SelfHealing\OptimizationTargetLock;
 use App\Optimization\SelfHealing\SelfHealingPerformanceEngine;
 use Illuminate\Support\Facades\Cache;
@@ -81,7 +82,7 @@ final class OperationalSoakTest extends PostgreSqlOptimizationTestCase
         if (($result['outcome'] ?? '') === 'degraded_observed') {
             $this->assertSame('kill_switch_engaged', $result['policy_code'] ?? null);
         } else {
-            $this->assertTrue(app(\App\Optimization\SelfHealing\AutonomousKillSwitch::class)->isEngaged());
+            $this->assertTrue(app(AutonomousKillSwitch::class)->isEngaged());
         }
     }
 
@@ -280,7 +281,7 @@ final class OperationalSoakTest extends PostgreSqlOptimizationTestCase
             cacheHitRatio: null,
         );
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([$unknown]),
         );
 

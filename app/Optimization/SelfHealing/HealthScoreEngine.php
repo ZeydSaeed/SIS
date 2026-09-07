@@ -32,6 +32,7 @@ final class HealthScoreEngine
                     'status' => 'unknown',
                     'score' => 100.0,
                 ];
+
                 continue;
             }
 

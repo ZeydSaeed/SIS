@@ -257,7 +257,8 @@ return [
             'workload' => 'oltp',
             'p95_ms' => 200,
             'p99_ms' => 500,
-            'max_db_queries_per_request' => 3,
+            // Measured after Phase 3.10.1 security controls (auth, school scope, audit persist): ~4.2 mean queries/request
+            'max_db_queries_per_request' => 5,
         ],
         'school_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 1000, 'p99_ms' => 2500, 'max_db_queries_per_request' => 2],
         'directorate_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 3000, 'p99_ms' => 6000, 'max_db_queries_per_request' => 1],

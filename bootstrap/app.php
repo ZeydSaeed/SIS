@@ -2,10 +2,12 @@
 
 use App\Domain\Shared\Exceptions\SisDomainException;
 use App\Http\Middleware\CorrelationIdMiddleware;
-use App\Http\Middleware\RequestTelemetryMiddleware;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequestTelemetryMiddleware;
+use App\Security\Middleware\RequireSchoolContextMiddleware;
 use App\Security\Middleware\SchoolContextMiddleware;
+use App\Security\Middleware\SecurityHeadersMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +30,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             RequestTelemetryMiddleware::class,
+            SecurityHeadersMiddleware::class,
+        ]);
+
+        $middleware->throttleApi('api');
+
+        $middleware->alias([
+            'require.school.context' => RequireSchoolContextMiddleware::class,
         ]);
 
         $middleware->web(append: [

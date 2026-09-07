@@ -8,6 +8,7 @@ use App\Optimization\Enums\OptimizationMode;
 use App\Optimization\SelfHealing\AutonomousExecutionPolicy;
 use App\Optimization\SelfHealing\AutonomousKillSwitch;
 use App\Optimization\SelfHealing\AutonomousRateLimiter;
+use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -100,7 +101,7 @@ class AutonomousExecutionPolicyTest extends TestCase
             'optimization.autonomous.rate_limits.max_per_target_per_window' => 1,
             'optimization.state_path' => storage_path('framework/testing/rate-limit-policy-state'),
         ]);
-        \Illuminate\Support\Facades\File::deleteDirectory(config('optimization.state_path'));
+        File::deleteDirectory(config('optimization.state_path'));
 
         app(AutonomousRateLimiter::class)->recordExecution(
             'intelligence.optimization_validation_target',

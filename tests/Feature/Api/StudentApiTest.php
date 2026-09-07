@@ -4,15 +4,19 @@ namespace Tests\Feature\Api;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\InteractsWithSecurity;
 use Tests\TestCase;
 
 class StudentApiTest extends TestCase
 {
+    use InteractsWithSecurity;
     use RefreshDatabase;
 
     #[Test]
     public function can_create_list_search_show_and_update_student(): void
     {
+        $this->actingAsStudentManager();
+
         $create = $this->postJson('/api/v1/students', [
             'first_name' => 'Ali',
             'middle_name' => 'Hassan',
@@ -59,6 +63,8 @@ class StudentApiTest extends TestCase
     #[Test]
     public function create_student_auto_generates_code_when_omitted(): void
     {
+        $this->actingAsStudentManager();
+
         $response = $this->postJson('/api/v1/students', [
             'first_name' => 'Sara',
             'last_name' => 'Adil',
@@ -73,6 +79,8 @@ class StudentApiTest extends TestCase
     #[Test]
     public function duplicate_student_code_returns_domain_error(): void
     {
+        $this->actingAsStudentManager();
+
         $payload = [
             'first_name' => 'Omar',
             'last_name' => 'Saleh',
@@ -91,6 +99,8 @@ class StudentApiTest extends TestCase
     #[Test]
     public function show_missing_student_returns_not_found(): void
     {
+        $this->actingAsStudentManager();
+
         $this->getJson('/api/v1/students/99999')
             ->assertNotFound()
             ->assertJsonPath('error_code', 'student.not_found');
@@ -99,6 +109,8 @@ class StudentApiTest extends TestCase
     #[Test]
     public function create_student_honors_idempotency_key(): void
     {
+        $this->actingAsStudentManager();
+
         $payload = [
             'first_name' => 'Noor',
             'last_name' => 'Fahad',

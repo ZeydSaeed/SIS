@@ -31,6 +31,7 @@ final class CrossMetricGuard
                 if (in_array($metric, ['p95_latency_ms', 'error_rate_pct', 'cache_hit_ratio'], true)) {
                     $unknownCritical[] = $metric;
                 }
+
                 continue;
             }
 

@@ -1,0 +1,2 @@
+# Security exceptions — all must have expiry. Expired = CI BLOCK.
+exceptions: []

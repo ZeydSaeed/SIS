@@ -8,7 +8,9 @@ use App\Intelligence\Models\Recommendation;
 use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\SelfHealing\CircuitBreaker;
 use App\Optimization\SelfHealing\EnvironmentProfileService;
+use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use App\Optimization\SelfHealing\SelfHealingPerformanceEngine;
+use App\Optimization\SelfHealing\TelemetryCollector;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
@@ -68,7 +70,7 @@ abstract class PostgreSqlOptimizationTestCase extends TestCase
     protected function bindTelemetry(array $payload): void
     {
         $this->app->instance(
-            \App\Optimization\SelfHealing\TelemetryCollector::class,
+            TelemetryCollector::class,
             new FakeTelemetryCollector($payload),
         );
     }
@@ -176,7 +178,7 @@ abstract class PostgreSqlOptimizationTestCase extends TestCase
         );
 
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([$before, $before, $before, $after, $after]),
         );
     }

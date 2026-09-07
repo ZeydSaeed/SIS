@@ -13,10 +13,12 @@ use App\Optimization\SelfHealing\TelemetryCollector;
 use Database\Seeders\WorkloadValidationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\InteractsWithSecurity;
 use Tests\TestCase;
 
 class Phase3ApplicationIntegrationTest extends TestCase
 {
+    use InteractsWithSecurity;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -41,6 +43,7 @@ class Phase3ApplicationIntegrationTest extends TestCase
             ->assertHeader('X-Correlation-ID', $correlationId);
 
         $this->seed(WorkloadValidationSeeder::class);
+        $this->actingAsStudentManager();
 
         $this->withHeader('X-Correlation-ID', $correlationId)
             ->postJson('/api/v1/students', [
@@ -127,6 +130,7 @@ class Phase3ApplicationIntegrationTest extends TestCase
     public function phase3_validate_workload_command_is_end_to_end_entry_point(): void
     {
         $this->seed(WorkloadValidationSeeder::class);
+        $this->actingAsStudentManager();
 
         $this->artisan('sis:validate-workload', [
             'workload' => 'student_search',

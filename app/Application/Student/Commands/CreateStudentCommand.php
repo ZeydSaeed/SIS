@@ -17,5 +17,6 @@ final readonly class CreateStudentCommand implements Command
         public ?string $birthPlace = null,
         public ?string $nationality = null,
         public ?string $idempotencyKey = null,
+        public int $schoolId = 0,
     ) {}
 }

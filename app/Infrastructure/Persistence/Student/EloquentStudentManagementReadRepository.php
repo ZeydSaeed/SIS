@@ -11,9 +11,12 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentStudentManagementReadRepository implements StudentReadRepositoryInterface
 {
-    public function findDetail(int $studentId): ?StudentDetailDTO
+    public function findDetail(int $studentId, int $schoolId): ?StudentDetailDTO
     {
-        $record = StudentRecord::query()->find($studentId);
+        $record = StudentRecord::query()
+            ->whereKey($studentId)
+            ->where('school_id', $schoolId)
+            ->first();
 
         if ($record === null) {
             return null;
@@ -22,9 +25,11 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         return $this->mapDetail($record);
     }
 
-    public function paginate(?int $status, int $page, int $perPage): array
+    public function paginate(?int $status, int $schoolId, int $page, int $perPage): array
     {
-        $query = StudentRecord::query()->orderByDesc('id');
+        $query = StudentRecord::query()
+            ->where('school_id', $schoolId)
+            ->orderByDesc('id');
 
         if ($status !== null) {
             $query->where('status', $status);
@@ -33,10 +38,12 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         return $this->paginateQuery($query, $page, $perPage);
     }
 
-    public function search(string $term, int $page, int $perPage): array
+    public function search(string $term, int $schoolId, int $page, int $perPage): array
     {
         $term = trim($term);
-        $query = StudentRecord::query()->orderBy('full_name');
+        $query = StudentRecord::query()
+            ->where('school_id', $schoolId)
+            ->orderBy('full_name');
 
         if ($term !== '') {
             $likeOperator = SchemaHelper::isPostgreSql() ? 'ilike' : 'like';

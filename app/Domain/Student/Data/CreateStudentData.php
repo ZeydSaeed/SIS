@@ -16,5 +16,6 @@ final readonly class CreateStudentData
         public ?string $birthPlace = null,
         public ?string $nationality = null,
         public int $status = 1,
+        public ?int $schoolId = null,
     ) {}
 }

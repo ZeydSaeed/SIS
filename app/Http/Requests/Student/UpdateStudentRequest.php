@@ -2,13 +2,22 @@
 
 namespace App\Http\Requests\Student;
 
+use App\Infrastructure\Persistence\Eloquent\StudentRecord;
+use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateStudentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $studentId = $this->route('student');
+        if (! is_numeric($studentId)) {
+            return false;
+        }
+
+        $record = StudentRecord::query()->find((int) $studentId);
+
+        return $this->user()?->can('update', $record) ?? false;
     }
 
     /**
@@ -16,7 +25,7 @@ class UpdateStudentRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'first_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
@@ -25,6 +34,6 @@ class UpdateStudentRequest extends FormRequest
             'national_id' => ['nullable', 'string', 'max:20'],
             'birth_place' => ['nullable', 'string', 'max:255'],
             'nationality' => ['nullable', 'string', 'max:50'],
-        ];
+        ], SecuritySensitiveFieldGuard::prohibitedRules());
     }
 }

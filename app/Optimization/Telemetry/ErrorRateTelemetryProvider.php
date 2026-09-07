@@ -3,6 +3,8 @@
 namespace App\Optimization\Telemetry;
 
 use App\Intelligence\Models\QueryMetric;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class ErrorRateTelemetryProvider
 {
@@ -12,7 +14,7 @@ final class ErrorRateTelemetryProvider
     public function measure(int $windowMinutes = 15): array
     {
         try {
-            if (! \Illuminate\Support\Facades\Schema::hasTable((new QueryMetric)->getTable())) {
+            if (! Schema::hasTable((new QueryMetric)->getTable())) {
                 return ['value' => null, 'status' => 'UNAVAILABLE'];
             }
         } catch (\Throwable) {
@@ -20,8 +22,8 @@ final class ErrorRateTelemetryProvider
         }
 
         $failed = 0;
-        if (\Illuminate\Support\Facades\Schema::hasTable('failed_jobs')) {
-            $failed = (int) \Illuminate\Support\Facades\DB::table('failed_jobs')
+        if (Schema::hasTable('failed_jobs')) {
+            $failed = (int) DB::table('failed_jobs')
                 ->where('failed_at', '>=', now()->subMinutes($windowMinutes))
                 ->count();
         }

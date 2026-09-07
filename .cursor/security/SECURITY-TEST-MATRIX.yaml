@@ -1,0 +1,49 @@
+version: "1.0.0"
+matrix:
+  - rule_id: SEC-AUTH-001
+    implementation: "routes/api.php auth:sanctum middleware on protected routes"
+    test: tests/Feature/Security/StudentApiAuthorizationTest.php::unauthenticated_requests_are_rejected
+    ci_gate: security:validate
+    runtime_evidence: "401 on unauthenticated API access"
+
+  - rule_id: SEC-AUTHZ-001
+    implementation: "App\\Security\\Policies\\StudentPolicy"
+    test: tests/Feature/Security/StudentApiAuthorizationTest.php::authenticated_user_without_permission_is_forbidden
+    ci_gate: security:validate
+    runtime_evidence: "403 on missing permission"
+
+  - rule_id: SEC-AUTHZ-003
+    implementation: "App\\Security\\Support\\StudentResponseSanitizer"
+    test: tests/Feature/Security/StudentApiAuthorizationTest.php::national_id_hidden_without_pii_permission
+    ci_gate: phpunit
+    runtime_evidence: "national_id omitted from JSON without students.view_pii"
+
+  - rule_id: SEC-DB-001
+    implementation: "SecurityStaticAnalyzer raw SQL patterns"
+    test: tests/Unit/Security/SecurityArchitectureValidatorTest.php
+    ci_gate: security:validate
+    runtime_evidence: "Static scan passes"
+
+  - rule_id: SEC-SECRET-001
+    implementation: "App\\Security\\Validation\\SecretScanner"
+    test: tests/Unit/Security/SecretScannerTest.php
+    ci_gate: security:validate
+    runtime_evidence: "No secret patterns in app/ config/"
+
+  - rule_id: SEC-INTEL-002
+    implementation: "AutonomousExecutionPolicy::isProductionAutonomousBlocked"
+    test: tests/Feature/Optimization/Phase2ASafetyClosureTest.php
+    ci_gate: architecture:validate
+    runtime_evidence: "health endpoint reports production_autonomous_blocked"
+
+  - rule_id: SEC-HEADER-001
+    implementation: "App\\Security\\Middleware\\SecurityHeadersMiddleware"
+    test: tests/Feature/Security/SecurityHeadersTest.php
+    ci_gate: phpunit
+    runtime_evidence: "X-Content-Type-Options: nosniff on responses"
+
+  - rule_id: SEC-RATE-001
+    implementation: "RateLimiter api + api-students in bootstrap/app.php"
+    test: tests/Feature/Security/StudentApiAuthorizationTest.php
+    ci_gate: phpunit
+    runtime_evidence: "429 after limit exceeded"

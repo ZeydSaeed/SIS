@@ -34,7 +34,7 @@ final class PostgreSqlAnalyzeEvidence
     public static function ensureValidationTableSeeded(): void
     {
         $qualified = self::QUALIFIED_TARGET;
-        DB::statement("CREATE SCHEMA IF NOT EXISTS intelligence");
+        DB::statement('CREATE SCHEMA IF NOT EXISTS intelligence');
         DB::statement("
             CREATE TABLE IF NOT EXISTS {$qualified} (
                 id BIGSERIAL PRIMARY KEY,

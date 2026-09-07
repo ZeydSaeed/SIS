@@ -5,7 +5,6 @@ namespace App\Optimization\Execution;
 use App\Intelligence\Models\Recommendation;
 use App\Optimization\Analysis\OptimizationScorer;
 use App\Optimization\Contracts\MetricSnapshot;
-use App\Optimization\Contracts\OptimizationOperation;
 use App\Optimization\Gates\ArchitectureOptimizationGate;
 use App\Optimization\Gates\CrossMetricGuard;
 use App\Optimization\Memory\OptimizationHistoryRecorder;

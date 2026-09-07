@@ -12,6 +12,7 @@ use Tests\TestCase;
 class RecommendationRankerTest extends TestCase
 {
     use RefreshDatabase;
+
     #[Test]
     public function s16_learning_ranks_recommendations_without_escalating_risk_tier(): void
     {

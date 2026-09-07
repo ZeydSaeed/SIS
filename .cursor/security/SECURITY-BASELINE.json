@@ -1,0 +1,284 @@
+{
+  "version": "1.1.0",
+  "maturity_target": "Level 3",
+  "categories": {
+    "authentication": [
+      {
+        "id": "SEC-AUTH-001",
+        "severity": "P0",
+        "rule": "Protected API resources require authenticated access",
+        "enforcement": ["runtime", "static", "test", "ci"],
+        "test": "tests/Feature/Security/StudentApiAuthorizationTest.php",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      },
+      {
+        "id": "SEC-AUTH-002",
+        "severity": "P0",
+        "rule": "Passwords must never be stored or logged in plaintext",
+        "enforcement": ["runtime", "static", "ci"],
+        "test": "tests/Unit/Security/SecurityStaticAnalyzerTest.php",
+        "exception_policy": "none"
+      },
+      {
+        "id": "SEC-AUTH-003",
+        "severity": "P1",
+        "rule": "Production password policy enforces minimum complexity",
+        "enforcement": ["runtime", "config"],
+        "test": "AppServiceProvider Password::defaults",
+        "exception_policy": "none"
+      }
+    ],
+    "authorization": [
+      {
+        "id": "SEC-AUTHZ-001",
+        "severity": "P0",
+        "rule": "Deny-by-default — protected resources require explicit policy permission",
+        "enforcement": ["runtime", "static", "test", "ci"],
+        "test": "tests/Feature/Security/StudentApiAuthorizationTest.php",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      },
+      {
+        "id": "SEC-AUTHZ-002",
+        "severity": "P0",
+        "rule": "Form requests for sensitive writes must not use authorize(): true without exception",
+        "enforcement": ["static", "ci"],
+        "test": "SecurityArchitectureValidator",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      },
+      {
+        "id": "SEC-AUTHZ-003",
+        "severity": "P1",
+        "rule": "PII fields require explicit permission to expose in API responses",
+        "enforcement": ["runtime", "test"],
+        "test": "tests/Feature/Security/StudentApiAuthorizationTest.php",
+        "exception_policy": "none"
+      },
+      {
+        "id": "SEC-AUTHZ-004",
+        "severity": "P0",
+        "rule": "School-scoped resources require permission + valid school context + resource school ownership",
+        "enforcement": ["runtime", "test", "ci"],
+        "test": "tests/Feature/Security/CrossSchoolAuthorizationTest.php",
+        "exception_policy": "none"
+      },
+      {
+        "id": "SEC-AUTHZ-005",
+        "severity": "P0",
+        "rule": "Explicit X-School-Id header required — implicit single-school auto-resolve disabled",
+        "enforcement": ["runtime", "test", "ci"],
+        "test": "tests/Feature/Security/SchoolContextRequiredTest.php",
+        "exception_policy": "none"
+      }
+    ],
+    "session": [
+      {
+        "id": "SEC-SESSION-001",
+        "severity": "P1",
+        "rule": "Session cookies must be encrypted and HttpOnly where applicable",
+        "enforcement": ["config", "runtime"],
+        "test": "Laravel defaults + bootstrap/app.php",
+        "exception_policy": "none"
+      }
+    ],
+    "csrf": [
+      {
+        "id": "SEC-CSRF-001",
+        "severity": "P0",
+        "rule": "Browser session mutations require CSRF protection",
+        "enforcement": ["runtime", "config"],
+        "test": "Laravel web middleware stack",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      }
+    ],
+    "api": [
+      {
+        "id": "SEC-API-001",
+        "severity": "P0",
+        "rule": "API errors must not expose stack traces, SQL, or secrets in production",
+        "enforcement": ["runtime", "config"],
+        "test": "APP_DEBUG=false in production",
+        "exception_policy": "none"
+      },
+      {
+        "id": "SEC-API-002",
+        "severity": "P1",
+        "rule": "API routes must carry correlation ID",
+        "enforcement": ["runtime", "test"],
+        "test": "CorrelationIdMiddleware",
+        "exception_policy": "none"
+      }
+    ],
+    "rate_limiting": [
+      {
+        "id": "SEC-RATE-001",
+        "severity": "P1",
+        "rule": "Authenticated API routes must have classified rate limits",
+        "enforcement": ["runtime", "config"],
+        "test": "bootstrap/app.php RateLimiter",
+        "exception_policy": "none"
+      }
+    ],
+    "input_validation": [
+      {
+        "id": "SEC-INPUT-001",
+        "severity": "P0",
+        "rule": "Every mutating endpoint must validate input via FormRequest or validated DTO",
+        "enforcement": ["static", "test", "ci"],
+        "test": "Feature API tests",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      },
+      {
+        "id": "SEC-INPUT-002",
+        "severity": "P0",
+        "rule": "Security-sensitive fields (role, permissions, school_id, created_by, etc.) prohibited in client payloads",
+        "enforcement": ["runtime", "test", "ci"],
+        "test": "tests/Feature/Security/MassAssignmentProtectionTest.php",
+        "exception_policy": "none"
+      }
+    ],
+    "output_encoding": [
+      {
+        "id": "SEC-OUTPUT-001",
+        "severity": "P1",
+        "rule": "JSON responses must not include unsanitized user HTML",
+        "enforcement": ["runtime"],
+        "test": "Inertia/React encoding",
+        "exception_policy": "none"
+      }
+    ],
+    "file_upload": [
+      {
+        "id": "SEC-FILE-001",
+        "severity": "P1",
+        "rule": "File uploads require auth, size limits, MIME validation, and audit",
+        "enforcement": ["future_module"],
+        "test": "SECURITY-TEST-MATRIX.yaml",
+        "exception_policy": "none"
+      }
+    ],
+    "database": [
+      {
+        "id": "SEC-DB-001",
+        "severity": "P0",
+        "rule": "No raw user input concatenated into SQL",
+        "enforcement": ["static", "ci"],
+        "test": "SecurityStaticAnalyzer",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      },
+      {
+        "id": "SEC-DB-002",
+        "severity": "P1",
+        "rule": "Destructive DB commands prohibited in production",
+        "enforcement": ["runtime"],
+        "test": "DB::prohibitDestructiveCommands",
+        "exception_policy": "none"
+      },
+      {
+        "id": "SEC-DB-003",
+        "severity": "P0",
+        "rule": "RLS school-scoped tables fail-closed when app.current_school_id is missing or empty",
+        "enforcement": ["runtime", "test", "ci"],
+        "test": "tests/Feature/Security/PostgreSqlRlsFailClosedTest.php",
+        "exception_policy": "none"
+      }
+    ],
+    "secrets": [
+      {
+        "id": "SEC-SECRET-001",
+        "severity": "P0",
+        "rule": "No production secrets in source control",
+        "enforcement": ["ci", "static"],
+        "test": "SecretScanner + security:validate",
+        "exception_policy": "documented_in_SECURITY-EXCEPTIONS.yaml"
+      }
+    ],
+    "logging": [
+      {
+        "id": "SEC-LOG-001",
+        "severity": "P0",
+        "rule": "Must not log passwords, tokens, or API keys",
+        "enforcement": ["static", "policy"],
+        "test": "SecurityStaticAnalyzer patterns",
+        "exception_policy": "none"
+      }
+    ],
+    "audit": [
+      {
+        "id": "SEC-AUDIT-001",
+        "severity": "P0",
+        "rule": "Security events persist to security.security_audit_logs with redacted metadata",
+        "enforcement": ["runtime", "test", "ci"],
+        "test": "tests/Feature/Security/SecurityAuditPersistenceTest.php",
+        "exception_policy": "none"
+      }
+    ],
+    "headers": [
+      {
+        "id": "SEC-HEADER-001",
+        "severity": "P2",
+        "rule": "Security headers applied to HTTP responses",
+        "enforcement": ["runtime"],
+        "test": "SecurityHeadersMiddleware",
+        "exception_policy": "none"
+      }
+    ],
+    "dependencies": [
+      {
+        "id": "SEC-DEP-001",
+        "severity": "P0",
+        "rule": "Critical/High composer advisories block CI (composer audit --no-dev)",
+        "enforcement": ["ci"],
+        "test": "tests/Unit/Security/ComposerAuditGateTest.php + composer test",
+        "exception_policy": "documented_in_COMPOSER-AUDIT-POLICY.json"
+      }
+    ],
+    "ci": [
+      {
+        "id": "SEC-CI-001",
+        "severity": "P0",
+        "rule": "P0/P1 security findings block merge via CI gate",
+        "enforcement": ["ci"],
+        "test": "composer test includes security:validate + composer audit",
+        "exception_policy": "none"
+      }
+    ],
+    "intelligence": [
+      {
+        "id": "SEC-INTEL-001",
+        "severity": "P0",
+        "rule": "Intelligence layer cannot grant permissions or bypass authorization",
+        "enforcement": ["static", "test", "ci"],
+        "test": "IntelligenceGovernanceChecker",
+        "exception_policy": "none"
+      },
+      {
+        "id": "SEC-INTEL-002",
+        "severity": "P0",
+        "rule": "Production autonomous execution must remain blocked",
+        "enforcement": ["runtime", "static", "test", "ci"],
+        "test": "AutonomousExecutionPolicy tests",
+        "exception_policy": "none"
+      }
+    ],
+    "autonomous_execution": [
+      {
+        "id": "SEC-AUTO-001",
+        "severity": "P0",
+        "rule": "No new autonomous security mutation paths in Phase 3.10.1",
+        "enforcement": ["policy", "review"],
+        "test": "Phase 3.10.1 gate report",
+        "exception_policy": "none"
+      }
+    ],
+    "production": [
+      {
+        "id": "SEC-PROD-001",
+        "severity": "P0",
+        "rule": "Production must run with DEBUG=false and secure cookies",
+        "enforcement": ["config", "deployment"],
+        "test": "security:validate config checks",
+        "exception_policy": "none"
+      }
+    ]
+  }
+}

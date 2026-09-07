@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "description": "Composer audit blocking policy for CI",
+  "block_severities": ["critical", "high"],
+  "block_on_unresolved": true,
+  "command": "composer audit --no-dev --format=json",
+  "notes": "Any advisory matching block_severities causes non-zero exit and CI FAIL"
+}

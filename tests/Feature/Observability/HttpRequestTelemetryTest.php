@@ -7,15 +7,19 @@ use App\Observability\Monitoring\HttpRequestTelemetryMonitor;
 use App\Optimization\SelfHealing\TelemetryCollector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\InteractsWithSecurity;
 use Tests\TestCase;
 
 class HttpRequestTelemetryTest extends TestCase
 {
+    use InteractsWithSecurity;
     use RefreshDatabase;
 
     #[Test]
     public function student_api_requests_emit_http_workload_snapshots_after_flush(): void
     {
+        $this->actingAsStudentManager();
+
         $this->postJson('/api/v1/students', [
             'first_name' => 'Telemetry',
             'last_name' => 'Student',

@@ -2,6 +2,8 @@
 
 namespace App\Architecture;
 
+use App\Security\Validation\SecurityArchitectureValidator;
+
 final class ArchitectureFitnessReport
 {
     public function __construct(
@@ -11,6 +13,7 @@ final class ArchitectureFitnessReport
         private readonly ComplexityGateChecker $complexity = new ComplexityGateChecker,
         private readonly FeatureContractValidator $featureContract = new FeatureContractValidator,
         private readonly SecurityFitnessChecker $security = new SecurityFitnessChecker,
+        private readonly SecurityArchitectureValidator $securityArchitecture = new SecurityArchitectureValidator,
         private readonly IntelligenceGovernanceChecker $intelligence = new IntelligenceGovernanceChecker,
     ) {}
 
@@ -53,6 +56,10 @@ final class ArchitectureFitnessReport
             'security_fitness' => $this->category(
                 $this->security->validate(),
                 'RLS migration, SchoolContext middleware, tenant isolation hooks',
+            ),
+            'security_architecture' => $this->category(
+                $this->securityArchitecture->validate(),
+                'Auth on API routes, policies, static security rules, secret scan, production block',
             ),
             'intelligence_governance' => $this->category(
                 $this->intelligence->validate(),

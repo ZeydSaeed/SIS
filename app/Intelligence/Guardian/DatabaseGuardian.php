@@ -8,10 +8,10 @@ use App\Intelligence\Learning\ConfidenceEngine;
 use App\Intelligence\Monitoring\DatabaseMonitor;
 use App\Intelligence\Monitoring\PgStatStatementsCollector;
 use App\Intelligence\Monitoring\QueryMonitor;
-use App\Observability\Monitoring\HttpRequestTelemetryMonitor;
 use App\Intelligence\Optimization\SafeAutoExecutor;
 use App\Intelligence\SelfHealing\SelfHealingEngine;
 use App\Intelligence\Support\CorrelationContext;
+use App\Observability\Monitoring\HttpRequestTelemetryMonitor;
 use Illuminate\Support\Collection;
 
 class DatabaseGuardian

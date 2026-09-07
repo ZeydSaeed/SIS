@@ -2,9 +2,9 @@
 
 namespace Tests\Unit\Optimization\SelfHealing;
 
+use App\Optimization\Execution\AnalyzeTargetPolicy;
 use App\Optimization\SelfHealing\OptimizationTargetLock;
 use App\Optimization\SelfHealing\TargetNormalizer;
-use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -13,7 +13,7 @@ class TargetNormalizerTest extends TestCase
     #[Test]
     public function s20_same_logical_target_produces_same_lock_key(): void
     {
-        $normalizer = new TargetNormalizer(new \App\Optimization\Execution\AnalyzeTargetPolicy);
+        $normalizer = new TargetNormalizer(new AnalyzeTargetPolicy);
         $lock = new OptimizationTargetLock($normalizer);
 
         $this->assertSame(

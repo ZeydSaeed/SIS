@@ -3,6 +3,7 @@
 namespace Tests\Unit\Optimization;
 
 use App\Intelligence\Models\Recommendation;
+use App\Optimization\Analysis\OptimizationScorer;
 use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\Execution\IsolatedOptimizationRunner;
 use App\Optimization\Execution\OptimizationOperationRegistry;
@@ -14,7 +15,6 @@ use App\Optimization\Rollback\RollbackManager;
 use App\Optimization\SelfHealing\CheckpointService;
 use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use App\Optimization\SelfHealing\SelfHealingEventLogger;
-use App\Optimization\Analysis\OptimizationScorer;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\Optimization\FakeMetricSnapshotCapturer;

@@ -26,6 +26,7 @@ class ArchitectureFitnessTest extends TestCase
         $this->assertArrayHasKey('complexity_gate', $categories);
         $this->assertArrayHasKey('feature_contract', $categories);
         $this->assertArrayHasKey('security_fitness', $categories);
+        $this->assertArrayHasKey('security_architecture', $categories);
         $this->assertArrayHasKey('intelligence_governance', $categories);
 
         foreach ($categories as $name => $category) {

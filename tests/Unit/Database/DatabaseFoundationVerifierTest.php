@@ -3,7 +3,7 @@
 namespace Tests\Unit\Database;
 
 use App\Database\DatabaseFoundationVerifier;
-use Database\Seeders\Support\FoundationReference;
+use Database\Seeders\SisFoundationSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -28,7 +28,7 @@ class DatabaseFoundationVerifierTest extends TestCase
     #[Test]
     public function verifier_passes_after_foundation_seed_on_sqlite(): void
     {
-        $this->seed(\Database\Seeders\SisFoundationSeeder::class);
+        $this->seed(SisFoundationSeeder::class);
 
         $report = app(DatabaseFoundationVerifier::class)->verify();
 

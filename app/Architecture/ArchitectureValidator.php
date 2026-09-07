@@ -2,6 +2,7 @@
 
 namespace App\Architecture;
 
+use App\Security\Validation\SecurityArchitectureValidator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -14,6 +15,7 @@ final class ArchitectureValidator
         private readonly ComplexityGateChecker $complexity = new ComplexityGateChecker,
         private readonly FeatureContractValidator $featureContract = new FeatureContractValidator,
         private readonly SecurityFitnessChecker $security = new SecurityFitnessChecker,
+        private readonly SecurityArchitectureValidator $securityArchitecture = new SecurityArchitectureValidator,
         private readonly IntelligenceGovernanceChecker $intelligence = new IntelligenceGovernanceChecker,
         private readonly ArchitectureBaseline $baseline = new ArchitectureBaseline,
     ) {}
@@ -40,6 +42,7 @@ final class ArchitectureValidator
             ...$this->complexity->validate(),
             ...$this->featureContract->validate(),
             ...$this->security->validate(),
+            ...$this->securityArchitecture->validate(),
             ...$this->intelligence->validate(),
         ]));
     }

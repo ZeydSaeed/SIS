@@ -14,7 +14,9 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
 {
     public function saveNew(CreateStudentData $data): int
     {
-        $record = StudentRecord::query()->create([
+        $record = new StudentRecord;
+        $record->forceFill([
+            'school_id' => $data->schoolId,
             'student_code' => $data->studentCode,
             'national_id' => $data->nationalId,
             'first_name' => $data->firstName,
@@ -27,6 +29,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'nationality' => $data->nationality,
             'status' => $data->status,
         ]);
+        $record->save();
 
         return (int) $record->getKey();
     }

@@ -1,0 +1,11 @@
+{
+  "advisories": {
+    "vendor/package": [
+      {
+        "advisoryId": "PKSA-test-001",
+        "severity": "high",
+        "title": "Test blocking advisory"
+      }
+    ]
+  }
+}

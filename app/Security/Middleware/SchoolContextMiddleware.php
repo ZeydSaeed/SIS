@@ -3,51 +3,39 @@
 namespace App\Security\Middleware;
 
 use App\Database\SchemaHelper;
+use App\Security\Context\SchoolContext;
+use App\Security\Context\SchoolContextResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * Sets PostgreSQL session variable for RLS policies on enrollment + attendance.
- */
-class SchoolContextMiddleware
+final class SchoolContextMiddleware
 {
+    public function __construct(
+        private readonly SchoolContext $schoolContext,
+        private readonly SchoolContextResolver $resolver,
+    ) {}
+
     public function handle(Request $request, Closure $next): Response
     {
-        if (SchemaHelper::isPostgreSql() && $request->user() !== null) {
-            $schoolId = $this->resolveSchoolId($request);
+        $schoolId = $this->resolver->resolve($request);
+        $this->schoolContext->set($schoolId);
 
-            if ($schoolId !== null) {
-                DB::statement("SELECT set_config('app.current_school_id', ?, false)", [(string) $schoolId]);
-            }
+        if (SchemaHelper::isPostgreSql()) {
+            $value = $schoolId !== null ? (string) $schoolId : '';
+            DB::statement("SELECT set_config('app.current_school_id', ?, false)", [$value]);
         }
 
         return $next($request);
     }
 
-    private function resolveSchoolId(Request $request): ?int
+    public function terminate(Request $request, Response $response): void
     {
-        $user = $request->user();
+        $this->schoolContext->clear();
 
-        if ($user === null) {
-            return null;
+        if (SchemaHelper::isPostgreSql()) {
+            DB::statement("SELECT set_config('app.current_school_id', '', false)");
         }
-
-        if (isset($user->school_id)) {
-            return (int) $user->school_id;
-        }
-
-        $fromSession = $request->session()->get('current_school_id');
-        if (is_numeric($fromSession)) {
-            return (int) $fromSession;
-        }
-
-        $fromHeader = $request->header('X-School-Id');
-        if (is_numeric($fromHeader)) {
-            return (int) $fromHeader;
-        }
-
-        return null;
     }
 }

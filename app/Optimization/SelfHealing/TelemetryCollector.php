@@ -2,10 +2,11 @@
 
 namespace App\Optimization\SelfHealing;
 
-use App\Optimization\Telemetry\ErrorRateTelemetryProvider;
-use App\Optimization\Telemetry\QueueTelemetryProvider;
 use App\Intelligence\Models\MonitoringSnapshot;
 use App\Intelligence\Models\QueryMetric;
+use App\Optimization\Telemetry\ErrorRateTelemetryProvider;
+use App\Optimization\Telemetry\QueueTelemetryProvider;
+use Illuminate\Support\Facades\Schema;
 
 class TelemetryCollector
 {
@@ -107,7 +108,7 @@ class TelemetryCollector
      */
     private function httpWorkloadMetrics(): array
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable((new MonitoringSnapshot)->getTable())) {
+        if (! Schema::hasTable((new MonitoringSnapshot)->getTable())) {
             return [
                 'p95_latency_ms' => null,
                 'p99_latency_ms' => null,

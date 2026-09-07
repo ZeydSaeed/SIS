@@ -2,11 +2,6 @@
 
 namespace Tests\Unit\Optimization\SelfHealing;
 
-use App\Optimization\Gates\CrossMetricGuard;
-use App\Optimization\SelfHealing\AdaptiveBaselineEngine;
-use App\Optimization\SelfHealing\HealthScoreEngine;
-use App\Optimization\SelfHealing\RollbackCoordinator;
-use App\Optimization\SelfHealing\SelfHealingEventLogger;
 use App\Optimization\SelfHealing\SelfHealingStateStore;
 use App\Optimization\SelfHealing\StabilizationMonitor;
 use App\Optimization\SelfHealing\TelemetryCollector;

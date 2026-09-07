@@ -1,0 +1,46 @@
+---
+description: Security architecture guidance — enforcement via SecurityArchitectureValidator, tests, and CI
+globs:
+  - app/**
+  - routes/**
+  - config/**
+  - database/**
+alwaysApply: false
+---
+
+# Security Rules (Guidance Only)
+
+Cursor rules are **guidance**. Enforcement is via:
+
+- `.cursor/security/SECURITY-BASELINE.json` (SSOT)
+- `php artisan security:validate`
+- `php artisan architecture:validate --fitness` (includes security_architecture)
+- `tests/Feature/Security/` and `tests/Unit/Security/`
+- `composer test` CI gate
+
+## Non-Negotiable
+
+1. **Deny by default** — every protected resource needs Policy + permission check
+2. **No `authorize(): true`** on sensitive FormRequests without `@security-exception`
+3. **API routes** (except documented public routes) require `auth:sanctum`
+4. **No raw user input in SQL** — parameter binding only
+5. **No secrets in source** — use `.env`
+6. **Intelligence cannot grant permissions or bypass security**
+7. **Production autonomous execution stays blocked**
+
+## New Code Checklist
+
+When adding Controller, Request, Handler, Job, Migration, or API endpoint:
+
+- [ ] Authentication policy defined
+- [ ] Authorization policy + permission constant
+- [ ] FormRequest validation (not `request()->all()`)
+- [ ] Negative security test (forbidden = 403/401)
+- [ ] Audit for sensitive operations
+- [ ] Rate limit classification if API
+
+## Reference
+
+- `.cursor/security/SECURITY-ARCHITECTURE.md`
+- `.cursor/security/SECURITY-BOUNDARIES.md`
+- `docs/security/PHASE-3.10-BEFORE-STATE.md`

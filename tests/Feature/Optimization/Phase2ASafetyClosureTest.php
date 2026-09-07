@@ -6,10 +6,13 @@ use App\Intelligence\Guardian\DatabaseGuardian;
 use App\Intelligence\Models\MonitoringSnapshot;
 use App\Intelligence\Models\QueryMetric;
 use App\Intelligence\Models\Recommendation;
+use App\Optimization\Contracts\MetricSnapshot;
 use App\Optimization\Execution\OptimizationOperationRegistry;
+use App\Optimization\Rollback\RollbackManager;
 use App\Optimization\SelfHealing\CheckpointService;
 use App\Optimization\SelfHealing\CheckpointStatus;
 use App\Optimization\SelfHealing\EnvironmentProfileService;
+use App\Optimization\SelfHealing\MetricSnapshotCapturer;
 use App\Optimization\SelfHealing\SelfHealingPerformanceEngine;
 use App\Optimization\SelfHealing\TelemetryCollector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +22,6 @@ use Tests\Support\Optimization\FakeTelemetryCollector;
 use Tests\Support\Optimization\SequentialMetricSnapshotCapturer;
 use Tests\Support\Optimization\TestAnalyzeOperation;
 use Tests\TestCase;
-use App\Optimization\Contracts\MetricSnapshot;
 
 class Phase2ASafetyClosureTest extends TestCase
 {
@@ -149,7 +151,7 @@ class Phase2ASafetyClosureTest extends TestCase
         );
 
         $this->app->instance(
-            \App\Optimization\SelfHealing\MetricSnapshotCapturer::class,
+            MetricSnapshotCapturer::class,
             new SequentialMetricSnapshotCapturer([$before, $before, $after, $after, $after]),
         );
 
@@ -241,7 +243,7 @@ class Phase2ASafetyClosureTest extends TestCase
     #[Test]
     public function s18_analyze_rollback_is_explicitly_non_reversible(): void
     {
-        $manager = app(\App\Optimization\Rollback\RollbackManager::class);
+        $manager = app(RollbackManager::class);
 
         $this->assertFalse($manager->isRollbackSupported('analyze'));
         $this->assertSame(
