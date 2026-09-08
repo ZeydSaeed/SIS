@@ -1,0 +1,52 @@
+---
+description: Mandatory SIS architecture principles — always apply before architecture-sensitive work
+alwaysApply: true
+---
+
+# SIS Architecture — Mandatory Principles
+
+**Precedence:** Subordinate only to `00-SIS-CONSTITUTION.mdc` and `.cursor/architecture/SIS-CONSTITUTION.md`.  
+**Detailed rules:** `clean-architecture.mdc`, `architecture-governance.mdc`, `ARCHITECTURE-STACK.md`, path-scoped governance below.
+
+```text
+SIS Constitution → 01-ARCHITECTURE → sis-core → Clean Architecture / Architecture Governance
+→ Module contracts → Security / Database / API / UI / Testing → Framework conventions → Laravel conventions
+```
+
+Framework conventions **never** override SIS architecture.
+
+## Non-Negotiable Principles
+
+1. **Domain/Application remain framework-independent** — no Illuminate, Eloquent, HTTP, or DB in Domain.
+2. **Business logic must not live in UI** — React/Inertia/pages/hooks are presentation only.
+3. **Controllers must not become business-logic containers** — delegate to Application handlers.
+4. **Infrastructure boundaries must be respected** — persistence, queues, external IO in Infrastructure only.
+5. **Authorization and tenant isolation are mandatory** — server-side on every protected operation.
+6. **Database access follows database governance** — migrations only; see `database-changes-mandatory.mdc`.
+7. **API contracts must be respected** — search consumers before breaking changes; see `08-api-governance.mdc`.
+8. **UI must follow UI contracts** — `UI-CONTRACT.md`, `02-ui-ux.mdc`, `react-inertia.mdc`.
+9. **New frameworks require architecture review** — ADR + human approval before introduction.
+10. **Platform-specific behavior belongs only in platform/presentation adapters** — not Domain/Application.
+11. **Business logic must never branch on OS/device/framework** — capability-based presentation only.
+12. **Existing architecture validators and CI are mandatory** — `architecture:validate --fitness`, feature-check, graph.
+13. **Conflicts must be resolved according to governance precedence** — see `GOVERNANCE-MAP.md`.
+14. **Architecture violations require STOP before implementation** — read applicable rules and skills first.
+15. **Inspect relevant detailed rules before changing architecture-sensitive code** — especially `app/**`, `resources/js/**`, `database/**`, `routes/**`.
+
+## Before You Code (architecture-sensitive paths)
+
+```text
+.cursor/skills/application-feature/SKILL.md   (new features)
+.cursor/architecture/ARCHITECTURE-STACK.md    (layer placement)
+clean-architecture.mdc                        (app/**)
+architecture-governance.mdc                   (app/**)
+laravel-patterns.mdc                          (Infrastructure/Laravel glue only — subordinate)
+```
+
+## Validation (when touching application structure)
+
+```bash
+php artisan architecture:validate --fitness
+php artisan architecture:feature-check {Context}   # when module changes
+php artisan architecture:graph                     # dependency audit
+```

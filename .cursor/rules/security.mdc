@@ -8,15 +8,53 @@ globs:
 alwaysApply: false
 ---
 
-# Security Rules (Guidance Only)
+# Security Rules (Developer / Agent Governance Layer)
 
-Cursor rules are **guidance**. Enforcement is via:
+**This file is guidance for agents and developers.** It does **not** alone enforce security.
 
-- `.cursor/security/SECURITY-BASELINE.json` (SSOT)
+**Enforcement** is performed through:
+
+- `.cursor/security/SECURITY-BASELINE.json` (SSOT categories + rules)
 - `php artisan security:validate`
-- `php artisan architecture:validate --fitness` (includes security_architecture)
+- `php artisan architecture:validate --fitness` (includes `security_architecture`)
 - `tests/Feature/Security/` and `tests/Unit/Security/`
-- `composer test` CI gate
+- `composer test` / CI gates
+- Runtime middleware, policies, config, and RLS where enabled
+
+## Baseline Categories (SSOT: SECURITY-BASELINE.json)
+
+When adding or changing protected code, consider **all applicable** categories:
+
+| Category | Key concerns |
+|----------|----------------|
+| **Authentication** | Sanctum/session auth on protected resources; no plaintext passwords |
+| **Authorization** | Deny-by-default policies; FormRequest `authorize()`; school context + ownership |
+| **Tenant Isolation** | `X-School-Id`, policy scope, RLS — never frontend-only filtering |
+| **CSRF** | Session mutations require CSRF token (web); API uses token auth |
+| **XSS / Output Encoding** | Escape output; no unsanitized HTML; JSON errors without stack traces in prod |
+| **SQL Injection** | Parameter binding only — no raw user input in SQL |
+| **IDOR / BOLA** | Resource IDs must pass policy + tenant ownership checks |
+| **Mass Assignment** | `$fillable = []` on sensitive models; explicit field allowlists in repositories |
+| **Rate Limiting** | Classify and throttle sensitive API/auth endpoints |
+| **Audit Logging** | Security/sensitive ops → `security_audit_logs` with redacted metadata |
+| **Secret Handling** | `.env` only; no secrets in source or logs |
+| **File Upload Security** | Auth, size limits, MIME validation, safe storage path, audit |
+| **Path Traversal** | See below |
+| **Session / Headers / Dependencies / CI** | See baseline for SEC-SESSION, SEC-HEADERS, composer audit |
+
+Reference: `.cursor/security/SECURITY-ARCHITECTURE.md`, `.cursor/security/SECURITY-BOUNDARIES.md`
+
+## Path Traversal (Mandatory Prohibitions)
+
+Never:
+
+- Build filesystem paths from unsanitized user input
+- Concatenate user input into storage or download paths without normalization + allowlist
+- Read or write files outside the intended directory root
+- Allow `../`, encoded traversal (`%2e%2e`), or equivalent bypasses in path resolution
+- Use uncontrolled upload/download paths without fixed base directory + validated filename
+
+Use framework storage APIs with explicit disks and generated safe names — validate in FormRequest/handler.
 
 ## Non-Negotiable
 
@@ -34,13 +72,14 @@ When adding Controller, Request, Handler, Job, Migration, or API endpoint:
 
 - [ ] Authentication policy defined
 - [ ] Authorization policy + permission constant
+- [ ] Tenant isolation (school context + ownership)
 - [ ] FormRequest validation (not `request()->all()`)
 - [ ] Negative security test (forbidden = 403/401)
 - [ ] Audit for sensitive operations
 - [ ] Rate limit classification if API
+- [ ] Path/upload safety if filesystem involved
 
 ## Reference
 
-- `.cursor/security/SECURITY-ARCHITECTURE.md`
-- `.cursor/security/SECURITY-BOUNDARIES.md`
 - `docs/security/PHASE-3.10-BEFORE-STATE.md`
+- `docs/security/` phase gate reports

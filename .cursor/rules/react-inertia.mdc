@@ -4,7 +4,10 @@ globs: resources/js/**/*
 alwaysApply: false
 ---
 
-# React + Inertia Conventions
+# React + Inertia Conventions (Implementation Layer)
+
+**Scope:** React 19 + Inertia 3 + Tailwind 4 + TypeScript implementation only.  
+**UX principles (framework-independent):** `02-ui-ux.mdc`, `UI-CONTRACT.md`
 
 Reference: `.cursor/architecture/api-conventions.md`
 
@@ -29,7 +32,7 @@ resources/js/
 - One page component per route in `pages/{module}/`
 - Use `AppLayout` for authenticated pages
 - Receive props from controller — no direct API fetch in pages unless polling
-- Always handle `loading`, `error`, and `empty` states
+- Required UI states (`idle`, `loading`, `success`, `empty`, `error`, `disabled`, `retry`) — see `02-ui-ux.mdc`
 
 ## Forms
 ```tsx
@@ -70,6 +73,7 @@ post(route('attendance.batch', sectionId));
 - Radix components for keyboard navigation
 - Label all form inputs
 - Focus management in modals (Dialog)
+- Broader a11y requirements: `02-ui-ux.mdc`
 
 ## Forbidden
 - `fetch()` to internal API bypassing Inertia for CRUD

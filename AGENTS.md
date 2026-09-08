@@ -2,31 +2,32 @@
 
 ## Maturity
 
-| Level | Status |
-|-------|--------|
-| Architecture Ready | ✅ |
-| Development Ready | ✅ |
-| Production Proven | ⏳ (needs load test + DR drill) |
+| Level              | Status                          |
+| ------------------ | ------------------------------- |
+| Architecture Ready | ✅                              |
+| Development Ready  | ✅                              |
+| Production Proven  | ⏳ (needs load test + DR drill) |
 
 **Score:** Design 93–94/100 · Operational ~60/100
 
 ## Read First
 
-| Priority | File | Purpose |
-|----------|------|---------|
-| 0 | `.cursor/architecture/SIS-CONSTITUTION.md` | **Permanent Engineering Constitution v2.0** |
-| 0b | `.cursor/rules/00-SIS-CONSTITUTION.mdc` | Constitution index (always applied) |
-| 0c | `.cursor/architecture/GOVERNANCE-MAP.md` | Constitution → rules/docs map |
-| 1 | `.cursor/architecture/README.md` | Full document index |
-| 2 | `.cursor/architecture/WORK-PLAN.md` | Phase A–F guide |
-| 3 | `.cursor/architecture/database-blueprint.md` | **89 tables — authoritative** |
-| 4 | `.cursor/architecture/capacity-planning.md` | Dynamic capacity model |
-| 5 | `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md` | **Adaptive optimization rules** |
-| 6 | `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md` | **Expert + Learning + Self-Healing** |
-| 7 | `.cursor/architecture/normalization-and-cqrs.md` | 1NF–4NF + CQRS-lite |
-| 8 | `.cursor/architecture/ARCHITECTURE-STACK.md` | **Clean + DDD + CQRS — enforced** |
-| 9 | `.cursor/architecture/optimization/SELF-HEALING-PERFORMANCE-PROMPT.md` | **Self-healing adaptive engine (24/7)** |
-| 10 | `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md` | Observe → Recommend → Autonomous |
+| Priority | File                                                                   | Purpose                                            |
+| -------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| 0        | `.cursor/architecture/SIS-CONSTITUTION.md`                             | **Permanent Engineering Constitution v2.0**        |
+| 0b       | `.cursor/rules/00-SIS-CONSTITUTION.mdc`                                | Constitution index (always applied)                |
+| 0b2      | `.cursor/rules/01-ARCHITECTURE.mdc`                                    | Mandatory architecture principles (always applied) |
+| 0c       | `.cursor/architecture/GOVERNANCE-MAP.md`                               | Constitution → rules/docs map                      |
+| 1        | `.cursor/architecture/README.md`                                       | Full document index                                |
+| 2        | `.cursor/architecture/WORK-PLAN.md`                                    | Phase A–F guide                                    |
+| 3        | `.cursor/architecture/database-blueprint.md`                           | **89 tables — authoritative**                      |
+| 4        | `.cursor/architecture/capacity-planning.md`                            | Dynamic capacity model                             |
+| 5        | `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md`                 | **Adaptive optimization rules**                    |
+| 6        | `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md`                  | **Expert + Learning + Self-Healing**               |
+| 7        | `.cursor/architecture/normalization-and-cqrs.md`                       | 1NF–4NF + CQRS-lite                                |
+| 8        | `.cursor/architecture/ARCHITECTURE-STACK.md`                           | **Clean + DDD + CQRS — enforced**                  |
+| 9        | `.cursor/architecture/optimization/SELF-HEALING-PERFORMANCE-PROMPT.md` | **Self-healing adaptive engine (24/7)**            |
+| 10       | `.cursor/architecture/optimization/AUTONOMOUS-OPTIMIZATION-PROMPT.md`  | Observe → Recommend → Autonomous                   |
 
 ## Application Code — MANDATORY
 
@@ -94,14 +95,19 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 
 ## Cursor Rules
 
-- `sis-core.mdc` — always apply
+**Always applied:** `00-SIS-CONSTITUTION.mdc`, `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `11-change-control.mdc`
+
+**Path-scoped (see GOVERNANCE-MAP.md for full inventory):**
+
+- `10-MODULES.mdc` — module boundaries
+- `12-DOCUMENTATION.mdc` — documentation when contracts change
 - `database-changes-mandatory.mdc` — database/**, app/Models/**
 - `database-design.mdc` — database/**
 - `architecture-governance.mdc` — app/** (feature creation workflow)
 - `clean-architecture.mdc` — app/** (Clean + DDD + CQRS)
-- `laravel-patterns.mdc` — app/**
+- `laravel-patterns.mdc` — app/** (Infrastructure Laravel glue — subordinate)
 - `query-optimization.mdc` — app/**
-- `react-inertia.mdc` — resources/js/**
+- `react-inertia.mdc` — resources/js/** (implementation; UX principles in `02-ui-ux.mdc`)
 
 ## Key Docs (v3.2)
 

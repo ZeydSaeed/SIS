@@ -1,0 +1,43 @@
+---
+description: Mandatory module implementation governance — boundaries, contracts, gates
+globs:
+  - app/Application/**
+  - app/Domain/**
+  - app/Infrastructure/**
+  - app/Http/Controllers/**
+  - resources/js/pages/**
+  - routes/**
+  - docs/sis/**
+alwaysApply: false
+---
+
+# Module Governance (Mandatory)
+
+**Contract (SSOT):** `.cursor/architecture/MODULE-CONTRACT.md`  
+**Architecture:** `01-ARCHITECTURE.mdc`, `clean-architecture.mdc`, `architecture-governance.mdc`
+
+## Before Implementing or Extending a Module
+
+1. **Identify module boundary** — bounded context folder `app/Application/{Context}/`, Domain mirror.
+2. **Confirm module ownership** — one context owns the business rules; no duplicated logic elsewhere.
+3. **Respect dependency direction** — Controller → Handler → Domain ← Infrastructure; no cross-module Infrastructure shortcuts.
+4. **Define/verify API contract** — routes, permissions, request/response shapes; see `08-api-governance.mdc`.
+5. **Authorization** — Policy + permission constants + negative security tests.
+6. **Tenant isolation** — school context + resource ownership; never UI-only filtering.
+7. **Validation** — FormRequest/server authoritative; Domain invariants where applicable.
+8. **Testing** — unit (Domain/Application), feature, security tests per change type; see `09-testing-governance.mdc`.
+9. **UI contract** — pages consume API/auth/errors; no business rules in React; see `UI-CONTRACT.md`.
+10. **Audit** — sensitive writes logged per security baseline.
+11. **Module-specific gates** — completion reports in `docs/sis/{module}/` when phase gates apply.
+12. **Regression checks** — run targeted tests + architecture/security validation before closing.
+
+## Forbidden
+
+- Cross-module shortcuts (direct Eloquent/DB access bypassing Application contracts)
+- Direct access around handlers to "save time"
+- Duplicated business logic in UI, controllers, or another module
+- New module layout parallel to established structure
+
+## Completion
+
+Significant module work requires **SIS CHANGE REPORT** per `00-SIS-CONSTITUTION.mdc` §81 and module gate docs when applicable.

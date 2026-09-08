@@ -1,0 +1,47 @@
+---
+description: Documentation governance — update docs when contracts or behavior change
+globs:
+  - app/**
+  - database/**
+  - routes/**
+  - resources/js/**
+  - .cursor/architecture/**
+  - .cursor/security/**
+  - docs/**
+alwaysApply: false
+---
+
+# Documentation Governance
+
+Documentation supports traceability — it is **not** a substitute for implementation.
+
+## When Documentation Updates Are Required
+
+Update authoritative docs when changes affect:
+
+| Change type | Update |
+|-------------|--------|
+| Architecture / layer boundaries | `ARCHITECTURE-STACK.md`, ADR in `.cursor/architecture/adr/`, `GOVERNANCE-MAP.md` if mapping shifts |
+| New architectural decision | ADR (mandatory) |
+| API contract | `api-conventions.md`, module docs, OpenAPI if present |
+| Database schema semantics | `database-blueprint.md`, `database-dictionary.md`, migration notes per `database-change` skill |
+| Module boundaries | `MODULE-CONTRACT.md`, `docs/sis/{module}/` |
+| Runtime / platform / UI contracts | `RUNTIME-CONTRACT.md`, `PLATFORM-CONTRACT.md`, `UI-CONTRACT.md`, `WINDOW-CONTRACT.md` |
+| Security baseline | `.cursor/security/SECURITY-BASELINE.json`, security phase docs |
+| Major UI behavior | UI contract + module gate report if phased |
+
+## Also Required When Applicable
+
+- Schema change impact (`schema-change-impact.md`) for DB changes
+- Completion / gate report (`docs/sis/` or phase folder) for gated work
+- **SIS CHANGE REPORT** per Constitution §81 for significant tasks
+
+## Not Required For
+
+- Typo fixes with no contract impact
+- Pure refactors with identical external behavior (unless architecture graph changes)
+- Governance-only typo fixes with no precedence/mapping change
+
+## Rule
+
+If you change what another developer or agent must know to use the system safely, update the doc **in the same change** — do not defer documentation to avoid finishing implementation.

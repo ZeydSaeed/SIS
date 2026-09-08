@@ -1,57 +1,92 @@
 ---
-description: Laravel model and service patterns for SIS
+description: Laravel Infrastructure patterns — subordinate to SIS Clean Architecture (not business-logic layer)
 globs: app/**/*.php
 alwaysApply: false
 ---
 
-# Laravel Patterns
+# Laravel Patterns (Infrastructure & Framework Glue)
 
-## Models
-- One model per blueprint table; namespace by domain: `App\Models\Students\Student`
+**Status:** ACTIVE — **subordinate guidance only**  
+**Precedence:** Never overrides `01-ARCHITECTURE.mdc`, `clean-architecture.mdc`, or `architecture-governance.mdc`.
+
+```text
+SIS Constitution → Core Architecture → Clean Architecture / Architecture Governance
+→ Module contracts → Security / Database / API → Laravel patterns (this file)
+```
+
+## Where This Rule Applies
+
+Use these conventions **only** in permitted layers:
+
+| Layer | Laravel patterns OK? |
+|-------|----------------------|
+| `app/Domain/**` | **No** — pure PHP only |
+| `app/Application/**` | **No** — handlers, commands, DTOs only |
+| `app/Infrastructure/**` | **Yes** — Eloquent records, repositories, jobs, listeners |
+| `app/Http/**` | **Thin only** — delegate to handlers; policies OK |
+| Legacy `app/Models/**` | **Migrate away** — no new business logic |
+
+## Infrastructure Models (Eloquent Records)
+
+- One persistence model per blueprint table in `app/Infrastructure/Persistence/` (or existing legacy `app/Models/` during migration)
+- Namespace by context: e.g. `App\Infrastructure\Persistence\Students\StudentRecord`
 - Always define `$casts` for dates (datetime), decimals, JSONB
-- Use `SoftDeletes` sparingly — prefer status fields for academic data
+- Prefer status + `effective_to` over `SoftDeletes` for academic data
 - Scope queries by academic year: `scopeForAcademicYear($query, $yearId)`
+- Mass assignment: `$fillable = []` on sensitive records; set fields only in repository adapters
 
-## Relationships
+## Relationships (Infrastructure only)
+
 ```php
-// Enrollment belongs to student AND academic year
 public function student(): BelongsTo
 public function academicYear(): BelongsTo
 public function section(): BelongsTo
 ```
 
-## Services for Business Logic
-Controllers stay thin. Complex logic in service classes:
-- `EnrollmentService`, `AttendanceService`, `GradeEntryService`
-- `CertificateGenerationService` (dispatches queue job)
+## Business Logic — NOT Service Classes
+
+```text
+❌ EnrollmentService with domain rules in app/Services/
+✅ EnrollStudentHandler in app/Application/Enrollment/Commands/
+✅ EnrollmentPolicy + FormRequest for HTTP concerns
+```
+
+Do **not** create conventional Laravel "Service" classes for domain workflows. Application **handlers** own use cases and transactions.
 
 ## Queue Jobs for Heavy Operations
+
 ```php
 // ❌ BAD — blocks HTTP request
 foreach ($students as $student) { generateCertificate($student); }
 
-// ✅ GOOD
+// ✅ GOOD — dispatch from handler/listener
 GenerateCertificatesJob::dispatch($schoolId, $yearId)
     ->withIdempotencyKey("cert-{$schoolId}-{$yearId}");
 ```
 
-## Audit
-Log changes to academic records via `AuditService`:
+## Audit (Infrastructure)
+
+Log sensitive changes via audit infrastructure — not ad hoc in controllers:
+
 ```php
+// From listener or infrastructure adapter after handler success
 AuditService::log('updated', $enrollment, $oldValues, $newValues);
 ```
 
-## Authorization
-Use Laravel Policies scoped to school/role:
-```php
-$this->authorize('update', $enrollment);
-```
+## Authorization (HTTP + Policies)
 
-## Eager Loading
+Policies scoped to school/role; controllers call `$this->authorize()` — rules live in Policy + Domain, not controller branches.
+
+## Eager Loading (Infrastructure queries)
+
 ```php
 // ❌ N+1
-Enrollment::all()->each(fn ($e) => $e->student->name);
+EnrollmentRecord::all()->each(fn ($e) => $e->student->name);
 
 // ✅
-Enrollment::with(['student', 'section', 'academicYear'])->get();
+EnrollmentRecord::with(['student', 'section', 'academicYear'])->get();
 ```
+
+## When Unsure
+
+Read `architecture-governance.mdc` and run `php artisan sis:make-feature {Context}` — do not default to Model + Controller CRUD.

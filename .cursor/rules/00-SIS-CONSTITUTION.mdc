@@ -30,10 +30,13 @@ Before coding, read applicable:
 
 ```text
 .cursor/rules/          .cursor/architecture/       .cursor/skills/
-sis-core.mdc            ARCHITECTURE-STACK.md       application-feature
-clean-architecture.mdc  SIS-CONSTITUTION.md         database-change
-security.mdc            UI/WINDOW/RUNTIME/PLATFORM contracts
-react-inertia.mdc       api-conventions.md
+01-ARCHITECTURE.mdc     ARCHITECTURE-STACK.md       application-feature
+sis-core.mdc            SIS-CONSTITUTION.md         database-change
+clean-architecture.mdc  UI/WINDOW/RUNTIME/PLATFORM contracts
+security.mdc            api-conventions.md
+react-inertia.mdc       GOVERNANCE-MAP.md
+10-MODULES.mdc          MODULE-CONTRACT.md
+12-DOCUMENTATION.mdc
 ```
 
 ## Non-Negotiables
@@ -57,20 +60,76 @@ Requirement + architecture + security + authorization + API + DB (if any) + resp
 
 ## Required Completion Report
 
-After significant tasks, include **SIS CHANGE REPORT** (see Constitution §81):
+After significant tasks, include **SIS CHANGE REPORT** (Constitution §81 — full template):
 
 ```text
-Status · Risk · Summary · Changed/Added/Removed · Database · API · UI · Runtime · Platform
-Responsive (Desktop/Tablet/Mobile) · Security · Authorization · Tests · Validation · Regression · Technical Debt · Next Step
+## SIS CHANGE REPORT
+
+Status: PASS / PASS WITH CONDITIONS / BLOCKED
+Risk: LOW / MEDIUM / HIGH / CRITICAL
+
+Summary: ...
+Scope: ...
+
+Application Code Modified: YES / NO
+Database Modified: YES / NO
+API Modified: YES / NO
+UI Modified: YES / NO
+Dependencies Modified: YES / NO
+Governance Modified: YES / NO
+
+Changed: ...
+Added: ...
+Removed: ...
+
+Files Added: ...
+Files Modified: ...
+Files Deleted: ...
+
+Database: NONE / DETAILS
+API: NONE / DETAILS
+UI: DETAILS
+
+Runtime: DETAILS
+Platform: DETAILS
+
+Responsive:
+- Desktop: ...
+- Tablet: ...
+- Mobile: ...
+
+Framework:
+- Current: ...
+- Adapter affected: ...
+- NONE if not applicable
+
+Security: ...
+Authorization: ...
+
+Tests: ...
+Validation: ...
+Security Validation: ...
+Architecture Validation: ...
+
+Regression: LOW / MEDIUM / HIGH
+Technical Debt: ...
+Remaining Issues: ...
+Known Risks: ...
+
+Human Approval Required: YES / NO — reason if YES
+Recommended Next Step: ...
+Final Gate Status: PASS / PASS WITH CONDITIONS / BLOCKED
 ```
 
 ## Rule Hierarchy
 
 ```text
-00-SIS-CONSTITUTION → sis-core → architecture-governance / clean-architecture
-→ security / database-* → runtime-platform / framework-adapters
-→ react-inertia / ui-ux / window-system / responsive-adaptive
-→ laravel-patterns / query-optimization / testing / change-control
+00-SIS-CONSTITUTION → 01-ARCHITECTURE → sis-core
+→ clean-architecture / architecture-governance
+→ 10-MODULES / security / database-* / 08-api / 09-testing / 12-DOCUMENTATION
+→ 13-runtime-platform / 14-framework-adapters
+→ 02-ui-ux / react-inertia / 03-window / 04-responsive
+→ laravel-patterns (subordinate) / query-optimization / 11-change-control
 ```
 
-Higher-priority rules override lower-priority convenience.
+Higher-priority rules override lower-priority convenience. See `GOVERNANCE-MAP.md`.

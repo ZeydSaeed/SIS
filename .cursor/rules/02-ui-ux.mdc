@@ -4,10 +4,16 @@ globs: resources/js/**/*
 alwaysApply: false
 ---
 
-# UI/UX Governance
+# UI/UX Governance (Framework-Independent)
 
+**Scope:** Presentation principles that apply regardless of React, Vue, or future adapters.  
 **Contracts:** `UI-CONTRACT.md`, `PLATFORM-CONTRACT.md`  
-**Stack rules:** `react-inertia.mdc`
+**Implementation rules:** `react-inertia.mdc` (React + Inertia stack only)
+
+```text
+02-ui-ux.mdc        → UX principles, states, a11y, design system intent
+react-inertia.mdc   → React 19 + Inertia 3 + Tailwind 4 implementation details
+```
 
 ## Component-First
 
@@ -31,9 +37,9 @@ No random colors/spacing. Tailwind is styling tool — not architecture.
 
 ## Forms
 
-- Inertia `useForm` for mutations
-- Client validation = UX; server = authoritative
+- Client validation = UX only; server validation is authoritative
 - Labels, focus, keyboard, touch targets (min ~44px mobile)
+- Form wiring (`useForm`, routes) → see `react-inertia.mdc`
 
 ## Grids
 
@@ -45,7 +51,7 @@ Keyboard nav, focus management, semantic HTML, ARIA where needed, contrast.
 
 ## RTL
 
-Arabic RTL first-class — see `react-inertia.mdc`. No hacky global `transform: scaleX(-1)`.
+Arabic RTL first-class — layout and interaction principles here; Tailwind/logical properties and i18n wiring in `react-inertia.mdc`.
 
 ## No Business Logic in UI
 
