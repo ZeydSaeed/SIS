@@ -12,6 +12,7 @@
 | [ARCHITECTURE-BASELINE.md](./ARCHITECTURE-BASELINE.md) | Current stack baseline (human-readable) |
 | [UI-CONTRACT.md](./UI-CONTRACT.md) | UI contracts (Inertia/React baseline) |
 | [UI-OPTIMIZATION-GOVERNANCE.md](./UI-OPTIMIZATION-GOVERNANCE.md) | **Mandatory automatic UI/frontend optimization** |
+| [COLOR-TYPOGRAPHY-GOVERNANCE.md](./COLOR-TYPOGRAPHY-GOVERNANCE.md) | **Mandatory color palette & typography SSOT** |
 | [DESKTOP-UI-GOVERNANCE.md](./DESKTOP-UI-GOVERNANCE.md) | **Professional desktop UI (Blazor Hybrid — ADR required)** |
 | [WINDOW-CONTRACT.md](./WINDOW-CONTRACT.md) | Window/dialog target contract |
 | [MODULE-CONTRACT.md](./MODULE-CONTRACT.md) | Module implementation contract |

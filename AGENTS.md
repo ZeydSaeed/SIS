@@ -93,9 +93,19 @@ Rule Engine + Knowledge Base + Learning Engine → Recommendation → Human Gate
 Tier 1 only: safe auto-actions (pool resize, route replica traffic) — see SELF-HEALING-RUNBOOK.md.
 Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 
+## Design System & Color/Typography
+
+**SSOT:** `.cursor/architecture/COLOR-TYPOGRAPHY-GOVERNANCE.md` + `17-color-typography-governance.mdc`
+
+| Rule | Scope |
+|------|--------|
+| Five approved base colors | Twilight Indigo, Powder Blue, Powder Petal, Powder Blush, Ash Brown |
+| Four approved fonts | Segoe UI, Tahoma, Calibri, Aptos — no Google Fonts |
+| Legacy baseline | `app.css` shadcn/Instrument Sans — migrate on touch; do not extend on new UI |
+
 ## Cursor Rules
 
-**Always applied:** `00-SIS-CONSTITUTION.mdc`, `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `11-change-control.mdc`, `15-ui-optimization-governance.mdc`
+**Always applied:** `00-SIS-CONSTITUTION.mdc`, `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `11-change-control.mdc`, `15-ui-optimization-governance.mdc`, `17-color-typography-governance.mdc`
 
 **Path-scoped (see GOVERNANCE-MAP.md for full inventory):**
 

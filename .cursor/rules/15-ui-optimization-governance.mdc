@@ -20,7 +20,7 @@ Triggers include: pages, windows, dialogs, forms, tables, dashboards, components
 
 Subordinate to Constitution → Architecture → Security → Database → API → UI/UX → **this rule** → framework rules.
 
-**Correctness > performance.** Never sacrifice security, authorization, tenant isolation, accessibility, RTL/LTR, or visual parity.
+**Correctness > performance.** Never sacrifice security, authorization, tenant isolation, accessibility, RTL/LTR, visual parity, or **color/typography SSOT** (`17-color-typography-governance.mdc`).
 
 ## Automatic Pipeline (do not skip)
 

@@ -1,0 +1,50 @@
+---
+description: Mandatory color palette and typography — five approved colors, four approved fonts
+alwaysApply: true
+---
+
+# Color & Typography Governance (Index)
+
+**Version:** 1.0 · **Status:** MANDATORY
+**Full text:** `.cursor/architecture/COLOR-TYPOGRAPHY-GOVERNANCE.md`
+
+**Not the same as:** generic Tailwind/shadcn defaults, external font packages, or ad-hoc HEX in components.
+
+## Absolute rules
+
+1. **Five approved base colors only** — Twilight Indigo, Powder Blue, Powder Petal, Powder Blush, Ash Brown (SSOT).
+2. **Four approved font families only** — Segoe UI, Tahoma, Calibri, Aptos. No Google Fonts / remote imports.
+3. **Semantic tokens** — no scattered HEX in JSX/CSS; derivatives must trace to a base color parent.
+4. **Contrast** — normal text ≥ 4.5:1, large text ≥ 3:1; verify all interactive states.
+5. **No arbitrary red/green/blue/gray/white/black** outside the approved palette system.
+6. **RTL/Arabic** — Segoe UI primary; `direction: rtl` where locale requires.
+
+## Precedence
+
+Subordinate to Constitution → Architecture → Security → Database → API → UI/UX (`02-ui-ux.mdc`) → **this rule** → `15-ui-optimization-governance` → framework rules (`react-inertia.mdc`).
+
+Accessibility and contrast requirements in this rule are **not** overridden by optimization.
+
+## Implementation baseline (repository)
+
+Current `resources/css/app.css` may still use legacy shadcn/Instrument Sans tokens until a dedicated migration. **All new and modified UI** must comply with this governance. Do not extend legacy palette on touched surfaces.
+
+## Mandatory on every UI change
+
+Pages, forms, dialogs, tables, navigation, buttons, badges, cards, states, React components, Inertia pages, and future adapters.
+
+## STOP — Request approval
+
+- New base color or font family outside approved lists
+- External font package or CDN import
+- Parallel token namespace that bypasses semantic mapping
+- Inline `style="color:..."` when semantic tokens exist
+
+## Read before visual UI work
+
+```text
+COLOR-TYPOGRAPHY-GOVERNANCE.md
+UI-CONTRACT.md
+02-ui-ux.mdc
+react-inertia.mdc
+```

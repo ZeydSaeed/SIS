@@ -18,6 +18,8 @@ sis-core.mdc                     (alwaysApply — stack + non-negotiables)
         ↓
 15-ui-optimization-governance.mdc (alwaysApply — mandatory UI optimization evaluation)
         ↓
+17-color-typography-governance.mdc (alwaysApply — mandatory color & typography SSOT)
+        ↓
 clean-architecture.mdc           (app/** — layer rules)
 architecture-governance.mdc      (app/** — feature workflow, no CRUD default)
 ARCHITECTURE-STACK.md            (authoritative layer diagram)
@@ -42,12 +44,27 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 
 | Principle | Meaning |
 | --------- | ------- |
-| **Mandatory alwaysApply** | `15-ui-optimization-governance.mdc` has `alwaysApply: true` (see table below). It remains mandatory on every session. |
+| **Mandatory alwaysApply** | Rules `15-ui-optimization-governance.mdc` and `17-color-typography-governance.mdc` have `alwaysApply: true` (see table below). Both remain mandatory on every session. |
 | **Security & architecture first** | Constitution, architecture, security, database, API, module, and UI/UX governance take precedence over optimization (`UI-OPTIMIZATION-GOVERNANCE.md` §1). |
 | **React/Inertia subordinate** | `react-inertia.mdc` is path-scoped implementation guidance. It does **not** override Rule 15. |
 | **Rule 15 subordinate to higher tiers** | Rule 15 does **not** override security, authorization, tenant isolation, domain/API contracts, accessibility, or approved UI behavior. |
 | **Conflict resolution** | If two rules appear to conflict, resolve per `UI-OPTIMIZATION-GOVERNANCE.md` §1 and `GOVERNANCE-MAP.md` precedence — **not** by assuming the later-listed rule wins. |
 | **Correctness > optimization** | Security, business correctness, architecture constraints, PII, tenant isolation, and accessibility all outrank performance optimization. |
+
+### Rule 15 vs Rule 17 (Color & Typography Gate)
+
+The map lists Rule 15 before Rule 17 for navigation. **Normative relationship** (not “later rule wins”):
+
+| Rule | Role |
+| ---- | ---- |
+| **Rule 17** | Mandatory color palette, typography, contrast, semantic design tokens, and visual SSOT (`COLOR-TYPOGRAPHY-GOVERNANCE.md`). |
+| **Rule 15** | Mandatory UI optimization **evaluation** on every UI change (`UI-OPTIMIZATION-GOVERNANCE.md`). |
+
+| Constraint | Meaning |
+| ---------- | ------- |
+| **Optimization MUST NOT override Rule 17** | Approved colors, approved fonts, accessibility, contrast, semantic tokens, and governance-approved visual constraints cannot be sacrificed for performance. |
+| **Rule 17 MUST NOT block legitimate optimization** | Safe optimizations that remain **within** the approved design system (pagination, decomposition, server-side data, justified memoization, etc.) remain required per Rule 15. |
+| **Conflict resolution** | Resolve per `COLOR-TYPOGRAPHY-GOVERNANCE.md` §Precedence, `17-color-typography-governance.mdc`, and `UI-OPTIMIZATION-GOVERNANCE.md` §1 — **not** by map list position. |
 
 ### laravel-patterns.mdc Resolution (G-001)
 
@@ -62,7 +79,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 
 ## Always Applied vs Path-Scoped
 
-**AlwaysApply registry (`alwaysApply: true`):** `00-SIS-CONSTITUTION.mdc` · `01-ARCHITECTURE.mdc` · `sis-core.mdc` · `15-ui-optimization-governance.mdc` · `11-change-control.mdc`
+**AlwaysApply registry (`alwaysApply: true`):** `00-SIS-CONSTITUTION.mdc` · `01-ARCHITECTURE.mdc` · `sis-core.mdc` · `15-ui-optimization-governance.mdc` · `17-color-typography-governance.mdc` · `11-change-control.mdc`
 
 | Rule                             | alwaysApply | globs                           | Role                                         |
 | -------------------------------- | ----------- | ------------------------------- | -------------------------------------------- |
@@ -79,6 +96,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | `query-optimization.mdc`         | ❌          | app/**                          | Query performance                            |
 | `autonomous-optimization.mdc`    | ❌          | —                               | Adaptive DB optimization skill path          |
 | `15-ui-optimization-governance.mdc`| ✅        | —                               | **Mandatory automatic UI/frontend optimization** |
+| `17-color-typography-governance.mdc`| ✅       | —                               | **Mandatory color palette & typography SSOT** |
 | `02-ui-ux.mdc`                   | ❌          | resources/js/**                 | Framework-independent UX                     |
 | `react-inertia.mdc`              | ❌          | resources/js/**                 | React/Inertia implementation                 |
 | `03-window-system.mdc`           | ❌          | resources/js/**                 | Window/dialog governance                     |
@@ -99,7 +117,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | ------------------ | --------------------------------------- | ---------------------------------------------------------------------------------------- |
 | 0–2, 61–63, 81–83  | Core directive, workflow, change report | `00-SIS-CONSTITUTION.mdc`, `SIS-CONSTITUTION.md`                                         |
 | 3–5, 24–25         | Architecture / business authority       | `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `clean-architecture.mdc`, `ARCHITECTURE-STACK.md` |
-| 6–7, 19–22         | UI contracts, design system             | `UI-CONTRACT.md`, `02-ui-ux.mdc`, `react-inertia.mdc`                                    |
+| 6–7, 19–22         | UI contracts, design system             | `UI-CONTRACT.md`, `COLOR-TYPOGRAPHY-GOVERNANCE.md`, `02-ui-ux.mdc`, `react-inertia.mdc` |
 | 11                 | Windows desktop experience              | `DESKTOP-UI-GOVERNANCE.md`, `16-desktop-ui-governance.mdc`, `WINDOW-CONTRACT.md`         |
 | 15–18              | Window / dialog                         | `WINDOW-CONTRACT.md`, `03-window-system.mdc`                                             |
 | 14, 45–47          | Responsive + adaptive                   | `04-responsive-adaptive.mdc`, `PLATFORM-CONTRACT.md`                                     |
@@ -114,6 +132,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | Performance        | Adaptive DB                             | `DATABASE-ADAPTIVE-GOVERNANCE.md`, `autonomous-optimization.mdc`                         |
 | Performance        | UI / frontend automatic optimization    | `UI-OPTIMIZATION-GOVERNANCE.md`, `15-ui-optimization-governance.mdc`                   |
 | Desktop UI         | Professional Blazor Hybrid adapter        | `DESKTOP-UI-GOVERNANCE.md`, `16-desktop-ui-governance.mdc` (FUTURE / ADR)              |
+| Color & typography | Five-color palette, four-font SSOT        | `COLOR-TYPOGRAPHY-GOVERNANCE.md`, `17-color-typography-governance.mdc` (MANDATORY)     |
 
 ---
 
@@ -156,7 +175,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | Feature contracts               | `architecture:feature-check {Context}`                                   |
 | Security baseline               | `security:validate`, SecurityArchitectureValidator, security tests       |
 | Database changes                | database-change skill, migrations, blueprint updates                     |
-| Constitution workflow           | `alwaysApply` rules **00, 01, sis-core, 15, 11** (see Always Applied table) |
+| Constitution workflow           | `alwaysApply` rules **00, 01, sis-core, 15, 17, 11** (see Always Applied table) |
 | Module boundaries               | `10-MODULES.mdc` + MODULE-CONTRACT (documented + review)                 |
 | UI architecture drift           | **MISSING** — planned future validator (Phase 0.2 deferred)              |
 | Frontend framework introduction | ADR + human gate (documented)                                            |

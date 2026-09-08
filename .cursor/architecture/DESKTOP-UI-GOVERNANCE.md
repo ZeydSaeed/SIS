@@ -435,6 +435,8 @@ Responsive behavior MUST preserve usability rather than simply shrinking control
 
 All UI MUST use the SIS Design System.
 
+**Color and typography SSOT:** `COLOR-TYPOGRAPHY-GOVERNANCE.md` — five approved base colors, four approved fonts, semantic tokens.
+
 The Design System MUST define:
 
 * Typography

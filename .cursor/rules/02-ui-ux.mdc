@@ -6,8 +6,8 @@ alwaysApply: false
 
 # UI/UX Governance (Framework-Independent)
 
-**Scope:** Presentation principles that apply regardless of React, Vue, or future adapters.  
-**Contracts:** `UI-CONTRACT.md`, `PLATFORM-CONTRACT.md`  
+**Scope:** Presentation principles that apply regardless of React, Vue, or future adapters.
+**Contracts:** `UI-CONTRACT.md`, `PLATFORM-CONTRACT.md`, `COLOR-TYPOGRAPHY-GOVERNANCE.md`
 **Implementation rules:** `react-inertia.mdc` (React + Inertia stack only)
 
 ```text
@@ -29,11 +29,13 @@ Every async UI: `idle`, `loading`, `success`, `empty`, `error`, `disabled`, `ret
 
 ## Design System
 
+**SSOT:** `COLOR-TYPOGRAPHY-GOVERNANCE.md` — five colors, four fonts, semantic tokens.
+
 ```text
-CSS variables (--sis-*) → Tailwind → shared components → pages
+Semantic color/font tokens → Tailwind → shared components → pages
 ```
 
-No random colors/spacing. Tailwind is styling tool — not architecture.
+No random colors/spacing. No external font imports. Tailwind is styling tool — not architecture.
 
 ## Forms
 

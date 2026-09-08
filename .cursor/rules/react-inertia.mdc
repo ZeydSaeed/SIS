@@ -7,7 +7,7 @@ alwaysApply: false
 # React + Inertia Conventions (Implementation Layer)
 
 **Scope:** React 19 + Inertia 3 + Tailwind 4 + TypeScript implementation only.  
-**UX principles (framework-independent):** `02-ui-ux.mdc`, `UI-CONTRACT.md`
+**UX principles (framework-independent):** `02-ui-ux.mdc`, `UI-CONTRACT.md`, `COLOR-TYPOGRAPHY-GOVERNANCE.md`
 
 Reference: `.cursor/architecture/api-conventions.md`
 

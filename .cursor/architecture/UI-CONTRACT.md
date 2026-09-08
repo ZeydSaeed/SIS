@@ -72,12 +72,16 @@ No unbounded record loads — paginate server-side.
 
 ## Design System
 
+**Authoritative SSOT:** `COLOR-TYPOGRAPHY-GOVERNANCE.md` — five approved base colors, four approved fonts, semantic tokens, contrast rules.
+
 Hierarchy:
 
 ```text
 UI Contract (behavior + semantics)
         ↓
-Design Tokens Contract (CSS variables in app.css @theme / :root)
+COLOR-TYPOGRAPHY-GOVERNANCE.md (color/font SSOT)
+        ↓
+Design Tokens (CSS variables in app.css @theme / :root — map to SSOT)
         ↓
 Tailwind utilities (Tailwind v4 + shadcn-style primitives)
         ↓
@@ -86,9 +90,9 @@ Reusable components (resources/js/components/ui + sis/)
 Pages
 ```
 
-**Implementation baseline:** existing shadcn/Tailwind tokens (`--background`, `--primary`, `--radius`, sidebar tokens, etc.) in `resources/css/app.css`.
+**Implementation baseline:** `resources/css/app.css` currently uses legacy shadcn/Instrument Sans/oklch tokens — **non-compliant** until migration. All **new and modified UI** must use the approved palette and fonts per `COLOR-TYPOGRAPHY-GOVERNANCE.md`.
 
-Do **not** introduce a parallel `--sis-*` token namespace unless a compatibility alias is explicitly approved and documented.
+Semantic tokens MUST derive from the five base colors. Do not scatter arbitrary HEX values in components.
 
 Do not scatter arbitrary colors/spacing.
 
