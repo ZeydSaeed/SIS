@@ -28,6 +28,8 @@ Framework-independent UI contract so Web, PWA, Desktop host, or future React/Vue
 
 **Gap:** Centralized Window Manager, Command Palette, Workspace Manager — **not implemented** (see `WINDOW-CONTRACT.md`).
 
+**Desktop target (FUTURE / ADR):** Professional shell/workspace/command architecture for Blazor Hybrid — see `DESKTOP-UI-GOVERNANCE.md`. Current web baseline remains Inertia/React.
+
 ---
 
 ## Logical Contracts (framework-independent)
@@ -153,7 +155,7 @@ Critical rules live in Domain/Application only. UI MUST NOT duplicate enrollment
 
 ## Adapter Rule
 
-Future adapters (React SPA, Vue, Blazor, Desktop host) MUST consume:
+Future adapters (React SPA, Vue, Blazor Hybrid desktop, Desktop host) MUST consume:
 
 ```text
 Same API · Same auth · Same permissions · Same validation messages · Same audit

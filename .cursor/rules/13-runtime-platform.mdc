@@ -15,7 +15,7 @@ alwaysApply: false
 
 ## Do Not Introduce Without ADR
 
-Electron, Tauri, Vue, Blazor, standalone SPA — unless architectural requirement proven.
+Electron, Tauri, Vue, Blazor Hybrid, standalone SPA — unless architectural requirement proven. Desktop Blazor target: `DESKTOP-UI-GOVERNANCE.md`.
 
 ## Platform Resolver (conceptual)
 

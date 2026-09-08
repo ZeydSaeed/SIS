@@ -1,0 +1,53 @@
+---
+description: Professional desktop UI governance — Blazor Hybrid adapter (ADR required; not current web stack)
+globs: clients/sis-desktop/**/*
+alwaysApply: false
+---
+
+# Desktop UI Governance (Index)
+
+**Version:** 1.0 · **Status:** FUTURE / ADR REQUIRED  
+**Full text:** `.cursor/architecture/DESKTOP-UI-GOVERNANCE.md`
+
+**Not the same as:** `react-inertia.mdc` (current **ACTIVE** web UI) or `15-ui-optimization-governance.mdc` (all UI surfaces).
+
+## When this rule applies
+
+- Approved Blazor Hybrid desktop client work under `clients/sis-desktop/**`
+- Architecture/planning tasks explicitly scoped to desktop adapter (after ADR)
+
+**Do NOT apply this rule to** current Inertia/React work in `resources/js/**` unless cross-runtime contract alignment is required.
+
+## Absolute rules
+
+1. **ADR + human approval** before introducing Blazor, .NET desktop host, or new dependencies.
+2. **Laravel API is authoritative** — no business rules, authorization, or PostgreSQL access from Blazor UI.
+3. **One Application Shell** — modules do not create independent shells.
+4. **Commands are centralized** — ribbon, toolbar, context menu, palette invoke the same command IDs.
+5. **UI visibility ≠ security** — backend policies enforce all sensitive operations.
+6. **No UI fragmentation** — reuse Shell, Workspace, Component, and Command registries.
+
+## Precedence
+
+Subordinate to Constitution → Architecture → Security → Database → API → UI/UX → `15-ui-optimization-governance` → **this rule (desktop adapter)** → Blazor-specific implementation.
+
+**Correctness > performance.** Never sacrifice security, tenant isolation, accessibility, or architectural separation.
+
+## STOP — Request approval
+
+- Introducing Blazor / .NET / desktop host without ADR
+- Duplicating business rules in C#/Blazor or JavaScript
+- Direct PostgreSQL access from desktop UI
+- Module-specific application shells
+- New desktop dependencies without change-control review
+
+## Read before desktop UI work
+
+```text
+DESKTOP-UI-GOVERNANCE.md
+WINDOW-CONTRACT.md
+UI-CONTRACT.md
+RUNTIME-CONTRACT.md
+14-framework-adapters.mdc
+13-runtime-platform.mdc
+```

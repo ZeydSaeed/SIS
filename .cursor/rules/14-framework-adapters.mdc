@@ -28,7 +28,7 @@ Must consume: API contracts, permissions, validation errors, design tokens, comm
 
 ## Future Adapters
 
-Vue, Blazor, Electron shell — same contracts. Introduce adapter layer; do not fork handlers or domain rules.
+Vue, Blazor Hybrid, Electron shell — same contracts. Introduce adapter layer; do not fork handlers or domain rules. Desktop Blazor: `DESKTOP-UI-GOVERNANCE.md` + `16-desktop-ui-governance.mdc`.
 
 ## Coexistence
 

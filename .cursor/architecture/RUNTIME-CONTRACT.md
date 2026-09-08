@@ -24,6 +24,9 @@
 | `desktop-tauri` | Tauri shell | Same — no business logic in host |
 | `spa-react` | Standalone React | Only if Inertia insufficient — same API contracts |
 | `blazor-web` | Blazor WASM/Server | Explicit ADR + approval |
+| `desktop-blazor-hybrid` | C# / .NET / Blazor Hybrid | Explicit ADR + approval — see `DESKTOP-UI-GOVERNANCE.md` |
+
+**Intended desktop client path (when approved):** `clients/sis-desktop/`
 
 **Rule:** Do NOT install frameworks for theoretical compatibility.
 

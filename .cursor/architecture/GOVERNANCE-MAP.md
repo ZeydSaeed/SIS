@@ -89,6 +89,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | `12-DOCUMENTATION.mdc`           | ❌          | broad                           | Doc update requirements                      |
 | `13-runtime-platform.mdc`        | ❌          | resources/js/**                 | Runtime/platform rules                       |
 | `14-framework-adapters.mdc`      | ❌          | resources/js/**                 | Adapter boundaries                           |
+| `16-desktop-ui-governance.mdc`   | ❌          | `clients/sis-desktop/**`        | **Professional desktop UI (Blazor Hybrid — ADR required)** |
 
 ---
 
@@ -99,6 +100,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | 0–2, 61–63, 81–83  | Core directive, workflow, change report | `00-SIS-CONSTITUTION.mdc`, `SIS-CONSTITUTION.md`                                         |
 | 3–5, 24–25         | Architecture / business authority       | `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `clean-architecture.mdc`, `ARCHITECTURE-STACK.md` |
 | 6–7, 19–22         | UI contracts, design system             | `UI-CONTRACT.md`, `02-ui-ux.mdc`, `react-inertia.mdc`                                    |
+| 11                 | Windows desktop experience              | `DESKTOP-UI-GOVERNANCE.md`, `16-desktop-ui-governance.mdc`, `WINDOW-CONTRACT.md`         |
 | 15–18              | Window / dialog                         | `WINDOW-CONTRACT.md`, `03-window-system.mdc`                                             |
 | 14, 45–47          | Responsive + adaptive                   | `04-responsive-adaptive.mdc`, `PLATFORM-CONTRACT.md`                                     |
 | 26–27, 30–31       | Security                                | `security.mdc`, `SECURITY-BASELINE.json`, `docs/security/`                               |
@@ -111,6 +113,7 @@ The vertical chain above is **descriptive / documentary** — it maps artifacts 
 | 65                 | Architecture baseline                   | `ARCHITECTURE-BASELINE.md`                                                               |
 | Performance        | Adaptive DB                             | `DATABASE-ADAPTIVE-GOVERNANCE.md`, `autonomous-optimization.mdc`                         |
 | Performance        | UI / frontend automatic optimization    | `UI-OPTIMIZATION-GOVERNANCE.md`, `15-ui-optimization-governance.mdc`                   |
+| Desktop UI         | Professional Blazor Hybrid adapter        | `DESKTOP-UI-GOVERNANCE.md`, `16-desktop-ui-governance.mdc` (FUTURE / ADR)              |
 
 ---
 

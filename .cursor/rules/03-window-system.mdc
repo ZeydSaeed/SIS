@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Window System Governance
 
-**Contract:** `WINDOW-CONTRACT.md`
+**Contracts:** `WINDOW-CONTRACT.md`, `DESKTOP-UI-GOVERNANCE.md` (desktop adapter target)
 
 ## Current State
 

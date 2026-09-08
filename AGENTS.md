@@ -108,6 +108,18 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `laravel-patterns.mdc` — app/** (Infrastructure Laravel glue — subordinate)
 - `query-optimization.mdc` — app/**
 - `react-inertia.mdc` — resources/js/** (implementation; UX principles in `02-ui-ux.mdc`)
+- `16-desktop-ui-governance.mdc` — `clients/sis-desktop/**` (Blazor Hybrid — **FUTURE / ADR required**)
+
+## Desktop UI (Future)
+
+**Status:** FUTURE / ADR REQUIRED — not the current web stack.
+
+| Runtime | Status | Governance |
+|---------|--------|------------|
+| `web-inertia` | **ACTIVE** | `UI-CONTRACT.md`, `react-inertia.mdc` |
+| `desktop-blazor-hybrid` | **FUTURE** | `DESKTOP-UI-GOVERNANCE.md`, `16-desktop-ui-governance.mdc` |
+
+Do not introduce Blazor, .NET, or desktop host dependencies without ADR + human approval.
 
 ## Key Docs (v3.2)
 

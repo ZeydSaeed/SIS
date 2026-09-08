@@ -17,6 +17,8 @@
 
 This contract defines the **target logical API** and **current gap**. Do not build per-module window systems.
 
+**Desktop implementation target:** `DESKTOP-UI-GOVERNANCE.md` (Application Shell, Workspace, Docking — FUTURE / ADR required).
+
 ---
 
 ## Target: Window Manager API (logical)
