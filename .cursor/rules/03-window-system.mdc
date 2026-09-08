@@ -1,0 +1,36 @@
+---
+description: Window and dialog governance — centralized window manager target
+globs: resources/js/**/*
+alwaysApply: false
+---
+
+# Window System Governance
+
+**Contract:** `WINDOW-CONTRACT.md`
+
+## Current State
+
+Inertia **page-based** navigation. No centralized Window Manager yet.
+
+## Rules
+
+- Do NOT build independent drag/z-index/window stacks inside modules
+- Use shared Dialog components for confirmations and short edits
+- Assign stable logical IDs: `enrollment.details`, `student.edit`
+- Large workflows → full page, not cramped dialog
+
+## Target (when implemented)
+
+Central Window Manager owns: open/close/minimize/maximize/move/resize/focus/persist.
+
+## Dialog Adaptation
+
+| Profile | Pattern |
+|---------|---------|
+| Desktop | Modal dialog |
+| Tablet | Adaptive dialog |
+| Mobile | Full-screen / bottom sheet |
+
+## Windows Desktop
+
+Dev baseline is Windows — plan for multiple concurrent forms/windows on desktop; mobile uses pages/stack.

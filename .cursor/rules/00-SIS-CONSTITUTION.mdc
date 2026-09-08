@@ -1,0 +1,76 @@
+---
+description: SIS Permanent Engineering Constitution — mandatory priority, workflow, and change report
+alwaysApply: true
+---
+
+# SIS Permanent Engineering Constitution (Index)
+
+**Version:** 2.0 · **Status:** PERMANENT / MANDATORY  
+**Full text:** `.cursor/architecture/SIS-CONSTITUTION.md`  
+**Governance map:** `.cursor/architecture/GOVERNANCE-MAP.md`
+
+Compliance is **automatic** on every task. The user must NOT repeat architecture/security/UI/platform rules.
+
+## Priority Order (never invert)
+
+```text
+Security → Data integrity → Tenant isolation → Authorization → Architecture
+→ Business/domain → API contracts → Constitution → Module boundaries
+→ UI consistency → Platform adaptation → Responsive → Accessibility
+→ Testability → Maintainability → Performance → Developer convenience
+```
+
+## Mandatory Workflow
+
+```text
+UNDERSTAND → INSPECT → IMPACT ANALYSIS → PLAN → IMPLEMENT → TEST → VALIDATE → REPORT
+```
+
+Before coding, read applicable:
+
+```text
+.cursor/rules/          .cursor/architecture/       .cursor/skills/
+sis-core.mdc            ARCHITECTURE-STACK.md       application-feature
+clean-architecture.mdc  SIS-CONSTITUTION.md         database-change
+security.mdc            UI/WINDOW/RUNTIME/PLATFORM contracts
+react-inertia.mdc       api-conventions.md
+```
+
+## Non-Negotiables
+
+- **One business model** — no parallel logic in UI, React, controllers, or platform adapters
+- **Server-side authorization** — hiding UI is not security
+- **Backend validation is authoritative** — frontend validation is UX only
+- **No hard-delete** of official academic records — status + `effective_to`
+- **Tenant isolation** — school context + policy + RLS where enabled
+- **Thin controllers** — handlers own transactions; Domain stays pure
+- **Framework independence at contract level** — UI adapters consume API + auth + design tokens
+- **No platform-specific business logic** (`if iPhone`, `if React`, etc.)
+
+## STOP Conditions (request approval)
+
+Destructive DB changes · security/authorization bypass · breaking API without migration · data loss · tenant isolation risk · new framework/runtime without impact analysis · requirements contradict mandatory rules.
+
+## Definition of Done
+
+Requirement + architecture + security + authorization + API + DB (if any) + responsive/adaptive considered + accessibility considered + tests + validation + no unexplained regression.
+
+## Required Completion Report
+
+After significant tasks, include **SIS CHANGE REPORT** (see Constitution §81):
+
+```text
+Status · Risk · Summary · Changed/Added/Removed · Database · API · UI · Runtime · Platform
+Responsive (Desktop/Tablet/Mobile) · Security · Authorization · Tests · Validation · Regression · Technical Debt · Next Step
+```
+
+## Rule Hierarchy
+
+```text
+00-SIS-CONSTITUTION → sis-core → architecture-governance / clean-architecture
+→ security / database-* → runtime-platform / framework-adapters
+→ react-inertia / ui-ux / window-system / responsive-adaptive
+→ laravel-patterns / query-optimization / testing / change-control
+```
+
+Higher-priority rules override lower-priority convenience.

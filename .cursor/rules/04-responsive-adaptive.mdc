@@ -1,0 +1,32 @@
+---
+description: Responsive and adaptive UI — capability-based presentation profiles
+globs: resources/js/**/*
+alwaysApply: false
+---
+
+# Responsive + Adaptive UI
+
+**Contract:** `PLATFORM-CONTRACT.md`
+
+## Both Required
+
+- **Responsive:** dimensions, spacing, columns, typography
+- **Adaptive:** navigation, dialogs, grids, interaction model
+
+## Detection
+
+Prefer `use-mobile`, viewport media queries, pointer/touch capabilities.
+
+**Forbidden:** `if (iPhone)` / `if (Android)` for business or validation logic.
+
+## Profiles
+
+`desktop` | `tablet` | `mobile` — same API, same permissions, same validation.
+
+## Transforms
+
+Desktop window → mobile page · Dialog → bottom sheet · Sidebar → drawer · Table → cards
+
+## Validate
+
+When changing UI layout, check desktop width, ~768px tablet, ~375px mobile, and RTL if applicable.

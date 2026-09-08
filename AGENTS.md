@@ -14,6 +14,9 @@
 
 | Priority | File | Purpose |
 |----------|------|---------|
+| 0 | `.cursor/architecture/SIS-CONSTITUTION.md` | **Permanent Engineering Constitution v2.0** |
+| 0b | `.cursor/rules/00-SIS-CONSTITUTION.mdc` | Constitution index (always applied) |
+| 0c | `.cursor/architecture/GOVERNANCE-MAP.md` | Constitution → rules/docs map |
 | 1 | `.cursor/architecture/README.md` | Full document index |
 | 2 | `.cursor/architecture/WORK-PLAN.md` | Phase A–F guide |
 | 3 | `.cursor/architecture/database-blueprint.md` | **89 tables — authoritative** |

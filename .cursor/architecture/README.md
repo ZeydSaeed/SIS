@@ -3,6 +3,19 @@
 > **Version:** 3.2 — Adaptive Expert Database Architecture (Design Complete)  
 > **Design Score:** 93–94/100 · **Operational Score:** ~60/100
 
+## Governance (Constitution v2.0)
+
+| File | Topic |
+|------|-------|
+| [SIS-CONSTITUTION.md](./SIS-CONSTITUTION.md) | **Permanent Engineering Constitution** |
+| [GOVERNANCE-MAP.md](./GOVERNANCE-MAP.md) | Constitution → rules/docs mapping |
+| [ARCHITECTURE-BASELINE.md](./ARCHITECTURE-BASELINE.md) | Current stack baseline (human-readable) |
+| [UI-CONTRACT.md](./UI-CONTRACT.md) | UI contracts (Inertia/React baseline) |
+| [WINDOW-CONTRACT.md](./WINDOW-CONTRACT.md) | Window/dialog target contract |
+| [MODULE-CONTRACT.md](./MODULE-CONTRACT.md) | Module implementation contract |
+| [RUNTIME-CONTRACT.md](./RUNTIME-CONTRACT.md) | UI runtime registry |
+| [PLATFORM-CONTRACT.md](./PLATFORM-CONTRACT.md) | Responsive/adaptive platform rules |
+
 ## Document Index
 
 ### Core Architecture

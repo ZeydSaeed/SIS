@@ -1,0 +1,29 @@
+---
+description: Testing governance — required levels per change type
+globs: tests/**/*
+alwaysApply: false
+---
+
+# Testing Governance
+
+**Reference:** `testing-strategy.md`, Constitution §50
+
+## Minimum by Change Type
+
+| Change | Tests |
+|--------|-------|
+| Domain rule | Unit |
+| Handler | Unit (mocked ports) |
+| HTTP endpoint | Feature + authorization |
+| Security surface | Security feature tests |
+| Cross-tenant | Cross-school / IDOR tests |
+
+## Not Done Until
+
+Tests pass + `architecture:validate` + `security:validate` (when security touched).
+
+Visual-only "works" is not complete.
+
+## Enrollment/Student Pattern
+
+Mirror existing: `tests/Feature/Security/*`, policy denial, mass assignment, audit persistence.

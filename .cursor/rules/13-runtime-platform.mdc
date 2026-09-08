@@ -1,0 +1,34 @@
+---
+description: Runtime and platform resolution — capability-based adaptation
+globs: resources/js/**/*
+alwaysApply: false
+---
+
+# Runtime & Platform Governance
+
+**Contracts:** `RUNTIME-CONTRACT.md`, `PLATFORM-CONTRACT.md`
+
+## Active Runtimes
+
+- `web-inertia` (React + Inertia) — primary UI
+- `api-json` (REST + Sanctum) — API clients
+
+## Do Not Introduce Without ADR
+
+Electron, Tauri, Vue, Blazor, standalone SPA — unless architectural requirement proven.
+
+## Platform Resolver (conceptual)
+
+```text
+capabilities → presentation profile → UI adapter → components
+```
+
+Resolver has **zero business logic**.
+
+## Same Feature, Multiple Presentations
+
+One logical contract (`StudentForm`, `EnrollmentCreate`) — desktop/tablet/mobile presentations differ; API/auth/validation/audit stay identical.
+
+## Desktop Host
+
+Electron/Tauri may host web UI only — never own business rules or authorization.

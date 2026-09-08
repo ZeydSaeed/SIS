@@ -1,0 +1,30 @@
+---
+description: API contract governance — stability, consumers, backward compatibility
+globs: routes/**/*.php,app/Http/**/*.php
+alwaysApply: false
+---
+
+# API Governance
+
+**Reference:** `api-conventions.md`, Constitution §29
+
+## Before Changing API
+
+Search consumers: web, tests, jobs, integrations, future clients.
+
+## Rules
+
+- Prefer backward-compatible evolution
+- Breaking changes → approval + migration plan
+- Stable error codes (`error_code` in JSON)
+- School context via header — never body injection
+- Pagination on lists; no unbounded payloads
+- Idempotency keys on sensitive writes
+
+## Controllers
+
+Thin — delegate to Application handlers. No business logic.
+
+## Mass Assignment
+
+`SecuritySensitiveFieldGuard` on FormRequests. Empty `$fillable` + `forceFill` in repositories for trusted fields.

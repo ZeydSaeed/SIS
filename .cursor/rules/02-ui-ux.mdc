@@ -1,0 +1,52 @@
+---
+description: UI/UX governance — design system, components, states, accessibility
+globs: resources/js/**/*
+alwaysApply: false
+---
+
+# UI/UX Governance
+
+**Contracts:** `UI-CONTRACT.md`, `PLATFORM-CONTRACT.md`  
+**Stack rules:** `react-inertia.mdc`
+
+## Component-First
+
+```text
+Page → Layout → Toolbar → Form/Grid → Dialog → Actions
+```
+
+Search existing components before creating new ones.
+
+## Required UI States
+
+Every async UI: `idle`, `loading`, `success`, `empty`, `error`, `disabled`, `retry`.
+
+## Design System
+
+```text
+CSS variables (--sis-*) → Tailwind → shared components → pages
+```
+
+No random colors/spacing. Tailwind is styling tool — not architecture.
+
+## Forms
+
+- Inertia `useForm` for mutations
+- Client validation = UX; server = authoritative
+- Labels, focus, keyboard, touch targets (min ~44px mobile)
+
+## Grids
+
+Server pagination always. Mobile: cards/stack — not forced desktop tables.
+
+## Accessibility
+
+Keyboard nav, focus management, semantic HTML, ARIA where needed, contrast.
+
+## RTL
+
+Arabic RTL first-class — see `react-inertia.mdc`. No hacky global `transform: scaleX(-1)`.
+
+## No Business Logic in UI
+
+Authorization checks in UI are **indicators only**. Never duplicate enrollment/eligibility/tenant rules in React.

@@ -5,7 +5,8 @@ alwaysApply: true
 
 # SIS Core Conventions
 
-Read `.cursor/brain/PROJECT.md` for full context.
+Read `.cursor/brain/PROJECT.md` for full context.  
+**Constitution:** `.cursor/rules/00-SIS-CONSTITUTION.mdc` → `.cursor/architecture/SIS-CONSTITUTION.md`
 
 ## Stack
 Laravel 13 + Inertia/React + PostgreSQL + Redis. Reference architecture in `.cursor/architecture/`.

@@ -1,0 +1,35 @@
+---
+description: Change control — stop conditions, deletion, refactoring scope
+alwaysApply: true
+---
+
+# Change Control
+
+**Constitution:** §58–60, §63–64, §78–79
+
+## STOP — Request Approval
+
+- Destructive / irreversible DB changes
+- Security or authorization bypass
+- Breaking API without migration
+- Data loss risk · tenant isolation risk
+- New framework/runtime (React/Vue/Blazor/Electron) without ADR
+- Removing protected functionality
+
+## Delete Governance
+
+Before delete: search repo, routes, APIs, tests, docs, DB usage, permissions.
+
+Destructive delete on academic records: **FORBIDDEN** — use status + `effective_to`.
+
+## Refactoring
+
+Do not refactor unrelated code in feature tasks. Record unrelated debt as:
+
+```text
+TECHNICAL DEBT: {description}
+```
+
+## Protected Baselines
+
+Phase gate reports (3.10.1, Enrollment A/B) — do not reopen without proven regression.

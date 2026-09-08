@@ -1,0 +1,35 @@
+---
+description: Framework adapter governance — no parallel business architectures
+globs: resources/js/**/*
+alwaysApply: false
+---
+
+# Framework Adapter Governance
+
+**Constitution:** §40–44, §72
+
+## Principle
+
+```text
+SIS Core → API/Contracts → UI Adapter → Framework (React/Inertia today)
+```
+
+## Forbidden
+
+```text
+React business logic A
+Vue business logic B
+Blazor business logic C
+```
+
+## React / Inertia (current)
+
+Must consume: API contracts, permissions, validation errors, design tokens, command naming.
+
+## Future Adapters
+
+Vue, Blazor, Electron shell — same contracts. Introduce adapter layer; do not fork handlers or domain rules.
+
+## Coexistence
+
+Multiple UI technologies allowed only through stable contracts documented in `UI-CONTRACT.md` and `RUNTIME-CONTRACT.md`.
