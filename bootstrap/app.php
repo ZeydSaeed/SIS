@@ -54,6 +54,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (SisDomainException $exception, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
+                if (str_contains($exception->errorCode(), 'not_found')) {
+                    abort(404, $exception->getMessage());
+                }
+
                 return null;
             }
 

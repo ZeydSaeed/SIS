@@ -73,18 +73,71 @@ No unbounded record loads — paginate server-side.
 Hierarchy:
 
 ```text
-SIS Design Tokens (CSS variables)
+UI Contract (behavior + semantics)
         ↓
-Tailwind utilities
+Design Tokens Contract (CSS variables in app.css @theme / :root)
         ↓
-Reusable components (resources/js/components)
+Tailwind utilities (Tailwind v4 + shadcn-style primitives)
+        ↓
+Reusable components (resources/js/components/ui + sis/)
         ↓
 Pages
 ```
 
-Token examples: `--sis-primary`, `--sis-surface`, `--sis-spacing-*`, `--sis-radius-*`
+**Implementation baseline:** existing shadcn/Tailwind tokens (`--background`, `--primary`, `--radius`, sidebar tokens, etc.) in `resources/css/app.css`.
+
+Do **not** introduce a parallel `--sis-*` token namespace unless a compatibility alias is explicitly approved and documented.
 
 Do not scatter arbitrary colors/spacing.
+
+---
+
+## Phase 1 Reference Surface — Students (2026-09-08)
+
+### School context (Inertia web)
+
+```text
+Session: current_school_id
+Middleware: SchoolContextMiddleware (resolve) + require.school.context (enforce)
+Authority: server-only — never trust client-supplied school id
+```
+
+Web routes under `/students` require authenticated session **and** valid school context. No school-switcher UI in Phase 1.
+
+### Authorization presentation
+
+Page-level Inertia props only — **not** global permission arrays in `HandleInertiaRequests`:
+
+```text
+authorization: { canView, canViewPii, canUpdate }
+```
+
+Values are computed server-side from policies/permissions. UI visibility is presentation-only; backend authorization remains authoritative.
+
+### Adaptive Student Details
+
+Canonical routes (always directly navigable):
+
+```text
+GET /students
+GET /students/{student}
+```
+
+| Viewport | List | Details |
+|----------|------|---------|
+| Desktop | Table | Radix Dialog preview + canonical show page |
+| Tablet | Compact table | Expanded detail surface / show page |
+| Mobile | Card list | Dedicated show page (primary); Sheet optional |
+
+No Window Manager. Use Radix Dialog/Sheet + Inertia navigation only.
+
+### RTL
+
+Root `dir` is locale-driven in `resources/views/app.blade.php`. Components use logical spacing (`ms`/`me`, `text-start`) and `dir="ltr"` on codes/dates where content is inherently LTR.
+
+### Frontend automated testing (Phase 1)
+
+Deferred: Vitest/Jest/Playwright not installed for Phase 1. Verification uses backend feature/security tests, architecture validation, and `npm run types:check`. Browser automation requires explicit architectural approval.
 
 ---
 

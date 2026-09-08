@@ -32,10 +32,14 @@ final class RequireSchoolContextMiddleware
                 ['reason' => 'missing_school_context'],
             );
 
-            return response()->json([
-                'message' => 'School context is required.',
-                'error_code' => 'security.school_context_required',
-            ], 403);
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => 'School context is required.',
+                    'error_code' => 'security.school_context_required',
+                ], 403);
+            }
+
+            abort(403, 'School context is required.');
         }
 
         return $next($request);

@@ -923,24 +923,31 @@ Future clients
 
 # 24. LARAVEL ARCHITECTURE
 
-Respect the existing Laravel architecture.
+Respect the existing Laravel **infrastructure** boundaries while applying SIS Clean Architecture for business behavior.
 
 Use appropriate separation:
 
 ```text
-Controllers
-Requests
-Models
-Policies
-Services
-Actions
-Events
-Listeners
-Jobs
-Resources
-DTOs
-Repositories only when justified
+Controllers          — HTTP entry, authorization, delegate to handlers
+Form Requests        — input validation, authorize hook
+Application Handlers — Commands/Queries + use cases (PRIMARY application layer)
+Domain               — entities, value objects, domain services where genuinely required
+Infrastructure       — Eloquent *Record adapters, repositories, jobs, listeners
+Policies             — authorization rules
+Events / Listeners   — side effects (audit, cache, outbox)
+DTOs / Results       — Application read/write response shapes
 ```
+
+**Application architecture default:** Command/Query **Handlers** in `app/Application/{Context}/` — NOT conventional `App\Services\*` workflow classes.
+
+| Term | Meaning in SIS |
+|------|----------------|
+| **Application Handler** | Default use case (`EnrollStudentHandler`, `ListStudentsHandler`) |
+| **Domain Service** | Pure PHP domain logic when not natural on an entity |
+| **Infrastructure Service** | Technical adapters (audit logger, external IO) — not business workflows |
+| **Legacy Service** | Pre-migration `app/Services/*` only when explicitly `@architecture-legacy-allowed` |
+
+Do **not** interpret "Services" in this section as permission to create Service-class business workflows.
 
 Controllers MUST remain thin.
 

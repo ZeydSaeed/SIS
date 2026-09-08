@@ -1,12 +1,18 @@
 <?php
 
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Student\StudentPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+
+    Route::prefix('students')->name('students.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [StudentPageController::class, 'index'])->name('index');
+        Route::get('/{student}', [StudentPageController::class, 'show'])->name('show');
+    });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {
         Route::get('recommendations', [RecommendationController::class, 'index'])

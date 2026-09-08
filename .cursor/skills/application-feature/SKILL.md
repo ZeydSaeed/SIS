@@ -15,7 +15,8 @@ description: >-
 | File | When |
 |------|------|
 | `.cursor/architecture/ARCHITECTURE-STACK.md` | Always |
-| `.cursor/architecture/laravel-architecture.md` | Always |
+| `.cursor/architecture/ARCHITECTURE-STACK.md` | Always |
+| `.cursor/architecture/laravel-architecture.md` | Legacy reference only — do not follow Service-first patterns |
 | `.cursor/rules/clean-architecture.mdc` | Always |
 | `.cursor/rules/architecture-governance.mdc` | Always — no Laravel-style features |
 | `.cursor/architecture/FEATURE-DONE.md` | Definition of Done checklist |

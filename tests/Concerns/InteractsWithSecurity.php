@@ -94,6 +94,33 @@ trait InteractsWithSecurity
         return $user;
     }
 
+    protected function actingAsStudentManagerWeb(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantStudentManager($user, $schoolId);
+        $this->actingAs($user);
+        $this->withSession(['current_school_id' => $schoolId]);
+
+        return $user;
+    }
+
+    protected function actingAsStudentViewerWeb(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantStudentViewer($user, $schoolId);
+        $this->actingAs($user);
+        $this->withSession(['current_school_id' => $schoolId]);
+
+        return $user;
+    }
+
+    protected function withWebSchoolContext(int $schoolId): static
+    {
+        return $this->withSession(['current_school_id' => $schoolId]);
+    }
+
     protected function actingAsEnrollmentManager(?User $user = null, ?int $schoolId = null): User
     {
         $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');

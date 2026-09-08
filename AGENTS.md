@@ -135,7 +135,8 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `seed-data-45k.md` — test datasets
 - `testing-strategy.md` — test pyramid
 - `cache-invalidation.md` — Redis map
-- `laravel-architecture.md` — app layers
+- `ARCHITECTURE-STACK.md` — **authoritative** app layers (handlers, Domain, Infrastructure)
+- `laravel-architecture.md` — **LEGACY / non-authoritative** historical reference only
 - `api-conventions.md` — HTTP/Inertia
 - `adr/` — 12 architecture decisions (ADR-009–012 intelligence stack)
 
@@ -144,7 +145,7 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 1. Check WORK-PLAN phase guide
 2. Check blueprint + dictionary
 3. Follow database-change skill
-4. Application: laravel-architecture + api-conventions
+4. Application: ARCHITECTURE-STACK.md + api-conventions (not legacy laravel-architecture.md)
 5. Frontend: react-inertia.mdc (RTL/Arabic from day one)
 6. No microservices/Kafka/sharding — see ADR-008
 
