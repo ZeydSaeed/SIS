@@ -95,7 +95,7 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 
 ## Cursor Rules
 
-**Always applied:** `00-SIS-CONSTITUTION.mdc`, `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `11-change-control.mdc`
+**Always applied:** `00-SIS-CONSTITUTION.mdc`, `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `11-change-control.mdc`, `15-ui-optimization-governance.mdc`
 
 **Path-scoped (see GOVERNANCE-MAP.md for full inventory):**
 

@@ -27,7 +27,7 @@ security.mdc · database-* · 08-api-governance · 09-testing · 12-DOCUMENTATIO
         ↓
 react-inertia.mdc                (React/Inertia implementation)
 laravel-patterns.mdc             (Infrastructure Laravel glue — SUBORDINATE)
-query-optimization.mdc · autonomous-optimization.mdc
+query-optimization.mdc · autonomous-optimization.mdc · 15-ui-optimization-governance.mdc
         ↓
 11-change-control.mdc            (alwaysApply — change safety)
 ```
@@ -61,6 +61,7 @@ query-optimization.mdc · autonomous-optimization.mdc
 | `database-design.mdc`            | ❌          | database/**                     | PostgreSQL types/constraints                 |
 | `query-optimization.mdc`         | ❌          | app/**                          | Query performance                            |
 | `autonomous-optimization.mdc`    | ❌          | —                               | Adaptive DB optimization skill path          |
+| `15-ui-optimization-governance.mdc`| ✅        | —                               | **Mandatory automatic UI/frontend optimization** |
 | `02-ui-ux.mdc`                   | ❌          | resources/js/**                 | Framework-independent UX                     |
 | `react-inertia.mdc`              | ❌          | resources/js/**                 | React/Inertia implementation                 |
 | `03-window-system.mdc`           | ❌          | resources/js/**                 | Window/dialog governance                     |
@@ -92,6 +93,7 @@ query-optimization.mdc · autonomous-optimization.mdc
 | 9–10, 40–45, 71–73 | Runtime / platform                      | `RUNTIME-CONTRACT.md`, `13-runtime-platform.mdc`, `14-framework-adapters.mdc`            |
 | 65                 | Architecture baseline                   | `ARCHITECTURE-BASELINE.md`                                                               |
 | Performance        | Adaptive DB                             | `DATABASE-ADAPTIVE-GOVERNANCE.md`, `autonomous-optimization.mdc`                         |
+| Performance        | UI / frontend automatic optimization    | `UI-OPTIMIZATION-GOVERNANCE.md`, `15-ui-optimization-governance.mdc`                   |
 
 ---
 

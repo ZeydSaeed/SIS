@@ -1,0 +1,74 @@
+---
+description: Mandatory automatic UI/frontend optimization — every page, form, table, dialog, dashboard change
+alwaysApply: true
+---
+
+# UI Optimization Governance (Index)
+
+**Version:** 1.0 · **Status:** MANDATORY  
+**Full text:** `.cursor/architecture/UI-OPTIMIZATION-GOVERNANCE.md`
+
+**Not the same as:** `autonomous-optimization.mdc` (adaptive **database** engine) or `query-optimization.mdc` (`app/**` queries).
+
+## Absolute Rule
+
+Optimization is **mandatory on every UI change** — not a separate phase, not optional, not waiting for the user to say "optimize."
+
+Triggers include: pages, windows, dialogs, forms, tables, dashboards, components, navigation, responsive/RTL changes, data loading, search, pagination, modals/sheets, API/Inertia props, assets, animations.
+
+## Precedence
+
+Subordinate to Constitution → Architecture → Security → Database → API → UI/UX → **this rule** → framework rules.
+
+**Correctness > performance.** Never sacrifice security, authorization, tenant isolation, accessibility, RTL/LTR, or visual parity.
+
+## Automatic Pipeline (do not skip)
+
+```text
+Detect → Classify Surface → Requirements → Safe Optimizations
+→ Architecture → Security → A11y → Responsive → Render/Network/Memory/Bundle cost
+→ Validation → Optimization Gate → Done
+```
+
+Principle: **Measure → Identify → Optimize → Validate → Compare** — never Guess → Rewrite → Add Libraries.
+
+## Surface Classification
+
+Apply only relevant rules: PAGE | WINDOW | DIALOG | FORM | TABLE | DASHBOARD | WIDGET | COMPONENT | NAVIGATION | DATA QUERY | API | ASSET | CSS | RESPONSIVE.
+
+## Optimization Levels
+
+| Level | When |
+|-------|------|
+| 0 Safety | Always: semantic HTML, responsive, RTL/LTR, a11y, minimal requests/renders, no duplicate logic/deps |
+| 1 Standard | Decomposition, server pagination, DTOs, lazy load, state locality |
+| 2 Data | Virtualization, cursor pagination, indexed server search — when volume requires |
+| 3 Advanced | Aggressive memo/cache/workers — **evidence only** |
+
+## Hard Rules
+
+- **Inertia-only** for Student/SIS web data — no fetch/axios/React Query/Redux/Zustand unless ADR-approved
+- **Forms:** Inertia `<Form>` + Wayfinder + FormRequest; server validation authoritative
+- **Tables:** server pagination/filter; no thousands of DOM rows; virtualization only when justified
+- **Search:** debounce + server-side; no client filter of huge datasets
+- **Dashboards:** no request explosions — prefer aggregated Application queries (e.g. single handler, multiple counts)
+- **Dialogs:** lazy mount, focus trap/restore, ESC cleanup
+- **React:** `memo`/`useMemo`/`useCallback` only when justified — not everywhere
+- **Dependencies:** optimization does NOT justify new packages
+
+## STOP — Request Approval
+
+Architectural change · new framework/state lib · major dependency · DB/API contract change · auth-affecting cache · business/security behavior change · premature Window Manager · business logic in UI.
+
+## Optimization Gate (major UI)
+
+Architecture preserved · logic outside UI · deps NONE · DOM/render/network/payload reasonable · table/search/form/dialog rules · responsive + RTL/LTR · a11y · security/tenant/PII · tests + `architecture:validate --fitness` + `security:validate` + types/build.
+
+## Reporting
+
+Minor changes: short checklist (Rendering, DOM, Network, Responsive, A11y, RTL/LTR, Memory, Dependencies).  
+Major surfaces: Optimization Summary with baseline, risks, applied/deferred, validation.
+
+## Definition of Done
+
+Functional + architecture + security + a11y + responsive + RTL/LTR + **optimization compliance** + tests.

@@ -53,6 +53,10 @@ Keyboard nav, focus management, semantic HTML, ARIA where needed, contrast.
 
 Arabic RTL first-class — layout and interaction principles here; Tailwind/logical properties and i18n wiring in `react-inertia.mdc`.
 
+## Automatic Optimization
+
+Every UI change MUST pass optimization evaluation automatically — see `15-ui-optimization-governance.mdc` and `UI-OPTIMIZATION-GOVERNANCE.md`. Not optional; not a separate phase.
+
 ## No Business Logic in UI
 
 Authorization checks in UI are **indicators only**. Never duplicate enrollment/eligibility/tenant rules in React.

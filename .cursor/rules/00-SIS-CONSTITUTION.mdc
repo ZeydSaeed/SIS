@@ -129,7 +129,7 @@ Final Gate Status: PASS / PASS WITH CONDITIONS / BLOCKED
 → 10-MODULES / security / database-* / 08-api / 09-testing / 12-DOCUMENTATION
 → 13-runtime-platform / 14-framework-adapters
 → 02-ui-ux / react-inertia / 03-window / 04-responsive
-→ laravel-patterns (subordinate) / query-optimization / 11-change-control
+→ laravel-patterns (subordinate) / query-optimization / 15-ui-optimization-governance / 11-change-control
 ```
 
 Higher-priority rules override lower-priority convenience. See `GOVERNANCE-MAP.md`.

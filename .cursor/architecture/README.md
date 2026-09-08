@@ -11,6 +11,7 @@
 | [GOVERNANCE-MAP.md](./GOVERNANCE-MAP.md) | Constitution → rules/docs mapping |
 | [ARCHITECTURE-BASELINE.md](./ARCHITECTURE-BASELINE.md) | Current stack baseline (human-readable) |
 | [UI-CONTRACT.md](./UI-CONTRACT.md) | UI contracts (Inertia/React baseline) |
+| [UI-OPTIMIZATION-GOVERNANCE.md](./UI-OPTIMIZATION-GOVERNANCE.md) | **Mandatory automatic UI/frontend optimization** |
 | [WINDOW-CONTRACT.md](./WINDOW-CONTRACT.md) | Window/dialog target contract |
 | [MODULE-CONTRACT.md](./MODULE-CONTRACT.md) | Module implementation contract |
 | [RUNTIME-CONTRACT.md](./RUNTIME-CONTRACT.md) | UI runtime registry |
