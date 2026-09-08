@@ -22,6 +22,7 @@ type DataTableProps<T> = {
     emptyTitle?: string;
     emptyDescription?: string;
     onRowClick?: (row: T) => void;
+    getRowAriaLabel?: (row: T) => string;
     mobileCard?: (row: T) => ReactNode;
     caption?: string;
 };
@@ -35,6 +36,7 @@ export function DataTable<T>({
     emptyTitle = 'No records',
     emptyDescription,
     onRowClick,
+    getRowAriaLabel,
     mobileCard,
     caption,
 }: DataTableProps<T>) {
@@ -105,6 +107,9 @@ export function DataTable<T>({
                                     : undefined
                             }
                             tabIndex={onRowClick ? 0 : undefined}
+                            aria-label={
+                                onRowClick && getRowAriaLabel ? getRowAriaLabel(row) : undefined
+                            }
                         >
                             {visibleColumns.map((column) => (
                                 <td key={column.id} className={cn('px-4 py-3', column.className)}>

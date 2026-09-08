@@ -12,7 +12,7 @@ final class RejectRecommendationHandler implements CommandHandler
         private readonly RecommendationCommandPort $recommendations,
     ) {}
 
-    public function handle(Command $command): void
+    public function handle(Command $command): mixed
     {
         assert($command instanceof RejectRecommendationCommand);
 
@@ -22,5 +22,7 @@ final class RejectRecommendationHandler implements CommandHandler
             $command->reason,
             $command->choseInstead,
         );
+
+        return null;
     }
 }

@@ -33,6 +33,24 @@ final class StudentUiTest extends TestCase
     }
 
     #[Test]
+    public function authenticated_user_with_invalid_session_school_id_is_forbidden_on_student_list(): void
+    {
+        $this->withoutVite();
+
+        $schoolA = $this->createSchool('SCHOOL-A', 'School A');
+        $schoolB = $this->createSchool('SCHOOL-B', 'School B');
+
+        $user = User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantStudentManager($user, $schoolA);
+
+        $this->actingAs($user)
+            ->withSession(['current_school_id' => $schoolB])
+            ->get('/students')
+            ->assertForbidden()
+            ->assertDontSee('student_code', false);
+    }
+
+    #[Test]
     public function student_manager_can_view_student_list(): void
     {
         $this->withoutVite();

@@ -143,7 +143,9 @@ export function StudentList({ students, filters, authorization, preview }: Stude
             header: '',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/students/${row.id}`}>View</Link>
+                    <Link href={`/students/${row.id}`} aria-label={`Open profile for ${row.full_name}`}>
+                        View
+                    </Link>
                 </Button>
             ),
         },
@@ -194,11 +196,13 @@ export function StudentList({ students, filters, authorization, preview }: Stude
                         : 'No students are available for the current school context.'
                 }
                 onRowClick={(row) => openPreview(row.id)}
+                getRowAriaLabel={(row) => `View student ${row.full_name}`}
                 mobileCard={(row) => (
                     <button
                         type="button"
                         className="border-border hover:bg-muted/40 w-full rounded-xl border p-4 text-start"
                         onClick={() => openPreview(row.id)}
+                        aria-label={`View student ${row.full_name}`}
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div>
