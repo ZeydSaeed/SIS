@@ -16,6 +16,8 @@ Do **not** duplicate normative text — follow the mapped artifact.
         ↓
 sis-core.mdc                     (alwaysApply — stack + non-negotiables)
         ↓
+15-ui-optimization-governance.mdc (alwaysApply — mandatory UI optimization evaluation)
+        ↓
 clean-architecture.mdc           (app/** — layer rules)
 architecture-governance.mdc      (app/** — feature workflow, no CRUD default)
 ARCHITECTURE-STACK.md            (authoritative layer diagram)
@@ -27,12 +29,25 @@ security.mdc · database-* · 08-api-governance · 09-testing · 12-DOCUMENTATIO
         ↓
 react-inertia.mdc                (React/Inertia implementation)
 laravel-patterns.mdc             (Infrastructure Laravel glue — SUBORDINATE)
-query-optimization.mdc · autonomous-optimization.mdc · 15-ui-optimization-governance.mdc
+query-optimization.mdc · autonomous-optimization.mdc
         ↓
 11-change-control.mdc            (alwaysApply — change safety)
 ```
 
 **Rule:** Framework conventions never override SIS architecture.
+
+### Governance map ordering semantics (Phase 0.4)
+
+The vertical chain above is **descriptive / documentary** — it maps artifacts for navigation. It is **not** a conflict-resolution mechanism where a later-listed rule weakens, overrides, or disables an earlier mandatory rule.
+
+| Principle | Meaning |
+| --------- | ------- |
+| **Mandatory alwaysApply** | `15-ui-optimization-governance.mdc` has `alwaysApply: true` (see table below). It remains mandatory on every session. |
+| **Security & architecture first** | Constitution, architecture, security, database, API, module, and UI/UX governance take precedence over optimization (`UI-OPTIMIZATION-GOVERNANCE.md` §1). |
+| **React/Inertia subordinate** | `react-inertia.mdc` is path-scoped implementation guidance. It does **not** override Rule 15. |
+| **Rule 15 subordinate to higher tiers** | Rule 15 does **not** override security, authorization, tenant isolation, domain/API contracts, accessibility, or approved UI behavior. |
+| **Conflict resolution** | If two rules appear to conflict, resolve per `UI-OPTIMIZATION-GOVERNANCE.md` §1 and `GOVERNANCE-MAP.md` precedence — **not** by assuming the later-listed rule wins. |
+| **Correctness > optimization** | Security, business correctness, architecture constraints, PII, tenant isolation, and accessibility all outrank performance optimization. |
 
 ### laravel-patterns.mdc Resolution (G-001)
 
@@ -46,6 +61,8 @@ query-optimization.mdc · autonomous-optimization.mdc · 15-ui-optimization-gove
 ---
 
 ## Always Applied vs Path-Scoped
+
+**AlwaysApply registry (`alwaysApply: true`):** `00-SIS-CONSTITUTION.mdc` · `01-ARCHITECTURE.mdc` · `sis-core.mdc` · `15-ui-optimization-governance.mdc` · `11-change-control.mdc`
 
 | Rule                             | alwaysApply | globs                           | Role                                         |
 | -------------------------------- | ----------- | ------------------------------- | -------------------------------------------- |
@@ -136,7 +153,7 @@ query-optimization.mdc · autonomous-optimization.mdc · 15-ui-optimization-gove
 | Feature contracts               | `architecture:feature-check {Context}`                                   |
 | Security baseline               | `security:validate`, SecurityArchitectureValidator, security tests       |
 | Database changes                | database-change skill, migrations, blueprint updates                     |
-| Constitution workflow           | `alwaysApply` rules 00, 01, sis-core, 11                                 |
+| Constitution workflow           | `alwaysApply` rules **00, 01, sis-core, 15, 11** (see Always Applied table) |
 | Module boundaries               | `10-MODULES.mdc` + MODULE-CONTRACT (documented + review)                 |
 | UI architecture drift           | **MISSING** — planned future validator (Phase 0.2 deferred)              |
 | Frontend framework introduction | ADR + human gate (documented)                                            |
