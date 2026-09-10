@@ -10,6 +10,11 @@ return [
         'enrollment.create' => 'Create enrollment records',
         'enrollment.update' => 'Update enrollment placement',
         'enrollment.cancel' => 'Cancel enrollment records',
+        'grades.view' => 'View student grades',
+        'grades.create' => 'Enter student grades',
+        'grades.correct' => 'Correct student grades',
+        'grades.void' => 'Void student grades',
+        'grades.finalize' => 'Finalize student grades',
         'security.manage_users' => 'Manage users and security settings',
     ],
 
@@ -33,6 +38,26 @@ return [
         'enrollment_viewer' => [
             'enrollment.view',
             'students.view',
+        ],
+        'grades_manager' => [
+            'grades.view',
+            'grades.create',
+            'grades.correct',
+            'grades.void',
+            'grades.finalize',
+            'students.view',
+            'enrollment.view',
+        ],
+        'grades_teacher' => [
+            'grades.view',
+            'grades.create',
+            'students.view',
+            'enrollment.view',
+        ],
+        'grades_viewer' => [
+            'grades.view',
+            'students.view',
+            'enrollment.view',
         ],
     ],
 

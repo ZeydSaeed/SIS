@@ -55,7 +55,7 @@
     "write_command": {
       "required_suffixes": ["Command", "Handler"],
       "required_result_class": true,
-      "sensitive_name_patterns": ["Enroll", "Payment", "Import", "Transfer", "Withdraw"],
+      "sensitive_name_patterns": ["Enroll", "Payment", "Import", "Transfer", "Withdraw", "Grade"],
       "require_idempotency_key_when_sensitive": true
     },
     "read_query": {

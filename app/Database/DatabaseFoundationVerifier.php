@@ -21,6 +21,11 @@ final class DatabaseFoundationVerifier
         'enrollment.enrollments',
         'admission.application_periods',
         'admission.applications',
+        'exams.exam_types',
+        'exams.exams',
+        'exams.exam_sessions',
+        'exams.exam_enrollments',
+        'exams.student_grades',
         'intelligence.monitoring_snapshots',
     ];
 

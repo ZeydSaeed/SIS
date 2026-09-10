@@ -40,11 +40,25 @@ class Phase3FeatureContractTest extends TestCase
     }
 
     #[Test]
+    public function exams_bounded_context_satisfies_feature_contract(): void
+    {
+        $validator = new FeatureContractValidator;
+        $violations = $validator->validate('Exams');
+
+        $this->assertSame(
+            [],
+            $violations,
+            "Exams feature contract violations:\n".implode("\n", $violations),
+        );
+    }
+
+    #[Test]
     public function phase3_api_controllers_delegate_to_handlers_only(): void
     {
         $controllers = [
             app_path('Http/Controllers/Api/HealthController.php'),
             app_path('Http/Controllers/Api/StudentController.php'),
+            app_path('Http/Controllers/Api/GradeController.php'),
         ];
 
         foreach ($controllers as $controller) {

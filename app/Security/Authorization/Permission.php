@@ -20,6 +20,16 @@ final class Permission
 
     public const ENROLLMENT_CANCEL = 'enrollment.cancel';
 
+    public const GRADES_VIEW = 'grades.view';
+
+    public const GRADES_CREATE = 'grades.create';
+
+    public const GRADES_CORRECT = 'grades.correct';
+
+    public const GRADES_VOID = 'grades.void';
+
+    public const GRADES_FINALIZE = 'grades.finalize';
+
     public const SECURITY_MANAGE_USERS = 'security.manage_users';
 
     /**
@@ -36,6 +46,12 @@ final class Permission
             self::ENROLLMENT_CREATE,
             self::ENROLLMENT_UPDATE,
             self::ENROLLMENT_CANCEL,
+            self::GRADES_VIEW,
+            self::GRADES_CREATE,
+            self::GRADES_CORRECT,
+            self::GRADES_VOID,
+            self::GRADES_FINALIZE,
+            self::SECURITY_MANAGE_USERS,
         ];
     }
 }

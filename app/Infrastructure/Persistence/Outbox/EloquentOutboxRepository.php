@@ -6,6 +6,10 @@ use App\Application\Contracts\OutboxRepository;
 use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
 use App\Domain\Enrollment\Events\StudentEnrolled;
+use App\Domain\Exams\Events\StudentGradeCorrected;
+use App\Domain\Exams\Events\StudentGradeEntered;
+use App\Domain\Exams\Events\StudentGradeFinalized;
+use App\Domain\Exams\Events\StudentGradeVoided;
 use App\Domain\Shared\DomainEvent;
 use App\Infrastructure\Persistence\Eloquent\OutboxMessageRecord;
 use App\Intelligence\Support\CorrelationContext;
@@ -84,6 +88,52 @@ final class EloquentOutboxRepository implements OutboxRepository
                 sectionId: (int) $payload['section_id'],
                 specializationId: isset($payload['specialization_id']) ? (int) $payload['specialization_id'] : null,
                 updatedBy: isset($payload['updated_by']) ? (int) $payload['updated_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            StudentGradeEntered::class => new StudentGradeEntered(
+                gradeId: (int) $payload['grade_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                schoolId: (int) $payload['school_id'],
+                examEnrollmentId: (int) $payload['exam_enrollment_id'],
+                studentId: (int) $payload['student_id'],
+                score: isset($payload['score']) ? (string) $payload['score'] : null,
+                maxScore: (string) $payload['max_score'],
+                isAbsent: (bool) $payload['is_absent'],
+                status: (int) $payload['status'],
+                enteredBy: isset($payload['entered_by']) ? (int) $payload['entered_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            StudentGradeCorrected::class => new StudentGradeCorrected(
+                previousGradeId: (int) $payload['previous_grade_id'],
+                newGradeId: (int) $payload['new_grade_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                schoolId: (int) $payload['school_id'],
+                examEnrollmentId: (int) $payload['exam_enrollment_id'],
+                studentId: (int) $payload['student_id'],
+                score: isset($payload['score']) ? (string) $payload['score'] : null,
+                maxScore: (string) $payload['max_score'],
+                isAbsent: (bool) $payload['is_absent'],
+                correctedBy: isset($payload['corrected_by']) ? (int) $payload['corrected_by'] : null,
+                reason: (string) $payload['reason'],
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            StudentGradeVoided::class => new StudentGradeVoided(
+                gradeId: (int) $payload['grade_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                schoolId: (int) $payload['school_id'],
+                examEnrollmentId: (int) $payload['exam_enrollment_id'],
+                studentId: (int) $payload['student_id'],
+                voidedBy: isset($payload['voided_by']) ? (int) $payload['voided_by'] : null,
+                reason: (string) $payload['reason'],
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            StudentGradeFinalized::class => new StudentGradeFinalized(
+                gradeId: (int) $payload['grade_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                schoolId: (int) $payload['school_id'],
+                examEnrollmentId: (int) $payload['exam_enrollment_id'],
+                studentId: (int) $payload['student_id'],
+                finalizedBy: isset($payload['finalized_by']) ? (int) $payload['finalized_by'] : null,
                 occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
             ),
             default => null,

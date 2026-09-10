@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\EnrollmentController;
+use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\StudentController;
 use App\Security\Middleware\RequireSchoolContextMiddleware;
@@ -44,5 +45,17 @@ Route::prefix('v1')->group(function (): void {
             'store' => 'api.enrollments.store',
             'update' => 'api.enrollments.update',
         ]);
+
+        Route::post('grades', [GradeController::class, 'store'])->name('api.grades.store');
+        Route::get('grades/{grade}', [GradeController::class, 'show'])->name('api.grades.show');
+        Route::post('grades/{grade}/correct', [GradeController::class, 'correct'])->name('api.grades.correct');
+        Route::post('grades/{grade}/void', [GradeController::class, 'void'])->name('api.grades.void');
+        Route::post('grades/{grade}/finalize', [GradeController::class, 'finalize'])->name('api.grades.finalize');
+        Route::get('exam-sessions/{examSession}/grades', [GradeController::class, 'forExamSession'])
+            ->name('api.exam_sessions.grades');
+        Route::get('enrollments/{enrollment}/grades', [GradeController::class, 'forEnrollment'])
+            ->name('api.enrollments.grades');
+        Route::get('exam-enrollments/{examEnrollment}/current-grade', [GradeController::class, 'currentForExamEnrollment'])
+            ->name('api.exam_enrollments.current_grade');
     });
 });

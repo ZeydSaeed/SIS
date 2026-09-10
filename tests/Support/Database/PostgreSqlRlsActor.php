@@ -17,16 +17,16 @@ final class PostgreSqlRlsActor
             DO \$\$
             BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '".self::ROLE."') THEN
-                    CREATE ROLE ".self::ROLE." NOLOGIN NOSUPERUSER NOBYPASSRLS;
+                    CREATE ROLE ".self::ROLE.' NOLOGIN NOSUPERUSER NOBYPASSRLS;
                 END IF;
             END
-            \$\$;
-        ");
+            $$;
+        ');
 
         $schemas = [
             'organization', 'academic', 'vocational', 'students', 'guardians', 'admission',
-            'enrollment', 'teachers', 'curriculum', 'timetable', 'attendance', 'security',
-            'audit', 'public',
+            'enrollment', 'teachers', 'curriculum', 'timetable', 'attendance', 'exams',
+            'results', 'security', 'audit', 'public',
         ];
 
         foreach ($schemas as $schema) {

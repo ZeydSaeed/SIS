@@ -1,0 +1,52 @@
+# SIS DATABASE — PHASE 3C.8A  
+# DECISION IMPACT MATRIX
+
+**Document type:** DECISION PREPARATION ONLY  
+**Date:** 2026-09-10  
+
+```text
+Impact surfaces are mandatory. Priority alone is insufficient.
+YES | NO | CONDITIONAL
+```
+
+---
+
+## HD Impact Matrix
+
+| HD | Priority | Impact Surface | Blocks Schema | Blocks Engine | Blocks Approval | Blocks Publication | Blocks Historical Integrity |
+|----|----------|----------------|---------------|---------------|-----------------|--------------------|------------------------------|
+| HD-19 | P0 | DOMAIN, IDENTITY, LOGICAL_SCHEMA, PHYSICAL_SCHEMA, AWARD, TRANSCRIPT, STUDENT_STATUS, AUDIT, PROVENANCE | YES | YES | CONDITIONAL | NO | CONDITIONAL |
+| HD-20 | P0 | DOMAIN, POLICY, EVALUATION_ENGINE, LOGICAL_SCHEMA, PROVENANCE, HISTORICAL_INTEGRITY | CONDITIONAL | YES | NO | NO | CONDITIONAL |
+| HD-21 | P0 | DOMAIN, POLICY, EVALUATION_ENGINE, IDENTITY, LOGICAL_SCHEMA | CONDITIONAL | YES | NO | NO | CONDITIONAL |
+| HD-22 | P0* / P1 | POLICY, EVALUATION_ENGINE, PROVENANCE | CONDITIONAL | YES if used | NO | NO | CONDITIONAL |
+| HD-23 | P1 | POLICY, EVALUATION_ENGINE | NO | YES | NO | NO | NO |
+| HD-24 | P1 | POLICY, EVALUATION_ENGINE, CORRECTION | NO | YES | NO | NO | CONDITIONAL |
+| HD-25 | P1 | POLICY, EVALUATION_ENGINE | NO | YES | NO | NO | NO |
+| HD-26 | P1 | POLICY, EVALUATION_ENGINE, IDENTITY | NO | YES | NO | NO | CONDITIONAL |
+| HD-27 | P1 | POLICY, EVALUATION_ENGINE | NO | YES if used | NO | NO | NO |
+| HD-28 | P1 | POLICY, EVALUATION_ENGINE | NO | YES if used | NO | NO | NO |
+| HD-29 | P1 | POLICY, EVALUATION_ENGINE | NO | YES if used | NO | NO | NO |
+| HD-30 | P1 | POLICY, EVALUATION_ENGINE, APPROVAL | NO | YES if used | CONDITIONAL | NO | NO |
+| HD-31 | P0 | APPROVAL, CQRS, SECURITY, AUDIT, DOMAIN | CONDITIONAL | NO | YES | CONDITIONAL | NO |
+| HD-32 | P0 | AWARD, DOMAIN, LOGICAL_SCHEMA, TRANSCRIPT, STUDENT_STATUS, AUDIT | CONDITIONAL | NO | CONDITIONAL | CONDITIONAL | CONDITIONAL |
+| HD-33 | P1 | AWARD, AUDIT, HISTORICAL_INTEGRITY | CONDITIONAL | NO | NO | NO | CONDITIONAL |
+| HD-34 | P1 | DOMAIN, AUDIT, HISTORICAL_INTEGRITY | CONDITIONAL | NO | NO | NO | CONDITIONAL |
+| HD-35 | P0 | CORRECTION, HISTORICAL_INTEGRITY, LOGICAL_SCHEMA, EVALUATION_ENGINE, CQRS, AUDIT, PROVENANCE, TRANSCRIPT, STUDENT_STATUS | YES | YES | YES | CONDITIONAL | YES |
+| HD-36 | P0 | CORRECTION, HISTORICAL_INTEGRITY, APPROVAL, AWARD, AUDIT, SECURITY, STUDENT_STATUS | YES | YES | YES | CONDITIONAL | YES |
+| HD-37 | P2 | HISTORICAL_INTEGRITY, REPORTING, MODULE_PACKAGING | NO | NO | NO | NO | CONDITIONAL (duration) |
+| HD-38 | P1 | PUBLICATION, SECURITY, TRANSCRIPT, CQRS | NO | NO | NO | YES | NO |
+| HD-39 | P0 | IDENTITY, DOMAIN, LOGICAL_SCHEMA, PHYSICAL_SCHEMA, EVALUATION_ENGINE, SECURITY, RLS | YES | YES | CONDITIONAL | NO | CONDITIONAL |
+| HD-40 | P1 | DOMAIN, POLICY, CQRS | NO | NO | NO | NO | NO |
+| HD-41 | P1 | DOMAIN, POLICY, MODULE_PACKAGING | NO | NO | NO | NO | NO |
+| HD-42 | P2 | MODULE_PACKAGING | NO | NO | NO | NO | NO |
+
+\*HD-22 = P0 when HD-20 requires GPA/min-achievement gate.
+
+---
+
+## Notes
+
+- **Schema CONDITIONAL** = extensible slots may be designed later under separate authorization without freezing policy *values*; identity/supersession still YES where marked.  
+- **Publication** primarily gated by HD-38 (+ award existence).  
+- **Historical integrity** hard-gated by HD-35/36.  
+- HD-40/41 do not block schema/engine; they block incorrect *coupling* if ignored.

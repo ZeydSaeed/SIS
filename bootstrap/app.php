@@ -61,7 +61,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            $status = str_contains($exception->errorCode(), 'not_found') ? 404 : 422;
+            $status = match (true) {
+                str_contains($exception->errorCode(), 'not_found') => 404,
+                str_contains($exception->errorCode(), 'conflict') => 409,
+                default => 422,
+            };
 
             return response()->json([
                 'message' => $exception->getMessage(),

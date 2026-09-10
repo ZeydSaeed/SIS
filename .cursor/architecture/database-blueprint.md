@@ -756,13 +756,15 @@
 | name | VARCHAR(100) | NOT NULL |
 | weight_percentage | SMALLINT | CHECK (weight_percentage BETWEEN 0 AND 100) |
 
+**RLS:** None — global reference catalog (not school-scoped). Codes are data rows, not hard-coded DDL vocabulary.
+
 ### `exams.exams`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
 | academic_year_id | BIGINT | FK → academic_years |
-| school_id | BIGINT | FK → schools |
+| school_id | BIGINT | FK → schools — direct ownership for fail-closed RLS |
 | term_id | BIGINT | FK → academic.terms |
 | exam_type_id | SMALLINT | FK → exam_types |
 | name | VARCHAR(255) | NOT NULL |
@@ -772,7 +774,10 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(academic_year_id, school_id)`, `BTREE(status)`
+**Indexes:** `BTREE(academic_year_id, school_id)`, `BTREE(status)`  
+**Also:** `UNIQUE(id, school_id)` — enables composite FKs from sessions (school_id consistency).
+
+**RLS:** ENABLE + FORCE; policy on `school_id` = GUC `app.current_school_id` (fail-closed).
 
 ### `exams.exam_sessions`
 
@@ -780,6 +785,7 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | exam_id | BIGINT | FK → exams |
+| school_id | BIGINT | FK → schools; composite FK `(exam_id, school_id)` → `exams(id, school_id)` — denorm for fail-closed RLS |
 | subject_id | BIGINT | FK → curriculum.subjects |
 | session_date | DATE | NOT NULL |
 | start_time | TIME | NOT NULL |
@@ -790,7 +796,9 @@
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(exam_id)`, `BTREE(subject_id, session_date)`
+**Indexes:** `BTREE(exam_id)`, `BTREE(subject_id, session_date)`, `BTREE(school_id)` (RLS / school schedule)
+
+**RLS:** ENABLE + FORCE; policy on `school_id` = GUC `app.current_school_id` (fail-closed).
 
 ### `exams.exam_enrollments`
 
@@ -798,39 +806,60 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | exam_session_id | BIGINT | FK → exam_sessions |
+| school_id | BIGINT | FK → schools; composite FK `(exam_session_id, school_id)` → `exam_sessions(id, school_id)`; composite FK `(enrollment_id, school_id)` → `enrollment.enrollments(id, school_id)` — denorm for RLS + prevent cross-school seating |
 | enrollment_id | BIGINT | FK → enrollment.enrollments |
 | seat_number | VARCHAR(10) | |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(exam_session_id)`, `UNIQUE(exam_session_id, enrollment_id)`
+**Indexes:** `BTREE(exam_session_id)`, `UNIQUE(exam_session_id, enrollment_id)`, `BTREE(enrollment_id)`, `BTREE(school_id)`
 
-### `exams.student_grades` ⚡ PARTITION CANDIDATE
+**RLS:** ENABLE + FORCE; policy on `school_id` = GUC (fail-closed).
+
+> **Phase 3A enrichment (approved):** `school_id` denorm on sessions/enrollments for FORCE RLS without multi-join policies. Does not change blueprint object count (still 87).
+
+### `exams.student_grades` ⚡ PARTITIONED (Phase 3B)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| exam_session_id | BIGINT | FK → exam_sessions |
-| student_id | BIGINT | FK → students.students |
-| enrollment_id | BIGINT | FK → enrollment.enrollments |
-| academic_year_id | BIGINT | FK → academic_years |
-| subject_id | BIGINT | FK → curriculum.subjects |
-| grade | NUMERIC(5,2) | CHECK (grade >= 0) |
-| grade_letter | VARCHAR(5) | |
-| is_pass | BOOLEAN | |
+| id | BIGINT | IDENTITY; composite PK `(id, academic_year_id)` |
+| academic_year_id | BIGINT | FK → academic_years; **LIST partition key** |
+| school_id | BIGINT | FK → schools — direct RLS ownership |
+| exam_enrollment_id | BIGINT | FK → exam_enrollments; composite `(exam_enrollment_id, school_id)` |
+| exam_session_id | BIGINT | FK → exam_sessions; composite `(exam_session_id, school_id)` — denorm |
+| enrollment_id | BIGINT | FK → enrollments; composite `(enrollment_id, school_id)` — denorm |
+| student_id | BIGINT | FK → students.students — denorm |
+| subject_id | BIGINT | FK → curriculum.subjects — denorm |
+| score | NUMERIC(5,2) | nullable when `is_absent`; CHECK with max/absent rules |
+| max_score | NUMERIC(5,2) | NOT NULL; snapshot of session max at grading time; `> 0` |
 | is_absent | BOOLEAN | NOT NULL DEFAULT false |
-| entered_by | BIGINT | FK → security.users |
+| status | SMALLINT | NOT NULL DEFAULT 1 — Draft/Entered/Submitted/Finalized/Voided |
+| is_current | BOOLEAN | NOT NULL DEFAULT true — at most one current per enrollment/year |
+| correction_of_grade_id | BIGINT | nullable; self-FK `(correction_of_grade_id, academic_year_id)` → `(id, academic_year_id)` |
+| entered_by | BIGINT | FK → users, nullable |
 | entered_at | TIMESTAMPTZ | NOT NULL |
+| finalized_at | TIMESTAMPTZ | nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Partition key:** `academic_year_id`
+**Partition:** `PARTITION BY LIST (academic_year_id)` — **no DEFAULT partition**. Explicit partition per academic year required before inserts.
+
+**Uniqueness (active SSOT):** partial UNIQUE `(exam_enrollment_id, academic_year_id) WHERE is_current`
 
 **Indexes:**
-- `COMPOSITE(student_id, academic_year_id)`
-- `COMPOSITE(subject_id, academic_year_id)`
-- `UNIQUE(exam_session_id, student_id)`
+- `BTREE(student_id, academic_year_id)` — transcript / student year
+- `BTREE(enrollment_id, academic_year_id)` — enrollment profile
+- `BTREE(school_id, academic_year_id, subject_id)` — teacher entry grids
+- `BTREE(exam_session_id, academic_year_id)` — session markbook
+- `BTREE(correction_of_grade_id, academic_year_id)` — correction chain (partial WHERE NOT NULL)
 
+**RLS:** ENABLE + FORCE; fail-closed on `school_id` = GUC `app.current_school_id`
+
+**Correction model:** VOID + INSERT replacement (`is_current`, `correction_of_grade_id`). **No hard DELETE.**
+
+**SSOT:** Authoritative scores live only here — not on `exam_enrollments`. `term_results` / `annual_results` / `transcripts` remain deferred (3C/3D).
+
+> **Phase 3B enrichment (approved):** replaces earlier blueprint sketch (`grade` → `score`; adds `exam_enrollment_id`, `school_id`, lifecycle, partition PK). Object count remains **87**.
 ---
 
 ## Schema: `results` (3 tables)

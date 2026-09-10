@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
+use App\Infrastructure\Persistence\Eloquent\StudentGradeRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -13,6 +14,7 @@ use App\Security\Authorization\Permission;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\EnrollmentPolicy;
+use App\Security\Policies\GradePolicy;
 use App\Security\Policies\StudentPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -41,6 +43,7 @@ class SecurityServiceProvider extends ServiceProvider
     {
         Gate::policy(StudentRecord::class, StudentPolicy::class);
         Gate::policy(EnrollmentRecord::class, EnrollmentPolicy::class);
+        Gate::policy(StudentGradeRecord::class, GradePolicy::class);
     }
 
     private function configureGates(): void
