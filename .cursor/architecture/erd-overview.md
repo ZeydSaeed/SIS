@@ -1,6 +1,6 @@
 # ERD Overview — Entity Relationship Diagram
 
-> **Authoritative detail:** [database-blueprint.md](./database-blueprint.md) (89 tables)  
+> **Authoritative detail:** [database-blueprint.md](./database-blueprint.md) (87 blueprint objects)  
 > **Dictionary:** [database-dictionary.md](./database-dictionary.md)
 
 ## Core Domain Flow

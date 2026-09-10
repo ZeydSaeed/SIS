@@ -33,3 +33,4 @@ External/public identifiers: **`UUID`** (`public_id`) where needed only.
 
 - [database-blueprint.md](../database-blueprint.md)
 - [01-principles-and-layers.md](../01-principles-and-layers.md)
+- [ADR-020](./ADR-020-phase-1-database-architecture.md) — Phase 1 human reaffirmation (D1): keep BIGINT IDENTITY; do not migrate existing IDs to UUID

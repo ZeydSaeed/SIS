@@ -20,7 +20,7 @@
 | 0c       | `.cursor/architecture/GOVERNANCE-MAP.md`                               | Constitution → rules/docs map                      |
 | 1        | `.cursor/architecture/README.md`                                       | Full document index                                |
 | 2        | `.cursor/architecture/WORK-PLAN.md`                                    | Phase A–F guide                                    |
-| 3        | `.cursor/architecture/database-blueprint.md`                           | **89 tables — authoritative**                      |
+| 3        | `.cursor/architecture/database-blueprint.md`                           | **87 blueprint objects — authoritative** (+ intelligence separate) |
 | 4        | `.cursor/architecture/capacity-planning.md`                            | Dynamic capacity model                             |
 | 5        | `.cursor/architecture/DATABASE-ADAPTIVE-GOVERNANCE.md`                 | **Adaptive optimization rules**                    |
 | 6        | `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md`                  | **Expert + Learning + Self-Healing**               |
@@ -173,4 +173,4 @@ Do not introduce Blazor, .NET, or desktop host dependencies without ADR + human 
 
 ## Single Source of Truth
 
-**Table count = 89** from `database-blueprint.md` only.
+**Blueprint object count = 87** from `database-blueprint.md` only (intelligence tables are separate).

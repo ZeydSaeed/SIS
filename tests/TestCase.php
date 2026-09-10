@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Database\ProtectedDatabaseGuard;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Laravel\Fortify\Features;
 
@@ -12,6 +13,16 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         $this->withoutVite();
+    }
+
+    /**
+     * Fail-closed: RefreshDatabase must never target protected databases (e.g. sis).
+     *
+     * @return void
+     */
+    protected function beforeRefreshingDatabase()
+    {
+        $this->app->make(ProtectedDatabaseGuard::class)->assertSafeForDestructiveOperations();
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

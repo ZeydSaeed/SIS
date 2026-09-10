@@ -19,6 +19,8 @@ final class DatabaseFoundationVerifier
         'academic.terms',
         'students.students',
         'enrollment.enrollments',
+        'admission.application_periods',
+        'admission.applications',
         'intelligence.monitoring_snapshots',
     ];
 

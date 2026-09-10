@@ -1,9 +1,11 @@
 # Database Blueprint — Reference Only
 
-> **Status:** Architecture reference. No migrations created from this file.  
-> **Target:** 86 tables across 23 PostgreSQL schemas.  
-> **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`  
-> **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`
+> **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
+> **Target:** **87** blueprint objects (tables + reporting MVs) across **24** PostgreSQL schemas.  
+> **Not counted here:** `intelligence.*` platform tables (see section at end).  
+> **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
+> **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
+> **SSOT note (Phase 1):** Prior docs inconsistently said 86 or 89 — reconciled 2026-09-10 by counting blueprint headings (`security` = 8, `reports` = 8).
 
 ---
 
@@ -367,11 +369,15 @@
 | name | VARCHAR(255) | NOT NULL |
 | start_date | TIMESTAMPTZ | NOT NULL |
 | end_date | TIMESTAMPTZ | NOT NULL |
-| max_applications | INTEGER | |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| max_applications | INTEGER | nullable; CHECK NULL OR > 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1; CHECK IN (0,1,2) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(academic_year_id, school_id)`
+
+**RLS:** Fail-closed on `school_id` (Phase 2).
+
+**CHECK:** `end_date >= start_date`
 
 ### `admission.applications`
 
@@ -382,20 +388,25 @@
 | application_number | VARCHAR(50) | UNIQUE NOT NULL |
 | first_name | VARCHAR(100) | NOT NULL |
 | last_name | VARCHAR(100) | NOT NULL |
-| national_id | VARCHAR(20) | |
+| national_id | VARCHAR(20) | nullable — **not** globally unique |
 | birth_date | DATE | NOT NULL |
-| gender | SMALLINT | NOT NULL |
+| gender | SMALLINT | NOT NULL; CHECK IN (1, 2) |
 | grade_level_id | SMALLINT | FK → grade_levels |
 | specialization_id | BIGINT | FK → specializations, nullable |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1; CHECK 1–9 (see ApplicationStatus) |
 | submitted_at | TIMESTAMPTZ | |
-| reviewed_by | BIGINT | FK → security.users, nullable |
+| reviewed_by | BIGINT | FK → public.users, nullable |
 | reviewed_at | TIMESTAMPTZ | |
 | notes | TEXT | |
+| student_id | BIGINT | FK → students.students, nullable — **conversion link only** (Phase 2) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`
+**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`, `PARTIAL BTREE(student_id) WHERE student_id IS NOT NULL`
+
+**Identity rule:** Applicant PII lives on the application until conversion. Do **not** create `admission.students`. Waitlist = status 5; interviews/status_history tables deferred (not in 87 SSOT).
+
+**RLS:** Fail-closed via parent `application_periods.school_id` (Phase 2).
 
 ### `admission.application_documents`
 
@@ -403,13 +414,15 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | application_id | BIGINT | FK → applications |
-| document_type | SMALLINT | NOT NULL |
+| document_type | SMALLINT | NOT NULL; CHECK > 0 |
 | storage_key | VARCHAR(500) | NOT NULL |
 | file_name | VARCHAR(255) | NOT NULL |
 | file_hash | VARCHAR(64) | NOT NULL |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(application_id)`
+
+**RLS:** Fail-closed via application → period.school_id (Phase 2).
 
 ---
 
@@ -1383,7 +1396,7 @@
 
 ---
 
-## Schema: `reports` (5 materialized views / tables)
+## Schema: `reports` (8 materialized views)
 
 These are **not** transactional OLTP tables. Populated by background jobs.
 
@@ -1553,10 +1566,10 @@ curriculum.subjects
 | finance | 4 |
 | communication | 3 |
 | workflow | 2 |
-| security | 7 |
+| security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **89** |
+| **Total** | **87** |
 
 ## Partition Strategy (⚡)
 
@@ -1576,7 +1589,7 @@ See: [capacity-planning.md](./capacity-planning.md) (authoritative), [capacity-p
 
 ## Schema: `intelligence` (9 tables — Runtime Platform)
 
-> **Not counted in the 89 academic tables.** Operational intelligence layer — see `DATABASE-INTELLIGENCE-LAYER.md`.
+> **Not counted in the 87 blueprint objects.** Operational intelligence layer — see `DATABASE-INTELLIGENCE-LAYER.md`.
 
 | Table | Purpose |
 |-------|---------|

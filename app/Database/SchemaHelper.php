@@ -17,6 +17,7 @@ class SchemaHelper
             'vocational',
             'students',
             'guardians',
+            'admission',
             'enrollment',
             'teachers',
             'curriculum',
@@ -64,6 +65,8 @@ class SchemaHelper
 
     public static function dropSchemas(): void
     {
+        app(ProtectedDatabaseGuard::class)->assertSafeForDestructiveOperations();
+
         if (! self::isPostgreSql()) {
             return;
         }

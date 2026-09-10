@@ -3,6 +3,7 @@
 namespace Tests\Feature\Database;
 
 use App\Database\DatabaseFoundationVerifier;
+use App\Database\ProtectedDatabaseGuard;
 use App\Database\SchemaHelper;
 use Database\Seeders\SisFoundationSeeder;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,6 +16,12 @@ class PostgreSqlFoundationVerificationTest extends TestCase
     {
         if (! SchemaHelper::isPostgreSql()) {
             $this->markTestSkipped('PostgreSQL required for foundation verification.');
+        }
+
+        $guard = app(ProtectedDatabaseGuard::class);
+        $database = $guard->resolveDatabaseName();
+        if ($guard->isProtected($database)) {
+            $this->fail("Refusing foundation seed/verify against protected database [{$database}].");
         }
 
         $this->seed(SisFoundationSeeder::class);
@@ -32,6 +39,12 @@ class PostgreSqlFoundationVerificationTest extends TestCase
     {
         if (! SchemaHelper::isPostgreSql()) {
             $this->markTestSkipped('PostgreSQL required for foundation verification.');
+        }
+
+        $guard = app(ProtectedDatabaseGuard::class);
+        $database = $guard->resolveDatabaseName();
+        if ($guard->isProtected($database)) {
+            $this->fail("Refusing foundation seed/verify against protected database [{$database}].");
         }
 
         $this->seed(SisFoundationSeeder::class);

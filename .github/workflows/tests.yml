@@ -35,4 +35,7 @@ jobs:
         run: composer setup
 
       - name: Run CI Checks
+        # Default phpunit.xml uses sqlite :memory: only.
+        # Never set DB_DATABASE=sis for destructive tests.
+        # Optional local/CI PG suite: phpunit.database-pgsql.xml → sis_test (not sis).
         run: composer ci:check

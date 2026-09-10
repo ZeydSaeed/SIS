@@ -36,7 +36,19 @@ Indexes on school_id
 - Indexes on RLS filter columns mandatory
 - **Review:** If RLS adds > 20% query overhead, optimize policies
 
+## Amendment — 2026-09-10 (ADR-020 / Decision D6)
+
+RLS expansion is **incremental**, not blanket:
+
+- Design + validate per school-scoped sensitive domain before `ENABLE ROW LEVEL SECURITY`.
+- Do not enable RLS on every table by default.
+- Priority review order: students → enrollments → attendance → assessment/grades → staff/HR → finance → medical → behavior → documents → support/SEN → school-scoped inventory → school-scoped communications.
+- Current live baseline: RLS on `enrollment.enrollments` and `attendance.records` only (fail-closed).
+- Disabling RLS or weakening fail-closed policies requires explicit human approval.
+
 ## Related
 
 - [rls-policies.md](../rls-policies.md)
 - [security-audit-resilience.md](../security-audit-resilience.md)
+- [ADR-020](./ADR-020-phase-1-database-architecture.md)
+- [docs/database/06-RLS-SECURITY.md](../../../docs/database/06-RLS-SECURITY.md)

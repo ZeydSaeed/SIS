@@ -121,4 +121,28 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Database Safety (Phase 2 Remediation)
+    |--------------------------------------------------------------------------
+    |
+    | protected_names: never allow RefreshDatabase / migrate:fresh / schema wipe
+    | destructive_allowed_names: disposable DBs only (sis_test, :memory:, …)
+    | force_protected: emergency kill-switch (treat current connection as protected)
+    |
+    */
+
+    'database' => [
+        'protected_names' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('SIS_PROTECTED_DATABASES', 'sis'))
+        ))),
+        'destructive_allowed_names' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('SIS_DESTRUCTIVE_ALLOWED_DATABASES', 'sis_test,:memory:'))
+        ))),
+        'force_protected' => filter_var(env('SIS_DATABASE_FORCE_PROTECTED', false), FILTER_VALIDATE_BOOLEAN),
+        'pgsql_test_database' => env('SIS_PGSQL_TEST_DATABASE', 'sis_test'),
+    ],
+
 ];
