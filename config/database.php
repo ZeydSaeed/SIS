@@ -97,7 +97,7 @@ return [
             'prefix_indexes' => true,
             'search_path' => env(
                 'DB_SEARCH_PATH',
-                'public,organization,academic,vocational,students,guardians,enrollment,teachers,curriculum,timetable,attendance,exams,results,security,audit,reports',
+                'public,organization,academic,vocational,students,guardians,enrollment,teachers,curriculum,timetable,attendance,exams,results,graduation,security,audit,reports',
             ),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],

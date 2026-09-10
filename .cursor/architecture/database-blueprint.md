@@ -993,39 +993,15 @@
 
 ---
 
-## Schema: `graduation` (2 tables)
+## Schema: `graduation` (Phase 3C.12 LIVE — 14 tables)
 
-### `graduation.eligibility_rules`
+> **STALE / NON-AUTHORITATIVE (do not implement):** former sketches `graduation.eligibility_rules`, `graduation.records` (min_gpa / credits / etc.). Authority: Phase 3C.10A + 3C.12 migrations `2026_09_10_170100`–`170900`.
 
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | BIGINT | PK |
-| school_id | BIGINT | FK → schools |
-| specialization_id | BIGINT | FK → specializations, nullable |
-| min_gpa | NUMERIC(4,2) | NOT NULL |
-| min_credit_hours | SMALLINT | |
-| required_subjects | JSONB | |
-| is_active | BOOLEAN | NOT NULL DEFAULT true |
-| created_at | TIMESTAMPTZ | NOT NULL |
+### LIVE tables (Option A RLS on each)
 
-**Indexes:** `BTREE(school_id)`
+`eligibility_policies`, `eligibility_policy_versions`, `requirement_definitions`, `requirement_definition_versions`, `completion_outcomes`, `completion_outcome_versions`, `evidence_sets`, `evidence_items`, `requirement_evaluations`, `graduation_approvals`, `graduation_awards`, `graduation_award_versions`, `outcome_supersessions`, `revocation_records`
 
-### `graduation.records`
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | BIGINT | PK |
-| student_id | BIGINT | FK → students.students |
-| enrollment_id | BIGINT | FK → enrollment.enrollments |
-| academic_year_id | BIGINT | FK → academic_years |
-| graduation_date | DATE | NOT NULL |
-| final_gpa | NUMERIC(4,2) | |
-| honors | SMALLINT | |
-| graduation_number | VARCHAR(50) | UNIQUE NOT NULL |
-| approved_by | BIGINT | FK → security.users |
-| created_at | TIMESTAMPTZ | NOT NULL |
-
-**Indexes:** `BTREE(student_id)`, `UNIQUE(graduation_number)`, `BTREE(academic_year_id)`
+Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award ≠ StudentStatus projection. No launch partitioning. Details: `.cursor/database/phase-3c-10/` + `.cursor/database/phase-3c-12/`.
 
 ---
 
