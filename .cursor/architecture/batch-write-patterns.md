@@ -13,45 +13,34 @@ Never insert high-volume transactional data row-by-row inside HTTP requests or l
 ✅ PostgreSQL COPY for imports > 10,000 rows
 ```
 
-## Pattern 1 — Laravel Batch Insert
+## Pattern 1 — Laravel Batch Upsert (Attendance via CQRS Infrastructure)
+
+**Authoritative Attendance write path:** `MarkSectionAttendanceHandler` →
+`AttendanceWriteRepositoryInterface::upsertAttendanceRecords` (chunk 500) +
+`refreshDailySectionSummary` using **`session.session_date`** (not calendar `today()`).
 
 ```php
-// app/Services/Attendance/AttendanceBatchService.php
+// Infrastructure adapter called ONLY from Application/Attendance handlers
 
-public function recordSectionAttendance(
-    int $sessionId,
-    int $academicYearId,
-    int $schoolId,
-    array $records, // [['student_id' => 1, 'enrollment_id' => 2, 'status' => 1], ...]
-    int $recordedBy,
-): int {
-    $now = now();
-    $date = today()->toDateString();
-
-    $rows = collect($records)->map(fn (array $r) => [
-        'session_id'       => $sessionId,
-        'student_id'       => $r['student_id'],
-        'enrollment_id'    => $r['enrollment_id'],
-        'academic_year_id' => $academicYearId,
-        'school_id'        => $schoolId,
-        'attendance_date'  => $date,
-        'status'           => $r['status'],
-        'recorded_by'      => $recordedBy,
-        'created_at'       => $now,
-        'updated_at'       => $now,
-    ]);
-
-    $inserted = 0;
-    foreach ($rows->chunk(500) as $chunk) {
-        DB::table('attendance.records')->insertOrIgnore($chunk->all());
-        $inserted += $chunk->count();
+public function upsertAttendanceRecords(array $rows): int
+{
+    foreach (array_chunk($payload, 500) as $chunk) {
+        DB::table('attendance.records')->upsert(
+            $chunk,
+            uniqueBy: ['session_id', 'student_id', 'academic_year_id'],
+            update: ['status', 'notes', 'recorded_by', 'updated_at'],
+        );
     }
 
-    $this->refreshDailySummary($sessionId, $date);
-
-    return $inserted;
+    return count($rows);
 }
 ```
+
+### Legacy note (R1.9 Option B)
+
+`app/Services/Attendance/AttendanceBatchService` is **deprecated/quarantined**.
+It must not be used as an alternate public Attendance writer.
+Runtime calls fail closed. Full class deletion requires separate human authorization.
 
 ## Pattern 2 — PostgreSQL COPY (Bulk Import)
 
@@ -125,10 +114,10 @@ public function store(Request $request) {
     }
 }
 
-// ✅ GOOD
-public function store(AttendanceBatchRequest $request, AttendanceBatchService $service) {
-    $count = $service->recordSectionAttendance(...);
-    return back()->with('success', "{$count} records saved.");
+// ✅ GOOD — HTTP → Application CQRS handler (not legacy Services)
+public function mark(MarkSectionAttendanceRequest $request, MarkSectionAttendanceHandler $handler) {
+    $result = $handler->handle(/* MarkSectionAttendanceCommand */);
+    return response()->json(['data' => ['marked_count' => $result->markedCount]]);
 }
 ```
 

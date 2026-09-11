@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
@@ -57,5 +58,26 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.enrollments.grades');
         Route::get('exam-enrollments/{examEnrollment}/current-grade', [GradeController::class, 'currentForExamEnrollment'])
             ->name('api.exam_enrollments.current_grade');
+
+        Route::post('attendance/sessions', [AttendanceController::class, 'storeSession'])
+            ->name('api.attendance.sessions.store');
+        Route::get('attendance/sessions', [AttendanceController::class, 'indexSessions'])
+            ->name('api.attendance.sessions.index');
+        Route::get('attendance/sessions/{session}', [AttendanceController::class, 'showSession'])
+            ->name('api.attendance.sessions.show');
+        Route::post('attendance/sessions/{session}/marks', [AttendanceController::class, 'mark'])
+            ->name('api.attendance.sessions.marks');
+        Route::post('attendance/sessions/{session}/students/{student}/correct', [AttendanceController::class, 'correct'])
+            ->name('api.attendance.sessions.correct');
+        Route::post('attendance/sessions/{session}/close', [AttendanceController::class, 'close'])
+            ->name('api.attendance.sessions.close');
+        Route::post('attendance/sessions/{session}/cancel', [AttendanceController::class, 'cancel'])
+            ->name('api.attendance.sessions.cancel');
+        Route::get('attendance/sections/{section}', [AttendanceController::class, 'sectionAttendance'])
+            ->name('api.attendance.sections.show');
+        Route::get('attendance/sections/{section}/daily-summary', [AttendanceController::class, 'dailySummary'])
+            ->name('api.attendance.sections.daily_summary');
+        Route::get('attendance/students/{student}', [AttendanceController::class, 'studentAttendance'])
+            ->name('api.attendance.students.show');
     });
 });

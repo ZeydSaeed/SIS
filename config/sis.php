@@ -145,4 +145,25 @@ return [
         'pgsql_test_database' => env('SIS_PGSQL_TEST_DATABASE', 'sis_test'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Graduation authority (Phase 3C.16)
+    |--------------------------------------------------------------------------
+    |
+    | Fail-closed actor allow-lists until HD-31-G locks Permission.php catalog.
+    | Empty list = deny. Do not invent graduation.* permission strings here.
+    |
+    */
+
+    'graduation' => [
+        'authority' => [
+            'evaluate_completion' => [],
+            'create_completion_outcome' => [],
+            'approve_graduation' => [],
+            'issue_award' => [],
+            'revoke_award' => [],
+            'publish_award' => [],
+        ],
+    ],
+
 ];

@@ -30,6 +30,18 @@ final class Permission
 
     public const GRADES_FINALIZE = 'grades.finalize';
 
+    public const ATTENDANCE_VIEW = 'attendance.view';
+
+    public const ATTENDANCE_SESSION_CREATE = 'attendance.session.create';
+
+    public const ATTENDANCE_MARK = 'attendance.mark';
+
+    public const ATTENDANCE_CORRECT = 'attendance.correct';
+
+    public const ATTENDANCE_SESSION_CLOSE = 'attendance.session.close';
+
+    public const ATTENDANCE_SESSION_CANCEL = 'attendance.session.cancel';
+
     public const SECURITY_MANAGE_USERS = 'security.manage_users';
 
     /**
@@ -51,6 +63,12 @@ final class Permission
             self::GRADES_CORRECT,
             self::GRADES_VOID,
             self::GRADES_FINALIZE,
+            self::ATTENDANCE_VIEW,
+            self::ATTENDANCE_SESSION_CREATE,
+            self::ATTENDANCE_MARK,
+            self::ATTENDANCE_CORRECT,
+            self::ATTENDANCE_SESSION_CLOSE,
+            self::ATTENDANCE_SESSION_CANCEL,
             self::SECURITY_MANAGE_USERS,
         ];
     }

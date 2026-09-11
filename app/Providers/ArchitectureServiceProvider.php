@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
+use App\Application\Attendance\Contracts\AttendanceReadRepositoryInterface;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Exams\Contracts\StudentGradeReadRepositoryInterface;
 use App\Application\Intelligence\Contracts\DatabaseMonitoringPort;
@@ -13,12 +14,19 @@ use App\Application\Intelligence\Contracts\RecommendationReadRepositoryInterface
 use App\Application\Observability\Contracts\DatabaseHealthPort;
 use App\Application\Observability\Contracts\HttpWorkloadReadRepositoryInterface;
 use App\Application\Student\Contracts\StudentReadRepositoryInterface as StudentManagementReadRepositoryInterface;
+use App\Domain\Attendance\Repositories\AttendanceWriteRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Exams\Repositories\StudentGradeRepositoryInterface;
+use App\Application\Graduation\Contracts\GraduationAuthorityPort;
+use App\Application\Graduation\Contracts\GraduationReadRepositoryInterface;
+use App\Domain\Graduation\Repositories\GraduationWriteRepositoryInterface;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use App\Infrastructure\Events\EnrollmentCancelledBridgeEvent;
+use App\Infrastructure\Graduation\FailClosedGraduationAuthority;
+use App\Infrastructure\Persistence\Graduation\EloquentGraduationReadRepository;
+use App\Infrastructure\Persistence\Graduation\EloquentGraduationWriteRepository;
 use App\Infrastructure\Events\EnrollmentPlacementUpdatedBridgeEvent;
 use App\Infrastructure\Events\StudentEnrolledBridgeEvent;
 use App\Infrastructure\Intelligence\PgStatDatabaseMonitoringAdapter;
@@ -26,6 +34,8 @@ use App\Infrastructure\Intelligence\RecommendationCommandAdapter;
 use App\Infrastructure\Observability\EloquentDatabaseHealthAdapter;
 use App\Infrastructure\Observability\EloquentHttpWorkloadReadRepository;
 use App\Infrastructure\Persistence\EloquentUnitOfWork;
+use App\Infrastructure\Persistence\Attendance\EloquentAttendanceReadRepository;
+use App\Infrastructure\Persistence\Attendance\EloquentAttendanceWriteRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentPlacementRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentReadRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentRepository;
@@ -64,6 +74,11 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(RecommendationReadRepositoryInterface::class, EloquentRecommendationReadRepository::class);
         $this->app->bind(RecommendationCommandPort::class, RecommendationCommandAdapter::class);
         $this->app->bind(DatabaseMonitoringPort::class, PgStatDatabaseMonitoringAdapter::class);
+        $this->app->bind(GraduationWriteRepositoryInterface::class, EloquentGraduationWriteRepository::class);
+        $this->app->bind(GraduationReadRepositoryInterface::class, EloquentGraduationReadRepository::class);
+        $this->app->bind(GraduationAuthorityPort::class, FailClosedGraduationAuthority::class);
+        $this->app->bind(AttendanceWriteRepositoryInterface::class, EloquentAttendanceWriteRepository::class);
+        $this->app->bind(AttendanceReadRepositoryInterface::class, EloquentAttendanceReadRepository::class);
     }
 
     public function boot(): void

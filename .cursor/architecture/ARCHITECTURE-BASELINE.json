@@ -33,9 +33,12 @@
       "App\\Models\\",
       "App\\Intelligence\\Models\\",
       "Illuminate\\Support\\Facades\\DB",
-      "Illuminate\\Http\\Request"
+      "Illuminate\\Http\\Request",
+      "App\\Services\\Attendance\\AttendanceBatchService"
     ],
-    "Presentation": []
+    "Presentation": [
+      "App\\Services\\Attendance\\AttendanceBatchService"
+    ]
   },
   "bypass_patterns": [
     "app\\\\(\\\\App\\\\Infrastructure\\\\",
@@ -43,7 +46,8 @@
     "app\\\\(\\\\App\\\\Models\\\\",
     "\\\\App\\\\Infrastructure\\\\[A-Za-z0-9_\\\\]+::class",
     "\\\\App\\\\Models\\\\[A-Za-z0-9_\\\\]+::class",
-    "\\\\Illuminate\\\\Support\\\\Facades\\\\DB::"
+    "\\\\Illuminate\\\\Support\\\\Facades\\\\DB::",
+    "App\\\\Services\\\\Attendance\\\\AttendanceBatchService"
   ],
   "complexity": {
     "handler_warn_lines": 50,

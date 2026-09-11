@@ -139,8 +139,8 @@ Separate write DB + read DB + event bus
 ```
 Commands (writes)                    Queries (reads)
 ─────────────────                    ───────────────
-EnrollStudentAction                  SchoolDashboardQuery
-RecordAttendanceBatch                StudentHistoryQuery
+EnrollStudentCommand/Handler         SchoolDashboardQuery
+MarkSectionAttendance (CQRS)         StudentHistoryQuery
 EnterGradesBatch                     DirectorateReportQuery
 TransferStudent                      SearchStudentsQuery
          │                                    │
@@ -182,13 +182,16 @@ Historical archive        → Detached partitions / archive DB
 ### Command Side
 
 ```
-RecordSectionAttendanceCommand
-    → AttendanceBatchService
-    → INSERT attendance.records (batch)
-    → UPSERT daily_section_summary
-    → Dispatch AttendanceRecorded event
-    → Invalidate dashboard cache
+MarkSectionAttendanceCommand
+    → MarkSectionAttendanceHandler (Application/Attendance CQRS)
+    → upsert attendance.records (batch, session.session_date)
+    → refresh daily_section_summary
+    → stage SectionAttendanceMarked (outbox)
+    → store idempotency result
 ```
+
+**Legacy:** `AttendanceBatchService` is quarantined (R1.9 Option B) and is **not**
+a supported Attendance write path. Full deletion requires separate authorization.
 
 ### Query Side
 

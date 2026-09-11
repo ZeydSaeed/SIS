@@ -3,6 +3,11 @@
 namespace App\Infrastructure\Persistence\Outbox;
 
 use App\Application\Contracts\OutboxRepository;
+use App\Domain\Attendance\Events\AttendanceCorrected;
+use App\Domain\Attendance\Events\AttendanceSessionCancelled;
+use App\Domain\Attendance\Events\AttendanceSessionClosed;
+use App\Domain\Attendance\Events\AttendanceSessionCreated;
+use App\Domain\Attendance\Events\SectionAttendanceMarked;
 use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
 use App\Domain\Enrollment\Events\StudentEnrolled;
@@ -10,6 +15,11 @@ use App\Domain\Exams\Events\StudentGradeCorrected;
 use App\Domain\Exams\Events\StudentGradeEntered;
 use App\Domain\Exams\Events\StudentGradeFinalized;
 use App\Domain\Exams\Events\StudentGradeVoided;
+use App\Domain\Graduation\Events\AwardIssued;
+use App\Domain\Graduation\Events\AwardRevoked;
+use App\Domain\Graduation\Events\CompletionEvaluated;
+use App\Domain\Graduation\Events\CompletionOutcomeCreated;
+use App\Domain\Graduation\Events\GraduationApproved;
 use App\Domain\Shared\DomainEvent;
 use App\Infrastructure\Persistence\Eloquent\OutboxMessageRecord;
 use App\Intelligence\Support\CorrelationContext;
@@ -134,6 +144,104 @@ final class EloquentOutboxRepository implements OutboxRepository
                 examEnrollmentId: (int) $payload['exam_enrollment_id'],
                 studentId: (int) $payload['student_id'],
                 finalizedBy: isset($payload['finalized_by']) ? (int) $payload['finalized_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            CompletionOutcomeCreated::class => new CompletionOutcomeCreated(
+                completionOutcomeId: (int) $payload['completion_outcome_id'],
+                schoolId: (int) $payload['school_id'],
+                enrollmentId: (int) $payload['enrollment_id'],
+                studentId: (int) $payload['student_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                createdBy: isset($payload['created_by']) ? (int) $payload['created_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            CompletionEvaluated::class => new CompletionEvaluated(
+                completionOutcomeId: (int) $payload['completion_outcome_id'],
+                completionOutcomeVersionId: (int) $payload['completion_outcome_version_id'],
+                schoolId: (int) $payload['school_id'],
+                enrollmentId: (int) $payload['enrollment_id'],
+                eligibilityStatus: (int) $payload['eligibility_status'],
+                evaluatedBy: isset($payload['evaluated_by']) ? (int) $payload['evaluated_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            GraduationApproved::class => new GraduationApproved(
+                approvalId: (int) $payload['approval_id'],
+                schoolId: (int) $payload['school_id'],
+                enrollmentId: (int) $payload['enrollment_id'],
+                completionOutcomeVersionId: (int) $payload['completion_outcome_version_id'],
+                decidedBy: (int) $payload['decided_by'],
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            AwardIssued::class => new AwardIssued(
+                awardId: (int) $payload['award_id'],
+                awardVersionId: (int) $payload['award_version_id'],
+                schoolId: (int) $payload['school_id'],
+                enrollmentId: (int) $payload['enrollment_id'],
+                approvalId: (int) $payload['approval_id'],
+                issuedBy: isset($payload['issued_by']) ? (int) $payload['issued_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            AwardRevoked::class => new AwardRevoked(
+                revocationId: (int) $payload['revocation_id'],
+                awardVersionId: (int) $payload['award_version_id'],
+                schoolId: (int) $payload['school_id'],
+                reasonRef: (string) $payload['reason_ref'],
+                revokedBy: isset($payload['revoked_by']) ? (int) $payload['revoked_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            AttendanceSessionCreated::class => new AttendanceSessionCreated(
+                sessionId: (int) $payload['session_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                sectionId: (int) $payload['section_id'],
+                subjectId: (int) $payload['subject_id'],
+                sessionDate: (string) $payload['session_date'],
+                teacherId: (int) $payload['teacher_id'],
+                periodId: isset($payload['period_id']) ? (int) $payload['period_id'] : null,
+                createdBy: isset($payload['created_by']) ? (int) $payload['created_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            SectionAttendanceMarked::class => new SectionAttendanceMarked(
+                sessionId: (int) $payload['session_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                sectionId: (int) $payload['section_id'],
+                count: (int) $payload['count'],
+                studentIds: array_map('intval', $payload['student_ids'] ?? []),
+                recordedBy: isset($payload['recorded_by']) ? (int) $payload['recorded_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            AttendanceCorrected::class => new AttendanceCorrected(
+                recordId: (int) $payload['record_id'],
+                sessionId: (int) $payload['session_id'],
+                studentId: (int) $payload['student_id'],
+                enrollmentId: (int) $payload['enrollment_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                previousStatus: (int) $payload['previous_status'],
+                newStatus: (int) $payload['new_status'],
+                previousNotes: isset($payload['previous_notes']) ? (string) $payload['previous_notes'] : null,
+                newNotes: isset($payload['new_notes']) ? (string) $payload['new_notes'] : null,
+                reason: (string) $payload['reason'],
+                recordedBy: isset($payload['recorded_by']) ? (int) $payload['recorded_by'] : null,
+                idempotencyKey: isset($payload['idempotency_key']) ? (string) $payload['idempotency_key'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            AttendanceSessionClosed::class => new AttendanceSessionClosed(
+                sessionId: (int) $payload['session_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                closedBy: isset($payload['closed_by']) ? (int) $payload['closed_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            AttendanceSessionCancelled::class => new AttendanceSessionCancelled(
+                sessionId: (int) $payload['session_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                previousStatus: (int) $payload['previous_status'],
+                newStatus: (int) $payload['new_status'],
+                reason: (string) $payload['reason'],
+                cancelledBy: isset($payload['cancelled_by']) ? (int) $payload['cancelled_by'] : null,
                 occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
             ),
             default => null,

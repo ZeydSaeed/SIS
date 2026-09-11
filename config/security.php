@@ -15,6 +15,12 @@ return [
         'grades.correct' => 'Correct student grades',
         'grades.void' => 'Void student grades',
         'grades.finalize' => 'Finalize student grades',
+        'attendance.view' => 'View attendance sessions and records',
+        'attendance.session.create' => 'Create attendance sessions',
+        'attendance.mark' => 'Mark attendance for open sessions',
+        'attendance.correct' => 'Correct attendance with audited reason',
+        'attendance.session.close' => 'Close open attendance sessions',
+        'attendance.session.cancel' => 'Cancel open or closed attendance sessions',
         'security.manage_users' => 'Manage users and security settings',
     ],
 
@@ -58,6 +64,23 @@ return [
             'grades.view',
             'students.view',
             'enrollment.view',
+        ],
+        'attendance_viewer' => [
+            'attendance.view',
+        ],
+        'attendance_teacher' => [
+            'attendance.view',
+            'attendance.session.create',
+            'attendance.mark',
+            'attendance.session.close',
+        ],
+        'attendance_manager' => [
+            'attendance.view',
+            'attendance.session.create',
+            'attendance.mark',
+            'attendance.correct',
+            'attendance.session.close',
+            'attendance.session.cancel',
         ],
     ],
 

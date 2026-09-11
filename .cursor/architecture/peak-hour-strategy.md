@@ -16,18 +16,20 @@ Without strategy, morning attendance causes:
 ```
 Teacher submits attendance (50 students)
         ↓
-Controller validates + returns 202 Accepted immediately
+AttendanceController → MarkSectionAttendanceHandler (CQRS)
         ↓
-RecordSectionAttendanceJob → queue: attendance-writes
+UnitOfWork: upsert attendance.records (500/chunk) + refresh daily_section_summary
         ↓
-AttendanceBatchService::recordSectionAttendance (500/chunk)
+Idempotency + outbox (SectionAttendanceMarked)
         ↓
-attendance.records (partitioned by academic_year_id)
+attendance.records (partitioned by academic_year_id) under FORCE RLS
         ↓
-refreshDailySummary() → attendance.daily_section_summary
-        ↓
-WebSocket/poll: "Attendance saved ✓"
+Response: marked_count (sync path today; heavy ops may queue later)
 ```
+
+**R1.9:** Do **not** route peak writes through quarantined legacy
+`AttendanceBatchService`. CQRS is the authoritative supported write path.
+Full deletion of the legacy class requires separate authorization.
 
 ## Queue Configuration
 

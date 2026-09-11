@@ -40,6 +40,15 @@
 | (school_id, attendance_date) | COMPOSITE | School daily dashboard (45K scenario) |
 | (academic_year_id, attendance_date) | COMPOSITE | Directorate 20-school report |
 
+### `attendance.sessions`
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (section_id, session_date) | COMPOSITE | Section day lookup |
+| (academic_year_id, session_date) | COMPOSITE | Year/date reports |
+| (school_id) | B-Tree | RLS predicate |
+| (school_id, academic_year_id, section_id, subject_id, session_date, period_id) WHERE status=1 NULLS NOT DISTINCT | PARTIAL UNIQUE (R1.8A) | At most one OPEN session per natural key; concurrency authority |
+
 ### `attendance.records` ⚡
 
 | Column(s) | Type | Reason |

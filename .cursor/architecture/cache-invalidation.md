@@ -77,9 +77,9 @@ Requires Redis cache driver with tagging support.
 ### After Batch Attendance
 
 ```php
-// After AttendanceBatchService completes
+// After MarkSectionAttendanceHandler succeeds (CQRS)
 Cache::forget("dashboard:school:{$schoolId}:{$yearId}");
-// daily_section_summary updated in DB — dashboard cache invalidated
+// daily_section_summary updated in the same UnitOfWork — dashboard cache invalidated
 ```
 
 ---

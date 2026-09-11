@@ -27,7 +27,8 @@
 
 ## Application Checklist
 
-- [ ] AttendanceBatchService used for all attendance writes
+- [ ] Attendance writes use Application/Attendance CQRS only (`MarkSectionAttendance`, etc.)
+- [ ] Legacy `AttendanceBatchService` remains quarantined (R1.9 Option B) — not used as a public writer
 - [ ] Queue workers: 8 for attendance-writes during peak
 - [ ] Horizon or queue monitoring configured
 - [ ] Correlation ID middleware active

@@ -22,14 +22,15 @@ Feature Tests (many)    Load/Stress (scheduled)
 
 | Area | Examples |
 |------|----------|
-| AttendanceBatchService | Chunk logic, summary calculation |
+| MarkSectionAttendanceHandler | OPEN check, ATT-D4 enrollment, chunk upsert |
 | Promotion rules | GPA eligibility |
 | Grade validation | 0–100 bounds |
 | Idempotency keys | Duplicate detection |
+| Legacy Attendance quarantine | `recordSectionAttendance` / `refreshDailySummary` fail closed (R1.9) |
 
 ```php
-// tests/Unit/Services/AttendanceBatchServiceTest.php
-public function test_chunks_records_in_batches_of_500(): void
+// tests/Unit/Attendance/AttendanceBatchServiceQuarantineTest.php
+public function record_section_attendance_is_blocked(): void
 ```
 
 ---

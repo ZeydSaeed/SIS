@@ -683,16 +683,21 @@
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → organization.schools — **denormalized historical ownership (R1.7 Strategy A)**; stamped at create; authoritative for session RLS |
 | section_id | BIGINT | FK → enrollment.sections |
 | subject_id | BIGINT | FK → curriculum.subjects |
 | academic_year_id | BIGINT | FK → academic_years |
 | session_date | DATE | NOT NULL |
 | period_id | SMALLINT | FK → timetable.periods, nullable |
 | teacher_id | BIGINT | FK → teachers.teachers |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1; **CHECK status IN (1,2,3)** (R1.8A vocabulary) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(section_id, session_date)`, `BTREE(academic_year_id, session_date)`
+**Indexes:** `BTREE(section_id, session_date)`, `BTREE(academic_year_id, session_date)`, `BTREE(school_id)` (RLS)
+
+**Integrity (R1.8A):** Partial UNIQUE `attendance_sessions_open_natural_key_uidx` ON `(school_id, academic_year_id, section_id, subject_id, session_date, period_id) NULLS NOT DISTINCT WHERE status = 1` — at most one OPEN session per natural key; CLOSED recreation allowed; NULL period is its own bucket.
+
+**RLS (R1.7):** ENABLE + FORCE; fail-closed `school_id = app.current_school_id`; SELECT/INSERT/UPDATE only (DELETE denied under RLS).
 
 ### `attendance.records` ⚡ PARTITIONED (P0 for 45K scenario)
 
@@ -712,6 +717,8 @@
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Partition:** LIST by `academic_year_id` — **P0 from year 1** (45M rows/year at 45K students)
+
+**RLS (R1.7):** ENABLE + FORCE; fail-closed school_id; SELECT/INSERT/UPDATE only (DELETE denied under RLS).
 
 **Indexes:**
 - `COMPOSITE(student_id, attendance_date)`
@@ -736,6 +743,8 @@
 **PK:** `(section_id, attendance_date)`
 
 **Purpose:** Dashboard reads 900 rows instead of scanning 45,000 attendance records.
+
+**RLS (R1.7):** ENABLE + FORCE; fail-closed school_id; SELECT/INSERT/UPDATE only (DELETE denied under RLS).
 
 **Indexes:**
 - `BTREE(school_id, attendance_date)` — school daily report
@@ -1005,60 +1014,114 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 ---
 
-## Schema: `certificates` (3 tables)
+## Schema: `certificates` (6 tables) — Phase 4.1 LIVE
 
-### `certificates.templates`
+> **Authoritative:** Phase 4.0B / 4.1A Design Locks + migrations `2026_09_11_180100`–`180300`.  
+> **STALE (do not implement):** prior sketch `templates` / `issued_certificates.graduation_id` → `graduation.records`.
+
+### `certificates.certificate_templates`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| school_id | BIGINT | FK → schools, nullable |
-| certificate_type | SMALLINT | NOT NULL |
+| id | BIGINT IDENTITY | PK |
+| school_id | BIGINT | NOT NULL, FK → schools RESTRICT |
+| certificate_type | SMALLINT | NOT NULL, CHECK ≥ 1 |
 | name | VARCHAR(255) | NOT NULL |
-| template_storage_key | VARCHAR(500) | NOT NULL |
-| is_active | BOOLEAN | NOT NULL DEFAULT true |
+| status | SMALLINT | NOT NULL, CHECK 1–3 |
 | created_at | TIMESTAMPTZ | NOT NULL |
-| updated_at | TIMESTAMPTZ | NOT NULL |
+| created_by | BIGINT | nullable |
 
-**Indexes:** `BTREE(school_id, certificate_type)`
+**UNIQUE:** `(school_id, certificate_type, name)`, `(id, school_id)`  
+**RLS:** ENABLE + FORCE
 
-### `certificates.issued_certificates`
+### `certificates.certificate_template_versions`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| certificate_number | VARCHAR(50) | UNIQUE NOT NULL |
-| student_id | BIGINT | FK → students.students |
-| graduation_id | BIGINT | FK → graduation.records, nullable |
-| template_id | BIGINT | FK → templates |
-| storage_key | VARCHAR(500) | |
-| file_hash | VARCHAR(64) | |
-| verification_code | VARCHAR(100) | UNIQUE NOT NULL |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
-| issued_by | BIGINT | FK → security.users |
-| issued_at | TIMESTAMPTZ | NOT NULL |
+| id | BIGINT IDENTITY | PK |
+| school_id | BIGINT | NOT NULL |
+| template_id | BIGINT | NOT NULL, composite FK `(template_id, school_id)` RESTRICT |
+| version_no | INTEGER | NOT NULL, CHECK ≥ 1 |
+| locale | VARCHAR(16) | nullable (no locale uniqueness) |
+| content_hash | VARCHAR(128) | NOT NULL (immutable) |
+| template_storage_key | VARCHAR(500) | NOT NULL (immutable) |
+| effective_from / effective_to | TIMESTAMPTZ | nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
+| created_by | BIGINT | nullable |
 
-**Indexes:** `UNIQUE(certificate_number)`, `UNIQUE(verification_code)`, `BTREE(student_id)`
+**UNIQUE:** `(template_id, version_no)`, `(id, school_id)`  
+**Immutability:** UPDATE of content/identity columns rejected by trigger
 
-### `certificates.generation_jobs`
+### `certificates.certificates`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| job_id | UUID | UNIQUE NOT NULL |
-| school_id | BIGINT | FK → schools |
-| academic_year_id | BIGINT | FK → academic_years |
-| template_id | BIGINT | FK → templates |
-| total_count | INTEGER | NOT NULL |
-| processed_count | INTEGER | NOT NULL DEFAULT 0 |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
-| idempotency_key | VARCHAR(100) | UNIQUE |
-| created_by | BIGINT | FK → security.users |
+| id | BIGINT IDENTITY | PK |
+| school_id | BIGINT | NOT NULL |
+| enrollment_id | BIGINT | NOT NULL, composite FK `(enrollment_id, school_id)` RESTRICT |
+| student_id | BIGINT | NOT NULL, FK → students RESTRICT (denorm) |
+| certificate_type | SMALLINT | NOT NULL, CHECK ≥ 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
-| completed_at | TIMESTAMPTZ | |
+| created_by | BIGINT | nullable |
 
-**Indexes:** `BTREE(status)`, `UNIQUE(idempotency_key)`
+**UNIQUE:** `(school_id, enrollment_id, certificate_type)`, `(id, school_id)`
+
+### `certificates.certificate_issuances`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT IDENTITY | PK |
+| school_id | BIGINT | NOT NULL |
+| certificate_id | BIGINT | composite FK with school RESTRICT |
+| issuance_no | INTEGER | NOT NULL, CHECK ≥ 1 |
+| graduation_award_version_id | BIGINT | composite FK `(id, school_id)` → award_versions RESTRICT |
+| graduation_award_id | BIGINT | FK → graduation_awards RESTRICT |
+| enrollment_id | BIGINT | denorm; composite FK with school RESTRICT |
+| template_version_id | BIGINT | composite FK with school RESTRICT |
+| lifecycle_status | SMALLINT | NOT NULL, CHECK 1–5 |
+| certificate_number | VARCHAR(50) | NOT NULL |
+| verification_code | VARCHAR(128) | NOT NULL |
+| supersedes_issuance_id | BIGINT | nullable; composite self-FK with school RESTRICT |
+| issued_at / issued_by / revoked_* / correlation_id | | nullable as designed |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| created_by | BIGINT | nullable |
+
+**UNIQUE:** `(certificate_id, issuance_no)`, `(school_id, certificate_number)`, `(verification_code)` global, `(id, school_id)`
+
+### `certificates.certificate_artifacts`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT IDENTITY | PK |
+| school_id | BIGINT | NOT NULL |
+| issuance_id | BIGINT | composite FK with school RESTRICT |
+| attempt_no | INTEGER | NOT NULL, CHECK ≥ 1 |
+| storage_key | VARCHAR(500) | NOT NULL |
+| content_type | VARCHAR(100) | NOT NULL |
+| file_hash | VARCHAR(64) | NOT NULL |
+| byte_size | BIGINT | NOT NULL, CHECK ≥ 0 |
+| generated_at | TIMESTAMPTZ | NOT NULL |
+| generator_version | VARCHAR(64) | NOT NULL |
+| is_current | BOOLEAN | NOT NULL DEFAULT false |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**UNIQUE:** `(issuance_id, attempt_no)`; partial UNIQUE `(issuance_id) WHERE is_current`
+
+### `certificates.certificate_generation_jobs`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT IDENTITY | PK |
+| school_id | BIGINT | NOT NULL |
+| issuance_id | BIGINT | UNIQUE; composite FK with school RESTRICT |
+| job_status | SMALLINT | NOT NULL, CHECK 1–4 |
+| attempt_count | INTEGER | NOT NULL DEFAULT 0, CHECK ≥ 0 |
+| last_error_ref | VARCHAR(255) | nullable |
+| correlation_id | VARCHAR(64) | nullable |
+| queued_at / started_at / finished_at | TIMESTAMPTZ | nullable |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Reject-delete:** all six tables. **No** `(school_id, job_status)` operational index in Phase 4.1 (deferred).
 
 ---
 
@@ -1566,7 +1629,7 @@ curriculum.subjects
 | promotion | 2 |
 | transfers | 2 |
 | graduation | 2 |
-| certificates | 3 |
+| certificates | 6 |
 | documents | 1 |
 | finance | 4 |
 | communication | 3 |
@@ -1574,7 +1637,7 @@ curriculum.subjects
 | security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **87** |
+| **Total** | **90** |
 
 ## Partition Strategy (⚡)
 

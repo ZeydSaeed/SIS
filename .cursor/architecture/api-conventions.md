@@ -47,23 +47,23 @@ admin.schools.update
 ## Controller Rules
 
 ```php
-// ✅ Thin controller
-public function batchStore(
-    AttendanceBatchRequest $request,
-    Section $section,
-    AttendanceBatchService $service,
-): RedirectResponse {
-    $this->authorize('recordAttendance', $section);
+// ✅ Thin controller — Attendance writes go through Application CQRS handlers
+public function mark(
+    MarkSectionAttendanceRequest $request,
+    int $session,
+    MarkSectionAttendanceHandler $handler,
+): JsonResponse {
+    $this->authorize('mark', $sessionRecord);
 
-    $count = $service->recordSectionAttendance(
-        sessionId: $request->validated('session_id'),
-        records: $request->validated('records'),
-        recordedBy: $request->user()->id,
-    );
+    $result = $handler->handle(MarkSectionAttendanceCommand::fromRequest($request, $session));
 
-    return back()->with('success', __('attendance.saved', ['count' => $count]));
+    return response()->json(['data' => ['marked_count' => $result->markedCount]]);
 }
 ```
+
+**Attendance write path (R1.9):** Authoritative supported writer is `Application/Attendance` CQRS
+(`MarkSectionAttendance`, etc.). The legacy `app/Services/Attendance/AttendanceBatchService` is
+**deprecated/quarantined** — not a supported public writer. Full deletion requires separate authorization.
 
 ---
 

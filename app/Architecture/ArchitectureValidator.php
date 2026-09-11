@@ -18,6 +18,7 @@ final class ArchitectureValidator
         private readonly SecurityArchitectureValidator $securityArchitecture = new SecurityArchitectureValidator,
         private readonly IntelligenceGovernanceChecker $intelligence = new IntelligenceGovernanceChecker,
         private readonly ArchitectureBaseline $baseline = new ArchitectureBaseline,
+        private readonly QuarantinedLegacyWriterGuard $quarantinedLegacy = new QuarantinedLegacyWriterGuard,
     ) {}
 
     /** @var list<string> */
@@ -44,6 +45,7 @@ final class ArchitectureValidator
             ...$this->security->validate(),
             ...$this->securityArchitecture->validate(),
             ...$this->intelligence->validate(),
+            ...$this->quarantinedLegacy->validate(),
         ]));
     }
 

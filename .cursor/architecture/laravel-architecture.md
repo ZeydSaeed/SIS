@@ -55,7 +55,7 @@ HTTP Controller (thin)
 
 | Artifact | Status | Notes |
 |----------|--------|-------|
-| `app/Services/Attendance/AttendanceBatchService.php` | `@architecture-legacy-allowed` | Migrate to Application handler |
+| `app/Services/Attendance/AttendanceBatchService.php` | **R1.9 Option B QUARANTINED** | Runtime fail-closed; CQRS is authoritative; full deletion needs separate authorization |
 | Pre-Clean Architecture docs below | Historical | Superseded by ARCHITECTURE-STACK |
 
 Do **not** add new legacy Service classes without architecture review.

@@ -65,6 +65,10 @@ final class ArchitectureFitnessReport
                 $this->intelligence->validate(),
                 'Risk tiers, forbidden auto-actions, learning cannot escalate permissions',
             ),
+            'legacy_writer_quarantine' => $this->category(
+                $this->mergeFilters($validatorViolations, ['[ARCH-LEGACY-001]']),
+                'Quarantined legacy Attendance writer is not reintroduced as a public write path',
+            ),
         ];
     }
 
