@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Infrastructure\Persistence\Eloquent\AttendanceSessionRecord;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
+use App\Infrastructure\Persistence\Eloquent\ExamRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentGradeRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
@@ -16,6 +17,7 @@ use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\AttendancePolicy;
 use App\Security\Policies\EnrollmentPolicy;
+use App\Security\Policies\ExamPolicy;
 use App\Security\Policies\GradePolicy;
 use App\Security\Policies\StudentPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -46,6 +48,7 @@ class SecurityServiceProvider extends ServiceProvider
         Gate::policy(StudentRecord::class, StudentPolicy::class);
         Gate::policy(EnrollmentRecord::class, EnrollmentPolicy::class);
         Gate::policy(StudentGradeRecord::class, GradePolicy::class);
+        Gate::policy(ExamRecord::class, ExamPolicy::class);
         Gate::policy(AttendanceSessionRecord::class, AttendancePolicy::class);
     }
 

@@ -11,6 +11,11 @@ use App\Domain\Attendance\Events\SectionAttendanceMarked;
 use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
 use App\Domain\Enrollment\Events\StudentEnrolled;
+use App\Domain\Exams\Events\ExamCancelled;
+use App\Domain\Exams\Events\ExamCreated;
+use App\Domain\Exams\Events\ExamEnrollmentCancelled;
+use App\Domain\Exams\Events\ExamSessionCancelled;
+use App\Domain\Exams\Events\ExamUpdated;
 use App\Domain\Exams\Events\StudentGradeCorrected;
 use App\Domain\Exams\Events\StudentGradeEntered;
 use App\Domain\Exams\Events\StudentGradeFinalized;
@@ -144,6 +149,54 @@ final class EloquentOutboxRepository implements OutboxRepository
                 examEnrollmentId: (int) $payload['exam_enrollment_id'],
                 studentId: (int) $payload['student_id'],
                 finalizedBy: isset($payload['finalized_by']) ? (int) $payload['finalized_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            ExamCreated::class => new ExamCreated(
+                examId: (int) $payload['exam_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                termId: (int) $payload['term_id'],
+                examTypeId: (int) $payload['exam_type_id'],
+                name: (string) $payload['name'],
+                startDate: (string) $payload['start_date'],
+                endDate: (string) $payload['end_date'],
+                status: (int) $payload['status'],
+                createdBy: isset($payload['created_by']) ? (int) $payload['created_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            ExamUpdated::class => new ExamUpdated(
+                examId: (int) $payload['exam_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                status: (int) $payload['status'],
+                changedFields: is_array($payload['changed_fields'] ?? null) ? $payload['changed_fields'] : [],
+                updatedBy: isset($payload['updated_by']) ? (int) $payload['updated_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            ExamCancelled::class => new ExamCancelled(
+                examId: (int) $payload['exam_id'],
+                schoolId: (int) $payload['school_id'],
+                academicYearId: (int) $payload['academic_year_id'],
+                cancelledSessionIds: array_map('intval', $payload['cancelled_session_ids'] ?? []),
+                withdrawnEnrollmentIds: array_map('intval', $payload['withdrawn_enrollment_ids'] ?? []),
+                cancelledBy: isset($payload['cancelled_by']) ? (int) $payload['cancelled_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            ExamSessionCancelled::class => new ExamSessionCancelled(
+                examSessionId: (int) $payload['exam_session_id'],
+                examId: (int) $payload['exam_id'],
+                schoolId: (int) $payload['school_id'],
+                previousStatus: (int) $payload['previous_status'],
+                cancelledBy: isset($payload['cancelled_by']) ? (int) $payload['cancelled_by'] : null,
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
+            ExamEnrollmentCancelled::class => new ExamEnrollmentCancelled(
+                examEnrollmentId: (int) $payload['exam_enrollment_id'],
+                examSessionId: (int) $payload['exam_session_id'],
+                examId: (int) $payload['exam_id'],
+                schoolId: (int) $payload['school_id'],
+                previousStatus: (int) $payload['previous_status'],
+                cancelledBy: isset($payload['cancelled_by']) ? (int) $payload['cancelled_by'] : null,
                 occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
             ),
             CompletionOutcomeCreated::class => new CompletionOutcomeCreated(

@@ -4,17 +4,21 @@
 
 **Document Type:** AUTHORITATIVE DESIGN FREEZE  
 **Date:** 2026-09-11  
-**Status:** DESIGN LOCKED  
+**Status:** DESIGN LOCKED — **AMENDED** (Phase 7.1 DCR human decisions)  
 **Authorization:** DESIGN ONLY — **NO IMPLEMENTATION AUTHORIZATION**  
 **Upstream:** [`01-PHASE-7-ASSESSMENT-EXAMS-GRADES-READINESS-AUDIT.md`](./01-PHASE-7-ASSESSMENT-EXAMS-GRADES-READINESS-AUDIT.md) — READY FOR DESIGN LOCK  
-**Attendance boundary:** Master Phase 6 Final Gate — **PASS WITH CONDITIONS** (CLOSED — not reopened)
+**Attendance boundary:** Master Phase 6 Final Gate — **PASS WITH CONDITIONS** (CLOSED — not reopened)  
+**Amendment:** [`06-PHASE-7.1-DESIGN-LOCK-AMENDMENT.md`](./06-PHASE-7.1-DESIGN-LOCK-AMENDMENT.md) — Phase 7.1 Exam Administration design decisions (DR-001…DR-006)  
+**Amendment source DCR:** [`05-PHASE-7.1-DESIGN-CHANGE-REQUEST.md`](./05-PHASE-7.1-DESIGN-CHANGE-REQUEST.md)  
+**Amendment gate:** [`07-PHASE-7.1-DESIGN-LOCK-AMENDMENT-GATE.md`](./07-PHASE-7.1-DESIGN-LOCK-AMENDMENT-GATE.md)
 
 ```text
 NO CODE · NO MIGRATIONS · NO DDL · NO RLS · NO PERMISSIONS · NO ROUTES
-NO LEGACY DELETE · NO PHASE 7.1+ · NO RESULTS/GPA/RANKING/TRANSCRIPT IMPLEMENTATION
+NO LEGACY DELETE · NO PHASE 7.1 IMPLEMENTATION · NO PHASE 7.2+
+NO RESULTS/GPA/RANKING/TRANSCRIPT IMPLEMENTATION
 IMPLEMENTATION AUTHORIZATION: NOT GRANTED
+ROLE-TO-PERMISSION MAPPING: NOT APPROVED (DR-005 UNRESOLVED)
 ```
-
 ---
 
 ## 0. Purpose
@@ -386,29 +390,49 @@ Common defaults for all included commands:
 | Field | Value |
 |-------|-------|
 | Aggregate | Exam |
-| Preconditions | Exam exists in school; status not terminal (`Completed`/`Cancelled`) unless explicitly allowed field set (none today) |
-| Forbidden transitions | Silent revive from `Cancelled`; cross-school update |
-| Audit / outbox | `ExamUpdated` (future) |
+| Nature | **NOT** a generic CRUD PATCH — allowlisted fields only (P7.1-DR-003) |
+| Mutable — Draft/Scheduled only | `name`, `start_date`, `end_date` |
+| Mutable — Draft only | `exam_type_id`, `term_id` |
+| Status | Lifecycle transition only — never arbitrary status assignment |
+| Immutable | `id`, `school_id`, `academic_year_id`, `created_at` |
+| Preconditions | Exam exists in school; field mutability matches lifecycle allowlist above |
+| Forbidden transitions | Silent revive from `Cancelled`; cross-school update; free-form PATCH |
+| Audit / outbox | `ExamUpdated` (future — design name only) |
 
 #### CancelExam
 
 | Field | Value |
 |-------|-------|
 | Aggregate | Exam |
-| Preconditions | Not already terminal; define session/seat side-effect policy before implement |
-| Forbidden | Hard delete; cancel after grades exist without explicit supersession policy (**DEFER detail to 7.1 design**) |
-| Side effects | Must be explicit in implementation design — cascade cancel sessions/seats **or** reject if children active |
-| Audit / outbox | `ExamCancelled` (future) |
+| Permission (design vocabulary) | Dedicated `exam.cancel` — **not** inferred from `exam.update` / `grades.*` / `attendance.*` / `enrollment.*` (P7.1-DR-005a) |
+| Role mapping | **UNRESOLVED** — not approved by this Lock (P7.1-DR-005) |
+| CURRENT grade definition | `student_grades.is_current = true` for any enrollment belonging to the target exam |
+| FAIL CLOSED if | ANY CURRENT grade exists for any exam enrollment of the exam; ANY `ExamSession` is `Completed`; Exam already `Completed` or `Cancelled` |
+| Does NOT block alone | Historical non-current VOIDED grades |
+| Clarification | `CorrectStudentGrade` creates a new CURRENT grade → does **not** make an exam cancellable; `VoidStudentGrade` may remove the CURRENT-grade condition |
+| If cancellation permitted (atomic) | Exam → `Cancelled`; Scheduled sessions → `Cancelled`; InProgress sessions → `Cancelled`; active enrollments → `Withdrawn` |
+| Forbidden | Hard delete of exam/session/enrollment/grade rows; automatic grade void; automatic grade correction; automatic grade deletion; direct mutation of `exams.student_grades` |
+| Historical VOIDED rows | Remain immutable history |
+| Transaction | Entire business mutation MUST be atomic; outbox + idempotency persistence MUST participate in the same transaction once implemented |
+| Audit / outbox | `ExamCancelled` (+ session/enrollment cancel events as applicable — design names only) |
+
+**P7.1-DR-001 — LOCKED.** CancelExam MUST NOT directly mutate `exams.student_grades`.
 
 #### CreateExamSession / UpdateExamSession
 
 | Field | Value |
 |-------|-------|
 | Aggregate | ExamSession (under Exam) |
-| Preconditions | Parent exam not Cancelled; subject/school/year consistency via composite FKs |
+| Academic year | Inherited from parent Exam — **no** denormalized `academic_year_id` column on session (P7.1 academic-year contract) |
+| CreateExamSession preconditions | Parent exam not Cancelled; subject/school consistency via composite FKs; year via parent Exam |
+| UpdateExamSession nature | **NOT** a generic CRUD PATCH (P7.1-DR-003) |
+| UpdateExamSession mutable — Scheduled only | `session_date`, `start_time`, `end_time`, `room_id`, `max_grade`, `pass_grade` |
+| UpdateExamSession immutable | `id`, `exam_id`, `subject_id`, `school_id` |
+| UpdateExamSession status | MUST NOT be changed through generic Update (use Open/Close/Cancel commands) |
+| Additional immutability | If ANY CURRENT grade exists for the session → `max_grade` and `pass_grade` become immutable |
+| Historical grades | Non-current grades do **not** independently add further immutability rules |
 | Forbidden | Orphan session; client-supplied denorm identity that disagrees with parent |
-| Audit / outbox | `ExamSessionCreated` / `ExamSessionUpdated` (future) |
-
+| Audit / outbox | `ExamSessionCreated` / `ExamSessionUpdated` (future — design names only) |
 #### OpenExamSession
 
 | Field | Value |
@@ -441,27 +465,75 @@ Common defaults for all included commands:
 | Field | Value |
 |-------|-------|
 | Aggregate | ExamEnrollment (seat) |
-| Preconditions | Active academic enrollment; session not Cancelled; unique `(exam_session_id, enrollment_id)` |
-| Forbidden | Cross-school seat; duplicate seat |
+| Academic year | `enrollment.academic_year_id` MUST equal `exam.academic_year_id` — mismatch **FAIL CLOSED**; **no** denormalized `academic_year_id` on exam enrollment |
+| Preconditions | Active academic enrollment; session not Cancelled; unique `(exam_session_id, enrollment_id)`; academic-year match |
+| Forbidden | Cross-school seat; duplicate seat; year mismatch |
 | Initial status | `Registered (1)` unless policy says otherwise |
-| Audit / outbox | `ExamEnrollmentCreated` (future) |
+| Audit / outbox | `ExamEnrollmentCreated` (future — design name only) |
 
 #### UpdateExamEnrollment (narrow)
 
 | Field | Value |
 |-------|-------|
-| Allowed | Status transitions among Registered → Confirmed → Present / Absent / Withdrawn per §10 |
-| Forbidden | Changing enrollment_id / session_id / school_id identity; free-form patch of denorm keys |
-| Audit / outbox | `ExamEnrollmentUpdated` (future) |
+| Nature | **NOT** a generic CRUD PATCH — explicit allowlisted lifecycle transitions + allowlisted fields (P7.1-DR-003) |
+| Allowed | Explicit allowlisted lifecycle status transitions per §10; `seat_number` only where lifecycle permits |
+| `seat_number` immutable when | Enrollment is `Present` **OR** a CURRENT grade exists |
+| Immutable | Identity and relationship columns (`id`, `enrollment_id`, `exam_session_id`, `school_id`, etc.) |
+| Forbidden | Free-form patch of denorm keys; arbitrary status assignment outside transition matrix |
+| Future implementation | MUST use explicit transition matrices and allowlists |
+| Audit / outbox | `ExamEnrollmentUpdated` (future — design name only) |
 
 #### CancelExamEnrollment
 
 | Field | Value |
 |-------|-------|
-| FROM → TO | Active seat → `Withdrawn (5)` |
-| Preconditions | Define interaction with current grade (**KNOWN DESIGN RISK** — must fail-closed or require void first) |
+| FROM → TO | Active seat → `Withdrawn (5)` when permitted |
+| CURRENT grade definition | `student_grades.is_current = true` for the target `exam_enrollment_id` |
+| FAIL CLOSED if | A CURRENT grade exists for the target enrollment |
+| If no CURRENT grade | ExamEnrollment → `Withdrawn` |
+| MUST NOT | Mutate `student_grades`; automatically void / correct / finalize / delete any grade |
+| Actor path for grades | Grade CQRS only (`VoidStudentGrade` / `CorrectStudentGrade` / etc.) if grade action required |
+| Historical VOIDED | Remain immutable history; do not independently block |
 | Forbidden | Hard delete seat history |
-| Audit / outbox | `ExamEnrollmentCancelled` (future) |
+| Audit / outbox | `ExamEnrollmentCancelled` (future — design name only) |
+
+**P7.1-DR-002 — LOCKED.** CancelExamEnrollment MUST NOT mutate `exams.student_grades`.
+
+### 9.4 Phase 7.1 amendment decisions — LOCKED (design only)
+
+| Decision ID | Topic | Human verdict | Lock location |
+|-------------|--------|---------------|---------------|
+| P7.1-DR-001 | CancelExam cascade + CURRENT-grade guard | **APPROVED** | §9.3 CancelExam; §10.1 |
+| P7.1-DR-002 | CancelExamEnrollment vs StudentGrade | **APPROVED** | §9.3 CancelExamEnrollment; §10.3 |
+| P7.1-DR-003 | Update* mutable-field allowlists | **APPROVED** | §9.3 UpdateExam / Session / Enrollment |
+| P7.1-DR-004 | Exam → Completed (+ zero-session) | **APPROVED** | §10.1 |
+| P7.1-DR-005 | exam.* role mapping | **MODIFY — DO NOT AUTO-MAP** / **UNRESOLVED** | §21.3 |
+| P7.1-DR-005a | Dedicated `exam.cancel` | **APPROVED** (vocabulary only) | §21.2 |
+| P7.1-DR-006 | Event catalog + identity ≠ idempotency | **APPROVED** | §22.2 / §14.5 / §22.4 |
+
+### 9.5 Hard-delete policy (LOCKED — retained)
+
+```text
+NO HARD DELETE for:
+exams | exam_sessions | exam_enrollments | student_grades
+```
+
+Cancellation is a lifecycle state transition only.
+
+### 9.6 Academic-year contract (LOCKED — retained / clarified)
+
+* Exam owns `academic_year_id`.
+* ExamSession inherits academic year from Exam.
+* ExamEnrollment requires `enrollment.academic_year_id == exam.academic_year_id` — mismatch **FAIL CLOSED**.
+* Do **not** add denormalized `academic_year_id` to sessions or enrollments through this amendment.
+
+### 9.7 Grade partition contract (P7-D9 — UNCHANGED)
+
+`exams.student_grades`: LIST partitioned by `academic_year_id`; **NO DEFAULT** partition; missing academic-year partition → **FAIL CLOSED** (grade-write operational prerequisite).
+
+### 9.8 Grade SSOT (P7-D1 / P7-D6 — UNCHANGED)
+
+`exams.student_grades` remains the sole Grade SSOT. No second grade / exam-result / GPA / ranking / transcript grade stores under this amendment. Results/GPA/Ranking/Transcript remain P7-D2 deferred.
 
 ---
 
@@ -481,15 +553,33 @@ Draft (1)
 
 | FROM | TO | Actor | Permission (future) | Preconditions | Side effects | Audit | Outbox | Idempotency |
 |------|----|-------|---------------------|---------------|--------------|-------|--------|-------------|
-| Draft | Scheduled | Exam admin | `exam.update` | Valid dates/type | None required | Yes | ExamScheduled (future) | Required |
+| Draft | Scheduled | Exam admin | `exam.update` | Valid dates/type | None required | Yes | Future design event | Required |
 | Scheduled | InProgress | Exam admin | `exam.update` | Not cancelled | Optional session opens | Yes | Future | Required |
-| InProgress | Completed | Exam admin | `exam.update` | Sessions policy TBD | None auto-grade | Yes | Future | Required |
-| Draft\|Scheduled\|InProgress | Cancelled | Exam admin | `exam.update` | Child policy TBD | May block if grades | Yes | Future | Required |
+| InProgress | Completed | Exam admin | `exam.update` | **P7.1-DR-004** predicates (below) | No auto session close; no auto-grade | Yes | Future | Required |
+| Draft\|Scheduled\|InProgress | Cancelled | Exam admin | `exam.cancel` | **P7.1-DR-001** guards | Cascade per CancelExam contract | Yes | `ExamCancelled` (+ child events) | Required |
 | Completed | * | — | — | — | **FORBIDDEN** without Design Change | — | — | — |
 | Cancelled | * | — | — | — | **FORBIDDEN** revive | — | — | — |
 
 `isTerminal()` = Completed | Cancelled — **PROVEN**.
 
+##### Exam → Completed (P7.1-DR-004 — LOCKED)
+
+`InProgress → Completed` ONLY when **all** of the following hold; otherwise **FAIL CLOSED**:
+
+1. At least one ExamSession exists.
+2. No session is Scheduled.
+3. No session is InProgress.
+4. Every non-cancelled session is Completed.
+5. Cancelled sessions remain Cancelled.
+6. No automatic session closing is performed.
+
+**Zero-session rule:** An Exam with zero sessions MUST NOT transition to Completed.
+
+**Command note:** Do **not** add a `CompleteExam` command under this Lock. A dedicated `CompleteExam` requires a separate Design Change Request.
+
+##### Exam → Cancelled (P7.1-DR-001 — LOCKED)
+
+See CancelExam command contract in §9.3. No direct grade mutation; CURRENT-grade and Completed-session guards; cascade sessions/seats only when permitted; atomic + same-transaction outbox/idempotency once implemented.
 ### 10.2 Exam Session (`ExamSessionStatus`) — **PROVEN**
 
 ```text
@@ -523,7 +613,7 @@ Registered (1)
 | Registered | Confirmed | Exam admin | `exam.enrollment.update` | Seat exists; session not Cancelled | None | |
 | Confirmed | Present | Exam admin / invigilator mapping TBD | `exam.enrollment.update` | Session open policy TBD | None | Role mapping **DEFERRED** |
 | Registered\|Confirmed\|Present | Absent | Exam admin | `exam.enrollment.update` | — | Seat inactive → grade enter blocked | Distinct from grade `is_absent` |
-| *active* | Withdrawn | Exam admin | `exam.enrollment.cancel` | Grade interaction policy TBD | May require void first | |
+| *active* | Withdrawn | Exam admin | `exam.enrollment.cancel` | **P7.1-DR-002:** FAIL CLOSED if CURRENT grade; else → Withdrawn | No auto grade void/correct/finalize | Grade CQRS if grade action needed |
 | Absent\|Withdrawn | active | — | — | — | **FORBIDDEN** without Design Change | |
 
 **Seat Absent ≠ Grade `is_absent`.** Seat status is participation; grade absence is score semantics. Both may coexist but are not the same fact.
@@ -663,10 +753,31 @@ No repository human policy was found mandating permanent optional idempotency fo
 | Request identity | `X-Idempotency-Key` + actor + school + command type |
 | Replay | Same key + same payload → return original successful result |
 | Conflict | Same key + different payload → conflict (4xx), no execute |
+| School mismatch | **FAIL CLOSED** |
 | Transaction | Prefer record inside UnitOfWork before commit (hardening target); document residual if post-commit remains |
 | Retention | Follow platform IdempotencyStore policy (no silent infinite retain without ops policy) |
 | Concurrency | Unique-current constraint remains authoritative even with keys |
+| Schema | Do **not** redesign `audit.idempotency_keys` under Phase 7.1 |
 
+### 14.4 Phase 7.1 Exam Administration — design contract (LOCKED; not implemented)
+
+For externally exposed mutating Phase 7.1 commands:
+
+1. Idempotency key is **REQUIRED**.
+2. Same key + same command + same payload → replay previous result.
+3. Same key + different payload → **FAIL CLOSED**.
+4. School mismatch → **FAIL CLOSED**.
+5. Business mutation + outbox + idempotency persistence → **SAME TRANSACTION / SAME COMMIT**.
+6. Do not redesign `audit.idempotency_keys` in this amendment.
+
+### 14.5 Event identity ≠ idempotency identity (LOCKED)
+
+```text
+Idempotency identity  = X-Idempotency-Key (command replay protection)
+Event identity        = outbox event / message identity
+```
+
+These MUST NOT be treated as interchangeable. They MAY be correlated, but neither is automatically the identity of the other. Future implementation must preserve this distinction.
 ---
 
 ## 15. P7-D7 — Enrollment Date-Window Eligibility
@@ -848,29 +959,45 @@ Roles present: `grades_manager`, `grades_teacher`, `grades_viewer`.
 
 ### 21.2 Future Exam Administration permissions — DESIGN ONLY (do not add now)
 
+**Permission vocabulary approved as design vocabulary (P7.1-DR-005 / DR-005a):**
+
 ```text
 exam.create
 exam.update
+exam.cancel
+
 exam.session.create
 exam.session.update
 exam.session.open
 exam.session.close
+
 exam.enrollment.create
 exam.enrollment.update
 exam.enrollment.cancel
 ```
 
-### 21.3 Roles
+`exam.cancel` is the **dedicated** permission for `CancelExam` — do **not** infer it from `exam.update`, `grades.*`, `attendance.*`, or `enrollment.*` (P7.1-DR-005a).
 
-Do **not** invent Examiner / Registrar / AcademicAdmin roles without evidence.
+### 21.3 Roles — NO AUTO-MAPPING (P7.1-DR-005 — MODIFY)
 
 ```text
-Role mapping for exam admin = DEFERRED PRODUCT DECISION
-May extend existing security roles or add named roles after approval.
+NO ROLE MAPPING IS APPROVED BY THIS DESIGN LOCK AMENDMENT.
+```
+
+Do **NOT**:
+
+* invent Examiner / Registrar / Exam Officer;
+* automatically assign all `exam.*` permissions to `grades_manager`;
+* automatically assign permissions to `attendance_manager`, `enrollment_manager`, teachers, or viewers.
+
+Existing roles may be treated as **evidence only**.
+
+```text
+Role-to-permission mapping = UNRESOLVED
+Requires a separate explicit human security decision + Security Change Control.
 ```
 
 Teacher vs Manager SoD for grades remains as implemented (teacher cannot correct/void/finalize) — **PROVEN**.
-
 ---
 
 ## 22. Audit / Outbox
@@ -884,13 +1011,22 @@ StudentGradeVoided
 StudentGradeFinalized
 ```
 
-### 22.2 Future Exam Administration events (design only)
+### 22.2 Future Exam Administration events — design catalog LOCKED (P7.1-DR-006)
+
+Design-level event names only — **do not create event classes** under this Lock:
 
 ```text
-ExamCreated / ExamUpdated / ExamCancelled
-ExamSessionCreated / ExamSessionUpdated / ExamSessionOpened /
-ExamSessionClosed / ExamSessionCancelled
-ExamEnrollmentCreated / ExamEnrollmentUpdated / ExamEnrollmentCancelled
+ExamCreated
+ExamUpdated
+ExamCancelled
+ExamSessionCreated
+ExamSessionUpdated
+ExamSessionOpened
+ExamSessionClosed
+ExamSessionCancelled
+ExamEnrollmentCreated
+ExamEnrollmentUpdated
+ExamEnrollmentCancelled
 ```
 
 ### 22.3 Event envelope (frozen shape)
@@ -911,6 +1047,13 @@ payload version
 
 Business write + outbox staging remain **transactionally consistent** inside UnitOfWork.
 
+### 22.4 Event identity ≠ idempotency identity (LOCKED)
+
+```text
+Outbox event / message identity  ≠  X-Idempotency-Key command replay identity
+```
+
+See §14.5. Correlation allowed; interchangeability forbidden.
 ---
 
 ## 23. Concurrency
@@ -925,8 +1068,28 @@ Business write + outbox staging remain **transactionally consistent** inside Uni
 | Lifecycle transition races | No app writers yet | **KNOWN RESIDUAL RISK** for 7.1/7.2 |
 | Unique-current constraint | Must remain authoritative | **DESIGN LOCKED** — do not weaken |
 
-Document residual races; do not silently “fix” in this Lock.
+### 23.1 Phase 7.1 future implementation contract (LOCKED; not implemented)
 
+Future implementation MUST enforce:
+
+* atomic state transitions;
+* state predicates;
+* unique constraints where applicable;
+* UnitOfWork transaction boundaries;
+* zero-row transition = **FAIL CLOSED**.
+
+### 23.2 Mandatory race tests before Phase 7.1 final gate
+
+Required acceptance criteria (do **not** implement now):
+
+1. CancelExam vs CreateExamSession
+2. CancelExam vs CreateExamEnrollment
+3. CancelExam vs OpenExamSession
+4. CancelExam vs CloseExamSession
+5. CancelExamEnrollment vs EnterStudentGrade
+6. CancelExamEnrollment vs FinalizeStudentGrade
+
+Document residual races; do not silently “fix” in this Lock.
 ---
 
 ## 24. Normalization — Intentional Denormalization
@@ -1192,29 +1355,36 @@ No silent scope changes.
 | Risk | Class |
 |------|-------|
 | P7-D2 ownership unresolved → 7.4/7.5 blocked | **GOVERNANCE** |
-| CancelExam / CancelExamEnrollment vs existing grades | **KNOWN DESIGN RISK** |
+| DR-005 role-to-permission mapping unresolved → blocks secure 7.1 AuthZ implementation | **SECURITY / UNRESOLVED** |
 | Concurrent correct/finalize residual races | **KNOWN RESIDUAL RISK** |
-| Idempotency post-commit today | **KNOWN RESIDUAL RISK** |
+| Idempotency post-commit today (Grade/Attendance) vs required same-COMMIT for 7.1 | **KNOWN RESIDUAL RISK / IMPLEMENTATION PREREQUISITE** |
 | Zero partitions until years exist | **OPS CONDITION** |
 | Submitted workflow incomplete | **DEFERRED** |
 | Date-window eligibility undefined | **DEFERRED** |
 | Student/guardian read absent | **DEFERRED** |
 | Unmeasured scale (no EXPLAIN at 45K) | **ADVISORY** |
 
+**Resolved as design policy (not implementation):** CancelExam / CancelExamEnrollment vs grades — see P7.1-DR-001 / DR-002 in §9.3 (CURRENT-grade fail-closed; no auto grade mutation).
 ---
 
 ## 36. Final Statements
 
 ```text
-MASTER PHASE 7 DESIGN LOCK: COMPLETE
+MASTER PHASE 7 DESIGN LOCK: COMPLETE (AMENDED — Phase 7.1 DCR decisions)
 IMPLEMENTATION AUTHORIZATION: NOT GRANTED
+PHASE 7.1 IMPLEMENTATION: NOT AUTHORIZED
+ROLE-TO-PERMISSION MAPPING (DR-005): UNRESOLVED
 ```
 
-Phase 7 Design Lock is complete, but **no implementation authorization has been granted**.  
+Phase 7 Design Lock is complete and amended for Phase 7.1 Exam Administration policies, but **no implementation authorization has been granted**.  
 No Phase 7.1+ implementation may begin until explicit human approval is received.
 
 ```text
-NEXT AUTHORIZED STEP: HUMAN REVIEW ONLY
+NEXT AUTHORIZED STEP:
+  DESIGN LOCK AMENDMENT GATE (07-…)
+  → PHASE 7.1 RE-READINESS AUDIT
+  → HUMAN IMPLEMENTATION AUTHORIZATION
+  → IMPLEMENTATION
 ```
 
 ---
@@ -1224,6 +1394,9 @@ NEXT AUTHORIZED STEP: HUMAN REVIEW ONLY
 | Path | Role |
 |------|------|
 | `.cursor/database/phase-7/01-PHASE-7-ASSESSMENT-EXAMS-GRADES-READINESS-AUDIT.md` | Readiness input |
+| `.cursor/database/phase-7/05-PHASE-7.1-DESIGN-CHANGE-REQUEST.md` | Phase 7.1 DCR (proposal → human decisions) |
+| `.cursor/database/phase-7/06-PHASE-7.1-DESIGN-LOCK-AMENDMENT.md` | Amendment decision trace |
+| `.cursor/database/phase-7/07-PHASE-7.1-DESIGN-LOCK-AMENDMENT-GATE.md` | Amendment gate |
 | `.cursor/database/phase-attendance/22-MASTER-PHASE-6-ATTENDANCE-FINAL-DATABASE-GATE.md` | Attendance closed |
 | `docs/database/SIS-DATABASE-PHASE-0-GATE.md` | Master phase list |
 | `docs/database/SIS-DATABASE-PHASE-3A-GATE.md` | 3A PASS |
