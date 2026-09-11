@@ -36,6 +36,22 @@ final class Permission
 
     public const EXAM_CANCEL = 'exam.cancel';
 
+    public const EXAM_SESSION_CREATE = 'exam.session.create';
+
+    public const EXAM_SESSION_UPDATE = 'exam.session.update';
+
+    public const EXAM_SESSION_OPEN = 'exam.session.open';
+
+    public const EXAM_SESSION_CLOSE = 'exam.session.close';
+
+    public const EXAM_ENROLLMENT_CREATE = 'exam.enrollment.create';
+
+    public const EXAM_ENROLLMENT_UPDATE = 'exam.enrollment.update';
+
+    public const EXAM_ENROLLMENT_CANCEL = 'exam.enrollment.cancel';
+
+    public const EXAM_ENROLLMENT_PRESENT = 'exam.enrollment.present';
+
     public const ATTENDANCE_VIEW = 'attendance.view';
 
     public const ATTENDANCE_SESSION_CREATE = 'attendance.session.create';
@@ -72,6 +88,14 @@ final class Permission
             self::EXAM_CREATE,
             self::EXAM_UPDATE,
             self::EXAM_CANCEL,
+            self::EXAM_SESSION_CREATE,
+            self::EXAM_SESSION_UPDATE,
+            self::EXAM_SESSION_OPEN,
+            self::EXAM_SESSION_CLOSE,
+            self::EXAM_ENROLLMENT_CREATE,
+            self::EXAM_ENROLLMENT_UPDATE,
+            self::EXAM_ENROLLMENT_CANCEL,
+            self::EXAM_ENROLLMENT_PRESENT,
             self::ATTENDANCE_VIEW,
             self::ATTENDANCE_SESSION_CREATE,
             self::ATTENDANCE_MARK,

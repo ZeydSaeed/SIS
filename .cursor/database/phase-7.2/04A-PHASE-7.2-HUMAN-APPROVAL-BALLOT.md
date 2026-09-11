@@ -9,16 +9,15 @@
 | **Title** | PHASE 7.2 — Human Approval Ballot |
 | **Phase** | MASTER PHASE 7 — Assessment / Exams / Grades |
 | **Subphase** | PHASE 7.2 — Exam Session / Exam Enrollment Lifecycle |
-| **Document Type** | HUMAN DECISION COLLECTION ONLY |
-| **Date** | 2026-09-11 |
+| **Document Type** | HUMAN DECISION COLLECTION + HUMAN APPROVALS RECORDED |
+| **Date** | 2026-09-12 |
 | **Source** | `.cursor/database/phase-7.2/03-PHASE-7.2-HUMAN-DECISION-RESOLUTION.md` |
-| **Purpose** | Present unresolved choices to human project / security / business owner |
+| **Purpose** | Record explicit human owner selections for Phase 7.2 unresolved decisions |
 
 ```text
-THIS DOCUMENT = ballot only
+THIS DOCUMENT = ballot with recorded HUMAN APPROVED selections
 ≠ Design Lock
 ≠ Implementation Authorization
-≠ approval of any option
 ≠ permission / role / RLS / migration / application change
 ```
 
@@ -47,10 +46,11 @@ For each HD below:
 1. Read the question, evidence, locked constraints, and options.
 2. Mark **exactly one** human selection (or OTHER with text).
 3. Provide rationale and sign/date.
-4. Leave Decision Status as `PENDING HUMAN RESPONSE` until the owner completes that section.
+4. Decision Status must become `HUMAN APPROVED` only when the human owner has explicitly selected an option (as of 2026-09-12 supply).
 
 ```text
-Human approvals recorded by this task = 0
+Human approvals recorded (as of 2026-09-12 human decision supply) = 15 decision items
+Signer / named identity = NOT SUPPLIED
 ```
 
 ---
@@ -80,10 +80,10 @@ Do **not** reopen unless an authoritative artifact requires it:
 Reconciled against artifacts 01 / 02 / 03, Phase 7.1 closure, HD-001 amendment, 10A, and Master Lock.
 
 ```text
-Ballot conflicts requiring STOP = NONE
+Ballot conflicts requiring STOP = NONE (as of human decision supply 2026-09-12)
 ```
 
-All 13 items below remain **UNRESOLVED** in artifact 03. No automatic resolution applied.
+All 15 human decision items below are recorded as **HUMAN APPROVED** from the human decision owner supply dated 2026-09-12. Recommendations are not used as approvals; the explicit human selections below are authoritative.
 
 ---
 
@@ -161,7 +161,7 @@ Option B if Present is invigilator-owned (HD-7.2-005).
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] APPROVE OPTION D   (attach written model: ______________________________)
@@ -172,28 +172,46 @@ Option B if Present is invigilator-owned (HD-7.2-005).
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+grades_manager owns all seven Phase 7.2 permissions:
+
+exam.session.create
+exam.session.update
+exam.session.open
+exam.session.close
+exam.enrollment.create
+exam.enrollment.update
+exam.enrollment.cancel
+
+exam.session.cancel = FORBIDDEN (HD-005 — not reopened)
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
-___________________________________________________________________________
+Human decision owner: Phase 7.2 permission ownership centralized on grades_manager
+for the seven approved session/enrollment permissions, consistent with Phase 7.1
+exam.create/update/cancel ownership pattern WITHOUT inheriting those three as
+substitutes for session/enrollment permissions.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -274,7 +292,7 @@ Never mutate grades.
 **Sub-ballot A**
 
 ```text
-[ ] APPROVE OPTION A1
+[x] APPROVE OPTION A1
 [ ] APPROVE OPTION A2
 [ ] REJECT
 [ ] DEFER
@@ -285,7 +303,7 @@ Never mutate grades.
 **Sub-ballot B**
 
 ```text
-[ ] APPROVE OPTION B1
+[x] APPROVE OPTION B1
 [ ] APPROVE OPTION B2
 [ ] APPROVE OPTION B3
 [ ] REJECT
@@ -297,7 +315,7 @@ Never mutate grades.
 **Sub-ballot D**
 
 ```text
-[ ] APPROVE OPTION D1
+[x] APPROVE OPTION D1
 [ ] APPROVE OPTION D2
 [ ] REJECT
 [ ] DEFER
@@ -305,29 +323,44 @@ Never mutate grades.
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED PACKAGE (A/B/D):
+HD-7.2-002A = A1 — Already Cancelled → idempotent no-op
+HD-7.2-002B = B1 — Active seats → Withdraw atomically with CancelExamSession
+HD-7.2-002D = D1 — CancelExam skips sessions already Cancelled
+
+Sub-decision C (CURRENT grade) = see HD-7.2-003
+
+IMMUTABLE:
+No grade mutation as a cancellation side effect
+No automatic grade deletion / voiding / conversion
+No Restore
+```
+
 ### 9. Human Rationale
 
 ```text
-A: _______________________________________________________________________
-B: _______________________________________________________________________
-D: _______________________________________________________________________
+A: Idempotent already-cancelled handling for safe retries / dual-path cancel
+B: Keep seats consistent with Cancelled session (atomic withdraw)
+D: Preserve CancelExam cascade usefulness after prior dedicated session cancels
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED** (A1 + B1 + D1; C via HD-7.2-003)
 
 ---
 
@@ -380,7 +413,7 @@ Option A — FAIL CLOSED
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -389,28 +422,37 @@ Option A — FAIL CLOSED
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+CancelExamSession CURRENT-grade guard = FAIL CLOSED
+if ANY CURRENT grade exists for seats of the session.
+
+No automatic grade void / delete / mutate as cancel side effect.
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
-___________________________________________________________________________
+Align CancelExamSession with CancelExam / DR-002 spirit; protect integrity
+when Correct may not yet re-check Cancelled parents (HD-7.2-008 policy).
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -462,7 +504,7 @@ Option A (sequenced after HD-7.2-001)
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -471,27 +513,48 @@ Option A (sequenced after HD-7.2-001)
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+Register exactly the seven Phase 7.2 permission names after ownership (HD-7.2-001):
+
+exam.session.create
+exam.session.update
+exam.session.open
+exam.session.close
+exam.enrollment.create
+exam.enrollment.update
+exam.enrollment.cancel
+
+Do NOT register exam.session.cancel (HD-005 FORBIDDEN).
+
+NOTE (dependency HD-7.2-005): Present uses dedicated permission
+exam.enrollment.present (also owned by grades_manager). That name is
+authorized by HD-7.2-005 and is NOT exam.session.cancel. Catalog mutation
+itself remains NOT AUTHORIZED by this ballot recording task.
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Adopt Master Lock vocabulary; preserve HD-005; sequence after ownership lock.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -565,37 +628,62 @@ keep Present ≠ is_absent; no attendance mutation.
 [ ] REJECT
 [ ] DEFER
 [ ] REQUEST DESIGN CHANGE
-[ ] OTHER: __________
+[x] OTHER: Dedicated Present permission owned by grades_manager (not via exam.enrollment.update; not invigilator/teacher role)
+```
+
+```text
+HUMAN APPROVED — explicit values (authoritative):
+
+Actor / Role:
+grades_manager
+
+Permission:
+exam.enrollment.present
+
+Semantics (mandatory):
+Present != student_grades.is_absent
+Present does NOT mutate attendance.mark SSOT
+Present does NOT mutate student grades automatically
+Present is an explicit exam-enrollment/session lifecycle fact
+
+Session precondition (from Option A/B baseline retained unless contradicted):
+Confirmed → Present requires session InProgress
+Scheduled → Present = NOT allowed
+Present → Absent = allowed (Master Lock design matrix retained)
+Present does not gate grade eligibility by itself (see HD-7.2-009 for enter timing)
 ```
 
 If Option B: name actor/permission explicitly:
 
 ```text
-Actor / permission: _______________________________________________________
+Actor / Role: grades_manager
+Permission: exam.enrollment.present
 ```
 
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
-___________________________________________________________________________
+Human decision owner assigns Present marking to grades_manager via a dedicated
+permission exam.enrollment.present, keeping Present distinct from grade absence
+and attendance marking.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -647,7 +735,7 @@ Option A — ALLOW MULTIPLE
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -656,27 +744,36 @@ Option A — ALLOW MULTIPLE
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+Multiple sessions for the same Exam + Subject = ALLOWED
+Do NOT add UNIQUE(exam_id, subject_id) in Phase 7.2
+Do not create a uniqueness migration
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Support make-ups, parallel rooms, cohorts, resits, accommodations without
+forcing a uniqueness schema change in Phase 7.2.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -728,7 +825,7 @@ Option A — FORBIDDEN
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -737,27 +834,37 @@ Option A — FORBIDDEN
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+Move/Reassign existing ExamEnrollment = FORBIDDEN in Phase 7.2
+Do not reinterpret UpdateExamEnrollment as Move
+Do not change exam_session_id through Update semantics
+No MoveExamEnrollmentCommand / ReassignExamEnrollmentCommand in Phase 7.2
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Preserve seat identity and grade composite-FK history; operational path is
+CancelExamEnrollment (when permitted) + CreateExamEnrollment on target session.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -809,7 +916,7 @@ Option A — FAIL CLOSED
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -818,27 +925,40 @@ Option A — FAIL CLOSED
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A (policy)
+CorrectStudentGrade must FAIL CLOSED when:
+  session = Cancelled
+  OR
+  exam = Cancelled
+
+No automatic grade mutation.
+This is a design policy decision ONLY — StudentGradeWriteGuard is NOT modified by this ballot task.
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Align Correct with Enter rejection of Cancelled parents; close integrity gap
+especially under CancelExamSession CURRENT-grade policy (HD-7.2-003).
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
+**HUMAN APPROVED**
 
 ---
 
@@ -895,7 +1015,7 @@ Option C or A as candidates — human must pick the allowed set.
 ```text
 [ ] APPROVE OPTION A
 [ ] APPROVE OPTION B
-[ ] APPROVE OPTION C
+[x] APPROVE OPTION C
 [ ] APPROVE OPTION D
 [ ] REJECT
 [ ] DEFER
@@ -903,40 +1023,53 @@ Option C or A as candidates — human must pick the allowed set.
 [ ] OTHER: __________
 ```
 
-Final allowed set (if OTHER or clarification):
+```text
+HUMAN APPROVED — Option C with explicit status set (authoritative):
+
+GRADE ENTRY ALLOWED:
+InProgress
+Completed
+
+GRADE ENTRY DENIED:
+Scheduled
+Cancelled
+
+Do not reinterpret or broaden this set.
+Do not modify Grade Entry implementation guards in this ballot task.
+```
+
+Final allowed set (authoritative):
 
 ```text
-Scheduled:   ALLOW / DENY
-InProgress:  ALLOW / DENY
-Completed:   ALLOW / DENY
-Cancelled:   DENY (locked unless DCR)
+Scheduled:   DENY
+InProgress:  ALLOW
+Completed:   ALLOW
+Cancelled:   DENY (locked unless future DCR)
 ```
 
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Allow live-session and post-close scoring window; forbid entry before Open and
+after/while Cancelled.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER)
-
----
-
-## 8. MEDIUM BALLOTS
+**HUMAN APPROVED**
 
 ---
 
@@ -986,7 +1119,7 @@ Option A (defer hard scheduling)
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -995,27 +1128,35 @@ Option A (defer hard scheduling)
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+Hard room/time overlap enforcement = DEFERRED
+Do not create constraints or triggers in Phase 7.2
+Teacher/invigilator conflict scheduling remains OUT OF SCOPE
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Defer hard scheduling constraints; keep Phase 7.2 writers free of room exclusion complexity.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED)
+**HUMAN APPROVED**
 
 ---
 
@@ -1062,7 +1203,7 @@ Option A
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -1071,27 +1212,36 @@ Option A
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+Seat number = optional free-text value
+No uniqueness constraint
+No automatic generation
+No migration
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Keep seat_number as optional operational label without uniqueness enforcement.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED)
+**HUMAN APPROVED**
 
 ---
 
@@ -1147,7 +1297,7 @@ Option A
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -1156,27 +1306,40 @@ Option A
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A (policy)
+If room_id is supplied:
+  room.branch.school_id must equal the current school_id
+Failure = FAIL CLOSED application/domain validation
+
+Do NOT create a composite FK in Phase 7.2
+Do NOT create migration / schema / RLS change in this task
+same-school validation = approved policy only (implementation NOT AUTHORIZED by this ballot)
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+DB FK is rooms(id) only; school path is room → branch → school. Writers must
+fail closed on cross-school room assignment without schema change in Phase 7.2.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED — BLOCKER for room_id path)
+**HUMAN APPROVED**
 
 ---
 
@@ -1225,7 +1388,7 @@ Option A
 ### 8. Human Selection
 
 ```text
-[ ] APPROVE OPTION A
+[x] APPROVE OPTION A
 [ ] APPROVE OPTION B
 [ ] APPROVE OPTION C
 [ ] REJECT
@@ -1234,27 +1397,36 @@ Option A
 [ ] OTHER: __________
 ```
 
+```text
+HUMAN APPROVED — Option A
+session_date / start_time / end_time = school-local civil date/time
+No UTC conversion / calendar redesign in Phase 7.2
+No timezone migration
+No academic-calendar gate in Phase 7.2
+```
+
 ### 9. Human Rationale
 
 ```text
-___________________________________________________________________________
+Preserve existing date/time storage semantics as school-local civil values.
 ```
 
 ### 10. Approval Evidence / Reference
 
 ```text
-___________________________________________________________________________
+Human decision supply 2026-09-12 — recorded into this ballot by authorization of
+the human decision owner. Named signer identity = NOT SUPPLIED.
 ```
 
 ### 11. Date
 
 ```text
-____ / ____ / ________
+2026-09-12
 ```
 
 ### 12. Decision Status
 
-**PENDING HUMAN RESPONSE** (currently UNRESOLVED)
+**HUMAN APPROVED**
 
 ---
 
@@ -1270,19 +1442,19 @@ ____ / ____ / ________
 
 | HD | Priority | Blocks Design Lock | Selection complete? |
 |----|----------|--------------------|---------------------|
-| HD-7.2-001 | Critical | YES | [ ] |
-| HD-7.2-002 A/B/D | Critical | YES | [ ] / [ ] / [ ] |
-| HD-7.2-003 | Critical | YES | [ ] |
-| HD-7.2-004 | High | YES | [ ] |
-| HD-7.2-005 | High | YES | [ ] |
-| HD-7.2-006 | High | YES | [ ] |
-| HD-7.2-007 | High | YES | [ ] |
-| HD-7.2-008 | High | YES | [ ] |
-| HD-7.2-009 | High | YES | [ ] |
-| HD-7.2-010 | Medium | NO* | [ ] |
-| HD-7.2-012 | Medium | NO* | [ ] |
-| HD-7.2-013 | Medium | YES | [ ] |
-| HD-7.2-014 | Medium | NO* | [ ] |
+| HD-7.2-001 | Critical | YES | [x] Option A |
+| HD-7.2-002 A/B/D | Critical | YES | [x] A1 / [x] B1 / [x] D1 |
+| HD-7.2-003 | Critical | YES | [x] Option A FAIL CLOSED |
+| HD-7.2-004 | High | YES | [x] Option A (seven names) |
+| HD-7.2-005 | High | YES | [x] grades_manager + exam.enrollment.present |
+| HD-7.2-006 | High | YES | [x] Option A ALLOW MULTIPLE |
+| HD-7.2-007 | High | YES | [x] Option A FORBIDDEN |
+| HD-7.2-008 | High | YES | [x] Option A FAIL CLOSED |
+| HD-7.2-009 | High | YES | [x] Option C InProgress+Completed |
+| HD-7.2-010 | Medium | NO* | [x] Option A DEFER |
+| HD-7.2-012 | Medium | NO* | [x] Option A optional free-text |
+| HD-7.2-013 | Medium | YES | [x] Option A same-school fail-closed |
+| HD-7.2-014 | Medium | NO* | [x] Option A school-local civil |
 
 \*Blocks Design Lock only if product demands a hard rule without affirming deferral/default (per artifact 03).
 
@@ -1304,14 +1476,16 @@ This ballot does NOT authorize Design Lock or implementation.
 ## 12. STOP
 
 ```text
-Mode = HUMAN DECISION COLLECTION ONLY
-Human approvals recorded by this task = 0
+Mode = HUMAN DECISION COLLECTION + HUMAN APPROVALS RECORDED
+Human decision groups = 13
+Human decision items approved = 15
+Named signer identity = NOT SUPPLIED
 Implementation = NOT AUTHORIZED
 Database = UNCHANGED
 Application = UNCHANGED
-Permissions = UNCHANGED
+Permissions = UNCHANGED (catalog mutation NOT AUTHORIZED by this ballot)
 RLS = UNCHANGED
 HTTP = NOT AUTHORIZED
-Design Lock = NOT AUTHORIZED
-STOP = YES
+Design Lock = NOT CREATED BY THIS BALLOT (may become eligible after 04B reconciliation)
+STOP = NO for ballot completion recording; Design Lock / Implementation remain unauthorized
 ```

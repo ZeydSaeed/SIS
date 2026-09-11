@@ -273,7 +273,12 @@ final class ExamAdministrationCommandTest extends TestCase
         $this->assertStringNotContainsString('api/v1/exams', $routes);
         $this->assertFalse(class_exists(\App\Http\Controllers\Api\ExamController::class));
         $this->assertFalse(class_exists(\App\Application\Exams\Commands\CompleteExamHandler::class));
-        $this->assertFalse(class_exists(\App\Application\Exams\Commands\CreateExamSessionHandler::class));
+        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CreateExamSessionHandler::class));
+        $this->assertTrue(class_exists(\App\Application\Exams\Commands\OpenExamSessionHandler::class));
+        $this->assertTrue(class_exists(\App\Application\Exams\Commands\UpdateExamSessionHandler::class));
+        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CloseExamSessionHandler::class));
+        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CancelExamSessionHandler::class));
+        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CreateExamEnrollmentHandler::class));
     }
 
     private function bindSchool(int $schoolId): void

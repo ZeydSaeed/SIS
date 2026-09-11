@@ -11,6 +11,8 @@ interface EnrollmentRepositoryInterface
 
     public function findById(int $enrollmentId): ?EnrollmentSnapshot;
 
+    public function findByIdAndSchool(int $enrollmentId, int $schoolId): ?EnrollmentSnapshot;
+
     public function save(CreateEnrollmentData $data): int;
 
     public function updatePlacement(

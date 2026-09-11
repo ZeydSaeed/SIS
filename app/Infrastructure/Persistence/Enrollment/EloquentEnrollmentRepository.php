@@ -31,6 +31,20 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         return $this->toSnapshot($record);
     }
 
+    public function findByIdAndSchool(int $enrollmentId, int $schoolId): ?EnrollmentSnapshot
+    {
+        $record = EnrollmentRecord::query()
+            ->whereKey($enrollmentId)
+            ->where('school_id', $schoolId)
+            ->first();
+
+        if ($record === null) {
+            return null;
+        }
+
+        return $this->toSnapshot($record);
+    }
+
     public function save(CreateEnrollmentData $data): int
     {
         $record = new EnrollmentRecord;

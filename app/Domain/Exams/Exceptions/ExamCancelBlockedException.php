@@ -25,4 +25,19 @@ final class ExamCancelBlockedException extends DomainException
     {
         return new self('CancelExam is blocked because the exam is already Cancelled (DR-001).');
     }
+
+    public static function sessionCurrentGradeExists(): self
+    {
+        return new self('CancelExamSession is blocked because a CURRENT grade exists for the session (HD-7.2-003).');
+    }
+
+    public static function sessionCompleted(): self
+    {
+        return new self('CancelExamSession is blocked because the session is already Completed.');
+    }
+
+    public static function enrollmentCurrentGradeExists(): self
+    {
+        return new self('CancelExamEnrollment is blocked because a CURRENT grade exists for the enrollment (DR-002).');
+    }
 }

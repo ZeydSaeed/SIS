@@ -4,7 +4,9 @@ namespace App\Domain\Exams\Events;
 
 use App\Domain\Shared\DomainEvent;
 
-/** Cascade child event from CancelExam — not Phase 7.2 CancelExamEnrollment command. */
+/**
+ * Shared enrollment-cancelled event — cause distinguishes cascade vs direct session cancel.
+ */
 final readonly class ExamEnrollmentCancelled implements DomainEvent
 {
     public function __construct(
@@ -15,6 +17,7 @@ final readonly class ExamEnrollmentCancelled implements DomainEvent
         private int $previousStatus,
         private ?int $cancelledBy,
         private \DateTimeImmutable $occurredAt,
+        private string $cause = 'exam_cancel',
     ) {}
 
     public function occurredAt(): \DateTimeImmutable
@@ -34,7 +37,7 @@ final readonly class ExamEnrollmentCancelled implements DomainEvent
             'school_id' => $this->schoolId,
             'previous_status' => $this->previousStatus,
             'cancelled_by' => $this->cancelledBy,
-            'cause' => 'exam_cancel',
+            'cause' => $this->cause,
             'occurred_at' => $this->occurredAt->format(\DateTimeInterface::ATOM),
         ];
     }

@@ -118,13 +118,24 @@ final class ExamAdministrationAuthorizationTest extends TestCase
         $this->assertNotContains('exam.list', $permissions);
         $this->assertNotContains('exam.show', $permissions);
         $this->assertNotContains('exam.delete', $permissions);
-        $this->assertNotContains('exam.session.update', $permissions);
+        $this->assertContains('exam.session.create', $permissions);
+        $this->assertContains('exam.session.update', $permissions);
+        $this->assertContains('exam.session.open', $permissions);
+        $this->assertContains('exam.session.close', $permissions);
+        $this->assertContains('exam.enrollment.create', $permissions);
+        $this->assertContains('exam.enrollment.update', $permissions);
+        $this->assertContains('exam.enrollment.cancel', $permissions);
+        $this->assertContains('exam.enrollment.present', $permissions);
         $this->assertNotContains('exam.session.cancel', $permissions);
 
         $this->assertContains('exam.create', config('security.roles.grades_manager'));
         $this->assertContains('exam.update', config('security.roles.grades_manager'));
         $this->assertContains('exam.cancel', config('security.roles.grades_manager'));
+        $this->assertContains('exam.session.create', config('security.roles.grades_manager'));
+        $this->assertContains('exam.enrollment.present', config('security.roles.grades_manager'));
         $this->assertNotContains('exam.create', config('security.roles.grades_teacher'));
+        $this->assertNotContains('exam.session.create', config('security.roles.grades_teacher'));
+        $this->assertNotContains('exam.enrollment.present', config('security.roles.grades_teacher'));
     }
 
     #[Test]

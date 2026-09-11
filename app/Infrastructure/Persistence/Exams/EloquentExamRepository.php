@@ -4,10 +4,17 @@ namespace App\Infrastructure\Persistence\Exams;
 
 use App\Database\SchemaHelper;
 use App\Domain\Exams\Data\CreateExamData;
+use App\Domain\Exams\Data\CreateExamEnrollmentData;
+use App\Domain\Exams\Data\CreateExamSessionData;
+use App\Domain\Exams\Data\ExamEnrollmentSnapshot;
+use App\Domain\Exams\Data\ExamSessionSnapshot;
 use App\Domain\Exams\Data\ExamSnapshot;
+use App\Domain\Exams\Exceptions\ExamValidationException;
 use App\Domain\Exams\Repositories\ExamRepositoryInterface;
 use App\Domain\Exams\ValueObjects\ExamEnrollmentStatus;
 use App\Domain\Exams\ValueObjects\ExamSessionStatus;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentExamRepository implements ExamRepositoryInterface
@@ -26,6 +33,96 @@ final class EloquentExamRepository implements ExamRepositoryInterface
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    public function insertSession(CreateExamSessionData $data): int
+    {
+        return (int) DB::table($this->sessionsTable())->insertGetId([
+            'exam_id' => $data->examId,
+            'school_id' => $data->schoolId,
+            'subject_id' => $data->subjectId,
+            'session_date' => $data->sessionDate,
+            'start_time' => $data->startTime,
+            'end_time' => $data->endTime,
+            'room_id' => $data->roomId,
+            'max_grade' => $data->maxGrade,
+            'pass_grade' => $data->passGrade,
+            'status' => $data->status,
+            'created_at' => now(),
+        ]);
+    }
+
+    public function insertExamEnrollment(CreateExamEnrollmentData $data): int
+    {
+        try {
+            return (int) DB::table($this->enrollmentsTable())->insertGetId([
+                'exam_session_id' => $data->examSessionId,
+                'school_id' => $data->schoolId,
+                'enrollment_id' => $data->enrollmentId,
+                'seat_number' => $data->seatNumber,
+                'status' => $data->status,
+                'created_at' => now(),
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            throw ExamValidationException::duplicateExamEnrollment();
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolation($e)) {
+                throw ExamValidationException::duplicateExamEnrollment();
+            }
+
+            throw $e;
+        }
+    }
+
+    public function findExamEnrollmentByIdAndSchool(int $examEnrollmentId, int $schoolId): ?ExamEnrollmentSnapshot
+    {
+        $row = DB::table($this->enrollmentsTable())
+            ->where('id', $examEnrollmentId)
+            ->where('school_id', $schoolId)
+            ->first();
+
+        return $row === null ? null : $this->toEnrollmentSnapshot($row);
+    }
+
+    public function lockExamEnrollmentByIdAndSchool(int $examEnrollmentId, int $schoolId): ?ExamEnrollmentSnapshot
+    {
+        if (SchemaHelper::isPostgreSql()) {
+            $row = DB::selectOne(
+                'SELECT * FROM exams.exam_enrollments WHERE id = ? AND school_id = ? FOR UPDATE',
+                [$examEnrollmentId, $schoolId],
+            );
+
+            return $row === null ? null : $this->toEnrollmentSnapshot($row);
+        }
+
+        return $this->findExamEnrollmentByIdAndSchool($examEnrollmentId, $schoolId);
+    }
+
+    /**
+     * @param  array{status?: int, seat_number?: string|null}  $fields
+     */
+    public function updateExamEnrollmentAllowlisted(int $examEnrollmentId, int $schoolId, array $fields): void
+    {
+        if ($fields === []) {
+            return;
+        }
+
+        $allowed = [];
+        if (array_key_exists('status', $fields)) {
+            $allowed['status'] = $fields['status'];
+        }
+        if (array_key_exists('seat_number', $fields)) {
+            $allowed['seat_number'] = $fields['seat_number'];
+        }
+
+        if ($allowed === []) {
+            return;
+        }
+
+        DB::table($this->enrollmentsTable())
+            ->where('id', $examEnrollmentId)
+            ->where('school_id', $schoolId)
+            ->update($allowed);
     }
 
     public function findByIdAndSchool(int $examId, int $schoolId): ?ExamSnapshot
@@ -52,6 +149,39 @@ final class EloquentExamRepository implements ExamRepositoryInterface
         return $this->findByIdAndSchool($examId, $schoolId);
     }
 
+    public function findSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot
+    {
+        $row = DB::table($this->sessionsTable())
+            ->where('id', $examSessionId)
+            ->where('school_id', $schoolId)
+            ->first();
+
+        return $row === null ? null : $this->toSessionSnapshot($row);
+    }
+
+    public function lockSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot
+    {
+        if (SchemaHelper::isPostgreSql()) {
+            $row = DB::selectOne(
+                'SELECT * FROM exams.exam_sessions WHERE id = ? AND school_id = ? FOR UPDATE',
+                [$examSessionId, $schoolId],
+            );
+
+            return $row === null ? null : $this->toSessionSnapshot($row);
+        }
+
+        return $this->findSessionByIdAndSchool($examSessionId, $schoolId);
+    }
+
+    public function examEnrollmentSeatExists(int $examSessionId, int $enrollmentId, int $schoolId): bool
+    {
+        return DB::table($this->enrollmentsTable())
+            ->where('exam_session_id', $examSessionId)
+            ->where('enrollment_id', $enrollmentId)
+            ->where('school_id', $schoolId)
+            ->exists();
+    }
+
     public function updateAllowlisted(int $examId, int $schoolId, array $fields): void
     {
         if ($fields === []) {
@@ -62,6 +192,18 @@ final class EloquentExamRepository implements ExamRepositoryInterface
 
         DB::table($this->examsTable())
             ->where('id', $examId)
+            ->where('school_id', $schoolId)
+            ->update($fields);
+    }
+
+    public function updateSessionAllowlisted(int $examSessionId, int $schoolId, array $fields): void
+    {
+        if ($fields === []) {
+            return;
+        }
+
+        DB::table($this->sessionsTable())
+            ->where('id', $examSessionId)
             ->where('school_id', $schoolId)
             ->update($fields);
     }
@@ -88,6 +230,25 @@ final class EloquentExamRepository implements ExamRepositoryInterface
             ->exists();
     }
 
+    public function subjectExists(int $subjectId): bool
+    {
+        return DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+            ->where('id', $subjectId)
+            ->exists();
+    }
+
+    public function roomBelongsToSchool(int $roomId, int $schoolId): bool
+    {
+        $rooms = SchemaHelper::qualified('organization', 'rooms');
+        $branches = SchemaHelper::qualified('organization', 'branches');
+
+        return DB::table("{$rooms} as r")
+            ->join("{$branches} as b", 'b.id', '=', 'r.branch_id')
+            ->where('r.id', $roomId)
+            ->where('b.school_id', $schoolId)
+            ->exists();
+    }
+
     public function hasCurrentGradeForExam(int $examId, int $schoolId): bool
     {
         $grades = SchemaHelper::qualified('exams', 'student_grades');
@@ -100,6 +261,28 @@ final class EloquentExamRepository implements ExamRepositoryInterface
             ->where('es.exam_id', $examId)
             ->where('g.school_id', $schoolId)
             ->where('g.is_current', true)
+            ->exists();
+    }
+
+    public function hasCurrentGradeForSession(int $examSessionId, int $schoolId): bool
+    {
+        $grades = SchemaHelper::qualified('exams', 'student_grades');
+        $enrollments = SchemaHelper::qualified('exams', 'exam_enrollments');
+
+        return DB::table("{$grades} as g")
+            ->join("{$enrollments} as ee", 'ee.id', '=', 'g.exam_enrollment_id')
+            ->where('ee.exam_session_id', $examSessionId)
+            ->where('g.school_id', $schoolId)
+            ->where('g.is_current', true)
+            ->exists();
+    }
+
+    public function hasCurrentGradeForExamEnrollment(int $examEnrollmentId, int $schoolId): bool
+    {
+        return DB::table(SchemaHelper::qualified('exams', 'student_grades'))
+            ->where('exam_enrollment_id', $examEnrollmentId)
+            ->where('school_id', $schoolId)
+            ->where('is_current', true)
             ->exists();
     }
 
@@ -218,6 +401,46 @@ final class EloquentExamRepository implements ExamRepositoryInterface
         return $result;
     }
 
+    public function withdrawActiveEnrollmentsForSession(int $examSessionId, int $schoolId): array
+    {
+        $active = [
+            ExamEnrollmentStatus::Registered->value,
+            ExamEnrollmentStatus::Confirmed->value,
+            ExamEnrollmentStatus::Present->value,
+        ];
+
+        $enrollments = SchemaHelper::qualified('exams', 'exam_enrollments');
+
+        $rows = DB::table($enrollments)
+            ->where('exam_session_id', $examSessionId)
+            ->where('school_id', $schoolId)
+            ->whereIn('status', $active)
+            ->select(['id', 'exam_session_id', 'status'])
+            ->get();
+
+        $result = [];
+        $ids = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+            $ids[] = $id;
+            $result[] = [
+                'id' => $id,
+                'exam_session_id' => (int) $row->exam_session_id,
+                'previous_status' => (int) $row->status,
+            ];
+        }
+
+        if ($ids !== []) {
+            DB::table($enrollments)
+                ->whereIn('id', $ids)
+                ->where('school_id', $schoolId)
+                ->where('exam_session_id', $examSessionId)
+                ->update(['status' => ExamEnrollmentStatus::Withdrawn->value]);
+        }
+
+        return $result;
+    }
+
     private function examsTable(): string
     {
         return SchemaHelper::qualified('exams', 'exams');
@@ -226,6 +449,21 @@ final class EloquentExamRepository implements ExamRepositoryInterface
     private function sessionsTable(): string
     {
         return SchemaHelper::qualified('exams', 'exam_sessions');
+    }
+
+    private function enrollmentsTable(): string
+    {
+        return SchemaHelper::qualified('exams', 'exam_enrollments');
+    }
+
+    private function isUniqueViolation(QueryException $e): bool
+    {
+        $sqlState = (string) ($e->errorInfo[0] ?? '');
+        $message = strtolower($e->getMessage());
+
+        return $sqlState === '23000'
+            || str_contains($message, 'unique')
+            || str_contains($message, 'duplicate');
     }
 
     private function toSnapshot(object $row): ExamSnapshot
@@ -240,6 +478,37 @@ final class EloquentExamRepository implements ExamRepositoryInterface
             startDate: (string) $row->start_date,
             endDate: (string) $row->end_date,
             status: (int) $row->status,
+        );
+    }
+
+    private function toSessionSnapshot(object $row): ExamSessionSnapshot
+    {
+        return new ExamSessionSnapshot(
+            id: (int) $row->id,
+            examId: (int) $row->exam_id,
+            schoolId: (int) $row->school_id,
+            subjectId: (int) $row->subject_id,
+            sessionDate: (string) $row->session_date,
+            startTime: (string) $row->start_time,
+            endTime: (string) $row->end_time,
+            roomId: isset($row->room_id) && $row->room_id !== null ? (int) $row->room_id : null,
+            maxGrade: (int) $row->max_grade,
+            passGrade: (int) $row->pass_grade,
+            status: (int) $row->status,
+        );
+    }
+
+    private function toEnrollmentSnapshot(object $row): ExamEnrollmentSnapshot
+    {
+        return new ExamEnrollmentSnapshot(
+            id: (int) $row->id,
+            examSessionId: (int) $row->exam_session_id,
+            schoolId: (int) $row->school_id,
+            enrollmentId: (int) $row->enrollment_id,
+            status: (int) $row->status,
+            seatNumber: isset($row->seat_number) && $row->seat_number !== null
+                ? (string) $row->seat_number
+                : null,
         );
     }
 }

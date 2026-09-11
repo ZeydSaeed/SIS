@@ -13,6 +13,7 @@ use App\Security\Context\SchoolContext;
 
 /**
  * HD-001 — grades_manager owns exam.create / exam.update / exam.cancel.
+ * Phase 7.2 — grades_manager owns exam.session.* / exam.enrollment.* (locked catalog).
  */
 final class PermissionCatalogExamAuthority implements ExamAdministrationAuthorityPort
 {
@@ -51,6 +52,13 @@ final class PermissionCatalogExamAuthority implements ExamAdministrationAuthorit
             ExamAdministrationAction::Create => Permission::EXAM_CREATE,
             ExamAdministrationAction::Update => Permission::EXAM_UPDATE,
             ExamAdministrationAction::Cancel => Permission::EXAM_CANCEL,
+            ExamAdministrationAction::CreateSession => Permission::EXAM_SESSION_CREATE,
+            ExamAdministrationAction::UpdateSession => Permission::EXAM_SESSION_UPDATE,
+            ExamAdministrationAction::OpenSession => Permission::EXAM_SESSION_OPEN,
+            ExamAdministrationAction::CloseSession => Permission::EXAM_SESSION_CLOSE,
+            ExamAdministrationAction::CreateEnrollment => Permission::EXAM_ENROLLMENT_CREATE,
+            ExamAdministrationAction::UpdateEnrollment => Permission::EXAM_ENROLLMENT_UPDATE,
+            ExamAdministrationAction::CancelEnrollment => Permission::EXAM_ENROLLMENT_CANCEL,
         };
 
         if (! $this->authorization->userHasPermission($user, $permission)) {
