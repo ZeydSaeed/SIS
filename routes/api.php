@@ -4,7 +4,22 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\MetricsController;
+use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\PortalResultsController;
+use App\Http\Controllers\Api\PortalScopesController;
+use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\ResultsController;
+use App\Http\Controllers\Api\ApprovalFlowController;
+use App\Http\Controllers\Api\ApprovalRequestController;
+use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\FeeTypeController;
+use App\Http\Controllers\Api\FinanceTransactionController;
+use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\NotificationTemplateController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\StudentFeeController;
+use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\ResultsWriteController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\StudentController;
@@ -17,6 +32,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', [HealthController::class, 'show'])->name('api.health');
+    Route::get('/metrics', [MetricsController::class, 'show'])
+        ->middleware(\App\Http\Middleware\MetricsTokenMiddleware::class)
+        ->name('api.metrics');
 
     Route::middleware([
         'auth:sanctum',
@@ -96,6 +114,12 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.timetable.schedules.cancel');
         Route::post('timetable/schedules/{schedule}/exceptions', [ScheduleController::class, 'storeException'])
             ->name('api.timetable.schedules.exceptions.store');
+        Route::get('timetable/schedules/{schedule}/exceptions', [ScheduleController::class, 'indexExceptionsForSchedule'])
+            ->name('api.timetable.schedules.exceptions.index');
+        Route::get('timetable/schedule-exceptions', [ScheduleController::class, 'indexExceptions'])
+            ->name('api.timetable.schedule_exceptions.index');
+        Route::get('timetable/schedule-exceptions/{exception}', [ScheduleController::class, 'showException'])
+            ->name('api.timetable.schedule_exceptions.show');
         Route::patch('timetable/schedule-exceptions/{exception}', [ScheduleController::class, 'updateException'])
             ->name('api.timetable.schedule_exceptions.update');
 
@@ -132,6 +156,111 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.results.annual.rebuild');
         Route::post('results/gpa/rebuild', [ResultsWriteController::class, 'rebuildGpa'])
             ->name('api.results.gpa.rebuild');
+
+        Route::get('portal/results/term', [PortalResultsController::class, 'officialTerm'])
+            ->name('api.portal.results.term.show');
+        Route::get('portal/results/annual', [PortalResultsController::class, 'officialAnnual'])
+            ->name('api.portal.results.annual.show');
+        Route::get('portal/results/gpa', [PortalResultsController::class, 'officialYearGpa'])
+            ->name('api.portal.results.gpa.show');
+        Route::get('portal/results/transcripts/issued', [PortalResultsController::class, 'issuedTranscript'])
+            ->name('api.portal.results.transcripts.issued');
+
+        Route::post('portal/scopes', [PortalScopesController::class, 'store'])
+            ->name('api.portal.scopes.store');
+        Route::delete('portal/scopes', [PortalScopesController::class, 'destroy'])
+            ->name('api.portal.scopes.destroy');
+        Route::get('portal/scopes', [PortalScopesController::class, 'index'])
+            ->name('api.portal.scopes.index');
+
+        Route::post('teachers', [TeacherController::class, 'store'])
+            ->name('api.teachers.store');
+        Route::get('teachers', [TeacherController::class, 'index'])
+            ->name('api.teachers.index');
+        Route::get('teachers/{teacher}', [TeacherController::class, 'show'])
+            ->name('api.teachers.show');
+        Route::patch('teachers/{teacher}', [TeacherController::class, 'update'])
+            ->name('api.teachers.update');
+        Route::post('teachers/{teacher}/deactivate', [TeacherController::class, 'deactivate'])
+            ->name('api.teachers.deactivate');
+        Route::post('teachers/{teacher}/subjects', [TeacherController::class, 'assignSubject'])
+            ->name('api.teachers.subjects.assign');
+        Route::delete('teachers/{teacher}/subjects', [TeacherController::class, 'unlinkSubject'])
+            ->name('api.teachers.subjects.unlink');
+        Route::post('teachers/{teacher}/qualifications', [TeacherController::class, 'storeQualification'])
+            ->name('api.teachers.qualifications.store');
+        Route::get('teachers/{teacher}/qualifications', [TeacherController::class, 'indexQualifications'])
+            ->name('api.teachers.qualifications.index');
+        Route::post('teachers/{teacher}/qualifications/{qualification}/void', [TeacherController::class, 'voidQualification'])
+            ->whereNumber('teacher')
+            ->whereNumber('qualification')
+            ->name('api.teachers.qualifications.void');
+
+        Route::post('promotion/rules', [PromotionController::class, 'storeRule'])
+            ->name('api.promotion.rules.store');
+        Route::get('promotion/rules', [PromotionController::class, 'indexRules'])
+            ->name('api.promotion.rules.index');
+        Route::post('promotion/records', [PromotionController::class, 'storeRecord'])
+            ->name('api.promotion.records.store');
+        Route::get('promotion/records', [PromotionController::class, 'indexRecords'])
+            ->name('api.promotion.records.index');
+
+        Route::post('transfers/requests', [TransferController::class, 'store'])
+            ->name('api.transfers.requests.store');
+        Route::get('transfers/requests', [TransferController::class, 'index'])
+            ->name('api.transfers.requests.index');
+        Route::post('transfers/requests/{transferRequest}/approve', [TransferController::class, 'approve'])
+            ->name('api.transfers.requests.approve');
+        Route::post('transfers/requests/{transferRequest}/reject', [TransferController::class, 'reject'])
+            ->name('api.transfers.requests.reject');
+        Route::post('transfers/requests/{transferRequest}/complete', [TransferController::class, 'complete'])
+            ->name('api.transfers.requests.complete');
+        Route::post('transfers/requests/{transferRequest}/cancel', [TransferController::class, 'cancel'])
+            ->name('api.transfers.requests.cancel');
+
+        Route::post('documents', [DocumentController::class, 'store'])
+            ->name('api.documents.store');
+        Route::get('documents', [DocumentController::class, 'index'])
+            ->name('api.documents.index');
+
+        Route::post('finance/fee-types', [FeeTypeController::class, 'store'])
+            ->name('api.finance.fee-types.store');
+        Route::get('finance/fee-types', [FeeTypeController::class, 'index'])
+            ->name('api.finance.fee-types.index');
+        Route::post('finance/student-fees', [StudentFeeController::class, 'store'])
+            ->name('api.finance.student-fees.store');
+        Route::get('finance/student-fees', [StudentFeeController::class, 'index'])
+            ->name('api.finance.student-fees.index');
+        Route::post('finance/payments', [PaymentController::class, 'store'])
+            ->name('api.finance.payments.store');
+        Route::get('finance/payments', [PaymentController::class, 'index'])
+            ->name('api.finance.payments.index');
+        Route::get('finance/transactions', [FinanceTransactionController::class, 'index'])
+            ->name('api.finance.transactions.index');
+
+        Route::post('communication/templates', [NotificationTemplateController::class, 'store'])
+            ->name('api.communication.templates.store');
+        Route::get('communication/templates', [NotificationTemplateController::class, 'index'])
+            ->name('api.communication.templates.index');
+        Route::post('communication/messages', [MessageController::class, 'store'])
+            ->name('api.communication.messages.store');
+        Route::get('communication/messages', [MessageController::class, 'index'])
+            ->name('api.communication.messages.index');
+
+        Route::post('workflow/approval-flows', [ApprovalFlowController::class, 'store'])
+            ->name('api.workflow.approval-flows.store');
+        Route::get('workflow/approval-flows', [ApprovalFlowController::class, 'index'])
+            ->name('api.workflow.approval-flows.index');
+        Route::post('workflow/approval-requests', [ApprovalRequestController::class, 'store'])
+            ->name('api.workflow.approval-requests.store');
+        Route::get('workflow/approval-requests', [ApprovalRequestController::class, 'index'])
+            ->name('api.workflow.approval-requests.index');
+        Route::post('workflow/approval-requests/{approvalRequest}/decide', [ApprovalRequestController::class, 'decide'])
+            ->whereNumber('approvalRequest')
+            ->name('api.workflow.approval-requests.decide');
+        Route::post('workflow/approval-requests/{approvalRequest}/cancel', [ApprovalRequestController::class, 'cancel'])
+            ->whereNumber('approvalRequest')
+            ->name('api.workflow.approval-requests.cancel');
 
         Route::post('vocational/specializations', [VocationalController::class, 'storeSpecialization'])
             ->name('api.vocational.specializations.store');

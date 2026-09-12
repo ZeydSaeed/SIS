@@ -48,6 +48,8 @@ On review → new version (e.g. `PB-2026.12`) with documented reason.
 | 10-year attendance history | Reporting | 200 ms | 500 ms | 1–2 (partition prune) |
 | Certificate generation (45K) | Bulk Export | N/A sync | < 30 min job | Queue |
 
+**Provisional module budgets (OBS-U01, 2026-09-13):** finance/communication/workflow/documents/transfers/teachers/promotion/attendance/timetable/results/portal/vocational/exams/enrollment → see `config/intelligence.php` → `performance_budgets` (`provisional: true`). Revise only with measured P95 evidence.
+
 ---
 
 ## Workload-Aware Budget Overrides

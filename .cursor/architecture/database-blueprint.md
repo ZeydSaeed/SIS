@@ -482,7 +482,7 @@
 | section_id | BIGINT | FK → sections |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | enrollment_number | VARCHAR(50) | UNIQUE NOT NULL |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Cancelled, 3=Transferred (Phase TR-U03) |
 | effective_from | DATE | NOT NULL |
 | effective_to | DATE | |
 | enrolled_by | BIGINT | FK → security.users |
@@ -529,7 +529,8 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(employee_code)`, `BTREE(status)`
+**Indexes:** `UNIQUE(employee_code)`, `BTREE(status)`  
+**Security (Phase 8-U04):** FORCE RLS via `EXISTS teacher_schools` for current school (SELECT/UPDATE). INSERT `WITH CHECK` requires `app.current_school_id` only (register before membership). Hard DELETE rejected by trigger.
 
 ### `teachers.teacher_schools`
 
@@ -542,7 +543,8 @@
 | is_primary | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(teacher_id)`, `BTREE(school_id, academic_year_id)`
+**Indexes:** `BTREE(teacher_id)`, `BTREE(school_id, academic_year_id)`  
+**Security (Phase 8-U01):** FORCE RLS school isolation on `school_id`. Hard DELETE rejected by trigger.
 
 ### `teachers.teacher_subjects`
 
@@ -555,7 +557,8 @@
 | school_id | BIGINT | FK → schools |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(teacher_id, academic_year_id)`, `UNIQUE(teacher_id, subject_id, academic_year_id, school_id)`
+**Indexes:** `BTREE(teacher_id, academic_year_id)`, `UNIQUE(teacher_id, subject_id, academic_year_id, school_id)`  
+**Security (Phase 8-U01/U02):** FORCE RLS school isolation on `school_id`. Assignment DELETE allowed for unlink (U02); teacher identity DELETE remains forbidden.
 
 ### `teachers.teacher_qualifications`
 
@@ -568,9 +571,13 @@
 | institution | VARCHAR(255) | |
 | year_obtained | SMALLINT | |
 | document_storage_key | VARCHAR(500) | |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Voided (**8.1-U03**) |
+| effective_from | TIMESTAMPTZ | NOT NULL |
+| effective_to | TIMESTAMPTZ | nullable (set on void) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(teacher_id)`
+**Indexes:** `BTREE(teacher_id)`, `BTREE(teacher_id, status)`  
+**Security (Phase 8-U01 / 8.1 / 8.1-U03 / 8-U04):** Hard DELETE rejected by trigger. HTTP Add/List/Void via school membership. FORCE RLS via `EXISTS teacher_schools` for current school (USING + WITH CHECK).
 
 ---
 
@@ -1050,7 +1057,7 @@
 
 ---
 
-## Schema: `promotion` (2 tables)
+## Schema: `promotion` (2 tables — Phase PT-U01 LIVE)
 
 ### `promotion.rules`
 
@@ -1060,35 +1067,40 @@
 | school_id | BIGINT | FK → schools |
 | from_grade_level_id | SMALLINT | FK → grade_levels |
 | to_grade_level_id | SMALLINT | FK → grade_levels |
-| min_gpa | NUMERIC(4,2) | |
+| min_gpa | NUMERIC(4,2) | nullable — stored threshold; **not** auto-enforced in v1 |
 | min_pass_subjects | SMALLINT | |
 | max_failed_subjects | SMALLINT | |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id, from_grade_level_id)`
+**Indexes:** `BTREE(school_id, from_grade_level_id)`  
+**Security (Phase PT-U01):** FORCE RLS school isolation. Hard DELETE rejected by trigger.  
+**Checks:** `from_grade_level_id <> to_grade_level_id`
 
 ### `promotion.records`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
-| enrollment_id | BIGINT | FK → enrollment.enrollments |
+| school_id | BIGINT | FK → schools (**Phase PT delta** — required for RLS) |
+| enrollment_id | BIGINT | FK → enrollment.enrollments (composite with school_id + academic_year_id) |
 | academic_year_id | BIGINT | FK → academic_years |
 | from_grade_level_id | SMALLINT | FK → grade_levels |
 | to_grade_level_id | SMALLINT | FK → grade_levels |
-| promotion_status | SMALLINT | NOT NULL |
-| gpa_at_promotion | NUMERIC(4,2) | |
-| decided_by | BIGINT | FK → security.users |
+| promotion_status | SMALLINT | NOT NULL — 1=Promoted, 2=Retained, 3=Conditional |
+| gpa_at_promotion | NUMERIC(4,2) | nullable snapshot only |
+| decided_by | BIGINT | FK → users, nullable |
 | decided_at | TIMESTAMPTZ | NOT NULL |
 | notes | TEXT | |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(enrollment_id)`, `BTREE(academic_year_id, promotion_status)`
+**Indexes:** `BTREE(enrollment_id)`, `BTREE(academic_year_id, promotion_status)`, `BTREE(school_id, academic_year_id)`, `UNIQUE(enrollment_id, academic_year_id)`  
+**Security (Phase PT-U01):** FORCE RLS school isolation. Hard DELETE rejected by trigger.  
+**v1:** Decision record only — does **not** mutate enrollment / create next-year enrollment.
 
 ---
 
-## Schema: `transfers` (2 tables)
+## Schema: `transfers` (2 tables — Phase TR-U01 LIVE)
 
 ### `transfers.transfer_requests`
 
@@ -1098,32 +1110,38 @@
 | student_id | BIGINT | FK → students.students |
 | from_school_id | BIGINT | FK → schools |
 | to_school_id | BIGINT | FK → schools |
-| from_enrollment_id | BIGINT | FK → enrollment.enrollments |
+| from_enrollment_id | BIGINT | FK → enrollment.enrollments (composite with from_school_id + academic_year_id) |
 | academic_year_id | BIGINT | FK → academic_years |
 | reason | TEXT | |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
-| requested_by | BIGINT | FK → security.users |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Pending, 2=Approved, 3=Rejected, 4=Completed, 5=Cancelled |
+| requested_by | BIGINT | FK → users, nullable |
 | requested_at | TIMESTAMPTZ | NOT NULL |
-| approved_by | BIGINT | FK → security.users, nullable |
+| approved_by | BIGINT | FK → users, nullable |
 | approved_at | TIMESTAMPTZ | |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(student_id)`, `BTREE(status)`, `BTREE(academic_year_id)`
+**Indexes:** `BTREE(student_id)`, `BTREE(status)`, `BTREE(academic_year_id)`, `BTREE(from_school_id, status)`, `BTREE(to_school_id, status)`, partial `UNIQUE(from_enrollment_id) WHERE status=1`  
+**Security (Phase TR-U01):** FORCE RLS — `current_school_id IN (from_school_id, to_school_id)`. Hard DELETE rejected.  
+**Checks:** `from_school_id <> to_school_id`; status 1–5
 
 ### `transfers.transfer_records`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
-| transfer_request_id | BIGINT | FK → transfer_requests |
+| transfer_request_id | BIGINT | FK → transfer_requests, UNIQUE |
 | student_id | BIGINT | FK → students.students |
-| from_enrollment_id | BIGINT | FK → enrollment.enrollments |
-| to_enrollment_id | BIGINT | FK → enrollment.enrollments |
+| from_school_id | BIGINT | FK → schools (**TR delta** for RLS) |
+| to_school_id | BIGINT | FK → schools (**TR delta** for RLS) |
+| from_enrollment_id | BIGINT | FK → enrollments |
+| to_enrollment_id | BIGINT | FK → enrollments |
 | effective_date | DATE | NOT NULL |
 | completed_at | TIMESTAMPTZ | NOT NULL |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(student_id)`, `BTREE(transfer_request_id)`
+**Indexes:** `BTREE(student_id)`, `BTREE(transfer_request_id)`  
+**Security (Phase TR-U01):** FORCE RLS dual-school. Hard DELETE rejected.  
+**v1 writers:** CompleteTransfer (TR-U03) inserts row after destination enrollment create.
 
 ---
 
@@ -1250,29 +1268,32 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 ---
 
-## Schema: `documents` (1 table)
+## Schema: `documents` (1 table — Phase DOC-U01 LIVE)
 
 ### `documents.files`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**DOC delta** for RLS) |
 | entity_type | VARCHAR(50) | NOT NULL |
 | entity_id | BIGINT | NOT NULL |
-| document_type | SMALLINT | NOT NULL |
+| document_type | SMALLINT | NOT NULL — 1=Identity, 2=Certificate, 3=Qualification, 4=Medical, 9=Other |
 | storage_key | VARCHAR(500) | NOT NULL |
 | file_name | VARCHAR(255) | NOT NULL |
 | mime_type | VARCHAR(100) | NOT NULL |
-| file_size | BIGINT | NOT NULL |
-| file_hash | VARCHAR(64) | NOT NULL |
-| uploaded_by | BIGINT | FK → security.users |
+| file_size | BIGINT | NOT NULL ≥ 0 |
+| file_hash | VARCHAR(64) | NOT NULL (sha256 hex) |
+| uploaded_by | BIGINT | FK → users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(file_hash)`
+**Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(file_hash)`, `BTREE(school_id, created_at)`  
+**Security (Phase DOC-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1:** Metadata only — no binary upload/PDF engine in HTTP.
 
 ---
 
-## Schema: `finance` (4 tables)
+## Schema: `finance` (4 tables — Phase FIN-U01 LIVE for fee_types only)
 
 ### `finance.fee_types`
 
@@ -1282,104 +1303,118 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | school_id | BIGINT | FK → schools |
 | code | VARCHAR(20) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
-| amount | NUMERIC(12,2) | NOT NULL |
+| amount | NUMERIC(12,2) | NOT NULL CHECK ≥ 0 |
 | is_recurring | BOOLEAN | NOT NULL DEFAULT false |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`, `UNIQUE(school_id, code)`  
+**Security (Phase FIN-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Create/List catalog only — student_fees / payments / transactions HOLD (money ballot).
 
-### `finance.student_fees`
+### `finance.student_fees` — Phase FIN-U03 LIVE
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**FIN delta** for RLS) |
 | enrollment_id | BIGINT | FK → enrollment.enrollments |
 | fee_type_id | BIGINT | FK → fee_types |
 | academic_year_id | BIGINT | FK → academic_years |
-| amount | NUMERIC(12,2) | NOT NULL |
+| amount | NUMERIC(12,2) | NOT NULL CHECK ≥ 0 (snapshot at assign) |
 | due_date | DATE | |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Unpaid, 2=Partial, 3=Paid, 4=Cancelled |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(enrollment_id)`, `BTREE(academic_year_id, status)`
+**Indexes:** `BTREE(school_id)`, `BTREE(enrollment_id)`, `BTREE(academic_year_id, status)`, `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, enrollment_id, fee_type_id, academic_year_id)`  
+**Security (Phase FIN-U03):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Assign/List obligations only — payments / transactions still HOLD.
 
-### `finance.payments`
+### `finance.payments` — Phase FIN-U05 LIVE
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**FIN delta** for RLS) |
 | student_fee_id | BIGINT | FK → student_fees |
 | amount | NUMERIC(12,2) | NOT NULL CHECK (amount > 0) |
-| payment_method | SMALLINT | NOT NULL |
+| payment_method | SMALLINT | NOT NULL — 1=Cash, 2=BankTransfer, 3=Card, 9=Other |
 | payment_reference | VARCHAR(100) | |
-| idempotency_key | VARCHAR(100) | UNIQUE |
+| idempotency_key | VARCHAR(100) | UNIQUE NOT NULL |
 | paid_at | TIMESTAMPTZ | NOT NULL |
-| received_by | BIGINT | FK → security.users |
+| received_by | BIGINT | FK → users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(student_fee_id)`, `UNIQUE(idempotency_key)`
+**Indexes:** `BTREE(school_id)`, `BTREE(student_fee_id)`, `BTREE(school_id, paid_at)`, `UNIQUE(idempotency_key)`  
+**Security (Phase FIN-U05):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Record/List; overpayment rejected; rollup student_fees.status Partial/Paid. Refunds + transactions HOLD.
 
-### `finance.transactions` ⚡ PARTITION CANDIDATE
+### `finance.transactions` — Phase FIN-U08 LIVE (unpartitioned)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**FIN delta** for RLS) |
 | student_id | BIGINT | FK → students.students |
 | academic_year_id | BIGINT | FK → academic_years |
-| transaction_type | SMALLINT | NOT NULL |
-| amount | NUMERIC(12,2) | NOT NULL |
-| balance_after | NUMERIC(12,2) | |
-| reference_type | VARCHAR(50) | |
+| transaction_type | SMALLINT | NOT NULL — 1=FeeAssigned, 2=PaymentReceived |
+| amount | NUMERIC(12,2) | NOT NULL CHECK > 0 |
+| balance_after | NUMERIC(12,2) | running outstanding (charges − payments) |
+| reference_type | VARCHAR(50) | student_fee \| payment |
 | reference_id | BIGINT | |
 | notes | TEXT | |
-| created_by | BIGINT | FK → security.users |
+| created_by | BIGINT | FK → users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Partition key:** `academic_year_id` or `created_at`
-
-**Indexes:** `BTREE(student_id, academic_year_id)`, `BTREE(created_at)`
+**Indexes:** `BTREE(school_id)`, `BTREE(student_id, academic_year_id)`, `BTREE(school_id, created_at)`, `BTREE(reference_type, reference_id)`  
+**Security (Phase FIN-U08):** FORCE RLS. Hard DELETE rejected. Append-only via AssignStudentFee + RecordPayment.  
+**Partition:** DEFERRED (adaptive — no year-1 partition without measured evidence).  
+**v1 HTTP:** List only `GET /api/v1/finance/transactions`. No manual create. Refunds HOLD.
 
 ---
 
-## Schema: `communication` (3 tables)
+## Schema: `communication` (3 tables — Phase COM-U01 LIVE for templates only)
 
 ### `communication.notification_templates`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
-| code | VARCHAR(50) | UNIQUE NOT NULL |
+| school_id | BIGINT | FK → schools (**COM delta** for RLS) |
+| code | VARCHAR(50) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
-| channel | SMALLINT | NOT NULL |
+| channel | SMALLINT | NOT NULL — 1=Email, 2=SMS, 3=InApp, 9=Other |
 | subject_template | TEXT | |
 | body_template | TEXT | NOT NULL |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(code)`
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, is_active)`, `UNIQUE(school_id, code)`  
+**Security (Phase COM-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Create/List catalog only — no send. messages / notification_jobs HOLD.
 
-### `communication.messages` ⚡ PARTITION CANDIDATE
+### `communication.messages` — Phase COM-U04 LIVE (queue only, unpartitioned)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**COM delta** for RLS) |
 | template_id | BIGINT | FK → notification_templates, nullable |
-| recipient_type | VARCHAR(50) | NOT NULL |
+| recipient_type | VARCHAR(50) | NOT NULL — student\|teacher\|user\|guardian |
 | recipient_id | BIGINT | NOT NULL |
-| channel | SMALLINT | NOT NULL |
+| channel | SMALLINT | NOT NULL — 1=Email, 2=SMS, 3=InApp, 9=Other |
 | subject | TEXT | |
 | body | TEXT | NOT NULL |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Queued, 2=Sent, 3=Failed |
 | sent_at | TIMESTAMPTZ | |
-| idempotency_key | VARCHAR(100) | UNIQUE |
+| idempotency_key | VARCHAR(100) | UNIQUE NOT NULL |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Partition key:** `created_at` (range monthly/yearly)
+**Indexes:** `BTREE(school_id)`, `BTREE(recipient_type, recipient_id)`, `BTREE(school_id, status)`, `BTREE(school_id, created_at)`, `UNIQUE(idempotency_key)`  
+**Security (Phase COM-U04):** FORCE RLS. Hard DELETE rejected.  
+**v1 HTTP:** Queue/List only — no SMTP/SMS provider. Partition + jobs HOLD.
 
-**Indexes:** `BTREE(recipient_type, recipient_id)`, `BTREE(status)`, `BTREE(created_at)`
-
-### `communication.notification_jobs`
+### `communication.notification_jobs` — HOLD (not physicalized)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -1399,36 +1434,42 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 ---
 
-## Schema: `workflow` (2 tables)
+## Schema: `workflow` (2 tables — Phase WF-U01 LIVE for approval_flows only)
 
 ### `workflow.approval_flows`
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**WF delta** for RLS) |
 | entity_type | VARCHAR(50) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
-| steps | JSONB | NOT NULL |
+| steps | JSONB | NOT NULL — non-empty array `{step, role}` definition only |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(entity_type)`
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, entity_type)`, `BTREE(school_id, is_active)`  
+**Security (Phase WF-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Create/List catalog only — approval_requests HOLD (runtime engine).
 
-### `workflow.approval_requests`
+### `workflow.approval_requests` — Phase WF-U04 LIVE
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**WF delta** for RLS) |
 | flow_id | BIGINT | FK → approval_flows |
 | entity_type | VARCHAR(50) | NOT NULL |
 | entity_id | BIGINT | NOT NULL |
 | current_step | SMALLINT | NOT NULL DEFAULT 1 |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
-| requested_by | BIGINT | FK → security.users |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Pending, 2=Approved, 3=Rejected, 4=Cancelled |
+| requested_by | BIGINT | FK → users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | completed_at | TIMESTAMPTZ | |
 
-**Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(status)`
+**Indexes:** `BTREE(school_id)`, `BTREE(entity_type, entity_id)`, `BTREE(school_id, status)`, `BTREE(flow_id)`, `UNIQUE partial (school_id, entity_type, entity_id) WHERE status=1`  
+**Security (Phase WF-U04):** FORCE RLS. Hard DELETE rejected.  
+**v1 HTTP:** Create/List + Decide (role match) + Cancel. Hooks: CreateTransfer→open approval; final Decide Approved/Rejected→transfer status. CompleteTransfer + other-entity hooks HOLD.
 
 ---
 

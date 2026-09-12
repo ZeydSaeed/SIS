@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Application\Promotion\Results;
+
+use App\Application\Shared\Results\ApplicationResult;
+
+final readonly class RecordPromotionDecisionResult extends ApplicationResult
+{
+    private function __construct(
+        bool $success,
+        public ?int $recordId = null,
+        array $errors = [],
+        bool $fromIdempotencyCache = false,
+    ) {
+        parent::__construct($success, $errors, [], $fromIdempotencyCache);
+    }
+
+    public static function success(int $recordId): self
+    {
+        return new self(true, $recordId);
+    }
+
+    public static function fromIdempotency(int $recordId): self
+    {
+        return new self(true, $recordId, fromIdempotencyCache: true);
+    }
+
+    /** @param  list<string>  $errors */
+    public static function failure(array $errors): self
+    {
+        return new self(false, null, $errors);
+    }
+}

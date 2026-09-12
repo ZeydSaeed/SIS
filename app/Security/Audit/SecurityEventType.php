@@ -31,4 +31,18 @@ enum SecurityEventType: string
     case ResultsDataModified = 'SEC_RESULTS_DATA_MODIFIED';
     case VocationalDataModified = 'SEC_VOCATIONAL_DATA_MODIFIED';
     case VocationalDataAccess = 'SEC_VOCATIONAL_DATA_ACCESS';
+    case TeacherDataAccess = 'SEC_TEACHER_DATA_ACCESS';
+    case TeacherDataModified = 'SEC_TEACHER_DATA_MODIFIED';
+    case PromotionDataAccess = 'SEC_PROMOTION_DATA_ACCESS';
+    case PromotionDataModified = 'SEC_PROMOTION_DATA_MODIFIED';
+    case TransfersDataAccess = 'SEC_TRANSFERS_DATA_ACCESS';
+    case TransfersDataModified = 'SEC_TRANSFERS_DATA_MODIFIED';
+    case DocumentsDataAccess = 'SEC_DOCUMENTS_DATA_ACCESS';
+    case DocumentsDataModified = 'SEC_DOCUMENTS_DATA_MODIFIED';
+    case FinanceDataAccess = 'SEC_FINANCE_DATA_ACCESS';
+    case FinanceDataModified = 'SEC_FINANCE_DATA_MODIFIED';
+    case CommunicationDataAccess = 'SEC_COMMUNICATION_DATA_ACCESS';
+    case CommunicationDataModified = 'SEC_COMMUNICATION_DATA_MODIFIED';
+    case WorkflowDataAccess = 'SEC_WORKFLOW_DATA_ACCESS';
+    case WorkflowDataModified = 'SEC_WORKFLOW_DATA_MODIFIED';
 }

@@ -260,7 +260,7 @@ Do **not** start Self-Learning before reliable optimization events. Do **not** s
 | Phase | Name | Status | Deliverable |
 |-------|------|--------|-------------|
 | **1** | Governance | ✅ Done | DATABASE-GOVERNANCE, ADRs, blueprint |
-| **2** | Observability | ⏳ | Prometheus, pg_stat_statements, APM, query logging |
+| **2** | Observability | ⏳ Partial | HTTP telemetry ✅ · pg_stat ✅ · workload coverage ✅ · **Prometheus text `/api/v1/metrics` ✅** · vendor APM HOLD |
 | **3** | Workload Classification | ⏳ | Tag queries/events by workload class |
 | **4** | Rule Engine | ⏳ | Evidence thresholds + alerts → recommendations |
 | **5** | Expert Engine | ✅ Documented | KB + inference + explainability |
@@ -272,7 +272,7 @@ Do **not** start Self-Learning before reliable optimization events. Do **not** s
 
 **Production Proven** = Phases 2–4 operational + first 20 validated optimization events + load test + DR drill.
 
-**Next step:** Phase 2 (Prometheus + pg_stat_statements) — not more documentation.
+**Next step:** Vendor APM (optional) or measured budget recalibration — or module ballots (COM-PROVIDER / FIN refund / WF role-step).
 
 Glossary: [INTELLIGENCE-GLOSSARY.md](./INTELLIGENCE-GLOSSARY.md)
 

@@ -8,6 +8,8 @@ final class EnrollmentStatus
 
     public const CANCELLED = 2;
 
+    public const TRANSFERRED = 3;
+
     /**
      * @return list<int>
      */
@@ -16,6 +18,7 @@ final class EnrollmentStatus
         return [
             self::ACTIVE,
             self::CANCELLED,
+            self::TRANSFERRED,
         ];
     }
 

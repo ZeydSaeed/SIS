@@ -1,0 +1,106 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Application\Communication\Commands\CreateNotificationTemplateCommand;
+use App\Application\Communication\Commands\CreateNotificationTemplateHandler;
+use App\Application\Communication\DTOs\NotificationTemplateDTO;
+use App\Application\Communication\Queries\ListNotificationTemplatesHandler;
+use App\Application\Communication\Queries\ListNotificationTemplatesQuery;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Communication\CreateNotificationTemplateRequest;
+use App\Http\Requests\Communication\ListNotificationTemplatesRequest;
+use App\Intelligence\Support\CorrelationContext;
+use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
+use App\Security\Audit\SecurityEventType;
+use App\Security\Context\SchoolContext;
+use Illuminate\Http\JsonResponse;
+
+class NotificationTemplateController extends Controller
+{
+    public function __construct(
+        private readonly SecurityAuditLoggerInterface $securityAudit,
+        private readonly SchoolContext $schoolContext,
+    ) {}
+
+    public function store(
+        CreateNotificationTemplateRequest $request,
+        CreateNotificationTemplateHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new CreateNotificationTemplateCommand(
+            schoolId: $schoolId,
+            code: (string) $request->validated('code'),
+            name: (string) $request->validated('name'),
+            channel: (int) $request->validated('channel'),
+            subjectTemplate: $request->validated('subject_template'),
+            bodyTemplate: (string) $request->validated('body_template'),
+            isActive: $request->boolean('is_active', true),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Notification template create rejected.',
+                'error_code' => $result->errors[0] ?? 'communication.template_create_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.template.create',
+            'created',
+            $request->user(),
+            'template:'.$result->templateId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'template_id' => $result->templateId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function index(
+        ListNotificationTemplatesRequest $request,
+        ListNotificationTemplatesHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $activeOnly = $request->has('active_only')
+            ? $request->boolean('active_only')
+            : null;
+
+        $items = $handler->handle(new ListNotificationTemplatesQuery(
+            schoolId: $schoolId,
+            activeOnly: $activeOnly === true ? true : null,
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataAccess,
+            'communication.template.list',
+            'listed',
+            $request->user(),
+            'school:'.$schoolId,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (NotificationTemplateDTO $dto): array => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'channel' => $dto->channel,
+                'subject_template' => $dto->subjectTemplate,
+                'body_template' => $dto->bodyTemplate,
+                'is_active' => $dto->isActive,
+                'created_at' => $dto->createdAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+}

@@ -61,12 +61,12 @@ Blueprint objects: 90 (unchanged)
 ## Recommended next
 
 ```text
-1) Schedule-exception list HTTP, OR
-2) Student/guardian portal (privacy AuthZ ballot), OR
-3) Phase 8 — only after explicit human start AuthZ
+1) Admin scope-link HTTP (security AuthZ), OR
+2) Phase 8 — only after explicit human start AuthZ
 ```
 
 ```text
 PHASE 7.6 FINAL CLOSURE GATE: CLOSED / ACCEPTED WITH CONDITIONS
 Official Application reads + staff JSON HTTP readers/writers/rebuild complete.
+Portal track Phase 7.8 CLOSED WITH CONDITIONS.
 ```

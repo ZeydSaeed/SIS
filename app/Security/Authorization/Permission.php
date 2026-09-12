@@ -88,6 +88,40 @@ final class Permission
 
     public const RESULTS_REBUILD = 'results.rebuild';
 
+    public const PORTAL_RESULTS_VIEW = 'portal.results.view';
+
+    public const PORTAL_SCOPES_MANAGE = 'portal.scopes.manage';
+
+    public const TEACHERS_VIEW = 'teachers.view';
+
+    public const TEACHERS_MANAGE = 'teachers.manage';
+
+    public const PROMOTION_VIEW = 'promotion.view';
+
+    public const PROMOTION_MANAGE = 'promotion.manage';
+
+    public const TRANSFERS_VIEW = 'transfers.view';
+
+    public const TRANSFERS_MANAGE = 'transfers.manage';
+
+    public const DOCUMENTS_VIEW = 'documents.view';
+
+    public const DOCUMENTS_MANAGE = 'documents.manage';
+
+    public const FINANCE_VIEW = 'finance.view';
+
+    public const FINANCE_MANAGE = 'finance.manage';
+
+    public const COMMUNICATION_VIEW = 'communication.view';
+
+    public const COMMUNICATION_MANAGE = 'communication.manage';
+
+    public const WORKFLOW_VIEW = 'workflow.view';
+
+    public const WORKFLOW_MANAGE = 'workflow.manage';
+
+    public const WORKFLOW_DECIDE = 'workflow.decide';
+
     public const VOCATIONAL_MANAGE = 'vocational.manage';
 
     public const VOCATIONAL_VIEW = 'vocational.view';
@@ -142,6 +176,23 @@ final class Permission
             self::RESULTS_RANKING_BUILD,
             self::RESULTS_TRANSCRIPT_ISSUE,
             self::RESULTS_REBUILD,
+            self::PORTAL_RESULTS_VIEW,
+            self::PORTAL_SCOPES_MANAGE,
+            self::TEACHERS_VIEW,
+            self::TEACHERS_MANAGE,
+            self::PROMOTION_VIEW,
+            self::PROMOTION_MANAGE,
+            self::TRANSFERS_VIEW,
+            self::TRANSFERS_MANAGE,
+            self::DOCUMENTS_VIEW,
+            self::DOCUMENTS_MANAGE,
+            self::FINANCE_VIEW,
+            self::FINANCE_MANAGE,
+            self::COMMUNICATION_VIEW,
+            self::COMMUNICATION_MANAGE,
+            self::WORKFLOW_VIEW,
+            self::WORKFLOW_MANAGE,
+            self::WORKFLOW_DECIDE,
             self::VOCATIONAL_MANAGE,
             self::VOCATIONAL_VIEW,
             self::SECURITY_MANAGE_USERS,

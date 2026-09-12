@@ -118,6 +118,18 @@ class PgStatStatementsCollector
             return 'student_search';
         }
 
+        if (str_contains($normalized, 'FROM FINANCE.') || str_contains($normalized, 'FROM FINANCE_')) {
+            return 'finance_query';
+        }
+
+        if (str_contains($normalized, 'FROM WORKFLOW.') || str_contains($normalized, 'FROM WORKFLOW_')) {
+            return 'workflow_query';
+        }
+
+        if (str_contains($normalized, 'FROM COMMUNICATION.') || str_contains($normalized, 'FROM COMMUNICATION_')) {
+            return 'communication_query';
+        }
+
         return substr($normalized, 0, 80);
     }
 

@@ -47,6 +47,11 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
 
     public function save(CreateEnrollmentData $data): int
     {
+        \Illuminate\Support\Facades\DB::statement(
+            "SELECT set_config('app.current_school_id', ?, true)",
+            [(string) $data->schoolId],
+        );
+
         $record = new EnrollmentRecord;
         $record->forceFill([
             'student_id' => $data->studentId,
@@ -88,6 +93,25 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             'effective_to' => $effectiveTo,
         ]);
         $record->save();
+    }
+
+    public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool
+    {
+        \Illuminate\Support\Facades\DB::statement(
+            "SELECT set_config('app.current_school_id', ?, true)",
+            [(string) $schoolId],
+        );
+
+        return EnrollmentRecord::query()
+            ->whereKey($enrollmentId)
+            ->where('school_id', $schoolId)
+            ->where('status', EnrollmentStatus::ACTIVE)
+            ->whereNull('effective_to')
+            ->update([
+                'status' => EnrollmentStatus::TRANSFERRED,
+                'effective_to' => $effectiveTo,
+                'updated_at' => now(),
+            ]) === 1;
     }
 
     public function generateEnrollmentNumber(int $schoolId, int $academicYearId): string

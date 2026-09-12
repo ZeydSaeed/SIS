@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Application\Finance\Commands\AssignStudentFeeCommand;
+use App\Application\Finance\Commands\AssignStudentFeeHandler;
+use App\Application\Finance\DTOs\StudentFeeDTO;
+use App\Application\Finance\Queries\ListStudentFeesHandler;
+use App\Application\Finance\Queries\ListStudentFeesQuery;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Finance\AssignStudentFeeRequest;
+use App\Http\Requests\Finance\ListStudentFeesRequest;
+use App\Intelligence\Support\CorrelationContext;
+use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
+use App\Security\Audit\SecurityEventType;
+use App\Security\Context\SchoolContext;
+use Illuminate\Http\JsonResponse;
+
+class StudentFeeController extends Controller
+{
+    public function __construct(
+        private readonly SecurityAuditLoggerInterface $securityAudit,
+        private readonly SchoolContext $schoolContext,
+    ) {}
+
+    public function store(
+        AssignStudentFeeRequest $request,
+        AssignStudentFeeHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new AssignStudentFeeCommand(
+            schoolId: $schoolId,
+            enrollmentId: (int) $request->validated('enrollment_id'),
+            feeTypeId: (int) $request->validated('fee_type_id'),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            amountOverride: $request->validated('amount'),
+            dueDate: $request->validated('due_date'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Student fee assign rejected.',
+                'error_code' => $result->errors[0] ?? 'finance.student_fee_assign_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataModified,
+            'finance.student_fee.assign',
+            'assigned',
+            $request->user(),
+            'student_fee:'.$result->studentFeeId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'student_fee_id' => $result->studentFeeId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function index(
+        ListStudentFeesRequest $request,
+        ListStudentFeesHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $enrollmentId = $request->validated('enrollment_id');
+        $academicYearId = $request->validated('academic_year_id');
+        $feeStatus = $request->validated('fee_status');
+
+        $items = $handler->handle(new ListStudentFeesQuery(
+            schoolId: $schoolId,
+            enrollmentId: $enrollmentId !== null ? (int) $enrollmentId : null,
+            academicYearId: $academicYearId !== null ? (int) $academicYearId : null,
+            feeStatus: $feeStatus !== null ? (int) $feeStatus : null,
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataAccess,
+            'finance.student_fee.list',
+            'listed',
+            $request->user(),
+            'school:'.$schoolId,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (StudentFeeDTO $dto): array => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'enrollment_id' => $dto->enrollmentId,
+                'fee_type_id' => $dto->feeTypeId,
+                'academic_year_id' => $dto->academicYearId,
+                'amount' => $dto->amount,
+                'due_date' => $dto->dueDate,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+}

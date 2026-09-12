@@ -13,15 +13,23 @@ use App\Application\Timetable\Commands\UpdateScheduleExceptionCommand;
 use App\Application\Timetable\Commands\UpdateScheduleExceptionHandler;
 use App\Application\Timetable\Commands\UpdateScheduleHandler;
 use App\Application\Timetable\DTOs\ScheduleDTO;
+use App\Application\Timetable\DTOs\ScheduleExceptionDTO;
+use App\Application\Timetable\Queries\GetScheduleExceptionHandler;
+use App\Application\Timetable\Queries\GetScheduleExceptionQuery;
 use App\Application\Timetable\Queries\GetScheduleHandler;
 use App\Application\Timetable\Queries\GetScheduleQuery;
+use App\Application\Timetable\Queries\ListScheduleExceptionsHandler;
+use App\Application\Timetable\Queries\ListScheduleExceptionsQuery;
 use App\Application\Timetable\Queries\ListSchedulesHandler;
 use App\Application\Timetable\Queries\ListSchedulesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Timetable\CancelScheduleRequest;
 use App\Http\Requests\Timetable\CreateScheduleExceptionRequest;
 use App\Http\Requests\Timetable\CreateScheduleRequest;
+use App\Http\Requests\Timetable\ListScheduleExceptionsForScheduleRequest;
+use App\Http\Requests\Timetable\ListScheduleExceptionsRequest;
 use App\Http\Requests\Timetable\ListSchedulesRequest;
+use App\Http\Requests\Timetable\ShowScheduleExceptionRequest;
 use App\Http\Requests\Timetable\ShowScheduleRequest;
 use App\Http\Requests\Timetable\UpdateScheduleExceptionRequest;
 use App\Http\Requests\Timetable\UpdateScheduleRequest;
@@ -102,6 +110,104 @@ class ScheduleController extends Controller
 
         return response()->json([
             'data' => $this->schedulePayload($dto),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function indexExceptions(
+        ListScheduleExceptionsRequest $request,
+        ListScheduleExceptionsHandler $handler,
+    ): JsonResponse {
+        $page = $handler->handle(new ListScheduleExceptionsQuery(
+            schoolId: $this->schoolContext->requireId(),
+            scheduleId: $request->validated('schedule_id') !== null
+                ? (int) $request->validated('schedule_id')
+                : null,
+            dateFrom: $request->validated('date_from'),
+            dateTo: $request->validated('date_to'),
+            page: (int) ($request->validated('page') ?? 1),
+            perPage: (int) ($request->validated('per_page') ?? 50),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::TimetableDataAccess,
+            'timetable.schedule_exceptions.index',
+            'viewed',
+            $request->user(),
+            'schedule_exceptions',
+            [],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (ScheduleExceptionDTO $e): array => $this->exceptionPayload($e), $page->items),
+            'meta' => [
+                'pagination' => $page->pagination,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
+    }
+
+    public function indexExceptionsForSchedule(
+        ListScheduleExceptionsForScheduleRequest $request,
+        int $schedule,
+        ListScheduleExceptionsHandler $handler,
+    ): JsonResponse {
+        $page = $handler->handle(new ListScheduleExceptionsQuery(
+            schoolId: $this->schoolContext->requireId(),
+            scheduleId: $schedule,
+            dateFrom: $request->validated('date_from'),
+            dateTo: $request->validated('date_to'),
+            page: (int) ($request->validated('page') ?? 1),
+            perPage: (int) ($request->validated('per_page') ?? 50),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::TimetableDataAccess,
+            'timetable.schedules.exceptions.index',
+            'viewed',
+            $request->user(),
+            'schedule:'.$schedule,
+            [],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (ScheduleExceptionDTO $e): array => $this->exceptionPayload($e), $page->items),
+            'meta' => [
+                'pagination' => $page->pagination,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
+    }
+
+    public function showException(
+        ShowScheduleExceptionRequest $request,
+        int $exception,
+        GetScheduleExceptionHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetScheduleExceptionQuery(
+            schoolId: $this->schoolContext->requireId(),
+            exceptionId: $exception,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Schedule exception not found.',
+                'error_code' => 'timetable.schedule_exception_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TimetableDataAccess,
+            'timetable.schedule_exceptions.show',
+            'viewed',
+            $request->user(),
+            'schedule_exception:'.$dto->id,
+            [],
+        );
+
+        return response()->json([
+            'data' => $this->exceptionPayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
@@ -325,6 +431,22 @@ class ScheduleController extends Controller
             'teacher_id' => $dto->teacherId,
             'room_id' => $dto->roomId,
             'lifecycle_status' => $dto->lifecycleStatus,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function exceptionPayload(ScheduleExceptionDTO $dto): array
+    {
+        return [
+            'id' => $dto->id,
+            'school_id' => $dto->schoolId,
+            'schedule_id' => $dto->scheduleId,
+            'exception_date' => $dto->exceptionDate,
+            'substitute_teacher_id' => $dto->substituteTeacherId,
+            'substitute_room_id' => $dto->substituteRoomId,
+            'reason' => $dto->reason,
         ];
     }
 }

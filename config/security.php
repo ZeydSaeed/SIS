@@ -44,6 +44,23 @@ return [
         'results.ranking.build' => 'Build comparative ranking snapshots',
         'results.transcript.issue' => 'Issue transcript metadata (no PDF bytes)',
         'results.rebuild' => 'Rebuild operational or official term/annual/GPA results',
+        'portal.results.view' => 'View own or linked-student official results via portal (ownership required)',
+        'portal.scopes.manage' => 'Link/unlink/list portal party scopes (student|guardian) for users',
+        'teachers.view' => 'View teachers assigned to the current school',
+        'teachers.manage' => 'Register and manage teachers for the current school',
+        'promotion.view' => 'View promotion rules and decisions for the current school',
+        'promotion.manage' => 'Manage promotion rules and record promotion decisions',
+        'transfers.view' => 'View transfer requests involving the current school',
+        'transfers.manage' => 'Create and decide transfer requests involving the current school',
+        'documents.view' => 'View document metadata for the current school',
+        'documents.manage' => 'Register document metadata for the current school',
+        'finance.view' => 'View finance fee catalog for the current school',
+        'finance.manage' => 'Manage finance fee catalog for the current school (no payments in v1)',
+        'communication.view' => 'View notification templates for the current school',
+        'communication.manage' => 'Manage notification templates for the current school (no send in v1)',
+        'workflow.view' => 'View approval flow definitions for the current school',
+        'workflow.manage' => 'Manage approval flow definitions and cancel open approval requests',
+        'workflow.decide' => 'Decide pending approval requests when assigned the step role',
         'vocational.manage' => 'Manage vocational specializations, tracks, and subject links',
         'vocational.view' => 'View vocational specializations, tracks, and subject links',
         'security.manage_users' => 'Manage users and security settings',
@@ -136,6 +153,63 @@ return [
             'results.ranking.build',
             'results.transcript.issue',
             'results.rebuild',
+        ],
+        'portal_results_viewer' => [
+            'portal.results.view',
+        ],
+        'portal_scopes_manager' => [
+            'portal.scopes.manage',
+        ],
+        'teachers_viewer' => [
+            'teachers.view',
+        ],
+        'teachers_manager' => [
+            'teachers.view',
+            'teachers.manage',
+        ],
+        'promotion_viewer' => [
+            'promotion.view',
+        ],
+        'promotion_manager' => [
+            'promotion.view',
+            'promotion.manage',
+        ],
+        'transfers_viewer' => [
+            'transfers.view',
+        ],
+        'transfers_manager' => [
+            'transfers.view',
+            'transfers.manage',
+            'workflow.decide',
+        ],
+        'documents_viewer' => [
+            'documents.view',
+        ],
+        'documents_manager' => [
+            'documents.view',
+            'documents.manage',
+        ],
+        'finance_viewer' => [
+            'finance.view',
+        ],
+        'finance_manager' => [
+            'finance.view',
+            'finance.manage',
+        ],
+        'communication_viewer' => [
+            'communication.view',
+        ],
+        'communication_manager' => [
+            'communication.view',
+            'communication.manage',
+        ],
+        'workflow_viewer' => [
+            'workflow.view',
+        ],
+        'workflow_manager' => [
+            'workflow.view',
+            'workflow.manage',
+            'workflow.decide',
         ],
         'vocational_manager' => [
             'vocational.view',

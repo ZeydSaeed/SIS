@@ -4,6 +4,7 @@ namespace App\Infrastructure\Persistence\Timetable;
 
 use App\Database\SchemaHelper;
 use App\Domain\Timetable\Data\PersistScheduleExceptionData;
+use App\Domain\Timetable\Data\ScheduleExceptionSnapshot;
 use App\Domain\Timetable\Exceptions\ScheduleNotActiveException;
 use App\Domain\Timetable\Exceptions\ScheduleNotFoundException;
 use App\Domain\Timetable\Exceptions\ScheduleValidationException;
@@ -61,6 +62,86 @@ final class EloquentScheduleExceptionRepository implements ScheduleExceptionRepo
             ->where('schedule_id', $scheduleId)
             ->where('exception_date', $exceptionDate)
             ->exists();
+    }
+
+    public function findById(int $schoolId, int $exceptionId): ?ScheduleExceptionSnapshot
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $row = DB::table(SchemaHelper::qualified('timetable', 'schedule_exceptions'))
+            ->where('school_id', $schoolId)
+            ->where('id', $exceptionId)
+            ->first([
+                'id', 'school_id', 'schedule_id', 'exception_date',
+                'substitute_teacher_id', 'substitute_room_id', 'reason',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->toSnapshot($row);
+    }
+
+    public function listForSchool(
+        int $schoolId,
+        ?int $scheduleId,
+        ?string $dateFrom,
+        ?string $dateTo,
+        int $page,
+        int $perPage,
+    ): array {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $query = DB::table(SchemaHelper::qualified('timetable', 'schedule_exceptions'))
+            ->where('school_id', $schoolId);
+
+        if ($scheduleId !== null) {
+            $query->where('schedule_id', $scheduleId);
+        }
+        if ($dateFrom !== null) {
+            $query->where('exception_date', '>=', $dateFrom);
+        }
+        if ($dateTo !== null) {
+            $query->where('exception_date', '<=', $dateTo);
+        }
+
+        $total = (clone $query)->count();
+        $rows = $query
+            ->orderBy('exception_date')
+            ->orderBy('id')
+            ->forPage($page, $perPage)
+            ->get([
+                'id', 'school_id', 'schedule_id', 'exception_date',
+                'substitute_teacher_id', 'substitute_room_id', 'reason',
+            ]);
+
+        $items = [];
+        foreach ($rows as $row) {
+            $items[] = $this->toSnapshot($row);
+        }
+
+        return ['items' => $items, 'total' => $total];
+    }
+
+    private function toSnapshot(object $row): ScheduleExceptionSnapshot
+    {
+        $rawDate = $row->exception_date;
+        if ($rawDate instanceof \DateTimeInterface) {
+            $exceptionDate = $rawDate->format('Y-m-d');
+        } else {
+            $exceptionDate = substr((string) $rawDate, 0, 10);
+        }
+
+        return new ScheduleExceptionSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            scheduleId: (int) $row->schedule_id,
+            exceptionDate: $exceptionDate,
+            substituteTeacherId: $row->substitute_teacher_id !== null ? (int) $row->substitute_teacher_id : null,
+            substituteRoomId: $row->substitute_room_id !== null ? (int) $row->substitute_room_id : null,
+            reason: $row->reason !== null ? (string) $row->reason : null,
+        );
     }
 
     private function assertWritable(PersistScheduleExceptionData $data): void

@@ -24,6 +24,7 @@ Blueprint objects: 90 (unchanged; physicalize + enrich only)
 | TV-U08 | Timetable staff JSON HTTP writers | CLOSED |
 | TV-U09 | Vocational staff JSON HTTP catalog writers | CLOSED |
 | TV-U10 | Timetable + Vocational staff JSON HTTP readers | CLOSED |
+| TV-U11 | Schedule-exception staff JSON HTTP readers | CLOSED |
 
 ## Design lock compliance
 
@@ -40,14 +41,13 @@ Blueprint objects: 90 (unchanged; physicalize + enrich only)
 ## Deferred conditions
 
 ```text
-- Schedule-exception list HTTP
 - Auto-generate / solver timetable
 - periods.id → BIGINT IDENTITY rewrite
 - Phase 8 (NOT OPENED)
 - Student/guardian portal (privacy ballot)
 ```
 
-**Completed after original gate:** TV-U07…U10; Phase 7.6 Application + staff HTTP readers/writers/rebuild.
+**Completed after original gate:** TV-U07…U11; Phase 7.6 Application + staff HTTP readers/writers/rebuild.
 
 ## Absolute prohibitions still in force
 
@@ -60,12 +60,12 @@ Blueprint objects: 90 (unchanged; physicalize + enrich only)
 ## Recommended next program path
 
 ```text
-1) Schedule-exception list HTTP, OR
-2) Student/guardian portal (privacy AuthZ ballot), OR
-3) Phase 8 — only after explicit human start AuthZ
+1) Admin security.scopes link HTTP (AuthZ), OR
+2) Phase 8 — only after explicit human start AuthZ
 ```
 
 ```text
 PHASE TV FINAL CLOSURE GATE: CLOSED / ACCEPTED WITH CONDITIONS
-Timetable + Vocational Application + staff HTTP writers/readers complete.
+Timetable + Vocational staff HTTP writers/readers (incl. exceptions) complete.
+Phase 7.8 portal CLOSED WITH CONDITIONS.
 ```

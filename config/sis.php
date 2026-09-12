@@ -89,10 +89,35 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Workflow auto-hooks (Phase WF-HOOKS)
+    |--------------------------------------------------------------------------
+    */
+
+    'workflow' => [
+        'auto_hooks' => [
+            'transfer_request' => env('SIS_WF_HOOK_TRANSFER', true),
+            'transfer_decide_sync' => env('SIS_WF_HOOK_TRANSFER_DECIDE_SYNC', true),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Observability
+    |--------------------------------------------------------------------------
+    */
+
     'observability' => [
         'http_enabled' => env('SIS_HTTP_TELEMETRY_ENABLED', true),
         'slow_query_threshold_ms' => (int) env('SIS_SLOW_QUERY_THRESHOLD_MS', 10),
+        'metrics' => [
+            'enabled' => env('SIS_METRICS_ENABLED', true),
+            'token' => env('SIS_METRICS_TOKEN', ''),
+            'allow_unauthenticated_in' => ['local', 'testing'],
+        ],
         'workloads' => [
+            // Exact route overrides (highest priority)
             'routes' => [
                 'api.students.search' => 'student_search',
                 'api.students.index' => 'student_search',
@@ -100,6 +125,26 @@ return [
                 'api.students.store' => 'student_search',
                 'api.students.update' => 'student_search',
                 'api.health' => 'health',
+                'api.metrics' => 'health',
+            ],
+            // Prefix fallback — longest prefix wins when ordered longest-first in resolver
+            'prefixes' => [
+                'api.finance.' => 'finance_oltp',
+                'api.communication.' => 'communication_oltp',
+                'api.workflow.' => 'workflow_oltp',
+                'api.documents.' => 'documents_oltp',
+                'api.transfers.' => 'transfers_oltp',
+                'api.teachers.' => 'teachers_oltp',
+                'api.promotion.' => 'promotion_oltp',
+                'api.attendance.' => 'attendance_oltp',
+                'api.timetable.' => 'timetable_oltp',
+                'api.results.' => 'results_oltp',
+                'api.portal.' => 'portal_results',
+                'api.vocational.' => 'vocational_oltp',
+                'api.exam_sessions.' => 'exams_oltp',
+                'api.exam_enrollments.' => 'exams_oltp',
+                'api.enrollments.' => 'enrollment_oltp',
+                'api.grades' => 'exams_oltp',
             ],
         ],
     ],

@@ -93,6 +93,7 @@ final class PhaseTvScheduleCommandsPostgreSqlTest extends PostgreSqlIntegrationT
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $otherSchool]);
         DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))->insert([
             'teacher_id' => $foreignTeacher,
             'school_id' => $otherSchool,

@@ -22,11 +22,20 @@ use App\Security\Authorization\Permission;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\AttendancePolicy;
+use App\Security\Policies\CommunicationPolicy;
+use App\Security\Policies\DocumentsPolicy;
+use App\Security\Policies\FinancePolicy;
+use App\Security\Policies\WorkflowPolicy;
 use App\Security\Policies\EnrollmentPolicy;
 use App\Security\Policies\ExamPolicy;
 use App\Security\Policies\GradePolicy;
+use App\Security\Policies\PortalResultsPolicy;
+use App\Security\Policies\PortalScopesPolicy;
+use App\Security\Policies\PromotionPolicy;
 use App\Security\Policies\ResultsPolicy;
 use App\Security\Policies\StudentPolicy;
+use App\Security\Policies\TeacherPolicy;
+use App\Security\Policies\TransfersPolicy;
 use App\Security\Policies\TimetablePolicy;
 use App\Security\Policies\VocationalPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -69,6 +78,74 @@ class SecurityServiceProvider extends ServiceProvider
 
     private function configureGates(): void
     {
+        Gate::define('viewPortalOfficial', function (User $user): bool {
+            return app(PortalResultsPolicy::class)->viewPortal($user);
+        });
+
+        Gate::define('managePortalScopes', function (User $user): bool {
+            return app(PortalScopesPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewTeachers', function (User $user): bool {
+            return app(TeacherPolicy::class)->view($user);
+        });
+
+        Gate::define('manageTeachers', function (User $user): bool {
+            return app(TeacherPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewPromotion', function (User $user): bool {
+            return app(PromotionPolicy::class)->view($user);
+        });
+
+        Gate::define('managePromotion', function (User $user): bool {
+            return app(PromotionPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewTransfers', function (User $user): bool {
+            return app(TransfersPolicy::class)->view($user);
+        });
+
+        Gate::define('manageTransfers', function (User $user): bool {
+            return app(TransfersPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewDocuments', function (User $user): bool {
+            return app(DocumentsPolicy::class)->view($user);
+        });
+
+        Gate::define('manageDocuments', function (User $user): bool {
+            return app(DocumentsPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewFinance', function (User $user): bool {
+            return app(FinancePolicy::class)->view($user);
+        });
+
+        Gate::define('manageFinance', function (User $user): bool {
+            return app(FinancePolicy::class)->manage($user);
+        });
+
+        Gate::define('viewCommunication', function (User $user): bool {
+            return app(CommunicationPolicy::class)->view($user);
+        });
+
+        Gate::define('manageCommunication', function (User $user): bool {
+            return app(CommunicationPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewWorkflow', function (User $user): bool {
+            return app(WorkflowPolicy::class)->view($user);
+        });
+
+        Gate::define('manageWorkflow', function (User $user): bool {
+            return app(WorkflowPolicy::class)->manage($user);
+        });
+
+        Gate::define('decideWorkflow', function (User $user): bool {
+            return app(WorkflowPolicy::class)->decide($user);
+        });
+
         Gate::define('security.manage_users', function (User $user): bool {
             return app(AuthorizationServiceInterface::class)
                 ->userHasPermission($user, Permission::SECURITY_MANAGE_USERS);

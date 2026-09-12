@@ -263,6 +263,22 @@ return [
         'school_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 1000, 'p99_ms' => 2500, 'max_db_queries_per_request' => 2],
         'directorate_dashboard' => ['workload' => 'dashboard', 'p95_ms' => 3000, 'p99_ms' => 6000, 'max_db_queries_per_request' => 1],
         'attendance_batch' => ['workload' => 'bulk', 'p95_ms' => 2000, 'p99_ms' => 5000, 'max_db_queries_per_request' => 2],
+        // Provisional (OBS-U01) — revise after measured P95 evidence; not sacred static targets
+        'finance_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 8, 'provisional' => true],
+        'communication_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 6, 'provisional' => true],
+        'workflow_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 8, 'provisional' => true],
+        'documents_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 6, 'provisional' => true],
+        'transfers_oltp' => ['workload' => 'oltp', 'p95_ms' => 400, 'p99_ms' => 1000, 'max_db_queries_per_request' => 10, 'provisional' => true],
+        'teachers_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 8, 'provisional' => true],
+        'promotion_oltp' => ['workload' => 'oltp', 'p95_ms' => 400, 'p99_ms' => 1000, 'max_db_queries_per_request' => 10, 'provisional' => true],
+        'attendance_oltp' => ['workload' => 'oltp', 'p95_ms' => 400, 'p99_ms' => 1000, 'max_db_queries_per_request' => 10, 'provisional' => true],
+        'timetable_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 8, 'provisional' => true],
+        'results_oltp' => ['workload' => 'oltp', 'p95_ms' => 500, 'p99_ms' => 1500, 'max_db_queries_per_request' => 12, 'provisional' => true],
+        'portal_results' => ['workload' => 'oltp', 'p95_ms' => 400, 'p99_ms' => 1000, 'max_db_queries_per_request' => 8, 'provisional' => true],
+        'vocational_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 6, 'provisional' => true],
+        'exams_oltp' => ['workload' => 'oltp', 'p95_ms' => 400, 'p99_ms' => 1000, 'max_db_queries_per_request' => 10, 'provisional' => true],
+        'enrollment_oltp' => ['workload' => 'oltp', 'p95_ms' => 300, 'p99_ms' => 800, 'max_db_queries_per_request' => 8, 'provisional' => true],
+        'general_api' => ['workload' => 'oltp', 'p95_ms' => 500, 'p99_ms' => 1500, 'max_db_queries_per_request' => 12, 'provisional' => true],
     ],
 
     'pg_stat_statements' => [

@@ -28,6 +28,8 @@ class Phase3FeatureContractTest extends TestCase
 
         $this->assertFileExists(app_path('Application/Observability/Queries/GetHealthStatusHandler.php'));
         $this->assertFileExists(app_path('Application/Observability/Queries/GetHealthStatusQuery.php'));
+        $this->assertFileExists(app_path('Application/Observability/Queries/GetPrometheusMetricsHandler.php'));
+        $this->assertFileExists(app_path('Application/Observability/Queries/GetPrometheusMetricsQuery.php'));
         $this->assertFileExists(app_path('Application/Observability/DTOs/HealthStatusDTO.php'));
 
         $violations = $validator->validate('Observability');
