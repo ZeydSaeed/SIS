@@ -36,4 +36,10 @@ interface GpaResultRepositoryInterface
         int $enrollmentId,
         int $academicYearId,
     ): ?CurrentGpaResultSnapshot;
+
+    public function findOfficialYearGpaRead(
+        int $schoolId,
+        int $enrollmentId,
+        int $academicYearId,
+    ): ?\App\Domain\Results\Data\OfficialYearGpaRead;
 }

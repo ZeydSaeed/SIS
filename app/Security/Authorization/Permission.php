@@ -64,6 +64,34 @@ final class Permission
 
     public const ATTENDANCE_SESSION_CANCEL = 'attendance.session.cancel';
 
+    public const TIMETABLE_SCHEDULE_CREATE = 'timetable.schedule.create';
+
+    public const TIMETABLE_VIEW = 'timetable.view';
+
+    public const TIMETABLE_SCHEDULE_UPDATE = 'timetable.schedule.update';
+
+    public const TIMETABLE_SCHEDULE_CANCEL = 'timetable.schedule.cancel';
+
+    public const TIMETABLE_EXCEPTION_CREATE = 'timetable.exception.create';
+
+    public const TIMETABLE_EXCEPTION_UPDATE = 'timetable.exception.update';
+
+    public const RESULTS_VIEW = 'results.view';
+
+    public const RESULTS_CALCULATE = 'results.calculate';
+
+    public const RESULTS_FINALIZE = 'results.finalize';
+
+    public const RESULTS_RANKING_BUILD = 'results.ranking.build';
+
+    public const RESULTS_TRANSCRIPT_ISSUE = 'results.transcript.issue';
+
+    public const RESULTS_REBUILD = 'results.rebuild';
+
+    public const VOCATIONAL_MANAGE = 'vocational.manage';
+
+    public const VOCATIONAL_VIEW = 'vocational.view';
+
     public const SECURITY_MANAGE_USERS = 'security.manage_users';
 
     /**
@@ -102,6 +130,20 @@ final class Permission
             self::ATTENDANCE_CORRECT,
             self::ATTENDANCE_SESSION_CLOSE,
             self::ATTENDANCE_SESSION_CANCEL,
+            self::TIMETABLE_SCHEDULE_CREATE,
+            self::TIMETABLE_VIEW,
+            self::TIMETABLE_SCHEDULE_UPDATE,
+            self::TIMETABLE_SCHEDULE_CANCEL,
+            self::TIMETABLE_EXCEPTION_CREATE,
+            self::TIMETABLE_EXCEPTION_UPDATE,
+            self::RESULTS_VIEW,
+            self::RESULTS_CALCULATE,
+            self::RESULTS_FINALIZE,
+            self::RESULTS_RANKING_BUILD,
+            self::RESULTS_TRANSCRIPT_ISSUE,
+            self::RESULTS_REBUILD,
+            self::VOCATIONAL_MANAGE,
+            self::VOCATIONAL_VIEW,
             self::SECURITY_MANAGE_USERS,
         ];
     }

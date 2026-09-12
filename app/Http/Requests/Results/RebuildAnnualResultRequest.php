@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Http\Requests\Results;
+
+use App\Domain\Results\ValueObjects\TermResultRebuildMode;
+use App\Infrastructure\Persistence\Eloquent\TermResultRecord;
+use App\Security\Validation\SecuritySensitiveFieldGuard;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class RebuildAnnualResultRequest extends FormRequest
+{
+    use RequiresResultsIdempotencyKey;
+
+    public function authorize(): bool
+    {
+        return $this->user()?->can('rebuild', TermResultRecord::class) ?? false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return array_merge([
+            'enrollment_id' => ['required', 'integer', 'min:1'],
+            'academic_year_id' => ['required', 'integer', 'min:1'],
+            'mode' => ['required', 'string', Rule::in([
+                TermResultRebuildMode::Operational->value,
+                TermResultRebuildMode::Official->value,
+            ])],
+            'school_id' => ['prohibited'],
+        ], SecuritySensitiveFieldGuard::prohibitedRules());
+    }
+}

@@ -228,6 +228,90 @@ trait InteractsWithSecurity
         return $user;
     }
 
+    protected function actingAsTimetableManager(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantTimetableManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsTimetableManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantTimetableManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsResultsViewer(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantResultsViewer($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsResultsViewerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantResultsViewer($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsResultsManager(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantResultsManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsResultsManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantResultsManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsVocationalManager(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantVocationalManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsVocationalManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantVocationalManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
     protected function createAcademicYear(string $code = 'AY-2026'): int
     {
         $table = SchemaHelper::qualified('academic', 'academic_years');

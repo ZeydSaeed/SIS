@@ -25,4 +25,10 @@ enum SecurityEventType: string
     case GradeDataModified = 'SEC_GRADE_DATA_MODIFIED';
     case AttendanceDataAccess = 'SEC_ATTENDANCE_DATA_ACCESS';
     case AttendanceDataModified = 'SEC_ATTENDANCE_DATA_MODIFIED';
+    case TimetableDataModified = 'SEC_TIMETABLE_DATA_MODIFIED';
+    case TimetableDataAccess = 'SEC_TIMETABLE_DATA_ACCESS';
+    case ResultsDataAccess = 'SEC_RESULTS_DATA_ACCESS';
+    case ResultsDataModified = 'SEC_RESULTS_DATA_MODIFIED';
+    case VocationalDataModified = 'SEC_VOCATIONAL_DATA_MODIFIED';
+    case VocationalDataAccess = 'SEC_VOCATIONAL_DATA_ACCESS';
 }

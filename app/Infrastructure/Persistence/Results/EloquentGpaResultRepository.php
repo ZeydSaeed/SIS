@@ -5,6 +5,7 @@ namespace App\Infrastructure\Persistence\Results;
 use App\Database\SchemaHelper;
 use App\Domain\Results\Data\CurrentGpaResultSnapshot;
 use App\Domain\Results\Data\OfficialAnnualGpaSource;
+use App\Domain\Results\Data\OfficialYearGpaRead;
 use App\Domain\Results\Data\PersistOperationalGpaResultData;
 use App\Domain\Results\Repositories\GpaResultRepositoryInterface;
 use App\Domain\Results\ValueObjects\GpaScope;
@@ -175,6 +176,35 @@ final class EloquentGpaResultRepository implements GpaResultRepositoryInterface
         int $academicYearId,
     ): ?CurrentGpaResultSnapshot {
         return $this->findCurrent($schoolId, $enrollmentId, $academicYearId, 'is_current_official');
+    }
+
+    public function findOfficialYearGpaRead(
+        int $schoolId,
+        int $enrollmentId,
+        int $academicYearId,
+    ): ?OfficialYearGpaRead {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $row = DB::table(SchemaHelper::qualified('results', 'gpa_results'))
+            ->where('school_id', $schoolId)
+            ->where('enrollment_id', $enrollmentId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('gpa_scope', GpaScope::AcademicYear->value)
+            ->where('is_current_official', true)
+            ->first(['id', 'result_version', 'source_fingerprint', 'gpa_value', 'scale_code', 'incomplete']);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new OfficialYearGpaRead(
+            id: (int) $row->id,
+            resultVersion: (int) $row->result_version,
+            sourceFingerprint: (string) $row->source_fingerprint,
+            gpaValue: $row->gpa_value !== null ? (string) $row->gpa_value : null,
+            scaleCode: (string) $row->scale_code,
+            incomplete: (bool) $row->incomplete,
+        );
     }
 
     private function findCurrent(

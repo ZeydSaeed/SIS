@@ -21,4 +21,10 @@ interface TranscriptRepositoryInterface
     public function nextTranscriptVersion(int $schoolId, int $enrollmentId, int $academicYearId): int;
 
     public function insertIssued(PersistIssuedTranscriptData $data): int;
+
+    public function findCurrentIssued(
+        int $schoolId,
+        int $enrollmentId,
+        int $academicYearId,
+    ): ?\App\Domain\Results\Data\IssuedTranscriptRead;
 }

@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Results;
 
 use App\Database\SchemaHelper;
+use App\Domain\Results\Data\IssuedTranscriptRead;
 use App\Domain\Results\Data\OfficialTranscriptSource;
 use App\Domain\Results\Data\PersistIssuedTranscriptData;
 use App\Domain\Results\Repositories\TranscriptRepositoryInterface;
@@ -117,5 +118,37 @@ final class EloquentTranscriptRepository implements TranscriptRepositoryInterfac
             'created_at' => $data->issuedAt,
             'updated_at' => $data->issuedAt,
         ]);
+    }
+
+    public function findCurrentIssued(
+        int $schoolId,
+        int $enrollmentId,
+        int $academicYearId,
+    ): ?IssuedTranscriptRead {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $row = DB::table(SchemaHelper::qualified('results', 'transcripts'))
+            ->where('school_id', $schoolId)
+            ->where('enrollment_id', $enrollmentId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_current', true)
+            ->first([
+                'id', 'student_id', 'transcript_version', 'transcript_number',
+                'payload_hash', 'storage_key', 'issued_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new IssuedTranscriptRead(
+            id: (int) $row->id,
+            studentId: (int) $row->student_id,
+            transcriptVersion: (int) $row->transcript_version,
+            transcriptNumber: (string) $row->transcript_number,
+            payloadHash: (string) $row->payload_hash,
+            storageKey: $row->storage_key !== null ? (string) $row->storage_key : null,
+            issuedAt: (string) $row->issued_at,
+        );
     }
 }

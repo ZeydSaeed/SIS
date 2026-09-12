@@ -21,4 +21,10 @@ interface RankingSnapshotRepositoryInterface
     public function nextSnapshotVersion(int $schoolId, int $academicYearId, int $classId): int;
 
     public function insertSnapshot(PersistRankingSnapshotData $data): int;
+
+    public function findCurrentSnapshot(
+        int $schoolId,
+        int $academicYearId,
+        int $classId,
+    ): ?\App\Domain\Results\Data\CurrentRankingSnapshotRead;
 }

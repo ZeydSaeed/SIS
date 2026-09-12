@@ -187,6 +187,8 @@
 
 ## Schema: `vocational` (3 tables)
 
+> **Phase TV-U05:** FORCE RLS on all three. `specializations` by `school_id`; `tracks` / `specialization_subjects` via EXISTS → specialization.school_id. Hard DELETE rejected.
+
 ### `vocational.specializations`
 
 | Column | Type | Constraints |
@@ -200,7 +202,9 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
+**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`  
+**RLS:** ENABLE + FORCE  
+**Triggers:** reject hard DELETE
 
 ### `vocational.tracks`
 
@@ -214,7 +218,9 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(specialization_id)`
+**Indexes:** `BTREE(specialization_id)`  
+**RLS:** ENABLE + FORCE (via specialization.school_id)  
+**Triggers:** reject hard DELETE
 
 ### `vocational.specialization_subjects`
 
@@ -225,8 +231,11 @@
 | subject_id | BIGINT | FK → curriculum.subjects |
 | is_required | BOOLEAN | NOT NULL DEFAULT true |
 | credit_hours | SMALLINT | |
+| status | SMALLINT | 1=Active, 2=Inactive (TV-U06) |
 
-**Indexes:** `UNIQUE(specialization_id, subject_id)`
+**Indexes:** `UNIQUE(specialization_id, subject_id)`  
+**RLS:** ENABLE + FORCE (via specialization.school_id)  
+**Triggers:** reject hard DELETE
 
 ---
 
@@ -632,6 +641,8 @@
 
 ### `timetable.periods`
 
+> **Phase TV-U01:** FORCE RLS + reject hard DELETE. PK remains SMALLINT (attendance contract; HD-TV-004 debt).
+
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | SMALLINT | PK |
@@ -641,38 +652,54 @@
 | end_time | TIME | NOT NULL |
 | period_type | SMALLINT | NOT NULL DEFAULT 1 |
 
-**Indexes:** `UNIQUE(school_id, period_number)`
+**Indexes:** `UNIQUE(school_id, period_number)`  
+**RLS:** ENABLE + FORCE (`periods_school_isolation`)  
+**Triggers:** `periods_reject_delete`
 
 ### `timetable.schedules`
 
+> **Phase TV-U02:** Operational capacity schedule rows — **not** grade/result SSOT.  
+> Enrichment vs sketch: `school_id`, soft lifecycle (`lifecycle_status` + `cancelled_at`), conflict partial uniques, FORCE RLS.
+
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
 | section_id | BIGINT | FK → enrollment.sections |
 | academic_year_id | BIGINT | FK → academic_years |
-| day_of_week | SMALLINT | NOT NULL CHECK (day_of_week BETWEEN 1 AND 7) |
-| period_id | SMALLINT | FK → periods |
+| day_of_week | SMALLINT | CHECK 1–7 |
+| period_id | SMALLINT | FK → periods (composite with school_id) |
 | subject_id | BIGINT | FK → curriculum.subjects |
 | teacher_id | BIGINT | FK → teachers.teachers |
-| room_id | BIGINT | FK → organization.rooms, nullable |
-| created_at | TIMESTAMPTZ | NOT NULL |
-| updated_at | TIMESTAMPTZ | NOT NULL |
+| room_id | BIGINT | FK → rooms, nullable |
+| lifecycle_status | SMALLINT | 1=Active, 2=Cancelled |
+| cancelled_at | TIMESTAMPTZ | NULL iff Active |
+| correlation_id / created_by | | |
+| created_at / updated_at | TIMESTAMPTZ | |
 
-**Indexes:** `BTREE(section_id, academic_year_id)`, `BTREE(teacher_id, day_of_week)`, `UNIQUE(section_id, day_of_week, period_id, academic_year_id)`
+**Indexes:** partial UNIQUE active section/teacher/room slots; BTREE school/year, section/year  
+**RLS:** ENABLE + FORCE  
+**Triggers:** reject hard DELETE
 
 ### `timetable.schedule_exceptions`
 
+> **Phase TV-U03:** Per-date substitute teacher/room for a schedule. FORCE RLS; reject hard DELETE.
+
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| schedule_id | BIGINT | FK → schedules |
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools |
+| schedule_id | BIGINT | FK → schedules (composite with school_id) |
 | exception_date | DATE | NOT NULL |
 | substitute_teacher_id | BIGINT | FK → teachers, nullable |
 | substitute_room_id | BIGINT | FK → rooms, nullable |
 | reason | TEXT | |
-| created_at | TIMESTAMPTZ | NOT NULL |
+| correlation_id / created_by | | |
+| created_at / updated_at | TIMESTAMPTZ | |
 
-**Indexes:** `BTREE(schedule_id)`, `BTREE(exception_date)`
+**Indexes:** `UNIQUE(schedule_id, exception_date)`, `BTREE(exception_date)`, `BTREE(school_id)`  
+**RLS:** ENABLE + FORCE  
+**Triggers:** reject hard DELETE
 
 ---
 

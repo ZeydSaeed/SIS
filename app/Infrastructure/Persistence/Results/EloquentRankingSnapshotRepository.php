@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Results;
 
 use App\Database\SchemaHelper;
+use App\Domain\Results\Data\CurrentRankingSnapshotRead;
 use App\Domain\Results\Data\PersistRankingSnapshotData;
 use App\Domain\Results\Data\RankingParticipant;
 use App\Domain\Results\Repositories\RankingSnapshotRepositoryInterface;
@@ -115,5 +116,49 @@ final class EloquentRankingSnapshotRepository implements RankingSnapshotReposito
         }
 
         return $snapshotId;
+    }
+
+    public function findCurrentSnapshot(
+        int $schoolId,
+        int $academicYearId,
+        int $classId,
+    ): ?CurrentRankingSnapshotRead {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $header = DB::table(SchemaHelper::qualified('results', 'ranking_snapshots'))
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('class_id', $classId)
+            ->where('is_current', true)
+            ->first(['id', 'snapshot_version', 'metric_code', 'participant_count']);
+
+        if ($header === null) {
+            return null;
+        }
+
+        $entries = DB::table(SchemaHelper::qualified('results', 'ranking_snapshot_entries'))
+            ->where('ranking_snapshot_id', $header->id)
+            ->orderBy('rank_position')
+            ->orderBy('enrollment_id')
+            ->get(['enrollment_id', 'student_id', 'gpa_result_id', 'metric_value', 'rank_position']);
+
+        $mapped = [];
+        foreach ($entries as $e) {
+            $mapped[] = [
+                'enrollment_id' => (int) $e->enrollment_id,
+                'student_id' => (int) $e->student_id,
+                'gpa_result_id' => (int) $e->gpa_result_id,
+                'metric_value' => $e->metric_value !== null ? (string) $e->metric_value : null,
+                'rank_position' => (int) $e->rank_position,
+            ];
+        }
+
+        return new CurrentRankingSnapshotRead(
+            id: (int) $header->id,
+            snapshotVersion: (int) $header->snapshot_version,
+            metricCode: (string) $header->metric_code,
+            participantCount: (int) $header->participant_count,
+            entries: $mapped,
+        );
     }
 }

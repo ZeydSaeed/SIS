@@ -5,8 +5,14 @@ namespace App\Providers;
 use App\Infrastructure\Persistence\Eloquent\AttendanceSessionRecord;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Infrastructure\Persistence\Eloquent\ExamRecord;
+use App\Infrastructure\Persistence\Eloquent\ScheduleExceptionRecord;
+use App\Infrastructure\Persistence\Eloquent\ScheduleRecord;
+use App\Infrastructure\Persistence\Eloquent\SpecializationRecord;
+use App\Infrastructure\Persistence\Eloquent\SpecializationSubjectRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentGradeRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
+use App\Infrastructure\Persistence\Eloquent\TermResultRecord;
+use App\Infrastructure\Persistence\Eloquent\TrackRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityAuditLogger;
@@ -19,7 +25,10 @@ use App\Security\Policies\AttendancePolicy;
 use App\Security\Policies\EnrollmentPolicy;
 use App\Security\Policies\ExamPolicy;
 use App\Security\Policies\GradePolicy;
+use App\Security\Policies\ResultsPolicy;
 use App\Security\Policies\StudentPolicy;
+use App\Security\Policies\TimetablePolicy;
+use App\Security\Policies\VocationalPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -50,6 +59,12 @@ class SecurityServiceProvider extends ServiceProvider
         Gate::policy(StudentGradeRecord::class, GradePolicy::class);
         Gate::policy(ExamRecord::class, ExamPolicy::class);
         Gate::policy(AttendanceSessionRecord::class, AttendancePolicy::class);
+        Gate::policy(ScheduleRecord::class, TimetablePolicy::class);
+        Gate::policy(ScheduleExceptionRecord::class, TimetablePolicy::class);
+        Gate::policy(TermResultRecord::class, ResultsPolicy::class);
+        Gate::policy(SpecializationRecord::class, VocationalPolicy::class);
+        Gate::policy(TrackRecord::class, VocationalPolicy::class);
+        Gate::policy(SpecializationSubjectRecord::class, VocationalPolicy::class);
     }
 
     private function configureGates(): void
