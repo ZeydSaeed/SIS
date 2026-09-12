@@ -3,25 +3,84 @@
 ```text
 DATABASE PHASE 0 GATE
 STATUS: PASS WITH CONDITIONS
+MODE: READ-ONLY REFRESH (2026-09-12)
+IMPLEMENTATION: NOT AUTHORIZED BY THIS GATE
 ```
 
-**Date:** 2026-09-10  
+**Date:** 2026-09-12 (refresh)  
+**Prior gate:** 2026-09-10 — Phase 1 already human-approved (ADR-020); Phase 2–4.1 and Master Phase 7.1–7.2 progressed since then  
 **Auditor role:** Senior Enterprise Database / PostgreSQL / SIS Domain Architect  
-**Mode:** READ-ONLY discovery — **no tables created, no migrations written, no destructive operations**
+**Detail audit:** [SIS-DATABASE-MASTER-AUDIT.md](./SIS-DATABASE-MASTER-AUDIT.md)
+
+---
+
+## Critical framing
+
+This repository is **not** at greenfield Phase 0.
+
+| Fact | Evidence |
+|------|----------|
+| Phase 0 original discovery | Completed 2026-09-10 |
+| Phase 1 architecture lock | ADR-020 + human APPROVED |
+| Live DB | PostgreSQL 18.2 / `sis` / **93** tables / **47** migrations / **26** schemas |
+| Assessment path | Phase 3A–3C docs + live exams/grades/graduation/certificates |
+| Master Phase 7.1 | **CLOSED** |
+| Master Phase 7.2 | **CLOSED / ACCEPTED WITH CONDITIONS** (incl. U16) |
+| Master Phase 7.3 | **CLOSED / ACCEPTED WITH CONDITIONS** |
+| Master Phase 7.7 | **CLOSED / ACCEPTED WITH CONDITIONS** |
+| Master Phase 7 final closure | **CLOSED / ACCEPTED WITH CONDITIONS** (`phase-7/10`) |
+| Phase 7.4–7.6 | CONDITIONAL / DEFERRED |
+| Phase 8 | NOT AUTHORIZED |
+
+```text
+The mega-prompt Phase 0–21 list is a CAPABILITY BACKLOG map.
+It is NOT the active execution calendar.
+Active calendar = Master Phase 7 → then later ERP domains by ADR.
+```
 
 ---
 
 ## Verdict
 
-Phase 0 discovery is complete. Live PostgreSQL state, migrations, blueprint, and the master ERP specification have been reconciled into a target architecture and phased plan.
+```text
+DATABASE PHASE 0 GATE
+STATUS: PASS WITH CONDITIONS
+```
 
-Implementation must **not** begin until the human replies with explicit approval (e.g. `APPROVED` or `APPROVED PHASE 1`).
+Phase 0 discovery/refresh is complete. **No tables, migrations, RLS, or application code were modified.**
+
+### Conditions
+
+1. Do **not** reinterpret this gate as permission to rebuild the database.  
+2. Do **not** start mega-prompt “Phase 1 Core/Identity” as a parallel program.  
+3. Preserve ADR-020 PK strategy (BIGINT IDENTITY).  
+4. Preserve Master Phase 7 design locks (HTTP writers not authorized; `exam.session.cancel` FORBIDDEN).  
+5. Empty schemas (`results`, `finance`, …) remain **reserved** until separately authorized.  
+6. ERP schemas (`hr`, `medical`, …) remain **not created** until justified gates.
 
 ```text
 HUMAN APPROVAL REQUIRED
+before any new implementation phase
 ```
 
-**Update 2026-09-10:** Human approved Phase 1 with Decisions D1–D6. See [SIS-DATABASE-PHASE-1-GATE.md](./SIS-DATABASE-PHASE-1-GATE.md) and [ADR-020](../../.cursor/architecture/adr/ADR-020-phase-1-database-architecture.md).
+**Update 2026-09-12:** Human approved:
+
+```text
+APPROVED — MASTER PHASE 7 FINAL CLOSURE / U16 DECISION
+```
+
+Opened track progressed:
+
+- U16 Option **B** → AuthZ `36` → Audit `37` PASS → Closure `38`
+- Phase 7.2 Final Closure Gate `39` → **CLOSED / ACCEPTED WITH CONDITIONS**
+- Phase 7.3 → CLOSED WITH CONDITIONS (`phase-7.3/10`)
+- Phase 7.7 → CLOSED WITH CONDITIONS (`phase-7.7/01`)
+- Master Phase 7 Final Closure Gate → **CLOSED / ACCEPTED WITH CONDITIONS** (`phase-7/10`)
+
+See:
+- `.cursor/database/phase-7/10-MASTER-PHASE-7-FINAL-CLOSURE-GATE.md`
+- `.cursor/database/phase-7/11-PHASE-7-FINAL-CLOSURE-READINESS-POST-73-77.md`
+
 ---
 
 ## Current database state (summary)
@@ -30,257 +89,151 @@ HUMAN APPROVAL REQUIRED
 |------|---------|
 | PostgreSQL | **18.2** |
 | Database / user | `sis` / `postgres` |
-| Migrations | 24 applied |
-| Business tables (verifier) | 54 |
-| Schemas | 25 (admission missing) |
-| RLS | 2 tables only (`enrollments`, `attendance.records`) |
-| Partitions | `attendance.records` LIST(`academic_year_id`) |
-| CHECK constraints | 0 |
+| Migrations | **47** applied |
+| Schemas | **26** |
+| Tables (`pg_tables`) | **93** |
+| FKs / CHECKs | **167** / **644** |
+| RLS ordinary tables | **29** (+ partitioned `student_grades` FORCE) |
+| MVs | **3** |
+| Partitions | attendance.records; exams.student_grades |
 | Intelligence | Present and isolated |
-| Foundation verify | PASS |
-
-Full detail: [SIS-DATABASE-MASTER-AUDIT.md](./SIS-DATABASE-MASTER-AUDIT.md)
 
 ---
 
-## Target architecture (decision frame)
+## Target architecture (unchanged posture)
 
-### Preserve (do not rename)
+### Preserve
 
-Existing PostgreSQL schemas and tables for organization, academic, students, guardians, enrollment, teachers, curriculum, vocational, timetable, attendance, security (partial), audit (partial), reports, intelligence, and Laravel `public.*`.
+Existing schemas/tables for organization, academic, vocational, students, guardians, admission, enrollment, teachers, curriculum, timetable (partial), attendance, exams, graduation, certificates, security, audit, reports, intelligence, public.
 
-### Complete next (blueprint backlog)
+### Complete next (program order — not mega-prompt order)
 
-Lifecycle and academic completion: admission, exams/grades, results, promotion, transfers, graduation, certificates, documents, finance (fee track), communication, workflow, audit_logs, timetable schedules, RLS expansion.
+1. **Master Phase 7** — **CLOSED WITH CONDITIONS** (do not reopen without regression).  
+2. Physicalize/align **results** only under Phase 7.4/7.5 AuthZ (schemas currently empty).  
+3. Timetable schedules / vocational workshop capacity.  
+4. Blueprint leftovers (prerequisites, student_documents, documents, finance fee track, communication, workflow, promotion, transfers).  
+5. ERP expansion (HR, inventory, medical, …) — later (requires Phase 8 AuthZ).
 
-### Expand later (master ERP — justified schemas only)
+### Do not create without ADR
 
-| Candidate schema | Responsibility | When |
-|------------------|----------------|------|
-| `hr` | Employees, contracts, leave, payroll (not teachers-only) | After staff model ADR |
-| `inventory` | Stock, assets, workshop materials | With facilities |
-| `facilities` | Maintenance beyond rooms | With inventory |
-| `medical` | Health records (HIGHLY_RESTRICTED) | After RLS maturity |
-| `support` | SEN/IEP/counseling | With medical controls |
-| `behavior` | Discipline / merits | After students stable |
-| `activities` | Clubs, assemblies, duties, volunteering | Parallel ops track |
-| `internship` | Partners, placements, logbooks | Vocational priority |
-| `transportation` | Routes, buses, subscriptions | Ops track |
-| `library` | Resources/loans | Optional |
-| `alumni` | Post-graduation engagement | After graduation module |
-| `analytics` | Non-MV analytical structures | Only if MVs insufficient |
-| `archive` | Cold historical storage | Retention policy phase |
-
-**Do not create** unused prompt names (`core`, `identity`, `reference`, `system`, `optimization` as separate schema) unless an ADR proves `organization`/`security`/`intelligence` insufficient.
-
-### PK strategy (recommended)
-
-```text
-KEEP: BIGINT GENERATED ALWAYS AS IDENTITY for internal PKs
-KEEP: UUID public_id for external/API identifiers where needed
-REJECT (default): mixed UUID internal PKs unless ADR + human approval
-```
+Unused prompt schema names as empty shells (`core`, `identity`, `reference`, `system`, `optimization` as separate schema).
 
 ---
 
-## Schema list (target steady state)
+## Schema list
 
-### Already justified (live)
+### Live with tables
 
-`organization`, `academic`, `vocational`, `students`, `guardians`, `enrollment`, `teachers`, `curriculum`, `timetable`, `attendance`, `security`, `audit`, `reports`, `intelligence`, `public` (+ empty reserved: `exams`, `results`, `promotion`, `transfers`, `graduation`, `certificates`, `documents`, `finance`, `communication`, `workflow`)
+`organization`, `academic`, `vocational`, `students`, `guardians`, `admission`, `enrollment`, `teachers`, `curriculum`, `timetable` (partial), `attendance`, `exams`, `graduation`, `certificates`, `security`, `audit`, `reports`, `intelligence`, `public`
 
-### Must add when Phase starts
+### Reserved empty
 
-`admission` (fix SchemaHelper + create schema migration)
+`results`, `promotion`, `transfers`, `documents`, `finance`, `communication`, `workflow`
 
-### Conditional ERP (approval per phase)
+### Conditional ERP (not created)
 
 `hr`, `inventory`, `facilities`, `medical`, `support`, `behavior`, `activities`, `internship`, `transportation`, `library`, `alumni`, `analytics`, `archive`
 
 ---
 
-## Table inventory
+## Missing domains / conflicts / risks
 
-| Bucket | Count (approx.) | Notes |
-|--------|-----------------|-------|
-| Live domain OLTP | ~41 | Foundation through attendance |
-| Live MVs | 3 | of 8 blueprint MVs |
-| Intelligence | 10 | including validation target |
-| Framework public | ~10 | Laravel/Fortify/Sanctum |
-| Blueprint not migrated | ~40+ | Priority backlog |
-| ERP expansion (new) | TBD by phase ADRs | Not inventing table counts without design |
+See Master Audit §§ C–F. Highest near-term integrity risks if wrong next step chosen:
 
-Authoritative live lists: Master Audit §A; blueprint: `.cursor/architecture/database-blueprint.md`.
+- Restarting greenfield Phase 0–21  
+- Implementing U16 without AuthZ  
+- Creating results/finance/HR tables without Design Lock + AuthZ  
+- Destructive migration / RLS disable  
 
 ---
 
-## Missing domains (priority)
+## Security / RLS / partitioning / indexing / lifecycle (posture)
 
-1. **CRITICAL:** Exams / grades / results (immutable grade history)  
-2. **CRITICAL:** RLS coverage for remaining `school_id` tables + `FORCE` policy decision  
-3. **HIGH:** Admission pipeline; timetable schedules; workshop/batch/safety model  
-4. **HIGH:** Domain audit_logs; CHECK constraints on statuses/grades/capacities  
-5. **MEDIUM:** Finance fees → later GL; HR/payroll; inventory/facilities  
-6. **MEDIUM:** Medical / SEN with classification HIGHLY_RESTRICTED  
-7. **LATER:** Transport, library, alumni, volunteering links  
-
----
-
-## Conflicts (must resolve before or during Phase 1)
-
-| ID | Decision needed | Options |
-|----|-----------------|---------|
-| D1 | Internal PK type | **A (recommended):** BIGINT only · B: UUID for new tables · C: migrate all to UUID |
-| D2 | Person SSOT | **A (recommended):** defer `persons`; keep students/guardians/teachers · B: introduce `identity.persons` now |
-| D3 | Campus naming | **A:** keep `branches` · B: rename to campuses (destructive/doc churn) |
-| D4 | Users home | **A:** keep `public.users` · B: move to `security.users` |
-| D5 | Blueprint count SSOT | Reconcile 86 vs 89 in docs during Phase 1 |
-| D6 | ERP scope for Phase 1 | **A (recommended):** architecture docs only · B: also add empty ERP schemas |
+| Plan area | Posture |
+|-----------|---------|
+| RLS | Incremental FORCE on sensitive domains; enrollment FORCE still OFF — future hardening |
+| Partitioning | Attendance + grades present; expand year partitions with evidence |
+| Indexing | Measure-first (adaptive governance); no blind index wave |
+| Lifecycle | No hard-delete of official academic/financial/medical/audit history |
+| Intelligence | Recommend-only + Tier-1 operational; never auto DROP/DISABLE RLS |
 
 ---
 
-## Risks
+## Implementation phases (two calendars)
 
-See Master Audit §F. Highest: mixed PK strategy, premature ERP schema sprawl, RLS expansion breaking workers, rewriting migration history.
-
----
-
-## Migration plan (post-approval)
+### A) Active SIS program (authoritative)
 
 ```text
-1. Never rewrite applied migrations
-2. Additive migrations only
-3. Update database-blueprint.md in the same change as schema
-4. Follow database-change skill + DATABASE-CHANGE-CHECKLIST
-5. Run migrate → verify → tests → architecture/security validate → gate report
-6. STOP after each numbered phase for human review
+DONE: Foundation → Admission → Academic core → Grades → Graduation → Certificates
+DONE: Master Phase 7.1 CLOSED
+DONE: Master Phase 7.2 U01–U15 CLOSED WITH CONDITIONS
+NEXT: Master Phase 7 closure path (see recommendation below)
+LATER: Phase 8+ / ERP domains per WORK-PLAN + ADR
+```
+
+### B) Mega-prompt Phase 0–21 (backlog map only)
+
+Use as **gap checklist**, not as “execute Phase 8 Scheduling now” while Phase 7 is open.
+
+---
+
+## أي مرحلة تستحق التنفيذ حالياً؟ / Which phase deserves execution now?
+
+### الإجابة المختصرة
+
+```text
+المرحلة المستحقة الآن ليست Phase 0 من البرومبت الضخم،
+وليست HR/Finance/Inventory.
+
+المستحق الآن (بعد إغلاق Master Phase 7):
+اختيار بشري صريح — Phase 7.4 أو Phase 8 أو Timetable
+```
+
+### Recommended next human-authorized step (pick one explicitly)
+
+| Priority | Step | Why |
+|----------|------|-----|
+| **1 (recommended)** | **Phase 7.4 Design Ballot** (Results aggregation) — only if product needs Results now | Conditional track; `results` schema empty |
+| **2** | **Timetable / vocational capacity** | Highest non-Assessment ops gap after Phase 7 close |
+| **3** | **Phase 8 start AuthZ** (next domain) | Requires explicit new ballot — not auto-opened |
+| **Do not** | Mega-prompt Phase 1–2 identity rebuild | Already locked (ADR-020) + live |
+| **Do not** | ERP HR/Payroll/Inventory without Phase 8 AuthZ | Prohibited |
+| **Do not** | Invent `exam.session.cancel` / DEFAULT `student_grades` | Forbidden forever |
+
+```text
+After human chooses 1 / 2 / 3:
+  require NEW HUMAN AUTHORIZATION artifact
+  then execute ONLY that step
+  then STOP
 ```
 
 ---
 
-## Security / RLS plan
+## Unresolved decisions (require human)
 
-| Step | Action |
-|------|--------|
-| 1 | Inventory all tables with `school_id` |
-| 2 | Enable RLS + fail-closed policies matching enrollment pattern |
-| 3 | Decide `FORCE ROW LEVEL SECURITY` (recommended YES for tenant tables) |
-| 4 | Ensure HTTP middleware + queue/console set `app.current_school_id` |
-| 5 | Stronger policies for medical/SEN/payroll (role claims in GUCs) |
-| 6 | Tests: cross-school denied; medical denied without grant |
+1. **results schema:** when to physicalize term/annual/transcript tables vs keep computed? (Phase 7.4/7.5)  
+2. **Phase 8:** which domain opens next (explicit AuthZ required)?  
+3. **Enrollment RLS FORCE:** harden to FORCE or accept current posture?  
+4. Deferred grade policy: P7-D7 date-window / Submitted / Excused vocab — reopen only with AuthZ
 
 ---
 
-## Partitioning plan
-
-| Table | Key | Strategy | Timing |
-|-------|-----|----------|--------|
-| `attendance.records` | `academic_year_id` | LIST (exists) | Maintain year partitions |
-| `exams.student_grades` | `academic_year_id` | LIST | At first create (P0) |
-| `audit.audit_logs` | `created_at` | RANGE monthly | When table created |
-| `communication.messages` | `created_at` | RANGE | When volume justifies |
-| `finance.transactions` | `academic_year_id` | LIST | When GL/fees history grows |
-
-Do not partition small reference tables.
-
----
-
-## Indexing plan
-
-- Keep FK indexes that support JOIN/WHERE  
-- Prefer composite `(school_id, academic_year_id, …)` for tenant queries  
-- Evaluate BRIN on append-only time columns after evidence  
-- No speculative indexes — EXPLAIN ANALYZE required for new ones on hot paths  
-
----
-
-## Data lifecycle plan
-
-| Data class | Delete policy |
-|------------|---------------|
-| Grades, enrollments, attendance, finance, payroll, audit, medical, discipline | **Never hard-delete** — status / effective_to / reversal / history |
-| Reference codes | Soft deprecate via status |
-| Ephemeral (jobs, cache) | Framework TTL OK |
-| Intelligence telemetry | Retention policy TBD; not academic source of truth |
-
----
-
-## Implementation phases (aligned to master prompt)
-
-| Phase | Scope | Start only after |
-|-------|-------|------------------|
-| **0** | Discovery / Audit | — (**this gate**) |
-| **1** | Database architecture docs + decisions D1–D6 | **APPROVED** |
-| **2** | Core / Identity / Reference alignment (SchemaHelper, admission schema, persons ADR if any) | Phase 1 gate |
-| **3** | Student / Guardian completion | Phase 2 |
-| **4** | Academic / curriculum / vocational gaps | Phase 3 |
-| **5** | Admissions / Enrollment hardening | Phase 4 |
-| **6** | Attendance hardening | Phase 5 |
-| **7** | Assessment / Exams / Grades | Phase 6 |
-| **8** | Scheduling / Workshops / Batches / Safety | Phase 7 |
-| **9** | Staff / HR | Phase 8 |
-| **10** | Behavior / Activities / Assemblies / Duties | Phase 9 |
-| **11** | Medical / SEN | Phase 10 |
-| **12** | Internship / Alumni / Library | Phase 11 |
-| **13** | Transportation | Phase 12 |
-| **14** | Inventory / Facilities | Phase 13 |
-| **15** | Finance (fees → GL) | Phase 14 |
-| **16** | Documents / Communication | Phase 15 |
-| **17** | Audit / Security / RLS expansion | Continuous; formalize |
-| **18** | Reporting / Analytics MVs | After source tables |
-| **19** | Intelligence safety integration review | Ongoing |
-| **20** | Performance / Partitioning / Hardening | Evidence-driven |
-| **21** | Final Database Gate | All critical gates green |
-
-**Recommended first implementation after approval:** Phase 1 documentation + decision lock only (still no ERP table flood), then Phase 2 schema fixes (`admission`) before exams.
-
----
-
-## Unresolved decisions
-
-- D1–D6 above  
-- Whether workshops are `vocational` extensions vs new schema  
-- Whether `persons` is mandatory for multi-role humans in year 1  
-- Full double-entry GL vs fee-ledger-first finance  
-- Medical storage jurisdiction / encryption-at-rest requirements  
-
----
-
-## Conditions for PASS WITH CONDITIONS
-
-1. Human acknowledges PK = BIGINT IDENTITY remains default.  
-2. Human acknowledges existing schemas are preserved (no big-bang rename).  
-3. Human acknowledges ERP domains are phased — not created in one migration wave.  
-4. No destructive SQL without a later explicit approval.  
-5. Blueprint/AGENTS table-count inconsistency fixed in Phase 1 docs.
-
-If any condition is rejected, status becomes **FAIL** until redesigned.
-
----
-
-## Deliverables produced in Phase 0
+## STOP
 
 ```text
-docs/database/SIS-DATABASE-MASTER-AUDIT.md
-docs/database/SIS-DATABASE-PHASE-0-GATE.md
-docs/database/00-DATABASE-ARCHITECTURE.md
-docs/database/01-SCHEMA-CATALOG.md
-docs/database/02-TABLE-CATALOG.md
-docs/database/03-RELATIONSHIP-MAP.md
-```
+PHASE 0 READ-ONLY REFRESH: COMPLETE (status rows updated 2026-09-12 post Master Phase 7 close)
 
-Remaining catalog docs (04–14), ERD machine file, structural tests, and Final Gate are **post-approval** work products.
+Master Phase 7: CLOSED / ACCEPTED WITH CONDITIONS
+Phase 8: NOT OPENED
 
----
+HUMAN APPROVAL REQUIRED for next program step.
 
-## Explicit stop
-
-```text
-STATUS: PASS WITH CONDITIONS
-HUMAN APPROVAL REQUIRED
-
-Do not proceed to Phase 1 until the human explicitly approves.
-Reply: APPROVED
-Optional: APPROVED PHASE 1
-Optional: APPROVED WITH DECISIONS: D1=A, D2=A, ...
+Recommended approval forms:
+  APPROVED — PHASE 7.4 DESIGN BALLOT START
+  or
+  APPROVED — TIMETABLE / VOCATIONAL CAPACITY START
+  or
+  APPROVED — PHASE 8 START (specify domain)
+  or
+  REJECT — specify alternate authorized step
 ```

@@ -4,11 +4,21 @@ namespace Tests\Feature\Exams;
 
 use App\Application\Exams\Commands\CancelExamCommand;
 use App\Application\Exams\Commands\CancelExamHandler;
+use App\Application\Exams\Commands\CancelExamSessionHandler;
+use App\Application\Exams\Commands\CloseExamSessionHandler;
+use App\Application\Exams\Commands\CompleteExamHandler;
 use App\Application\Exams\Commands\CreateExamCommand;
+use App\Application\Exams\Commands\CreateExamEnrollmentHandler;
 use App\Application\Exams\Commands\CreateExamHandler;
+use App\Application\Exams\Commands\CreateExamSessionHandler;
+use App\Application\Exams\Commands\EnterStudentGradeCommand;
+use App\Application\Exams\Commands\EnterStudentGradeHandler;
+use App\Application\Exams\Commands\OpenExamSessionHandler;
 use App\Application\Exams\Commands\UpdateExamCommand;
 use App\Application\Exams\Commands\UpdateExamHandler;
+use App\Application\Exams\Commands\UpdateExamSessionHandler;
 use App\Database\SchemaHelper;
+use App\Domain\Exams\Events\ExamCreated;
 use App\Domain\Exams\Exceptions\ExamAuthorityDeniedException;
 use App\Domain\Exams\Exceptions\ExamCancelBlockedException;
 use App\Domain\Exams\Exceptions\ExamUpdateForbiddenException;
@@ -16,6 +26,8 @@ use App\Domain\Exams\Exceptions\IdempotencyPayloadConflictException;
 use App\Domain\Exams\ValueObjects\ExamEnrollmentStatus;
 use App\Domain\Exams\ValueObjects\ExamSessionStatus;
 use App\Domain\Exams\ValueObjects\ExamStatus;
+use App\Http\Controllers\Api\ExamController;
+use App\Infrastructure\Persistence\Eloquent\ExamRecord;
 use App\Security\Context\SchoolContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -67,7 +79,7 @@ final class ExamAdministrationCommandTest extends TestCase
 
         $this->assertTrue(
             DB::table(SchemaHelper::qualified('audit', 'outbox_messages'))
-                ->where('event_type', \App\Domain\Exams\Events\ExamCreated::class)
+                ->where('event_type', ExamCreated::class)
                 ->exists()
         );
 
@@ -197,8 +209,9 @@ final class ExamAdministrationCommandTest extends TestCase
         ]);
 
         $graph2 = $this->seedExamGradeGraph($schoolId, suffix: 'XG');
-        $this->app->make(\App\Application\Exams\Commands\EnterStudentGradeHandler::class)->handle(
-            new \App\Application\Exams\Commands\EnterStudentGradeCommand(
+        $this->markSessionInProgressForGradeEntry($graph2['session_id']);
+        $this->app->make(EnterStudentGradeHandler::class)->handle(
+            new EnterStudentGradeCommand(
                 schoolId: $schoolId,
                 examEnrollmentId: $graph2['exam_enrollment_id'],
                 score: '80',
@@ -267,18 +280,18 @@ final class ExamAdministrationCommandTest extends TestCase
         $user = $this->actingAsGradesManagerForSchool($schoolId);
         $this->bindSchool($schoolId);
 
-        $this->assertTrue(Gate::forUser($user)->allows('create', \App\Infrastructure\Persistence\Eloquent\ExamRecord::class));
+        $this->assertTrue(Gate::forUser($user)->allows('create', ExamRecord::class));
 
         $routes = collect(app('router')->getRoutes())->map(fn ($r) => $r->uri())->implode(' ');
         $this->assertStringNotContainsString('api/v1/exams', $routes);
-        $this->assertFalse(class_exists(\App\Http\Controllers\Api\ExamController::class));
-        $this->assertFalse(class_exists(\App\Application\Exams\Commands\CompleteExamHandler::class));
-        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CreateExamSessionHandler::class));
-        $this->assertTrue(class_exists(\App\Application\Exams\Commands\OpenExamSessionHandler::class));
-        $this->assertTrue(class_exists(\App\Application\Exams\Commands\UpdateExamSessionHandler::class));
-        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CloseExamSessionHandler::class));
-        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CancelExamSessionHandler::class));
-        $this->assertTrue(class_exists(\App\Application\Exams\Commands\CreateExamEnrollmentHandler::class));
+        $this->assertFalse(class_exists(ExamController::class));
+        $this->assertFalse(class_exists(CompleteExamHandler::class));
+        $this->assertTrue(class_exists(CreateExamSessionHandler::class));
+        $this->assertTrue(class_exists(OpenExamSessionHandler::class));
+        $this->assertTrue(class_exists(UpdateExamSessionHandler::class));
+        $this->assertTrue(class_exists(CloseExamSessionHandler::class));
+        $this->assertTrue(class_exists(CancelExamSessionHandler::class));
+        $this->assertTrue(class_exists(CreateExamEnrollmentHandler::class));
     }
 
     private function bindSchool(int $schoolId): void

@@ -13,6 +13,7 @@ use App\Domain\Exams\Exceptions\GradeNotFoundException;
 use App\Domain\Exams\Exceptions\InvalidGradeCorrectionException;
 use App\Domain\Exams\Repositories\StudentGradeRepositoryInterface;
 use App\Domain\Exams\Services\StudentGradeRules;
+use App\Domain\Exams\Support\GradeIdempotencyGuard;
 use App\Domain\Exams\ValueObjects\GradeStatus;
 
 final class VoidStudentGradeHandler implements CommandHandler
@@ -30,21 +31,21 @@ final class VoidStudentGradeHandler implements CommandHandler
     {
         assert($command instanceof VoidStudentGradeCommand);
 
+        $idempotencyKey = GradeIdempotencyGuard::requireKey($command->idempotencyKey);
+
         if (trim($command->reason) === '') {
             throw InvalidGradeCorrectionException::forReason('Void reason is required.');
         }
 
-        if ($command->idempotencyKey !== null) {
-            $cached = $this->idempotency->find($command->idempotencyKey, self::COMMAND_NAME);
-            if ($cached !== null) {
-                return VoidStudentGradeResult::fromIdempotency(
-                    (int) $cached['grade_id'],
-                    (int) $cached['academic_year_id'],
-                );
-            }
+        $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
+        if ($cached !== null) {
+            return VoidStudentGradeResult::fromIdempotency(
+                (int) $cached['grade_id'],
+                (int) $cached['academic_year_id'],
+            );
         }
 
-        $this->unitOfWork->transaction(function () use ($command): void {
+        $this->unitOfWork->transaction(function () use ($command, $idempotencyKey): void {
             $grade = $this->grades->lockByIdentity(
                 $command->gradeId,
                 $command->academicYearId,
@@ -69,14 +70,12 @@ final class VoidStudentGradeHandler implements CommandHandler
                 reason: $command->reason,
                 occurredAt: new \DateTimeImmutable,
             ));
-        });
 
-        if ($command->idempotencyKey !== null) {
-            $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [
+            $this->idempotency->store($idempotencyKey, self::COMMAND_NAME, [
                 'grade_id' => $command->gradeId,
                 'academic_year_id' => $command->academicYearId,
             ]);
-        }
+        });
 
         return VoidStudentGradeResult::success($command->gradeId, $command->academicYearId);
     }

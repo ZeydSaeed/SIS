@@ -280,6 +280,7 @@ final class EloquentOutboxRepository implements OutboxRepository
                     : [],
                 updatedBy: isset($payload['updated_by']) ? (int) $payload['updated_by'] : null,
                 occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+                cause: (string) ($payload['cause'] ?? 'exam_enrollment_update'),
             ),
             CompletionOutcomeCreated::class => new CompletionOutcomeCreated(
                 completionOutcomeId: (int) $payload['completion_outcome_id'],

@@ -25,7 +25,7 @@ class GradeApiAuthorizationTest extends TestCase
             'exam_enrollment_id' => $graph['exam_enrollment_id'],
             'score' => 50,
             'is_absent' => false,
-        ])->assertForbidden();
+        ], ['X-Idempotency-Key' => 'viewer-enter'])->assertForbidden();
     }
 
     #[Test]
@@ -33,17 +33,18 @@ class GradeApiAuthorizationTest extends TestCase
     {
         $schoolId = $this->createSchool('SCH-GT', 'School GT');
         $graph = $this->seedExamGradeGraph($schoolId, suffix: 'T');
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
         $this->actingAsGradesTeacher(schoolId: $schoolId);
 
         $enter = $this->postJson('/api/v1/grades', [
             'exam_enrollment_id' => $graph['exam_enrollment_id'],
             'score' => 55,
             'is_absent' => false,
-        ])->assertCreated();
+        ], ['X-Idempotency-Key' => 'teacher-enter'])->assertCreated();
 
         $this->postJson('/api/v1/grades/'.$enter->json('data.id').'/finalize', [
             'academic_year_id' => $enter->json('data.academic_year_id'),
-        ])->assertForbidden();
+        ], ['X-Idempotency-Key' => 'teacher-fin'])->assertForbidden();
     }
 
     #[Test]
@@ -59,6 +60,6 @@ class GradeApiAuthorizationTest extends TestCase
             'exam_enrollment_id' => $graphB['exam_enrollment_id'],
             'score' => 40,
             'is_absent' => false,
-        ])->assertNotFound();
+        ], ['X-Idempotency-Key' => 'cross-enter'])->assertNotFound();
     }
 }

@@ -1,11 +1,11 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
-> **Target:** **87** blueprint objects (tables + reporting MVs) across **24** PostgreSQL schemas.  
+> **Target:** **90** blueprint objects (tables + reporting MVs) across **24** PostgreSQL schemas.  
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note (Phase 1):** Prior docs inconsistently said 86 or 89 — reconciled 2026-09-10 by counting blueprint headings (`security` = 8, `reports` = 8).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -866,62 +866,160 @@
 
 **Correction model:** VOID + INSERT replacement (`is_current`, `correction_of_grade_id`). **No hard DELETE.**
 
-**SSOT:** Authoritative scores live only here — not on `exam_enrollments`. `term_results` / `annual_results` / `transcripts` remain deferred (3C/3D).
+**SSOT:** Authoritative scores live only here — not on `exam_enrollments`. `results.term_results` is a **derived versioned projection** (Phase 7.4-U01); never a second grade ledger. GPA/ranking/transcript remain Phase 7.5.
 
 > **Phase 3B enrichment (approved):** replaces earlier blueprint sketch (`grade` → `score`; adds `exam_enrollment_id`, `school_id`, lifecycle, partition PK). Object count remains **87**.
 ---
 
-## Schema: `results` (3 tables)
+## Schema: `results` (6 tables)
 
 ### `results.term_results`
 
+> **Phase 7.4-U01 (LOCKED):** Versioned **derived** subject-term snapshots — **NOT** grade SSOT.  
+> Supersedes earlier blueprint sketch (`total_grade` / `grade_letter` / `rank_*`).  
+> Letter / GPA / ranking deferred to Phase 7.5. Object count remains **87** (physicalizes existing object).
+
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| enrollment_id | BIGINT | FK → enrollment.enrollments |
-| term_id | BIGINT | FK → academic.terms |
-| subject_id | BIGINT | FK → curriculum.subjects |
-| total_grade | NUMERIC(5,2) | |
-| grade_letter | VARCHAR(5) | |
-| is_pass | BOOLEAN | |
-| rank_in_section | SMALLINT | |
-| calculated_at | TIMESTAMPTZ | |
-| created_at | TIMESTAMPTZ | NOT NULL |
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| enrollment_id | BIGINT | FK → enrollments (composite school/year) |
+| student_id | BIGINT | FK → students |
+| academic_year_id | BIGINT | FK → academic_years NOT NULL |
+| term_id | BIGINT | FK → terms (composite year) |
+| subject_id | BIGINT | FK → subjects |
+| result_version | INT | ≥ 1; UNIQUE with identity |
+| lifecycle_status | SMALLINT | 1=Calculated 2=Finalized 3=Superseded |
+| is_official | BOOLEAN | NOT NULL |
+| is_current_operational | BOOLEAN | partial UNIQUE per identity |
+| is_current_official | BOOLEAN | partial UNIQUE per identity |
+| weighted_total | NUMERIC(8,2) | nullable |
+| pass_fail | SMALLINT | NULL/0/1 |
+| incomplete | BOOLEAN | NOT NULL DEFAULT false |
+| source_fingerprint | VARCHAR(128) | NOT NULL |
+| calculation_version | INT | NOT NULL |
+| policy_pin | JSONB | NOT NULL |
+| calculated_at | TIMESTAMPTZ | NOT NULL |
+| finalized_at | TIMESTAMPTZ | |
+| superseded_at | TIMESTAMPTZ | |
+| correlation_id | VARCHAR(64) | |
+| created_by | BIGINT | FK → users SET NULL |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(enrollment_id, term_id)`, `UNIQUE(enrollment_id, term_id, subject_id)`
+**Indexes:** UNIQUE identity+version; partial UNIQUE current ops/official; BTREE student/year/term; school/year/subject; enrollment/year  
+**RLS:** ENABLE + FORCE school isolation  
+**Triggers:** reject hard DELETE  
+**SSOT:** Scores remain on `exams.student_grades` only.
 
 ### `results.annual_results`
 
+> **Phase 7.4-U05 (LOCKED):** Versioned **derived** year rollup — **NOT** grade SSOT.  
+> Supersedes earlier blueprint sketch (`gpa` / `rank_*`). GPA/ranking deferred to Phase 7.5. Object count remains **87**.
+
 | Column | Type | Constraints |
 |--------|------|-------------|
-| id | BIGINT | PK |
-| enrollment_id | BIGINT | FK → enrollment.enrollments |
-| academic_year_id | BIGINT | FK → academic_years |
-| gpa | NUMERIC(4,2) | |
-| total_credits | SMALLINT | |
-| rank_in_section | SMALLINT | |
-| rank_in_class | SMALLINT | |
-| final_status | SMALLINT | NOT NULL |
-| calculated_at | TIMESTAMPTZ | |
-| created_at | TIMESTAMPTZ | NOT NULL |
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| enrollment_id | BIGINT | FK → enrollments (composite school/year) |
+| student_id | BIGINT | FK → students |
+| academic_year_id | BIGINT | FK → academic_years NOT NULL |
+| result_version | INT | ≥ 1 |
+| lifecycle_status | SMALLINT | 1=Calculated 2=Finalized 3=Superseded |
+| is_official | BOOLEAN | NOT NULL |
+| is_current_operational / is_current_official | BOOLEAN | partial UNIQUE |
+| subjects_counted / subjects_passed / subjects_incomplete | INT | ≥ 0 |
+| average_weighted_total | NUMERIC(8,2) | nullable |
+| incomplete | BOOLEAN | NOT NULL |
+| source_fingerprint | VARCHAR(128) | NOT NULL |
+| calculation_version | INT | NOT NULL |
+| policy_pin | JSONB | NOT NULL |
+| calculated_at / finalized_at / superseded_at | TIMESTAMPTZ | |
+| correlation_id / created_by | | |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(enrollment_id)`, `BTREE(academic_year_id, final_status)`
+**Indexes:** UNIQUE identity+version; partial UNIQUE current ops/official; BTREE student/year; school/year  
+**RLS:** ENABLE + FORCE school isolation  
+**Triggers:** reject hard DELETE  
+**SSOT:** Inputs from official/operational `results.term_results` + grades foundation — never a second mark ledger.
+
+### `results.gpa_results`
+
+> **Phase 7.5-U01 (LOCKED):** Versioned **derived** year-scope GPA — **NOT** grade SSOT.  
+> v1 scale = `PERCENT_100` (= official annual `average_weighted_total`). 4.0 conversion deferred.  
+> Blueprint object count **88** (+1).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| enrollment_id | BIGINT | FK → enrollments (composite) |
+| student_id | BIGINT | FK → students |
+| academic_year_id | BIGINT | FK → academic_years |
+| gpa_scope | SMALLINT | 1=academic_year (v1 only) |
+| result_version | INT | ≥ 1 |
+| lifecycle_status | SMALLINT | 1/2/3 |
+| is_official / is_current_operational / is_current_official | BOOLEAN | |
+| gpa_value | NUMERIC(8,2) | nullable |
+| scale_code | VARCHAR(32) | `PERCENT_100` |
+| source_annual_result_id | BIGINT | FK → annual_results |
+| incomplete | BOOLEAN | NOT NULL |
+| source_fingerprint / policy_pin / calculation_version | | |
+| calculated_at / finalized_at / superseded_at | TIMESTAMPTZ | |
+| correlation_id / created_by | | |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** UNIQUE identity+scope+version; partial UNIQUE current ops/official; BTREE student/year; school/year  
+**RLS:** ENABLE + FORCE  
+**Triggers:** reject hard DELETE
+
+### `results.ranking_snapshots`
+
+> **Phase 7.5-U05:** Comparative projection — **NOT** academic truth (DL-005).  
+> Cohort: school + academic_year + `enrollment.classes`. Metric v1: official year GPA PERCENT_100.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGINT PK | |
+| school_id / academic_year_id / class_id | BIGINT | FKs |
+| snapshot_version | INT | |
+| lifecycle_status / is_current | | supersede pattern |
+| metric_code | VARCHAR | `YEAR_GPA_PERCENT_100` |
+| participant_count | INT | |
+| source_fingerprint / policy_pin | | |
+| calculated_at / superseded_at | TIMESTAMPTZ | |
+
+### `results.ranking_snapshot_entries`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| ranking_snapshot_id | BIGINT FK | |
+| school_id / enrollment_id / student_id | BIGINT | |
+| gpa_result_id | BIGINT FK | official GPA source |
+| metric_value | NUMERIC(8,2) | |
+| rank_position | INT | dense rank |
+
+**RLS:** FORCE on both tables. Hard-delete rejected.
 
 ### `results.transcripts`
 
-| Column | Type | Constraints |
-|--------|------|-------------|
-| id | BIGINT | PK |
-| student_id | BIGINT | FK → students.students |
-| academic_year_id | BIGINT | FK → academic_years |
-| transcript_number | VARCHAR(50) | UNIQUE NOT NULL |
-| storage_key | VARCHAR(500) | |
-| file_hash | VARCHAR(64) | |
-| generated_by | BIGINT | FK → security.users |
-| generated_at | TIMESTAMPTZ | NOT NULL |
-| created_at | TIMESTAMPTZ | NOT NULL |
+> **Phase 7.5-U07:** Issued transcript **metadata** only (PDF/render deferred). Immutable issued rows; supersede via new version. FORCE RLS.
 
-**Indexes:** `BTREE(student_id)`, `UNIQUE(transcript_number)`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | BIGINT PK | |
+| school_id / student_id / enrollment_id / academic_year_id | BIGINT | FKs + composite enrollment guards |
+| transcript_version | INT | |
+| transcript_number | VARCHAR(50) | UNIQUE |
+| lifecycle_status / is_current | | Finalized issued; Superseded not current |
+| storage_key | VARCHAR(500) | nullable until PDF engine |
+| payload_hash | VARCHAR(64) | content/hash commitment |
+| source_fingerprint / policy_pin | | official GPA provenance |
+| issued_at / issued_by / superseded_at | | |
+| correlation_id | VARCHAR(64) | |
+
+**Indexes:** UNIQUE number; UNIQUE identity+version; partial UNIQUE current; BTREE student/year  
+**RLS:** ENABLE + FORCE  
+**Triggers:** reject hard DELETE
 
 ---
 
@@ -1625,7 +1723,7 @@ curriculum.subjects
 | timetable | 3 |
 | attendance | 3 |
 | exams | 5 |
-| results | 3 |
+| results | 6 |
 | promotion | 2 |
 | transfers | 2 |
 | graduation | 2 |
@@ -1637,7 +1735,7 @@ curriculum.subjects
 | security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **90** |
+| **Total** | **93** |
 
 ## Partition Strategy (⚡)
 

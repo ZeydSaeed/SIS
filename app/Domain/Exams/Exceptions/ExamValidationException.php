@@ -130,4 +130,14 @@ final class ExamValidationException extends DomainException
     {
         return new self('Cannot update an exam enrollment under a Cancelled session.');
     }
+
+    public static function sessionNotInProgressForPresent(): self
+    {
+        return new self('Marking an exam enrollment Present requires the exam session to be InProgress.');
+    }
+
+    public static function gradeLookupFailed(): self
+    {
+        return new self('Exam enrollment grade state could not be determined.');
+    }
 }

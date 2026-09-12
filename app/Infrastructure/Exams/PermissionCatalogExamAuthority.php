@@ -59,6 +59,7 @@ final class PermissionCatalogExamAuthority implements ExamAdministrationAuthorit
             ExamAdministrationAction::CreateEnrollment => Permission::EXAM_ENROLLMENT_CREATE,
             ExamAdministrationAction::UpdateEnrollment => Permission::EXAM_ENROLLMENT_UPDATE,
             ExamAdministrationAction::CancelEnrollment => Permission::EXAM_ENROLLMENT_CANCEL,
+            ExamAdministrationAction::PresentEnrollment => Permission::EXAM_ENROLLMENT_PRESENT,
         };
 
         if (! $this->authorization->userHasPermission($user, $permission)) {

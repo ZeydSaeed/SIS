@@ -92,6 +92,7 @@ final class UpdateExamSessionMutationService
         ExamSessionUpdateGuard::assertMetadataAllowed($session, $metadata, $hasCurrentGrade);
         ExamSessionUpdateGuard::assertResolvedValues($session, $metadata);
 
+        // HD-7.2-013: when room_id is supplied (non-null), room.branch.school_id must match school context (fail-closed).
         if (array_key_exists('room_id', $metadata)
             && $metadata['room_id'] !== null
             && ! $this->exams->roomBelongsToSchool((int) $metadata['room_id'], $command->schoolId)) {

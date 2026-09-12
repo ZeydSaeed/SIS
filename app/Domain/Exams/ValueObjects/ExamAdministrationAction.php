@@ -14,4 +14,5 @@ enum ExamAdministrationAction: string
     case CreateEnrollment = 'create_enrollment';
     case UpdateEnrollment = 'update_enrollment';
     case CancelEnrollment = 'cancel_enrollment';
+    case PresentEnrollment = 'present_enrollment';
 }

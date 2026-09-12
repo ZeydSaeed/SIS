@@ -1,11 +1,22 @@
 # 00 — Database Architecture
 
 **Status:** Phase 1 — decisions locked (ADR-020)  
-**Engine:** PostgreSQL 18+  
+**Refresh:** 2026-09-12 — live inventory updated in [SIS-DATABASE-MASTER-AUDIT.md](./SIS-DATABASE-MASTER-AUDIT.md) / [SIS-DATABASE-PHASE-0-GATE.md](./SIS-DATABASE-PHASE-0-GATE.md)  
+**Engine:** PostgreSQL 18.2+  
 **Application:** Laravel 13 + Clean Architecture  
 **SSOT for implemented columns:** `.cursor/architecture/database-blueprint.md` (**87** blueprint objects)  
 **Live audit:** [SIS-DATABASE-MASTER-AUDIT.md](./SIS-DATABASE-MASTER-AUDIT.md)  
 **Decision lock:** [ADR-020](../../.cursor/architecture/adr/ADR-020-phase-1-database-architecture.md)
+
+```text
+Active program position (2026-09-12):
+  Master Phase 7.1 CLOSED
+  Master Phase 7.2 U01–U15 CLOSED WITH CONDITIONS
+  Master Phase 7.2 U16 NOT AUTHORIZED
+  Master Phase 7 Final Closure NOT READY
+Next deserved track: Master Phase 7 closure path — not mega-prompt greenfield Phase 0–21
+```
+
 
 ---
 

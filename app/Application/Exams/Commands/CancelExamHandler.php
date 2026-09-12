@@ -93,6 +93,7 @@ final class CancelExamHandler implements CommandHandler
                     previousStatus: $session['previous_status'],
                     cancelledBy: $command->actorUserId,
                     occurredAt: $occurredAt,
+                    cause: 'exam_cancel',
                 ), $command->correlationId);
             }
 
@@ -107,6 +108,7 @@ final class CancelExamHandler implements CommandHandler
                     previousStatus: $enrollment['previous_status'],
                     cancelledBy: $command->actorUserId,
                     occurredAt: $occurredAt,
+                    cause: 'exam_cancel',
                 ), $command->correlationId);
             }
 

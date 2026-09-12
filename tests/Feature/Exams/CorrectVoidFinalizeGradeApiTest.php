@@ -22,6 +22,7 @@ class CorrectVoidFinalizeGradeApiTest extends TestCase
     {
         $schoolId = $this->createSchool('SCH-GB', 'School GB');
         $graph = $this->seedExamGradeGraph($schoolId, suffix: 'B');
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
         $this->actingAsGradesManagerForSchool($schoolId);
 
         $enter = $this->postJson('/api/v1/grades', [

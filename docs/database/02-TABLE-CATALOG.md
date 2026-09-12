@@ -1,10 +1,12 @@
 # 02 — Table Catalog
 
-**Status:** Phase 1 catalog  
+**Status:** Phase 1 catalog + **2026-09-12 live refresh**  
 **Blueprint SSOT:** **87** objects (see `database-blueprint.md`)  
+**Live totals:** 93 `pg_tables` rows (includes framework, intelligence, partition child)  
 **Legend:** `LIVE` = exists in PostgreSQL · `BP` = in blueprint only · `ERP` = master prompt expansion (design pending) · `FW` = Laravel framework
 
 Column-level detail for blueprint tables remains in `.cursor/architecture/database-blueprint.md`. This catalog tracks **inventory and status**, not a second column SSOT.
+
 
 ---
 
@@ -83,6 +85,23 @@ Column-level detail for blueprint tables remains in `.cursor/architecture/databa
 | attendance.records | LIVE | Partitioned attendance facts (RLS) |
 | attendance.daily_section_summary | LIVE | Dashboard aggregate |
 
+### exams / grades (Phase 3A/3B LIVE + Phase 7 writers)
+
+| Table | Status | Role |
+|-------|--------|------|
+| exams.exam_types | LIVE | Exam type reference |
+| exams.exams | LIVE | Exam header (FORCE RLS) |
+| exams.exam_sessions | LIVE | Session lifecycle (FORCE RLS) |
+| exams.exam_enrollments | LIVE | Seat lifecycle (FORCE RLS) |
+| exams.student_grades | LIVE | Partitioned grade ledger (FORCE RLS); no hard-delete |
+
+### graduation / certificates (LIVE)
+
+| Table | Status | Role |
+|-------|--------|------|
+| graduation.* (14 tables) | LIVE | Eligibility, evidence, awards, revocations — FORCE RLS |
+| certificates.* (6 tables) | LIVE | Templates, versions, certificates, issuances, jobs, artifacts — FORCE RLS |
+
 ### security / audit / reports / intelligence
 
 | Table | Status | Role |
@@ -113,21 +132,25 @@ Column-level detail for blueprint tables remains in `.cursor/architecture/databa
 
 ---
 
-## 2. BLUEPRINT not yet migrated (priority backlog)
+## 2. BLUEPRINT / reserved not yet migrated (priority backlog)
 
-| Schema | Tables |
-|--------|--------|
-| admission | application_periods, applications, application_documents — **Phase 2 LIVE** |
-| exams | exam_types, exams, exam_sessions, exam_enrollments, student_grades |
-| results | term_results, annual_results, transcripts |
-| promotion | rules, records |
-| transfers | transfer_requests, transfer_records |
-| graduation | eligibility_rules, records |
-| certificates | templates, issued_certificates, generation_jobs |
-| documents | files |
-| finance | fee_types, student_fees, payments, transactions |
-| communication | notification_templates, messages, notification_jobs |
-| workflow | approval_flows, approval_requests |
+| Schema | Tables | Notes |
+|--------|--------|-------|
+| results | term_results, annual_results, transcripts | Schema empty — gated (Phase 7.4/7.5 conditional) |
+| promotion | rules, records | Empty schema |
+| transfers | transfer_requests, transfer_records | Empty schema |
+| documents | files | Empty schema |
+| finance | fee_types, student_fees, payments, transactions | Empty schema |
+| communication | notification_templates, messages, notification_jobs | Empty schema |
+| workflow | approval_flows, approval_requests | Empty schema |
+| curriculum | prerequisites | BP gap |
+| students | student_documents | BP gap |
+| timetable | schedules, schedule_exceptions | BP gap — block scheduling later |
+| audit | audit_logs | BP gap (outbox/idempotency LIVE) |
+
+```text
+admission / exams / graduation / certificates: NO LONGER backlog — LIVE (see §1)
+```
 
 ---
 

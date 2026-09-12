@@ -13,6 +13,7 @@ use App\Domain\Exams\Exceptions\GradeNotFoundException;
 use App\Domain\Exams\Exceptions\InvalidGradeCorrectionException;
 use App\Domain\Exams\Repositories\StudentGradeRepositoryInterface;
 use App\Domain\Exams\Services\StudentGradeRules;
+use App\Domain\Exams\Support\GradeIdempotencyGuard;
 use App\Domain\Exams\ValueObjects\GradeStatus;
 
 final class FinalizeStudentGradeHandler implements CommandHandler
@@ -30,17 +31,17 @@ final class FinalizeStudentGradeHandler implements CommandHandler
     {
         assert($command instanceof FinalizeStudentGradeCommand);
 
-        if ($command->idempotencyKey !== null) {
-            $cached = $this->idempotency->find($command->idempotencyKey, self::COMMAND_NAME);
-            if ($cached !== null) {
-                return FinalizeStudentGradeResult::fromIdempotency(
-                    (int) $cached['grade_id'],
-                    (int) $cached['academic_year_id'],
-                );
-            }
+        $idempotencyKey = GradeIdempotencyGuard::requireKey($command->idempotencyKey);
+
+        $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
+        if ($cached !== null) {
+            return FinalizeStudentGradeResult::fromIdempotency(
+                (int) $cached['grade_id'],
+                (int) $cached['academic_year_id'],
+            );
         }
 
-        $this->unitOfWork->transaction(function () use ($command): void {
+        $this->unitOfWork->transaction(function () use ($command, $idempotencyKey): void {
             $grade = $this->grades->lockByIdentity(
                 $command->gradeId,
                 $command->academicYearId,
@@ -69,14 +70,12 @@ final class FinalizeStudentGradeHandler implements CommandHandler
                 finalizedBy: $command->finalizedBy,
                 occurredAt: new \DateTimeImmutable,
             ));
-        });
 
-        if ($command->idempotencyKey !== null) {
-            $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [
+            $this->idempotency->store($idempotencyKey, self::COMMAND_NAME, [
                 'grade_id' => $command->gradeId,
                 'academic_year_id' => $command->academicYearId,
             ]);
-        }
+        });
 
         return FinalizeStudentGradeResult::success($command->gradeId, $command->academicYearId);
     }

@@ -233,10 +233,13 @@ trait InteractsWithSecurity
         $table = SchemaHelper::qualified('academic', 'academic_years');
         $existing = DB::table($table)->where('code', $code)->value('id');
         if ($existing !== null) {
-            return (int) $existing;
+            $yearId = (int) $existing;
+            \App\Database\StudentGradesPartitionManager::ensurePartitionForAcademicYear($yearId);
+
+            return $yearId;
         }
 
-        return (int) DB::table($table)->insertGetId([
+        $yearId = (int) DB::table($table)->insertGetId([
             'code' => $code,
             'name' => 'Academic Year '.$code,
             'start_date' => '2026-09-01',
@@ -246,6 +249,11 @@ trait InteractsWithSecurity
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // Phase 7.3-U02 — year creation path must ensure student_grades LIST partition (no DEFAULT).
+        \App\Database\StudentGradesPartitionManager::ensurePartitionForAcademicYear($yearId);
+
+        return $yearId;
     }
 
     protected function createGradeLevel(string $code = 'G10'): int

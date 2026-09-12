@@ -21,7 +21,7 @@ final class Phase72ExamSessionPermissionRegistrationTest extends TestCase
         $teacher = $this->actingAsGradesTeacher(schoolId: $schoolId);
         $auth = $this->app->make(\App\Security\Authorization\Contracts\AuthorizationServiceInterface::class);
 
-        $admin = [
+        $required = [
             Permission::EXAM_SESSION_CREATE,
             Permission::EXAM_SESSION_UPDATE,
             Permission::EXAM_SESSION_OPEN,
@@ -29,10 +29,14 @@ final class Phase72ExamSessionPermissionRegistrationTest extends TestCase
             Permission::EXAM_ENROLLMENT_CREATE,
             Permission::EXAM_ENROLLMENT_UPDATE,
             Permission::EXAM_ENROLLMENT_CANCEL,
+            Permission::EXAM_ENROLLMENT_PRESENT,
         ];
 
-        foreach ($admin as $permission) {
+        $permissionAll = Permission::all();
+
+        foreach ($required as $permission) {
             $this->assertArrayHasKey($permission, config('security.permissions'));
+            $this->assertContains($permission, $permissionAll);
             $this->assertContains($permission, config('security.roles.grades_manager'));
             $this->assertTrue($auth->userHasPermission($manager, $permission));
             $this->assertFalse($auth->userHasPermission($teacher, $permission));
@@ -41,13 +45,9 @@ final class Phase72ExamSessionPermissionRegistrationTest extends TestCase
             $this->assertNotContains($permission, config('security.roles.attendance_manager'));
         }
 
-        $this->assertArrayHasKey(Permission::EXAM_ENROLLMENT_PRESENT, config('security.permissions'));
-        $this->assertContains(Permission::EXAM_ENROLLMENT_PRESENT, config('security.roles.grades_manager'));
-        $this->assertTrue($auth->userHasPermission($manager, Permission::EXAM_ENROLLMENT_PRESENT));
-        $this->assertFalse($auth->userHasPermission($teacher, Permission::EXAM_ENROLLMENT_PRESENT));
-
         $this->assertArrayNotHasKey('exam.session.cancel', config('security.permissions'));
-        $this->assertNotContains('exam.session.cancel', Permission::all());
+        $this->assertNotContains('exam.session.cancel', $permissionAll);
         $this->assertNotContains('exam.session.cancel', config('security.roles.grades_manager'));
+        $this->assertNotContains('exam.session.cancel', config('security.roles.grades_teacher'));
     }
 }

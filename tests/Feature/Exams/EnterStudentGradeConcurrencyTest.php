@@ -22,6 +22,7 @@ class EnterStudentGradeConcurrencyTest extends TestCase
     {
         $schoolId = $this->createSchool('SCH-GC', 'School GC');
         $graph = $this->seedExamGradeGraph($schoolId, suffix: 'C');
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
         $handler = app(EnterStudentGradeHandler::class);
 
         $handler->handle(new EnterStudentGradeCommand(
@@ -30,6 +31,7 @@ class EnterStudentGradeConcurrencyTest extends TestCase
             score: '70',
             isAbsent: false,
             enteredBy: null,
+            idempotencyKey: 'gc-enter-1',
         ));
 
         $this->expectException(CurrentGradeAlreadyExistsException::class);
@@ -39,6 +41,7 @@ class EnterStudentGradeConcurrencyTest extends TestCase
             score: '71',
             isAbsent: false,
             enteredBy: null,
+            idempotencyKey: 'gc-enter-2',
         ));
     }
 }

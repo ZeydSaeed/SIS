@@ -22,6 +22,7 @@ class EnterStudentGradeApiTest extends TestCase
     {
         $schoolId = $this->createSchool('SCH-GA', 'School GA');
         $graph = $this->seedExamGradeGraph($schoolId);
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
         $this->actingAsGradesManagerForSchool($schoolId);
 
         $response = $this->postJson('/api/v1/grades', [
@@ -48,6 +49,7 @@ class EnterStudentGradeApiTest extends TestCase
     {
         $schoolId = $this->createSchool('SCH-GA', 'School GA');
         $graph = $this->seedExamGradeGraph($schoolId);
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
         $this->actingAsGradesManagerForSchool($schoolId);
 
         $this->postJson('/api/v1/grades', [
@@ -55,7 +57,23 @@ class EnterStudentGradeApiTest extends TestCase
             'score' => 88,
             'is_absent' => false,
             'max_score' => 50,
-        ])->assertStatus(422);
+        ], ['X-Idempotency-Key' => 'enter-max-reject'])->assertStatus(422);
+    }
+
+    #[Test]
+    public function enter_rejects_missing_idempotency_key(): void
+    {
+        $schoolId = $this->createSchool('SCH-GA', 'School GA');
+        $graph = $this->seedExamGradeGraph($schoolId);
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
+        $this->actingAsGradesManagerForSchool($schoolId);
+
+        $this->postJson('/api/v1/grades', [
+            'exam_enrollment_id' => $graph['exam_enrollment_id'],
+            'score' => 88,
+            'is_absent' => false,
+        ])->assertStatus(422)
+            ->assertJsonPath('error_code', 'grades.idempotency_key_required');
     }
 
     #[Test]
@@ -63,6 +81,7 @@ class EnterStudentGradeApiTest extends TestCase
     {
         $schoolId = $this->createSchool('SCH-GA', 'School GA');
         $graph = $this->seedExamGradeGraph($schoolId);
+        $this->markSessionInProgressForGradeEntry($graph['session_id']);
         $this->actingAsGradesManagerForSchool($schoolId);
 
         $first = $this->postJson('/api/v1/grades', [

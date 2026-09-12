@@ -36,6 +36,12 @@ final class StudentGradeWriteGuard
             throw ExamSessionUnavailableException::cancelled($context->examSessionId);
         }
 
+        // HD-7.2-009 — Enter ALLOW InProgress|Completed; DENY Scheduled (and any other non-allowed).
+        $session = ExamSessionStatus::tryFrom($context->sessionStatus);
+        if ($session !== ExamSessionStatus::InProgress && $session !== ExamSessionStatus::Completed) {
+            throw ExamSessionUnavailableException::notEligibleForEntry($context->examSessionId);
+        }
+
         if (! EnrollmentStatus::isActive($context->academicEnrollmentStatus, $context->academicEnrollmentEffectiveTo)) {
             throw AcademicEnrollmentInactiveException::forId($context->enrollmentId);
         }
@@ -55,7 +61,15 @@ final class StudentGradeWriteGuard
         bool $isAbsent,
         ?string $score,
         array $correctionChainIds,
+        int $sessionStatus,
+        int $examStatus,
     ): void {
+        // HD-7.2-008 — Correct FAIL CLOSED if session OR exam Cancelled.
+        if ($sessionStatus === ExamSessionStatus::Cancelled->value
+            || $examStatus === ExamStatus::Cancelled->value) {
+            throw ExamSessionUnavailableException::cancelled($current->examSessionId);
+        }
+
         if (! $current->isCurrent) {
             throw InvalidGradeCorrectionException::forReason('Only the current grade can be corrected.');
         }

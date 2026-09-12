@@ -4,6 +4,9 @@ namespace App\Domain\Exams\Events;
 
 use App\Domain\Shared\DomainEvent;
 
+/**
+ * Shared enrollment-updated event — cause distinguishes U07 update vs U09 present.
+ */
 final readonly class ExamEnrollmentUpdated implements DomainEvent
 {
     /**
@@ -21,6 +24,7 @@ final readonly class ExamEnrollmentUpdated implements DomainEvent
         private array $changedFields,
         private ?int $updatedBy,
         private \DateTimeImmutable $occurredAt,
+        private string $cause = 'exam_enrollment_update',
     ) {}
 
     public function occurredAt(): \DateTimeImmutable
@@ -44,7 +48,7 @@ final readonly class ExamEnrollmentUpdated implements DomainEvent
             'seat_number' => $this->seatNumber,
             'changed_fields' => $this->changedFields,
             'updated_by' => $this->updatedBy,
-            'cause' => 'exam_enrollment_update',
+            'cause' => $this->cause,
             'occurred_at' => $this->occurredAt->format(\DateTimeInterface::ATOM),
         ];
     }

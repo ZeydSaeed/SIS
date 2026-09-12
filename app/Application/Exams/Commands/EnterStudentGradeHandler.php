@@ -15,6 +15,7 @@ use App\Domain\Exams\Exceptions\ExamEnrollmentNotFoundException;
 use App\Domain\Exams\Exceptions\MissingGradePartitionException;
 use App\Domain\Exams\Repositories\StudentGradeRepositoryInterface;
 use App\Domain\Exams\Services\StudentGradeWriteGuard;
+use App\Domain\Exams\Support\GradeIdempotencyGuard;
 use App\Domain\Exams\ValueObjects\GradeStatus;
 
 final class EnterStudentGradeHandler implements CommandHandler
@@ -32,14 +33,14 @@ final class EnterStudentGradeHandler implements CommandHandler
     {
         assert($command instanceof EnterStudentGradeCommand);
 
-        if ($command->idempotencyKey !== null) {
-            $cached = $this->idempotency->find($command->idempotencyKey, self::COMMAND_NAME);
-            if ($cached !== null) {
-                return EnterStudentGradeResult::fromIdempotency(
-                    (int) $cached['grade_id'],
-                    (int) $cached['academic_year_id'],
-                );
-            }
+        $idempotencyKey = GradeIdempotencyGuard::requireKey($command->idempotencyKey);
+
+        $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
+        if ($cached !== null) {
+            return EnterStudentGradeResult::fromIdempotency(
+                (int) $cached['grade_id'],
+                (int) $cached['academic_year_id'],
+            );
         }
 
         $context = $this->grades->findExamEnrollmentContext($command->examEnrollmentId, $command->schoolId);
@@ -60,7 +61,7 @@ final class EnterStudentGradeHandler implements CommandHandler
         StudentGradeWriteGuard::assertCanEnter($context, $current, $command->isAbsent, $command->score);
 
         $enteredAt = now()->toIso8601String();
-        $gradeId = $this->unitOfWork->transaction(function () use ($command, $context, $enteredAt): int {
+        $gradeId = $this->unitOfWork->transaction(function () use ($command, $context, $enteredAt, $idempotencyKey): int {
             $id = $this->grades->insert(new CreateStudentGradeData(
                 academicYearId: $context->academicYearId,
                 schoolId: $context->schoolId,
@@ -93,15 +94,13 @@ final class EnterStudentGradeHandler implements CommandHandler
                 occurredAt: new \DateTimeImmutable,
             ));
 
-            return $id;
-        });
-
-        if ($command->idempotencyKey !== null) {
-            $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [
-                'grade_id' => $gradeId,
+            $this->idempotency->store($idempotencyKey, self::COMMAND_NAME, [
+                'grade_id' => $id,
                 'academic_year_id' => $context->academicYearId,
             ]);
-        }
+
+            return $id;
+        });
 
         return EnterStudentGradeResult::success($gradeId, $context->academicYearId);
     }

@@ -4,6 +4,7 @@ namespace Tests\Support\Exams;
 
 use App\Database\SchemaHelper;
 use App\Database\StudentGradesPartitionManager;
+use App\Domain\Exams\ValueObjects\ExamSessionStatus;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -99,5 +100,15 @@ trait SeedsApplicationExamGradeGraph
             'exam_enrollment_id' => $examEnrollmentId,
             'max_score' => '100',
         ];
+    }
+
+    /**
+     * HD-7.2-009 — EnterStudentGrade requires InProgress or Completed session.
+     */
+    protected function markSessionInProgressForGradeEntry(int $sessionId): void
+    {
+        DB::table(SchemaHelper::qualified('exams', 'exam_sessions'))
+            ->where('id', $sessionId)
+            ->update(['status' => ExamSessionStatus::InProgress->value]);
     }
 }

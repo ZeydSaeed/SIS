@@ -47,6 +47,7 @@ final class CreateExamSessionGuard
             throw ExamValidationException::missingSubject();
         }
 
+        // HD-7.2-013: when room_id is supplied, room.branch.school_id must match school context (fail-closed).
         if ($roomId !== null && ! $this->exams->roomBelongsToSchool($roomId, $schoolId)) {
             throw ExamValidationException::roomNotInSchool();
         }

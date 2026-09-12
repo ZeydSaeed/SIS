@@ -1,6 +1,7 @@
 # 01 — Schema Catalog
 
 **Status:** Phase 1 (ADR-020 locked)  
+**Refresh:** 2026-09-12 live catalog  
 **Rule:** Create a schema only with documented responsibility. Empty reserved schemas already created for blueprint modules may remain until tables land.  
 **D2:** Do not rename live schemas for cosmetic alignment with external naming lists.
 
@@ -10,37 +11,38 @@
 
 | Schema | Responsibility | Tables now? | Notes |
 |--------|----------------|-------------|-------|
-| `public` | Laravel auth, cache, queues, migrations | Yes | Framework; not SIS domain |
-| `organization` | Ministry → school → branch → department → room | Yes | `branches` = campuses (D2) |
-| `academic` | Years, terms, grade levels, holidays, settings | Yes | Cross-cutting academic calendar |
-| `vocational` | Specializations, tracks, subject links | Yes | Vocational structure |
-| `students` | Student master + contacts/addresses | Yes | Missing documents table |
-| `guardians` | Guardians and student links | Yes | |
-| `enrollment` | Classes, sections, enrollments, subject links | Yes | RLS on enrollments |
-| `teachers` | Teacher profiles and assignments | Yes | Not full HR |
-| `curriculum` | Subjects, curricula, links | Yes | Missing prerequisites |
-| `timetable` | Periods and (future) schedules | Partial | Only periods |
-| `attendance` | Sessions, records, daily summary | Yes | Partitioned records |
-| `admission` | Application periods, applications, documents | **Yes (Phase 2)** | No duplicate student identity; RLS fail-closed |
-| `results` | Term/annual results, transcripts | Reserved empty | D5 |
+| `public` | Laravel auth, cache, queues, migrations | Yes (11) | Framework; not SIS domain |
+| `organization` | Ministry → school → branch → department → room | Yes (6) | `branches` = campuses (D2) |
+| `academic` | Years, terms, grade levels, holidays, settings | Yes (5) | Cross-cutting academic calendar |
+| `vocational` | Specializations, tracks, subject links | Yes (3) | Vocational structure |
+| `students` | Student master + contacts/addresses | Yes (3) | Missing documents table |
+| `guardians` | Guardians and student links | Yes (3) | |
+| `enrollment` | Classes, sections, enrollments, subject links | Yes (4) | RLS ON; FORCE OFF |
+| `teachers` | Teacher profiles and assignments | Yes (4) | Not full HR |
+| `curriculum` | Subjects, curricula, links | Yes (3) | Missing prerequisites |
+| `timetable` | Periods and (future) schedules | Partial (1) | Only periods |
+| `attendance` | Sessions, records, daily summary | Yes (4) | Partitioned records |
+| `admission` | Application periods, applications, documents | **Yes (3)** | FORCE RLS |
+| `exams` | Types, exams, sessions, enrollments, student_grades | **Yes (5)** | Phase 3A/3B + Phase 7 writers; grades partitioned FORCE RLS |
+| `graduation` | Eligibility, awards, evidence, revocations | **Yes (14)** | Phase 3C.12 LIVE — FORCE RLS |
+| `certificates` | Templates, versions, certificates, jobs, artifacts | **Yes (6)** | Phase 4.1 LIVE — FORCE RLS |
+| `results` | Term/annual results, transcripts | Reserved empty (0) | Physicalization gated |
 | `promotion` | Promotion rules/records | Reserved empty | |
 | `transfers` | Transfer requests/records | Reserved empty | |
-| `graduation` | Eligibility and records | Reserved empty | |
-| `certificates` | Templates, issuance, jobs | Reserved empty | |
 | `documents` | File metadata | Reserved empty | Object storage for blobs |
 | `finance` | Fees/payments (later GL) | Reserved empty | |
 | `communication` | Templates, messages, jobs | Reserved empty | |
 | `workflow` | Approvals | Reserved empty | |
-| `security` | RBAC, scopes, security audit | Partial | Users stay in `public` |
-| `audit` | Outbox, idempotency; future audit_logs | Partial | |
+| `security` | RBAC, scopes, security audit | Yes (6) | Users stay in `public` |
+| `audit` | Outbox, idempotency; future audit_logs | Partial (2) | |
 | `reports` | Materialized reporting views | Partial (3 MVs) | |
-| `intelligence` | Monitoring, recommendations, healing audit | Yes | Not in academic 87 |
+| `intelligence` | Monitoring, recommendations, healing audit | Yes (10) | Not in academic 87 |
 
 ### Planned schema (D4 — implemented Phase 2)
 
 | Schema | Responsibility | Action |
 |--------|----------------|--------|
-| `admission` | Application periods, applications, documents | **LIVE** — SchemaHelper + migrations 2026_09_10_131* |
+| `admission` | Application periods, applications, documents | **LIVE** |
 
 ---
 

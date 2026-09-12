@@ -23,6 +23,7 @@ use App\Domain\Exams\Exceptions\CurrentGradeAlreadyExistsException;
 use App\Domain\Exams\Exceptions\ExamEnrollmentNotFoundException;
 use App\Domain\Exams\Exceptions\InactiveExamSeatException;
 use App\Domain\Exams\Exceptions\InvalidGradeCorrectionException;
+use App\Domain\Exams\Exceptions\MissingGradeIdempotencyKeyException;
 use App\Domain\Exams\Repositories\StudentGradeRepositoryInterface;
 use App\Domain\Exams\ValueObjects\GradeStatus;
 use Tests\TestCase;
@@ -40,14 +41,31 @@ class StudentGradeHandlerTest extends TestCase
         $outbox = $this->createMock(OutboxRepository::class);
         $outbox->expects($this->once())->method('stage')->with($this->isInstanceOf(StudentGradeEntered::class));
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+        $store->expects($this->once())->method('store');
+
         $uow = $this->createMock(UnitOfWork::class);
         $uow->method('transaction')->willReturnCallback(fn (callable $cb) => $cb());
 
-        $handler = new EnterStudentGradeHandler($uow, $grades, $outbox, $this->createMock(IdempotencyStore::class));
-        $result = $handler->handle(new EnterStudentGradeCommand(1, 10, '88', false, 5));
+        $handler = new EnterStudentGradeHandler($uow, $grades, $outbox, $store);
+        $result = $handler->handle(new EnterStudentGradeCommand(1, 10, '88', false, 5, 'enter-1'));
 
         $this->assertSame(42, $result->gradeId);
         $this->assertSame(2026, $result->academicYearId);
+    }
+
+    public function test_enter_rejects_missing_idempotency_key(): void
+    {
+        $handler = new EnterStudentGradeHandler(
+            $this->createMock(UnitOfWork::class),
+            $this->createMock(StudentGradeRepositoryInterface::class),
+            $this->createMock(OutboxRepository::class),
+            $this->createMock(IdempotencyStore::class),
+        );
+
+        $this->expectException(MissingGradeIdempotencyKeyException::class);
+        $handler->handle(new EnterStudentGradeCommand(1, 10, '50', false));
     }
 
     public function test_enter_rejects_missing_exam_enrollment(): void
@@ -55,15 +73,18 @@ class StudentGradeHandlerTest extends TestCase
         $grades = $this->createMock(StudentGradeRepositoryInterface::class);
         $grades->method('findExamEnrollmentContext')->willReturn(null);
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+
         $handler = new EnterStudentGradeHandler(
             $this->createMock(UnitOfWork::class),
             $grades,
             $this->createMock(OutboxRepository::class),
-            $this->createMock(IdempotencyStore::class),
+            $store,
         );
 
         $this->expectException(ExamEnrollmentNotFoundException::class);
-        $handler->handle(new EnterStudentGradeCommand(1, 99, '50', false));
+        $handler->handle(new EnterStudentGradeCommand(1, 99, '50', false, null, 'k-missing-enr'));
     }
 
     public function test_enter_rejects_withdrawn_seat(): void
@@ -72,15 +93,18 @@ class StudentGradeHandlerTest extends TestCase
         $grades = $this->createMock(StudentGradeRepositoryInterface::class);
         $grades->method('findExamEnrollmentContext')->willReturn($context);
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+
         $handler = new EnterStudentGradeHandler(
             $this->createMock(UnitOfWork::class),
             $grades,
             $this->createMock(OutboxRepository::class),
-            $this->createMock(IdempotencyStore::class),
+            $store,
         );
 
         $this->expectException(InactiveExamSeatException::class);
-        $handler->handle(new EnterStudentGradeCommand(1, 10, '50', false));
+        $handler->handle(new EnterStudentGradeCommand(1, 10, '50', false, null, 'k-withdrawn'));
     }
 
     public function test_enter_rejects_existing_current_grade(): void
@@ -90,15 +114,18 @@ class StudentGradeHandlerTest extends TestCase
         $grades->method('findExamEnrollmentContext')->willReturn($context);
         $grades->method('findCurrentForExamEnrollment')->willReturn($this->snapshot());
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+
         $handler = new EnterStudentGradeHandler(
             $this->createMock(UnitOfWork::class),
             $grades,
             $this->createMock(OutboxRepository::class),
-            $this->createMock(IdempotencyStore::class),
+            $store,
         );
 
         $this->expectException(CurrentGradeAlreadyExistsException::class);
-        $handler->handle(new EnterStudentGradeCommand(1, 10, '50', false));
+        $handler->handle(new EnterStudentGradeCommand(1, 10, '50', false, null, 'k-dup'));
     }
 
     public function test_enter_idempotent_replay(): void
@@ -122,6 +149,7 @@ class StudentGradeHandlerTest extends TestCase
     {
         $grades = $this->createMock(StudentGradeRepositoryInterface::class);
         $grades->method('lockByIdentity')->willReturn($this->snapshot());
+        $grades->method('findExamEnrollmentContext')->willReturn($this->context());
         $grades->method('correctionChainIds')->willReturn([11]);
         $grades->expects($this->once())->method('markVoided')->with(11, 2026);
         $grades->expects($this->once())->method('insert')->willReturn(12);
@@ -129,11 +157,15 @@ class StudentGradeHandlerTest extends TestCase
         $outbox = $this->createMock(OutboxRepository::class);
         $outbox->expects($this->once())->method('stage')->with($this->isInstanceOf(StudentGradeCorrected::class));
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+        $store->expects($this->once())->method('store');
+
         $uow = $this->createMock(UnitOfWork::class);
         $uow->method('transaction')->willReturnCallback(fn (callable $cb) => $cb());
 
-        $handler = new CorrectStudentGradeHandler($uow, $grades, $outbox, $this->createMock(IdempotencyStore::class));
-        $result = $handler->handle(new CorrectStudentGradeCommand(1, 11, 2026, '90', false, 'typo'));
+        $handler = new CorrectStudentGradeHandler($uow, $grades, $outbox, $store);
+        $result = $handler->handle(new CorrectStudentGradeCommand(1, 11, 2026, '90', false, 'typo', null, 'correct-1'));
 
         $this->assertSame(11, $result->previousGradeId);
         $this->assertSame(12, $result->newGradeId);
@@ -149,7 +181,7 @@ class StudentGradeHandlerTest extends TestCase
         );
 
         $this->expectException(InvalidGradeCorrectionException::class);
-        $handler->handle(new CorrectStudentGradeCommand(1, 11, 2026, '90', false, '  '));
+        $handler->handle(new CorrectStudentGradeCommand(1, 11, 2026, '90', false, '  ', null, 'correct-empty-reason'));
     }
 
     public function test_void_stages_event(): void
@@ -161,11 +193,15 @@ class StudentGradeHandlerTest extends TestCase
         $outbox = $this->createMock(OutboxRepository::class);
         $outbox->expects($this->once())->method('stage')->with($this->isInstanceOf(StudentGradeVoided::class));
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+        $store->expects($this->once())->method('store');
+
         $uow = $this->createMock(UnitOfWork::class);
         $uow->method('transaction')->willReturnCallback(fn (callable $cb) => $cb());
 
-        $handler = new VoidStudentGradeHandler($uow, $grades, $outbox, $this->createMock(IdempotencyStore::class));
-        $result = $handler->handle(new VoidStudentGradeCommand(1, 11, 2026, 'withdrawn'));
+        $handler = new VoidStudentGradeHandler($uow, $grades, $outbox, $store);
+        $result = $handler->handle(new VoidStudentGradeCommand(1, 11, 2026, 'withdrawn', null, 'void-1'));
         $this->assertSame(11, $result->gradeId);
     }
 
@@ -178,11 +214,15 @@ class StudentGradeHandlerTest extends TestCase
         $outbox = $this->createMock(OutboxRepository::class);
         $outbox->expects($this->once())->method('stage')->with($this->isInstanceOf(StudentGradeFinalized::class));
 
+        $store = $this->createMock(IdempotencyStore::class);
+        $store->method('find')->willReturn(null);
+        $store->expects($this->once())->method('store');
+
         $uow = $this->createMock(UnitOfWork::class);
         $uow->method('transaction')->willReturnCallback(fn (callable $cb) => $cb());
 
-        $handler = new FinalizeStudentGradeHandler($uow, $grades, $outbox, $this->createMock(IdempotencyStore::class));
-        $result = $handler->handle(new FinalizeStudentGradeCommand(1, 11, 2026));
+        $handler = new FinalizeStudentGradeHandler($uow, $grades, $outbox, $store);
+        $result = $handler->handle(new FinalizeStudentGradeCommand(1, 11, 2026, null, 'fin-1'));
         $this->assertSame(11, $result->gradeId);
     }
 
@@ -198,7 +238,7 @@ class StudentGradeHandlerTest extends TestCase
             academicYearId: 2026,
             examId: 60,
             examStatus: 2,
-            sessionStatus: 1,
+            sessionStatus: 2,
             examEnrollmentStatus: $examEnrollmentStatus,
             academicEnrollmentStatus: 1,
             academicEnrollmentEffectiveTo: null,

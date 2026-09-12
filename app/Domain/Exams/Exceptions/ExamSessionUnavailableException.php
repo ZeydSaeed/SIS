@@ -13,4 +13,12 @@ final class ExamSessionUnavailableException extends SisDomainException
             'grades.session_unavailable',
         );
     }
+
+    public static function notEligibleForEntry(int $sessionId): self
+    {
+        return new self(
+            "Exam session {$sessionId} is not eligible for grade entry (allowed: InProgress or Completed).",
+            'grades.session_unavailable',
+        );
+    }
 }

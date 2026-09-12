@@ -1,8 +1,16 @@
 # 03 — Relationship Map
 
-**Status:** Phase 0  
+**Status:** Phase 0 + **2026-09-12 refresh**  
 **Scope:** Implemented relationships (LIVE) + planned critical relationships (BP/ERP)  
 **Delete rule default:** `ON DELETE RESTRICT` for academic/history edges; CASCADE only for disposable dependents (explicitly justified)
+
+```text
+Live relationship count signal: 167 foreign keys in catalog (2026-09-12).
+Assessment spine now LIVE:
+  exams → exam_sessions → exam_enrollments → student_grades
+Graduation / certificates spines LIVE (see blueprint + Phase 3C.12 / 4.1 docs).
+results / finance / HR spines: not physicalized.
+```
 
 ---
 
