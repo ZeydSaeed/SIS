@@ -10,8 +10,10 @@ use App\Application\Vocational\Commands\CreateWorkshopCommand;
 use App\Application\Vocational\Commands\CreateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\CreateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\CreateWorkshopHandler;
+use App\Application\Vocational\Commands\DeactivateWorkshopCommand;
 use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentHandler;
+use App\Application\Vocational\Commands\DeactivateWorkshopHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationCommand;
 use App\Application\Vocational\Commands\DeactivateSpecializationHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationSubjectCommand;
@@ -44,6 +46,7 @@ use App\Http\Requests\Vocational\DeactivateSpecializationRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopEquipmentRequest;
+use App\Http\Requests\Vocational\DeactivateWorkshopRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\ListSpecializationsRequest;
 use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
@@ -457,6 +460,39 @@ class VocationalController extends Controller
         return response()->json([
             'data' => [
                 'equipment_id' => $result->equipmentId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivateWorkshop(
+        int $workshop,
+        DeactivateWorkshopRequest $request,
+        DeactivateWorkshopHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateWorkshopCommand(
+            schoolId: $this->schoolContext->requireId(),
+            workshopId: $workshop,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'vocational.workshop_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Workshop deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'vocational.workshop_not_found' ? 404 : 422);
+        }
+
+        $this->audit($request->user(), 'vocational.workshops.deactivate', 'deactivated', 'workshop:'.$result->workshopId);
+
+        return response()->json([
+            'data' => [
+                'workshop_id' => $result->workshopId,
                 'status' => 2,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],

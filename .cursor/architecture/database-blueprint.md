@@ -255,8 +255,7 @@
 
 **Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`, `UNIQUE(school_id, code)`  
 **Security (Phase TV-U12):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Create/List catalog. section_batches / assignment enforce HOLD.  
-**Equipment (TV-U13):** `vocational.workshop_equipment` LIVE — Create/List under workshop.
+**v1 HTTP:** Create/List catalog + soft deactivate (`POST …/workshops/{id}/deactivate`). section_batches / assignment enforce HOLD.
 
 ### `vocational.workshop_equipment` — Phase TV-U13 LIVE
 

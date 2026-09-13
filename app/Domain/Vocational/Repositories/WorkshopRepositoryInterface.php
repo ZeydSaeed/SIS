@@ -23,4 +23,8 @@ interface WorkshopRepositoryInterface
      * @return list<WorkshopSnapshot>
      */
     public function listBySchool(int $schoolId, ?int $status = null): array;
+
+    public function find(int $schoolId, int $workshopId): ?WorkshopSnapshot;
+
+    public function setStatus(int $schoolId, int $workshopId, int $status, string $at): bool;
 }
