@@ -53,11 +53,31 @@ final class EloquentPrerequisiteRepository implements PrerequisiteRepositoryInte
         return $updated > 0;
     }
 
+    public function reactivate(int $prerequisiteId): bool
+    {
+        $updated = DB::table(SchemaHelper::qualified('curriculum', 'prerequisites'))
+            ->where('id', $prerequisiteId)
+            ->where('status', PrerequisiteStatus::Inactive->value)
+            ->update(['status' => PrerequisiteStatus::Active->value]);
+
+        return $updated > 0;
+    }
+
     public function findActive(int $prerequisiteId): ?PrerequisiteSnapshot
     {
         $row = DB::table(SchemaHelper::qualified('curriculum', 'prerequisites'))
             ->where('id', $prerequisiteId)
             ->where('status', PrerequisiteStatus::Active->value)
+            ->first(['id', 'subject_id', 'prerequisite_subject_id', 'status', 'created_at']);
+
+        return $row === null ? null : $this->map($row);
+    }
+
+    public function findInactive(int $prerequisiteId): ?PrerequisiteSnapshot
+    {
+        $row = DB::table(SchemaHelper::qualified('curriculum', 'prerequisites'))
+            ->where('id', $prerequisiteId)
+            ->where('status', PrerequisiteStatus::Inactive->value)
             ->first(['id', 'subject_id', 'prerequisite_subject_id', 'status', 'created_at']);
 
         return $row === null ? null : $this->map($row);

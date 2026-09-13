@@ -12,7 +12,11 @@ interface PrerequisiteRepositoryInterface
 
     public function deactivate(int $prerequisiteId): bool;
 
+    public function reactivate(int $prerequisiteId): bool;
+
     public function findActive(int $prerequisiteId): ?PrerequisiteSnapshot;
+
+    public function findInactive(int $prerequisiteId): ?PrerequisiteSnapshot;
 
     /** @return list<PrerequisiteSnapshot> */
     public function listActiveForSubject(int $subjectId): array;

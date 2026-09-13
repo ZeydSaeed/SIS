@@ -18,6 +18,8 @@ use App\Application\Curriculum\Commands\DeactivateSubjectCommand;
 use App\Application\Curriculum\Commands\DeactivateSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteCommand;
 use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteHandler;
+use App\Application\Curriculum\Commands\ReactivateSubjectPrerequisiteCommand;
+use App\Application\Curriculum\Commands\ReactivateSubjectPrerequisiteHandler;
 use App\Application\Curriculum\Commands\LinkCurriculumSubjectCommand;
 use App\Application\Curriculum\Commands\LinkCurriculumSubjectHandler;
 use App\Application\Curriculum\Commands\ReactivateCurriculumCommand;
@@ -48,6 +50,7 @@ use App\Http\Requests\Curriculum\DeactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\DeactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectPrerequisiteRequest;
+use App\Http\Requests\Curriculum\ReactivateSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectRequest;
 use App\Http\Requests\Curriculum\LinkCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\ListCurriculaRequest;
@@ -722,6 +725,45 @@ class CurriculumController extends Controller
             'data' => [
                 'prerequisite_id' => $result->prerequisiteId,
                 'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivatePrerequisite(
+        int $prerequisite,
+        ReactivateSubjectPrerequisiteRequest $request,
+        ReactivateSubjectPrerequisiteHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateSubjectPrerequisiteCommand(
+            prerequisiteId: $prerequisite,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'curriculum.prerequisite_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Subject prerequisite reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'curriculum.prerequisite_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.prerequisites.reactivate',
+            'reactivated',
+            $request->user(),
+            'prerequisite:'.$result->prerequisiteId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'prerequisite_id' => $result->prerequisiteId,
+                'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
