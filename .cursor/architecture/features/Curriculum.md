@@ -1,6 +1,6 @@
 # Feature: Curriculum
 
-> Phase CUR-U01 — subject prerequisites (soft status). Subjects/curricula HTTP HOLD.
+> Phase CUR — subject catalog + prerequisites (soft status). Curricula HTTP HOLD.
 
 ## Definition of Done
 
@@ -18,10 +18,14 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 |------|------|--------|
 | Command | AddSubjectPrerequisite | ✅ |
 | Command | DeactivateSubjectPrerequisite | ✅ |
+| Command | CreateSubject | ✅ |
+| Command | DeactivateSubject | ✅ |
 | Query | ListSubjectPrerequisites | ✅ |
+| Query | ListSubjects | ✅ |
 
-## Out of scope (U01)
+## Out of scope
 
-- Subjects / curricula CRUD HTTP
-- Enrollment prerequisite enforcement
+- Subjects PATCH / reactivate — HOLD (U03+)
+- Curricula HTTP — HOLD
+- Enrollment prerequisite enforcement — HOLD
 - Payroll / Ranking-PDF

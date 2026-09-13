@@ -622,7 +622,9 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(code)`, `BTREE(status)`
+**Indexes:** `UNIQUE(code)`, `BTREE(status)`  
+**Constraints (CUR-U02):** `subject_type IN (1,2,3)`, `status IN (1,2)`, `pass_grade <= max_grade`; hard DELETE rejected by trigger.  
+**v1 HTTP:** `POST/GET …/curriculum/subjects`; `POST …/curriculum/subjects/{id}/deactivate`.
 
 ### `curriculum.curricula`
 

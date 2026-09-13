@@ -337,6 +337,13 @@ Route::prefix('v1')->group(function (): void {
             ->whereNumber('employee')
             ->name('api.hr.employees.reactivate');
 
+        Route::post('curriculum/subjects', [CurriculumController::class, 'storeSubject'])
+            ->name('api.curriculum.subjects.store');
+        Route::get('curriculum/subjects', [CurriculumController::class, 'indexSubjects'])
+            ->name('api.curriculum.subjects.index');
+        Route::post('curriculum/subjects/{subject}/deactivate', [CurriculumController::class, 'deactivateSubject'])
+            ->whereNumber('subject')
+            ->name('api.curriculum.subjects.deactivate');
         Route::post('curriculum/subjects/{subject}/prerequisites', [CurriculumController::class, 'storePrerequisite'])
             ->whereNumber('subject')
             ->name('api.curriculum.prerequisites.store');
