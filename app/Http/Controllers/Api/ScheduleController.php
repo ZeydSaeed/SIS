@@ -8,6 +8,8 @@ use App\Application\Timetable\Commands\CreateScheduleCommand;
 use App\Application\Timetable\Commands\CreateScheduleExceptionCommand;
 use App\Application\Timetable\Commands\CreateScheduleExceptionHandler;
 use App\Application\Timetable\Commands\CreateScheduleHandler;
+use App\Application\Timetable\Commands\ReactivateScheduleCommand;
+use App\Application\Timetable\Commands\ReactivateScheduleHandler;
 use App\Application\Timetable\Commands\UpdateScheduleCommand;
 use App\Application\Timetable\Commands\UpdateScheduleExceptionCommand;
 use App\Application\Timetable\Commands\UpdateScheduleExceptionHandler;
@@ -29,6 +31,7 @@ use App\Http\Requests\Timetable\CreateScheduleRequest;
 use App\Http\Requests\Timetable\ListScheduleExceptionsForScheduleRequest;
 use App\Http\Requests\Timetable\ListScheduleExceptionsRequest;
 use App\Http\Requests\Timetable\ListSchedulesRequest;
+use App\Http\Requests\Timetable\ReactivateScheduleRequest;
 use App\Http\Requests\Timetable\ShowScheduleExceptionRequest;
 use App\Http\Requests\Timetable\ShowScheduleRequest;
 use App\Http\Requests\Timetable\UpdateScheduleExceptionRequest;
@@ -316,6 +319,40 @@ class ScheduleController extends Controller
             SecurityEventType::TimetableDataModified,
             'timetable.schedules.cancel',
             'cancelled',
+            $request->user(),
+            'schedule:'.($result->scheduleId ?? 'unknown'),
+            [],
+        );
+
+        return response()->json([
+            'data' => ['id' => $result->scheduleId],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
+    }
+
+    public function reactivate(
+        ReactivateScheduleRequest $request,
+        int $schedule,
+        ReactivateScheduleHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $idempotencyKey = trim((string) $request->header('X-Idempotency-Key'));
+
+        $result = $handler->handle(new ReactivateScheduleCommand(
+            schoolId: $schoolId,
+            scheduleId: $schedule,
+            idempotencyKey: $idempotencyKey,
+            reactivatedBy: $request->user()?->id,
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::TimetableDataModified,
+            'timetable.schedules.reactivate',
+            'reactivated',
             $request->user(),
             'schedule:'.($result->scheduleId ?? 'unknown'),
             [],

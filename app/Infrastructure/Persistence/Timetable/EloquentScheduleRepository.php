@@ -6,6 +6,7 @@ use App\Database\SchemaHelper;
 use App\Domain\Timetable\Data\PersistScheduleData;
 use App\Domain\Timetable\Data\ScheduleSnapshot;
 use App\Domain\Timetable\Exceptions\ScheduleNotActiveException;
+use App\Domain\Timetable\Exceptions\ScheduleNotCancelledException;
 use App\Domain\Timetable\Exceptions\ScheduleNotFoundException;
 use App\Domain\Timetable\Exceptions\ScheduleValidationException;
 use App\Domain\Timetable\Repositories\ScheduleRepositoryInterface;
@@ -214,6 +215,28 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
                 'lifecycle_status' => ScheduleLifecycleStatus::Cancelled->value,
                 'cancelled_at' => $cancelledAt,
                 'updated_at' => $cancelledAt,
+            ]);
+    }
+
+    public function reactivate(int $schoolId, int $scheduleId, string $reactivatedAt): void
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $current = $this->findById($schoolId, $scheduleId);
+        if ($current === null) {
+            throw ScheduleNotFoundException::forId($scheduleId);
+        }
+        if ($current->lifecycleStatus !== ScheduleLifecycleStatus::Cancelled->value) {
+            throw ScheduleNotCancelledException::forId($scheduleId);
+        }
+
+        DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+            ->where('id', $scheduleId)
+            ->where('school_id', $schoolId)
+            ->update([
+                'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
+                'cancelled_at' => null,
+                'updated_at' => $reactivatedAt,
             ]);
     }
 }

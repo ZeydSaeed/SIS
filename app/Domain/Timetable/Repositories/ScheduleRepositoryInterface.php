@@ -28,4 +28,6 @@ interface ScheduleRepositoryInterface
     public function updateActive(int $scheduleId, PersistScheduleData $data): void;
 
     public function cancel(int $schoolId, int $scheduleId, string $cancelledAt): void;
+
+    public function reactivate(int $schoolId, int $scheduleId, string $reactivatedAt): void;
 }

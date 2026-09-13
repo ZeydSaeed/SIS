@@ -143,6 +143,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.timetable.schedules.update');
         Route::post('timetable/schedules/{schedule}/cancel', [ScheduleController::class, 'cancel'])
             ->name('api.timetable.schedules.cancel');
+        Route::post('timetable/schedules/{schedule}/reactivate', [ScheduleController::class, 'reactivate'])
+            ->whereNumber('schedule')
+            ->name('api.timetable.schedules.reactivate');
         Route::post('timetable/schedules/{schedule}/exceptions', [ScheduleController::class, 'storeException'])
             ->name('api.timetable.schedules.exceptions.store');
         Route::get('timetable/schedules/{schedule}/exceptions', [ScheduleController::class, 'indexExceptionsForSchedule'])
