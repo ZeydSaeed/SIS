@@ -12,6 +12,8 @@ use App\Application\Student\Commands\UploadStudentDocumentCommand;
 use App\Application\Student\Commands\UploadStudentDocumentHandler;
 use App\Application\Student\Commands\VoidStudentDocumentCommand;
 use App\Application\Student\Commands\VoidStudentDocumentHandler;
+use App\Application\Student\Commands\RestoreStudentDocumentCommand;
+use App\Application\Student\Commands\RestoreStudentDocumentHandler;
 use App\Application\Student\DTOs\StudentDocumentDTO;
 use App\Application\Student\Queries\GetStudentDocumentContentHandler;
 use App\Application\Student\Queries\GetStudentDocumentContentQuery;
@@ -32,6 +34,7 @@ use App\Http\Requests\Student\RegisterStudentDocumentRequest;
 use App\Http\Requests\Student\UpdateStudentRequest;
 use App\Http\Requests\Student\UploadStudentDocumentRequest;
 use App\Http\Requests\Student\VoidStudentDocumentRequest;
+use App\Http\Requests\Student\RestoreStudentDocumentRequest;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -461,6 +464,46 @@ class StudentController extends Controller
             'data' => [
                 'document_id' => $result->documentId,
                 'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function restoreDocument(
+        int $document,
+        RestoreStudentDocumentRequest $request,
+        RestoreStudentDocumentHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new RestoreStudentDocumentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            documentId: $document,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'student.document_restore_failed';
+
+            return response()->json([
+                'message' => 'Student document restore rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'student.document_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.documents.restore',
+            'restored',
+            $request->user(),
+            'student_document:'.$result->documentId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'document_id' => $result->documentId,
+                'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

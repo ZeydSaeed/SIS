@@ -71,6 +71,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('student-documents/{document}/void', [StudentController::class, 'voidDocument'])
             ->whereNumber('document')
             ->name('api.student_documents.void');
+        Route::post('student-documents/{document}/restore', [StudentController::class, 'restoreDocument'])
+            ->whereNumber('document')
+            ->name('api.student_documents.restore');
 
         Route::get('/security/admin-probe', function (Request $request) {
             abort_unless(Gate::allows('security.manage_users'), 403);

@@ -66,6 +66,22 @@ final class EloquentStudentDocumentRepository implements StudentDocumentReposito
         return $row === null ? null : $this->map($row);
     }
 
+    public function findVoided(int $schoolId, int $documentId): ?StudentDocumentSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('students', 'student_documents'))
+            ->where('id', $documentId)
+            ->where('school_id', $schoolId)
+            ->where('status', StudentDocumentStatus::Voided->value)
+            ->first([
+                'id', 'school_id', 'student_id', 'document_type', 'storage_key',
+                'file_name', 'mime_type', 'file_size', 'file_hash', 'status',
+            ]);
+
+        return $row === null ? null : $this->map($row);
+    }
+
     public function listActiveForStudent(int $schoolId, int $studentId): array
     {
         $this->bindSchool($schoolId);
@@ -92,6 +108,19 @@ final class EloquentStudentDocumentRepository implements StudentDocumentReposito
             ->where('school_id', $schoolId)
             ->where('status', StudentDocumentStatus::Active->value)
             ->update(['status' => StudentDocumentStatus::Voided->value]);
+
+        return $updated > 0;
+    }
+
+    public function restore(int $schoolId, int $documentId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        $updated = DB::table(SchemaHelper::qualified('students', 'student_documents'))
+            ->where('id', $documentId)
+            ->where('school_id', $schoolId)
+            ->where('status', StudentDocumentStatus::Voided->value)
+            ->update(['status' => StudentDocumentStatus::Active->value]);
 
         return $updated > 0;
     }
