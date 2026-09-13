@@ -9,6 +9,8 @@ use App\Application\Communication\Commands\CompleteNotificationJobHandler;
 use App\Application\Communication\Commands\CreateNotificationJobCommand;
 use App\Application\Communication\Commands\CreateNotificationJobHandler;
 use App\Application\Communication\DTOs\NotificationJobDTO;
+use App\Application\Communication\Queries\GetNotificationJobHandler;
+use App\Application\Communication\Queries\GetNotificationJobQuery;
 use App\Application\Communication\Queries\ListNotificationJobsHandler;
 use App\Application\Communication\Queries\ListNotificationJobsQuery;
 use App\Http\Controllers\Controller;
@@ -16,6 +18,7 @@ use App\Http\Requests\Communication\CancelNotificationJobRequest;
 use App\Http\Requests\Communication\CompleteNotificationJobRequest;
 use App\Http\Requests\Communication\CreateNotificationJobRequest;
 use App\Http\Requests\Communication\ListNotificationJobsRequest;
+use App\Http\Requests\Communication\ShowNotificationJobRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -67,6 +70,52 @@ class NotificationJobController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function show(
+        int $job,
+        ShowNotificationJobRequest $request,
+        GetNotificationJobHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetNotificationJobQuery(
+            schoolId: $schoolId,
+            jobId: $job,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Notification job not found.',
+                'error_code' => 'communication.job_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataAccess,
+            'communication.jobs.show',
+            'viewed',
+            $request->user(),
+            'notification_job:'.$job,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'job_id' => $dto->jobId,
+                'template_id' => $dto->templateId,
+                'target_filter' => $dto->targetFilter,
+                'total_count' => $dto->totalCount,
+                'sent_count' => $dto->sentCount,
+                'status' => $dto->status,
+                'created_by' => $dto->createdBy,
+                'created_at' => $dto->createdAt,
+                'completed_at' => $dto->completedAt,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function index(
