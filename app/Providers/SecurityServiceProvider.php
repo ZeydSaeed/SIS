@@ -29,6 +29,7 @@ use App\Security\Policies\CurriculumPolicy;
 use App\Security\Policies\DocumentsPolicy;
 use App\Security\Policies\FinancePolicy;
 use App\Security\Policies\HrPolicy;
+use App\Security\Policies\HrPayrollPolicy;
 use App\Security\Policies\WorkflowPolicy;
 use App\Security\Policies\EnrollmentPolicy;
 use App\Security\Policies\ExamPolicy;
@@ -157,6 +158,14 @@ class SecurityServiceProvider extends ServiceProvider
 
         Gate::define('manageHr', function (User $user): bool {
             return app(HrPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewHrPayroll', function (User $user): bool {
+            return app(HrPayrollPolicy::class)->view($user);
+        });
+
+        Gate::define('manageHrPayroll', function (User $user): bool {
+            return app(HrPayrollPolicy::class)->manage($user);
         });
 
         Gate::define('viewCurriculum', function (User $user): bool {
