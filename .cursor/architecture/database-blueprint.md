@@ -1485,8 +1485,8 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | completed_at | TIMESTAMPTZ | |
 
 **Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`  
-**Security (COM-U07):** FORCE RLS. Hard DELETE rejected. Soft complete/cancel via status (COM-U08).  
-**v1 HTTP:** Create/List catalog — bulk fan-out / SMTP HOLD.
+**Security (COM-U07 / COM-U08):** FORCE RLS. Hard DELETE rejected. Soft complete/cancel via status.  
+**v1 HTTP:** Create/List + Complete/Cancel — bulk fan-out / SMTP HOLD.
 
 ---
 

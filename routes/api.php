@@ -314,6 +314,12 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.communication.jobs.store');
         Route::get('communication/jobs', [NotificationJobController::class, 'index'])
             ->name('api.communication.jobs.index');
+        Route::post('communication/jobs/{job}/complete', [NotificationJobController::class, 'complete'])
+            ->whereNumber('job')
+            ->name('api.communication.jobs.complete');
+        Route::post('communication/jobs/{job}/cancel', [NotificationJobController::class, 'cancel'])
+            ->whereNumber('job')
+            ->name('api.communication.jobs.cancel');
 
         Route::post('workflow/approval-flows', [ApprovalFlowController::class, 'store'])
             ->name('api.workflow.approval-flows.store');

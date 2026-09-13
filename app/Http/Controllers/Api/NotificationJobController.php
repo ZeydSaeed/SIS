@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Communication\Commands\CancelNotificationJobCommand;
+use App\Application\Communication\Commands\CancelNotificationJobHandler;
+use App\Application\Communication\Commands\CompleteNotificationJobCommand;
+use App\Application\Communication\Commands\CompleteNotificationJobHandler;
 use App\Application\Communication\Commands\CreateNotificationJobCommand;
 use App\Application\Communication\Commands\CreateNotificationJobHandler;
 use App\Application\Communication\DTOs\NotificationJobDTO;
 use App\Application\Communication\Queries\ListNotificationJobsHandler;
 use App\Application\Communication\Queries\ListNotificationJobsQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Communication\CancelNotificationJobRequest;
+use App\Http\Requests\Communication\CompleteNotificationJobRequest;
 use App\Http\Requests\Communication\CreateNotificationJobRequest;
 use App\Http\Requests\Communication\ListNotificationJobsRequest;
 use App\Intelligence\Support\CorrelationContext;
@@ -99,6 +105,87 @@ class NotificationJobController extends Controller
                 'created_at' => $dto->createdAt,
                 'completed_at' => $dto->completedAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function complete(
+        int $job,
+        CompleteNotificationJobRequest $request,
+        CompleteNotificationJobHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new CompleteNotificationJobCommand(
+            schoolId: $this->schoolContext->requireId(),
+            notificationJobId: $job,
+            sentCount: (int) $request->validated('sent_count'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'communication.job_complete_failed';
+
+            return response()->json([
+                'message' => 'Notification job complete rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'communication.job_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.jobs.complete',
+            'completed',
+            $request->user(),
+            'notification_job:'.$result->notificationJobId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'notification_job_id' => $result->notificationJobId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function cancel(
+        int $job,
+        CancelNotificationJobRequest $request,
+        CancelNotificationJobHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new CancelNotificationJobCommand(
+            schoolId: $this->schoolContext->requireId(),
+            notificationJobId: $job,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'communication.job_cancel_failed';
+
+            return response()->json([
+                'message' => 'Notification job cancel rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'communication.job_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.jobs.cancel',
+            'cancelled',
+            $request->user(),
+            'notification_job:'.$result->notificationJobId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'notification_job_id' => $result->notificationJobId,
+                'status' => 3,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

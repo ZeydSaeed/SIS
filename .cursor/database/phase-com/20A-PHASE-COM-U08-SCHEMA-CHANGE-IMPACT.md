@@ -1,0 +1,5 @@
+# PHASE COM — U08 SCHEMA CHANGE IMPACT
+
+```text
+Schema ALTER: NONE
+```
