@@ -640,7 +640,9 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)`
+**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)`  
+**Security (CUR-U03):** FORCE RLS on `school_id`; hard DELETE rejected by trigger; soft `status`.  
+**v1 HTTP:** `POST/GET …/curriculum/curricula`; `POST …/curricula/{id}/deactivate`.
 
 ### `curriculum.curriculum_subjects`
 
@@ -652,9 +654,12 @@
 | weekly_hours | SMALLINT | |
 | is_required | BOOLEAN | NOT NULL DEFAULT true |
 | subject_order | SMALLINT | NOT NULL DEFAULT 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive (**CUR-U03**) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(curriculum_id)`, `UNIQUE(curriculum_id, subject_id)`
+**Indexes:** `BTREE(curriculum_id)`, `UNIQUE(curriculum_id, subject_id)`, `BTREE(curriculum_id, status)`  
+**Security (CUR-U03):** FORCE RLS via parent curriculum school; hard DELETE rejected; soft deactivate.  
+**v1 HTTP:** `POST/GET …/curricula/{id}/subjects`; `POST …/curriculum-subjects/{link}/deactivate`.
 
 ### `curriculum.prerequisites`
 

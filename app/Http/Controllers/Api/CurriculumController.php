@@ -4,34 +4,56 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Curriculum\Commands\AddSubjectPrerequisiteCommand;
 use App\Application\Curriculum\Commands\AddSubjectPrerequisiteHandler;
+use App\Application\Curriculum\Commands\CreateCurriculumCommand;
+use App\Application\Curriculum\Commands\CreateCurriculumHandler;
 use App\Application\Curriculum\Commands\CreateSubjectCommand;
 use App\Application\Curriculum\Commands\CreateSubjectHandler;
+use App\Application\Curriculum\Commands\DeactivateCurriculumCommand;
+use App\Application\Curriculum\Commands\DeactivateCurriculumHandler;
+use App\Application\Curriculum\Commands\DeactivateCurriculumSubjectCommand;
+use App\Application\Curriculum\Commands\DeactivateCurriculumSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateSubjectCommand;
 use App\Application\Curriculum\Commands\DeactivateSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteCommand;
 use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteHandler;
+use App\Application\Curriculum\Commands\LinkCurriculumSubjectCommand;
+use App\Application\Curriculum\Commands\LinkCurriculumSubjectHandler;
+use App\Application\Curriculum\DTOs\CurriculumDTO;
+use App\Application\Curriculum\DTOs\CurriculumSubjectDTO;
 use App\Application\Curriculum\DTOs\PrerequisiteDTO;
 use App\Application\Curriculum\DTOs\SubjectDTO;
+use App\Application\Curriculum\Queries\ListCurriculaHandler;
+use App\Application\Curriculum\Queries\ListCurriculaQuery;
+use App\Application\Curriculum\Queries\ListCurriculumSubjectsHandler;
+use App\Application\Curriculum\Queries\ListCurriculumSubjectsQuery;
 use App\Application\Curriculum\Queries\ListSubjectPrerequisitesHandler;
 use App\Application\Curriculum\Queries\ListSubjectPrerequisitesQuery;
 use App\Application\Curriculum\Queries\ListSubjectsHandler;
 use App\Application\Curriculum\Queries\ListSubjectsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Curriculum\AddSubjectPrerequisiteRequest;
+use App\Http\Requests\Curriculum\CreateCurriculumRequest;
 use App\Http\Requests\Curriculum\CreateSubjectRequest;
+use App\Http\Requests\Curriculum\DeactivateCurriculumRequest;
+use App\Http\Requests\Curriculum\DeactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectRequest;
+use App\Http\Requests\Curriculum\LinkCurriculumSubjectRequest;
+use App\Http\Requests\Curriculum\ListCurriculaRequest;
+use App\Http\Requests\Curriculum\ListCurriculumSubjectsRequest;
 use App\Http\Requests\Curriculum\ListSubjectPrerequisitesRequest;
 use App\Http\Requests\Curriculum\ListSubjectsRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
+use App\Security\Context\SchoolContext;
 use Illuminate\Http\JsonResponse;
 
 class CurriculumController extends Controller
 {
     public function __construct(
         private readonly SecurityAuditLoggerInterface $securityAudit,
+        private readonly SchoolContext $schoolContext,
     ) {}
 
     public function storeSubject(
@@ -130,6 +152,232 @@ class CurriculumController extends Controller
         return response()->json([
             'data' => [
                 'subject_id' => $result->subjectId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function storeCurriculum(
+        CreateCurriculumRequest $request,
+        CreateCurriculumHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new CreateCurriculumCommand(
+            schoolId: $schoolId,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            gradeLevelId: (int) $request->validated('grade_level_id'),
+            name: (string) $request->validated('name'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Curriculum create rejected.',
+                'error_code' => $result->errors[0] ?? 'curriculum.curriculum_create_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.curricula.store',
+            'created',
+            $request->user(),
+            'curriculum:'.$result->curriculumId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'curriculum_id' => $result->curriculumId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexCurricula(
+        ListCurriculaRequest $request,
+        ListCurriculaHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $items = $handler->handle(new ListCurriculaQuery(
+            $schoolId,
+            (int) $request->validated('academic_year_id'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.curricula.index',
+            'listed',
+            $request->user(),
+            'school:'.$schoolId,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (CurriculumDTO $dto): array => $this->curriculumPayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivateCurriculum(
+        int $curriculum,
+        DeactivateCurriculumRequest $request,
+        DeactivateCurriculumHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateCurriculumCommand(
+            schoolId: $this->schoolContext->requireId(),
+            curriculumId: $curriculum,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'curriculum.curriculum_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Curriculum deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'curriculum.curriculum_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.curricula.deactivate',
+            'deactivated',
+            $request->user(),
+            'curriculum:'.$result->curriculumId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'curriculum_id' => $result->curriculumId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function storeCurriculumSubject(
+        int $curriculum,
+        LinkCurriculumSubjectRequest $request,
+        LinkCurriculumSubjectHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new LinkCurriculumSubjectCommand(
+            schoolId: $this->schoolContext->requireId(),
+            curriculumId: $curriculum,
+            subjectId: (int) $request->validated('subject_id'),
+            weeklyHours: $request->validated('weekly_hours') !== null
+                ? (int) $request->validated('weekly_hours')
+                : null,
+            isRequired: (bool) ($request->validated('is_required') ?? true),
+            subjectOrder: (int) ($request->validated('subject_order') ?? 0),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'curriculum.curriculum_subject_link_failed';
+
+            return response()->json([
+                'message' => 'Curriculum subject link rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], in_array($code, [
+                'curriculum.curriculum_not_found',
+                'curriculum.subject_not_found',
+            ], true) ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.curriculum_subjects.store',
+            'linked',
+            $request->user(),
+            'curriculum_subject:'.$result->linkId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'link_id' => $result->linkId,
+                'curriculum_id' => $curriculum,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexCurriculumSubjects(
+        int $curriculum,
+        ListCurriculumSubjectsRequest $request,
+        ListCurriculumSubjectsHandler $handler,
+    ): JsonResponse {
+        $items = $handler->handle(new ListCurriculumSubjectsQuery(
+            $this->schoolContext->requireId(),
+            $curriculum,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Curriculum not found.',
+                'error_code' => 'curriculum.curriculum_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.curriculum_subjects.index',
+            'listed',
+            $request->user(),
+            'curriculum:'.$curriculum,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (CurriculumSubjectDTO $dto): array => $this->curriculumSubjectPayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivateCurriculumSubject(
+        int $link,
+        DeactivateCurriculumSubjectRequest $request,
+        DeactivateCurriculumSubjectHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateCurriculumSubjectCommand(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'curriculum.curriculum_subject_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Curriculum subject deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'curriculum.curriculum_subject_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.curriculum_subjects.deactivate',
+            'deactivated',
+            $request->user(),
+            'curriculum_subject:'.$result->linkId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'link_id' => $result->linkId,
                 'status' => 2,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
@@ -239,6 +487,37 @@ class CurriculumController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function curriculumPayload(CurriculumDTO $dto): array
+    {
+        return [
+            'id' => $dto->id,
+            'school_id' => $dto->schoolId,
+            'academic_year_id' => $dto->academicYearId,
+            'grade_level_id' => $dto->gradeLevelId,
+            'name' => $dto->name,
+            'status' => $dto->status,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function curriculumSubjectPayload(CurriculumSubjectDTO $dto): array
+    {
+        return [
+            'id' => $dto->id,
+            'curriculum_id' => $dto->curriculumId,
+            'subject_id' => $dto->subjectId,
+            'weekly_hours' => $dto->weeklyHours,
+            'is_required' => $dto->isRequired,
+            'subject_order' => $dto->subjectOrder,
+            'status' => $dto->status,
+        ];
     }
 
     /**

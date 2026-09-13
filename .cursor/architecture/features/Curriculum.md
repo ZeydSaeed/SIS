@@ -1,6 +1,6 @@
 # Feature: Curriculum
 
-> Phase CUR — subject catalog + prerequisites (soft status). Curricula HTTP HOLD.
+> Phase CUR — subjects, curricula, prerequisites (soft status). Enrollment prereq enforce HOLD.
 
 ## Definition of Done
 
@@ -9,8 +9,8 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 ## Bounded Context
 
 - **Context:** Curriculum
-- **Primary aggregate:** SubjectPrerequisite (edge)
-- **Scoped by:** global subject catalog; HTTP requires school context for AuthZ
+- **Primary aggregates:** Subject, Curriculum, SubjectPrerequisite
+- **Scoped by:** subjects/prerequisites global; curricula school-scoped + academic_year_id
 
 ## Planned Use Cases
 
@@ -20,12 +20,18 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 | Command | DeactivateSubjectPrerequisite | ✅ |
 | Command | CreateSubject | ✅ |
 | Command | DeactivateSubject | ✅ |
+| Command | CreateCurriculum | ✅ |
+| Command | DeactivateCurriculum | ✅ |
+| Command | LinkCurriculumSubject | ✅ |
+| Command | DeactivateCurriculumSubject | ✅ |
 | Query | ListSubjectPrerequisites | ✅ |
 | Query | ListSubjects | ✅ |
+| Query | ListCurricula | ✅ |
+| Query | ListCurriculumSubjects | ✅ |
 
 ## Out of scope
 
-- Subjects PATCH / reactivate — HOLD (U03+)
-- Curricula HTTP — HOLD
+- Subjects PATCH / reactivate — HOLD
+- specialization_id on curricula — HOLD
 - Enrollment prerequisite enforcement — HOLD
 - Payroll / Ranking-PDF
