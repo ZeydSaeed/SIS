@@ -2,13 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Audit\Commands\RecordLoginHistoryCommand;
+use App\Application\Audit\Commands\RecordLoginHistoryHandler;
 use App\Application\Audit\Commands\RegisterAuditLogCommand;
 use App\Application\Audit\Commands\RegisterAuditLogHandler;
 use App\Application\Audit\DTOs\AuditLogDTO;
+use App\Application\Audit\DTOs\LoginHistoryDTO;
 use App\Application\Audit\Queries\ListAuditLogsHandler;
 use App\Application\Audit\Queries\ListAuditLogsQuery;
+use App\Application\Audit\Queries\ListLoginHistoryHandler;
+use App\Application\Audit\Queries\ListLoginHistoryQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Audit\ListAuditLogsRequest;
+use App\Http\Requests\Audit\ListLoginHistoryRequest;
+use App\Http\Requests\Audit\RecordLoginHistoryRequest;
 use App\Http\Requests\Audit\RegisterAuditLogRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -106,6 +113,82 @@ class AuditLogController extends Controller
                 'ip_address' => $dto->ipAddress,
                 'user_agent' => $dto->userAgent,
                 'correlation_id' => $dto->correlationId,
+                'created_at' => $dto->createdAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function storeLoginHistory(
+        RecordLoginHistoryRequest $request,
+        RecordLoginHistoryHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new RecordLoginHistoryCommand(
+            schoolId: $schoolId,
+            userId: (int) $request->validated('user_id'),
+            loginStatus: (int) $request->validated('login_status'),
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent(),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Login history register rejected.',
+                'error_code' => $result->errors[0] ?? 'audit.login_history_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::AuditTrailDataModified,
+            'audit.login_history.register',
+            'recorded',
+            $request->user(),
+            'login_history:'.$result->loginHistoryId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'login_history_id' => $result->loginHistoryId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexLoginHistory(
+        ListLoginHistoryRequest $request,
+        ListLoginHistoryHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $items = $handler->handle(new ListLoginHistoryQuery(
+            schoolId: $schoolId,
+            userId: $request->validated('user_id') !== null
+                ? (int) $request->validated('user_id')
+                : null,
+            limit: (int) ($request->validated('limit') ?? 50),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AuditTrailDataAccess,
+            'audit.login_history.index',
+            'listed',
+            $request->user(),
+            'school:'.$schoolId,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (LoginHistoryDTO $dto): array => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'user_id' => $dto->userId,
+                'ip_address' => $dto->ipAddress,
+                'user_agent' => $dto->userAgent,
+                'login_status' => $dto->loginStatus,
                 'created_at' => $dto->createdAt,
             ], $items),
             'meta' => ['correlation_id' => CorrelationContext::id()],

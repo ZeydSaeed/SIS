@@ -275,6 +275,10 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.audit.logs.store');
         Route::get('audit/logs', [AuditLogController::class, 'index'])
             ->name('api.audit.logs.index');
+        Route::post('audit/login-history', [AuditLogController::class, 'storeLoginHistory'])
+            ->name('api.audit.login_history.store');
+        Route::get('audit/login-history', [AuditLogController::class, 'indexLoginHistory'])
+            ->name('api.audit.login_history.index');
 
         Route::post('finance/fee-types', [FeeTypeController::class, 'store'])
             ->name('api.finance.fee-types.store');

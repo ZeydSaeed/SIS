@@ -1732,20 +1732,23 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Security (AUDIT-U01):** FORCE RLS school isolation. Hard DELETE **and** UPDATE rejected (append-only).  
 **v1 HTTP:** `POST/GET /api/v1/audit/logs` — manual register only; auto domain writers HOLD. Distinct from `security.security_audit_logs`.  
-**Note:** `login_history` HOLD.
+**Note:** `login_history` — Phase AUDIT-U02 LIVE.
 
-### `audit.login_history`
+### `audit.login_history` — Phase AUDIT-U02 LIVE
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
-| user_id | BIGINT | FK → security.users |
+| school_id | BIGINT | FK → schools (**AUDIT delta** for RLS) |
+| user_id | BIGINT | FK → public.users NOT NULL |
 | ip_address | INET | |
 | user_agent | TEXT | |
-| login_status | SMALLINT | NOT NULL |
+| login_status | SMALLINT | NOT NULL — 1=Success, 2=Failed |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(user_id, created_at)`, `BRIN(created_at)`
+**Indexes:** `BTREE(school_id, created_at DESC)`, `BTREE(user_id, created_at DESC)`  
+**Security (AUDIT-U02):** FORCE RLS. Append-only (reject DELETE/UPDATE).  
+**v1 HTTP:** `POST/GET /api/v1/audit/login-history` (auth login auto-hook HOLD).
 
 ---
 
