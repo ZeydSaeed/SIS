@@ -338,7 +338,8 @@
 
 **Indexes:** `BTREE(student_id)`, `BTREE(student_id, document_type)`, `BTREE(school_id, created_at)`  
 **Security (STU-DOC-U01):** FORCE RLS on `school_id`; hard DELETE rejected; soft void via `status`.  
-**v1 HTTP:** `POST/GET …/students/{id}/documents`; `POST …/student-documents/{id}/void` (metadata only). Binary upload HOLD (DOC-U04).  
+**v1 HTTP:** `POST/GET …/students/{id}/documents`; `POST …/student-documents/{id}/void` (metadata).  
+**Binary (STU-DOC-U02):** `POST …/students/{id}/documents/upload`; `GET …/student-documents/{id}/content` via `DocumentObjectStoragePort` / local `sis_documents`. S3/AV/PDF HOLD.  
 **Note:** Coexists with `documents.files` (generic entity store).
 
 ---

@@ -57,9 +57,15 @@ Route::prefix('v1')->group(function (): void {
         Route::post('students/{student}/documents', [StudentController::class, 'storeDocument'])
             ->whereNumber('student')
             ->name('api.students.documents.store');
+        Route::post('students/{student}/documents/upload', [StudentController::class, 'uploadDocument'])
+            ->whereNumber('student')
+            ->name('api.students.documents.upload');
         Route::get('students/{student}/documents', [StudentController::class, 'indexDocuments'])
             ->whereNumber('student')
             ->name('api.students.documents.index');
+        Route::get('student-documents/{document}/content', [StudentController::class, 'downloadDocument'])
+            ->whereNumber('document')
+            ->name('api.student_documents.download');
         Route::post('student-documents/{document}/void', [StudentController::class, 'voidDocument'])
             ->whereNumber('document')
             ->name('api.student_documents.void');

@@ -8,9 +8,13 @@ use App\Application\Student\Commands\RegisterStudentDocumentCommand;
 use App\Application\Student\Commands\RegisterStudentDocumentHandler;
 use App\Application\Student\Commands\UpdateStudentCommand;
 use App\Application\Student\Commands\UpdateStudentHandler;
+use App\Application\Student\Commands\UploadStudentDocumentCommand;
+use App\Application\Student\Commands\UploadStudentDocumentHandler;
 use App\Application\Student\Commands\VoidStudentDocumentCommand;
 use App\Application\Student\Commands\VoidStudentDocumentHandler;
 use App\Application\Student\DTOs\StudentDocumentDTO;
+use App\Application\Student\Queries\GetStudentDocumentContentHandler;
+use App\Application\Student\Queries\GetStudentDocumentContentQuery;
 use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
 use App\Application\Student\Queries\ListStudentDocumentsHandler;
@@ -22,9 +26,11 @@ use App\Application\Student\Queries\SearchStudentsQuery;
 use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\CreateStudentRequest;
+use App\Http\Requests\Student\DownloadStudentDocumentRequest;
 use App\Http\Requests\Student\ListStudentDocumentsRequest;
 use App\Http\Requests\Student\RegisterStudentDocumentRequest;
 use App\Http\Requests\Student\UpdateStudentRequest;
+use App\Http\Requests\Student\UploadStudentDocumentRequest;
 use App\Http\Requests\Student\VoidStudentDocumentRequest;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Intelligence\Support\CorrelationContext;
@@ -35,6 +41,8 @@ use App\Security\Support\StudentResponseSanitizer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentController extends Controller
 {
@@ -279,6 +287,101 @@ class StudentController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function uploadDocument(
+        int $student,
+        UploadStudentDocumentRequest $request,
+        UploadStudentDocumentHandler $handler,
+    ): JsonResponse {
+        $file = $request->file('file');
+        /** @var list<string> $allowedMimes */
+        $allowedMimes = config('sis.documents.allowed_mimes', [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'text/plain',
+        ]);
+
+        $result = $handler->handle(new UploadStudentDocumentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            studentId: $student,
+            documentType: (int) $request->validated('document_type'),
+            fileName: (string) $file->getClientOriginalName(),
+            mimeType: (string) ($file->getMimeType() ?: 'application/octet-stream'),
+            contents: (string) file_get_contents($file->getRealPath()),
+            maxBytes: (int) config('sis.documents.max_bytes', 10 * 1024 * 1024),
+            allowedMimes: $allowedMimes,
+            uploadedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'student.document_upload_failed';
+
+            return response()->json([
+                'message' => 'Student document upload rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'student.not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.documents.binary.upload',
+            'uploaded',
+            $request->user(),
+            'student:'.$student,
+            [
+                'from_idempotency' => $result->fromIdempotencyCache,
+                'storage_key' => $result->storageKey,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'document_id' => $result->documentId,
+                'storage_key' => $result->storageKey,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function downloadDocument(
+        int $document,
+        DownloadStudentDocumentRequest $request,
+        GetStudentDocumentContentHandler $handler,
+    ): Response|StreamedResponse|JsonResponse {
+        $dto = $handler->handle(new GetStudentDocumentContentQuery(
+            schoolId: $this->schoolContext->requireId(),
+            documentId: $document,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Student document not found.',
+                'error_code' => 'student.document_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataAccess,
+            'students.documents.binary.download',
+            'downloaded',
+            $request->user(),
+            'student_document:'.$dto->documentId,
+            [],
+        );
+
+        return response($dto->contents, 200, [
+            'Content-Type' => $dto->mimeType,
+            'Content-Disposition' => 'attachment; filename="'.$dto->fileName.'"',
+            'X-Content-SHA256' => $dto->fileHash,
+            'X-Correlation-Id' => (string) CorrelationContext::id(),
+        ]);
     }
 
     public function indexDocuments(
