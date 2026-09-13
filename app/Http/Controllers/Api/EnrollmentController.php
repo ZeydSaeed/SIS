@@ -17,6 +17,8 @@ use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementHandler;
 use App\Application\Enrollment\DTOs\EnrollmentSubjectDTO;
 use App\Application\Enrollment\Queries\GetEnrollmentHandler;
 use App\Application\Enrollment\Queries\GetEnrollmentQuery;
+use App\Application\Enrollment\Queries\GetEnrollmentSubjectHandler;
+use App\Application\Enrollment\Queries\GetEnrollmentSubjectQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentSubjectsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentSubjectsQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentsHandler;
@@ -29,6 +31,7 @@ use App\Http\Requests\Enrollment\DeactivateEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\ReactivateEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\ListEnrollmentSubjectsRequest;
+use App\Http\Requests\Enrollment\ShowEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Intelligence\Support\CorrelationContext;
@@ -352,6 +355,45 @@ class EnrollmentController extends Controller
                 'is_elective' => $dto->isElective,
                 'status' => $dto->status,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showSubject(
+        ShowEnrollmentSubjectRequest $request,
+        int $link,
+        GetEnrollmentSubjectHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetEnrollmentSubjectQuery(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Enrollment subject link not found.',
+                'error_code' => 'enrollment.subject_link_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataAccess,
+            'enrollments.subjects.show',
+            'viewed',
+            $request->user(),
+            'enrollment_subject:'.$link,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'enrollment_id' => $dto->enrollmentId,
+                'subject_id' => $dto->subjectId,
+                'is_elective' => $dto->isElective,
+                'status' => $dto->status,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
