@@ -214,6 +214,8 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.teachers.update');
         Route::post('teachers/{teacher}/deactivate', [TeacherController::class, 'deactivate'])
             ->name('api.teachers.deactivate');
+        Route::post('teachers/{teacher}/reactivate', [TeacherController::class, 'reactivate'])
+            ->name('api.teachers.reactivate');
         Route::post('teachers/{teacher}/assign-school', [TeacherController::class, 'assignSchool'])
             ->whereNumber('teacher')
             ->name('api.teachers.assign-school');

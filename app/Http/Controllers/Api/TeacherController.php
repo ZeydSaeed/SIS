@@ -14,6 +14,8 @@ use App\Application\Teachers\Commands\ChangeTeacherEmployeeCodeCommand;
 use App\Application\Teachers\Commands\ChangeTeacherEmployeeCodeHandler;
 use App\Application\Teachers\Commands\DeactivateTeacherCommand;
 use App\Application\Teachers\Commands\DeactivateTeacherHandler;
+use App\Application\Teachers\Commands\ReactivateTeacherCommand;
+use App\Application\Teachers\Commands\ReactivateTeacherHandler;
 use App\Application\Teachers\Commands\LeaveTeacherSchoolCommand;
 use App\Application\Teachers\Commands\LeaveTeacherSchoolHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
@@ -41,6 +43,7 @@ use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
 use App\Http\Requests\Teachers\AttachTeacherQualificationDocumentRequest;
 use App\Http\Requests\Teachers\ChangeTeacherEmployeeCodeRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
+use App\Http\Requests\Teachers\ReactivateTeacherRequest;
 use App\Http\Requests\Teachers\LeaveTeacherSchoolRequest;
 use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
@@ -51,6 +54,7 @@ use App\Http\Requests\Teachers\UnlinkTeacherSubjectRequest;
 use App\Http\Requests\Teachers\UpdateTeacherRequest;
 use App\Http\Requests\Teachers\VoidTeacherQualificationRequest;
 use App\Intelligence\Support\CorrelationContext;
+use App\Domain\Teachers\ValueObjects\TeacherStatus;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Context\SchoolContext;
@@ -258,7 +262,48 @@ class TeacherController extends Controller
         return response()->json([
             'data' => [
                 'teacher_id' => $result->teacherId,
-                'status' => 2,
+                'status' => TeacherStatus::Inactive,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivate(
+        int $teacher,
+        ReactivateTeacherRequest $request,
+        ReactivateTeacherHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new ReactivateTeacherCommand(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'teachers.reactivate_failed';
+
+            return response()->json([
+                'message' => 'Teacher reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'teachers.not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.reactivate',
+            'reactivated',
+            $request->user(),
+            'teacher:'.$teacher,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'teacher_id' => $result->teacherId,
+                'status' => TeacherStatus::Active,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
