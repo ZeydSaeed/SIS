@@ -14,6 +14,8 @@ use App\Application\Vocational\Commands\DeactivateWorkshopCommand;
 use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\DeactivateWorkshopHandler;
+use App\Application\Vocational\Commands\ReactivateWorkshopCommand;
+use App\Application\Vocational\Commands\ReactivateWorkshopHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationCommand;
 use App\Application\Vocational\Commands\DeactivateSpecializationHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationSubjectCommand;
@@ -47,6 +49,7 @@ use App\Http\Requests\Vocational\DeactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopRequest;
+use App\Http\Requests\Vocational\ReactivateWorkshopRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\ListSpecializationsRequest;
 use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
@@ -494,6 +497,39 @@ class VocationalController extends Controller
             'data' => [
                 'workshop_id' => $result->workshopId,
                 'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivateWorkshop(
+        int $workshop,
+        ReactivateWorkshopRequest $request,
+        ReactivateWorkshopHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateWorkshopCommand(
+            schoolId: $this->schoolContext->requireId(),
+            workshopId: $workshop,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'vocational.workshop_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Workshop reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'vocational.workshop_not_found' ? 404 : 422);
+        }
+
+        $this->audit($request->user(), 'vocational.workshops.reactivate', 'reactivated', 'workshop:'.$result->workshopId);
+
+        return response()->json([
+            'data' => [
+                'workshop_id' => $result->workshopId,
+                'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
