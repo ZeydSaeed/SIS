@@ -41,6 +41,8 @@ use App\Application\Vocational\DTOs\WorkshopDTO;
 use App\Application\Vocational\DTOs\WorkshopEquipmentDTO;
 use App\Application\Vocational\Queries\GetSpecializationHandler;
 use App\Application\Vocational\Queries\GetSpecializationQuery;
+use App\Application\Vocational\Queries\GetWorkshopHandler;
+use App\Application\Vocational\Queries\GetWorkshopQuery;
 use App\Application\Vocational\Queries\ListSpecializationsHandler;
 use App\Application\Vocational\Queries\ListSpecializationsQuery;
 use App\Application\Vocational\Queries\ListWorkshopEquipmentHandler;
@@ -67,6 +69,7 @@ use App\Http\Requests\Vocational\ListSpecializationsRequest;
 use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ListWorkshopsRequest;
 use App\Http\Requests\Vocational\ShowSpecializationRequest;
+use App\Http\Requests\Vocational\ShowWorkshopRequest;
 use App\Http\Requests\Vocational\UpdateSpecializationRequest;
 use App\Http\Requests\Vocational\UpdateTrackRequest;
 use App\Intelligence\Support\CorrelationContext;
@@ -418,6 +421,50 @@ class VocationalController extends Controller
                 'created_at' => $dto->createdAt,
                 'updated_at' => $dto->updatedAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showWorkshop(
+        int $workshop,
+        ShowWorkshopRequest $request,
+        GetWorkshopHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetWorkshopQuery(
+            schoolId: $this->schoolContext->requireId(),
+            workshopId: $workshop,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Workshop not found.',
+                'error_code' => 'vocational.workshop_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.workshops.show',
+            'viewed',
+            $request->user(),
+            'workshop:'.$workshop,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'capacity' => $dto->capacity,
+                'safety_capacity' => $dto->safetyCapacity,
+                'room_id' => $dto->roomId,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+                'updated_at' => $dto->updatedAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
