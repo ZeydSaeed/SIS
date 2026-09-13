@@ -24,6 +24,7 @@ use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\AttendancePolicy;
 use App\Security\Policies\CommunicationPolicy;
+use App\Security\Policies\CurriculumPolicy;
 use App\Security\Policies\DocumentsPolicy;
 use App\Security\Policies\FinancePolicy;
 use App\Security\Policies\HrPolicy;
@@ -155,6 +156,14 @@ class SecurityServiceProvider extends ServiceProvider
 
         Gate::define('manageHr', function (User $user): bool {
             return app(HrPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewCurriculum', function (User $user): bool {
+            return app(CurriculumPolicy::class)->view($user);
+        });
+
+        Gate::define('manageCurriculum', function (User $user): bool {
+            return app(CurriculumPolicy::class)->manage($user);
         });
 
         Gate::define('security.manage_users', function (User $user): bool {

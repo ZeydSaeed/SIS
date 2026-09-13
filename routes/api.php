@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
@@ -335,5 +336,15 @@ Route::prefix('v1')->group(function (): void {
         Route::post('hr/employees/{employee}/reactivate', [HrController::class, 'reactivateEmployee'])
             ->whereNumber('employee')
             ->name('api.hr.employees.reactivate');
+
+        Route::post('curriculum/subjects/{subject}/prerequisites', [CurriculumController::class, 'storePrerequisite'])
+            ->whereNumber('subject')
+            ->name('api.curriculum.prerequisites.store');
+        Route::get('curriculum/subjects/{subject}/prerequisites', [CurriculumController::class, 'indexPrerequisites'])
+            ->whereNumber('subject')
+            ->name('api.curriculum.prerequisites.index');
+        Route::post('curriculum/prerequisites/{prerequisite}/deactivate', [CurriculumController::class, 'deactivatePrerequisite'])
+            ->whereNumber('prerequisite')
+            ->name('api.curriculum.prerequisites.deactivate');
     });
 });

@@ -65,6 +65,8 @@ return [
         'hr.manage' => 'Manage HR job positions and register employees for the current school (no payroll)',
         'vocational.manage' => 'Manage vocational specializations, tracks, and subject links',
         'vocational.view' => 'View vocational specializations, tracks, and subject links',
+        'curriculum.view' => 'View curriculum subject prerequisites',
+        'curriculum.manage' => 'Manage curriculum subject prerequisites (soft deactivate only)',
         'security.manage_users' => 'Manage users and security settings',
     ],
 
@@ -223,6 +225,13 @@ return [
         'vocational_manager' => [
             'vocational.view',
             'vocational.manage',
+        ],
+        'curriculum_viewer' => [
+            'curriculum.view',
+        ],
+        'curriculum_manager' => [
+            'curriculum.view',
+            'curriculum.manage',
         ],
     ],
 

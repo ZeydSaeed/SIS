@@ -47,4 +47,6 @@ enum SecurityEventType: string
     case WorkflowDataModified = 'SEC_WORKFLOW_DATA_MODIFIED';
     case HrDataAccess = 'SEC_HR_DATA_ACCESS';
     case HrDataModified = 'SEC_HR_DATA_MODIFIED';
+    case CurriculumDataAccess = 'SEC_CURRICULUM_DATA_ACCESS';
+    case CurriculumDataModified = 'SEC_CURRICULUM_DATA_MODIFIED';
 }

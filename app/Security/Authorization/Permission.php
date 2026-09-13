@@ -130,6 +130,10 @@ final class Permission
 
     public const VOCATIONAL_VIEW = 'vocational.view';
 
+    public const CURRICULUM_VIEW = 'curriculum.view';
+
+    public const CURRICULUM_MANAGE = 'curriculum.manage';
+
     public const SECURITY_MANAGE_USERS = 'security.manage_users';
 
     /**
@@ -201,6 +205,8 @@ final class Permission
             self::HR_MANAGE,
             self::VOCATIONAL_MANAGE,
             self::VOCATIONAL_VIEW,
+            self::CURRICULUM_VIEW,
+            self::CURRICULUM_MANAGE,
             self::SECURITY_MANAGE_USERS,
         ];
     }

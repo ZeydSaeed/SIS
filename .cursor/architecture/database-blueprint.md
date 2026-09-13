@@ -661,9 +661,13 @@
 | id | BIGINT | PK |
 | subject_id | BIGINT | FK → subjects |
 | prerequisite_subject_id | BIGINT | FK → subjects |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive (**CUR-U01**) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(subject_id, prerequisite_subject_id)`
+**Indexes:** `UNIQUE(subject_id, prerequisite_subject_id)`, `BTREE(subject_id)`  
+**Constraints:** `CHECK (subject_id <> prerequisite_subject_id)`, `CHECK (status IN (1,2))`  
+**Security (CUR-U01):** Global catalog (no school_id / no RLS) — same posture as `subjects`. Hard DELETE forbidden by trigger; soft deactivate via `status`.  
+**v1 HTTP:** `POST/GET …/curriculum/subjects/{id}/prerequisites`; `POST …/curriculum/prerequisites/{id}/deactivate`.
 
 ---
 
