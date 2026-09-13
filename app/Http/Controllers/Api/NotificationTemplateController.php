@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Communication\Commands\CreateNotificationTemplateCommand;
 use App\Application\Communication\Commands\CreateNotificationTemplateHandler;
+use App\Application\Communication\Commands\DeactivateNotificationTemplateCommand;
+use App\Application\Communication\Commands\DeactivateNotificationTemplateHandler;
 use App\Application\Communication\DTOs\NotificationTemplateDTO;
 use App\Application\Communication\Queries\ListNotificationTemplatesHandler;
 use App\Application\Communication\Queries\ListNotificationTemplatesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Communication\CreateNotificationTemplateRequest;
+use App\Http\Requests\Communication\DeactivateNotificationTemplateRequest;
 use App\Http\Requests\Communication\ListNotificationTemplatesRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -100,6 +103,46 @@ class NotificationTemplateController extends Controller
                 'is_active' => $dto->isActive,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivate(
+        int $template,
+        DeactivateNotificationTemplateRequest $request,
+        DeactivateNotificationTemplateHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateNotificationTemplateCommand(
+            schoolId: $this->schoolContext->requireId(),
+            templateId: $template,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'communication.template_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Notification template deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'communication.template_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.template.deactivate',
+            'deactivated',
+            $request->user(),
+            'template:'.$template,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'template_id' => $result->templateId,
+                'is_active' => false,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

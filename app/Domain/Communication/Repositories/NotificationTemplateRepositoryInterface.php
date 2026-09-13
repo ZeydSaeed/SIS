@@ -19,6 +19,10 @@ interface NotificationTemplateRepositoryInterface
 
     public function findIdBySchoolAndCode(int $schoolId, string $code): ?int;
 
+    public function find(int $schoolId, int $templateId): ?NotificationTemplateSnapshot;
+
+    public function setActive(int $schoolId, int $templateId, bool $isActive): void;
+
     /**
      * @return list<NotificationTemplateSnapshot>
      */

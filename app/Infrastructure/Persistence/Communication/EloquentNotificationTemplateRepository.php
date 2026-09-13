@@ -45,6 +45,52 @@ final class EloquentNotificationTemplateRepository implements NotificationTempla
         return $id === null ? null : (int) $id;
     }
 
+    public function find(int $schoolId, int $templateId): ?NotificationTemplateSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('communication', 'notification_templates'))
+            ->where('school_id', $schoolId)
+            ->where('id', $templateId)
+            ->first([
+                'id',
+                'school_id',
+                'code',
+                'name',
+                'channel',
+                'subject_template',
+                'body_template',
+                'is_active',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new NotificationTemplateSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            code: (string) $row->code,
+            name: (string) $row->name,
+            channel: (int) $row->channel,
+            subjectTemplate: $row->subject_template !== null ? (string) $row->subject_template : null,
+            bodyTemplate: (string) $row->body_template,
+            isActive: (bool) $row->is_active,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
+    public function setActive(int $schoolId, int $templateId, bool $isActive): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('communication', 'notification_templates'))
+            ->where('school_id', $schoolId)
+            ->where('id', $templateId)
+            ->update(['is_active' => $isActive]);
+    }
+
     public function listBySchool(int $schoolId, ?bool $activeOnly = null): array
     {
         $this->bindSchool($schoolId);

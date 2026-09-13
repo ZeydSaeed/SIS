@@ -1459,9 +1459,9 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id)`, `BTREE(school_id, is_active)`, `UNIQUE(school_id, code)`  
-**Security (Phase COM-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Create/List catalog only — no send. messages / notification_jobs HOLD.
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, is_active)`, `UNIQUE(school_id, code)`
+**Security (Phase COM-U01):** FORCE RLS school isolation. Hard DELETE rejected. Soft deactivate via `is_active` (**COM-U09**).
+**v1 HTTP:** Create/List + soft deactivate (`POST …/templates/{id}/deactivate`). No send.
 
 ### `communication.messages` — Phase COM-U04 LIVE (queue only, unpartitioned)
 
