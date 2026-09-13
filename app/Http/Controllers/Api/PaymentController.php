@@ -7,11 +7,14 @@ use App\Application\Finance\Commands\RecordPaymentHandler;
 use App\Application\Finance\Commands\VoidPaymentCommand;
 use App\Application\Finance\Commands\VoidPaymentHandler;
 use App\Application\Finance\DTOs\PaymentDTO;
+use App\Application\Finance\Queries\GetPaymentHandler;
+use App\Application\Finance\Queries\GetPaymentQuery;
 use App\Application\Finance\Queries\ListPaymentsHandler;
 use App\Application\Finance\Queries\ListPaymentsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\ListPaymentsRequest;
 use App\Http\Requests\Finance\RecordPaymentRequest;
+use App\Http\Requests\Finance\ShowPaymentRequest;
 use App\Http\Requests\Finance\VoidPaymentRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -152,6 +155,53 @@ class PaymentController extends Controller
                 'voided_by' => $dto->voidedBy,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $payment,
+        ShowPaymentRequest $request,
+        GetPaymentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetPaymentQuery(
+            schoolId: $schoolId,
+            paymentId: $payment,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Payment not found.',
+                'error_code' => 'finance.payment_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataAccess,
+            'finance.payment.show',
+            'viewed',
+            $request->user(),
+            'payment:'.$payment,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'student_fee_id' => $dto->studentFeeId,
+                'amount' => $dto->amount,
+                'payment_method' => $dto->paymentMethod,
+                'payment_reference' => $dto->paymentReference,
+                'paid_at' => $dto->paidAt,
+                'received_by' => $dto->receivedBy,
+                'status' => $dto->status,
+                'voided_at' => $dto->voidedAt,
+                'voided_by' => $dto->voidedBy,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

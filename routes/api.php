@@ -332,6 +332,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.finance.payments.store');
         Route::get('finance/payments', [PaymentController::class, 'index'])
             ->name('api.finance.payments.index');
+        Route::get('finance/payments/{payment}', [PaymentController::class, 'show'])
+            ->whereNumber('payment')
+            ->name('api.finance.payments.show');
         Route::post('finance/payments/{payment}/void', [PaymentController::class, 'void'])
             ->whereNumber('payment')
             ->name('api.finance.payments.void');
