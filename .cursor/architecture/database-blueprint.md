@@ -1,11 +1,11 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
-> **Target:** **94** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
+> **Target:** **95** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -255,7 +255,25 @@
 
 **Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`, `UNIQUE(school_id, code)`  
 **Security (Phase TV-U12):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Create/List catalog. section_batches / equipment / assignment enforce HOLD.
+**v1 HTTP:** Create/List catalog. section_batches / assignment enforce HOLD.  
+**Equipment (TV-U13):** `vocational.workshop_equipment` LIVE — Create/List under workshop.
+
+### `vocational.workshop_equipment` — Phase TV-U13 LIVE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**TV delta** for RLS) |
+| workshop_id | BIGINT | FK → workshops |
+| code | VARCHAR(40) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| quantity | SMALLINT | NOT NULL CHECK > 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `BTREE(workshop_id, status)`, `UNIQUE(workshop_id, code)`  
+**Security:** FORCE RLS. Hard DELETE rejected. Soft deactivate via status (TV-U14).  
+**v1 HTTP:** `POST/GET …/vocational/workshops/{id}/equipment`
 
 ---
 

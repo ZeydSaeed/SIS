@@ -7,6 +7,8 @@ use App\Application\Vocational\Commands\CreateSpecializationHandler;
 use App\Application\Vocational\Commands\CreateTrackCommand;
 use App\Application\Vocational\Commands\CreateTrackHandler;
 use App\Application\Vocational\Commands\CreateWorkshopCommand;
+use App\Application\Vocational\Commands\CreateWorkshopEquipmentCommand;
+use App\Application\Vocational\Commands\CreateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\CreateWorkshopHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationCommand;
 use App\Application\Vocational\Commands\DeactivateSpecializationHandler;
@@ -22,21 +24,26 @@ use App\Application\Vocational\Commands\UpdateTrackCommand;
 use App\Application\Vocational\Commands\UpdateTrackHandler;
 use App\Application\Vocational\DTOs\SpecializationDTO;
 use App\Application\Vocational\DTOs\WorkshopDTO;
+use App\Application\Vocational\DTOs\WorkshopEquipmentDTO;
 use App\Application\Vocational\Queries\GetSpecializationHandler;
 use App\Application\Vocational\Queries\GetSpecializationQuery;
 use App\Application\Vocational\Queries\ListSpecializationsHandler;
 use App\Application\Vocational\Queries\ListSpecializationsQuery;
+use App\Application\Vocational\Queries\ListWorkshopEquipmentHandler;
+use App\Application\Vocational\Queries\ListWorkshopEquipmentQuery;
 use App\Application\Vocational\Queries\ListWorkshopsHandler;
 use App\Application\Vocational\Queries\ListWorkshopsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Vocational\CreateSpecializationRequest;
 use App\Http\Requests\Vocational\CreateTrackRequest;
+use App\Http\Requests\Vocational\CreateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\CreateWorkshopRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\ListSpecializationsRequest;
+use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ListWorkshopsRequest;
 use App\Http\Requests\Vocational\ShowSpecializationRequest;
 use App\Http\Requests\Vocational\UpdateSpecializationRequest;
@@ -338,6 +345,84 @@ class VocationalController extends Controller
                 'status' => $dto->status,
                 'created_at' => $dto->createdAt,
                 'updated_at' => $dto->updatedAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function storeWorkshopEquipment(
+        int $workshop,
+        CreateWorkshopEquipmentRequest $request,
+        CreateWorkshopEquipmentHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new CreateWorkshopEquipmentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            workshopId: $workshop,
+            code: (string) $request->validated('code'),
+            name: (string) $request->validated('name'),
+            quantity: (int) $request->validated('quantity'),
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'vocational.equipment_create_failed';
+
+            return response()->json([
+                'message' => 'Workshop equipment create rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'vocational.workshop_not_found' ? 404 : 422);
+        }
+
+        $this->audit($request->user(), 'vocational.workshop_equipment.store', 'created', 'equipment:'.$result->equipmentId);
+
+        return response()->json([
+            'data' => [
+                'equipment_id' => $result->equipmentId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexWorkshopEquipment(
+        int $workshop,
+        ListWorkshopEquipmentRequest $request,
+        ListWorkshopEquipmentHandler $handler,
+    ): JsonResponse {
+        $status = $request->validated('equipment_status');
+        $items = $handler->handle(new ListWorkshopEquipmentQuery(
+            schoolId: $this->schoolContext->requireId(),
+            workshopId: $workshop,
+            status: $status !== null ? (int) $status : null,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Workshop not found.',
+                'error_code' => 'vocational.workshop_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.workshop_equipment.index',
+            'viewed',
+            $request->user(),
+            'workshop:'.$workshop,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (WorkshopEquipmentDTO $dto): array => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'workshop_id' => $dto->workshopId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'quantity' => $dto->quantity,
+                'status' => $dto->status,
             ], $items),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);

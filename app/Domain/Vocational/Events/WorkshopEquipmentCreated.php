@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Domain\Vocational\Events;
+
+use App\Domain\Shared\DomainEvent;
+
+final readonly class WorkshopEquipmentCreated implements DomainEvent
+{
+    public function __construct(
+        private int $equipmentId,
+        private int $schoolId,
+        private int $workshopId,
+        private \DateTimeImmutable $occurredAt,
+    ) {}
+
+    public function occurredAt(): \DateTimeImmutable
+    {
+        return $this->occurredAt;
+    }
+
+    /** @return array<string, mixed> */
+    public function payload(): array
+    {
+        return [
+            'equipment_id' => $this->equipmentId,
+            'school_id' => $this->schoolId,
+            'workshop_id' => $this->workshopId,
+            'occurred_at' => $this->occurredAt->format(\DateTimeInterface::ATOM),
+        ];
+    }
+}
