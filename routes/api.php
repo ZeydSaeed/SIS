@@ -447,6 +447,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.hr.employees.store');
         Route::get('hr/employees', [HrController::class, 'indexEmployees'])
             ->name('api.hr.employees.index');
+        Route::get('hr/employees/{employee}', [HrController::class, 'showEmployee'])
+            ->whereNumber('employee')
+            ->name('api.hr.employees.show');
         Route::post('hr/employees/{employee}/deactivate', [HrController::class, 'deactivateEmployee'])
             ->whereNumber('employee')
             ->name('api.hr.employees.deactivate');

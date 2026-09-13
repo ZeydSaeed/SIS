@@ -16,6 +16,8 @@ use App\Application\Hr\Commands\RegisterEmployeeCommand;
 use App\Application\Hr\Commands\RegisterEmployeeHandler;
 use App\Application\Hr\DTOs\EmployeeDTO;
 use App\Application\Hr\DTOs\JobPositionDTO;
+use App\Application\Hr\Queries\GetEmployeeHandler;
+use App\Application\Hr\Queries\GetEmployeeQuery;
 use App\Application\Hr\Queries\ListEmployeesHandler;
 use App\Application\Hr\Queries\ListEmployeesQuery;
 use App\Application\Hr\Queries\ListJobPositionsHandler;
@@ -28,6 +30,7 @@ use App\Http\Requests\Hr\DeactivateEmployeeRequest;
 use App\Http\Requests\Hr\DeactivateJobPositionRequest;
 use App\Http\Requests\Hr\ListEmployeesRequest;
 use App\Http\Requests\Hr\ListJobPositionsRequest;
+use App\Http\Requests\Hr\ShowEmployeeRequest;
 use App\Http\Requests\Hr\ReactivateEmployeeRequest;
 use App\Http\Requests\Hr\ReactivateJobPositionRequest;
 use App\Http\Requests\Hr\RegisterEmployeeRequest;
@@ -203,6 +206,54 @@ class HrController extends Controller
                 'academic_year_id' => $dto->academicYearId,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showEmployee(
+        int $employee,
+        ShowEmployeeRequest $request,
+        GetEmployeeHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetEmployeeQuery(
+            schoolId: $schoolId,
+            employeeId: $employee,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Employee not found.',
+                'error_code' => 'hr.employee_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::HrDataAccess,
+            'hr.employees.show',
+            'viewed',
+            $request->user(),
+            'employee:'.$employee,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'employee_number' => $dto->employeeNumber,
+                'user_id' => $dto->userId,
+                'teacher_id' => $dto->teacherId,
+                'national_id' => $dto->nationalId,
+                'first_name' => $dto->firstName,
+                'last_name' => $dto->lastName,
+                'full_name' => $dto->fullName,
+                'hire_date' => $dto->hireDate,
+                'status' => $dto->status,
+                'job_position_id' => $dto->jobPositionId,
+                'academic_year_id' => $dto->academicYearId,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
