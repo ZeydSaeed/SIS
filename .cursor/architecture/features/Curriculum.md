@@ -1,6 +1,6 @@
 # Feature: Curriculum
 
-> Phase CUR — subjects, curricula, prerequisites. Enrollment prereq CLOSED (U05/U06). Curriculum specialization create+PATCH CLOSED (U07/U08).
+> Phase CUR — subjects, curricula, prerequisites. Enrollment prereq CLOSED (U05/U06). Curriculum specialization + name PATCH CLOSED (U07–U09).
 
 ## Definition of Done
 
@@ -23,7 +23,7 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 | Command | DeactivateSubject | ✅ |
 | Command | ReactivateSubject | ✅ |
 | Command | CreateCurriculum | ✅ (+ optional specialization_id U07) |
-| Command | UpdateCurriculumSpecialization | ✅ U08 |
+| Command | UpdateCurriculum | ✅ U08/U09 (name + specialization) |
 | Command | DeactivateCurriculum | ✅ |
 | Command | ReactivateCurriculum | ✅ |
 | Command | LinkCurriculumSubject | ✅ |
@@ -43,5 +43,5 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 
 ## Out of scope
 
-- Full curriculum field PATCH (name/grade) — HOLD
+- PATCH grade_level / academic_year after create — HOLD
 - Payroll / Ranking-PDF

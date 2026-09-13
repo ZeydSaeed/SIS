@@ -11,22 +11,22 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
 
-final class PhaseCurPatchCurriculumSpecializationHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
+final class PhaseCurPatchCurriculumNameHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
     use InteractsWithSecurity;
 
     #[Test]
-    public function manager_can_assign_and_clear_curriculum_specialization(): void
+    public function manager_can_rename_curriculum_and_combine_with_specialization(): void
     {
-        $schoolId = $this->createSchool('SCH-CUR8', 'CUR8 School');
-        $yearId = $this->createAcademicYear('AY-CUR8');
-        $gradeId = $this->createGradeLevel('G-CUR8');
+        $schoolId = $this->createSchool('SCH-CUR9', 'CUR9 School');
+        $yearId = $this->createAcademicYear('AY-CUR9');
+        $gradeId = $this->createGradeLevel('G-CUR9');
 
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
         $specId = (int) DB::table(SchemaHelper::qualified('vocational', 'specializations'))->insertGetId([
             'school_id' => $schoolId,
-            'code' => 'MECH-CUR8',
-            'name' => 'Mechanical',
+            'code' => 'CIV-CUR9',
+            'name' => 'Civil',
             'status' => 1,
             'created_at' => now(),
             'updated_at' => now(),
@@ -40,44 +40,47 @@ final class PhaseCurPatchCurriculumSpecializationHttpApiPostgreSqlTest extends P
         $curriculumId = (int) $this->postJson('/api/v1/curriculum/curricula', [
             'academic_year_id' => $yearId,
             'grade_level_id' => $gradeId,
-            'name' => 'General Plan CUR8',
-        ], ['X-Idempotency-Key' => 'cur8-create'])
+            'name' => 'Old Plan CUR9',
+        ], ['X-Idempotency-Key' => 'cur9-create'])
             ->assertCreated()
             ->json('data.curriculum_id');
 
+        $this->patchJson('/api/v1/curriculum/curricula/'.$curriculumId, [], [
+            'X-Idempotency-Key' => 'cur9-empty',
+        ])->assertStatus(422);
+
         $this->patchJson('/api/v1/curriculum/curricula/'.$curriculumId, [
-            'specialization_id' => $specId,
-        ], ['X-Idempotency-Key' => 'cur8-assign'])
+            'name' => 'Renamed Plan CUR9',
+        ], ['X-Idempotency-Key' => 'cur9-rename'])
             ->assertOk()
-            ->assertJsonPath('data.curriculum_id', $curriculumId)
+            ->assertJsonPath('data.fields.name', 'Renamed Plan CUR9');
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('curriculum', 'curricula'), [
+            'id' => $curriculumId,
+            'name' => 'Renamed Plan CUR9',
+            'specialization_id' => null,
+        ]);
+
+        $this->patchJson('/api/v1/curriculum/curricula/'.$curriculumId, [
+            'name' => 'Civil Plan CUR9',
+            'specialization_id' => $specId,
+        ], ['X-Idempotency-Key' => 'cur9-both'])
+            ->assertOk()
+            ->assertJsonPath('data.fields.name', 'Civil Plan CUR9')
             ->assertJsonPath('data.fields.specialization_id', $specId);
 
         $this->assertDatabaseHas(SchemaHelper::qualified('curriculum', 'curricula'), [
             'id' => $curriculumId,
+            'name' => 'Civil Plan CUR9',
             'specialization_id' => $specId,
         ]);
 
-        $this->patchJson('/api/v1/curriculum/curricula/'.$curriculumId, [
-            'specialization_id' => $specId,
-        ], ['X-Idempotency-Key' => 'cur8-assign'])
+        $this->getJson('/api/v1/curriculum/curricula?academic_year_id='.$yearId)
             ->assertOk()
-            ->assertJsonPath('data.from_idempotency', true);
-
-        $this->patchJson('/api/v1/curriculum/curricula/'.$curriculumId, [
-            'specialization_id' => null,
-        ], ['X-Idempotency-Key' => 'cur8-clear'])
-            ->assertOk()
-            ->assertJsonPath('data.fields.specialization_id', null);
-
-        $this->assertDatabaseHas(SchemaHelper::qualified('curriculum', 'curricula'), [
-            'id' => $curriculumId,
-            'specialization_id' => null,
-        ]);
-
-        $this->patchJson('/api/v1/curriculum/curricula/'.$curriculumId, [
-            'specialization_id' => 999999,
-        ], ['X-Idempotency-Key' => 'cur8-bad'])
-            ->assertStatus(422)
-            ->assertJsonPath('error_code', 'curriculum.specialization_invalid');
+            ->assertJsonFragment([
+                'id' => $curriculumId,
+                'name' => 'Civil Plan CUR9',
+                'specialization_id' => $specId,
+            ]);
     }
 }

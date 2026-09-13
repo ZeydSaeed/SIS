@@ -22,8 +22,8 @@ use App\Application\Curriculum\Commands\ReactivateCurriculumCommand;
 use App\Application\Curriculum\Commands\ReactivateCurriculumHandler;
 use App\Application\Curriculum\Commands\ReactivateSubjectCommand;
 use App\Application\Curriculum\Commands\ReactivateSubjectHandler;
-use App\Application\Curriculum\Commands\UpdateCurriculumSpecializationCommand;
-use App\Application\Curriculum\Commands\UpdateCurriculumSpecializationHandler;
+use App\Application\Curriculum\Commands\UpdateCurriculumCommand;
+use App\Application\Curriculum\Commands\UpdateCurriculumHandler;
 use App\Application\Curriculum\Commands\UpdateSubjectCommand;
 use App\Application\Curriculum\Commands\UpdateSubjectHandler;
 use App\Application\Curriculum\DTOs\CurriculumDTO;
@@ -53,7 +53,7 @@ use App\Http\Requests\Curriculum\ListSubjectPrerequisitesRequest;
 use App\Http\Requests\Curriculum\ListSubjectsRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\ReactivateSubjectRequest;
-use App\Http\Requests\Curriculum\UpdateCurriculumSpecializationRequest;
+use App\Http\Requests\Curriculum\UpdateCurriculumRequest;
 use App\Http\Requests\Curriculum\UpdateSubjectRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -404,26 +404,34 @@ class CurriculumController extends Controller
         ]);
     }
 
-    public function updateCurriculumSpecialization(
+    public function updateCurriculum(
         int $curriculum,
-        UpdateCurriculumSpecializationRequest $request,
-        UpdateCurriculumSpecializationHandler $handler,
+        UpdateCurriculumRequest $request,
+        UpdateCurriculumHandler $handler,
     ): JsonResponse {
-        $schoolId = $this->schoolContext->requireId();
-        $result = $handler->handle(new UpdateCurriculumSpecializationCommand(
-            schoolId: $schoolId,
-            curriculumId: $curriculum,
-            specializationId: $request->validated('specialization_id') !== null
+        /** @var array{name?: string, specialization_id?: ?int} $fields */
+        $fields = [];
+        if ($request->exists('name')) {
+            $fields['name'] = (string) $request->validated('name');
+        }
+        if ($request->exists('specialization_id')) {
+            $fields['specialization_id'] = $request->validated('specialization_id') !== null
                 ? (int) $request->validated('specialization_id')
-                : null,
+                : null;
+        }
+
+        $result = $handler->handle(new UpdateCurriculumCommand(
+            schoolId: $this->schoolContext->requireId(),
+            curriculumId: $curriculum,
+            fields: $fields,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
 
         if ($result->failed()) {
-            $code = $result->errors[0] ?? 'curriculum.specialization_update_failed';
+            $code = $result->errors[0] ?? 'curriculum.curriculum_update_failed';
 
             return response()->json([
-                'message' => 'Curriculum specialization update rejected.',
+                'message' => 'Curriculum update rejected.',
                 'error_code' => $code,
                 'meta' => ['correlation_id' => CorrelationContext::id()],
             ], $code === 'curriculum.curriculum_not_found' ? 404 : 422);
@@ -431,20 +439,20 @@ class CurriculumController extends Controller
 
         $this->securityAudit->record(
             SecurityEventType::CurriculumDataModified,
-            'curriculum.curricula.update_specialization',
+            'curriculum.curricula.update',
             'updated',
             $request->user(),
             'curriculum:'.$result->curriculumId,
             [
                 'from_idempotency' => $result->fromIdempotencyCache,
-                'specialization_id' => $result->specializationId,
+                'fields' => $result->fields,
             ],
         );
 
         return response()->json([
             'data' => [
                 'curriculum_id' => $result->curriculumId,
-                'specialization_id' => $result->specializationId,
+                'fields' => $result->fields,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

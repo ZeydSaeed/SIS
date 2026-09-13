@@ -647,7 +647,7 @@
 **Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)`  
 **Security (CUR-U03):** FORCE RLS on `school_id`; hard DELETE rejected by trigger; soft `status`.  
 **v1 HTTP:** `POST/GET …/curriculum/curricula`; `POST …/curricula/{id}/deactivate|reactivate`.  
-**CUR-U07/U08:** optional `specialization_id` on create; `PATCH …/curricula/{id}` assigns or clears (`null`) on active curricula only.
+**CUR-U07/U08/U09:** optional `specialization_id` on create; `PATCH …/curricula/{id}` updates `name` and/or assigns/clears specialization on active curricula. `academic_year_id` / `grade_level_id` immutable via PATCH.
 
 ### `curriculum.curriculum_subjects`
 

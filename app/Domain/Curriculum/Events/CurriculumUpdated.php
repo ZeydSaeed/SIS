@@ -4,12 +4,15 @@ namespace App\Domain\Curriculum\Events;
 
 use App\Domain\Shared\DomainEvent;
 
-final readonly class CurriculumSpecializationUpdated implements DomainEvent
+final readonly class CurriculumUpdated implements DomainEvent
 {
+    /**
+     * @param  array{name?: string, specialization_id?: ?int}  $fields
+     */
     public function __construct(
         private int $curriculumId,
         private int $schoolId,
-        private ?int $specializationId,
+        private array $fields,
         private \DateTimeImmutable $occurredAt,
     ) {}
 
@@ -24,7 +27,7 @@ final readonly class CurriculumSpecializationUpdated implements DomainEvent
         return [
             'curriculum_id' => $this->curriculumId,
             'school_id' => $this->schoolId,
-            'specialization_id' => $this->specializationId,
+            'fields' => $this->fields,
             'occurred_at' => $this->occurredAt->format(\DateTimeInterface::ATOM),
         ];
     }

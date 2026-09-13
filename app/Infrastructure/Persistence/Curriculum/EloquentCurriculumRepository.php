@@ -126,16 +126,35 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         ?int $specializationId,
         string $updatedAt,
     ): bool {
+        return $this->updateActive($schoolId, $curriculumId, [
+            'specialization_id' => $specializationId,
+        ], $updatedAt);
+    }
+
+    public function updateActive(
+        int $schoolId,
+        int $curriculumId,
+        array $fields,
+        string $updatedAt,
+    ): bool {
         $this->bindSchool($schoolId);
+
+        $payload = ['updated_at' => $updatedAt];
+        if (array_key_exists('name', $fields)) {
+            $payload['name'] = $fields['name'];
+        }
+        if (array_key_exists('specialization_id', $fields)) {
+            $payload['specialization_id'] = $fields['specialization_id'];
+        }
+        if (count($payload) === 1) {
+            return false;
+        }
 
         $updated = DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
             ->where('id', $curriculumId)
             ->where('school_id', $schoolId)
             ->where('status', CurriculumStatus::Active->value)
-            ->update([
-                'specialization_id' => $specializationId,
-                'updated_at' => $updatedAt,
-            ]);
+            ->update($payload);
 
         return $updated > 0;
     }

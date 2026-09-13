@@ -38,6 +38,16 @@ interface CurriculumRepositoryInterface
         string $updatedAt,
     ): bool;
 
+    /**
+     * @param  array{name?: string, specialization_id?: ?int}  $fields
+     */
+    public function updateActive(
+        int $schoolId,
+        int $curriculumId,
+        array $fields,
+        string $updatedAt,
+    ): bool;
+
     public function linkSubject(
         int $schoolId,
         int $curriculumId,
