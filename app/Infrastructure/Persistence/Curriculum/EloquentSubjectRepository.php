@@ -54,6 +54,19 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         return $row === null ? null : $this->map($row);
     }
 
+    public function findInactive(int $subjectId): ?SubjectSnapshot
+    {
+        $row = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+            ->where('id', $subjectId)
+            ->where('status', SubjectStatus::Inactive->value)
+            ->first([
+                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
+                'max_grade', 'pass_grade', 'status',
+            ]);
+
+        return $row === null ? null : $this->map($row);
+    }
+
     public function listActive(): array
     {
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
@@ -76,6 +89,36 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
                 'status' => SubjectStatus::Inactive->value,
                 'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             ]);
+
+        return $updated > 0;
+    }
+
+    public function reactivate(int $subjectId): bool
+    {
+        $updated = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+            ->where('id', $subjectId)
+            ->where('status', SubjectStatus::Inactive->value)
+            ->update([
+                'status' => SubjectStatus::Active->value,
+                'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+            ]);
+
+        return $updated > 0;
+    }
+
+    public function updateActive(int $subjectId, array $fields, string $updatedAt): bool
+    {
+        $payload = ['updated_at' => $updatedAt];
+        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade'] as $key) {
+            if (array_key_exists($key, $fields)) {
+                $payload[$key] = $fields[$key];
+            }
+        }
+
+        $updated = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+            ->where('id', $subjectId)
+            ->where('status', SubjectStatus::Active->value)
+            ->update($payload);
 
         return $updated > 0;
     }

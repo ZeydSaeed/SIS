@@ -60,6 +60,19 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         return $row === null ? null : $this->mapCurriculum($row);
     }
 
+    public function findInactiveInSchool(int $schoolId, int $curriculumId): ?CurriculumSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('id', $curriculumId)
+            ->where('school_id', $schoolId)
+            ->where('status', CurriculumStatus::Inactive->value)
+            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'name', 'status']);
+
+        return $row === null ? null : $this->mapCurriculum($row);
+    }
+
     public function listActiveForSchool(int $schoolId, int $academicYearId): array
     {
         $this->bindSchool($schoolId);
@@ -84,6 +97,22 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('status', CurriculumStatus::Active->value)
             ->update([
                 'status' => CurriculumStatus::Inactive->value,
+                'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+            ]);
+
+        return $updated > 0;
+    }
+
+    public function reactivate(int $schoolId, int $curriculumId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        $updated = DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('id', $curriculumId)
+            ->where('school_id', $schoolId)
+            ->where('status', CurriculumStatus::Inactive->value)
+            ->update([
+                'status' => CurriculumStatus::Active->value,
                 'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             ]);
 

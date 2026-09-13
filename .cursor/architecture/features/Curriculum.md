@@ -1,6 +1,6 @@
 # Feature: Curriculum
 
-> Phase CUR — subjects, curricula, prerequisites (soft status). Enrollment prereq enforce HOLD.
+> Phase CUR — subjects, curricula, prerequisites (soft lifecycle). Enrollment prereq enforce HOLD.
 
 ## Definition of Done
 
@@ -19,9 +19,12 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 | Command | AddSubjectPrerequisite | ✅ |
 | Command | DeactivateSubjectPrerequisite | ✅ |
 | Command | CreateSubject | ✅ |
+| Command | UpdateSubject | ✅ |
 | Command | DeactivateSubject | ✅ |
+| Command | ReactivateSubject | ✅ |
 | Command | CreateCurriculum | ✅ |
 | Command | DeactivateCurriculum | ✅ |
+| Command | ReactivateCurriculum | ✅ |
 | Command | LinkCurriculumSubject | ✅ |
 | Command | DeactivateCurriculumSubject | ✅ |
 | Query | ListSubjectPrerequisites | ✅ |
@@ -31,7 +34,6 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 
 ## Out of scope
 
-- Subjects PATCH / reactivate — HOLD
 - specialization_id on curricula — HOLD
 - Enrollment prerequisite enforcement — HOLD
 - Payroll / Ranking-PDF

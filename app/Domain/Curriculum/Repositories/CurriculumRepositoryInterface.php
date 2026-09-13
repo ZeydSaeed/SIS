@@ -21,10 +21,14 @@ interface CurriculumRepositoryInterface
 
     public function findActiveInSchool(int $schoolId, int $curriculumId): ?CurriculumSnapshot;
 
+    public function findInactiveInSchool(int $schoolId, int $curriculumId): ?CurriculumSnapshot;
+
     /** @return list<CurriculumSnapshot> */
     public function listActiveForSchool(int $schoolId, int $academicYearId): array;
 
     public function deactivate(int $schoolId, int $curriculumId): bool;
+
+    public function reactivate(int $schoolId, int $curriculumId): bool;
 
     public function linkSubject(
         int $schoolId,

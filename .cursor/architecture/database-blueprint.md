@@ -624,7 +624,7 @@
 
 **Indexes:** `UNIQUE(code)`, `BTREE(status)`  
 **Constraints (CUR-U02):** `subject_type IN (1,2,3)`, `status IN (1,2)`, `pass_grade <= max_grade`; hard DELETE rejected by trigger.  
-**v1 HTTP:** `POST/GET …/curriculum/subjects`; `POST …/curriculum/subjects/{id}/deactivate`.
+**v1 HTTP:** `POST/GET …/curriculum/subjects`; `PATCH …/subjects/{id}`; `POST …/subjects/{id}/deactivate|reactivate`.
 
 ### `curriculum.curricula`
 
@@ -642,7 +642,7 @@
 
 **Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)`  
 **Security (CUR-U03):** FORCE RLS on `school_id`; hard DELETE rejected by trigger; soft `status`.  
-**v1 HTTP:** `POST/GET …/curriculum/curricula`; `POST …/curricula/{id}/deactivate`.
+**v1 HTTP:** `POST/GET …/curriculum/curricula`; `POST …/curricula/{id}/deactivate|reactivate`.
 
 ### `curriculum.curriculum_subjects`
 

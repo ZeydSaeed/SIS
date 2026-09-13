@@ -344,6 +344,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('curriculum/subjects/{subject}/deactivate', [CurriculumController::class, 'deactivateSubject'])
             ->whereNumber('subject')
             ->name('api.curriculum.subjects.deactivate');
+        Route::post('curriculum/subjects/{subject}/reactivate', [CurriculumController::class, 'reactivateSubject'])
+            ->whereNumber('subject')
+            ->name('api.curriculum.subjects.reactivate');
+        Route::patch('curriculum/subjects/{subject}', [CurriculumController::class, 'updateSubject'])
+            ->whereNumber('subject')
+            ->name('api.curriculum.subjects.update');
         Route::post('curriculum/curricula', [CurriculumController::class, 'storeCurriculum'])
             ->name('api.curriculum.curricula.store');
         Route::get('curriculum/curricula', [CurriculumController::class, 'indexCurricula'])
@@ -351,6 +357,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('curriculum/curricula/{curriculum}/deactivate', [CurriculumController::class, 'deactivateCurriculum'])
             ->whereNumber('curriculum')
             ->name('api.curriculum.curricula.deactivate');
+        Route::post('curriculum/curricula/{curriculum}/reactivate', [CurriculumController::class, 'reactivateCurriculum'])
+            ->whereNumber('curriculum')
+            ->name('api.curriculum.curricula.reactivate');
         Route::post('curriculum/curricula/{curriculum}/subjects', [CurriculumController::class, 'storeCurriculumSubject'])
             ->whereNumber('curriculum')
             ->name('api.curriculum.curriculum_subjects.store');
