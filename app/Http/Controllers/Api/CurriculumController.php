@@ -34,6 +34,8 @@ use App\Application\Curriculum\DTOs\CurriculumDTO;
 use App\Application\Curriculum\DTOs\CurriculumSubjectDTO;
 use App\Application\Curriculum\DTOs\PrerequisiteDTO;
 use App\Application\Curriculum\DTOs\SubjectDTO;
+use App\Application\Curriculum\Queries\GetSubjectHandler;
+use App\Application\Curriculum\Queries\GetSubjectQuery;
 use App\Application\Curriculum\Queries\ListCurriculaHandler;
 use App\Application\Curriculum\Queries\ListCurriculaQuery;
 use App\Application\Curriculum\Queries\ListCurriculumSubjectsHandler;
@@ -59,6 +61,7 @@ use App\Http\Requests\Curriculum\ListSubjectPrerequisitesRequest;
 use App\Http\Requests\Curriculum\ListSubjectsRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\ReactivateSubjectRequest;
+use App\Http\Requests\Curriculum\ShowSubjectRequest;
 use App\Http\Requests\Curriculum\UpdateCurriculumRequest;
 use App\Http\Requests\Curriculum\UpdateSubjectRequest;
 use App\Intelligence\Support\CorrelationContext;
@@ -134,6 +137,36 @@ class CurriculumController extends Controller
 
         return response()->json([
             'data' => array_map(fn (SubjectDTO $dto): array => $this->subjectPayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showSubject(
+        int $subject,
+        ShowSubjectRequest $request,
+        GetSubjectHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetSubjectQuery(subjectId: $subject));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Subject not found.',
+                'error_code' => 'curriculum.subject_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.subjects.show',
+            'viewed',
+            $request->user(),
+            'subject:'.$subject,
+            [],
+        );
+
+        return response()->json([
+            'data' => $this->subjectPayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
