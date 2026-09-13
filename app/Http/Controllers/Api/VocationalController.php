@@ -41,6 +41,8 @@ use App\Application\Vocational\DTOs\WorkshopDTO;
 use App\Application\Vocational\DTOs\WorkshopEquipmentDTO;
 use App\Application\Vocational\Queries\GetSpecializationHandler;
 use App\Application\Vocational\Queries\GetSpecializationQuery;
+use App\Application\Vocational\Queries\GetWorkshopEquipmentHandler;
+use App\Application\Vocational\Queries\GetWorkshopEquipmentQuery;
 use App\Application\Vocational\Queries\GetWorkshopHandler;
 use App\Application\Vocational\Queries\GetWorkshopQuery;
 use App\Application\Vocational\Queries\ListSpecializationsHandler;
@@ -69,6 +71,7 @@ use App\Http\Requests\Vocational\ListSpecializationsRequest;
 use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ListWorkshopsRequest;
 use App\Http\Requests\Vocational\ShowSpecializationRequest;
+use App\Http\Requests\Vocational\ShowWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ShowWorkshopRequest;
 use App\Http\Requests\Vocational\UpdateSpecializationRequest;
 use App\Http\Requests\Vocational\UpdateTrackRequest;
@@ -543,6 +546,47 @@ class VocationalController extends Controller
                 'quantity' => $dto->quantity,
                 'status' => $dto->status,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showWorkshopEquipment(
+        int $equipment,
+        ShowWorkshopEquipmentRequest $request,
+        GetWorkshopEquipmentHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetWorkshopEquipmentQuery(
+            schoolId: $this->schoolContext->requireId(),
+            equipmentId: $equipment,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Workshop equipment not found.',
+                'error_code' => 'vocational.equipment_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.workshop_equipment.show',
+            'viewed',
+            $request->user(),
+            'equipment:'.$equipment,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'workshop_id' => $dto->workshopId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'quantity' => $dto->quantity,
+                'status' => $dto->status,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
