@@ -32,6 +32,8 @@ interface TeacherRepositoryInterface
         string $createdAt,
     ): int;
 
+    public function leaveSchool(int $teacherId, int $schoolId, int $academicYearId, string $leftAt): void;
+
     public function findInSchool(int $teacherId, int $schoolId, ?int $academicYearId = null): ?TeacherSnapshot;
 
     /**

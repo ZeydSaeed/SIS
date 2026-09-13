@@ -193,6 +193,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('teachers/{teacher}/set-primary-school', [TeacherController::class, 'setPrimarySchool'])
             ->whereNumber('teacher')
             ->name('api.teachers.set-primary-school');
+        Route::post('teachers/{teacher}/leave-school', [TeacherController::class, 'leaveSchool'])
+            ->whereNumber('teacher')
+            ->name('api.teachers.leave-school');
         Route::post('teachers/{teacher}/subjects', [TeacherController::class, 'assignSubject'])
             ->name('api.teachers.subjects.assign');
         Route::delete('teachers/{teacher}/subjects', [TeacherController::class, 'unlinkSubject'])

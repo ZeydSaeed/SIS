@@ -62,13 +62,46 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
     ): int {
         $this->bindSchool($schoolId);
 
+        $existing = DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->first(['id', 'left_at']);
+
+        if ($existing !== null) {
+            DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+                ->where('id', (int) $existing->id)
+                ->update([
+                    'left_at' => null,
+                    'is_primary' => $isPrimary,
+                ]);
+
+            return (int) $existing->id;
+        }
+
         return (int) DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))->insertGetId([
             'teacher_id' => $teacherId,
             'school_id' => $schoolId,
             'academic_year_id' => $academicYearId,
             'is_primary' => $isPrimary,
+            'left_at' => null,
             'created_at' => $createdAt,
         ]);
+    }
+
+    public function leaveSchool(int $teacherId, int $schoolId, int $academicYearId, string $leftAt): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('left_at')
+            ->update([
+                'left_at' => $leftAt,
+                'is_primary' => false,
+            ]);
     }
 
     public function findInSchool(int $teacherId, int $schoolId, ?int $academicYearId = null): ?TeacherSnapshot
@@ -79,6 +112,7 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ->join(SchemaHelper::qualified('teachers', 'teacher_schools').' as ts', 'ts.teacher_id', '=', 't.id')
             ->where('t.id', $teacherId)
             ->where('ts.school_id', $schoolId)
+            ->whereNull('ts.left_at')
             ->orderByDesc('ts.is_primary')
             ->orderBy('ts.id');
 
@@ -97,10 +131,13 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
 
     public function listForSchool(int $schoolId, int $academicYearId, int $page, int $perPage): array
     {
+        $this->bindSchool($schoolId);
+
         $base = DB::table(SchemaHelper::qualified('teachers', 'teachers').' as t')
             ->join(SchemaHelper::qualified('teachers', 'teacher_schools').' as ts', 'ts.teacher_id', '=', 't.id')
             ->where('ts.school_id', $schoolId)
-            ->where('ts.academic_year_id', $academicYearId);
+            ->where('ts.academic_year_id', $academicYearId)
+            ->whereNull('ts.left_at');
 
         $total = (int) (clone $base)->distinct('t.id')->count('t.id');
 
@@ -125,7 +162,8 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
 
         $q = DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
             ->where('teacher_id', $teacherId)
-            ->where('school_id', $schoolId);
+            ->where('school_id', $schoolId)
+            ->whereNull('left_at');
 
         if ($academicYearId !== null) {
             $q->where('academic_year_id', $academicYearId);
@@ -143,6 +181,7 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ->where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
             ->where('is_primary', true)
+            ->whereNull('left_at')
             ->exists();
     }
 
@@ -158,6 +197,7 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ->where('teacher_id', $teacherId)
             ->where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
+            ->whereNull('left_at')
             ->update(['is_primary' => $isPrimary]);
     }
 

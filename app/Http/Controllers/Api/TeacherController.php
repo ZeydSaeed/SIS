@@ -14,6 +14,8 @@ use App\Application\Teachers\Commands\ChangeTeacherEmployeeCodeCommand;
 use App\Application\Teachers\Commands\ChangeTeacherEmployeeCodeHandler;
 use App\Application\Teachers\Commands\DeactivateTeacherCommand;
 use App\Application\Teachers\Commands\DeactivateTeacherHandler;
+use App\Application\Teachers\Commands\LeaveTeacherSchoolCommand;
+use App\Application\Teachers\Commands\LeaveTeacherSchoolHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
 use App\Application\Teachers\Commands\RegisterTeacherHandler;
 use App\Application\Teachers\Commands\SetTeacherPrimarySchoolCommand;
@@ -39,6 +41,7 @@ use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
 use App\Http\Requests\Teachers\AttachTeacherQualificationDocumentRequest;
 use App\Http\Requests\Teachers\ChangeTeacherEmployeeCodeRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
+use App\Http\Requests\Teachers\LeaveTeacherSchoolRequest;
 use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
 use App\Http\Requests\Teachers\RegisterTeacherRequest;
@@ -678,6 +681,49 @@ class TeacherController extends Controller
                 'teacher_id' => $result->teacherId,
                 'school_id' => $targetSchoolId,
                 'is_primary' => true,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function leaveSchool(
+        int $teacher,
+        LeaveTeacherSchoolRequest $request,
+        LeaveTeacherSchoolHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new LeaveTeacherSchoolCommand(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'teachers.leave_school_failed';
+
+            return response()->json([
+                'message' => 'Teacher leave school rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'teachers.not_in_school_year' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.leave_school',
+            'left',
+            $request->user(),
+            'teacher:'.$teacher,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'teacher_id' => $result->teacherId,
+                'school_id' => $schoolId,
+                'left' => true,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
