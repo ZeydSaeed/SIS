@@ -1467,23 +1467,26 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 **Security (Phase COM-U04):** FORCE RLS. Hard DELETE rejected.  
 **v1 HTTP:** Queue/List + Mark-sent (COM-U06 LocalOutbound — no SMTP/SMS). Partition + jobs HOLD.
 
-### `communication.notification_jobs` — HOLD (not physicalized)
+### `communication.notification_jobs` — Phase COM-U07 LIVE (catalog only)
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
-| job_id | UUID | UNIQUE NOT NULL |
+| school_id | BIGINT | FK → schools (**COM delta** for RLS) |
+| job_id | UUID | UNIQUE NOT NULL DEFAULT gen_random_uuid() |
 | template_id | BIGINT | FK → notification_templates |
 | target_filter | JSONB | NOT NULL |
-| total_count | INTEGER | NOT NULL |
+| total_count | INTEGER | NOT NULL DEFAULT 0 |
 | sent_count | INTEGER | NOT NULL DEFAULT 0 |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Open, 2=Completed, 3=Cancelled |
 | idempotency_key | VARCHAR(100) | UNIQUE |
-| created_by | BIGINT | FK → security.users |
+| created_by | BIGINT | FK → public.users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | completed_at | TIMESTAMPTZ | |
 
-**Indexes:** `BTREE(status)`
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`  
+**Security (COM-U07):** FORCE RLS. Hard DELETE rejected. Soft complete/cancel via status (COM-U08).  
+**v1 HTTP:** Create/List catalog — bulk fan-out / SMTP HOLD.
 
 ---
 

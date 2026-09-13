@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\FeeTypeController;
 use App\Http\Controllers\Api\FinanceTransactionController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\NotificationJobController;
 use App\Http\Controllers\Api\NotificationTemplateController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\StudentFeeController;
@@ -309,6 +310,10 @@ Route::prefix('v1')->group(function (): void {
         Route::post('communication/messages/{message}/mark-sent', [MessageController::class, 'markSent'])
             ->whereNumber('message')
             ->name('api.communication.messages.mark-sent');
+        Route::post('communication/jobs', [NotificationJobController::class, 'store'])
+            ->name('api.communication.jobs.store');
+        Route::get('communication/jobs', [NotificationJobController::class, 'index'])
+            ->name('api.communication.jobs.index');
 
         Route::post('workflow/approval-flows', [ApprovalFlowController::class, 'store'])
             ->name('api.workflow.approval-flows.store');
