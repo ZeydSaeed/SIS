@@ -391,6 +391,26 @@ trait InteractsWithSecurity
         return $user;
     }
 
+    protected function actingAsAuditManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantAuditManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsAuditViewerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantAuditViewer($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
     protected function actingAsFinanceManagerForSchool(int $schoolId, ?User $user = null): User
     {
         $user ??= User::factory()->create();

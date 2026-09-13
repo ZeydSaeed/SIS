@@ -67,6 +67,8 @@ return [
         'vocational.view' => 'View vocational specializations, tracks, and subject links',
         'curriculum.view' => 'View curriculum subject prerequisites',
         'curriculum.manage' => 'Manage curriculum subject prerequisites (soft deactivate only)',
+        'audit.view' => 'View domain audit logs for the current school',
+        'audit.manage' => 'Register domain audit log entries for the current school',
         'security.manage_users' => 'Manage users and security settings',
     ],
 
@@ -206,6 +208,13 @@ return [
         'communication_manager' => [
             'communication.view',
             'communication.manage',
+        ],
+        'audit_viewer' => [
+            'audit.view',
+        ],
+        'audit_manager' => [
+            'audit.view',
+            'audit.manage',
         ],
         'workflow_viewer' => [
             'workflow.view',

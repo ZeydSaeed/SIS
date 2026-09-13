@@ -1705,12 +1705,13 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 ## Schema: `audit` (2 tables)
 
-### `audit.audit_logs` ⚡ PARTITION CANDIDATE
+### `audit.audit_logs` — Phase AUDIT-U01 LIVE (unpartitioned) ⚡ PARTITION CANDIDATE
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
-| user_id | BIGINT | FK → security.users, nullable |
+| school_id | BIGINT | FK → schools (**AUDIT delta** for RLS) |
+| user_id | BIGINT | FK → public.users, nullable |
 | action | VARCHAR(50) | NOT NULL |
 | entity_type | VARCHAR(50) | NOT NULL |
 | entity_id | BIGINT | |
@@ -1721,13 +1722,17 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | correlation_id | VARCHAR(100) | |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Partition key:** `created_at` (range monthly)
+**Partition key:** `created_at` (range monthly) — **HOLD until measured** (v1 unpartitioned)
 
 **Indexes:**
+- `BTREE(school_id, created_at DESC)`
 - `BTREE(entity_type, entity_id)`
-- `BTREE(user_id, created_at)`
+- `BTREE(user_id, created_at DESC)`
 - `BTREE(correlation_id)`
-- `BRIN(created_at)` — for time-range scans
+
+**Security (AUDIT-U01):** FORCE RLS school isolation. Hard DELETE **and** UPDATE rejected (append-only).  
+**v1 HTTP:** `POST/GET /api/v1/audit/logs` — manual register only; auto domain writers HOLD. Distinct from `security.security_audit_logs`.  
+**Note:** `login_history` HOLD.
 
 ### `audit.login_history`
 

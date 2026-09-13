@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\EnrollmentController;
@@ -269,6 +270,11 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.documents.download');
         Route::get('documents', [DocumentController::class, 'index'])
             ->name('api.documents.index');
+
+        Route::post('audit/logs', [AuditLogController::class, 'store'])
+            ->name('api.audit.logs.store');
+        Route::get('audit/logs', [AuditLogController::class, 'index'])
+            ->name('api.audit.logs.index');
 
         Route::post('finance/fee-types', [FeeTypeController::class, 'store'])
             ->name('api.finance.fee-types.store');
