@@ -7,10 +7,13 @@ use App\Application\Communication\Commands\MarkMessageSentHandler;
 use App\Application\Communication\Commands\QueueMessageCommand;
 use App\Application\Communication\Commands\QueueMessageHandler;
 use App\Application\Communication\DTOs\MessageDTO;
+use App\Application\Communication\Queries\GetMessageHandler;
+use App\Application\Communication\Queries\GetMessageQuery;
 use App\Application\Communication\Queries\ListMessagesHandler;
 use App\Application\Communication\Queries\ListMessagesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Communication\ListMessagesRequest;
+use App\Http\Requests\Communication\ShowMessageRequest;
 use App\Http\Requests\Communication\MarkMessageSentRequest;
 use App\Http\Requests\Communication\QueueMessageRequest;
 use App\Intelligence\Support\CorrelationContext;
@@ -103,6 +106,52 @@ class MessageController extends Controller
             'data' => [
                 'message_id' => $result->messageId,
                 'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $message,
+        ShowMessageRequest $request,
+        GetMessageHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetMessageQuery(
+            schoolId: $schoolId,
+            messageId: $message,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Message not found.',
+                'error_code' => 'communication.message_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataAccess,
+            'communication.message.show',
+            'viewed',
+            $request->user(),
+            'message:'.$message,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'template_id' => $dto->templateId,
+                'recipient_type' => $dto->recipientType,
+                'recipient_id' => $dto->recipientId,
+                'channel' => $dto->channel,
+                'subject' => $dto->subject,
+                'body' => $dto->body,
+                'status' => $dto->status,
+                'sent_at' => $dto->sentAt,
+                'created_at' => $dto->createdAt,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);

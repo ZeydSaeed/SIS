@@ -358,6 +358,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.communication.messages.store');
         Route::get('communication/messages', [MessageController::class, 'index'])
             ->name('api.communication.messages.index');
+        Route::get('communication/messages/{message}', [MessageController::class, 'show'])
+            ->whereNumber('message')
+            ->name('api.communication.messages.show');
         Route::post('communication/messages/{message}/mark-sent', [MessageController::class, 'markSent'])
             ->whereNumber('message')
             ->name('api.communication.messages.mark-sent');
