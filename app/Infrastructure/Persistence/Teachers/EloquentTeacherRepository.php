@@ -52,6 +52,8 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         bool $isPrimary,
         string $createdAt,
     ): int {
+        $this->bindSchool($schoolId);
+
         return (int) DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))->insertGetId([
             'teacher_id' => $teacherId,
             'school_id' => $schoolId,
@@ -109,6 +111,8 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
 
     public function belongsToSchool(int $teacherId, int $schoolId, ?int $academicYearId = null): bool
     {
+        $this->bindSchool($schoolId);
+
         $q = DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
             ->where('teacher_id', $teacherId)
             ->where('school_id', $schoolId);
@@ -317,5 +321,10 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             academicYearId: (int) $row->academic_year_id,
             isPrimary: (bool) $row->is_primary,
         );
+    }
+
+    private function bindSchool(int $schoolId): void
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Teachers\Commands\AddTeacherQualificationCommand;
 use App\Application\Teachers\Commands\AddTeacherQualificationHandler;
+use App\Application\Teachers\Commands\AssignTeacherSchoolCommand;
+use App\Application\Teachers\Commands\AssignTeacherSchoolHandler;
 use App\Application\Teachers\Commands\AssignTeacherSubjectCommand;
 use App\Application\Teachers\Commands\AssignTeacherSubjectHandler;
 use App\Application\Teachers\Commands\DeactivateTeacherCommand;
@@ -28,6 +30,7 @@ use App\Application\Teachers\Queries\ListTeachersHandler;
 use App\Application\Teachers\Queries\ListTeachersQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teachers\AddTeacherQualificationRequest;
+use App\Http\Requests\Teachers\AssignTeacherSchoolRequest;
 use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
 use App\Http\Requests\Teachers\AttachTeacherQualificationDocumentRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
@@ -536,6 +539,54 @@ class TeacherController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
+    }
+
+    public function assignSchool(
+        int $teacher,
+        AssignTeacherSchoolRequest $request,
+        AssignTeacherSchoolHandler $handler,
+    ): JsonResponse {
+        $targetSchoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new AssignTeacherSchoolCommand(
+            targetSchoolId: $targetSchoolId,
+            sourceSchoolId: (int) $request->validated('source_school_id'),
+            teacherId: $teacher,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'teachers.assign_school_failed';
+
+            return response()->json([
+                'message' => 'Teacher school assign rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], in_array($code, ['teachers.not_in_source_school'], true) ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.assign_school',
+            'assigned',
+            $request->user(),
+            'teacher:'.$teacher,
+            [
+                'teacher_school_id' => $result->teacherSchoolId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'teacher_id' => $result->teacherId,
+                'teacher_school_id' => $result->teacherSchoolId,
+                'school_id' => $targetSchoolId,
+                'is_primary' => false,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
     }
 
     /**

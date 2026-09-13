@@ -28,4 +28,9 @@ final class TeachersSchoolAccessService
         return $targetSchoolId === $contextSchoolId
             && in_array($targetSchoolId, $this->schoolScope->allowedSchoolIds($user), true);
     }
+
+    public function canAccessSchoolId(\App\Models\User $user, int $schoolId): bool
+    {
+        return in_array($schoolId, $this->schoolScope->allowedSchoolIds($user), true);
+    }
 }

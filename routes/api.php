@@ -184,6 +184,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.teachers.update');
         Route::post('teachers/{teacher}/deactivate', [TeacherController::class, 'deactivate'])
             ->name('api.teachers.deactivate');
+        Route::post('teachers/{teacher}/assign-school', [TeacherController::class, 'assignSchool'])
+            ->whereNumber('teacher')
+            ->name('api.teachers.assign-school');
         Route::post('teachers/{teacher}/subjects', [TeacherController::class, 'assignSubject'])
             ->name('api.teachers.subjects.assign');
         Route::delete('teachers/{teacher}/subjects', [TeacherController::class, 'unlinkSubject'])
