@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Finance\Commands\CreateFeeTypeCommand;
 use App\Application\Finance\Commands\CreateFeeTypeHandler;
+use App\Application\Finance\Commands\DeactivateFeeTypeCommand;
+use App\Application\Finance\Commands\DeactivateFeeTypeHandler;
 use App\Application\Finance\DTOs\FeeTypeDTO;
 use App\Application\Finance\Queries\ListFeeTypesHandler;
 use App\Application\Finance\Queries\ListFeeTypesQuery;
+use App\Domain\Finance\ValueObjects\FeeTypeStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\CreateFeeTypeRequest;
+use App\Http\Requests\Finance\DeactivateFeeTypeRequest;
 use App\Http\Requests\Finance\ListFeeTypesRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -94,6 +98,46 @@ class FeeTypeController extends Controller
                 'status' => $dto->status,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivate(
+        int $feeType,
+        DeactivateFeeTypeRequest $request,
+        DeactivateFeeTypeHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateFeeTypeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            feeTypeId: $feeType,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'finance.fee_type_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Fee type deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'finance.fee_type_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataModified,
+            'finance.fee_type.deactivate',
+            'deactivated',
+            $request->user(),
+            'fee_type:'.$feeType,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'fee_type_id' => $result->feeTypeId,
+                'status' => FeeTypeStatus::Inactive,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

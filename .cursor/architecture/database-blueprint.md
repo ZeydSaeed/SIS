@@ -1377,7 +1377,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`, `UNIQUE(school_id, code)`  
 **Security (Phase FIN-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Create/List catalog only — student_fees / payments / transactions HOLD (money ballot).
+**v1 HTTP:** Create/List catalog + soft deactivate (`POST …/fee-types/{id}/deactivate`) — student_fees / payments / transactions HOLD (money ballot).
 
 ### `finance.student_fees` — Phase FIN-U03 LIVE
 

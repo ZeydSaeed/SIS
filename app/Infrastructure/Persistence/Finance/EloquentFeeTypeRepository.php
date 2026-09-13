@@ -43,6 +43,50 @@ final class EloquentFeeTypeRepository implements FeeTypeRepositoryInterface
         return $id === null ? null : (int) $id;
     }
 
+    public function find(int $schoolId, int $feeTypeId): ?FeeTypeSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('finance', 'fee_types'))
+            ->where('school_id', $schoolId)
+            ->where('id', $feeTypeId)
+            ->first([
+                'id',
+                'school_id',
+                'code',
+                'name',
+                'amount',
+                'is_recurring',
+                'status',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new FeeTypeSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            code: (string) $row->code,
+            name: (string) $row->name,
+            amount: (string) $row->amount,
+            isRecurring: (bool) $row->is_recurring,
+            status: (int) $row->status,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
+    public function setStatus(int $schoolId, int $feeTypeId, int $status): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('finance', 'fee_types'))
+            ->where('school_id', $schoolId)
+            ->where('id', $feeTypeId)
+            ->update(['status' => $status]);
+    }
+
     public function listBySchool(int $schoolId, ?int $status = null): array
     {
         $this->bindSchool($schoolId);

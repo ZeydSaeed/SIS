@@ -285,6 +285,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.finance.fee-types.store');
         Route::get('finance/fee-types', [FeeTypeController::class, 'index'])
             ->name('api.finance.fee-types.index');
+        Route::post('finance/fee-types/{feeType}/deactivate', [FeeTypeController::class, 'deactivate'])
+            ->whereNumber('feeType')
+            ->name('api.finance.fee-types.deactivate');
         Route::post('finance/student-fees', [StudentFeeController::class, 'store'])
             ->name('api.finance.student-fees.store');
         Route::get('finance/student-fees', [StudentFeeController::class, 'index'])

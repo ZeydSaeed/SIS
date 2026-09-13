@@ -18,6 +18,10 @@ interface FeeTypeRepositoryInterface
 
     public function findIdBySchoolAndCode(int $schoolId, string $code): ?int;
 
+    public function find(int $schoolId, int $feeTypeId): ?FeeTypeSnapshot;
+
+    public function setStatus(int $schoolId, int $feeTypeId, int $status): void;
+
     /**
      * @return list<FeeTypeSnapshot>
      */
