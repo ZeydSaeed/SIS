@@ -6,6 +6,8 @@ use App\Application\Promotion\Commands\CreatePromotionRuleCommand;
 use App\Application\Promotion\Commands\CreatePromotionRuleHandler;
 use App\Application\Promotion\Commands\DeactivatePromotionRuleCommand;
 use App\Application\Promotion\Commands\DeactivatePromotionRuleHandler;
+use App\Application\Promotion\Commands\ReactivatePromotionRuleCommand;
+use App\Application\Promotion\Commands\ReactivatePromotionRuleHandler;
 use App\Application\Promotion\Commands\RecordPromotionDecisionCommand;
 use App\Application\Promotion\Commands\RecordPromotionDecisionHandler;
 use App\Application\Promotion\DTOs\PromotionRecordDTO;
@@ -17,6 +19,7 @@ use App\Application\Promotion\Queries\ListPromotionRulesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Promotion\CreatePromotionRuleRequest;
 use App\Http\Requests\Promotion\DeactivatePromotionRuleRequest;
+use App\Http\Requests\Promotion\ReactivatePromotionRuleRequest;
 use App\Http\Requests\Promotion\ListPromotionRecordsRequest;
 use App\Http\Requests\Promotion\ListPromotionRulesRequest;
 use App\Http\Requests\Promotion\RecordPromotionDecisionRequest;
@@ -149,6 +152,46 @@ class PromotionController extends Controller
             'data' => [
                 'rule_id' => $result->ruleId,
                 'is_active' => false,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivateRule(
+        int $rule,
+        ReactivatePromotionRuleRequest $request,
+        ReactivatePromotionRuleHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivatePromotionRuleCommand(
+            schoolId: $this->schoolContext->requireId(),
+            ruleId: $rule,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'promotion.rule_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Promotion rule reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'promotion.rule_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::PromotionDataModified,
+            'promotion.rule.reactivate',
+            'reactivated',
+            $request->user(),
+            'promotion_rule:'.$rule,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'rule_id' => $result->ruleId,
+                'is_active' => true,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

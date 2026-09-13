@@ -1143,7 +1143,7 @@
 **Indexes:** `BTREE(school_id, from_grade_level_id)`  
 **Security (Phase PT-U01):** FORCE RLS school isolation. Hard DELETE rejected by trigger. Soft deactivate via `is_active` (**PT-U03**).  
 **Checks:** `from_grade_level_id <> to_grade_level_id`  
-**v1 HTTP:** Create/List + soft deactivate (`POST …/promotion/rules/{id}/deactivate`).
+**v1 HTTP:** Create/List + soft deactivate/reactivate (`POST …/promotion/rules/{id}/deactivate|reactivate`).
 
 ### `promotion.records`
 
@@ -1396,7 +1396,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(enrollment_id)`, `BTREE(academic_year_id, status)`, `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, enrollment_id, fee_type_id, academic_year_id)`  
 **Security (Phase FIN-U03):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Assign/List obligations + cancel unpaid (`POST …/student-fees/{id}/cancel`) — payments / transactions still HOLD.
+**v1 HTTP:** Assign/List obligations + cancel unpaid / reopen cancelled (`POST …/student-fees/{id}/cancel|reopen`) — payments / transactions still HOLD.
 
 ### `finance.payments` — Phase FIN-U05 LIVE
 
