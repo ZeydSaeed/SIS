@@ -11,6 +11,7 @@ final readonly class CreateCurriculumCommand implements Command
         public int $academicYearId,
         public int $gradeLevelId,
         public string $name,
+        public ?int $specializationId,
         public ?string $idempotencyKey,
     ) {}
 }

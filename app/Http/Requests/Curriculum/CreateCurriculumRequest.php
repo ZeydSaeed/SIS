@@ -21,8 +21,8 @@ class CreateCurriculumRequest extends FormRequest
             'academic_year_id' => ['required', 'integer', 'min:1'],
             'grade_level_id' => ['required', 'integer', 'min:1'],
             'name' => ['required', 'string', 'max:255'],
+            'specialization_id' => ['nullable', 'integer', 'min:1'],
             'school_id' => ['prohibited'],
-            'specialization_id' => ['prohibited'],
             'status' => ['prohibited'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());
     }

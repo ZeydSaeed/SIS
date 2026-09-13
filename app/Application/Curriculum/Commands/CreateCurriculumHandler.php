@@ -35,9 +35,11 @@ final class CreateCurriculumHandler implements CommandHandler
         }
 
         $error = $this->guard->rejectionCode(
+            $command->schoolId,
             $command->academicYearId,
             $command->gradeLevelId,
             $command->name,
+            $command->specializationId,
         );
         if ($error !== null) {
             return CreateCurriculumResult::failure([$error]);
@@ -49,6 +51,7 @@ final class CreateCurriculumHandler implements CommandHandler
                 $command->academicYearId,
                 $command->gradeLevelId,
                 $command->name,
+                $command->specializationId,
                 (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             );
             $this->outbox->stage(new CurriculumCreated($id, $command->schoolId, new \DateTimeImmutable));

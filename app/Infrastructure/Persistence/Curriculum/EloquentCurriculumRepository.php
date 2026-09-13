@@ -31,6 +31,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         int $academicYearId,
         int $gradeLevelId,
         string $name,
+        ?int $specializationId,
         string $createdAt,
     ): int {
         $this->bindSchool($schoolId);
@@ -39,7 +40,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             'school_id' => $schoolId,
             'academic_year_id' => $academicYearId,
             'grade_level_id' => $gradeLevelId,
-            'specialization_id' => null,
+            'specialization_id' => $specializationId,
             'name' => $name,
             'status' => CurriculumStatus::Active->value,
             'created_at' => $createdAt,
@@ -55,7 +56,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('id', $curriculumId)
             ->where('school_id', $schoolId)
             ->where('status', CurriculumStatus::Active->value)
-            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'name', 'status']);
+            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
 
         return $row === null ? null : $this->mapCurriculum($row);
     }
@@ -68,7 +69,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('id', $curriculumId)
             ->where('school_id', $schoolId)
             ->where('status', CurriculumStatus::Inactive->value)
-            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'name', 'status']);
+            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
 
         return $row === null ? null : $this->mapCurriculum($row);
     }
@@ -82,7 +83,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('academic_year_id', $academicYearId)
             ->where('status', CurriculumStatus::Active->value)
             ->orderBy('id')
-            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'name', 'status']);
+            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
 
         return $rows->map(fn ($row): CurriculumSnapshot => $this->mapCurriculum($row))->all();
     }
@@ -219,6 +220,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             schoolId: (int) $row->school_id,
             academicYearId: (int) $row->academic_year_id,
             gradeLevelId: (int) $row->grade_level_id,
+            specializationId: $row->specialization_id !== null ? (int) $row->specialization_id : null,
             name: (string) $row->name,
             status: (int) $row->status,
         );

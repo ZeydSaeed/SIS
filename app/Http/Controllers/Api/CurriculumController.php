@@ -264,6 +264,9 @@ class CurriculumController extends Controller
             academicYearId: (int) $request->validated('academic_year_id'),
             gradeLevelId: (int) $request->validated('grade_level_id'),
             name: (string) $request->validated('name'),
+            specializationId: $request->validated('specialization_id') !== null
+                ? (int) $request->validated('specialization_id')
+                : null,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
 
@@ -634,6 +637,7 @@ class CurriculumController extends Controller
             'school_id' => $dto->schoolId,
             'academic_year_id' => $dto->academicYearId,
             'grade_level_id' => $dto->gradeLevelId,
+            'specialization_id' => $dto->specializationId,
             'name' => $dto->name,
             'status' => $dto->status,
         ];

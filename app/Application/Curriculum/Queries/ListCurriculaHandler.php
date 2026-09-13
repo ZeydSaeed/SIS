@@ -20,6 +20,7 @@ final class ListCurriculaHandler
                 schoolId: $row->schoolId,
                 academicYearId: $row->academicYearId,
                 gradeLevelId: $row->gradeLevelId,
+                specializationId: $row->specializationId,
                 name: $row->name,
                 status: $row->status,
             ),

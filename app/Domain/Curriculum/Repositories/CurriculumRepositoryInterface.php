@@ -16,6 +16,7 @@ interface CurriculumRepositoryInterface
         int $academicYearId,
         int $gradeLevelId,
         string $name,
+        ?int $specializationId,
         string $createdAt,
     ): int;
 
