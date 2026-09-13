@@ -366,6 +366,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('vocational/workshops/{workshop}/equipment', [VocationalController::class, 'indexWorkshopEquipment'])
             ->whereNumber('workshop')
             ->name('api.vocational.workshop_equipment.index');
+        Route::post('vocational/workshop-equipment/{equipment}/deactivate', [VocationalController::class, 'deactivateWorkshopEquipment'])
+            ->whereNumber('equipment')
+            ->name('api.vocational.workshop_equipment.deactivate');
 
         Route::post('hr/job-positions', [HrController::class, 'storePosition'])
             ->name('api.hr.job-positions.store');

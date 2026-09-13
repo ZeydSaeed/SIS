@@ -272,8 +272,8 @@
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(school_id)`, `BTREE(workshop_id, status)`, `UNIQUE(workshop_id, code)`  
-**Security:** FORCE RLS. Hard DELETE rejected. Soft deactivate via status (TV-U14).  
-**v1 HTTP:** `POST/GET …/vocational/workshops/{id}/equipment`
+**Security:** FORCE RLS. Hard DELETE rejected. Soft deactivate via status (**TV-U14**).  
+**v1 HTTP:** `POST/GET …/vocational/workshops/{id}/equipment`; `POST …/workshop-equipment/{id}/deactivate`
 
 ---
 

@@ -10,6 +10,8 @@ use App\Application\Vocational\Commands\CreateWorkshopCommand;
 use App\Application\Vocational\Commands\CreateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\CreateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\CreateWorkshopHandler;
+use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentCommand;
+use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationCommand;
 use App\Application\Vocational\Commands\DeactivateSpecializationHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationSubjectCommand;
@@ -41,6 +43,7 @@ use App\Http\Requests\Vocational\CreateWorkshopRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\DeactivateTrackRequest;
+use App\Http\Requests\Vocational\DeactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\ListSpecializationsRequest;
 use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
@@ -424,6 +427,39 @@ class VocationalController extends Controller
                 'quantity' => $dto->quantity,
                 'status' => $dto->status,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivateWorkshopEquipment(
+        int $equipment,
+        DeactivateWorkshopEquipmentRequest $request,
+        DeactivateWorkshopEquipmentHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateWorkshopEquipmentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            equipmentId: $equipment,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'vocational.equipment_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Workshop equipment deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'vocational.equipment_not_found' ? 404 : 422);
+        }
+
+        $this->audit($request->user(), 'vocational.workshop_equipment.deactivate', 'deactivated', 'equipment:'.$result->equipmentId);
+
+        return response()->json([
+            'data' => [
+                'equipment_id' => $result->equipmentId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
