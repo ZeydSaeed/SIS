@@ -1523,7 +1523,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(school_id, entity_type)`, `BTREE(school_id, is_active)`  
 **Security (Phase WF-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Create/List catalog only — approval_requests HOLD (runtime engine).
+**v1 HTTP:** Create/List catalog + soft deactivate (`POST …/approval-flows/{id}/deactivate`) — approval_requests HOLD extras unchanged.
 
 ### `workflow.approval_requests` — Phase WF-U04 LIVE
 

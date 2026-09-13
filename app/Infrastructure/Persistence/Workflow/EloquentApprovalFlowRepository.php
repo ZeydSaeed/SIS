@@ -84,6 +84,16 @@ final class EloquentApprovalFlowRepository implements ApprovalFlowRepositoryInte
         return $row === null ? null : $this->mapRow($row);
     }
 
+    public function setActive(int $schoolId, int $flowId, bool $isActive): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('workflow', 'approval_flows'))
+            ->where('school_id', $schoolId)
+            ->where('id', $flowId)
+            ->update(['is_active' => $isActive]);
+    }
+
     public function findActiveByEntityType(int $schoolId, string $entityType): ?ApprovalFlowSnapshot
     {
         $this->bindSchool($schoolId);

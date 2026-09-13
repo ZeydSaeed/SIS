@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Workflow\Commands\CreateApprovalFlowCommand;
 use App\Application\Workflow\Commands\CreateApprovalFlowHandler;
+use App\Application\Workflow\Commands\DeactivateApprovalFlowCommand;
+use App\Application\Workflow\Commands\DeactivateApprovalFlowHandler;
 use App\Application\Workflow\DTOs\ApprovalFlowDTO;
 use App\Application\Workflow\Queries\ListApprovalFlowsHandler;
 use App\Application\Workflow\Queries\ListApprovalFlowsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workflow\CreateApprovalFlowRequest;
+use App\Http\Requests\Workflow\DeactivateApprovalFlowRequest;
 use App\Http\Requests\Workflow\ListApprovalFlowsRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -101,6 +104,46 @@ class ApprovalFlowController extends Controller
                 'is_active' => $dto->isActive,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivate(
+        int $approvalFlow,
+        DeactivateApprovalFlowRequest $request,
+        DeactivateApprovalFlowHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateApprovalFlowCommand(
+            schoolId: $this->schoolContext->requireId(),
+            flowId: $approvalFlow,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'workflow.flow_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Approval flow deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'workflow.flow_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::WorkflowDataModified,
+            'workflow.approval_flow.deactivate',
+            'deactivated',
+            $request->user(),
+            'flow:'.$approvalFlow,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'flow_id' => $result->flowId,
+                'is_active' => false,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

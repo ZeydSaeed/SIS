@@ -25,6 +25,8 @@ interface ApprovalFlowRepositoryInterface
 
     public function findById(int $schoolId, int $flowId): ?ApprovalFlowSnapshot;
 
+    public function setActive(int $schoolId, int $flowId, bool $isActive): void;
+
     /**
      * Active flow for entity type (deterministic: lowest id when multiple).
      */
