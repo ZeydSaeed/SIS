@@ -41,6 +41,15 @@ interface TeacherRepositoryInterface
 
     public function belongsToSchool(int $teacherId, int $schoolId, ?int $academicYearId = null): bool;
 
+    public function isPrimaryInSchool(int $teacherId, int $schoolId, int $academicYearId): bool;
+
+    public function setMembershipPrimary(
+        int $teacherId,
+        int $schoolId,
+        int $academicYearId,
+        bool $isPrimary,
+    ): void;
+
     /**
      * @param  array{
      *     first_name?:string,

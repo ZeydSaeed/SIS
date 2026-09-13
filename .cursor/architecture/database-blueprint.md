@@ -566,7 +566,7 @@
 
 **Indexes:** `BTREE(teacher_id)`, `BTREE(school_id, academic_year_id)`  
 **Security (Phase 8-U01 / 8.3-U01):** FORCE RLS school isolation on `school_id`. Hard DELETE rejected by trigger.  
-**v1 HTTP:** Register creates primary membership; `POST …/teachers/{id}/assign-school` adds secondary (`is_primary=false`) when actor manages source+target.
+**v1 HTTP:** Register creates primary membership; `POST …/assign-school` adds secondary (`is_primary=false`); `POST …/set-primary-school` moves primary (8.5-U01).
 
 ### `teachers.teacher_subjects`
 

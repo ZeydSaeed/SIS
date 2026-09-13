@@ -134,6 +134,33 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         return $q->exists();
     }
 
+    public function isPrimaryInSchool(int $teacherId, int $schoolId, int $academicYearId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('is_primary', true)
+            ->exists();
+    }
+
+    public function setMembershipPrimary(
+        int $teacherId,
+        int $schoolId,
+        int $academicYearId,
+        bool $isPrimary,
+    ): void {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->update(['is_primary' => $isPrimary]);
+    }
+
     public function updateTeacher(int $teacherId, array $fields): void
     {
         DB::table(SchemaHelper::qualified('teachers', 'teachers'))

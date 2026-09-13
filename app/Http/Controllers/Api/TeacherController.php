@@ -16,6 +16,8 @@ use App\Application\Teachers\Commands\DeactivateTeacherCommand;
 use App\Application\Teachers\Commands\DeactivateTeacherHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
 use App\Application\Teachers\Commands\RegisterTeacherHandler;
+use App\Application\Teachers\Commands\SetTeacherPrimarySchoolCommand;
+use App\Application\Teachers\Commands\SetTeacherPrimarySchoolHandler;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectCommand;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectHandler;
 use App\Application\Teachers\Commands\UpdateTeacherCommand;
@@ -40,6 +42,7 @@ use App\Http\Requests\Teachers\DeactivateTeacherRequest;
 use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
 use App\Http\Requests\Teachers\RegisterTeacherRequest;
+use App\Http\Requests\Teachers\SetTeacherPrimarySchoolRequest;
 use App\Http\Requests\Teachers\ShowTeacherRequest;
 use App\Http\Requests\Teachers\UnlinkTeacherSubjectRequest;
 use App\Http\Requests\Teachers\UpdateTeacherRequest;
@@ -628,6 +631,53 @@ class TeacherController extends Controller
             'data' => [
                 'teacher_id' => $result->teacherId,
                 'employee_code' => $result->employeeCode,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function setPrimarySchool(
+        int $teacher,
+        SetTeacherPrimarySchoolRequest $request,
+        SetTeacherPrimarySchoolHandler $handler,
+    ): JsonResponse {
+        $targetSchoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new SetTeacherPrimarySchoolCommand(
+            targetSchoolId: $targetSchoolId,
+            sourceSchoolId: (int) $request->validated('source_school_id'),
+            teacherId: $teacher,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'teachers.set_primary_failed';
+
+            return response()->json([
+                'message' => 'Teacher primary school change rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], in_array($code, [
+                'teachers.not_in_source_school_year',
+                'teachers.not_in_target_school_year',
+            ], true) ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.set_primary_school',
+            'primary_changed',
+            $request->user(),
+            'teacher:'.$teacher,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'teacher_id' => $result->teacherId,
+                'school_id' => $targetSchoolId,
+                'is_primary' => true,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
