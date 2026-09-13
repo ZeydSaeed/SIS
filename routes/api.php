@@ -549,5 +549,8 @@ Route::prefix('v1')->group(function (): void {
         Route::post('curriculum/prerequisites/{prerequisite}/reactivate', [CurriculumController::class, 'reactivatePrerequisite'])
             ->whereNumber('prerequisite')
             ->name('api.curriculum.prerequisites.reactivate');
+        Route::get('curriculum/prerequisites/{prerequisite}', [CurriculumController::class, 'showPrerequisite'])
+            ->whereNumber('prerequisite')
+            ->name('api.curriculum.prerequisites.show');
     });
 });
