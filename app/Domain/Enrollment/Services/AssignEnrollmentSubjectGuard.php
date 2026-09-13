@@ -3,6 +3,7 @@
 namespace App\Domain\Enrollment\Services;
 
 use App\Domain\Enrollment\Contracts\PrerequisiteCatalogPort;
+use App\Domain\Enrollment\Contracts\PrerequisitePassEvidencePort;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentSubjectRepositoryInterface;
 
@@ -15,6 +16,7 @@ final class AssignEnrollmentSubjectGuard
         private readonly EnrollmentRepositoryInterface $enrollments,
         private readonly EnrollmentSubjectRepositoryInterface $enrollmentSubjects,
         private readonly PrerequisiteCatalogPort $catalog,
+        private readonly PrerequisitePassEvidencePort $passEvidence,
     ) {}
 
     public function rejectionCode(
@@ -31,7 +33,17 @@ final class AssignEnrollmentSubjectGuard
         }
 
         foreach ($this->catalog->activePrerequisiteSubjectIds($subjectId) as $prereqSubjectId) {
-            if (! $this->enrollmentSubjects->studentHasSubjectHistory($schoolId, $enrollment->studentId, $prereqSubjectId)) {
+            $history = $this->enrollmentSubjects->studentHasSubjectHistory(
+                $schoolId,
+                $enrollment->studentId,
+                $prereqSubjectId,
+            );
+            $gradePass = $this->passEvidence->studentHasPassingGrade(
+                $schoolId,
+                $enrollment->studentId,
+                $prereqSubjectId,
+            );
+            if (! $history && ! $gradePass) {
                 return 'enrollment.prerequisite_not_met';
             }
         }

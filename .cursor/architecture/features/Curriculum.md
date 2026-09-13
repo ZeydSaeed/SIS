@@ -1,6 +1,6 @@
 # Feature: Curriculum
 
-> Phase CUR — subjects, curricula, prerequisites (soft lifecycle). Enrollment prereq enforce HOLD.
+> Phase CUR — subjects, curricula, prerequisites (soft lifecycle). Enrollment prereq enforce CLOSED (U05 history + U06 grade-pass).
 
 ## Definition of Done
 
@@ -32,8 +32,15 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 | Query | ListCurricula | ✅ |
 | Query | ListCurriculumSubjects | ✅ |
 
+## Enrollment prereq (cross-context)
+
+| Type | Name | Status |
+|------|------|--------|
+| Command | AssignEnrollmentSubject | ✅ U05 + U06 |
+| Command | DeactivateEnrollmentSubject | ✅ U05 |
+| Query | ListEnrollmentSubjects | ✅ U05 |
+
 ## Out of scope
 
 - specialization_id on curricula — HOLD
-- Enrollment prerequisite enforcement — HOLD
 - Payroll / Ranking-PDF
