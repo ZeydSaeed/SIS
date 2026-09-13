@@ -9,6 +9,8 @@ use App\Application\Workflow\Commands\DeactivateApprovalFlowHandler;
 use App\Application\Workflow\Commands\ReactivateApprovalFlowCommand;
 use App\Application\Workflow\Commands\ReactivateApprovalFlowHandler;
 use App\Application\Workflow\DTOs\ApprovalFlowDTO;
+use App\Application\Workflow\Queries\GetApprovalFlowHandler;
+use App\Application\Workflow\Queries\GetApprovalFlowQuery;
 use App\Application\Workflow\Queries\ListApprovalFlowsHandler;
 use App\Application\Workflow\Queries\ListApprovalFlowsQuery;
 use App\Http\Controllers\Controller;
@@ -16,6 +18,7 @@ use App\Http\Requests\Workflow\CreateApprovalFlowRequest;
 use App\Http\Requests\Workflow\DeactivateApprovalFlowRequest;
 use App\Http\Requests\Workflow\ListApprovalFlowsRequest;
 use App\Http\Requests\Workflow\ReactivateApprovalFlowRequest;
+use App\Http\Requests\Workflow\ShowApprovalFlowRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -107,6 +110,48 @@ class ApprovalFlowController extends Controller
                 'is_active' => $dto->isActive,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $approvalFlow,
+        ShowApprovalFlowRequest $request,
+        GetApprovalFlowHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetApprovalFlowQuery(
+            schoolId: $schoolId,
+            flowId: $approvalFlow,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Approval flow not found.',
+                'error_code' => 'workflow.flow_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::WorkflowDataAccess,
+            'workflow.approval_flow.show',
+            'viewed',
+            $request->user(),
+            'flow:'.$approvalFlow,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'entity_type' => $dto->entityType,
+                'name' => $dto->name,
+                'steps' => $dto->steps,
+                'is_active' => $dto->isActive,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

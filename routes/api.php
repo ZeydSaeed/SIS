@@ -373,6 +373,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.workflow.approval-flows.store');
         Route::get('workflow/approval-flows', [ApprovalFlowController::class, 'index'])
             ->name('api.workflow.approval-flows.index');
+        Route::get('workflow/approval-flows/{approvalFlow}', [ApprovalFlowController::class, 'show'])
+            ->whereNumber('approvalFlow')
+            ->name('api.workflow.approval-flows.show');
         Route::post('workflow/approval-flows/{approvalFlow}/deactivate', [ApprovalFlowController::class, 'deactivate'])
             ->whereNumber('approvalFlow')
             ->name('api.workflow.approval-flows.deactivate');
