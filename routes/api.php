@@ -386,6 +386,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.workflow.approval-requests.store');
         Route::get('workflow/approval-requests', [ApprovalRequestController::class, 'index'])
             ->name('api.workflow.approval-requests.index');
+        Route::get('workflow/approval-requests/{approvalRequest}', [ApprovalRequestController::class, 'show'])
+            ->whereNumber('approvalRequest')
+            ->name('api.workflow.approval-requests.show');
         Route::post('workflow/approval-requests/{approvalRequest}/decide', [ApprovalRequestController::class, 'decide'])
             ->whereNumber('approvalRequest')
             ->name('api.workflow.approval-requests.decide');

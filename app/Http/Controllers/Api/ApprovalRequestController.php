@@ -9,6 +9,8 @@ use App\Application\Workflow\Commands\CreateApprovalRequestHandler;
 use App\Application\Workflow\Commands\DecideApprovalRequestCommand;
 use App\Application\Workflow\Commands\DecideApprovalRequestHandler;
 use App\Application\Workflow\DTOs\ApprovalRequestDTO;
+use App\Application\Workflow\Queries\GetApprovalRequestHandler;
+use App\Application\Workflow\Queries\GetApprovalRequestQuery;
 use App\Application\Workflow\Queries\ListApprovalRequestsHandler;
 use App\Application\Workflow\Queries\ListApprovalRequestsQuery;
 use App\Http\Controllers\Controller;
@@ -16,6 +18,7 @@ use App\Http\Requests\Workflow\CancelApprovalRequestRequest;
 use App\Http\Requests\Workflow\CreateApprovalRequestRequest;
 use App\Http\Requests\Workflow\DecideApprovalRequestRequest;
 use App\Http\Requests\Workflow\ListApprovalRequestsRequest;
+use App\Http\Requests\Workflow\ShowApprovalRequestRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -107,6 +110,51 @@ class ApprovalRequestController extends Controller
                 'created_at' => $dto->createdAt,
                 'completed_at' => $dto->completedAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $approvalRequest,
+        ShowApprovalRequestRequest $request,
+        GetApprovalRequestHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetApprovalRequestQuery(
+            schoolId: $schoolId,
+            requestId: $approvalRequest,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Approval request not found.',
+                'error_code' => 'workflow.approval_request_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::WorkflowDataAccess,
+            'workflow.approval_request.show',
+            'viewed',
+            $request->user(),
+            'request:'.$approvalRequest,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'flow_id' => $dto->flowId,
+                'entity_type' => $dto->entityType,
+                'entity_id' => $dto->entityId,
+                'current_step' => $dto->currentStep,
+                'status' => $dto->status,
+                'requested_by' => $dto->requestedBy,
+                'created_at' => $dto->createdAt,
+                'completed_at' => $dto->completedAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
