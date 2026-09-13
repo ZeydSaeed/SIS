@@ -233,6 +233,13 @@ return [
             'hr.view',
             'hr.manage',
         ],
+        'hr_payroll_viewer' => [
+            'hr.payroll.view',
+        ],
+        'hr_payroll_manager' => [
+            'hr.payroll.view',
+            'hr.payroll.manage',
+        ],
         'vocational_manager' => [
             'vocational.view',
             'vocational.manage',

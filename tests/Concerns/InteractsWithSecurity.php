@@ -491,6 +491,26 @@ trait InteractsWithSecurity
         return $user;
     }
 
+    protected function actingAsHrPayrollManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantHrPayrollManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsHrPayrollViewerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantHrPayrollViewer($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
     protected function actingAsVocationalManager(?User $user = null, ?int $schoolId = null): User
     {
         $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
