@@ -354,6 +354,18 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ]) === 1;
     }
 
+    public function restoreQualification(int $teacherId, int $qualificationId): bool
+    {
+        return DB::table(SchemaHelper::qualified('teachers', 'teacher_qualifications'))
+            ->where('teacher_id', $teacherId)
+            ->where('id', $qualificationId)
+            ->where('status', QualificationStatus::Voided)
+            ->update([
+                'status' => QualificationStatus::Active,
+                'effective_to' => null,
+            ]) === 1;
+    }
+
     public function listQualifications(int $teacherId): array
     {
         return DB::table(SchemaHelper::qualified('teachers', 'teacher_qualifications'))

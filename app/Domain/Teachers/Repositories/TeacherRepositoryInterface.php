@@ -114,6 +114,8 @@ interface TeacherRepositoryInterface
 
     public function voidQualification(int $teacherId, int $qualificationId, string $effectiveTo): bool;
 
+    public function restoreQualification(int $teacherId, int $qualificationId): bool;
+
     /**
      * @return list<TeacherQualificationSnapshot>
      */

@@ -243,6 +243,10 @@ Route::prefix('v1')->group(function (): void {
             ->whereNumber('teacher')
             ->whereNumber('qualification')
             ->name('api.teachers.qualifications.void');
+        Route::post('teachers/{teacher}/qualifications/{qualification}/restore', [TeacherController::class, 'restoreQualification'])
+            ->whereNumber('teacher')
+            ->whereNumber('qualification')
+            ->name('api.teachers.qualifications.restore');
         Route::post('teachers/{teacher}/qualifications/{qualification}/attach-document', [TeacherController::class, 'attachQualificationDocument'])
             ->whereNumber('teacher')
             ->whereNumber('qualification')

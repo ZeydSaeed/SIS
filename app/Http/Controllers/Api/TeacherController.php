@@ -28,6 +28,8 @@ use App\Application\Teachers\Commands\UpdateTeacherCommand;
 use App\Application\Teachers\Commands\UpdateTeacherHandler;
 use App\Application\Teachers\Commands\VoidTeacherQualificationCommand;
 use App\Application\Teachers\Commands\VoidTeacherQualificationHandler;
+use App\Application\Teachers\Commands\RestoreTeacherQualificationCommand;
+use App\Application\Teachers\Commands\RestoreTeacherQualificationHandler;
 use App\Application\Teachers\DTOs\TeacherDTO;
 use App\Application\Teachers\DTOs\TeacherQualificationDTO;
 use App\Application\Teachers\Queries\GetTeacherHandler;
@@ -53,6 +55,7 @@ use App\Http\Requests\Teachers\ShowTeacherRequest;
 use App\Http\Requests\Teachers\UnlinkTeacherSubjectRequest;
 use App\Http\Requests\Teachers\UpdateTeacherRequest;
 use App\Http\Requests\Teachers\VoidTeacherQualificationRequest;
+use App\Http\Requests\Teachers\RestoreTeacherQualificationRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Domain\Teachers\ValueObjects\TeacherStatus;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -524,6 +527,51 @@ class TeacherController extends Controller
             SecurityEventType::TeacherDataModified,
             'teachers.qualification.void',
             'voided',
+            $request->user(),
+            'teacher:'.$teacher,
+            [
+                'qualification_id' => $result->qualificationId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'qualification_id' => $result->qualificationId,
+                'teacher_id' => $teacher,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], 200);
+    }
+
+    public function restoreQualification(
+        int $teacher,
+        int $qualification,
+        RestoreTeacherQualificationRequest $request,
+        RestoreTeacherQualificationHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new RestoreTeacherQualificationCommand(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            qualificationId: $qualification,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Teacher qualification restore rejected.',
+                'error_code' => $result->errors[0] ?? 'teachers.qualification_restore_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.qualification.restore',
+            'restored',
             $request->user(),
             'teacher:'.$teacher,
             [
