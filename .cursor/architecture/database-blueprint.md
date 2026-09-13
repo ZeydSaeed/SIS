@@ -515,6 +515,9 @@
 - `COMPOSITE(student_id, academic_year_id)`
 - `PARTIAL UNIQUE(student_id, academic_year_id) WHERE status = 1`
 
+**Security (ENR-U01):** FORCE RLS school isolation on `school_id` (fail-closed GUC). Hard DELETE rejected by trigger — cancel via `status` + `effective_to`.  
+**Note:** Legacy ENABLE-only fail-open policy replaced.
+
 ### `enrollment.enrollment_subjects`
 
 | Column | Type | Constraints |
