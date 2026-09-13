@@ -12,6 +12,8 @@ use App\Application\Promotion\Commands\RecordPromotionDecisionCommand;
 use App\Application\Promotion\Commands\RecordPromotionDecisionHandler;
 use App\Application\Promotion\DTOs\PromotionRecordDTO;
 use App\Application\Promotion\DTOs\PromotionRuleDTO;
+use App\Application\Promotion\Queries\GetPromotionRuleHandler;
+use App\Application\Promotion\Queries\GetPromotionRuleQuery;
 use App\Application\Promotion\Queries\ListPromotionRecordsHandler;
 use App\Application\Promotion\Queries\ListPromotionRecordsQuery;
 use App\Application\Promotion\Queries\ListPromotionRulesHandler;
@@ -23,6 +25,7 @@ use App\Http\Requests\Promotion\ReactivatePromotionRuleRequest;
 use App\Http\Requests\Promotion\ListPromotionRecordsRequest;
 use App\Http\Requests\Promotion\ListPromotionRulesRequest;
 use App\Http\Requests\Promotion\RecordPromotionDecisionRequest;
+use App\Http\Requests\Promotion\ShowPromotionRuleRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -114,6 +117,50 @@ class PromotionController extends Controller
                 'is_active' => $dto->isActive,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showRule(
+        int $rule,
+        ShowPromotionRuleRequest $request,
+        GetPromotionRuleHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetPromotionRuleQuery(
+            schoolId: $schoolId,
+            ruleId: $rule,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Promotion rule not found.',
+                'error_code' => 'promotion.rule_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::PromotionDataAccess,
+            'promotion.rule.show',
+            'viewed',
+            $request->user(),
+            'promotion_rule:'.$rule,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'from_grade_level_id' => $dto->fromGradeLevelId,
+                'to_grade_level_id' => $dto->toGradeLevelId,
+                'min_gpa' => $dto->minGpa,
+                'min_pass_subjects' => $dto->minPassSubjects,
+                'max_failed_subjects' => $dto->maxFailedSubjects,
+                'is_active' => $dto->isActive,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

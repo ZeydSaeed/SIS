@@ -262,6 +262,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.promotion.rules.store');
         Route::get('promotion/rules', [PromotionController::class, 'indexRules'])
             ->name('api.promotion.rules.index');
+        Route::get('promotion/rules/{rule}', [PromotionController::class, 'showRule'])
+            ->whereNumber('rule')
+            ->name('api.promotion.rules.show');
         Route::post('promotion/rules/{rule}/deactivate', [PromotionController::class, 'deactivateRule'])
             ->whereNumber('rule')
             ->name('api.promotion.rules.deactivate');
