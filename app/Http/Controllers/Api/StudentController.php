@@ -4,10 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Student\Commands\CreateStudentCommand;
 use App\Application\Student\Commands\CreateStudentHandler;
+use App\Application\Student\Commands\RegisterStudentDocumentCommand;
+use App\Application\Student\Commands\RegisterStudentDocumentHandler;
 use App\Application\Student\Commands\UpdateStudentCommand;
 use App\Application\Student\Commands\UpdateStudentHandler;
+use App\Application\Student\Commands\VoidStudentDocumentCommand;
+use App\Application\Student\Commands\VoidStudentDocumentHandler;
+use App\Application\Student\DTOs\StudentDocumentDTO;
 use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
+use App\Application\Student\Queries\ListStudentDocumentsHandler;
+use App\Application\Student\Queries\ListStudentDocumentsQuery;
 use App\Application\Student\Queries\ListStudentsHandler;
 use App\Application\Student\Queries\ListStudentsQuery;
 use App\Application\Student\Queries\SearchStudentsHandler;
@@ -15,7 +22,10 @@ use App\Application\Student\Queries\SearchStudentsQuery;
 use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\CreateStudentRequest;
+use App\Http\Requests\Student\ListStudentDocumentsRequest;
+use App\Http\Requests\Student\RegisterStudentDocumentRequest;
 use App\Http\Requests\Student\UpdateStudentRequest;
+use App\Http\Requests\Student\VoidStudentDocumentRequest;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -222,6 +232,135 @@ class StudentController extends Controller
             'meta' => [
                 'correlation_id' => CorrelationContext::id(),
             ],
+        ]);
+    }
+
+    public function storeDocument(
+        int $student,
+        RegisterStudentDocumentRequest $request,
+        RegisterStudentDocumentHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new RegisterStudentDocumentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            studentId: $student,
+            documentType: (int) $request->validated('document_type'),
+            storageKey: (string) $request->validated('storage_key'),
+            fileName: (string) $request->validated('file_name'),
+            mimeType: (string) $request->validated('mime_type'),
+            fileSize: (int) $request->validated('file_size'),
+            fileHash: (string) $request->validated('file_hash'),
+            uploadedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'student.document_register_failed';
+
+            return response()->json([
+                'message' => 'Student document register rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'student.not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.documents.store',
+            'registered',
+            $request->user(),
+            'student:'.$student,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'document_id' => $result->documentId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexDocuments(
+        int $student,
+        ListStudentDocumentsRequest $request,
+        ListStudentDocumentsHandler $handler,
+    ): JsonResponse {
+        $items = $handler->handle(new ListStudentDocumentsQuery(
+            $this->schoolContext->requireId(),
+            $student,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Student not found.',
+                'error_code' => 'student.not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataAccess,
+            'students.documents.index',
+            'listed',
+            $request->user(),
+            'student:'.$student,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (StudentDocumentDTO $dto): array => [
+                'id' => $dto->id,
+                'student_id' => $dto->studentId,
+                'document_type' => $dto->documentType,
+                'storage_key' => $dto->storageKey,
+                'file_name' => $dto->fileName,
+                'mime_type' => $dto->mimeType,
+                'file_size' => $dto->fileSize,
+                'file_hash' => $dto->fileHash,
+                'status' => $dto->status,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function voidDocument(
+        int $document,
+        VoidStudentDocumentRequest $request,
+        VoidStudentDocumentHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new VoidStudentDocumentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            documentId: $document,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'student.document_void_failed';
+
+            return response()->json([
+                'message' => 'Student document void rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'student.document_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.documents.void',
+            'voided',
+            $request->user(),
+            'student_document:'.$result->documentId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'document_id' => $result->documentId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
 }

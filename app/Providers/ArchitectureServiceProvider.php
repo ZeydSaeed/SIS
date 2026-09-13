@@ -93,6 +93,7 @@ use App\Infrastructure\Persistence\Vocational\EloquentWorkshopRepository;
 use App\Application\Graduation\Contracts\GraduationAuthorityPort;
 use App\Application\Graduation\Contracts\GraduationReadRepositoryInterface;
 use App\Domain\Graduation\Repositories\GraduationWriteRepositoryInterface;
+use App\Domain\Student\Repositories\StudentDocumentRepositoryInterface;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use App\Infrastructure\Enrollment\CurriculumPrerequisiteCatalogAdapter;
 use App\Infrastructure\Enrollment\EloquentPrerequisitePassEvidenceAdapter;
@@ -122,6 +123,7 @@ use App\Infrastructure\Persistence\Intelligence\EloquentRecommendationReadReposi
 use App\Infrastructure\Persistence\Outbox\EloquentOutboxRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentManagementReadRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentReadRepository;
+use App\Infrastructure\Persistence\Student\EloquentStudentDocumentRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentRepository;
 use App\Listeners\Enrollment\RecordEnrollmentCancelledAudit;
 use App\Listeners\Enrollment\RecordEnrollmentPlacementUpdatedAudit;
@@ -181,6 +183,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(ExamRepositoryInterface::class, EloquentExamRepository::class);
         $this->app->bind(ExamAdministrationAuthorityPort::class, PermissionCatalogExamAuthority::class);
         $this->app->bind(StudentRepositoryInterface::class, EloquentStudentRepository::class);
+        $this->app->bind(StudentDocumentRepositoryInterface::class, EloquentStudentDocumentRepository::class);
         $this->app->bind(StudentReadRepositoryInterface::class, EloquentStudentReadRepository::class);
         $this->app->bind(StudentManagementReadRepositoryInterface::class, EloquentStudentManagementReadRepository::class);
         $this->app->bind(HttpWorkloadReadRepositoryInterface::class, EloquentHttpWorkloadReadRepository::class);

@@ -324,17 +324,22 @@
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT | PK |
+| school_id | BIGINT | FK → schools (**STU-DOC-U01** RLS denorm) |
 | student_id | BIGINT | FK → students |
-| document_type | SMALLINT | NOT NULL |
+| document_type | SMALLINT | NOT NULL — 1=Identity, 2=Certificate, 3=Qualification, 4=Medical, 9=Other |
 | storage_key | VARCHAR(500) | NOT NULL |
 | file_name | VARCHAR(255) | NOT NULL |
 | mime_type | VARCHAR(100) | NOT NULL |
-| file_size | BIGINT | NOT NULL |
-| file_hash | VARCHAR(64) | NOT NULL |
-| uploaded_by | BIGINT | FK → security.users |
+| file_size | BIGINT | NOT NULL ≥ 0 |
+| file_hash | VARCHAR(64) | NOT NULL (sha256 hex) |
+| uploaded_by | BIGINT | FK → users, nullable |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Voided (**STU-DOC-U01**) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(student_id)`, `BTREE(student_id, document_type)`
+**Indexes:** `BTREE(student_id)`, `BTREE(student_id, document_type)`, `BTREE(school_id, created_at)`  
+**Security (STU-DOC-U01):** FORCE RLS on `school_id`; hard DELETE rejected; soft void via `status`.  
+**v1 HTTP:** `POST/GET …/students/{id}/documents`; `POST …/student-documents/{id}/void` (metadata only). Binary upload HOLD (DOC-U04).  
+**Note:** Coexists with `documents.files` (generic entity store).
 
 ---
 

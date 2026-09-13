@@ -54,6 +54,15 @@ Route::prefix('v1')->group(function (): void {
             'store' => 'api.students.store',
             'update' => 'api.students.update',
         ]);
+        Route::post('students/{student}/documents', [StudentController::class, 'storeDocument'])
+            ->whereNumber('student')
+            ->name('api.students.documents.store');
+        Route::get('students/{student}/documents', [StudentController::class, 'indexDocuments'])
+            ->whereNumber('student')
+            ->name('api.students.documents.index');
+        Route::post('student-documents/{document}/void', [StudentController::class, 'voidDocument'])
+            ->whereNumber('document')
+            ->name('api.student_documents.void');
 
         Route::get('/security/admin-probe', function (Request $request) {
             abort_unless(Gate::allows('security.manage_users'), 403);
