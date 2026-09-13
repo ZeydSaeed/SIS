@@ -388,6 +388,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.vocational.tracks.update');
         Route::post('vocational/tracks/{track}/deactivate', [VocationalController::class, 'deactivateTrack'])
             ->name('api.vocational.tracks.deactivate');
+        Route::post('vocational/tracks/{track}/reactivate', [VocationalController::class, 'reactivateTrack'])
+            ->whereNumber('track')
+            ->name('api.vocational.tracks.reactivate');
         Route::post('vocational/specializations/{specialization}/subjects', [VocationalController::class, 'linkSubject'])
             ->name('api.vocational.specialization_subjects.store');
         Route::post('vocational/specialization-subjects/{link}/deactivate', [VocationalController::class, 'deactivateSubjectLink'])

@@ -16,6 +16,8 @@ use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\DeactivateWorkshopHandler;
 use App\Application\Vocational\Commands\ReactivateSpecializationCommand;
 use App\Application\Vocational\Commands\ReactivateSpecializationHandler;
+use App\Application\Vocational\Commands\ReactivateTrackCommand;
+use App\Application\Vocational\Commands\ReactivateTrackHandler;
 use App\Application\Vocational\Commands\ReactivateWorkshopCommand;
 use App\Application\Vocational\Commands\ReactivateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\ReactivateWorkshopEquipmentHandler;
@@ -54,6 +56,7 @@ use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopRequest;
 use App\Http\Requests\Vocational\ReactivateSpecializationRequest;
+use App\Http\Requests\Vocational\ReactivateTrackRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
@@ -263,6 +266,23 @@ class VocationalController extends Controller
         ));
 
         $this->audit($request->user(), 'vocational.tracks.deactivate', 'deactivated', 'track:'.($result->trackId ?? 'unknown'));
+
+        return $this->idResponse($result->trackId, $result->fromIdempotencyCache);
+    }
+
+    public function reactivateTrack(
+        ReactivateTrackRequest $request,
+        int $track,
+        ReactivateTrackHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateTrackCommand(
+            schoolId: $this->schoolContext->requireId(),
+            trackId: $track,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->audit($request->user(), 'vocational.tracks.reactivate', 'reactivated', 'track:'.($result->trackId ?? 'unknown'));
 
         return $this->idResponse($result->trackId, $result->fromIdempotencyCache);
     }

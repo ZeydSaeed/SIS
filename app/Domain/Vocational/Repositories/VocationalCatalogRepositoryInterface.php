@@ -45,6 +45,8 @@ interface VocationalCatalogRepositoryInterface
 
     public function deactivateTrack(int $schoolId, int $trackId, string $at): void;
 
+    public function reactivateTrack(int $schoolId, int $trackId, string $at): void;
+
     public function linkSpecializationSubject(
         int $schoolId,
         int $specializationId,

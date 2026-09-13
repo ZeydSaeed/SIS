@@ -160,6 +160,24 @@ final class EloquentVocationalCatalogRepository implements VocationalCatalogRepo
         }
     }
 
+    public function reactivateTrack(int $schoolId, int $trackId, string $at): void
+    {
+        $this->requireTrackInSchool($schoolId, $trackId, activeOnly: false);
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $updated = DB::table(SchemaHelper::qualified('vocational', 'tracks'))
+            ->where('id', $trackId)
+            ->where('status', VocationalCatalogStatus::Inactive->value)
+            ->update([
+                'status' => VocationalCatalogStatus::Active->value,
+                'updated_at' => $at,
+            ]);
+
+        if ($updated === 0) {
+            throw VocationalNotFoundException::track($trackId);
+        }
+    }
+
     public function linkSpecializationSubject(
         int $schoolId,
         int $specializationId,
