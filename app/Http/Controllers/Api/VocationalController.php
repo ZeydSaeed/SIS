@@ -14,6 +14,8 @@ use App\Application\Vocational\Commands\DeactivateWorkshopCommand;
 use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\DeactivateWorkshopHandler;
+use App\Application\Vocational\Commands\ReactivateSpecializationCommand;
+use App\Application\Vocational\Commands\ReactivateSpecializationHandler;
 use App\Application\Vocational\Commands\ReactivateWorkshopCommand;
 use App\Application\Vocational\Commands\ReactivateWorkshopEquipmentCommand;
 use App\Application\Vocational\Commands\ReactivateWorkshopEquipmentHandler;
@@ -51,6 +53,7 @@ use App\Http\Requests\Vocational\DeactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopRequest;
+use App\Http\Requests\Vocational\ReactivateSpecializationRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
@@ -188,6 +191,23 @@ class VocationalController extends Controller
         ));
 
         $this->audit($request->user(), 'vocational.specializations.deactivate', 'deactivated', 'specialization:'.($result->specializationId ?? 'unknown'));
+
+        return $this->idResponse($result->specializationId, $result->fromIdempotencyCache);
+    }
+
+    public function reactivateSpecialization(
+        ReactivateSpecializationRequest $request,
+        int $specialization,
+        ReactivateSpecializationHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateSpecializationCommand(
+            schoolId: $this->schoolContext->requireId(),
+            specializationId: $specialization,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->audit($request->user(), 'vocational.specializations.reactivate', 'reactivated', 'specialization:'.($result->specializationId ?? 'unknown'));
 
         return $this->idResponse($result->specializationId, $result->fromIdempotencyCache);
     }

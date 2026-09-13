@@ -250,6 +250,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('promotion/rules/{rule}/deactivate', [PromotionController::class, 'deactivateRule'])
             ->whereNumber('rule')
             ->name('api.promotion.rules.deactivate');
+        Route::post('promotion/rules/{rule}/reactivate', [PromotionController::class, 'reactivateRule'])
+            ->whereNumber('rule')
+            ->name('api.promotion.rules.reactivate');
         Route::post('promotion/records', [PromotionController::class, 'storeRecord'])
             ->name('api.promotion.records.store');
         Route::get('promotion/records', [PromotionController::class, 'indexRecords'])
@@ -304,6 +307,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('finance/student-fees/{studentFee}/cancel', [StudentFeeController::class, 'cancel'])
             ->whereNumber('studentFee')
             ->name('api.finance.student-fees.cancel');
+        Route::post('finance/student-fees/{studentFee}/reopen', [StudentFeeController::class, 'reopen'])
+            ->whereNumber('studentFee')
+            ->name('api.finance.student-fees.reopen');
         Route::post('finance/payments', [PaymentController::class, 'store'])
             ->name('api.finance.payments.store');
         Route::get('finance/payments', [PaymentController::class, 'index'])
@@ -373,6 +379,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.vocational.specializations.update');
         Route::post('vocational/specializations/{specialization}/deactivate', [VocationalController::class, 'deactivateSpecialization'])
             ->name('api.vocational.specializations.deactivate');
+        Route::post('vocational/specializations/{specialization}/reactivate', [VocationalController::class, 'reactivateSpecialization'])
+            ->whereNumber('specialization')
+            ->name('api.vocational.specializations.reactivate');
         Route::post('vocational/specializations/{specialization}/tracks', [VocationalController::class, 'storeTrack'])
             ->name('api.vocational.tracks.store');
         Route::patch('vocational/tracks/{track}', [VocationalController::class, 'updateTrack'])
