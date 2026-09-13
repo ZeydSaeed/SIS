@@ -597,7 +597,7 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(teacher_id)`, `BTREE(teacher_id, status)`  
-**Security (Phase 8-U01 / 8.1 / 8.1-U03 / 8-U04):** Hard DELETE rejected by trigger. HTTP Add/List/Void via school membership. FORCE RLS via `EXISTS teacher_schools` for current school (USING + WITH CHECK).
+**Security (Phase 8-U01 / 8.1 / 8.1-U03 / 8-U04 / 8.2-U01):** Hard DELETE rejected by trigger. HTTP Add/List/Void + AttachDocument (`document_id` → `document_storage_key`) via school membership. FORCE RLS via `EXISTS teacher_schools` for current school (USING + WITH CHECK).
 
 ---
 

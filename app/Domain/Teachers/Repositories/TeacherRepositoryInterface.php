@@ -91,6 +91,12 @@ interface TeacherRepositoryInterface
 
     public function findQualification(int $teacherId, int $qualificationId): ?TeacherQualificationSnapshot;
 
+    public function setQualificationDocumentStorageKey(
+        int $teacherId,
+        int $qualificationId,
+        string $documentStorageKey,
+    ): void;
+
     public function voidQualification(int $teacherId, int $qualificationId, string $effectiveTo): bool;
 
     /**

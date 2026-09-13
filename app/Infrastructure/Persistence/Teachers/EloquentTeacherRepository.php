@@ -235,6 +235,20 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         return $row === null ? null : $this->mapQualification($row);
     }
 
+    public function setQualificationDocumentStorageKey(
+        int $teacherId,
+        int $qualificationId,
+        string $documentStorageKey,
+    ): void {
+        DB::table(SchemaHelper::qualified('teachers', 'teacher_qualifications'))
+            ->where('teacher_id', $teacherId)
+            ->where('id', $qualificationId)
+            ->where('status', QualificationStatus::Active)
+            ->update([
+                'document_storage_key' => $documentStorageKey,
+            ]);
+    }
+
     public function voidQualification(int $teacherId, int $qualificationId, string $effectiveTo): bool
     {
         return DB::table(SchemaHelper::qualified('teachers', 'teacher_qualifications'))

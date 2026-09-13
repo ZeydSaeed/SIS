@@ -14,6 +14,8 @@ use App\Application\Teachers\Commands\UnlinkTeacherSubjectCommand;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectHandler;
 use App\Application\Teachers\Commands\UpdateTeacherCommand;
 use App\Application\Teachers\Commands\UpdateTeacherHandler;
+use App\Application\Teachers\Commands\AttachTeacherQualificationDocumentCommand;
+use App\Application\Teachers\Commands\AttachTeacherQualificationDocumentHandler;
 use App\Application\Teachers\Commands\VoidTeacherQualificationCommand;
 use App\Application\Teachers\Commands\VoidTeacherQualificationHandler;
 use App\Application\Teachers\DTOs\TeacherDTO;
@@ -27,6 +29,7 @@ use App\Application\Teachers\Queries\ListTeachersQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teachers\AddTeacherQualificationRequest;
 use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
+use App\Http\Requests\Teachers\AttachTeacherQualificationDocumentRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
 use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
@@ -480,6 +483,59 @@ class TeacherController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], 200);
+    }
+
+    public function attachQualificationDocument(
+        int $teacher,
+        int $qualification,
+        AttachTeacherQualificationDocumentRequest $request,
+        AttachTeacherQualificationDocumentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new AttachTeacherQualificationDocumentCommand(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            qualificationId: $qualification,
+            documentId: (int) $request->validated('document_id'),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'teachers.qualification_attach_failed';
+
+            return response()->json([
+                'message' => 'Teacher qualification document attach rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], in_array($code, [
+                'teachers.qualification_not_found',
+                'teachers.qualification_document_not_found',
+                'teachers.not_in_school_year',
+            ], true) ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.qualification.attach_document',
+            'attached',
+            $request->user(),
+            'teacher:'.$teacher,
+            [
+                'qualification_id' => $result->qualificationId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'qualification_id' => $result->qualificationId,
+                'teacher_id' => $teacher,
+                'document_storage_key' => $result->storageKey,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     /**
