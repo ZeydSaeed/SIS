@@ -18,6 +18,8 @@ use App\Application\Hr\DTOs\EmployeeDTO;
 use App\Application\Hr\DTOs\JobPositionDTO;
 use App\Application\Hr\Queries\GetEmployeeHandler;
 use App\Application\Hr\Queries\GetEmployeeQuery;
+use App\Application\Hr\Queries\GetJobPositionHandler;
+use App\Application\Hr\Queries\GetJobPositionQuery;
 use App\Application\Hr\Queries\ListEmployeesHandler;
 use App\Application\Hr\Queries\ListEmployeesQuery;
 use App\Application\Hr\Queries\ListJobPositionsHandler;
@@ -31,6 +33,7 @@ use App\Http\Requests\Hr\DeactivateJobPositionRequest;
 use App\Http\Requests\Hr\ListEmployeesRequest;
 use App\Http\Requests\Hr\ListJobPositionsRequest;
 use App\Http\Requests\Hr\ShowEmployeeRequest;
+use App\Http\Requests\Hr\ShowJobPositionRequest;
 use App\Http\Requests\Hr\ReactivateEmployeeRequest;
 use App\Http\Requests\Hr\ReactivateJobPositionRequest;
 use App\Http\Requests\Hr\RegisterEmployeeRequest;
@@ -115,6 +118,49 @@ class HrController extends Controller
                 'created_at' => $dto->createdAt,
                 'updated_at' => $dto->updatedAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showPosition(
+        int $jobPosition,
+        ShowJobPositionRequest $request,
+        GetJobPositionHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetJobPositionQuery(
+            schoolId: $schoolId,
+            jobPositionId: $jobPosition,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Job position not found.',
+                'error_code' => 'hr.job_position_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::HrDataAccess,
+            'hr.job_positions.show',
+            'viewed',
+            $request->user(),
+            'job_position:'.$jobPosition,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'category' => $dto->category,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+                'updated_at' => $dto->updatedAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

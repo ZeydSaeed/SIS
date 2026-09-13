@@ -437,6 +437,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.hr.job-positions.store');
         Route::get('hr/job-positions', [HrController::class, 'indexPositions'])
             ->name('api.hr.job-positions.index');
+        Route::get('hr/job-positions/{jobPosition}', [HrController::class, 'showPosition'])
+            ->whereNumber('jobPosition')
+            ->name('api.hr.job-positions.show');
         Route::post('hr/job-positions/{jobPosition}/deactivate', [HrController::class, 'deactivatePosition'])
             ->whereNumber('jobPosition')
             ->name('api.hr.job-positions.deactivate');
