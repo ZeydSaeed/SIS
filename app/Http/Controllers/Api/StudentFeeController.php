@@ -9,14 +9,17 @@ use App\Application\Finance\Commands\CancelStudentFeeHandler;
 use App\Application\Finance\Commands\ReopenStudentFeeCommand;
 use App\Application\Finance\Commands\ReopenStudentFeeHandler;
 use App\Application\Finance\DTOs\StudentFeeDTO;
+use App\Application\Finance\Queries\GetStudentFeeHandler;
+use App\Application\Finance\Queries\GetStudentFeeQuery;
 use App\Application\Finance\Queries\ListStudentFeesHandler;
 use App\Application\Finance\Queries\ListStudentFeesQuery;
 use App\Domain\Finance\ValueObjects\StudentFeeStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\AssignStudentFeeRequest;
 use App\Http\Requests\Finance\CancelStudentFeeRequest;
-use App\Http\Requests\Finance\ReopenStudentFeeRequest;
 use App\Http\Requests\Finance\ListStudentFeesRequest;
+use App\Http\Requests\Finance\ReopenStudentFeeRequest;
+use App\Http\Requests\Finance\ShowStudentFeeRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -108,6 +111,50 @@ class StudentFeeController extends Controller
                 'status' => $dto->status,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $studentFee,
+        ShowStudentFeeRequest $request,
+        GetStudentFeeHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetStudentFeeQuery(
+            schoolId: $schoolId,
+            studentFeeId: $studentFee,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Student fee not found.',
+                'error_code' => 'finance.student_fee_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataAccess,
+            'finance.student_fee.show',
+            'viewed',
+            $request->user(),
+            'student_fee:'.$studentFee,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'enrollment_id' => $dto->enrollmentId,
+                'fee_type_id' => $dto->feeTypeId,
+                'academic_year_id' => $dto->academicYearId,
+                'amount' => $dto->amount,
+                'due_date' => $dto->dueDate,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

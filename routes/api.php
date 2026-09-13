@@ -319,6 +319,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.finance.student-fees.store');
         Route::get('finance/student-fees', [StudentFeeController::class, 'index'])
             ->name('api.finance.student-fees.index');
+        Route::get('finance/student-fees/{studentFee}', [StudentFeeController::class, 'show'])
+            ->whereNumber('studentFee')
+            ->name('api.finance.student-fees.show');
         Route::post('finance/student-fees/{studentFee}/cancel', [StudentFeeController::class, 'cancel'])
             ->whereNumber('studentFee')
             ->name('api.finance.student-fees.cancel');
