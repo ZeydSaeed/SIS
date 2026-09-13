@@ -9,6 +9,8 @@ use App\Application\Finance\Commands\DeactivateFeeTypeHandler;
 use App\Application\Finance\Commands\ReactivateFeeTypeCommand;
 use App\Application\Finance\Commands\ReactivateFeeTypeHandler;
 use App\Application\Finance\DTOs\FeeTypeDTO;
+use App\Application\Finance\Queries\GetFeeTypeHandler;
+use App\Application\Finance\Queries\GetFeeTypeQuery;
 use App\Application\Finance\Queries\ListFeeTypesHandler;
 use App\Application\Finance\Queries\ListFeeTypesQuery;
 use App\Domain\Finance\ValueObjects\FeeTypeStatus;
@@ -17,6 +19,7 @@ use App\Http\Requests\Finance\CreateFeeTypeRequest;
 use App\Http\Requests\Finance\DeactivateFeeTypeRequest;
 use App\Http\Requests\Finance\ListFeeTypesRequest;
 use App\Http\Requests\Finance\ReactivateFeeTypeRequest;
+use App\Http\Requests\Finance\ShowFeeTypeRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -101,6 +104,49 @@ class FeeTypeController extends Controller
                 'status' => $dto->status,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $feeType,
+        ShowFeeTypeRequest $request,
+        GetFeeTypeHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetFeeTypeQuery(
+            schoolId: $schoolId,
+            feeTypeId: $feeType,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Fee type not found.',
+                'error_code' => 'finance.fee_type_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataAccess,
+            'finance.fee_type.show',
+            'viewed',
+            $request->user(),
+            'fee_type:'.$feeType,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'amount' => $dto->amount,
+                'is_recurring' => $dto->isRecurring,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
