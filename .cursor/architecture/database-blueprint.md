@@ -1395,7 +1395,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(enrollment_id)`, `BTREE(academic_year_id, status)`, `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, enrollment_id, fee_type_id, academic_year_id)`  
 **Security (Phase FIN-U03):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Assign/List obligations only — payments / transactions still HOLD.
+**v1 HTTP:** Assign/List obligations + cancel unpaid (`POST …/student-fees/{id}/cancel`) — payments / transactions still HOLD.
 
 ### `finance.payments` — Phase FIN-U05 LIVE
 

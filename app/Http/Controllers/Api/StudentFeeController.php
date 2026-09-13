@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Finance\Commands\AssignStudentFeeCommand;
 use App\Application\Finance\Commands\AssignStudentFeeHandler;
+use App\Application\Finance\Commands\CancelStudentFeeCommand;
+use App\Application\Finance\Commands\CancelStudentFeeHandler;
 use App\Application\Finance\DTOs\StudentFeeDTO;
 use App\Application\Finance\Queries\ListStudentFeesHandler;
 use App\Application\Finance\Queries\ListStudentFeesQuery;
+use App\Domain\Finance\ValueObjects\StudentFeeStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\AssignStudentFeeRequest;
+use App\Http\Requests\Finance\CancelStudentFeeRequest;
 use App\Http\Requests\Finance\ListStudentFeesRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -101,6 +105,46 @@ class StudentFeeController extends Controller
                 'status' => $dto->status,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function cancel(
+        int $studentFee,
+        CancelStudentFeeRequest $request,
+        CancelStudentFeeHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new CancelStudentFeeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            studentFeeId: $studentFee,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'finance.student_fee_cancel_failed';
+
+            return response()->json([
+                'message' => 'Student fee cancel rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'finance.student_fee_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataModified,
+            'finance.student_fee.cancel',
+            'cancelled',
+            $request->user(),
+            'student_fee:'.$studentFee,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'student_fee_id' => $result->studentFeeId,
+                'status' => StudentFeeStatus::Cancelled,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
