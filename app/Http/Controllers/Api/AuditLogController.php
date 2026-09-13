@@ -8,6 +8,8 @@ use App\Application\Audit\Commands\RegisterAuditLogCommand;
 use App\Application\Audit\Commands\RegisterAuditLogHandler;
 use App\Application\Audit\DTOs\AuditLogDTO;
 use App\Application\Audit\DTOs\LoginHistoryDTO;
+use App\Application\Audit\Queries\GetAuditLogHandler;
+use App\Application\Audit\Queries\GetAuditLogQuery;
 use App\Application\Audit\Queries\ListAuditLogsHandler;
 use App\Application\Audit\Queries\ListAuditLogsQuery;
 use App\Application\Audit\Queries\ListLoginHistoryHandler;
@@ -17,6 +19,7 @@ use App\Http\Requests\Audit\ListAuditLogsRequest;
 use App\Http\Requests\Audit\ListLoginHistoryRequest;
 use App\Http\Requests\Audit\RecordLoginHistoryRequest;
 use App\Http\Requests\Audit\RegisterAuditLogRequest;
+use App\Http\Requests\Audit\ShowAuditLogRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -115,6 +118,53 @@ class AuditLogController extends Controller
                 'correlation_id' => $dto->correlationId,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $log,
+        ShowAuditLogRequest $request,
+        GetAuditLogHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetAuditLogQuery(
+            schoolId: $schoolId,
+            auditLogId: $log,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Audit log not found.',
+                'error_code' => 'audit.log_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::AuditTrailDataAccess,
+            'audit.logs.show',
+            'viewed',
+            $request->user(),
+            'audit_log:'.$log,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'user_id' => $dto->userId,
+                'action' => $dto->action,
+                'entity_type' => $dto->entityType,
+                'entity_id' => $dto->entityId,
+                'old_values' => $dto->oldValues,
+                'new_values' => $dto->newValues,
+                'ip_address' => $dto->ipAddress,
+                'user_agent' => $dto->userAgent,
+                'correlation_id' => $dto->correlationId,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

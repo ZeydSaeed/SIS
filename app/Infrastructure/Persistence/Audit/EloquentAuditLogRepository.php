@@ -67,6 +67,21 @@ final class EloquentAuditLogRepository implements AuditLogRepositoryInterface
         return $rows->map(fn ($row): AuditLogSnapshot => $this->map($row))->all();
     }
 
+    public function findByIdForSchool(int $schoolId, int $auditLogId): ?AuditLogSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('audit', 'audit_logs'))
+            ->where('id', $auditLogId)
+            ->where('school_id', $schoolId)
+            ->first([
+                'id', 'school_id', 'user_id', 'action', 'entity_type', 'entity_id',
+                'old_values', 'new_values', 'ip_address', 'user_agent', 'correlation_id', 'created_at',
+            ]);
+
+        return $row === null ? null : $this->map($row);
+    }
+
     private function map(object $row): AuditLogSnapshot
     {
         return new AuditLogSnapshot(

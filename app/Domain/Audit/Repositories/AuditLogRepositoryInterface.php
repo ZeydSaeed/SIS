@@ -33,4 +33,6 @@ interface AuditLogRepositoryInterface
         ?int $entityId,
         int $limit,
     ): array;
+
+    public function findByIdForSchool(int $schoolId, int $auditLogId): ?AuditLogSnapshot;
 }
