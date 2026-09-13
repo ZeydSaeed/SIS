@@ -242,6 +242,26 @@ final class EloquentVocationalCatalogRepository implements VocationalCatalogRepo
             ->update(['status' => VocationalCatalogStatus::Inactive->value]);
     }
 
+    public function reactivateSpecializationSubject(int $schoolId, int $linkId): void
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $row = DB::table(SchemaHelper::qualified('vocational', 'specialization_subjects').' as ss')
+            ->join(SchemaHelper::qualified('vocational', 'specializations').' as sp', 'sp.id', '=', 'ss.specialization_id')
+            ->where('ss.id', $linkId)
+            ->where('sp.school_id', $schoolId)
+            ->where('ss.status', VocationalCatalogStatus::Inactive->value)
+            ->first(['ss.id']);
+
+        if ($row === null) {
+            throw VocationalNotFoundException::subjectLink($linkId);
+        }
+
+        DB::table(SchemaHelper::qualified('vocational', 'specialization_subjects'))
+            ->where('id', $linkId)
+            ->update(['status' => VocationalCatalogStatus::Active->value]);
+    }
+
     public function listSpecializations(
         int $schoolId,
         ?int $status,

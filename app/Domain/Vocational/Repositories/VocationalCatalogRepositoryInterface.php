@@ -57,6 +57,8 @@ interface VocationalCatalogRepositoryInterface
 
     public function deactivateSpecializationSubject(int $schoolId, int $linkId): void;
 
+    public function reactivateSpecializationSubject(int $schoolId, int $linkId): void;
+
     /**
      * @return array{items: list<SpecializationRead>, total: int}
      */

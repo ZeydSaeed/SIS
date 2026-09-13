@@ -16,6 +16,8 @@ use App\Application\Vocational\Commands\DeactivateWorkshopEquipmentHandler;
 use App\Application\Vocational\Commands\DeactivateWorkshopHandler;
 use App\Application\Vocational\Commands\ReactivateSpecializationCommand;
 use App\Application\Vocational\Commands\ReactivateSpecializationHandler;
+use App\Application\Vocational\Commands\ReactivateSpecializationSubjectCommand;
+use App\Application\Vocational\Commands\ReactivateSpecializationSubjectHandler;
 use App\Application\Vocational\Commands\ReactivateTrackCommand;
 use App\Application\Vocational\Commands\ReactivateTrackHandler;
 use App\Application\Vocational\Commands\ReactivateWorkshopCommand;
@@ -56,6 +58,7 @@ use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\DeactivateWorkshopRequest;
 use App\Http\Requests\Vocational\ReactivateSpecializationRequest;
+use App\Http\Requests\Vocational\ReactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\ReactivateTrackRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopRequest;
@@ -322,6 +325,23 @@ class VocationalController extends Controller
         ));
 
         $this->audit($request->user(), 'vocational.specialization_subjects.deactivate', 'deactivated', 'specialization_subject:'.($result->linkId ?? 'unknown'));
+
+        return $this->idResponse($result->linkId, $result->fromIdempotencyCache);
+    }
+
+    public function reactivateSubjectLink(
+        ReactivateSpecializationSubjectRequest $request,
+        int $link,
+        ReactivateSpecializationSubjectHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateSpecializationSubjectCommand(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->audit($request->user(), 'vocational.specialization_subjects.reactivate', 'reactivated', 'specialization_subject:'.($result->linkId ?? 'unknown'));
 
         return $this->idResponse($result->linkId, $result->fromIdempotencyCache);
     }
