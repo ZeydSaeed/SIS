@@ -31,6 +31,10 @@ interface PromotionRepositoryInterface
      */
     public function listRules(int $schoolId, ?bool $activeOnly = null): array;
 
+    public function findRule(int $schoolId, int $ruleId): ?PromotionRuleSnapshot;
+
+    public function setRuleActive(int $schoolId, int $ruleId, bool $isActive): void;
+
     public function createRecord(
         int $schoolId,
         int $enrollmentId,

@@ -116,6 +116,52 @@ final class EloquentPromotionRepository implements PromotionRepositoryInterface
         })->all();
     }
 
+    public function findRule(int $schoolId, int $ruleId): ?PromotionRuleSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('promotion', 'rules'))
+            ->where('school_id', $schoolId)
+            ->where('id', $ruleId)
+            ->first([
+                'id',
+                'school_id',
+                'from_grade_level_id',
+                'to_grade_level_id',
+                'min_gpa',
+                'min_pass_subjects',
+                'max_failed_subjects',
+                'is_active',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new PromotionRuleSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            fromGradeLevelId: (int) $row->from_grade_level_id,
+            toGradeLevelId: (int) $row->to_grade_level_id,
+            minGpa: $row->min_gpa !== null ? (string) $row->min_gpa : null,
+            minPassSubjects: $row->min_pass_subjects !== null ? (int) $row->min_pass_subjects : null,
+            maxFailedSubjects: $row->max_failed_subjects !== null ? (int) $row->max_failed_subjects : null,
+            isActive: (bool) $row->is_active,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
+    public function setRuleActive(int $schoolId, int $ruleId, bool $isActive): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('promotion', 'rules'))
+            ->where('school_id', $schoolId)
+            ->where('id', $ruleId)
+            ->update(['is_active' => $isActive]);
+    }
+
     public function createRecord(
         int $schoolId,
         int $enrollmentId,
