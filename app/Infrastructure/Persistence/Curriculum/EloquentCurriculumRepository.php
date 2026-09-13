@@ -218,6 +218,23 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         return $row === null ? null : $this->mapLink($row);
     }
 
+    public function findInactiveLink(int $schoolId, int $linkId): ?CurriculumSubjectSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects').' as cs')
+            ->join(SchemaHelper::qualified('curriculum', 'curricula').' as c', 'c.id', '=', 'cs.curriculum_id')
+            ->where('cs.id', $linkId)
+            ->where('c.school_id', $schoolId)
+            ->where('cs.status', CurriculumStatus::Inactive->value)
+            ->first([
+                'cs.id', 'cs.curriculum_id', 'cs.subject_id', 'cs.weekly_hours',
+                'cs.is_required', 'cs.subject_order', 'cs.status',
+            ]);
+
+        return $row === null ? null : $this->mapLink($row);
+    }
+
     public function listActiveLinks(int $schoolId, int $curriculumId): array
     {
         $this->bindSchool($schoolId);
@@ -248,6 +265,23 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('id', $linkId)
             ->where('status', CurriculumStatus::Active->value)
             ->update(['status' => CurriculumStatus::Inactive->value]);
+
+        return $updated > 0;
+    }
+
+    public function reactivateLink(int $schoolId, int $linkId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        $link = $this->findInactiveLink($schoolId, $linkId);
+        if ($link === null) {
+            return false;
+        }
+
+        $updated = DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects'))
+            ->where('id', $linkId)
+            ->where('status', CurriculumStatus::Inactive->value)
+            ->update(['status' => CurriculumStatus::Active->value]);
 
         return $updated > 0;
     }

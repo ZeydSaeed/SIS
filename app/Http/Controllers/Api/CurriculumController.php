@@ -12,6 +12,8 @@ use App\Application\Curriculum\Commands\DeactivateCurriculumCommand;
 use App\Application\Curriculum\Commands\DeactivateCurriculumHandler;
 use App\Application\Curriculum\Commands\DeactivateCurriculumSubjectCommand;
 use App\Application\Curriculum\Commands\DeactivateCurriculumSubjectHandler;
+use App\Application\Curriculum\Commands\ReactivateCurriculumSubjectCommand;
+use App\Application\Curriculum\Commands\ReactivateCurriculumSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateSubjectCommand;
 use App\Application\Curriculum\Commands\DeactivateSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteCommand;
@@ -44,6 +46,7 @@ use App\Http\Requests\Curriculum\CreateCurriculumRequest;
 use App\Http\Requests\Curriculum\CreateSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\DeactivateCurriculumSubjectRequest;
+use App\Http\Requests\Curriculum\ReactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectRequest;
 use App\Http\Requests\Curriculum\LinkCurriculumSubjectRequest;
@@ -575,6 +578,46 @@ class CurriculumController extends Controller
             'data' => [
                 'link_id' => $result->linkId,
                 'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivateCurriculumSubject(
+        int $link,
+        ReactivateCurriculumSubjectRequest $request,
+        ReactivateCurriculumSubjectHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateCurriculumSubjectCommand(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'curriculum.curriculum_subject_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Curriculum subject reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'curriculum.curriculum_subject_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.curriculum_subjects.reactivate',
+            'reactivated',
+            $request->user(),
+            'curriculum_subject:'.$result->linkId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'link_id' => $result->linkId,
+                'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

@@ -60,8 +60,12 @@ interface CurriculumRepositoryInterface
 
     public function findActiveLink(int $schoolId, int $linkId): ?CurriculumSubjectSnapshot;
 
+    public function findInactiveLink(int $schoolId, int $linkId): ?CurriculumSubjectSnapshot;
+
     /** @return list<CurriculumSubjectSnapshot> */
     public function listActiveLinks(int $schoolId, int $curriculumId): array;
 
     public function deactivateLink(int $schoolId, int $linkId): bool;
+
+    public function reactivateLink(int $schoolId, int $linkId): bool;
 }

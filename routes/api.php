@@ -447,6 +447,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('curriculum/curriculum-subjects/{link}/deactivate', [CurriculumController::class, 'deactivateCurriculumSubject'])
             ->whereNumber('link')
             ->name('api.curriculum.curriculum_subjects.deactivate');
+        Route::post('curriculum/curriculum-subjects/{link}/reactivate', [CurriculumController::class, 'reactivateCurriculumSubject'])
+            ->whereNumber('link')
+            ->name('api.curriculum.curriculum_subjects.reactivate');
         Route::post('curriculum/subjects/{subject}/prerequisites', [CurriculumController::class, 'storePrerequisite'])
             ->whereNumber('subject')
             ->name('api.curriculum.prerequisites.store');

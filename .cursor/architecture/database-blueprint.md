@@ -692,7 +692,7 @@
 
 **Indexes:** `BTREE(curriculum_id)`, `UNIQUE(curriculum_id, subject_id)`, `BTREE(curriculum_id, status)`  
 **Security (CUR-U03):** FORCE RLS via parent curriculum school; hard DELETE rejected; soft deactivate.  
-**v1 HTTP:** `POST/GET …/curricula/{id}/subjects`; `POST …/curriculum-subjects/{link}/deactivate`.
+**v1 HTTP:** `POST/GET …/curricula/{id}/subjects`; `POST …/curriculum-subjects/{link}/deactivate|reactivate`.
 
 ### `curriculum.prerequisites`
 
