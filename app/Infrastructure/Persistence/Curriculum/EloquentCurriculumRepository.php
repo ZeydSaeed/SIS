@@ -120,6 +120,26 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         return $updated > 0;
     }
 
+    public function updateSpecialization(
+        int $schoolId,
+        int $curriculumId,
+        ?int $specializationId,
+        string $updatedAt,
+    ): bool {
+        $this->bindSchool($schoolId);
+
+        $updated = DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('id', $curriculumId)
+            ->where('school_id', $schoolId)
+            ->where('status', CurriculumStatus::Active->value)
+            ->update([
+                'specialization_id' => $specializationId,
+                'updated_at' => $updatedAt,
+            ]);
+
+        return $updated > 0;
+    }
+
     public function linkSubject(
         int $schoolId,
         int $curriculumId,

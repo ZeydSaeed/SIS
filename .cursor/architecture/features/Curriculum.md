@@ -1,6 +1,6 @@
 # Feature: Curriculum
 
-> Phase CUR — subjects, curricula, prerequisites (soft lifecycle). Enrollment prereq CLOSED (U05/U06). Curriculum specialization on create CLOSED (U07).
+> Phase CUR — subjects, curricula, prerequisites. Enrollment prereq CLOSED (U05/U06). Curriculum specialization create+PATCH CLOSED (U07/U08).
 
 ## Definition of Done
 
@@ -23,6 +23,7 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 | Command | DeactivateSubject | ✅ |
 | Command | ReactivateSubject | ✅ |
 | Command | CreateCurriculum | ✅ (+ optional specialization_id U07) |
+| Command | UpdateCurriculumSpecialization | ✅ U08 |
 | Command | DeactivateCurriculum | ✅ |
 | Command | ReactivateCurriculum | ✅ |
 | Command | LinkCurriculumSubject | ✅ |
@@ -42,5 +43,5 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 
 ## Out of scope
 
-- PATCH curriculum specialization assign/clear — CUR-U08 HOLD
+- Full curriculum field PATCH (name/grade) — HOLD
 - Payroll / Ranking-PDF

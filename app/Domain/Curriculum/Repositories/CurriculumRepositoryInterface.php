@@ -31,6 +31,13 @@ interface CurriculumRepositoryInterface
 
     public function reactivate(int $schoolId, int $curriculumId): bool;
 
+    public function updateSpecialization(
+        int $schoolId,
+        int $curriculumId,
+        ?int $specializationId,
+        string $updatedAt,
+    ): bool;
+
     public function linkSubject(
         int $schoolId,
         int $curriculumId,
