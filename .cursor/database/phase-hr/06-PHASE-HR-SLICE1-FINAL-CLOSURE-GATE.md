@@ -35,7 +35,9 @@ Payroll: NOT OPEN
 
 ```text
 Do not open payroll without new ballot + AuthZ.
-Optional next: deactivate employee / job position soft-status HTTP, or unrelated module.
+HR-U03 soft deactivate: CLOSED (see 07–11).
+HR-U04 soft reactivate: CLOSED (see 12–16).
+Optional next: unrelated module (payroll still OUT).
 ```
 
 ```text

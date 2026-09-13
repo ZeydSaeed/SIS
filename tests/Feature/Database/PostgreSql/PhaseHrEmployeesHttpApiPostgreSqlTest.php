@@ -139,6 +139,129 @@ final class PhaseHrEmployeesHttpApiPostgreSqlTest extends PostgreSqlIntegrationT
     }
 
     #[Test]
+    public function manager_can_deactivate_position_and_employee(): void
+    {
+        $schoolId = $this->createSchool('SCH-HR-4', 'HR School 4');
+        $yearId = $this->createAcademicYear('AY-HR-4');
+        $this->actingAsHrManagerForSchool($schoolId);
+
+        $positionId = (int) $this->postJson('/api/v1/hr/job-positions', [
+            'code' => 'HR-OFF',
+            'name' => 'Office',
+            'category' => JobPositionCategory::Support,
+        ], ['X-Idempotency-Key' => 'hr-off-pos'])
+            ->assertCreated()
+            ->json('data.job_position_id');
+
+        $employeeId = (int) $this->postJson('/api/v1/hr/employees', [
+            'academic_year_id' => $yearId,
+            'employee_number' => 'E-HR-OFF',
+            'first_name' => 'Omar',
+            'last_name' => 'Saleh',
+            'job_position_id' => $positionId,
+        ], ['X-Idempotency-Key' => 'hr-off-emp'])
+            ->assertCreated()
+            ->json('data.employee_id');
+
+        $this->postJson('/api/v1/hr/job-positions/'.$positionId.'/deactivate', [], [
+            'X-Idempotency-Key' => 'hr-off-pos-deact',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', JobPositionStatus::Inactive);
+
+        $this->postJson('/api/v1/hr/job-positions/'.$positionId.'/deactivate', [], [
+            'X-Idempotency-Key' => 'hr-off-pos-deact',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.from_idempotency', true);
+
+        $this->postJson('/api/v1/hr/employees/'.$employeeId.'/deactivate', [], [
+            'X-Idempotency-Key' => 'hr-off-emp-deact',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', EmployeeStatus::Inactive);
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('hr', 'job_positions'), [
+            'id' => $positionId,
+            'status' => JobPositionStatus::Inactive,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('hr', 'employees'), [
+            'id' => $employeeId,
+            'status' => EmployeeStatus::Inactive,
+        ]);
+        $this->assertNotNull(
+            DB::table(SchemaHelper::qualified('hr', 'employees'))
+                ->where('id', $employeeId)
+                ->value('effective_to')
+        );
+    }
+
+    #[Test]
+    public function manager_can_reactivate_position_and_employee(): void
+    {
+        $schoolId = $this->createSchool('SCH-HR-5', 'HR School 5');
+        $yearId = $this->createAcademicYear('AY-HR-5');
+        $this->actingAsHrManagerForSchool($schoolId);
+
+        $positionId = (int) $this->postJson('/api/v1/hr/job-positions', [
+            'code' => 'HR-ON',
+            'name' => 'Clerk',
+            'category' => JobPositionCategory::Administrative,
+        ], ['X-Idempotency-Key' => 'hr-on-pos'])
+            ->assertCreated()
+            ->json('data.job_position_id');
+
+        $employeeId = (int) $this->postJson('/api/v1/hr/employees', [
+            'academic_year_id' => $yearId,
+            'employee_number' => 'E-HR-ON',
+            'first_name' => 'Lina',
+            'last_name' => 'Nasser',
+            'job_position_id' => $positionId,
+        ], ['X-Idempotency-Key' => 'hr-on-emp'])
+            ->assertCreated()
+            ->json('data.employee_id');
+
+        $this->postJson('/api/v1/hr/job-positions/'.$positionId.'/deactivate', [], [
+            'X-Idempotency-Key' => 'hr-on-pos-off',
+        ])->assertOk();
+        $this->postJson('/api/v1/hr/employees/'.$employeeId.'/deactivate', [], [
+            'X-Idempotency-Key' => 'hr-on-emp-off',
+        ])->assertOk();
+
+        $this->postJson('/api/v1/hr/job-positions/'.$positionId.'/reactivate', [], [
+            'X-Idempotency-Key' => 'hr-on-pos-on',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', JobPositionStatus::Active);
+
+        $this->postJson('/api/v1/hr/job-positions/'.$positionId.'/reactivate', [], [
+            'X-Idempotency-Key' => 'hr-on-pos-on',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.from_idempotency', true);
+
+        $this->postJson('/api/v1/hr/employees/'.$employeeId.'/reactivate', [], [
+            'X-Idempotency-Key' => 'hr-on-emp-on',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.status', EmployeeStatus::Active);
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('hr', 'job_positions'), [
+            'id' => $positionId,
+            'status' => JobPositionStatus::Active,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('hr', 'employees'), [
+            'id' => $employeeId,
+            'status' => EmployeeStatus::Active,
+        ]);
+        $this->assertNull(
+            DB::table(SchemaHelper::qualified('hr', 'employees'))
+                ->where('id', $employeeId)
+                ->value('effective_to')
+        );
+    }
+
+    #[Test]
     public function viewer_cannot_register_employee(): void
     {
         $schoolId = $this->createSchool('SCH-HR-3', 'HR School 3');

@@ -72,6 +72,75 @@ final class EloquentHrRepository implements HrRepositoryInterface
         ])->map(fn (object $row): JobPositionSnapshot => $this->toPosition($row))->all();
     }
 
+    public function setJobPositionStatus(int $schoolId, int $jobPositionId, int $status, string $at): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('hr', 'job_positions'))
+            ->where('school_id', $schoolId)
+            ->where('id', $jobPositionId)
+            ->update([
+                'status' => $status,
+                'updated_at' => $at,
+            ]);
+    }
+
+    public function findEmployeeInSchool(int $schoolId, int $employeeId): ?EmployeeSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('hr', 'employees').' as e')
+            ->join(SchemaHelper::qualified('hr', 'employee_schools').' as es', 'es.employee_id', '=', 'e.id')
+            ->where('es.school_id', $schoolId)
+            ->where('e.id', $employeeId)
+            ->first([
+                'e.id',
+                'e.employee_number',
+                'e.user_id',
+                'e.teacher_id',
+                'e.national_id',
+                'e.first_name',
+                'e.last_name',
+                'e.full_name',
+                'e.hire_date',
+                'e.status',
+                'e.effective_from',
+                'e.effective_to',
+                'e.created_at',
+                'e.updated_at',
+                'es.job_position_id',
+                'es.academic_year_id',
+            ]);
+
+        return $row !== null ? $this->toEmployee($row) : null;
+    }
+
+    public function deactivateEmployee(int $schoolId, int $employeeId, int $status, string $at): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('hr', 'employees'))
+            ->where('id', $employeeId)
+            ->update([
+                'status' => $status,
+                'effective_to' => $at,
+                'updated_at' => $at,
+            ]);
+    }
+
+    public function reactivateEmployee(int $schoolId, int $employeeId, int $status, string $at): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('hr', 'employees'))
+            ->where('id', $employeeId)
+            ->update([
+                'status' => $status,
+                'effective_to' => null,
+                'updated_at' => $at,
+            ]);
+    }
+
     public function employeeNumberExists(int $schoolId, string $employeeNumber): bool
     {
         $this->bindSchool($schoolId);
@@ -187,26 +256,29 @@ final class EloquentHrRepository implements HrRepositoryInterface
             'e.updated_at',
             'es.job_position_id',
             'es.academic_year_id',
-        ])->map(static function (object $row): EmployeeSnapshot {
-            return new EmployeeSnapshot(
-                id: (int) $row->id,
-                employeeNumber: (string) $row->employee_number,
-                userId: $row->user_id !== null ? (int) $row->user_id : null,
-                teacherId: $row->teacher_id !== null ? (int) $row->teacher_id : null,
-                nationalId: $row->national_id !== null ? (string) $row->national_id : null,
-                firstName: (string) $row->first_name,
-                lastName: (string) $row->last_name,
-                fullName: (string) $row->full_name,
-                hireDate: $row->hire_date !== null ? (string) $row->hire_date : null,
-                status: (int) $row->status,
-                effectiveFrom: (string) $row->effective_from,
-                effectiveTo: $row->effective_to !== null ? (string) $row->effective_to : null,
-                createdAt: (string) $row->created_at,
-                updatedAt: (string) $row->updated_at,
-                jobPositionId: $row->job_position_id !== null ? (int) $row->job_position_id : null,
-                academicYearId: $row->academic_year_id !== null ? (int) $row->academic_year_id : null,
-            );
-        })->all();
+        ])->map(fn (object $row): EmployeeSnapshot => $this->toEmployee($row))->all();
+    }
+
+    private function toEmployee(object $row): EmployeeSnapshot
+    {
+        return new EmployeeSnapshot(
+            id: (int) $row->id,
+            employeeNumber: (string) $row->employee_number,
+            userId: $row->user_id !== null ? (int) $row->user_id : null,
+            teacherId: $row->teacher_id !== null ? (int) $row->teacher_id : null,
+            nationalId: $row->national_id !== null ? (string) $row->national_id : null,
+            firstName: (string) $row->first_name,
+            lastName: (string) $row->last_name,
+            fullName: (string) $row->full_name,
+            hireDate: $row->hire_date !== null ? (string) $row->hire_date : null,
+            status: (int) $row->status,
+            effectiveFrom: (string) $row->effective_from,
+            effectiveTo: $row->effective_to !== null ? (string) $row->effective_to : null,
+            createdAt: (string) $row->created_at,
+            updatedAt: (string) $row->updated_at,
+            jobPositionId: $row->job_position_id !== null ? (int) $row->job_position_id : null,
+            academicYearId: $row->academic_year_id !== null ? (int) $row->academic_year_id : null,
+        );
     }
 
     private function toPosition(object $row): JobPositionSnapshot

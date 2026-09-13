@@ -4,6 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Hr\Commands\CreateJobPositionCommand;
 use App\Application\Hr\Commands\CreateJobPositionHandler;
+use App\Application\Hr\Commands\DeactivateEmployeeCommand;
+use App\Application\Hr\Commands\DeactivateEmployeeHandler;
+use App\Application\Hr\Commands\DeactivateJobPositionCommand;
+use App\Application\Hr\Commands\DeactivateJobPositionHandler;
+use App\Application\Hr\Commands\ReactivateEmployeeCommand;
+use App\Application\Hr\Commands\ReactivateEmployeeHandler;
+use App\Application\Hr\Commands\ReactivateJobPositionCommand;
+use App\Application\Hr\Commands\ReactivateJobPositionHandler;
 use App\Application\Hr\Commands\RegisterEmployeeCommand;
 use App\Application\Hr\Commands\RegisterEmployeeHandler;
 use App\Application\Hr\DTOs\EmployeeDTO;
@@ -12,10 +20,16 @@ use App\Application\Hr\Queries\ListEmployeesHandler;
 use App\Application\Hr\Queries\ListEmployeesQuery;
 use App\Application\Hr\Queries\ListJobPositionsHandler;
 use App\Application\Hr\Queries\ListJobPositionsQuery;
+use App\Domain\Hr\ValueObjects\EmployeeStatus;
+use App\Domain\Hr\ValueObjects\JobPositionStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Hr\CreateJobPositionRequest;
+use App\Http\Requests\Hr\DeactivateEmployeeRequest;
+use App\Http\Requests\Hr\DeactivateJobPositionRequest;
 use App\Http\Requests\Hr\ListEmployeesRequest;
 use App\Http\Requests\Hr\ListJobPositionsRequest;
+use App\Http\Requests\Hr\ReactivateEmployeeRequest;
+use App\Http\Requests\Hr\ReactivateJobPositionRequest;
 use App\Http\Requests\Hr\RegisterEmployeeRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -189,6 +203,166 @@ class HrController extends Controller
                 'academic_year_id' => $dto->academicYearId,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivatePosition(
+        int $jobPosition,
+        DeactivateJobPositionRequest $request,
+        DeactivateJobPositionHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateJobPositionCommand(
+            schoolId: $this->schoolContext->requireId(),
+            jobPositionId: $jobPosition,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'hr.job_position_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Job position deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'hr.job_position_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::HrDataModified,
+            'hr.job_positions.deactivate',
+            'deactivated',
+            $request->user(),
+            'job_position:'.$jobPosition,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'job_position_id' => $result->jobPositionId,
+                'status' => JobPositionStatus::Inactive,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivateEmployee(
+        int $employee,
+        DeactivateEmployeeRequest $request,
+        DeactivateEmployeeHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateEmployeeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            employeeId: $employee,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'hr.employee_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Employee deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'hr.employee_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::HrDataModified,
+            'hr.employees.deactivate',
+            'deactivated',
+            $request->user(),
+            'employee:'.$employee,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'employee_id' => $result->employeeId,
+                'status' => EmployeeStatus::Inactive,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivatePosition(
+        int $jobPosition,
+        ReactivateJobPositionRequest $request,
+        ReactivateJobPositionHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateJobPositionCommand(
+            schoolId: $this->schoolContext->requireId(),
+            jobPositionId: $jobPosition,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'hr.job_position_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Job position reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'hr.job_position_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::HrDataModified,
+            'hr.job_positions.reactivate',
+            'reactivated',
+            $request->user(),
+            'job_position:'.$jobPosition,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'job_position_id' => $result->jobPositionId,
+                'status' => JobPositionStatus::Active,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivateEmployee(
+        int $employee,
+        ReactivateEmployeeRequest $request,
+        ReactivateEmployeeHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateEmployeeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            employeeId: $employee,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'hr.employee_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Employee reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'hr.employee_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::HrDataModified,
+            'hr.employees.reactivate',
+            'reactivated',
+            $request->user(),
+            'employee:'.$employee,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'employee_id' => $result->employeeId,
+                'status' => EmployeeStatus::Active,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

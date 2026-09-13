@@ -25,6 +25,14 @@ interface HrRepositoryInterface
      */
     public function listJobPositions(int $schoolId, ?int $status = null): array;
 
+    public function setJobPositionStatus(int $schoolId, int $jobPositionId, int $status, string $at): void;
+
+    public function findEmployeeInSchool(int $schoolId, int $employeeId): ?EmployeeSnapshot;
+
+    public function deactivateEmployee(int $schoolId, int $employeeId, int $status, string $at): void;
+
+    public function reactivateEmployee(int $schoolId, int $employeeId, int $status, string $at): void;
+
     public function employeeNumberExists(int $schoolId, string $employeeNumber): bool;
 
     public function teacherLinkExists(int $schoolId, int $teacherId): bool;

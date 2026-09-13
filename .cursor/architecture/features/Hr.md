@@ -18,6 +18,10 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 |------|------|--------|
 | Command | CreateJobPosition | ✅ |
 | Command | RegisterEmployee | ✅ |
+| Command | DeactivateJobPosition | ✅ |
+| Command | DeactivateEmployee | ✅ |
+| Command | ReactivateJobPosition | ✅ |
+| Command | ReactivateEmployee | ✅ |
 | Query | ListJobPositions | ✅ |
 | Query | ListEmployees | ✅ |
 
