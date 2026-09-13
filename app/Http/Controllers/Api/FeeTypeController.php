@@ -6,6 +6,8 @@ use App\Application\Finance\Commands\CreateFeeTypeCommand;
 use App\Application\Finance\Commands\CreateFeeTypeHandler;
 use App\Application\Finance\Commands\DeactivateFeeTypeCommand;
 use App\Application\Finance\Commands\DeactivateFeeTypeHandler;
+use App\Application\Finance\Commands\ReactivateFeeTypeCommand;
+use App\Application\Finance\Commands\ReactivateFeeTypeHandler;
 use App\Application\Finance\DTOs\FeeTypeDTO;
 use App\Application\Finance\Queries\ListFeeTypesHandler;
 use App\Application\Finance\Queries\ListFeeTypesQuery;
@@ -14,6 +16,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\CreateFeeTypeRequest;
 use App\Http\Requests\Finance\DeactivateFeeTypeRequest;
 use App\Http\Requests\Finance\ListFeeTypesRequest;
+use App\Http\Requests\Finance\ReactivateFeeTypeRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -136,6 +139,46 @@ class FeeTypeController extends Controller
             'data' => [
                 'fee_type_id' => $result->feeTypeId,
                 'status' => FeeTypeStatus::Inactive,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivate(
+        int $feeType,
+        ReactivateFeeTypeRequest $request,
+        ReactivateFeeTypeHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateFeeTypeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            feeTypeId: $feeType,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'finance.fee_type_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Fee type reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'finance.fee_type_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataModified,
+            'finance.fee_type.reactivate',
+            'reactivated',
+            $request->user(),
+            'fee_type:'.$feeType,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'fee_type_id' => $result->feeTypeId,
+                'status' => FeeTypeStatus::Active,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
