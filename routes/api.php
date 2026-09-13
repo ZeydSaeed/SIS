@@ -513,6 +513,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.curriculum.curricula.store');
         Route::get('curriculum/curricula', [CurriculumController::class, 'indexCurricula'])
             ->name('api.curriculum.curricula.index');
+        Route::get('curriculum/curricula/{curriculum}', [CurriculumController::class, 'showCurriculum'])
+            ->whereNumber('curriculum')
+            ->name('api.curriculum.curricula.show');
         Route::post('curriculum/curricula/{curriculum}/deactivate', [CurriculumController::class, 'deactivateCurriculum'])
             ->whereNumber('curriculum')
             ->name('api.curriculum.curricula.deactivate');

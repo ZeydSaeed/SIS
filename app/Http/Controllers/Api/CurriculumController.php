@@ -34,6 +34,10 @@ use App\Application\Curriculum\DTOs\CurriculumDTO;
 use App\Application\Curriculum\DTOs\CurriculumSubjectDTO;
 use App\Application\Curriculum\DTOs\PrerequisiteDTO;
 use App\Application\Curriculum\DTOs\SubjectDTO;
+use App\Application\Curriculum\Queries\GetCurriculumHandler;
+use App\Application\Curriculum\Queries\GetCurriculumQuery;
+use App\Application\Curriculum\Queries\GetPrerequisiteHandler;
+use App\Application\Curriculum\Queries\GetPrerequisiteQuery;
 use App\Application\Curriculum\Queries\GetSubjectHandler;
 use App\Application\Curriculum\Queries\GetSubjectQuery;
 use App\Application\Curriculum\Queries\ListCurriculaHandler;
@@ -61,6 +65,8 @@ use App\Http\Requests\Curriculum\ListSubjectPrerequisitesRequest;
 use App\Http\Requests\Curriculum\ListSubjectsRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\ReactivateSubjectRequest;
+use App\Http\Requests\Curriculum\ShowCurriculumRequest;
+use App\Http\Requests\Curriculum\ShowPrerequisiteRequest;
 use App\Http\Requests\Curriculum\ShowSubjectRequest;
 use App\Http\Requests\Curriculum\UpdateCurriculumRequest;
 use App\Http\Requests\Curriculum\UpdateSubjectRequest;
@@ -359,6 +365,40 @@ class CurriculumController extends Controller
 
         return response()->json([
             'data' => array_map(fn (CurriculumDTO $dto): array => $this->curriculumPayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showCurriculum(
+        int $curriculum,
+        ShowCurriculumRequest $request,
+        GetCurriculumHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetCurriculumQuery(
+            schoolId: $schoolId,
+            curriculumId: $curriculum,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Curriculum not found.',
+                'error_code' => 'curriculum.curriculum_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.curricula.show',
+            'viewed',
+            $request->user(),
+            'curriculum:'.$curriculum,
+            [],
+        );
+
+        return response()->json([
+            'data' => $this->curriculumPayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
@@ -721,6 +761,36 @@ class CurriculumController extends Controller
 
         return response()->json([
             'data' => array_map(fn (PrerequisiteDTO $dto): array => $this->prerequisitePayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showPrerequisite(
+        int $prerequisite,
+        ShowPrerequisiteRequest $request,
+        GetPrerequisiteHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetPrerequisiteQuery(prerequisiteId: $prerequisite));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Subject prerequisite not found.',
+                'error_code' => 'curriculum.prerequisite_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.prerequisites.show',
+            'viewed',
+            $request->user(),
+            'prerequisite:'.$prerequisite,
+            [],
+        );
+
+        return response()->json([
+            'data' => $this->prerequisitePayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
