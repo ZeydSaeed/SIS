@@ -53,6 +53,48 @@ final class EloquentFinanceTransactionRepository implements FinanceTransactionRe
         ]);
     }
 
+    public function findByIdForSchool(int $schoolId, int $transactionId): ?FinanceTransactionSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('finance', 'transactions'))
+            ->where('school_id', $schoolId)
+            ->where('id', $transactionId)
+            ->first([
+                'id',
+                'school_id',
+                'student_id',
+                'academic_year_id',
+                'transaction_type',
+                'amount',
+                'balance_after',
+                'reference_type',
+                'reference_id',
+                'notes',
+                'created_by',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new FinanceTransactionSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            studentId: (int) $row->student_id,
+            academicYearId: (int) $row->academic_year_id,
+            transactionType: (int) $row->transaction_type,
+            amount: (string) $row->amount,
+            balanceAfter: $row->balance_after !== null ? (string) $row->balance_after : null,
+            referenceType: $row->reference_type !== null ? (string) $row->reference_type : null,
+            referenceId: $row->reference_id !== null ? (int) $row->reference_id : null,
+            notes: $row->notes !== null ? (string) $row->notes : null,
+            createdBy: $row->created_by !== null ? (int) $row->created_by : null,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
     public function listBySchool(
         int $schoolId,
         ?int $studentId = null,

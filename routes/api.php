@@ -340,6 +340,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.finance.payments.void');
         Route::get('finance/transactions', [FinanceTransactionController::class, 'index'])
             ->name('api.finance.transactions.index');
+        Route::get('finance/transactions/{transaction}', [FinanceTransactionController::class, 'show'])
+            ->whereNumber('transaction')
+            ->name('api.finance.transactions.show');
 
         Route::post('communication/templates', [NotificationTemplateController::class, 'store'])
             ->name('api.communication.templates.store');

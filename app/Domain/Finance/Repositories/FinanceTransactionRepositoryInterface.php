@@ -22,6 +22,8 @@ interface FinanceTransactionRepositoryInterface
         string $createdAt,
     ): int;
 
+    public function findByIdForSchool(int $schoolId, int $transactionId): ?FinanceTransactionSnapshot;
+
     /**
      * @return list<FinanceTransactionSnapshot>
      */

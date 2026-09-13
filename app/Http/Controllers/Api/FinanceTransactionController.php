@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Application\Finance\DTOs\FinanceTransactionDTO;
+use App\Application\Finance\Queries\GetFinanceTransactionHandler;
+use App\Application\Finance\Queries\GetFinanceTransactionQuery;
 use App\Application\Finance\Queries\ListFinanceTransactionsHandler;
 use App\Application\Finance\Queries\ListFinanceTransactionsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\ListFinanceTransactionsRequest;
+use App\Http\Requests\Finance\ShowFinanceTransactionRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -19,6 +22,53 @@ class FinanceTransactionController extends Controller
         private readonly SecurityAuditLoggerInterface $securityAudit,
         private readonly SchoolContext $schoolContext,
     ) {}
+
+    public function show(
+        int $transaction,
+        ShowFinanceTransactionRequest $request,
+        GetFinanceTransactionHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetFinanceTransactionQuery(
+            schoolId: $schoolId,
+            transactionId: $transaction,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Finance transaction not found.',
+                'error_code' => 'finance.transaction_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataAccess,
+            'finance.transaction.show',
+            'viewed',
+            $request->user(),
+            'transaction:'.$transaction,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'student_id' => $dto->studentId,
+                'academic_year_id' => $dto->academicYearId,
+                'transaction_type' => $dto->transactionType,
+                'amount' => $dto->amount,
+                'balance_after' => $dto->balanceAfter,
+                'reference_type' => $dto->referenceType,
+                'reference_id' => $dto->referenceId,
+                'notes' => $dto->notes,
+                'created_by' => $dto->createdBy,
+                'created_at' => $dto->createdAt,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
 
     public function index(
         ListFinanceTransactionsRequest $request,
