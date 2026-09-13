@@ -472,7 +472,8 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, academic_year_id, code)`
+**Indexes:** `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, academic_year_id, code)`  
+**Security (ENR-U02):** FORCE RLS school isolation on `school_id`. Hard DELETE rejected by trigger.
 
 ### `enrollment.sections`
 
@@ -488,7 +489,8 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`
+**Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`  
+**Security (ENR-U02):** FORCE RLS via parent `classes.school_id`. Hard DELETE rejected by trigger.
 
 ### `enrollment.enrollments`
 
