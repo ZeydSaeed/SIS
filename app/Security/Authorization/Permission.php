@@ -126,6 +126,10 @@ final class Permission
 
     public const HR_MANAGE = 'hr.manage';
 
+    public const HR_PAYROLL_VIEW = 'hr.payroll.view';
+
+    public const HR_PAYROLL_MANAGE = 'hr.payroll.manage';
+
     public const VOCATIONAL_MANAGE = 'vocational.manage';
 
     public const VOCATIONAL_VIEW = 'vocational.view';
@@ -207,6 +211,8 @@ final class Permission
             self::WORKFLOW_DECIDE,
             self::HR_VIEW,
             self::HR_MANAGE,
+            self::HR_PAYROLL_VIEW,
+            self::HR_PAYROLL_MANAGE,
             self::VOCATIONAL_MANAGE,
             self::VOCATIONAL_VIEW,
             self::CURRICULUM_VIEW,

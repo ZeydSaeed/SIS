@@ -63,6 +63,8 @@ return [
         'workflow.decide' => 'Decide pending approval requests when assigned the step role',
         'hr.view' => 'View HR job positions and employees for the current school',
         'hr.manage' => 'Manage HR job positions and register employees for the current school (no payroll)',
+        'hr.payroll.view' => 'View payroll AuthZ-gated surfaces for the current school (no pay runs until schema ballot)',
+        'hr.payroll.manage' => 'Manage payroll AuthZ-gated surfaces for the current school (no pay runs until schema ballot)',
         'vocational.manage' => 'Manage vocational specializations, tracks, and subject links',
         'vocational.view' => 'View vocational specializations, tracks, and subject links',
         'curriculum.view' => 'View curriculum subject prerequisites',
