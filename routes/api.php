@@ -306,6 +306,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('communication/templates/{template}/deactivate', [NotificationTemplateController::class, 'deactivate'])
             ->whereNumber('template')
             ->name('api.communication.templates.deactivate');
+        Route::post('communication/templates/{template}/reactivate', [NotificationTemplateController::class, 'reactivate'])
+            ->whereNumber('template')
+            ->name('api.communication.templates.reactivate');
         Route::post('communication/messages', [MessageController::class, 'store'])
             ->name('api.communication.messages.store');
         Route::get('communication/messages', [MessageController::class, 'index'])
