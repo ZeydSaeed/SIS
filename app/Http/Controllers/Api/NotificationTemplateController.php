@@ -9,6 +9,8 @@ use App\Application\Communication\Commands\DeactivateNotificationTemplateHandler
 use App\Application\Communication\Commands\ReactivateNotificationTemplateCommand;
 use App\Application\Communication\Commands\ReactivateNotificationTemplateHandler;
 use App\Application\Communication\DTOs\NotificationTemplateDTO;
+use App\Application\Communication\Queries\GetNotificationTemplateHandler;
+use App\Application\Communication\Queries\GetNotificationTemplateQuery;
 use App\Application\Communication\Queries\ListNotificationTemplatesHandler;
 use App\Application\Communication\Queries\ListNotificationTemplatesQuery;
 use App\Http\Controllers\Controller;
@@ -16,6 +18,7 @@ use App\Http\Requests\Communication\CreateNotificationTemplateRequest;
 use App\Http\Requests\Communication\DeactivateNotificationTemplateRequest;
 use App\Http\Requests\Communication\ListNotificationTemplatesRequest;
 use App\Http\Requests\Communication\ReactivateNotificationTemplateRequest;
+use App\Http\Requests\Communication\ShowNotificationTemplateRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -106,6 +109,50 @@ class NotificationTemplateController extends Controller
                 'is_active' => $dto->isActive,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $template,
+        ShowNotificationTemplateRequest $request,
+        GetNotificationTemplateHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetNotificationTemplateQuery(
+            schoolId: $schoolId,
+            templateId: $template,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Notification template not found.',
+                'error_code' => 'communication.template_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataAccess,
+            'communication.template.show',
+            'viewed',
+            $request->user(),
+            'template:'.$template,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'channel' => $dto->channel,
+                'subject_template' => $dto->subjectTemplate,
+                'body_template' => $dto->bodyTemplate,
+                'is_active' => $dto->isActive,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
