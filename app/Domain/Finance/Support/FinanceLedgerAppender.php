@@ -64,4 +64,32 @@ final class FinanceLedgerAppender
             $createdAt,
         );
     }
+
+    public function appendPaymentRefunded(
+        int $schoolId,
+        int $studentId,
+        int $academicYearId,
+        string $amount,
+        int $paymentId,
+        ?int $createdBy,
+        string $createdAt,
+        ?string $notes = null,
+    ): int {
+        $previous = $this->transactions->latestBalanceAfter($schoolId, $studentId, $academicYearId) ?? '0.00';
+        $balanceAfter = bcadd($previous, $amount, 2);
+
+        return $this->transactions->append(
+            $schoolId,
+            $studentId,
+            $academicYearId,
+            FinanceTransactionType::PaymentRefunded,
+            $amount,
+            $balanceAfter,
+            'payment',
+            $paymentId,
+            $notes,
+            $createdBy,
+            $createdAt,
+        );
+    }
 }

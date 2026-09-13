@@ -38,6 +38,14 @@ return [
             'report' => false,
         ],
 
+        'sis_documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/sis_documents'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\ResultsWriteController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\StudentController;
+use App\Http\Controllers\Api\HrController;
 use App\Http\Controllers\Api\VocationalController;
 use App\Security\Middleware\RequireSchoolContextMiddleware;
 use App\Security\Middleware\SchoolContextMiddleware;
@@ -220,6 +221,11 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('documents', [DocumentController::class, 'store'])
             ->name('api.documents.store');
+        Route::post('documents/upload', [DocumentController::class, 'upload'])
+            ->name('api.documents.upload');
+        Route::get('documents/{document}/content', [DocumentController::class, 'download'])
+            ->whereNumber('document')
+            ->name('api.documents.download');
         Route::get('documents', [DocumentController::class, 'index'])
             ->name('api.documents.index');
 
@@ -235,6 +241,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.finance.payments.store');
         Route::get('finance/payments', [PaymentController::class, 'index'])
             ->name('api.finance.payments.index');
+        Route::post('finance/payments/{payment}/void', [PaymentController::class, 'void'])
+            ->whereNumber('payment')
+            ->name('api.finance.payments.void');
         Route::get('finance/transactions', [FinanceTransactionController::class, 'index'])
             ->name('api.finance.transactions.index');
 
@@ -246,6 +255,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.communication.messages.store');
         Route::get('communication/messages', [MessageController::class, 'index'])
             ->name('api.communication.messages.index');
+        Route::post('communication/messages/{message}/mark-sent', [MessageController::class, 'markSent'])
+            ->whereNumber('message')
+            ->name('api.communication.messages.mark-sent');
 
         Route::post('workflow/approval-flows', [ApprovalFlowController::class, 'store'])
             ->name('api.workflow.approval-flows.store');
@@ -282,5 +294,18 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.vocational.specialization_subjects.store');
         Route::post('vocational/specialization-subjects/{link}/deactivate', [VocationalController::class, 'deactivateSubjectLink'])
             ->name('api.vocational.specialization_subjects.deactivate');
+        Route::post('vocational/workshops', [VocationalController::class, 'storeWorkshop'])
+            ->name('api.vocational.workshops.store');
+        Route::get('vocational/workshops', [VocationalController::class, 'indexWorkshops'])
+            ->name('api.vocational.workshops.index');
+
+        Route::post('hr/job-positions', [HrController::class, 'storePosition'])
+            ->name('api.hr.job-positions.store');
+        Route::get('hr/job-positions', [HrController::class, 'indexPositions'])
+            ->name('api.hr.job-positions.index');
+        Route::post('hr/employees', [HrController::class, 'storeEmployee'])
+            ->name('api.hr.employees.store');
+        Route::get('hr/employees', [HrController::class, 'indexEmployees'])
+            ->name('api.hr.employees.index');
     });
 });

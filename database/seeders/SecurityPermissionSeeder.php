@@ -241,6 +241,18 @@ class SecurityPermissionSeeder extends Seeder
         $this->assignRole($user, 'workflow_viewer', $schoolId);
     }
 
+    public function grantHrManager(User $user, ?int $schoolId = null): void
+    {
+        $this->run();
+        $this->assignRole($user, 'hr_manager', $schoolId);
+    }
+
+    public function grantHrViewer(User $user, ?int $schoolId = null): void
+    {
+        $this->run();
+        $this->assignRole($user, 'hr_viewer', $schoolId);
+    }
+
     public function grantVocationalManager(User $user, ?int $schoolId = null): void
     {
         $this->run();

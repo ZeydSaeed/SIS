@@ -5,6 +5,7 @@ namespace App\Infrastructure\Persistence\Finance;
 use App\Database\SchemaHelper;
 use App\Domain\Finance\Data\PaymentSnapshot;
 use App\Domain\Finance\Repositories\PaymentRepositoryInterface;
+use App\Domain\Finance\ValueObjects\PaymentStatus;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentPaymentRepository implements PaymentRepositoryInterface
@@ -31,8 +32,56 @@ final class EloquentPaymentRepository implements PaymentRepositoryInterface
             'idempotency_key' => $idempotencyKey,
             'paid_at' => $paidAt,
             'received_by' => $receivedBy,
+            'status' => PaymentStatus::Posted,
+            'voided_at' => null,
+            'voided_by' => null,
             'created_at' => $createdAt,
         ]);
+    }
+
+    public function findByIdForSchool(int $schoolId, int $paymentId): ?PaymentSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('finance', 'payments'))
+            ->where('school_id', $schoolId)
+            ->where('id', $paymentId)
+            ->first([
+                'id',
+                'school_id',
+                'student_fee_id',
+                'amount',
+                'payment_method',
+                'payment_reference',
+                'idempotency_key',
+                'paid_at',
+                'received_by',
+                'status',
+                'voided_at',
+                'voided_by',
+                'created_at',
+            ]);
+
+        return $row !== null ? $this->toSnapshot($row) : null;
+    }
+
+    public function voidPayment(
+        int $schoolId,
+        int $paymentId,
+        string $voidedAt,
+        ?int $voidedBy,
+    ): bool {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('finance', 'payments'))
+            ->where('school_id', $schoolId)
+            ->where('id', $paymentId)
+            ->where('status', PaymentStatus::Posted)
+            ->update([
+                'status' => PaymentStatus::Voided,
+                'voided_at' => $voidedAt,
+                'voided_by' => $voidedBy,
+            ]) === 1;
     }
 
     public function sumByStudentFee(int $schoolId, int $studentFeeId): string
@@ -42,6 +91,7 @@ final class EloquentPaymentRepository implements PaymentRepositoryInterface
         $sum = DB::table(SchemaHelper::qualified('finance', 'payments'))
             ->where('school_id', $schoolId)
             ->where('student_fee_id', $studentFeeId)
+            ->where('status', PaymentStatus::Posted)
             ->selectRaw('COALESCE(SUM(amount), 0) as total')
             ->value('total');
 
@@ -70,21 +120,30 @@ final class EloquentPaymentRepository implements PaymentRepositoryInterface
             'idempotency_key',
             'paid_at',
             'received_by',
+            'status',
+            'voided_at',
+            'voided_by',
             'created_at',
-        ])->map(static function (object $row): PaymentSnapshot {
-            return new PaymentSnapshot(
-                id: (int) $row->id,
-                schoolId: (int) $row->school_id,
-                studentFeeId: (int) $row->student_fee_id,
-                amount: (string) $row->amount,
-                paymentMethod: (int) $row->payment_method,
-                paymentReference: $row->payment_reference !== null ? (string) $row->payment_reference : null,
-                idempotencyKey: (string) $row->idempotency_key,
-                paidAt: (string) $row->paid_at,
-                receivedBy: $row->received_by !== null ? (int) $row->received_by : null,
-                createdAt: (string) $row->created_at,
-            );
-        })->all();
+        ])->map(fn (object $row): PaymentSnapshot => $this->toSnapshot($row))->all();
+    }
+
+    private function toSnapshot(object $row): PaymentSnapshot
+    {
+        return new PaymentSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            studentFeeId: (int) $row->student_fee_id,
+            amount: (string) $row->amount,
+            paymentMethod: (int) $row->payment_method,
+            paymentReference: $row->payment_reference !== null ? (string) $row->payment_reference : null,
+            idempotencyKey: (string) $row->idempotency_key,
+            paidAt: (string) $row->paid_at,
+            receivedBy: $row->received_by !== null ? (int) $row->received_by : null,
+            status: (int) ($row->status ?? PaymentStatus::Posted),
+            voidedAt: $row->voided_at !== null ? (string) $row->voided_at : null,
+            voidedBy: $row->voided_by !== null ? (int) $row->voided_by : null,
+            createdAt: (string) $row->created_at,
+        );
     }
 
     private function bindSchool(int $schoolId): void

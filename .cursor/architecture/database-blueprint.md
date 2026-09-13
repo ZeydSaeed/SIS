@@ -1,11 +1,11 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
-> **Target:** **90** blueprint objects (tables + reporting MVs) across **24** PostgreSQL schemas.  
+> **Target:** **94** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -185,9 +185,10 @@
 
 ---
 
-## Schema: `vocational` (3 tables)
+## Schema: `vocational` (4 tables)
 
-> **Phase TV-U05:** FORCE RLS on all three. `specializations` by `school_id`; `tracks` / `specialization_subjects` via EXISTS → specialization.school_id. Hard DELETE rejected.
+> **Phase TV-U05:** FORCE RLS on specializations/tracks/specialization_subjects.  
+> **Phase TV-U12:** `workshops` catalog with safety capacity CHECK + FORCE RLS.
 
 ### `vocational.specializations`
 
@@ -236,6 +237,25 @@
 **Indexes:** `UNIQUE(specialization_id, subject_id)`  
 **RLS:** ENABLE + FORCE (via specialization.school_id)  
 **Triggers:** reject hard DELETE
+
+### `vocational.workshops` — Phase TV-U12 LIVE
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| capacity | SMALLINT | NOT NULL CHECK > 0 |
+| safety_capacity | SMALLINT | NOT NULL CHECK > 0 AND ≤ capacity |
+| room_id | BIGINT | FK → organization.rooms, nullable ON DELETE SET NULL |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`, `UNIQUE(school_id, code)`  
+**Security (Phase TV-U12):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Create/List catalog. section_batches / equipment / assignment enforce HOLD.
 
 ---
 
@@ -1289,7 +1309,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(file_hash)`, `BTREE(school_id, created_at)`  
 **Security (Phase DOC-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1:** Metadata only — no binary upload/PDF engine in HTTP.
+**v1 HTTP:** Metadata Register/List + binary Upload/Download (DOC-U04 local object storage). S3/AV/PDF engine HOLD. No BYTEA.
 
 ---
 
@@ -1343,11 +1363,14 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | idempotency_key | VARCHAR(100) | UNIQUE NOT NULL |
 | paid_at | TIMESTAMPTZ | NOT NULL |
 | received_by | BIGINT | FK → users, nullable |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Posted, 2=Voided (**FIN-U10**) |
+| voided_at | TIMESTAMPTZ | nullable |
+| voided_by | BIGINT | FK → users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id)`, `BTREE(student_fee_id)`, `BTREE(school_id, paid_at)`, `UNIQUE(idempotency_key)`  
-**Security (Phase FIN-U05):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Record/List; overpayment rejected; rollup student_fees.status Partial/Paid. Refunds + transactions HOLD.
+**Indexes:** `BTREE(school_id)`, `BTREE(student_fee_id)`, `BTREE(school_id, paid_at)`, `BTREE(student_fee_id, status)`, `UNIQUE(idempotency_key)`  
+**Security (Phase FIN-U05 / FIN-U10):** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Record/List + Void (Posted→Voided); overpayment rejected; rollup excludes voided. Partial refund / gateway HOLD.
 
 ### `finance.transactions` — Phase FIN-U08 LIVE (unpartitioned)
 
@@ -1357,7 +1380,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | school_id | BIGINT | FK → schools (**FIN delta** for RLS) |
 | student_id | BIGINT | FK → students.students |
 | academic_year_id | BIGINT | FK → academic_years |
-| transaction_type | SMALLINT | NOT NULL — 1=FeeAssigned, 2=PaymentReceived |
+| transaction_type | SMALLINT | NOT NULL — 1=FeeAssigned, 2=PaymentReceived, 3=PaymentRefunded (**FIN-U10**) |
 | amount | NUMERIC(12,2) | NOT NULL CHECK > 0 |
 | balance_after | NUMERIC(12,2) | running outstanding (charges − payments) |
 | reference_type | VARCHAR(50) | student_fee \| payment |
@@ -1367,9 +1390,9 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(school_id)`, `BTREE(student_id, academic_year_id)`, `BTREE(school_id, created_at)`, `BTREE(reference_type, reference_id)`  
-**Security (Phase FIN-U08):** FORCE RLS. Hard DELETE rejected. Append-only via AssignStudentFee + RecordPayment.  
+**Security (Phase FIN-U08 / FIN-U10):** FORCE RLS. Hard DELETE rejected. Append-only via AssignStudentFee + RecordPayment + VoidPayment (refund line).  
 **Partition:** DEFERRED (adaptive — no year-1 partition without measured evidence).  
-**v1 HTTP:** List only `GET /api/v1/finance/transactions`. No manual create. Refunds HOLD.
+**v1 HTTP:** List only `GET /api/v1/finance/transactions`. No manual create. Partial refund / gateway HOLD.
 
 ---
 
@@ -1412,7 +1435,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(recipient_type, recipient_id)`, `BTREE(school_id, status)`, `BTREE(school_id, created_at)`, `UNIQUE(idempotency_key)`  
 **Security (Phase COM-U04):** FORCE RLS. Hard DELETE rejected.  
-**v1 HTTP:** Queue/List only — no SMTP/SMS provider. Partition + jobs HOLD.
+**v1 HTTP:** Queue/List + Mark-sent (COM-U06 LocalOutbound — no SMTP/SMS). Partition + jobs HOLD.
 
 ### `communication.notification_jobs` — HOLD (not physicalized)
 
@@ -1470,6 +1493,67 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 **Indexes:** `BTREE(school_id)`, `BTREE(entity_type, entity_id)`, `BTREE(school_id, status)`, `BTREE(flow_id)`, `UNIQUE partial (school_id, entity_type, entity_id) WHERE status=1`  
 **Security (Phase WF-U04):** FORCE RLS. Hard DELETE rejected.  
 **v1 HTTP:** Create/List + Decide (role match) + Cancel. Hooks: CreateTransfer→open approval; final Decide Approved/Rejected→transfer status. CompleteTransfer + other-entity hooks HOLD.
+
+---
+
+## Schema: `hr` (3 tables — Phase HR-U01 LIVE Slice-1 employees foundation)
+
+> **Phase HR-U01:** Generalized staff roster parallel to teachers. Optional `teacher_id` link. **Payroll NOT in Slice-1.**
+
+### `hr.job_positions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| code | VARCHAR(20) | NOT NULL |
+| name | VARCHAR(255) | NOT NULL |
+| category | SMALLINT | NOT NULL — 1=Admin, 2=Teaching, 3=Technical, 4=Support, 9=Other |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `BTREE(school_id, status)`, `UNIQUE(school_id, code)`  
+**Security:** FORCE RLS school isolation. Hard DELETE rejected.  
+**v1 HTTP:** Create/List.
+
+### `hr.employees`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| employee_number | VARCHAR(50) | UNIQUE NOT NULL |
+| user_id | BIGINT | FK → users, nullable |
+| teacher_id | BIGINT | FK → teachers.teachers, UNIQUE nullable |
+| national_id | VARCHAR(20) | |
+| first_name | VARCHAR(100) | NOT NULL |
+| last_name | VARCHAR(100) | NOT NULL |
+| full_name | VARCHAR(255) | NOT NULL |
+| hire_date | DATE | |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive |
+| effective_from | TIMESTAMPTZ | NOT NULL |
+| effective_to | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(status)`, `BTREE(user_id)`  
+**Security:** FORCE RLS body isolation via `employee_schools` membership (teachers pattern). Hard DELETE rejected.  
+**v1 HTTP:** RegisterEmployee + ListEmployees (school-scoped).
+
+### `hr.employee_schools`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| employee_id | BIGINT | FK → employees |
+| school_id | BIGINT | FK → schools |
+| academic_year_id | BIGINT | FK → academic_years |
+| job_position_id | BIGINT | FK → job_positions, nullable |
+| is_primary | BOOLEAN | NOT NULL DEFAULT true |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id)`, `BTREE(employee_id)`, `BTREE(school_id, academic_year_id)`, `UNIQUE(employee_id, school_id, academic_year_id)`  
+**Security:** FORCE RLS on `school_id`. Hard DELETE rejected.
 
 ---
 
@@ -1781,7 +1865,7 @@ curriculum.subjects
 |--------|--------|
 | organization | 6 |
 | academic | 5 |
-| vocational | 3 |
+| vocational | 4 |
 | students | 4 |
 | guardians | 3 |
 | admission | 3 |
@@ -1800,10 +1884,11 @@ curriculum.subjects
 | finance | 4 |
 | communication | 3 |
 | workflow | 2 |
+| hr | 3 |
 | security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **93** |
+| **Total** | **94** |
 
 ## Partition Strategy (⚡)
 

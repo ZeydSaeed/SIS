@@ -18,8 +18,9 @@ Date: 2026-09-12
 | U05 | payments schema + RLS | CLOSED |
 | U06 | Record + List HTTP + status rollup | CLOSED |
 | Gate | Payments slice closure | CLOSED |
-| FIN-TXN | transactions ledger | HOLD |
-| FIN-REFUND | refunds / void | HOLD |
+| FIN-TXN | transactions ledger | CLOSED |
+| FIN-REFUND | full void payment | CLOSED — see 23/24 |
+| FIN-PARTIAL | partial refund amount | HOLD |
 
 ## Conditions
 

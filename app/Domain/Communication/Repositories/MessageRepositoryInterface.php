@@ -21,6 +21,10 @@ interface MessageRepositoryInterface
         string $createdAt,
     ): int;
 
+    public function findByIdForSchool(int $schoolId, int $messageId): ?MessageSnapshot;
+
+    public function markSent(int $schoolId, int $messageId, int $status, string $sentAt): bool;
+
     /**
      * @return list<MessageSnapshot>
      */

@@ -17,24 +17,26 @@ Date: 2026-09-12
 | U04 | messages schema + RLS | CLOSED |
 | U05 | Queue + List HTTP | CLOSED |
 | Gate | Messages queue closure | CLOSED |
-| COM-PROVIDER | SMTP/SMS/jobs | HOLD |
+| U06 | Mark-sent + LocalOutbound | CLOSED — see 13/14 |
+| COM-PROVIDER SMTP/SMS | Real providers | HOLD |
 
 ## Conditions
 
 ```text
-- Queued rows only — sent_at remains null until provider phase
+- Mark-sent via LocalOutbound (COM-U06) — SMTP/SMS still HOLD
 - No bulk jobs table
 ```
 
 ## Recommended next
 
 ```text
-1) WF-RUNTIME ballot (approval_requests) — careful, OR
-2) Observability / Phase-2 polish, OR
-3) Ranking/PDF only after reopening 7.5/7.8
+1) FIN refund/void ballot, OR
+2) DOC binary upload ballot, OR
+3) Real SMTP only after provider credential ballot
 ```
 
 ```text
 PHASE COM MESSAGES QUEUE FINAL CLOSURE GATE: CLOSED / ACCEPTED WITH CONDITIONS
-Messages Queue/List live. Providers HOLD.
+Messages Queue/List + Local mark-sent live. SMTP/SMS HOLD.
+See also 14-PHASE-COM-PROVIDER-MARK-SENT-FINAL-CLOSURE-GATE.md.
 ```

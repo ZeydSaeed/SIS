@@ -18,6 +18,16 @@ interface PaymentRepositoryInterface
         string $createdAt,
     ): int;
 
+    public function findByIdForSchool(int $schoolId, int $paymentId): ?PaymentSnapshot;
+
+    public function voidPayment(
+        int $schoolId,
+        int $paymentId,
+        string $voidedAt,
+        ?int $voidedBy,
+    ): bool;
+
+    /** Sum of Posted (non-voided) payments for a student fee. */
     public function sumByStudentFee(int $schoolId, int $studentFeeId): string;
 
     /**

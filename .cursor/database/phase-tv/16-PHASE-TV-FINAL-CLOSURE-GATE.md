@@ -25,6 +25,7 @@ Blueprint objects: 90 (unchanged; physicalize + enrich only)
 | TV-U09 | Vocational staff JSON HTTP catalog writers | CLOSED |
 | TV-U10 | Timetable + Vocational staff JSON HTTP readers | CLOSED |
 | TV-U11 | Schedule-exception staff JSON HTTP readers | CLOSED |
+| TV-U12 | `vocational.workshops` safety catalog | CLOSED — see 30/31 |
 
 ## Design lock compliance
 
@@ -36,23 +37,20 @@ Blueprint objects: 90 (unchanged; physicalize + enrich only)
 | INV-TV-04 schedule conflict fail-closed | PASS (partial uniques) |
 | INV-TV-05 schedules not grade SSOT | PASS |
 | INV-TV-06 vocational SSOT in vocational.* | PASS |
-| INV-TV-07 blueprint count 90 | PASS |
+| INV-TV-07 blueprint count | PASS (**91** after TV-U12) |
 
 ## Deferred conditions
 
 ```text
 - Auto-generate / solver timetable
 - periods.id → BIGINT IDENTITY rewrite
-- Phase 8 (NOT OPENED)
+- section_batches / workshop equipment / assignment enforce
 - Student/guardian portal (privacy ballot)
 ```
-
-**Completed after original gate:** TV-U07…U11; Phase 7.6 Application + staff HTTP readers/writers/rebuild.
 
 ## Absolute prohibitions still in force
 
 ```text
-- No Phase 8 without separate AuthZ
 - No exam.session.cancel / DEFAULT student_grades partition
 - No silent mutate of official academic ledgers
 ```
@@ -60,12 +58,13 @@ Blueprint objects: 90 (unchanged; physicalize + enrich only)
 ## Recommended next program path
 
 ```text
-1) Admin security.scopes link HTTP (AuthZ), OR
-2) Phase 8 — only after explicit human start AuthZ
+1) SMTP provider ballot, OR
+2) section_batches / assignment-vs-safety ballot, OR
+3) Ranking/PDF only after reopening 7.5/7.8
 ```
 
 ```text
 PHASE TV FINAL CLOSURE GATE: CLOSED / ACCEPTED WITH CONDITIONS
-Timetable + Vocational staff HTTP writers/readers (incl. exceptions) complete.
-Phase 7.8 portal CLOSED WITH CONDITIONS.
+Timetable + Vocational catalog + workshops safety capacity live.
+See also 31-PHASE-TV-WORKSHOPS-FINAL-CLOSURE-GATE.md.
 ```

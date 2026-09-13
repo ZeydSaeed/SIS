@@ -17,27 +17,29 @@ Date: 2026-09-12
 | student_fees obligations | CLOSED |
 | payments recording | CLOSED |
 | transactions ledger | CLOSED |
-| refunds / adjustments | HOLD |
+| refunds / void payment (full void) | CLOSED — see 23/24 |
+| partial refund / adjustments | HOLD |
 | partition transactions | HOLD (adaptive) |
 | gateway / portal pay | HOLD |
 
 ## Conditions
 
 ```text
-- Append-only from fee assign + payment record
+- Append-only ledger (assign + payment + void reverse)
+- Full void only — no partial refund amount
 - No partition yet
-- No refunds
 ```
 
 ## Recommended next
 
 ```text
-1) Observability / Phase-2 polish outside empty-schema backlog, OR
-2) COM-SEND / WF-RUNTIME only with dedicated ballot, OR
-3) Ranking/PDF only after reopening 7.5/7.8
+1) DOC binary upload ballot, OR
+2) Real SMTP provider ballot, OR
+3) Workshop safety / capacity ballot
 ```
 
 ```text
 PHASE FIN TRANSACTIONS FINAL CLOSURE GATE: CLOSED / ACCEPTED WITH CONDITIONS
-Core Finance path live: catalog → obligation → payment → ledger.
+Core Finance path live: catalog → obligation → payment → ledger → void/refund line.
+See also 24-PHASE-FIN-REFUND-VOID-FINAL-CLOSURE-GATE.md.
 ```

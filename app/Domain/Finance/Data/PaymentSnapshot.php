@@ -14,6 +14,9 @@ final readonly class PaymentSnapshot
         public string $idempotencyKey,
         public string $paidAt,
         public ?int $receivedBy,
+        public int $status,
+        public ?string $voidedAt,
+        public ?int $voidedBy,
         public string $createdAt,
     ) {}
 }

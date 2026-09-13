@@ -122,6 +122,10 @@ final class Permission
 
     public const WORKFLOW_DECIDE = 'workflow.decide';
 
+    public const HR_VIEW = 'hr.view';
+
+    public const HR_MANAGE = 'hr.manage';
+
     public const VOCATIONAL_MANAGE = 'vocational.manage';
 
     public const VOCATIONAL_VIEW = 'vocational.view';
@@ -193,6 +197,8 @@ final class Permission
             self::WORKFLOW_VIEW,
             self::WORKFLOW_MANAGE,
             self::WORKFLOW_DECIDE,
+            self::HR_VIEW,
+            self::HR_MANAGE,
             self::VOCATIONAL_MANAGE,
             self::VOCATIONAL_VIEW,
             self::SECURITY_MANAGE_USERS,

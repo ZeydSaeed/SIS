@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Communication\Commands\MarkMessageSentCommand;
+use App\Application\Communication\Commands\MarkMessageSentHandler;
 use App\Application\Communication\Commands\QueueMessageCommand;
 use App\Application\Communication\Commands\QueueMessageHandler;
 use App\Application\Communication\DTOs\MessageDTO;
@@ -9,6 +11,7 @@ use App\Application\Communication\Queries\ListMessagesHandler;
 use App\Application\Communication\Queries\ListMessagesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Communication\ListMessagesRequest;
+use App\Http\Requests\Communication\MarkMessageSentRequest;
 use App\Http\Requests\Communication\QueueMessageRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -65,6 +68,44 @@ class MessageController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function markSent(
+        int $message,
+        MarkMessageSentRequest $request,
+        MarkMessageSentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new MarkMessageSentCommand(
+            schoolId: $schoolId,
+            messageId: $message,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Message mark-sent rejected.',
+                'error_code' => $result->errors[0] ?? 'communication.message_mark_sent_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.message.mark_sent',
+            'sent',
+            $request->user(),
+            'message:'.$result->messageId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'message_id' => $result->messageId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function index(

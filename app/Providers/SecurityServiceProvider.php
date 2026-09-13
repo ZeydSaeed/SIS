@@ -13,6 +13,7 @@ use App\Infrastructure\Persistence\Eloquent\StudentGradeRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Infrastructure\Persistence\Eloquent\TermResultRecord;
 use App\Infrastructure\Persistence\Eloquent\TrackRecord;
+use App\Infrastructure\Persistence\Eloquent\WorkshopRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityAuditLogger;
@@ -25,6 +26,7 @@ use App\Security\Policies\AttendancePolicy;
 use App\Security\Policies\CommunicationPolicy;
 use App\Security\Policies\DocumentsPolicy;
 use App\Security\Policies\FinancePolicy;
+use App\Security\Policies\HrPolicy;
 use App\Security\Policies\WorkflowPolicy;
 use App\Security\Policies\EnrollmentPolicy;
 use App\Security\Policies\ExamPolicy;
@@ -74,6 +76,7 @@ class SecurityServiceProvider extends ServiceProvider
         Gate::policy(SpecializationRecord::class, VocationalPolicy::class);
         Gate::policy(TrackRecord::class, VocationalPolicy::class);
         Gate::policy(SpecializationSubjectRecord::class, VocationalPolicy::class);
+        Gate::policy(WorkshopRecord::class, VocationalPolicy::class);
     }
 
     private function configureGates(): void
@@ -144,6 +147,14 @@ class SecurityServiceProvider extends ServiceProvider
 
         Gate::define('decideWorkflow', function (User $user): bool {
             return app(WorkflowPolicy::class)->decide($user);
+        });
+
+        Gate::define('viewHr', function (User $user): bool {
+            return app(HrPolicy::class)->view($user);
+        });
+
+        Gate::define('manageHr', function (User $user): bool {
+            return app(HrPolicy::class)->manage($user);
         });
 
         Gate::define('security.manage_users', function (User $user): bool {

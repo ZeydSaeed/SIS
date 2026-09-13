@@ -5,6 +5,7 @@ namespace App\Infrastructure\Persistence\Communication;
 use App\Database\SchemaHelper;
 use App\Domain\Communication\Data\MessageSnapshot;
 use App\Domain\Communication\Repositories\MessageRepositoryInterface;
+use App\Domain\Communication\ValueObjects\MessageStatus;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentMessageRepository implements MessageRepositoryInterface
@@ -48,6 +49,45 @@ final class EloquentMessageRepository implements MessageRepositoryInterface
         ]);
     }
 
+    public function findByIdForSchool(int $schoolId, int $messageId): ?MessageSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('communication', 'messages'))
+            ->where('school_id', $schoolId)
+            ->where('id', $messageId)
+            ->first([
+                'id',
+                'school_id',
+                'template_id',
+                'recipient_type',
+                'recipient_id',
+                'channel',
+                'subject',
+                'body',
+                'status',
+                'sent_at',
+                'idempotency_key',
+                'created_at',
+            ]);
+
+        return $row !== null ? $this->toSnapshot($row) : null;
+    }
+
+    public function markSent(int $schoolId, int $messageId, int $status, string $sentAt): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('communication', 'messages'))
+            ->where('school_id', $schoolId)
+            ->where('id', $messageId)
+            ->where('status', MessageStatus::Queued)
+            ->update([
+                'status' => $status,
+                'sent_at' => $sentAt,
+            ]) === 1;
+    }
+
     public function listBySchool(
         int $schoolId,
         ?string $recipientType = null,
@@ -83,22 +123,25 @@ final class EloquentMessageRepository implements MessageRepositoryInterface
             'sent_at',
             'idempotency_key',
             'created_at',
-        ])->map(static function (object $row): MessageSnapshot {
-            return new MessageSnapshot(
-                id: (int) $row->id,
-                schoolId: (int) $row->school_id,
-                templateId: $row->template_id !== null ? (int) $row->template_id : null,
-                recipientType: (string) $row->recipient_type,
-                recipientId: (int) $row->recipient_id,
-                channel: (int) $row->channel,
-                subject: $row->subject !== null ? (string) $row->subject : null,
-                body: (string) $row->body,
-                status: (int) $row->status,
-                sentAt: $row->sent_at !== null ? (string) $row->sent_at : null,
-                idempotencyKey: (string) $row->idempotency_key,
-                createdAt: (string) $row->created_at,
-            );
-        })->all();
+        ])->map(fn (object $row): MessageSnapshot => $this->toSnapshot($row))->all();
+    }
+
+    private function toSnapshot(object $row): MessageSnapshot
+    {
+        return new MessageSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            templateId: $row->template_id !== null ? (int) $row->template_id : null,
+            recipientType: (string) $row->recipient_type,
+            recipientId: (int) $row->recipient_id,
+            channel: (int) $row->channel,
+            subject: $row->subject !== null ? (string) $row->subject : null,
+            body: (string) $row->body,
+            status: (int) $row->status,
+            sentAt: $row->sent_at !== null ? (string) $row->sent_at : null,
+            idempotencyKey: (string) $row->idempotency_key,
+            createdAt: (string) $row->created_at,
+        );
     }
 
     private function bindSchool(int $schoolId): void

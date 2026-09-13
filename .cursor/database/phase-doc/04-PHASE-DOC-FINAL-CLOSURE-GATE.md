@@ -15,14 +15,15 @@ Date: 2026-09-12
 |------|-------------|--------|
 | U01 | Schema + FORCE RLS (+ school_id) | CLOSED |
 | U02 | Register + List HTTP | CLOSED |
+| U04 | Binary upload/download (local) | CLOSED — see 08/09 |
 | Gate | Final Closure | CLOSED |
 
 ## Conditions
 
 ```text
-- Metadata only (storage_key + hash) — no binary upload in HTTP
-- No soft-delete / void status column in v1 (append-only + reject DELETE)
-- No PDF render / certificate binary engine (still DEFERRED per 7.5)
+- Metadata + local object storage (no BYTEA)
+- Soft-delete / void status column still HOLD
+- S3 / AV / PDF render HOLD
 ```
 
 ## Absolute holds still apply
@@ -38,13 +39,13 @@ Date: 2026-09-12
 ## Recommended next (best path)
 
 ```text
-1) Phase FIN — Finance schema physicalization + ballot (fees/ledger HOLD until design)
-   OR empty-schema backlog with explicit AuthZ
-2) Ranking/PDF portal ONLY after reopening 7.5/7.8 ballots
-3) HR / payroll later — separate AuthZ
+1) Real SMTP provider ballot, OR
+2) Workshop safety capacity / section_batches, OR
+3) Ranking/PDF portal ONLY after reopening 7.5/7.8
 ```
 
 ```text
 PHASE DOC FINAL CLOSURE GATE: CLOSED / ACCEPTED WITH CONDITIONS
-Document metadata Register/List live under school FORCE RLS.
+Metadata Register/List + local binary Upload/Download live.
+See also 09-PHASE-DOC-BINARY-UPLOAD-FINAL-CLOSURE-GATE.md.
 ```

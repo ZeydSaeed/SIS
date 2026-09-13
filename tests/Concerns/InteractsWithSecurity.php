@@ -451,6 +451,26 @@ trait InteractsWithSecurity
         return $user;
     }
 
+    protected function actingAsHrManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantHrManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsHrViewerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantHrViewer($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
     protected function actingAsVocationalManager(?User $user = null, ?int $schoolId = null): User
     {
         $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');

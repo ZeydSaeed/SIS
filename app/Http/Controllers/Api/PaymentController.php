@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Finance\Commands\RecordPaymentCommand;
 use App\Application\Finance\Commands\RecordPaymentHandler;
+use App\Application\Finance\Commands\VoidPaymentCommand;
+use App\Application\Finance\Commands\VoidPaymentHandler;
 use App\Application\Finance\DTOs\PaymentDTO;
 use App\Application\Finance\Queries\ListPaymentsHandler;
 use App\Application\Finance\Queries\ListPaymentsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\ListPaymentsRequest;
 use App\Http\Requests\Finance\RecordPaymentRequest;
+use App\Http\Requests\Finance\VoidPaymentRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -69,6 +72,50 @@ class PaymentController extends Controller
         ], $result->fromIdempotencyCache ? 200 : 201);
     }
 
+    public function void(
+        int $payment,
+        VoidPaymentRequest $request,
+        VoidPaymentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new VoidPaymentCommand(
+            schoolId: $schoolId,
+            paymentId: $payment,
+            voidedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+            notes: $request->validated('notes'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Payment void rejected.',
+                'error_code' => $result->errors[0] ?? 'finance.payment_void_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataModified,
+            'finance.payment.void',
+            'voided',
+            $request->user(),
+            'payment:'.$result->paymentId,
+            [
+                'from_idempotency' => $result->fromIdempotencyCache,
+                'student_fee_status' => $result->studentFeeStatus,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'payment_id' => $result->paymentId,
+                'student_fee_status' => $result->studentFeeStatus,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
     public function index(
         ListPaymentsRequest $request,
         ListPaymentsHandler $handler,
@@ -100,6 +147,9 @@ class PaymentController extends Controller
                 'payment_reference' => $dto->paymentReference,
                 'paid_at' => $dto->paidAt,
                 'received_by' => $dto->receivedBy,
+                'status' => $dto->status,
+                'voided_at' => $dto->voidedAt,
+                'voided_by' => $dto->voidedBy,
                 'created_at' => $dto->createdAt,
             ], $items),
             'meta' => ['correlation_id' => CorrelationContext::id()],

@@ -6,6 +6,8 @@ use App\Application\Vocational\Commands\CreateSpecializationCommand;
 use App\Application\Vocational\Commands\CreateSpecializationHandler;
 use App\Application\Vocational\Commands\CreateTrackCommand;
 use App\Application\Vocational\Commands\CreateTrackHandler;
+use App\Application\Vocational\Commands\CreateWorkshopCommand;
+use App\Application\Vocational\Commands\CreateWorkshopHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationCommand;
 use App\Application\Vocational\Commands\DeactivateSpecializationHandler;
 use App\Application\Vocational\Commands\DeactivateSpecializationSubjectCommand;
@@ -19,18 +21,23 @@ use App\Application\Vocational\Commands\UpdateSpecializationHandler;
 use App\Application\Vocational\Commands\UpdateTrackCommand;
 use App\Application\Vocational\Commands\UpdateTrackHandler;
 use App\Application\Vocational\DTOs\SpecializationDTO;
+use App\Application\Vocational\DTOs\WorkshopDTO;
 use App\Application\Vocational\Queries\GetSpecializationHandler;
 use App\Application\Vocational\Queries\GetSpecializationQuery;
 use App\Application\Vocational\Queries\ListSpecializationsHandler;
 use App\Application\Vocational\Queries\ListSpecializationsQuery;
+use App\Application\Vocational\Queries\ListWorkshopsHandler;
+use App\Application\Vocational\Queries\ListWorkshopsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Vocational\CreateSpecializationRequest;
 use App\Http\Requests\Vocational\CreateTrackRequest;
+use App\Http\Requests\Vocational\CreateWorkshopRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationRequest;
 use App\Http\Requests\Vocational\DeactivateSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\DeactivateTrackRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
 use App\Http\Requests\Vocational\ListSpecializationsRequest;
+use App\Http\Requests\Vocational\ListWorkshopsRequest;
 use App\Http\Requests\Vocational\ShowSpecializationRequest;
 use App\Http\Requests\Vocational\UpdateSpecializationRequest;
 use App\Http\Requests\Vocational\UpdateTrackRequest;
@@ -258,6 +265,82 @@ class VocationalController extends Controller
         $this->audit($request->user(), 'vocational.specialization_subjects.deactivate', 'deactivated', 'specialization_subject:'.($result->linkId ?? 'unknown'));
 
         return $this->idResponse($result->linkId, $result->fromIdempotencyCache);
+    }
+
+    public function storeWorkshop(
+        CreateWorkshopRequest $request,
+        CreateWorkshopHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new CreateWorkshopCommand(
+            schoolId: $this->schoolContext->requireId(),
+            code: (string) $request->validated('code'),
+            name: (string) $request->validated('name'),
+            capacity: (int) $request->validated('capacity'),
+            safetyCapacity: (int) $request->validated('safety_capacity'),
+            roomId: $request->validated('room_id') !== null
+                ? (int) $request->validated('room_id')
+                : null,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Workshop create rejected.',
+                'error_code' => $result->errors[0] ?? 'vocational.workshop_create_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->audit(
+            $request->user(),
+            'vocational.workshops.store',
+            'created',
+            'workshop:'.$result->workshopId,
+        );
+
+        return response()->json([
+            'data' => [
+                'workshop_id' => $result->workshopId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexWorkshops(
+        ListWorkshopsRequest $request,
+        ListWorkshopsHandler $handler,
+    ): JsonResponse {
+        $status = $request->validated('status');
+        $items = $handler->handle(new ListWorkshopsQuery(
+            schoolId: $this->schoolContext->requireId(),
+            status: $status !== null ? (int) $status : null,
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.workshops.index',
+            'viewed',
+            $request->user(),
+            'workshops',
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (WorkshopDTO $dto): array => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'capacity' => $dto->capacity,
+                'safety_capacity' => $dto->safetyCapacity,
+                'room_id' => $dto->roomId,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+                'updated_at' => $dto->updatedAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     /**

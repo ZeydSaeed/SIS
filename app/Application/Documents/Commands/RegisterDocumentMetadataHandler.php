@@ -10,20 +10,13 @@ use App\Application\Contracts\UnitOfWork;
 use App\Application\Documents\Results\RegisterDocumentMetadataResult;
 use App\Domain\Documents\Events\DocumentMetadataRegistered;
 use App\Domain\Documents\Repositories\DocumentRepositoryInterface;
+use App\Domain\Documents\Support\DocumentEntityTypes;
 use App\Domain\Documents\Support\DocumentIdempotencyGuard;
 use App\Domain\Documents\ValueObjects\DocumentType;
 
 final class RegisterDocumentMetadataHandler implements CommandHandler
 {
     private const COMMAND_NAME = 'RegisterDocumentMetadata';
-
-    private const ALLOWED_ENTITY_TYPES = [
-        'student',
-        'teacher',
-        'enrollment',
-        'certificate',
-        'qualification',
-    ];
 
     public function __construct(
         private readonly UnitOfWork $unitOfWork,
@@ -42,7 +35,7 @@ final class RegisterDocumentMetadataHandler implements CommandHandler
         }
 
         $entityType = strtolower(trim($command->entityType));
-        if (! in_array($entityType, self::ALLOWED_ENTITY_TYPES, true)) {
+        if (! DocumentEntityTypes::isAllowed($entityType)) {
             return RegisterDocumentMetadataResult::failure(['documents.entity_type_invalid']);
         }
         if (! DocumentType::isValid($command->documentType)) {

@@ -61,6 +61,8 @@ return [
         'workflow.view' => 'View approval flow definitions for the current school',
         'workflow.manage' => 'Manage approval flow definitions and cancel open approval requests',
         'workflow.decide' => 'Decide pending approval requests when assigned the step role',
+        'hr.view' => 'View HR job positions and employees for the current school',
+        'hr.manage' => 'Manage HR job positions and register employees for the current school (no payroll)',
         'vocational.manage' => 'Manage vocational specializations, tracks, and subject links',
         'vocational.view' => 'View vocational specializations, tracks, and subject links',
         'security.manage_users' => 'Manage users and security settings',
@@ -210,6 +212,13 @@ return [
             'workflow.view',
             'workflow.manage',
             'workflow.decide',
+        ],
+        'hr_viewer' => [
+            'hr.view',
+        ],
+        'hr_manager' => [
+            'hr.view',
+            'hr.manage',
         ],
         'vocational_manager' => [
             'vocational.view',

@@ -20,6 +20,8 @@ interface DocumentRepositoryInterface
         string $createdAt,
     ): int;
 
+    public function findByIdForSchool(int $schoolId, int $documentId): ?DocumentFileSnapshot;
+
     /**
      * @return list<DocumentFileSnapshot>
      */

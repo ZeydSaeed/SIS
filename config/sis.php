@@ -104,6 +104,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Communication outbound (Phase COM-U06)
+    |--------------------------------------------------------------------------
+    */
+
+    'communication' => [
+        // local = LocalOutboundMessageAdapter (no network). SMTP/SMS HOLD.
+        'outbound_driver' => env('SIS_COM_OUTBOUND_DRIVER', 'local'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Documents object storage (Phase DOC-U04)
+    |--------------------------------------------------------------------------
+    */
+
+    'documents' => [
+        'disk' => env('SIS_DOCUMENTS_DISK', 'sis_documents'),
+        'max_bytes' => (int) env('SIS_DOCUMENTS_MAX_BYTES', 10 * 1024 * 1024),
+        'allowed_mimes' => [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'text/plain',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Observability
     |--------------------------------------------------------------------------
     */
@@ -132,6 +161,7 @@ return [
                 'api.finance.' => 'finance_oltp',
                 'api.communication.' => 'communication_oltp',
                 'api.workflow.' => 'workflow_oltp',
+                'api.hr.' => 'hr_oltp',
                 'api.documents.' => 'documents_oltp',
                 'api.transfers.' => 'transfers_oltp',
                 'api.teachers.' => 'teachers_oltp',

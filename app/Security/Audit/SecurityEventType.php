@@ -45,4 +45,6 @@ enum SecurityEventType: string
     case CommunicationDataModified = 'SEC_COMMUNICATION_DATA_MODIFIED';
     case WorkflowDataAccess = 'SEC_WORKFLOW_DATA_ACCESS';
     case WorkflowDataModified = 'SEC_WORKFLOW_DATA_MODIFIED';
+    case HrDataAccess = 'SEC_HR_DATA_ACCESS';
+    case HrDataModified = 'SEC_HR_DATA_MODIFIED';
 }
