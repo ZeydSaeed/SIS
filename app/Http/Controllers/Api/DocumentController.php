@@ -9,10 +9,13 @@ use App\Application\Documents\Commands\UploadDocumentHandler;
 use App\Application\Documents\DTOs\DocumentFileDTO;
 use App\Application\Documents\Queries\GetDocumentContentHandler;
 use App\Application\Documents\Queries\GetDocumentContentQuery;
+use App\Application\Documents\Queries\GetDocumentHandler;
+use App\Application\Documents\Queries\GetDocumentQuery;
 use App\Application\Documents\Queries\ListDocumentsByEntityHandler;
 use App\Application\Documents\Queries\ListDocumentsByEntityQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Documents\DownloadDocumentRequest;
+use App\Http\Requests\Documents\ShowDocumentRequest;
 use App\Http\Requests\Documents\ListDocumentsByEntityRequest;
 use App\Http\Requests\Documents\RegisterDocumentMetadataRequest;
 use App\Http\Requests\Documents\UploadDocumentRequest;
@@ -133,6 +136,53 @@ class DocumentController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function show(
+        int $document,
+        ShowDocumentRequest $request,
+        GetDocumentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetDocumentQuery(
+            schoolId: $schoolId,
+            documentId: $document,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Document not found.',
+                'error_code' => 'documents.not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::DocumentsDataAccess,
+            'documents.metadata.show',
+            'viewed',
+            $request->user(),
+            'document:'.$document,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'entity_type' => $dto->entityType,
+                'entity_id' => $dto->entityId,
+                'document_type' => $dto->documentType,
+                'storage_key' => $dto->storageKey,
+                'file_name' => $dto->fileName,
+                'mime_type' => $dto->mimeType,
+                'file_size' => $dto->fileSize,
+                'file_hash' => $dto->fileHash,
+                'uploaded_by' => $dto->uploadedBy,
+                'created_at' => $dto->createdAt,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function download(

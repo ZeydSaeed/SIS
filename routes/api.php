@@ -292,6 +292,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.documents.download');
         Route::get('documents', [DocumentController::class, 'index'])
             ->name('api.documents.index');
+        Route::get('documents/{document}', [DocumentController::class, 'show'])
+            ->whereNumber('document')
+            ->name('api.documents.show');
 
         Route::post('audit/logs', [AuditLogController::class, 'store'])
             ->name('api.audit.logs.store');
