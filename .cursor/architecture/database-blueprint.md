@@ -550,7 +550,8 @@
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `UNIQUE(employee_code)`, `BTREE(status)`  
-**Security (Phase 8-U04):** FORCE RLS via `EXISTS teacher_schools` for current school (SELECT/UPDATE). INSERT `WITH CHECK` requires `app.current_school_id` only (register before membership). Hard DELETE rejected by trigger.
+**Security (Phase 8-U04):** FORCE RLS via `EXISTS teacher_schools` for current school (SELECT/UPDATE). INSERT `WITH CHECK` requires `app.current_school_id` only (register before membership). Hard DELETE rejected by trigger.  
+**v1 HTTP:** Register + Update profile; `POST …/change-employee-code` for code value change (8.4-U01).
 
 ### `teachers.teacher_schools`
 

@@ -18,6 +18,14 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ->exists();
     }
 
+    public function employeeCodeTakenByOther(string $employeeCode, int $exceptTeacherId): bool
+    {
+        return DB::table(SchemaHelper::qualified('teachers', 'teachers'))
+            ->where('employee_code', $employeeCode)
+            ->where('id', '!=', $exceptTeacherId)
+            ->exists();
+    }
+
     public function createTeacher(
         ?int $userId,
         string $employeeCode,
@@ -65,6 +73,8 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
 
     public function findInSchool(int $teacherId, int $schoolId, ?int $academicYearId = null): ?TeacherSnapshot
     {
+        $this->bindSchool($schoolId);
+
         $q = DB::table(SchemaHelper::qualified('teachers', 'teachers').' as t')
             ->join(SchemaHelper::qualified('teachers', 'teacher_schools').' as ts', 'ts.teacher_id', '=', 't.id')
             ->where('t.id', $teacherId)
@@ -129,6 +139,18 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         DB::table(SchemaHelper::qualified('teachers', 'teachers'))
             ->where('id', $teacherId)
             ->update($fields);
+    }
+
+    public function changeEmployeeCode(int $schoolId, int $teacherId, string $employeeCode, string $updatedAt): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('teachers', 'teachers'))
+            ->where('id', $teacherId)
+            ->update([
+                'employee_code' => $employeeCode,
+                'updated_at' => $updatedAt,
+            ]);
     }
 
     public function setStatus(int $teacherId, int $status, string $updatedAt): void

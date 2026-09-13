@@ -8,6 +8,10 @@ use App\Application\Teachers\Commands\AssignTeacherSchoolCommand;
 use App\Application\Teachers\Commands\AssignTeacherSchoolHandler;
 use App\Application\Teachers\Commands\AssignTeacherSubjectCommand;
 use App\Application\Teachers\Commands\AssignTeacherSubjectHandler;
+use App\Application\Teachers\Commands\AttachTeacherQualificationDocumentCommand;
+use App\Application\Teachers\Commands\AttachTeacherQualificationDocumentHandler;
+use App\Application\Teachers\Commands\ChangeTeacherEmployeeCodeCommand;
+use App\Application\Teachers\Commands\ChangeTeacherEmployeeCodeHandler;
 use App\Application\Teachers\Commands\DeactivateTeacherCommand;
 use App\Application\Teachers\Commands\DeactivateTeacherHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
@@ -16,8 +20,6 @@ use App\Application\Teachers\Commands\UnlinkTeacherSubjectCommand;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectHandler;
 use App\Application\Teachers\Commands\UpdateTeacherCommand;
 use App\Application\Teachers\Commands\UpdateTeacherHandler;
-use App\Application\Teachers\Commands\AttachTeacherQualificationDocumentCommand;
-use App\Application\Teachers\Commands\AttachTeacherQualificationDocumentHandler;
 use App\Application\Teachers\Commands\VoidTeacherQualificationCommand;
 use App\Application\Teachers\Commands\VoidTeacherQualificationHandler;
 use App\Application\Teachers\DTOs\TeacherDTO;
@@ -33,6 +35,7 @@ use App\Http\Requests\Teachers\AddTeacherQualificationRequest;
 use App\Http\Requests\Teachers\AssignTeacherSchoolRequest;
 use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
 use App\Http\Requests\Teachers\AttachTeacherQualificationDocumentRequest;
+use App\Http\Requests\Teachers\ChangeTeacherEmployeeCodeRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
 use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
@@ -587,6 +590,48 @@ class TeacherController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function changeEmployeeCode(
+        int $teacher,
+        ChangeTeacherEmployeeCodeRequest $request,
+        ChangeTeacherEmployeeCodeHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new ChangeTeacherEmployeeCodeCommand(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            employeeCode: (string) $request->validated('employee_code'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'teachers.employee_code_change_failed';
+
+            return response()->json([
+                'message' => 'Teacher employee code change rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'teachers.not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataModified,
+            'teachers.change_employee_code',
+            'changed',
+            $request->user(),
+            'teacher:'.$teacher,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'teacher_id' => $result->teacherId,
+                'employee_code' => $result->employeeCode,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     /**

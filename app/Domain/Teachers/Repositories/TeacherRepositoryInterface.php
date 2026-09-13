@@ -9,6 +9,8 @@ interface TeacherRepositoryInterface
 {
     public function employeeCodeExists(string $employeeCode): bool;
 
+    public function employeeCodeTakenByOther(string $employeeCode, int $exceptTeacherId): bool;
+
     public function createTeacher(
         ?int $userId,
         string $employeeCode,
@@ -52,6 +54,8 @@ interface TeacherRepositoryInterface
      * }  $fields
      */
     public function updateTeacher(int $teacherId, array $fields): void;
+
+    public function changeEmployeeCode(int $schoolId, int $teacherId, string $employeeCode, string $updatedAt): void;
 
     public function setStatus(int $teacherId, int $status, string $updatedAt): void;
 
