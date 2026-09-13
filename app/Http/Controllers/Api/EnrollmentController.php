@@ -2,20 +2,30 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Enrollment\Commands\AssignEnrollmentSubjectCommand;
+use App\Application\Enrollment\Commands\AssignEnrollmentSubjectHandler;
 use App\Application\Enrollment\Commands\CancelEnrollmentCommand;
 use App\Application\Enrollment\Commands\CancelEnrollmentHandler;
+use App\Application\Enrollment\Commands\DeactivateEnrollmentSubjectCommand;
+use App\Application\Enrollment\Commands\DeactivateEnrollmentSubjectHandler;
 use App\Application\Enrollment\Commands\EnrollStudentCommand;
 use App\Application\Enrollment\Commands\EnrollStudentHandler;
 use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementCommand;
 use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementHandler;
+use App\Application\Enrollment\DTOs\EnrollmentSubjectDTO;
 use App\Application\Enrollment\Queries\GetEnrollmentHandler;
 use App\Application\Enrollment\Queries\GetEnrollmentQuery;
+use App\Application\Enrollment\Queries\ListEnrollmentSubjectsHandler;
+use App\Application\Enrollment\Queries\ListEnrollmentSubjectsQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentsQuery;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Enrollment\AssignEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\CancelEnrollmentRequest;
+use App\Http\Requests\Enrollment\DeactivateEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
+use App\Http\Requests\Enrollment\ListEnrollmentSubjectsRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Intelligence\Support\CorrelationContext;
@@ -255,6 +265,131 @@ class EnrollmentController extends Controller
                 'from_idempotency_cache' => $result->fromIdempotencyCache,
                 'correlation_id' => CorrelationContext::id(),
             ],
+        ]);
+    }
+
+    public function storeSubject(
+        AssignEnrollmentSubjectRequest $request,
+        int $enrollment,
+        AssignEnrollmentSubjectHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new AssignEnrollmentSubjectCommand(
+            schoolId: $schoolId,
+            enrollmentId: $enrollment,
+            subjectId: (int) $request->validated('subject_id'),
+            isElective: (bool) ($request->validated('is_elective') ?? false),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'enrollment.subject_assign_failed';
+
+            return response()->json([
+                'message' => 'Enrollment subject assign rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], in_array($code, [
+                'enrollment.not_found',
+                'curriculum.subject_not_found',
+            ], true) ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.subjects.store',
+            'assigned',
+            $request->user(),
+            'enrollment:'.$enrollment,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'link_id' => $result->linkId,
+                'enrollment_id' => $enrollment,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexSubjects(
+        ListEnrollmentSubjectsRequest $request,
+        int $enrollment,
+        ListEnrollmentSubjectsHandler $handler,
+    ): JsonResponse {
+        $items = $handler->handle(new ListEnrollmentSubjectsQuery(
+            $this->schoolContext->requireId(),
+            $enrollment,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Enrollment not found.',
+                'error_code' => 'enrollment.not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataAccess,
+            'enrollments.subjects.index',
+            'listed',
+            $request->user(),
+            'enrollment:'.$enrollment,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (EnrollmentSubjectDTO $dto): array => [
+                'id' => $dto->id,
+                'enrollment_id' => $dto->enrollmentId,
+                'subject_id' => $dto->subjectId,
+                'is_elective' => $dto->isElective,
+                'status' => $dto->status,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function deactivateSubject(
+        DeactivateEnrollmentSubjectRequest $request,
+        int $link,
+        DeactivateEnrollmentSubjectHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new DeactivateEnrollmentSubjectCommand(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'enrollment.subject_deactivate_failed';
+
+            return response()->json([
+                'message' => 'Enrollment subject deactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'enrollment.subject_link_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.subjects.deactivate',
+            'deactivated',
+            $request->user(),
+            'enrollment_subject:'.$result->linkId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'link_id' => $result->linkId,
+                'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
 }

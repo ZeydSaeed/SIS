@@ -523,10 +523,14 @@
 | enrollment_id | BIGINT | FK → enrollments |
 | subject_id | BIGINT | FK → curriculum.subjects |
 | is_elective | BOOLEAN | NOT NULL DEFAULT false |
-| status | SMALLINT | NOT NULL DEFAULT 1 |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Inactive (**CUR-U05**) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(enrollment_id)`, `UNIQUE(enrollment_id, subject_id)`
+**Indexes:** `BTREE(enrollment_id)`, `UNIQUE(enrollment_id, subject_id)`  
+**Constraints (CUR-U05):** `status IN (1,2)`; hard DELETE rejected by trigger.  
+**Security (CUR-U05):** FORCE RLS via parent enrollment `school_id` + `app.current_school_id`.  
+**v1 HTTP:** `POST/GET …/enrollments/{id}/subjects`; `POST …/enrollment-subjects/{link}/deactivate`.  
+**Prereq gate (CUR-U05):** assign rejects unless every active `curriculum.prerequisites` edge is satisfied by prior enrollment-subject history (same student + school). Grade-pass evidence → CUR-U06 HOLD.
 
 ---
 

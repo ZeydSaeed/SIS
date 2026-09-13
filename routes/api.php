@@ -63,6 +63,15 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('enrollments/{enrollment}/cancel', [EnrollmentController::class, 'cancel'])
             ->name('api.enrollments.cancel');
+        Route::post('enrollments/{enrollment}/subjects', [EnrollmentController::class, 'storeSubject'])
+            ->whereNumber('enrollment')
+            ->name('api.enrollments.subjects.store');
+        Route::get('enrollments/{enrollment}/subjects', [EnrollmentController::class, 'indexSubjects'])
+            ->whereNumber('enrollment')
+            ->name('api.enrollments.subjects.index');
+        Route::post('enrollment-subjects/{link}/deactivate', [EnrollmentController::class, 'deactivateSubject'])
+            ->whereNumber('link')
+            ->name('api.enrollment_subjects.deactivate');
 
         Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store', 'update'])->names([
             'index' => 'api.enrollments.index',
