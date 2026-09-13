@@ -6,6 +6,8 @@ use App\Application\Workflow\Commands\CreateApprovalFlowCommand;
 use App\Application\Workflow\Commands\CreateApprovalFlowHandler;
 use App\Application\Workflow\Commands\DeactivateApprovalFlowCommand;
 use App\Application\Workflow\Commands\DeactivateApprovalFlowHandler;
+use App\Application\Workflow\Commands\ReactivateApprovalFlowCommand;
+use App\Application\Workflow\Commands\ReactivateApprovalFlowHandler;
 use App\Application\Workflow\DTOs\ApprovalFlowDTO;
 use App\Application\Workflow\Queries\ListApprovalFlowsHandler;
 use App\Application\Workflow\Queries\ListApprovalFlowsQuery;
@@ -13,6 +15,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Workflow\CreateApprovalFlowRequest;
 use App\Http\Requests\Workflow\DeactivateApprovalFlowRequest;
 use App\Http\Requests\Workflow\ListApprovalFlowsRequest;
+use App\Http\Requests\Workflow\ReactivateApprovalFlowRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -142,6 +145,46 @@ class ApprovalFlowController extends Controller
             'data' => [
                 'flow_id' => $result->flowId,
                 'is_active' => false,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivate(
+        int $approvalFlow,
+        ReactivateApprovalFlowRequest $request,
+        ReactivateApprovalFlowHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateApprovalFlowCommand(
+            schoolId: $this->schoolContext->requireId(),
+            flowId: $approvalFlow,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'workflow.flow_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Approval flow reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'workflow.flow_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::WorkflowDataModified,
+            'workflow.approval_flow.reactivate',
+            'reactivated',
+            $request->user(),
+            'flow:'.$approvalFlow,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'flow_id' => $result->flowId,
+                'is_active' => true,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

@@ -1141,8 +1141,9 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(school_id, from_grade_level_id)`  
-**Security (Phase PT-U01):** FORCE RLS school isolation. Hard DELETE rejected by trigger.  
-**Checks:** `from_grade_level_id <> to_grade_level_id`
+**Security (Phase PT-U01):** FORCE RLS school isolation. Hard DELETE rejected by trigger. Soft deactivate via `is_active` (**PT-U03**).  
+**Checks:** `from_grade_level_id <> to_grade_level_id`  
+**v1 HTTP:** Create/List + soft deactivate (`POST …/promotion/rules/{id}/deactivate`).
 
 ### `promotion.records`
 
@@ -1523,7 +1524,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(school_id, entity_type)`, `BTREE(school_id, is_active)`  
 **Security (Phase WF-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Create/List catalog + soft deactivate (`POST …/approval-flows/{id}/deactivate`) — approval_requests HOLD extras unchanged.
+**v1 HTTP:** Create/List catalog + soft deactivate/reactivate (`POST …/approval-flows/{id}/deactivate|reactivate`) — approval_requests HOLD extras unchanged.
 
 ### `workflow.approval_requests` — Phase WF-U04 LIVE
 
