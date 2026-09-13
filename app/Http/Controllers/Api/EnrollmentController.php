@@ -8,6 +8,8 @@ use App\Application\Enrollment\Commands\CancelEnrollmentCommand;
 use App\Application\Enrollment\Commands\CancelEnrollmentHandler;
 use App\Application\Enrollment\Commands\DeactivateEnrollmentSubjectCommand;
 use App\Application\Enrollment\Commands\DeactivateEnrollmentSubjectHandler;
+use App\Application\Enrollment\Commands\ReactivateEnrollmentSubjectCommand;
+use App\Application\Enrollment\Commands\ReactivateEnrollmentSubjectHandler;
 use App\Application\Enrollment\Commands\EnrollStudentCommand;
 use App\Application\Enrollment\Commands\EnrollStudentHandler;
 use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementCommand;
@@ -24,6 +26,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Enrollment\AssignEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\CancelEnrollmentRequest;
 use App\Http\Requests\Enrollment\DeactivateEnrollmentSubjectRequest;
+use App\Http\Requests\Enrollment\ReactivateEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\ListEnrollmentSubjectsRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
@@ -387,6 +390,46 @@ class EnrollmentController extends Controller
             'data' => [
                 'link_id' => $result->linkId,
                 'status' => 2,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reactivateSubject(
+        ReactivateEnrollmentSubjectRequest $request,
+        int $link,
+        ReactivateEnrollmentSubjectHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReactivateEnrollmentSubjectCommand(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'enrollment.subject_reactivate_failed';
+
+            return response()->json([
+                'message' => 'Enrollment subject reactivate rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'enrollment.subject_link_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.subjects.reactivate',
+            'reactivated',
+            $request->user(),
+            'enrollment_subject:'.$result->linkId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'link_id' => $result->linkId,
+                'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

@@ -557,7 +557,7 @@
 **Indexes:** `BTREE(enrollment_id)`, `UNIQUE(enrollment_id, subject_id)`  
 **Constraints (CUR-U05):** `status IN (1,2)`; hard DELETE rejected by trigger.  
 **Security (CUR-U05):** FORCE RLS via parent enrollment `school_id` + `app.current_school_id`.  
-**v1 HTTP:** `POST/GET …/enrollments/{id}/subjects`; `POST …/enrollment-subjects/{link}/deactivate`.  
+**v1 HTTP:** `POST/GET …/enrollments/{id}/subjects`; `POST …/enrollment-subjects/{link}/deactivate|reactivate`.  
 **Prereq gate (CUR-U05/U06):** assign rejects unless every active `curriculum.prerequisites` edge is satisfied by **OR** of: (1) prior enrollment-subject history same student+school (U05); (2) current finalized non-absent `exams.student_grades` with `score >= curriculum.subjects.pass_grade` (U06).
 
 ---

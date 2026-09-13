@@ -89,6 +89,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('enrollment-subjects/{link}/deactivate', [EnrollmentController::class, 'deactivateSubject'])
             ->whereNumber('link')
             ->name('api.enrollment_subjects.deactivate');
+        Route::post('enrollment-subjects/{link}/reactivate', [EnrollmentController::class, 'reactivateSubject'])
+            ->whereNumber('link')
+            ->name('api.enrollment_subjects.reactivate');
 
         Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store', 'update'])->names([
             'index' => 'api.enrollments.index',

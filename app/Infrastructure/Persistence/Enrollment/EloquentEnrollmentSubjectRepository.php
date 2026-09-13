@@ -72,6 +72,20 @@ final class EloquentEnrollmentSubjectRepository implements EnrollmentSubjectRepo
         return $row === null ? null : $this->map($row);
     }
 
+    public function findInactive(int $schoolId, int $linkId): ?EnrollmentSubjectSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('enrollment', 'enrollment_subjects').' as es')
+            ->join(SchemaHelper::qualified('enrollment', 'enrollments').' as e', 'e.id', '=', 'es.enrollment_id')
+            ->where('es.id', $linkId)
+            ->where('e.school_id', $schoolId)
+            ->where('es.status', EnrollmentSubjectStatus::Inactive->value)
+            ->first(['es.id', 'es.enrollment_id', 'es.subject_id', 'es.is_elective', 'es.status']);
+
+        return $row === null ? null : $this->map($row);
+    }
+
     public function listActive(int $schoolId, int $enrollmentId): array
     {
         $this->bindSchool($schoolId);
@@ -97,6 +111,22 @@ final class EloquentEnrollmentSubjectRepository implements EnrollmentSubjectRepo
             ->where('id', $linkId)
             ->where('status', EnrollmentSubjectStatus::Active->value)
             ->update(['status' => EnrollmentSubjectStatus::Inactive->value]);
+
+        return $updated > 0;
+    }
+
+    public function reactivate(int $schoolId, int $linkId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        if ($this->findInactive($schoolId, $linkId) === null) {
+            return false;
+        }
+
+        $updated = DB::table(SchemaHelper::qualified('enrollment', 'enrollment_subjects'))
+            ->where('id', $linkId)
+            ->where('status', EnrollmentSubjectStatus::Inactive->value)
+            ->update(['status' => EnrollmentSubjectStatus::Active->value]);
 
         return $updated > 0;
     }
