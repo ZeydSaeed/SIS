@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { Brain, CalendarCheck, ClipboardList, GraduationCap, LayoutGrid } from 'lucide-react';
+import { Brain, CalendarCheck, ClipboardList, GraduationCap, LayoutGrid, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -35,6 +35,11 @@ const mainNavItems: NavItem[] = [
         title: 'Attendance',
         href: '/attendance',
         icon: CalendarCheck,
+    },
+    {
+        title: 'Teachers',
+        href: '/teachers',
+        icon: Users,
     },
     {
         title: 'Database Intelligence',

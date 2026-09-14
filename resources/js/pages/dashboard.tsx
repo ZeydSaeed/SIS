@@ -71,6 +71,14 @@ export default function Dashboard() {
                             </Link>
                         </li>
                         <li>
+                            <Link href="/teachers" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Teachers</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Staff directory for the academic year
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
                             <Link
                                 href="/intelligence/recommendations"
                                 prefetch

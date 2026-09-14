@@ -4,6 +4,7 @@ use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Student\StudentPageController;
+use App\Http\Controllers\Teachers\TeacherPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -22,6 +23,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('attendance')->name('attendance.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [AttendancePageController::class, 'index'])->name('index');
+    });
+
+    Route::prefix('teachers')->name('teachers.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [TeacherPageController::class, 'index'])->name('index');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {
