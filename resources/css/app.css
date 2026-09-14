@@ -62,6 +62,11 @@
 }
 
 :root {
+    --sis-twilight-indigo: #3a405a;
+    --sis-powder-blue: #aec5eb;
+    --sis-powder-petal: #f9dec9;
+    --sis-powder-blush: #e9afa3;
+    --sis-ash-brown: #685044;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
@@ -140,4 +145,152 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* Operational Hub (G7) — Color/Typography SSOT derivatives */
+.sis-ops-hub {
+    font-family: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
+    color: var(--sis-twilight-indigo);
+}
+
+.sis-ops-hub__eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sis-ash-brown);
+}
+
+.sis-ops-hub__title {
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.5rem, 2vw + 1rem, 2rem);
+    font-weight: 650;
+    line-height: 1.2;
+    color: var(--sis-twilight-indigo);
+}
+
+.sis-ops-hub__lead,
+.sis-ops-hub__section-lead {
+    margin: 0;
+    max-width: 42rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--sis-ash-brown);
+}
+
+.sis-ops-hub__section-title {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 650;
+    color: var(--sis-twilight-indigo);
+}
+
+.sis-ops-hub__links {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+@media (min-width: 768px) {
+    .sis-ops-hub__links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.sis-ops-hub__link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid color-mix(in srgb, var(--sis-powder-blue) 70%, var(--sis-twilight-indigo));
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--sis-powder-blue) 28%, white);
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.sis-ops-hub__link:hover,
+.sis-ops-hub__link:focus-visible {
+    background: color-mix(in srgb, var(--sis-powder-petal) 55%, white);
+    border-color: var(--sis-twilight-indigo);
+    outline: 2px solid transparent;
+}
+
+.sis-ops-hub__link:focus-visible {
+    outline: 2px solid var(--sis-twilight-indigo);
+    outline-offset: 2px;
+}
+
+.sis-ops-hub__link-title {
+    font-weight: 650;
+}
+
+.sis-ops-hub__link-desc {
+    font-size: 0.875rem;
+    color: var(--sis-ash-brown);
+}
+
+.sis-ops-hub__gates {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sis-ops-hub__gate {
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--sis-powder-blue) 55%, var(--sis-ash-brown));
+    background: color-mix(in srgb, var(--sis-powder-petal) 35%, white);
+}
+
+.sis-ops-hub__gate--advanced {
+    border-color: color-mix(in srgb, var(--sis-powder-blue) 65%, var(--sis-twilight-indigo));
+    background: color-mix(in srgb, var(--sis-powder-blue) 22%, white);
+}
+
+.sis-ops-hub__gate--partial {
+    border-color: color-mix(in srgb, var(--sis-powder-blush) 55%, var(--sis-ash-brown));
+    background: color-mix(in srgb, var(--sis-powder-blush) 28%, white);
+}
+
+.sis-ops-hub__gate--gap {
+    border-color: color-mix(in srgb, var(--sis-ash-brown) 45%, var(--sis-twilight-indigo));
+    background: color-mix(in srgb, var(--sis-powder-petal) 50%, white);
+}
+
+.sis-ops-hub__gate-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+}
+
+.sis-ops-hub__gate-id {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--sis-ash-brown);
+}
+
+.sis-ops-hub__gate-title {
+    font-weight: 650;
+    flex: 1 1 auto;
+}
+
+.sis-ops-hub__gate-status {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--sis-twilight-indigo);
+}
+
+.sis-ops-hub__gate-note {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: var(--sis-ash-brown);
 }
