@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Users } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -91,6 +92,11 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
                     title={i18n.teachers.title}
                     description={i18n.teachers.description}
                     icon={<Users className="size-6" aria-hidden />}
+                />
+                <OpsYearFilter
+                    action="/teachers"
+                    academicYearId={filters.academic_year_id}
+                    extraParams={{ per_page: filters.per_page }}
                 />
                 <DataTable
                     columns={columns}
