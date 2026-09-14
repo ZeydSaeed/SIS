@@ -4,6 +4,7 @@ import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -52,7 +53,7 @@ function buildInitialRows(records: AttendanceRecord[]): DraftRow[] {
 export default function AttendanceMark({ session }: PageProps) {
     const i18n = t();
     const records = session.records ?? [];
-    const initialRows = buildInitialRows(records);
+    const [rows, setRows] = useState<DraftRow[]>(() => buildInitialRows(records));
     const [confirmSave, setConfirmSave] = useState(false);
     const allowSubmitRef = useRef(false);
 
@@ -74,6 +75,9 @@ export default function AttendanceMark({ session }: PageProps) {
                     description={`${session.session_date} · ${i18n.attendance.section} ${session.section_id} · ${i18n.attendance.subject} ${session.subject_id}`}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                    <StatusChip kind="attendance" status={session.status} />
+                </div>
                 <Link
                     href={`/attendance/${session.id}`}
                     className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar"
@@ -110,7 +114,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                 <span className="text-sm text-[color:var(--sis-powder-blush)]">{errors.records}</span>
                             ) : null}
                             <div className="flex flex-col gap-3">
-                                {initialRows.map((row, index) => (
+                                {rows.map((row, index) => (
                                     <fieldset
                                         key={`row-${index}`}
                                         className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-3 sm:grid-cols-2"
@@ -127,7 +131,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 min={1}
                                                 required
                                                 defaultValue={row.student_id === '' ? undefined : row.student_id}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
                                                 dir="ltr"
                                             />
                                         </label>
@@ -141,7 +145,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 defaultValue={
                                                     row.enrollment_id === '' ? undefined : row.enrollment_id
                                                 }
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
                                                 dir="ltr"
                                             />
                                         </label>
@@ -150,7 +154,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                             <select
                                                 name={`records[${index}][status]`}
                                                 defaultValue={String(row.status)}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             >
                                                 <option value="1">{i18n.attendance.present}</option>
                                                 <option value="2">{i18n.attendance.absent}</option>
@@ -163,12 +167,24 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 name={`records[${index}][notes]`}
                                                 type="text"
                                                 defaultValue={row.notes}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             />
                                         </label>
                                     </fieldset>
                                 ))}
                             </div>
+                            <button
+                                type="button"
+                                className="sis-ops-hub__link w-fit px-4 py-2 text-sm" dir="rtl" lang="ar"
+                                onClick={() =>
+                                    setRows((current) => [
+                                        ...current,
+                                        { student_id: '', enrollment_id: '', status: 1, notes: '' },
+                                    ])
+                                }
+                            >
+                                {i18n.common.addRow}
+                            </button>
                             <button
                                 type="submit"
                                 disabled={processing}
