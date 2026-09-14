@@ -77,6 +77,14 @@ final class EloquentExamRepository implements ExamRepositoryInterface
     public function findExamEnrollmentByIdAndSchool(int $examEnrollmentId, int $schoolId): ?ExamEnrollmentSnapshot
     {
         $row = DB::table($this->enrollmentsTable())
+            ->select([
+                'id',
+                'exam_session_id',
+                'school_id',
+                'enrollment_id',
+                'status',
+                'seat_number',
+            ])
             ->where('id', $examEnrollmentId)
             ->where('school_id', $schoolId)
             ->first();
@@ -88,7 +96,8 @@ final class EloquentExamRepository implements ExamRepositoryInterface
     {
         if (SchemaHelper::isPostgreSql()) {
             $row = DB::selectOne(
-                'SELECT * FROM exams.exam_enrollments WHERE id = ? AND school_id = ? FOR UPDATE',
+                'SELECT id, exam_session_id, school_id, enrollment_id, status, seat_number
+                 FROM exams.exam_enrollments WHERE id = ? AND school_id = ? FOR UPDATE',
                 [$examEnrollmentId, $schoolId],
             );
 
@@ -128,6 +137,17 @@ final class EloquentExamRepository implements ExamRepositoryInterface
     public function findByIdAndSchool(int $examId, int $schoolId): ?ExamSnapshot
     {
         $row = DB::table($this->examsTable())
+            ->select([
+                'id',
+                'school_id',
+                'academic_year_id',
+                'term_id',
+                'exam_type_id',
+                'name',
+                'start_date',
+                'end_date',
+                'status',
+            ])
             ->where('id', $examId)
             ->where('school_id', $schoolId)
             ->first();
@@ -139,7 +159,8 @@ final class EloquentExamRepository implements ExamRepositoryInterface
     {
         if (SchemaHelper::isPostgreSql()) {
             $row = DB::selectOne(
-                'SELECT * FROM exams.exams WHERE id = ? AND school_id = ? FOR UPDATE',
+                'SELECT id, school_id, academic_year_id, term_id, exam_type_id, name, start_date, end_date, status
+                 FROM exams.exams WHERE id = ? AND school_id = ? FOR UPDATE',
                 [$examId, $schoolId],
             );
 
@@ -149,9 +170,53 @@ final class EloquentExamRepository implements ExamRepositoryInterface
         return $this->findByIdAndSchool($examId, $schoolId);
     }
 
+    /**
+     * @return list<ExamSnapshot>
+     */
+    public function listBySchool(int $schoolId, ?int $academicYearId = null, ?int $status = null): array
+    {
+        $query = DB::table($this->examsTable())
+            ->select([
+                'id',
+                'school_id',
+                'academic_year_id',
+                'term_id',
+                'exam_type_id',
+                'name',
+                'start_date',
+                'end_date',
+                'status',
+            ])
+            ->where('school_id', $schoolId)
+            ->orderBy('id');
+
+        if ($academicYearId !== null) {
+            $query->where('academic_year_id', $academicYearId);
+        }
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query->get()->map(fn (object $row): ExamSnapshot => $this->toSnapshot($row))->all();
+    }
+
     public function findSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot
     {
         $row = DB::table($this->sessionsTable())
+            ->select([
+                'id',
+                'exam_id',
+                'school_id',
+                'subject_id',
+                'session_date',
+                'start_time',
+                'end_time',
+                'room_id',
+                'max_grade',
+                'pass_grade',
+                'status',
+            ])
             ->where('id', $examSessionId)
             ->where('school_id', $schoolId)
             ->first();
@@ -163,7 +228,9 @@ final class EloquentExamRepository implements ExamRepositoryInterface
     {
         if (SchemaHelper::isPostgreSql()) {
             $row = DB::selectOne(
-                'SELECT * FROM exams.exam_sessions WHERE id = ? AND school_id = ? FOR UPDATE',
+                'SELECT id, exam_id, school_id, subject_id, session_date, start_time, end_time,
+                        room_id, max_grade, pass_grade, status
+                 FROM exams.exam_sessions WHERE id = ? AND school_id = ? FOR UPDATE',
                 [$examSessionId, $schoolId],
             );
 
@@ -171,6 +238,70 @@ final class EloquentExamRepository implements ExamRepositoryInterface
         }
 
         return $this->findSessionByIdAndSchool($examSessionId, $schoolId);
+    }
+
+    /**
+     * @return list<ExamSessionSnapshot>
+     */
+    public function listSessionsForExam(int $examId, int $schoolId, ?int $status = null): array
+    {
+        $query = DB::table($this->sessionsTable())
+            ->select([
+                'id',
+                'exam_id',
+                'school_id',
+                'subject_id',
+                'session_date',
+                'start_time',
+                'end_time',
+                'room_id',
+                'max_grade',
+                'pass_grade',
+                'status',
+            ])
+            ->where('exam_id', $examId)
+            ->where('school_id', $schoolId)
+            ->orderBy('id');
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query->get()->map(fn (object $row): ExamSessionSnapshot => $this->toSessionSnapshot($row))->all();
+    }
+
+    /**
+     * @return list<ExamEnrollmentSnapshot>
+     */
+    public function listEnrollmentsForSession(int $examSessionId, int $schoolId, ?int $status = null): array
+    {
+        $query = DB::table($this->enrollmentsTable())
+            ->select([
+                'id',
+                'exam_session_id',
+                'school_id',
+                'enrollment_id',
+                'status',
+                'seat_number',
+            ])
+            ->where('exam_session_id', $examSessionId)
+            ->where('school_id', $schoolId)
+            ->orderBy('id');
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query->get()->map(fn (object $row): ExamEnrollmentSnapshot => $this->toEnrollmentSnapshot($row))->all();
+    }
+
+    public function reopenExamEnrollment(int $examEnrollmentId, int $schoolId): bool
+    {
+        return DB::table($this->enrollmentsTable())
+            ->where('id', $examEnrollmentId)
+            ->where('school_id', $schoolId)
+            ->where('status', ExamEnrollmentStatus::Withdrawn->value)
+            ->update(['status' => ExamEnrollmentStatus::Registered->value]) === 1;
     }
 
     public function examEnrollmentSeatExists(int $examSessionId, int $enrollmentId, int $schoolId): bool

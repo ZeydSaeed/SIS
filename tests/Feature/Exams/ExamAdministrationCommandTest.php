@@ -274,17 +274,21 @@ final class ExamAdministrationCommandTest extends TestCase
     }
 
     #[Test]
-    public function exam_policy_allows_grades_manager_and_http_routes_absent(): void
+    public function exam_policy_allows_grades_manager_and_http_routes_exist(): void
     {
         $schoolId = $this->createSchool('SCH-EX-P', 'Exam Policy School');
         $user = $this->actingAsGradesManagerForSchool($schoolId);
         $this->bindSchool($schoolId);
 
         $this->assertTrue(Gate::forUser($user)->allows('create', ExamRecord::class));
+        $this->assertTrue(Gate::forUser($user)->allows('view', ExamRecord::class));
 
         $routes = collect(app('router')->getRoutes())->map(fn ($r) => $r->uri())->implode(' ');
-        $this->assertStringNotContainsString('api/v1/exams', $routes);
-        $this->assertFalse(class_exists(ExamController::class));
+        $this->assertStringContainsString('api/v1/exams', $routes);
+        $this->assertStringContainsString('api/v1/exam-sessions', $routes);
+        $this->assertStringContainsString('api/v1/exam-enrollments', $routes);
+        $this->assertStringNotContainsString('exam-sessions/{examSession}/cancel', $routes);
+        $this->assertTrue(class_exists(ExamController::class));
         $this->assertFalse(class_exists(CompleteExamHandler::class));
         $this->assertTrue(class_exists(CreateExamSessionHandler::class));
         $this->assertTrue(class_exists(OpenExamSessionHandler::class));

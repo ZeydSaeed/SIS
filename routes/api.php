@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\EnrollmentController;
+use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MetricsController;
@@ -124,6 +125,43 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.enrollments.grades');
         Route::get('exam-enrollments/{examEnrollment}/current-grade', [GradeController::class, 'currentForExamEnrollment'])
             ->name('api.exam_enrollments.current_grade');
+
+        Route::get('exams', [ExamController::class, 'index'])->name('api.exams.index');
+        Route::post('exams', [ExamController::class, 'store'])->name('api.exams.store');
+        Route::get('exams/{exam}', [ExamController::class, 'show'])->whereNumber('exam')->name('api.exams.show');
+        Route::get('exams/{exam}/sessions', [ExamController::class, 'indexSessions'])
+            ->whereNumber('exam')
+            ->name('api.exams.sessions.index');
+        Route::post('exams/{exam}/sessions', [ExamController::class, 'storeSession'])
+            ->whereNumber('exam')
+            ->name('api.exams.sessions.store');
+        Route::get('exam-sessions/{examSession}', [ExamController::class, 'showSession'])
+            ->whereNumber('examSession')
+            ->name('api.exam_sessions.show');
+        Route::post('exam-sessions/{examSession}/open', [ExamController::class, 'openSession'])
+            ->whereNumber('examSession')
+            ->name('api.exam_sessions.open');
+        Route::post('exam-sessions/{examSession}/close', [ExamController::class, 'closeSession'])
+            ->whereNumber('examSession')
+            ->name('api.exam_sessions.close');
+        Route::get('exam-sessions/{examSession}/enrollments', [ExamController::class, 'indexEnrollments'])
+            ->whereNumber('examSession')
+            ->name('api.exam_sessions.enrollments.index');
+        Route::post('exam-sessions/{examSession}/enrollments', [ExamController::class, 'storeEnrollment'])
+            ->whereNumber('examSession')
+            ->name('api.exam_sessions.enrollments.store');
+        Route::get('exam-enrollments/{examEnrollment}', [ExamController::class, 'showEnrollment'])
+            ->whereNumber('examEnrollment')
+            ->name('api.exam_enrollments.show');
+        Route::post('exam-enrollments/{examEnrollment}/cancel', [ExamController::class, 'cancelEnrollment'])
+            ->whereNumber('examEnrollment')
+            ->name('api.exam_enrollments.cancel');
+        Route::post('exam-enrollments/{examEnrollment}/reopen', [ExamController::class, 'reopenEnrollment'])
+            ->whereNumber('examEnrollment')
+            ->name('api.exam_enrollments.reopen');
+        Route::post('exam-enrollments/{examEnrollment}/present', [ExamController::class, 'presentEnrollment'])
+            ->whereNumber('examEnrollment')
+            ->name('api.exam_enrollments.present');
 
         Route::post('attendance/sessions', [AttendanceController::class, 'storeSession'])
             ->name('api.attendance.sessions.store');

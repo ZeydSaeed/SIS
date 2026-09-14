@@ -30,6 +30,8 @@ final class Permission
 
     public const GRADES_FINALIZE = 'grades.finalize';
 
+    public const EXAM_VIEW = 'exam.view';
+
     public const EXAM_CREATE = 'exam.create';
 
     public const EXAM_UPDATE = 'exam.update';
@@ -163,6 +165,7 @@ final class Permission
             self::GRADES_CORRECT,
             self::GRADES_VOID,
             self::GRADES_FINALIZE,
+            self::EXAM_VIEW,
             self::EXAM_CREATE,
             self::EXAM_UPDATE,
             self::EXAM_CANCEL,

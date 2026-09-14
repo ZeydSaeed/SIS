@@ -30,9 +30,29 @@ interface ExamRepositoryInterface
 
     public function lockByIdAndSchool(int $examId, int $schoolId): ?ExamSnapshot;
 
+    /**
+     * @return list<ExamSnapshot>
+     */
+    public function listBySchool(int $schoolId, ?int $academicYearId = null, ?int $status = null): array;
+
     public function findSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot;
 
     public function lockSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot;
+
+    /**
+     * @return list<ExamSessionSnapshot>
+     */
+    public function listSessionsForExam(int $examId, int $schoolId, ?int $status = null): array;
+
+    /**
+     * @return list<ExamEnrollmentSnapshot>
+     */
+    public function listEnrollmentsForSession(int $examSessionId, int $schoolId, ?int $status = null): array;
+
+    /**
+     * Withdrawn → Registered only. Returns false when row missing or not Withdrawn.
+     */
+    public function reopenExamEnrollment(int $examEnrollmentId, int $schoolId): bool;
 
     public function examEnrollmentSeatExists(int $examSessionId, int $enrollmentId, int $schoolId): bool;
 
