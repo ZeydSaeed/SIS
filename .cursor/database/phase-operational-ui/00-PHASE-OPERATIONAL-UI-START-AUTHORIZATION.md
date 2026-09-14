@@ -15,12 +15,17 @@ Forbidden: open-ended catalog HTTP churn; HOLDs below; new ERP modules.
 ## Priority backlog
 
 ```text
-[ ] Results / Transcript operational pages (G6+G7)
-[ ] Enrollment create/update flows in UI
-[ ] Attendance mark/close flows in UI
-[ ] Exam / Grades operational pages
-[ ] Core reports surfaces
+[x] Results / Transcript operational pages (G6+G7)
+[x] Enrollment create/update flows in UI
+[x] Attendance mark/close flows in UI
+[x] Exam / Grades operational pages
+[x] Core reports surfaces
 ```
+
+## Progress
+
+Steps 1–20 closed on `feature/phase-operational-ui` — see `39-PHASE-OPERATIONAL-UI-PROGRESS-GATE.md`.  
+G8 Release Readiness remains open (separate track).
 
 ## Absolute HOLDs (preserved)
 
