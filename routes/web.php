@@ -12,7 +12,8 @@ use App\Http\Controllers\Teachers\TeacherPageController;
 use App\Http\Controllers\Timetable\TimetablePageController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::inertia('/', 'hub')->name('home');
+Route::inertia('/hub', 'hub')->name('hub');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
