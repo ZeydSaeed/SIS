@@ -1,12 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-
-const STATUS_LABELS: Record<number, string> = {
-    0: 'Inactive',
-    1: 'Active',
-    2: 'Suspended',
-    3: 'Graduated',
-    4: 'Withdrawn',
-};
+import { t } from '@/i18n';
 
 function statusVariant(status: number): 'default' | 'secondary' | 'destructive' | 'outline' {
     if (status === 1) {
@@ -25,5 +18,18 @@ type StudentStatusBadgeProps = {
 };
 
 export function StudentStatusBadge({ status }: StudentStatusBadgeProps) {
-    return <Badge variant={statusVariant(status)}>{STATUS_LABELS[status] ?? `Status ${status}`}</Badge>;
+    const i18n = t();
+    const labels: Record<number, string> = {
+        0: i18n.status.inactive,
+        1: i18n.status.active,
+        2: i18n.status.suspended,
+        3: i18n.status.graduated,
+        4: i18n.status.withdrawn,
+    };
+
+    return (
+        <Badge variant={statusVariant(status)}>
+            {labels[status] ?? `${i18n.common.status} ${status}`}
+        </Badge>
+    );
 }
