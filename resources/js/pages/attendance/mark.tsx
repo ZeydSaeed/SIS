@@ -1,7 +1,9 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useRef, useState } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import type { BreadcrumbItem } from '@/types';
 
 type AttendanceRecord = {
@@ -49,6 +51,8 @@ function buildInitialRows(records: AttendanceRecord[]): DraftRow[] {
 export default function AttendanceMark({ session }: PageProps) {
     const records = session.records ?? [];
     const initialRows = buildInitialRows(records);
+    const [confirmSave, setConfirmSave] = useState(false);
+    const allowSubmitRef = useRef(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Attendance', href: '/attendance' },
@@ -73,10 +77,21 @@ export default function AttendanceMark({ session }: PageProps) {
                     Back to session
                 </Link>
                 <Form
+                    id={`mark-form-${session.id}`}
                     action={`/attendance/${session.id}/mark`}
                     method="post"
                     className="flex flex-col gap-4"
-                    options={{ preserveScroll: true }}
+                    options={{
+                        preserveScroll: true,
+                        onBefore: () => {
+                            if (allowSubmitRef.current) {
+                                allowSubmitRef.current = false;
+                                return true;
+                            }
+                            setConfirmSave(true);
+                            return false;
+                        },
+                    }}
                 >
                     {({ errors, processing }) => (
                         <>
@@ -106,11 +121,6 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 defaultValue={row.student_id === '' ? undefined : row.student_id}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             />
-                                            {errors[`records.${index}.student_id`] ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors[`records.${index}.student_id`]}
-                                                </span>
-                                            ) : null}
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
                                             <span>Enrollment ID</span>
@@ -124,11 +134,6 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 }
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             />
-                                            {errors[`records.${index}.enrollment_id`] ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors[`records.${index}.enrollment_id`]}
-                                                </span>
-                                            ) : null}
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
                                             <span>Status</span>
@@ -141,11 +146,6 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 <option value="2">Absent</option>
                                                 <option value="3">Late</option>
                                             </select>
-                                            {errors[`records.${index}.status`] ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors[`records.${index}.status`]}
-                                                </span>
-                                            ) : null}
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
                                             <span>Notes (optional)</span>
@@ -155,11 +155,6 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 defaultValue={row.notes}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             />
-                                            {errors[`records.${index}.notes`] ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors[`records.${index}.notes`]}
-                                                </span>
-                                            ) : null}
                                         </label>
                                     </fieldset>
                                 ))}
@@ -171,6 +166,22 @@ export default function AttendanceMark({ session }: PageProps) {
                             >
                                 {processing ? 'Saving…' : 'Save attendance'}
                             </button>
+                            <ConfirmDialog
+                                open={confirmSave}
+                                title="Save section attendance?"
+                                description="Marks will be written for this open session using the Application mark handler."
+                                confirmLabel="Save marks"
+                                confirmPending={processing}
+                                onConfirm={() => {
+                                    allowSubmitRef.current = true;
+                                    setConfirmSave(false);
+                                    const form = document.getElementById(
+                                        `mark-form-${session.id}`,
+                                    ) as HTMLFormElement | null;
+                                    form?.requestSubmit();
+                                }}
+                                onOpenChange={setConfirmSave}
+                            />
                         </>
                     )}
                 </Form>
