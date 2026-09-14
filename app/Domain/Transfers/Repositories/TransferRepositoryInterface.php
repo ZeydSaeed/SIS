@@ -62,5 +62,10 @@ interface TransferRepositoryInterface
 
     public function findRecordForSchool(int $schoolId, int $recordId): ?TransferRecordSnapshot;
 
+    /**
+     * @return list<TransferRecordSnapshot>
+     */
+    public function listRecordsForSchool(int $schoolId): array;
+
     public function markReopened(int $requestId, int $schoolId): bool;
 }

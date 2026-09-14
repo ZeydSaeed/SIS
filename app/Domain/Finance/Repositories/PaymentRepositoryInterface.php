@@ -27,6 +27,8 @@ interface PaymentRepositoryInterface
         ?int $voidedBy,
     ): bool;
 
+    public function restorePayment(int $schoolId, int $paymentId): bool;
+
     /** Sum of Posted (non-voided) payments for a student fee. */
     public function sumByStudentFee(int $schoolId, int $studentFeeId): string;
 

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Application\Finance\Commands\RecordPaymentCommand;
 use App\Application\Finance\Commands\RecordPaymentHandler;
+use App\Application\Finance\Commands\RestorePaymentCommand;
+use App\Application\Finance\Commands\RestorePaymentHandler;
 use App\Application\Finance\Commands\VoidPaymentCommand;
 use App\Application\Finance\Commands\VoidPaymentHandler;
 use App\Application\Finance\DTOs\PaymentDTO;
@@ -14,6 +16,7 @@ use App\Application\Finance\Queries\ListPaymentsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finance\ListPaymentsRequest;
 use App\Http\Requests\Finance\RecordPaymentRequest;
+use App\Http\Requests\Finance\RestorePaymentRequest;
 use App\Http\Requests\Finance\ShowPaymentRequest;
 use App\Http\Requests\Finance\VoidPaymentRequest;
 use App\Intelligence\Support\CorrelationContext;
@@ -101,6 +104,50 @@ class PaymentController extends Controller
             SecurityEventType::FinanceDataModified,
             'finance.payment.void',
             'voided',
+            $request->user(),
+            'payment:'.$result->paymentId,
+            [
+                'from_idempotency' => $result->fromIdempotencyCache,
+                'student_fee_status' => $result->studentFeeStatus,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'payment_id' => $result->paymentId,
+                'student_fee_status' => $result->studentFeeStatus,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function restore(
+        int $payment,
+        RestorePaymentRequest $request,
+        RestorePaymentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new RestorePaymentCommand(
+            schoolId: $schoolId,
+            paymentId: $payment,
+            restoredBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+            notes: $request->validated('notes'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Payment restore rejected.',
+                'error_code' => $result->errors[0] ?? 'finance.payment_restore_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::FinanceDataModified,
+            'finance.payment.restore',
+            'restored',
             $request->user(),
             'payment:'.$result->paymentId,
             [

@@ -19,12 +19,15 @@ use App\Application\Transfers\Queries\GetTransferRecordHandler;
 use App\Application\Transfers\Queries\GetTransferRecordQuery;
 use App\Application\Transfers\Queries\GetTransferRequestHandler;
 use App\Application\Transfers\Queries\GetTransferRequestQuery;
+use App\Application\Transfers\Queries\ListTransferRecordsHandler;
+use App\Application\Transfers\Queries\ListTransferRecordsQuery;
 use App\Application\Transfers\Queries\ListTransferRequestsHandler;
 use App\Application\Transfers\Queries\ListTransferRequestsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Transfers\CompleteTransferRequestRequest;
 use App\Http\Requests\Transfers\CreateTransferRequestRequest;
 use App\Http\Requests\Transfers\DecideTransferRequestRequest;
+use App\Http\Requests\Transfers\ListTransferRecordsRequest;
 use App\Http\Requests\Transfers\ListTransferRequestsRequest;
 use App\Http\Requests\Transfers\ReopenTransferRequestRequest;
 use App\Http\Requests\Transfers\ShowTransferRecordRequest;
@@ -383,6 +386,39 @@ class TransferController extends Controller
                 'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function indexRecords(
+        ListTransferRecordsRequest $request,
+        ListTransferRecordsHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $items = $handler->handle(new ListTransferRecordsQuery($schoolId));
+
+        $this->securityAudit->record(
+            SecurityEventType::TransfersDataAccess,
+            'transfers.records.index',
+            'listed',
+            $request->user(),
+            'school:'.$schoolId,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn ($dto): array => [
+                'id' => $dto->id,
+                'transfer_request_id' => $dto->transferRequestId,
+                'student_id' => $dto->studentId,
+                'from_school_id' => $dto->fromSchoolId,
+                'to_school_id' => $dto->toSchoolId,
+                'from_enrollment_id' => $dto->fromEnrollmentId,
+                'to_enrollment_id' => $dto->toEnrollmentId,
+                'effective_date' => $dto->effectiveDate,
+                'completed_at' => $dto->completedAt,
+                'created_at' => $dto->createdAt,
+            ], $items),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

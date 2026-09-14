@@ -255,6 +255,42 @@ final class EloquentTransferRepository implements TransferRepositoryInterface
         );
     }
 
+    public function listRecordsForSchool(int $schoolId): array
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('transfers', 'transfer_records'))
+            ->where(function ($q) use ($schoolId): void {
+                $q->where('from_school_id', $schoolId)->orWhere('to_school_id', $schoolId);
+            })
+            ->orderBy('id')
+            ->get([
+                'id',
+                'transfer_request_id',
+                'student_id',
+                'from_school_id',
+                'to_school_id',
+                'from_enrollment_id',
+                'to_enrollment_id',
+                'effective_date',
+                'completed_at',
+                'created_at',
+            ])
+            ->map(fn (object $row): TransferRecordSnapshot => new TransferRecordSnapshot(
+                id: (int) $row->id,
+                transferRequestId: (int) $row->transfer_request_id,
+                studentId: (int) $row->student_id,
+                fromSchoolId: (int) $row->from_school_id,
+                toSchoolId: (int) $row->to_school_id,
+                fromEnrollmentId: (int) $row->from_enrollment_id,
+                toEnrollmentId: (int) $row->to_enrollment_id,
+                effectiveDate: (string) $row->effective_date,
+                completedAt: (string) $row->completed_at,
+                createdAt: (string) $row->created_at,
+            ))
+            ->all();
+    }
+
     public function markReopened(int $requestId, int $schoolId): bool
     {
         $this->bindSchool($schoolId);

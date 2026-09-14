@@ -293,6 +293,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('teachers/{teacher}/subjects', [TeacherController::class, 'indexSubjects'])
             ->whereNumber('teacher')
             ->name('api.teachers.subjects.index');
+        Route::get('teachers/{teacher}/subjects/{assignment}', [TeacherController::class, 'showSubject'])
+            ->whereNumber('teacher')
+            ->whereNumber('assignment')
+            ->name('api.teachers.subjects.show');
+        Route::get('teachers/{teacher}/schools', [TeacherController::class, 'indexSchools'])
+            ->whereNumber('teacher')
+            ->name('api.teachers.schools.index');
         Route::post('teachers/{teacher}/subjects', [TeacherController::class, 'assignSubject'])
             ->name('api.teachers.subjects.assign');
         Route::delete('teachers/{teacher}/subjects', [TeacherController::class, 'unlinkSubject'])
@@ -357,6 +364,8 @@ Route::prefix('v1')->group(function (): void {
         Route::post('transfers/requests/{transferRequest}/reopen', [TransferController::class, 'reopen'])
             ->whereNumber('transferRequest')
             ->name('api.transfers.requests.reopen');
+        Route::get('transfers/records', [TransferController::class, 'indexRecords'])
+            ->name('api.transfers.records.index');
         Route::get('transfers/records/{record}', [TransferController::class, 'showRecord'])
             ->whereNumber('record')
             ->name('api.transfers.records.show');
@@ -425,6 +434,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('finance/payments/{payment}/void', [PaymentController::class, 'void'])
             ->whereNumber('payment')
             ->name('api.finance.payments.void');
+        Route::post('finance/payments/{payment}/restore', [PaymentController::class, 'restore'])
+            ->whereNumber('payment')
+            ->name('api.finance.payments.restore');
         Route::get('finance/transactions', [FinanceTransactionController::class, 'index'])
             ->name('api.finance.transactions.index');
         Route::get('finance/transactions/{transaction}', [FinanceTransactionController::class, 'show'])
@@ -454,6 +466,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('communication/messages/{message}/mark-sent', [MessageController::class, 'markSent'])
             ->whereNumber('message')
             ->name('api.communication.messages.mark-sent');
+        Route::post('communication/messages/{message}/cancel', [MessageController::class, 'cancel'])
+            ->whereNumber('message')
+            ->name('api.communication.messages.cancel');
+        Route::post('communication/messages/{message}/requeue', [MessageController::class, 'requeue'])
+            ->whereNumber('message')
+            ->name('api.communication.messages.requeue');
         Route::post('communication/jobs', [NotificationJobController::class, 'store'])
             ->name('api.communication.jobs.store');
         Route::get('communication/jobs', [NotificationJobController::class, 'index'])

@@ -3,6 +3,7 @@
 namespace App\Domain\Teachers\Repositories;
 
 use App\Domain\Teachers\Data\TeacherQualificationSnapshot;
+use App\Domain\Teachers\Data\TeacherSchoolMembershipSnapshot;
 use App\Domain\Teachers\Data\TeacherSnapshot;
 use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
 
@@ -126,4 +127,15 @@ interface TeacherRepositoryInterface
      * @return list<TeacherSubjectSnapshot>
      */
     public function listSubjectAssignments(int $teacherId, int $schoolId, int $academicYearId): array;
+
+    public function findSubjectAssignmentById(
+        int $teacherId,
+        int $schoolId,
+        int $assignmentId,
+    ): ?TeacherSubjectSnapshot;
+
+    /**
+     * @return list<TeacherSchoolMembershipSnapshot>|null
+     */
+    public function listSchoolMemberships(int $teacherId, int $schoolId, ?int $academicYearId = null): ?array;
 }

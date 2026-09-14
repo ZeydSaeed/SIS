@@ -84,6 +84,21 @@ final class EloquentPaymentRepository implements PaymentRepositoryInterface
             ]) === 1;
     }
 
+    public function restorePayment(int $schoolId, int $paymentId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('finance', 'payments'))
+            ->where('school_id', $schoolId)
+            ->where('id', $paymentId)
+            ->where('status', PaymentStatus::Voided)
+            ->update([
+                'status' => PaymentStatus::Posted,
+                'voided_at' => null,
+                'voided_by' => null,
+            ]) === 1;
+    }
+
     public function sumByStudentFee(int $schoolId, int $studentFeeId): string
     {
         $this->bindSchool($schoolId);

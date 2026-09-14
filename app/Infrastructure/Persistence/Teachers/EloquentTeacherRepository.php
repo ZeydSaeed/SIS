@@ -4,6 +4,7 @@ namespace App\Infrastructure\Persistence\Teachers;
 
 use App\Database\SchemaHelper;
 use App\Domain\Teachers\Data\TeacherQualificationSnapshot;
+use App\Domain\Teachers\Data\TeacherSchoolMembershipSnapshot;
 use App\Domain\Teachers\Data\TeacherSnapshot;
 use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
@@ -408,6 +409,76 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
                 createdAt: (string) $row->created_at,
             ))
             ->all();
+    }
+
+    public function findSubjectAssignmentById(
+        int $teacherId,
+        int $schoolId,
+        int $assignmentId,
+    ): ?TeacherSubjectSnapshot {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('teachers', 'teacher_subjects'))
+            ->where('id', $assignmentId)
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->first(['id', 'teacher_id', 'subject_id', 'academic_year_id', 'school_id', 'created_at']);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new TeacherSubjectSnapshot(
+            id: (int) $row->id,
+            teacherId: (int) $row->teacher_id,
+            subjectId: (int) $row->subject_id,
+            academicYearId: (int) $row->academic_year_id,
+            schoolId: (int) $row->school_id,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
+    public function listSchoolMemberships(int $teacherId, int $schoolId, ?int $academicYearId = null): ?array
+    {
+        $this->bindSchool($schoolId);
+
+        if (! $this->belongsToSchool($teacherId, $schoolId, $academicYearId)) {
+            // Still allow listing if teacher has any membership (including left) in this school.
+            $inSchool = DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+                ->where('teacher_id', $teacherId)
+                ->where('school_id', $schoolId)
+                ->exists();
+            if (! $inSchool) {
+                return null;
+            }
+        }
+
+        $q = DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->orderBy('id');
+
+        if ($academicYearId !== null) {
+            $q->where('academic_year_id', $academicYearId);
+        }
+
+        return $q->get([
+            'id',
+            'teacher_id',
+            'school_id',
+            'academic_year_id',
+            'is_primary',
+            'left_at',
+            'created_at',
+        ])->map(fn (object $row): TeacherSchoolMembershipSnapshot => new TeacherSchoolMembershipSnapshot(
+            id: (int) $row->id,
+            teacherId: (int) $row->teacher_id,
+            schoolId: (int) $row->school_id,
+            academicYearId: (int) $row->academic_year_id,
+            isPrimary: (bool) $row->is_primary,
+            leftAt: $row->left_at !== null ? (string) $row->left_at : null,
+            createdAt: (string) $row->created_at,
+        ))->all();
     }
 
     private function mapQualification(object $row): TeacherQualificationSnapshot

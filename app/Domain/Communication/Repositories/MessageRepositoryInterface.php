@@ -25,6 +25,14 @@ interface MessageRepositoryInterface
 
     public function markSent(int $schoolId, int $messageId, int $status, string $sentAt): bool;
 
+    public function updateStatus(
+        int $schoolId,
+        int $messageId,
+        int $fromStatus,
+        int $toStatus,
+        bool $clearSentAt = false,
+    ): bool;
+
     /**
      * @return list<MessageSnapshot>
      */

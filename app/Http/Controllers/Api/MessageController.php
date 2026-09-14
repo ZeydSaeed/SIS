@@ -2,20 +2,26 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Communication\Commands\CancelMessageCommand;
+use App\Application\Communication\Commands\CancelMessageHandler;
 use App\Application\Communication\Commands\MarkMessageSentCommand;
 use App\Application\Communication\Commands\MarkMessageSentHandler;
 use App\Application\Communication\Commands\QueueMessageCommand;
 use App\Application\Communication\Commands\QueueMessageHandler;
+use App\Application\Communication\Commands\RequeueMessageCommand;
+use App\Application\Communication\Commands\RequeueMessageHandler;
 use App\Application\Communication\DTOs\MessageDTO;
 use App\Application\Communication\Queries\GetMessageHandler;
 use App\Application\Communication\Queries\GetMessageQuery;
 use App\Application\Communication\Queries\ListMessagesHandler;
 use App\Application\Communication\Queries\ListMessagesQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Communication\CancelMessageRequest;
 use App\Http\Requests\Communication\ListMessagesRequest;
 use App\Http\Requests\Communication\ShowMessageRequest;
 use App\Http\Requests\Communication\MarkMessageSentRequest;
 use App\Http\Requests\Communication\QueueMessageRequest;
+use App\Http\Requests\Communication\RequeueMessageRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -97,6 +103,82 @@ class MessageController extends Controller
             SecurityEventType::CommunicationDataModified,
             'communication.message.mark_sent',
             'sent',
+            $request->user(),
+            'message:'.$result->messageId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'message_id' => $result->messageId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function cancel(
+        int $message,
+        CancelMessageRequest $request,
+        CancelMessageHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new CancelMessageCommand(
+            schoolId: $schoolId,
+            messageId: $message,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Message cancel rejected.',
+                'error_code' => $result->errors[0] ?? 'communication.message_cancel_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.message.cancel',
+            'cancelled',
+            $request->user(),
+            'message:'.$result->messageId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'message_id' => $result->messageId,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function requeue(
+        int $message,
+        RequeueMessageRequest $request,
+        RequeueMessageHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new RequeueMessageCommand(
+            schoolId: $schoolId,
+            messageId: $message,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            return response()->json([
+                'message' => 'Message requeue rejected.',
+                'error_code' => $result->errors[0] ?? 'communication.message_requeue_failed',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.message.requeue',
+            'requeued',
             $request->user(),
             'message:'.$result->messageId,
             ['from_idempotency' => $result->fromIdempotencyCache],
