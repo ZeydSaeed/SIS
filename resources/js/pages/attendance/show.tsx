@@ -1,7 +1,9 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import type { BreadcrumbItem } from '@/types';
 
 type AttendanceRecord = {
@@ -58,6 +60,9 @@ function recordStatusLabel(status: number): string {
 }
 
 export default function AttendanceShow({ session }: PageProps) {
+    const [confirmClose, setConfirmClose] = useState(false);
+    const [closing, setClosing] = useState(false);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Attendance', href: '/attendance' },
         { title: `Session ${session.id}`, href: `/attendance/${session.id}` },
@@ -65,6 +70,21 @@ export default function AttendanceShow({ session }: PageProps) {
 
     const records = session.records ?? [];
     const isOpen = session.status === SESSION_OPEN;
+
+    const onConfirmClose = () => {
+        setClosing(true);
+        router.post(
+            `/attendance/${session.id}/close`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setClosing(false);
+                    setConfirmClose(false);
+                },
+            },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -120,23 +140,23 @@ export default function AttendanceShow({ session }: PageProps) {
                     </div>
                 </dl>
                 {isOpen ? (
-                    <Form
-                        action={`/attendance/${session.id}/close`}
-                        method="post"
-                        className="w-fit"
-                        options={{ preserveScroll: true }}
+                    <button
+                        type="button"
+                        className="sis-ops-hub__link w-fit min-h-11 px-4 py-2 text-sm"
+                        onClick={() => setConfirmClose(true)}
                     >
-                        {({ processing }) => (
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
-                            >
-                                {processing ? 'Closing…' : 'Close session'}
-                            </button>
-                        )}
-                    </Form>
+                        Close session
+                    </button>
                 ) : null}
+                <ConfirmDialog
+                    open={confirmClose}
+                    title="Close attendance session?"
+                    description="Closing locks further marking on this session. Corrections may still be allowed when policy permits."
+                    confirmLabel="Close session"
+                    confirmPending={closing}
+                    onConfirm={onConfirmClose}
+                    onOpenChange={setConfirmClose}
+                />
                 <section className="flex flex-col gap-2">
                     <h2 className="text-base font-semibold">Marked records</h2>
                     {records.length === 0 ? (
