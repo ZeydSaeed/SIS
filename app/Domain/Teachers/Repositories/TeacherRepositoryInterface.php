@@ -138,4 +138,10 @@ interface TeacherRepositoryInterface
      * @return list<TeacherSchoolMembershipSnapshot>|null
      */
     public function listSchoolMemberships(int $teacherId, int $schoolId, ?int $academicYearId = null): ?array;
+
+    public function findSchoolMembershipById(
+        int $teacherId,
+        int $schoolId,
+        int $membershipId,
+    ): ?TeacherSchoolMembershipSnapshot;
 }

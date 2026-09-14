@@ -38,6 +38,8 @@ use App\Application\Teachers\Queries\GetTeacherHandler;
 use App\Application\Teachers\Queries\GetTeacherQualificationHandler;
 use App\Application\Teachers\Queries\GetTeacherQualificationQuery;
 use App\Application\Teachers\Queries\GetTeacherQuery;
+use App\Application\Teachers\Queries\GetTeacherSchoolMembershipHandler;
+use App\Application\Teachers\Queries\GetTeacherSchoolMembershipQuery;
 use App\Application\Teachers\Queries\GetTeacherSubjectHandler;
 use App\Application\Teachers\Queries\GetTeacherSubjectQuery;
 use App\Application\Teachers\Queries\ListTeacherSchoolsHandler;
@@ -61,6 +63,7 @@ use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
 use App\Http\Requests\Teachers\ListTeacherSchoolsRequest;
 use App\Http\Requests\Teachers\ListTeacherSubjectsRequest;
 use App\Http\Requests\Teachers\ShowTeacherQualificationRequest;
+use App\Http\Requests\Teachers\ShowTeacherSchoolMembershipRequest;
 use App\Http\Requests\Teachers\ShowTeacherSubjectRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
 use App\Http\Requests\Teachers\RegisterTeacherRequest;
@@ -453,6 +456,52 @@ class TeacherController extends Controller
                 'left_at' => $dto->leftAt,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showSchool(
+        int $teacher,
+        int $membership,
+        ShowTeacherSchoolMembershipRequest $request,
+        GetTeacherSchoolMembershipHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $year = $request->validated('academic_year_id');
+        $dto = $handler->handle(new GetTeacherSchoolMembershipQuery(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            membershipId: $membership,
+            academicYearId: $year !== null ? (int) $year : null,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Teacher school membership not found.',
+                'error_code' => 'teachers.school_membership_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataAccess,
+            'teachers.schools.show',
+            'viewed',
+            $request->user(),
+            'teacher_school:'.$membership,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'teacher_id' => $dto->teacherId,
+                'school_id' => $dto->schoolId,
+                'academic_year_id' => $dto->academicYearId,
+                'is_primary' => $dto->isPrimary,
+                'left_at' => $dto->leftAt,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

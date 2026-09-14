@@ -481,6 +481,42 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         ))->all();
     }
 
+    public function findSchoolMembershipById(
+        int $teacherId,
+        int $schoolId,
+        int $membershipId,
+    ): ?TeacherSchoolMembershipSnapshot {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('id', $membershipId)
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->first([
+                'id',
+                'teacher_id',
+                'school_id',
+                'academic_year_id',
+                'is_primary',
+                'left_at',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new TeacherSchoolMembershipSnapshot(
+            id: (int) $row->id,
+            teacherId: (int) $row->teacher_id,
+            schoolId: (int) $row->school_id,
+            academicYearId: (int) $row->academic_year_id,
+            isPrimary: (bool) $row->is_primary,
+            leftAt: $row->left_at !== null ? (string) $row->left_at : null,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
     private function mapQualification(object $row): TeacherQualificationSnapshot
     {
         return new TeacherQualificationSnapshot(

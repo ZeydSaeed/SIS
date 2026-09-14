@@ -300,6 +300,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('teachers/{teacher}/schools', [TeacherController::class, 'indexSchools'])
             ->whereNumber('teacher')
             ->name('api.teachers.schools.index');
+        Route::get('teachers/{teacher}/schools/{membership}', [TeacherController::class, 'showSchool'])
+            ->whereNumber('teacher')
+            ->whereNumber('membership')
+            ->name('api.teachers.schools.show');
         Route::post('teachers/{teacher}/subjects', [TeacherController::class, 'assignSubject'])
             ->name('api.teachers.subjects.assign');
         Route::delete('teachers/{teacher}/subjects', [TeacherController::class, 'unlinkSubject'])
