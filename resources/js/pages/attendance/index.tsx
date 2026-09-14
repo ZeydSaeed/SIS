@@ -98,14 +98,14 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.attendance.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.attendance.title}
                     description={i18n.attendance.description}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
                 <p>
-                    <Link href="/attendance/create" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                    <Link href="/attendance/create" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.attendance.createSession}
                     </Link>
                 </p>
@@ -140,7 +140,7 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            className="sis-ops-hub__link px-3 py-2 text-sm"
+                            className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                             disabled={currentPage <= 1}
                             onClick={() => goPage(currentPage - 1)}
                         >
@@ -154,7 +154,7 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                         </span>
                         <button
                             type="button"
-                            className="sis-ops-hub__link px-3 py-2 text-sm"
+                            className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                             disabled={currentPage >= totalPages}
                             onClick={() => goPage(currentPage + 1)}
                         >
