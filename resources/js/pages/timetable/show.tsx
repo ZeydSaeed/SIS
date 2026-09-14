@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { StatusChip, dayOfWeekLabel } from '@/components/sis/status-chip';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -47,7 +48,7 @@ export default function TimetableShow({ schedule }: PageProps) {
                 <dl className="grid gap-4 sm:grid-cols-2">
                     <div>
                         <dt className="text-muted-foreground text-xs">{i18n.timetable.day}</dt>
-                        <dd dir="ltr">{schedule.day_of_week}</dd>
+                        <dd>{dayOfWeekLabel(schedule.day_of_week)}</dd>
                     </div>
                     <div>
                         <dt className="text-muted-foreground text-xs">{i18n.attendance.period}</dt>
@@ -75,7 +76,9 @@ export default function TimetableShow({ schedule }: PageProps) {
                     </div>
                     <div>
                         <dt className="text-muted-foreground text-xs">{i18n.common.status}</dt>
-                        <dd dir="ltr">{schedule.lifecycle_status}</dd>
+                        <dd>
+                            <StatusChip kind="schedule" status={schedule.lifecycle_status} />
+                        </dd>
                     </div>
                 </dl>
             </div>
