@@ -135,6 +135,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('organization/branches', [OrganizationController::class, 'indexBranches'])
             ->name('api.organization.branches.index');
+        Route::get('organization/departments', [OrganizationController::class, 'indexDepartments'])
+            ->name('api.organization.departments.index');
         Route::get('organization/rooms', [OrganizationController::class, 'indexRooms'])
             ->name('api.organization.rooms.index');
         Route::get('organization/rooms/{room}', [OrganizationController::class, 'showRoom'])

@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Application\Organization\DTOs\BranchDTO;
+use App\Application\Organization\DTOs\DepartmentDTO;
 use App\Application\Organization\DTOs\RoomDTO;
 use App\Application\Organization\Queries\GetRoomHandler;
 use App\Application\Organization\Queries\GetRoomQuery;
 use App\Application\Organization\Queries\ListBranchesHandler;
 use App\Application\Organization\Queries\ListBranchesQuery;
+use App\Application\Organization\Queries\ListDepartmentsHandler;
+use App\Application\Organization\Queries\ListDepartmentsQuery;
 use App\Application\Organization\Queries\ListRoomsHandler;
 use App\Application\Organization\Queries\ListRoomsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\ListBranchesRequest;
+use App\Http\Requests\Organization\ListDepartmentsRequest;
 use App\Http\Requests\Organization\ListRoomsRequest;
 use App\Http\Requests\Organization\ShowRoomRequest;
 use App\Intelligence\Support\CorrelationContext;
@@ -55,6 +59,31 @@ class OrganizationController extends Controller
                 'created_at' => $dto->createdAt,
                 'updated_at' => $dto->updatedAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function indexDepartments(
+        ListDepartmentsRequest $request,
+        ListDepartmentsHandler $handler,
+    ): JsonResponse {
+        $branchId = $request->validated('branch_id');
+        $items = $handler->handle(new ListDepartmentsQuery(
+            schoolId: $this->schoolContext->requireId(),
+            branchId: $branchId !== null ? (int) $branchId : null,
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataAccess,
+            'organization.departments.index',
+            'viewed',
+            $request->user(),
+            'departments',
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (DepartmentDTO $dto): array => $this->departmentPayload($dto), $items),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
@@ -115,6 +144,22 @@ class OrganizationController extends Controller
             'data' => $this->roomPayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function departmentPayload(DepartmentDTO $dto): array
+    {
+        return [
+            'id' => $dto->id,
+            'school_id' => $dto->schoolId,
+            'branch_id' => $dto->branchId,
+            'code' => $dto->code,
+            'name' => $dto->name,
+            'department_type' => $dto->departmentType,
+            'status' => $dto->status,
+            'created_at' => $dto->createdAt,
+            'updated_at' => $dto->updatedAt,
+        ];
     }
 
     /** @return array<string, mixed> */
