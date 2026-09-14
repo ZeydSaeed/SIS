@@ -1,5 +1,6 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { Minus, Square, X } from 'lucide-react';
+import { t } from '@/i18n';
 import { useWindowManager } from '@/window/window-manager-context';
 import type { SisOpenWindow } from '@/window/types';
 
@@ -16,6 +17,7 @@ export function WindowFrame({ window: win }: Props) {
         sw: number;
         sh: number;
     } | null>(null);
+    const i18n = t();
     const focused = wm.focusedInstanceId === win.instanceId;
 
     const onTitlePointerDown = useCallback(
@@ -135,12 +137,16 @@ export function WindowFrame({ window: win }: Props) {
                 <h2 id={`sis-window-title-${win.instanceId}`} className="sis-window__title">
                     {win.title}
                 </h2>
-                <div className="sis-window__controls" role="group" aria-label={`${win.title} window controls`}>
+                <div
+                    className="sis-window__controls"
+                    role="group"
+                    aria-label={`${win.title} — ${i18n.window.controls}`}
+                >
                     {win.minimizable !== false ? (
                         <button
                             type="button"
                             className="sis-window__control"
-                            aria-label={`Minimize ${win.title}`}
+                            aria-label={`${i18n.window.minimize}: ${win.title}`}
                             onClick={() => wm.minimize(win.instanceId)}
                         >
                             <Minus className="size-3.5" aria-hidden />
@@ -151,7 +157,9 @@ export function WindowFrame({ window: win }: Props) {
                             type="button"
                             className="sis-window__control"
                             aria-label={
-                                win.maximized ? `Restore ${win.title}` : `Maximize ${win.title}`
+                                win.maximized
+                                    ? `${i18n.window.restore}: ${win.title}`
+                                    : `${i18n.window.maximize}: ${win.title}`
                             }
                             onClick={() => wm.maximize(win.instanceId)}
                         >
@@ -162,7 +170,7 @@ export function WindowFrame({ window: win }: Props) {
                         <button
                             type="button"
                             className="sis-window__control sis-window__control--close"
-                            aria-label={`Close ${win.title}`}
+                            aria-label={`${i18n.window.close}: ${win.title}`}
                             onClick={() => wm.close(win.instanceId)}
                         >
                             <X className="size-3.5" aria-hidden />
@@ -183,7 +191,7 @@ export function WindowFrame({ window: win }: Props) {
                     className="sis-window__resize"
                     role="separator"
                     aria-orientation="horizontal"
-                    aria-label={`Resize ${win.title}`}
+                    aria-label={`${i18n.window.resize}: ${win.title}`}
                     onPointerDown={onResizePointerDown}
                     onPointerMove={onResizePointerMove}
                     onPointerUp={onResizePointerUp}
