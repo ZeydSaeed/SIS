@@ -8,6 +8,7 @@ import {
     type StudentAuthorization,
     type StudentDetail,
 } from '@/components/students/student-details-surface';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type PageProps = {
@@ -16,8 +17,10 @@ type PageProps = {
 };
 
 export default function StudentsShow({ student, authorization }: PageProps) {
+    const i18n = t();
+
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Students', href: '/students' },
+        { title: i18n.students.title, href: '/students' },
         { title: student.full_name, href: `/students/${student.id}` },
     ];
 
@@ -29,12 +32,12 @@ export default function StudentsShow({ student, authorization }: PageProps) {
                     <Button asChild variant="ghost" size="sm">
                         <Link href="/students">
                             <ArrowLeft className="me-2 size-4" aria-hidden="true" />
-                            Back to list
+                            {i18n.common.backToList}
                         </Link>
                     </Button>
                 </div>
 
-                <PageHeader title={student.full_name} description="Student profile — read-only reference surface." />
+                <PageHeader title={student.full_name} description={i18n.students.showDesc} />
 
                 <div className="border-border rounded-xl border p-6">
                     <StudentDetailsSurface

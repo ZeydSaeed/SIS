@@ -3,6 +3,7 @@ import { Users } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type TeacherRow = {
@@ -32,33 +33,35 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Teachers', href: '/teachers' }];
-
-const columns: DataTableColumn<TeacherRow>[] = [
-    {
-        id: 'employee_code',
-        header: 'Code',
-        cell: (row) => row.employee_code,
-    },
-    {
-        id: 'full_name',
-        header: 'Name',
-        cell: (row) => row.full_name,
-    },
-    {
-        id: 'specialization_field',
-        header: 'Specialization',
-        cell: (row) => row.specialization_field ?? '—',
-        hideOnMobile: true,
-    },
-    {
-        id: 'status',
-        header: 'Status',
-        cell: (row) => row.status,
-    },
-];
-
 export default function TeachersIndex({ teachers, filters }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.teachers.title, href: '/teachers' }];
+
+    const columns: DataTableColumn<TeacherRow>[] = [
+        {
+            id: 'employee_code',
+            header: i18n.teachers.code,
+            cell: (row) => <span dir="ltr">{row.employee_code}</span>,
+        },
+        {
+            id: 'full_name',
+            header: i18n.teachers.name,
+            cell: (row) => row.full_name,
+        },
+        {
+            id: 'specialization_field',
+            header: i18n.teachers.specialization,
+            cell: (row) => row.specialization_field ?? '—',
+            hideOnMobile: true,
+        },
+        {
+            id: 'status',
+            header: i18n.common.status,
+            cell: (row) => <span dir="ltr">{row.status}</span>,
+        },
+    ];
+
     const goPage = (page: number) => {
         router.get(
             '/teachers',
@@ -73,24 +76,26 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Teachers" />
+            <Head title={i18n.teachers.title} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Teachers"
-                    description="School teachers assigned for the academic year."
+                    title={i18n.teachers.title}
+                    description={i18n.teachers.description}
                     icon={<Users className="size-6" aria-hidden />}
                 />
                 <DataTable
                     columns={columns}
                     rows={teachers.data}
                     rowKey={(row) => row.id}
-                    emptyTitle="No teachers"
-                    emptyDescription="No teachers linked to this school year yet."
-                    caption="Teachers"
+                    emptyTitle={i18n.teachers.emptyTitle}
+                    emptyDescription={i18n.teachers.emptyDesc}
+                    caption={i18n.teachers.tableCaption}
                     mobileCard={(row) => (
                         <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_18%,white)] p-3">
                             <div className="font-semibold">{row.full_name}</div>
-                            <div className="text-sm opacity-80">{row.employee_code}</div>
+                            <div className="text-sm opacity-80">
+                                <span dir="ltr">{row.employee_code}</span>
+                            </div>
                         </div>
                     )}
                 />
@@ -102,10 +107,13 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
                             disabled={teachers.meta.page <= 1}
                             onClick={() => goPage(teachers.meta.page - 1)}
                         >
-                            Previous
+                            {i18n.common.previous}
                         </button>
                         <span className="text-sm">
-                            Page {teachers.meta.page} of {teachers.meta.last_page}
+                            {i18n.common.page}{' '}
+                            <span dir="ltr">
+                                {teachers.meta.page} {i18n.common.of} {teachers.meta.last_page}
+                            </span>
                         </span>
                         <button
                             type="button"
@@ -113,7 +121,7 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
                             disabled={teachers.meta.page >= teachers.meta.last_page}
                             onClick={() => goPage(teachers.meta.page + 1)}
                         >
-                            Next
+                            {i18n.common.next}
                         </button>
                     </div>
                 ) : null}

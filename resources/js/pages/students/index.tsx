@@ -6,6 +6,7 @@ import {
     type PreviewPayload,
     type StudentsPayload,
 } from '@/components/students/student-list';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type PageProps = {
@@ -20,12 +21,14 @@ type PageProps = {
     preview: PreviewPayload;
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Students', href: '/students' }];
-
 export default function StudentsIndex({ students, filters, authorization, preview }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.students.title, href: '/students' }];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Students" />
+            <Head title={i18n.students.title} />
             <div className="p-4">
                 <StudentList
                     students={students}
