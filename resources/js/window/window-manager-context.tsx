@@ -24,6 +24,9 @@ type WindowManagerApi = {
     maximize: (instanceId: string) => void;
     move: (instanceId: string, x: number, y: number) => void;
     resize: (instanceId: string, width: number, height: number) => void;
+    cascade: () => void;
+    cycleFocus: (direction?: 1 | -1) => void;
+    closeFocused: () => void;
 };
 
 const WindowManagerContext = createContext<WindowManagerApi | null>(null);
@@ -46,10 +49,9 @@ function loadState(): WindowManagerState | null {
 
 function saveState(state: WindowManagerState): void {
     try {
-        // Never persist secrets — geometry + window ids only
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-        // ignore quota / private mode
+        // ignore
     }
 }
 
@@ -212,6 +214,74 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
         }));
     }, []);
 
+    const cascade = useCallback(() => {
+        setState((prev) => {
+            let z = prev.nextZ;
+            const visible = prev.windows.filter((w) => !w.minimized);
+            const windows = prev.windows.map((w) => {
+                if (w.minimized) {
+                    return w;
+                }
+                const index = visible.findIndex((v) => v.instanceId === w.instanceId);
+                z += 1;
+                return {
+                    ...w,
+                    maximized: false,
+                    x: 40 + index * 32,
+                    y: 40 + index * 32,
+                    zIndex: z,
+                };
+            });
+            const last = visible[visible.length - 1];
+            return {
+                windows,
+                focusedInstanceId: last?.instanceId ?? prev.focusedInstanceId,
+                nextZ: z,
+            };
+        });
+    }, []);
+
+    const cycleFocus = useCallback((direction: 1 | -1 = 1) => {
+        setState((prev) => {
+            const visible = prev.windows
+                .filter((w) => !w.minimized)
+                .sort((a, b) => a.zIndex - b.zIndex);
+            if (visible.length === 0) {
+                return prev;
+            }
+            const currentIndex = visible.findIndex((w) => w.instanceId === prev.focusedInstanceId);
+            const nextIndex =
+                currentIndex === -1
+                    ? 0
+                    : (currentIndex + direction + visible.length) % visible.length;
+            const target = visible[nextIndex];
+            return {
+                ...prev,
+                focusedInstanceId: target.instanceId,
+                nextZ: prev.nextZ + 1,
+                windows: prev.windows.map((w) =>
+                    w.instanceId === target.instanceId
+                        ? { ...w, zIndex: prev.nextZ + 1 }
+                        : w,
+                ),
+            };
+        });
+    }, []);
+
+    const closeFocused = useCallback(() => {
+        setState((prev) => {
+            if (!prev.focusedInstanceId) {
+                return prev;
+            }
+            const id = prev.focusedInstanceId;
+            return {
+                ...prev,
+                windows: prev.windows.filter((w) => w.instanceId !== id),
+                focusedInstanceId: null,
+            };
+        });
+    }, []);
+
     const api = useMemo<WindowManagerApi>(
         () => ({
             windows: state.windows,
@@ -224,8 +294,24 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
             maximize,
             move,
             resize,
+            cascade,
+            cycleFocus,
+            closeFocused,
         }),
-        [state, open, close, focus, minimize, restore, maximize, move, resize],
+        [
+            state,
+            open,
+            close,
+            focus,
+            minimize,
+            restore,
+            maximize,
+            move,
+            resize,
+            cascade,
+            cycleFocus,
+            closeFocused,
+        ],
     );
 
     return createElement(WindowManagerContext.Provider, { value: api }, children);
