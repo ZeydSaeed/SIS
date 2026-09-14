@@ -76,6 +76,15 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
             cell: (row) => <span dir="ltr">{row.room_id ?? '—'}</span>,
             hideOnMobile: true,
         },
+        {
+            id: 'actions',
+            header: i18n.common.open,
+            cell: (row) => (
+                <a href={`/timetable/${row.id}`} className="underline">
+                    {i18n.common.view}
+                </a>
+            ),
+        },
     ];
 
     const pagination = schedules.meta.pagination;
@@ -94,7 +103,7 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.timetable.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.timetable.title}
                     description={i18n.timetable.description}
@@ -126,7 +135,7 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            className="sis-ops-hub__link px-3 py-2 text-sm"
+                            className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                             disabled={pagination.page <= 1}
                             onClick={() => goPage(pagination.page - 1)}
                         >
@@ -140,7 +149,7 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
                         </span>
                         <button
                             type="button"
-                            className="sis-ops-hub__link px-3 py-2 text-sm"
+                            className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                             disabled={pagination.page >= pagination.total_pages}
                             onClick={() => goPage(pagination.page + 1)}
                         >

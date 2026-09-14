@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Timetable;
 
 use App\Application\Timetable\DTOs\ScheduleDTO;
+use App\Application\Timetable\Queries\GetScheduleHandler;
+use App\Application\Timetable\Queries\GetScheduleQuery;
 use App\Application\Timetable\Queries\ListSchedulesHandler;
 use App\Application\Timetable\Queries\ListSchedulesQuery;
 use App\Http\Controllers\Controller;
@@ -90,6 +92,47 @@ final class TimetablePageController extends Controller
                 'academic_year_id' => $academicYearId,
                 'page' => $page,
                 'per_page' => $perPage,
+            ],
+        ]);
+    }
+
+    public function show(Request $request, int $schedule, GetScheduleHandler $handler): Response
+    {
+        $this->authorize('view', ScheduleRecord::class);
+
+        $schoolId = $this->schoolContext->requireId();
+        $user = $request->user();
+        assert($user !== null);
+
+        $dto = $handler->handle(new GetScheduleQuery(
+            schoolId: $schoolId,
+            scheduleId: $schedule,
+        ));
+
+        if ($dto === null) {
+            abort(404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TimetableDataAccess,
+            'timetable.web.show',
+            'viewed',
+            $user,
+            'schedule:'.$schedule,
+            ['academic_year_id' => $dto->academicYearId],
+        );
+
+        return Inertia::render('timetable/show', [
+            'schedule' => [
+                'id' => $dto->id,
+                'section_id' => $dto->sectionId,
+                'academic_year_id' => $dto->academicYearId,
+                'day_of_week' => $dto->dayOfWeek,
+                'period_id' => $dto->periodId,
+                'subject_id' => $dto->subjectId,
+                'teacher_id' => $dto->teacherId,
+                'room_id' => $dto->roomId,
+                'lifecycle_status' => $dto->lifecycleStatus,
             ],
         ]);
     }

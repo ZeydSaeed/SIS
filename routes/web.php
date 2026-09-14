@@ -45,10 +45,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('teachers')->name('teachers.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [TeacherPageController::class, 'index'])->name('index');
+        Route::get('/{teacher}', [TeacherPageController::class, 'show'])->whereNumber('teacher')->name('show');
     });
 
     Route::prefix('timetable')->name('timetable.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [TimetablePageController::class, 'index'])->name('index');
+        Route::get('/{schedule}', [TimetablePageController::class, 'show'])->whereNumber('schedule')->name('show');
     });
 
     Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
