@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [ResultsPageController::class, 'index'])->name('index');
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
         Route::get('/term', [ResultsPageController::class, 'term'])->name('term');
+        Route::get('/transcript', [ResultsPageController::class, 'transcript'])->name('transcript');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {

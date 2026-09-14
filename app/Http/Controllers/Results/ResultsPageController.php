@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Results;
 
 use App\Application\Results\DTOs\OfficialTermResultListItemDTO;
+use App\Application\Results\Queries\GetIssuedTranscriptMetadataHandler;
+use App\Application\Results\Queries\GetIssuedTranscriptMetadataQuery;
 use App\Application\Results\Queries\GetOfficialAnnualResultHandler;
 use App\Application\Results\Queries\GetOfficialAnnualResultQuery;
 use App\Application\Results\Queries\GetOfficialTermResultHandler;
@@ -255,6 +257,68 @@ final class ResultsPageController extends Controller
                 'enrollment_id' => $enrollmentId,
                 'term_id' => $termId,
                 'subject_id' => $subjectId,
+            ],
+        ]);
+    }
+
+    public function transcript(
+        Request $request,
+        GetIssuedTranscriptMetadataHandler $handler,
+    ): Response {
+        $this->authorize('viewOfficial', TermResultRecord::class);
+
+        $schoolId = $this->schoolContext->requireId();
+        $user = $request->user();
+        assert($user !== null);
+
+        $requestedYear = $request->filled('academic_year_id')
+            ? (int) $request->query('academic_year_id')
+            : null;
+        $academicYearId = $this->academicYears->resolve($requestedYear);
+        $enrollmentId = $request->filled('enrollment_id')
+            ? (int) $request->query('enrollment_id')
+            : null;
+
+        $transcript = null;
+        if ($academicYearId !== null && $enrollmentId !== null && $enrollmentId > 0) {
+            $dto = $handler->handle(new GetIssuedTranscriptMetadataQuery(
+                schoolId: $schoolId,
+                enrollmentId: $enrollmentId,
+                academicYearId: $academicYearId,
+            ));
+            if ($dto !== null) {
+                $transcript = [
+                    'school_id' => $dto->schoolId,
+                    'enrollment_id' => $dto->enrollmentId,
+                    'student_id' => $dto->studentId,
+                    'academic_year_id' => $dto->academicYearId,
+                    'transcript_id' => $dto->transcriptId,
+                    'transcript_version' => $dto->transcriptVersion,
+                    'transcript_number' => $dto->transcriptNumber,
+                    'payload_hash' => $dto->payloadHash,
+                    'issued_at' => $dto->issuedAt,
+                    // storage_key omitted from UI — PDF download HOLD
+                ];
+            }
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::ResultsDataAccess,
+            'results.web.transcript.show',
+            'allowed',
+            $user,
+            'transcript',
+            [
+                'academic_year_id' => $academicYearId,
+                'enrollment_id' => $enrollmentId,
+            ],
+        );
+
+        return Inertia::render('results/transcript', [
+            'transcript' => $transcript,
+            'filters' => [
+                'academic_year_id' => $academicYearId,
+                'enrollment_id' => $enrollmentId,
             ],
         ]);
     }
