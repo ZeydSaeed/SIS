@@ -288,4 +288,14 @@ return [
     | Switching schools remains explicit via POST /context/school.
     */
     'bootstrap_web_school_session' => env('SECURITY_BOOTSTRAP_WEB_SCHOOL_SESSION', true),
+
+    /*
+    | Local/ops only: allow seeding demo school + year and binding the signed-in user
+    | via POST /context/ops-bootstrap and `php artisan sis:ops-bootstrap`.
+    | Defaults on in local; must be explicitly enabled elsewhere.
+    */
+    'ops_bootstrap_enabled' => env(
+        'SECURITY_OPS_BOOTSTRAP_ENABLED',
+        env('APP_ENV', 'production') === 'local',
+    ),
 ];

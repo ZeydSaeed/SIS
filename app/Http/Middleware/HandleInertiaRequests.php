@@ -7,6 +7,7 @@ use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
+use App\Support\Ops\OpsWorkspaceBootstrap;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
@@ -53,6 +54,7 @@ class HandleInertiaRequests extends Middleware
             'schoolContext' => $this->schoolContextPayload($request),
             'academicYears' => $this->academicYearsPayload(),
             'academicYearId' => $this->currentAcademicYearId($request),
+            'opsBootstrap' => $this->opsBootstrapPayload($request),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -155,5 +157,20 @@ class HandleInertiaRequests extends Middleware
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * @return array{enabled: bool, needed: bool}
+     */
+    private function opsBootstrapPayload(Request $request): array
+    {
+        $bootstrap = app(OpsWorkspaceBootstrap::class);
+        $user = $request->user();
+        $enabled = $bootstrap->isEnabled();
+
+        return [
+            'enabled' => $enabled,
+            'needed' => $enabled && $user !== null && $bootstrap->isNeeded($user),
+        ];
     }
 }

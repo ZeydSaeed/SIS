@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { t } from '@/i18n';
@@ -26,6 +26,10 @@ function DashboardBody({ desktop }: { desktop: boolean }) {
     const i18n = t();
     const wm = useWindowManager();
     const [confirmCloseAll, setConfirmCloseAll] = useState(false);
+    const { opsBootstrap } = usePage().props as {
+        opsBootstrap?: { enabled: boolean; needed: boolean };
+    };
+    const bootstrapNeeded = Boolean(opsBootstrap?.enabled && opsBootstrap?.needed);
 
     const modules: ModuleLink[] = [
         { windowId: 'student.list', title: i18n.modules.students, description: i18n.modules.studentsDesc, href: '/students' },
@@ -122,6 +126,33 @@ function DashboardBody({ desktop }: { desktop: boolean }) {
                                 <span className="sis-ops-hub__link-title">{i18n.dashboard.openWindows}</span>
                             </Link>
                         </p>
+                    ) : null}
+                    {bootstrapNeeded ? (
+                        <div
+                            className="mt-4 rounded-md border border-[color:var(--sis-powder-blush)] bg-[color-mix(in_srgb,var(--sis-powder-blush)_22%,white)] p-4 text-sm"
+                            role="status"
+                        >
+                            <p className="font-medium">{i18n.context.bootstrapTitle}</p>
+                            <p className="mt-1 opacity-85">{i18n.context.bootstrapLead}</p>
+                            <Form
+                                action="/context/ops-bootstrap"
+                                method="post"
+                                className="mt-3"
+                                options={{ preserveScroll: false }}
+                            >
+                                {({ processing }) => (
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                                    >
+                                        {processing
+                                            ? i18n.context.bootstrapWorking
+                                            : i18n.context.bootstrapAction}
+                                    </button>
+                                )}
+                            </Form>
+                        </div>
                     ) : null}
                 </header>
 

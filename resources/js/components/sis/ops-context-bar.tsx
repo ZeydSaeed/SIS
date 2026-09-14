@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Form, router, usePage } from '@inertiajs/react';
 import { t } from '@/i18n';
 
 type SchoolOption = { id: number; name: string; code: string };
@@ -8,12 +8,49 @@ type SharedProps = {
     schoolContext?: { schoolId: number | null; schools: SchoolOption[] };
     academicYears?: YearOption[];
     academicYearId?: number | null;
+    opsBootstrap?: { enabled: boolean; needed: boolean };
+    flash?: { success?: string | null; error?: string | null };
 };
+
+function OpsBootstrapPanel({ needed }: { needed: boolean }) {
+    const i18n = t();
+
+    if (!needed) {
+        return null;
+    }
+
+    return (
+        <div
+            className="w-full rounded-md border border-[color:var(--sis-powder-blush)] bg-[color-mix(in_srgb,var(--sis-powder-blush)_22%,white)] p-3 text-sm"
+            role="status"
+        >
+            <p className="font-medium">{i18n.context.bootstrapTitle}</p>
+            <p className="mt-1 opacity-85">{i18n.context.bootstrapLead}</p>
+            <Form
+                action="/context/ops-bootstrap"
+                method="post"
+                className="mt-3"
+                options={{ preserveScroll: false }}
+            >
+                {({ processing }) => (
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                    >
+                        {processing ? i18n.context.bootstrapWorking : i18n.context.bootstrapAction}
+                    </button>
+                )}
+            </Form>
+        </div>
+    );
+}
 
 /** School + academic year context controls for authenticated ops shell. */
 export function OpsContextBar() {
     const i18n = t();
-    const { schoolContext, academicYears, academicYearId } = usePage().props as SharedProps;
+    const { schoolContext, academicYears, academicYearId, opsBootstrap, flash } =
+        usePage().props as SharedProps;
     const schools = schoolContext?.schools ?? [];
     const schoolId = schoolContext?.schoolId ?? null;
     const years = academicYears ?? [];
@@ -22,16 +59,20 @@ export function OpsContextBar() {
         years.find((y) => y.is_current)?.id ??
         years[0]?.id ??
         null;
+    const bootstrapNeeded = Boolean(opsBootstrap?.enabled && opsBootstrap?.needed);
 
     if (schools.length === 0 && years.length === 0) {
         return (
-            <div
-                className="border-b border-[color:var(--sis-powder-blush)] px-4 py-3 text-sm"
-                dir="rtl"
-                lang="ar"
-                role="status"
-            >
-                {i18n.context.noSchools} — {i18n.context.noYear}
+            <div className="flex flex-col gap-3 border-b border-[color:var(--sis-powder-blush)] px-4 py-3" dir="rtl" lang="ar">
+                {flash?.success ? (
+                    <p className="text-sm" role="status">
+                        {flash.success}
+                    </p>
+                ) : null}
+                <p className="text-sm" role="status">
+                    {i18n.context.noSchools} — {i18n.context.noYear}
+                </p>
+                <OpsBootstrapPanel needed={bootstrapNeeded} />
             </div>
         );
     }
@@ -43,6 +84,14 @@ export function OpsContextBar() {
             lang="ar"
             aria-label={i18n.context.contextBar}
         >
+            {flash?.success ? (
+                <p className="w-full text-sm" role="status">
+                    {flash.success}
+                </p>
+            ) : null}
+
+            <OpsBootstrapPanel needed={bootstrapNeeded} />
+
             {schools.length > 0 ? (
                 <label className="flex min-w-[14rem] flex-1 flex-col gap-1 text-sm">
                     <span>{i18n.context.school}</span>

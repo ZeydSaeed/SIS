@@ -3,10 +3,12 @@ import { t } from '@/i18n';
 
 export default function SchoolContextRequired({ message }: { message: string }) {
     const i18n = t();
-    const { schoolContext } = usePage().props as {
+    const { schoolContext, opsBootstrap } = usePage().props as {
         schoolContext?: { schools: Array<{ id: number; name: string; code: string }> };
+        opsBootstrap?: { enabled: boolean; needed: boolean };
     };
     const schools = schoolContext?.schools ?? [];
+    const bootstrapNeeded = Boolean(opsBootstrap?.enabled && opsBootstrap?.needed);
 
     return (
         <>
@@ -18,16 +20,39 @@ export default function SchoolContextRequired({ message }: { message: string }) 
                     <p className="sis-ops-hub__lead">{message}</p>
                 </header>
 
+                {bootstrapNeeded ? (
+                    <div
+                        className="rounded-md border border-[color:var(--sis-powder-blush)] bg-[color-mix(in_srgb,var(--sis-powder-blush)_25%,white)] p-4 text-sm"
+                        role="status"
+                    >
+                        <p className="font-medium">{i18n.context.bootstrapTitle}</p>
+                        <p className="mt-2 opacity-80">{i18n.context.bootstrapLead}</p>
+                        <Form
+                            action="/context/ops-bootstrap"
+                            method="post"
+                            className="mt-3"
+                            options={{ preserveScroll: false }}
+                        >
+                            {({ processing }) => (
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                                >
+                                    {processing ? i18n.context.bootstrapWorking : i18n.context.bootstrapAction}
+                                </button>
+                            )}
+                        </Form>
+                    </div>
+                ) : null}
+
                 {schools.length === 0 ? (
                     <div
                         className="rounded-md border border-[color:var(--sis-powder-blush)] bg-[color-mix(in_srgb,var(--sis-powder-blush)_25%,white)] p-4 text-sm"
                         role="alert"
                     >
                         <p className="font-medium">{i18n.context.noSchools}</p>
-                        <p className="mt-2 opacity-80">
-                            اطلب من مسؤول النظام ربط دورك بمدرسة في جدول صلاحيات المستخدمين
-                            (security.user_roles.school_id)، ثم أعد تسجيل الدخول.
-                        </p>
+                        <p className="mt-2 opacity-80">{i18n.context.noSchoolsHelp}</p>
                     </div>
                 ) : (
                     <Form

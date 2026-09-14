@@ -29,5 +29,12 @@ final class PhaseOpsSchoolContextGuestTest extends TestCase
     {
         $this->post('/context/school', ['school_id' => 1])->assertRedirect();
         $this->post('/context/academic-year', ['academic_year_id' => 1])->assertRedirect();
+        $this->post('/context/ops-bootstrap')->assertRedirect();
+    }
+
+    #[Test]
+    public function ops_bootstrap_config_defaults_for_local(): void
+    {
+        $this->assertTrue((bool) config('security.ops_bootstrap_enabled'));
     }
 }
