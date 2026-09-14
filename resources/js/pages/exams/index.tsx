@@ -2,7 +2,9 @@ import { Head } from '@inertiajs/react';
 import { GraduationCap } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -57,7 +59,7 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
         {
             id: 'status',
             header: i18n.common.status,
-            cell: (row) => <span dir="ltr">{row.status}</span>,
+            cell: (row) => <StatusChip kind="exam" status={row.status} />,
         },
         {
             id: 'actions',
@@ -79,6 +81,7 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
                     description={i18n.exams.description}
                     icon={<GraduationCap className="size-6" aria-hidden />}
                 />
+                <OpsYearFilter action="/exams" academicYearId={filters.academic_year_id} />
                 <DataTable
                     columns={columns}
                     rows={exams.data}
@@ -100,8 +103,7 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
                                 </span>
                             </div>
                             <div className="text-sm opacity-80">
-                                {i18n.common.status}{' '}
-                                <span dir="ltr">{row.status}</span>
+                                <StatusChip kind="exam" status={row.status} />
                             </div>
                         </a>
                     )}
