@@ -3,14 +3,23 @@
 $ErrorActionPreference = 'Stop'
 $desktop = [Environment]::GetFolderPath('Desktop')
 $url = 'http://sis.test/hub?desktop=1'
-$lnkPath = Join-Path $desktop 'SIS Operational Hub.lnk'
-$urlPath = Join-Path $desktop 'SIS Operational Hub.url'
+$displayName = 'نظام معلومات الطالب'
+$lnkPath = Join-Path $desktop "$displayName.lnk"
+$urlPath = Join-Path $desktop "$displayName.url"
+$legacyNames = @('SIS Operational Hub.lnk', 'SIS Operational Hub.url')
+
+foreach ($legacy in $legacyNames) {
+    $legacyPath = Join-Path $desktop $legacy
+    if (Test-Path $legacyPath) {
+        Remove-Item -LiteralPath $legacyPath -Force
+    }
+}
 
 $candidates = @(
-    "$env:ProgramFiles (x86)\Microsoft\Edge\Application\msedge.exe",
+    "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
     "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
     "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-    "$env:ProgramFiles (x86)\Google\Chrome\Application\chrome.exe"
+    "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe"
 )
 $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
@@ -23,7 +32,7 @@ if ($browser) {
 } else {
     $shortcut.TargetPath = $url
 }
-$shortcut.Description = 'SIS Operational Hub (guest desktop shell)'
+$shortcut.Description = 'مساحة العمل التشغيلية — نظام معلومات الطالب (ضيف)'
 $shortcut.Save()
 
 @"
