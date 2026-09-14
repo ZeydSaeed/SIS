@@ -4,6 +4,7 @@ import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -38,19 +39,6 @@ export default function AttendanceShow({ session }: PageProps) {
     const i18n = t();
     const [confirmClose, setConfirmClose] = useState(false);
     const [closing, setClosing] = useState(false);
-
-    const sessionStatusLabel = (status: number): string => {
-        if (status === 1) {
-            return i18n.attendance.open;
-        }
-        if (status === 2) {
-            return i18n.attendance.closed;
-        }
-        if (status === 3) {
-            return i18n.attendance.cancelled;
-        }
-        return String(status);
-    };
 
     const recordStatusLabel = (status: number): string => {
         if (status === 1) {
@@ -123,7 +111,9 @@ export default function AttendanceShow({ session }: PageProps) {
                     </div>
                     <div>
                         <dt className="opacity-70">{i18n.common.status}</dt>
-                        <dd>{sessionStatusLabel(session.status)}</dd>
+                        <dd>
+                            <StatusChip kind="attendance" status={session.status} />
+                        </dd>
                     </div>
                     <div>
                         <dt className="opacity-70">{i18n.attendance.section}</dt>
