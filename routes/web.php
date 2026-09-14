@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Student\StudentPageController;
@@ -17,6 +18,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('enrollments')->name('enrollments.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [EnrollmentPageController::class, 'index'])->name('index');
+    });
+
+    Route::prefix('attendance')->name('attendance.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [AttendancePageController::class, 'index'])->name('index');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {

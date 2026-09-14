@@ -63,6 +63,14 @@ export default function Dashboard() {
                             </Link>
                         </li>
                         <li>
+                            <Link href="/attendance" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Attendance</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Daily sessions for marking and close-out
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
                             <Link
                                 href="/intelligence/recommendations"
                                 prefetch
