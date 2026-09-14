@@ -2,7 +2,9 @@ import { Head, router } from '@inertiajs/react';
 import { CalendarRange } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { dayOfWeekLabel, StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -46,7 +48,7 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
         {
             id: 'day_of_week',
             header: i18n.timetable.day,
-            cell: (row) => <span dir="ltr">{row.day_of_week}</span>,
+            cell: (row) => dayOfWeekLabel(row.day_of_week),
         },
         {
             id: 'period_id',
@@ -75,6 +77,11 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
             header: i18n.timetable.room,
             cell: (row) => <span dir="ltr">{row.room_id ?? '—'}</span>,
             hideOnMobile: true,
+        },
+        {
+            id: 'lifecycle_status',
+            header: i18n.common.status,
+            cell: (row) => <StatusChip kind="schedule" status={row.lifecycle_status} />,
         },
         {
             id: 'actions',
@@ -109,6 +116,11 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
                     description={i18n.timetable.description}
                     icon={<CalendarRange className="size-6" aria-hidden />}
                 />
+                <OpsYearFilter
+                    action="/timetable"
+                    academicYearId={filters.academic_year_id}
+                    extraParams={{ per_page: filters.per_page }}
+                />
                 <DataTable
                     columns={columns}
                     rows={schedules.data}
@@ -119,8 +131,7 @@ export default function TimetableIndex({ schedules, filters }: PageProps) {
                     mobileCard={(row) => (
                         <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-petal)_35%,white)] p-3">
                             <div className="font-semibold">
-                                {i18n.common.day}{' '}
-                                <span dir="ltr">{row.day_of_week}</span> · {i18n.attendance.period}{' '}
+                                {dayOfWeekLabel(row.day_of_week)} · {i18n.attendance.period}{' '}
                                 <span dir="ltr">{row.period_id}</span>
                             </div>
                             <div className="text-sm opacity-80">
