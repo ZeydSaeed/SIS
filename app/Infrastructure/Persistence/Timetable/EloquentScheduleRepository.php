@@ -8,9 +8,11 @@ use App\Domain\Timetable\Data\ScheduleSnapshot;
 use App\Domain\Timetable\Exceptions\ScheduleNotActiveException;
 use App\Domain\Timetable\Exceptions\ScheduleNotCancelledException;
 use App\Domain\Timetable\Exceptions\ScheduleNotFoundException;
+use App\Domain\Timetable\Exceptions\ScheduleSlotConflictException;
 use App\Domain\Timetable\Exceptions\ScheduleValidationException;
 use App\Domain\Timetable\Repositories\ScheduleRepositoryInterface;
 use App\Domain\Timetable\ValueObjects\ScheduleLifecycleStatus;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentScheduleRepository implements ScheduleRepositoryInterface
@@ -67,27 +69,60 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
         }
     }
 
+    public function assertNoActiveSlotConflicts(PersistScheduleData $data, ?int $excludeScheduleId = null): void
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $data->schoolId]);
+
+        $base = DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+            ->where('school_id', $data->schoolId)
+            ->where('academic_year_id', $data->academicYearId)
+            ->where('day_of_week', $data->dayOfWeek)
+            ->where('period_id', $data->periodId)
+            ->whereNull('cancelled_at');
+
+        if ($excludeScheduleId !== null) {
+            $base->where('id', '!=', $excludeScheduleId);
+        }
+
+        if ((clone $base)->where('section_id', $data->sectionId)->exists()) {
+            throw ScheduleSlotConflictException::forSection();
+        }
+
+        if ((clone $base)->where('teacher_id', $data->teacherId)->exists()) {
+            throw ScheduleSlotConflictException::forTeacher();
+        }
+
+        if ($data->roomId !== null && (clone $base)->where('room_id', $data->roomId)->exists()) {
+            throw ScheduleSlotConflictException::forRoom();
+        }
+    }
+
     public function insertActive(PersistScheduleData $data): int
     {
         $this->assertWritableRefs($data);
+        $this->assertNoActiveSlotConflicts($data);
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $data->schoolId]);
 
-        return (int) DB::table(SchemaHelper::qualified('timetable', 'schedules'))->insertGetId([
-            'school_id' => $data->schoolId,
-            'section_id' => $data->sectionId,
-            'academic_year_id' => $data->academicYearId,
-            'day_of_week' => $data->dayOfWeek,
-            'period_id' => $data->periodId,
-            'subject_id' => $data->subjectId,
-            'teacher_id' => $data->teacherId,
-            'room_id' => $data->roomId,
-            'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
-            'cancelled_at' => null,
-            'correlation_id' => $data->correlationId,
-            'created_by' => $data->createdBy,
-            'created_at' => $data->at,
-            'updated_at' => $data->at,
-        ]);
+        try {
+            return (int) DB::table(SchemaHelper::qualified('timetable', 'schedules'))->insertGetId([
+                'school_id' => $data->schoolId,
+                'section_id' => $data->sectionId,
+                'academic_year_id' => $data->academicYearId,
+                'day_of_week' => $data->dayOfWeek,
+                'period_id' => $data->periodId,
+                'subject_id' => $data->subjectId,
+                'teacher_id' => $data->teacherId,
+                'room_id' => $data->roomId,
+                'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
+                'cancelled_at' => null,
+                'correlation_id' => $data->correlationId,
+                'created_by' => $data->createdBy,
+                'created_at' => $data->at,
+                'updated_at' => $data->at,
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            throw ScheduleSlotConflictException::fromDatabase();
+        }
     }
 
     public function findById(int $schoolId, int $scheduleId): ?ScheduleSnapshot
@@ -172,24 +207,29 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
     public function updateActive(int $scheduleId, PersistScheduleData $data): void
     {
         $this->assertWritableRefs($data);
+        $this->assertNoActiveSlotConflicts($data, $scheduleId);
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $data->schoolId]);
 
-        $updated = DB::table(SchemaHelper::qualified('timetable', 'schedules'))
-            ->where('id', $scheduleId)
-            ->where('school_id', $data->schoolId)
-            ->where('lifecycle_status', ScheduleLifecycleStatus::Active->value)
-            ->whereNull('cancelled_at')
-            ->update([
-                'section_id' => $data->sectionId,
-                'academic_year_id' => $data->academicYearId,
-                'day_of_week' => $data->dayOfWeek,
-                'period_id' => $data->periodId,
-                'subject_id' => $data->subjectId,
-                'teacher_id' => $data->teacherId,
-                'room_id' => $data->roomId,
-                'correlation_id' => $data->correlationId,
-                'updated_at' => $data->at,
-            ]);
+        try {
+            $updated = DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+                ->where('id', $scheduleId)
+                ->where('school_id', $data->schoolId)
+                ->where('lifecycle_status', ScheduleLifecycleStatus::Active->value)
+                ->whereNull('cancelled_at')
+                ->update([
+                    'section_id' => $data->sectionId,
+                    'academic_year_id' => $data->academicYearId,
+                    'day_of_week' => $data->dayOfWeek,
+                    'period_id' => $data->periodId,
+                    'subject_id' => $data->subjectId,
+                    'teacher_id' => $data->teacherId,
+                    'room_id' => $data->roomId,
+                    'correlation_id' => $data->correlationId,
+                    'updated_at' => $data->at,
+                ]);
+        } catch (UniqueConstraintViolationException) {
+            throw ScheduleSlotConflictException::fromDatabase();
+        }
 
         if ($updated === 0) {
             throw ScheduleNotActiveException::forId($scheduleId);
@@ -230,13 +270,32 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             throw ScheduleNotCancelledException::forId($scheduleId);
         }
 
-        DB::table(SchemaHelper::qualified('timetable', 'schedules'))
-            ->where('id', $scheduleId)
-            ->where('school_id', $schoolId)
-            ->update([
-                'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
-                'cancelled_at' => null,
-                'updated_at' => $reactivatedAt,
-            ]);
+        $probe = new PersistScheduleData(
+            schoolId: $current->schoolId,
+            sectionId: $current->sectionId,
+            academicYearId: $current->academicYearId,
+            dayOfWeek: $current->dayOfWeek,
+            periodId: $current->periodId,
+            subjectId: $current->subjectId,
+            teacherId: $current->teacherId,
+            roomId: $current->roomId,
+            at: $reactivatedAt,
+            correlationId: null,
+            createdBy: null,
+        );
+        $this->assertNoActiveSlotConflicts($probe, $scheduleId);
+
+        try {
+            DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+                ->where('id', $scheduleId)
+                ->where('school_id', $schoolId)
+                ->update([
+                    'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
+                    'cancelled_at' => null,
+                    'updated_at' => $reactivatedAt,
+                ]);
+        } catch (UniqueConstraintViolationException) {
+            throw ScheduleSlotConflictException::fromDatabase();
+        }
     }
 }

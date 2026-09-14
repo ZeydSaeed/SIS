@@ -9,6 +9,8 @@ interface ScheduleRepositoryInterface
 {
     public function assertWritableRefs(PersistScheduleData $data): void;
 
+    public function assertNoActiveSlotConflicts(PersistScheduleData $data, ?int $excludeScheduleId = null): void;
+
     public function insertActive(PersistScheduleData $data): int;
 
     public function findById(int $schoolId, int $scheduleId): ?ScheduleSnapshot;
