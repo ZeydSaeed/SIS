@@ -2,7 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -66,7 +68,7 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
         {
             id: 'status',
             header: i18n.common.status,
-            cell: (row) => <span dir="ltr">{row.status}</span>,
+            cell: (row) => <StatusChip kind="enrollment" status={row.status} />,
         },
         {
             id: 'effective_from',
@@ -114,6 +116,11 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
                         {i18n.enrollments.enrollStudent}
                     </Link>
                 </p>
+                <OpsYearFilter
+                    action="/enrollments"
+                    academicYearId={filters.academic_year_id}
+                    extraParams={{ per_page: filters.per_page }}
+                />
                 <DataTable
                     columns={columns}
                     rows={enrollments.data}
@@ -137,6 +144,9 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
                                 <span dir="ltr">
                                     {row.class_id} · {row.section_id}
                                 </span>
+                            </div>
+                            <div className="mt-1">
+                                <StatusChip kind="enrollment" status={row.status} />
                             </div>
                         </a>
                     )}
