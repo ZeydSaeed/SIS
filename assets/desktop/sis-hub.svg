@@ -1,0 +1,7 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SIS">
+  <rect width="64" height="64" rx="10" fill="#3a405a"/>
+  <rect x="10" y="14" width="44" height="36" rx="4" fill="#aec5eb"/>
+  <rect x="14" y="18" width="36" height="6" fill="#3a405a"/>
+  <rect x="14" y="28" width="22" height="16" rx="2" fill="#f9dec9"/>
+  <text x="32" y="56" text-anchor="middle" font-family="Segoe UI, Tahoma, sans-serif" font-size="10" fill="#f9dec9">SIS</text>
+</svg>
