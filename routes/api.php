@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MetricsController;
+use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\PortalResultsController;
 use App\Http\Controllers\Api\PortalScopesController;
@@ -69,6 +70,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('students/{student}/documents', [StudentController::class, 'indexDocuments'])
             ->whereNumber('student')
             ->name('api.students.documents.index');
+        Route::get('students/{student}/guardians', [StudentController::class, 'indexGuardians'])
+            ->whereNumber('student')
+            ->name('api.students.guardians.index');
         Route::get('student-documents/{document}', [StudentController::class, 'showDocument'])
             ->whereNumber('document')
             ->name('api.student_documents.show');
@@ -121,6 +125,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('academic/grade-levels/{gradeLevel}', [AcademicController::class, 'showGradeLevel'])
             ->whereNumber('gradeLevel')
             ->name('api.academic.grade-levels.show');
+
+        Route::get('organization/rooms', [OrganizationController::class, 'indexRooms'])
+            ->name('api.organization.rooms.index');
 
         Route::get('enrollment/classes', [EnrollmentStructureController::class, 'indexClasses'])
             ->name('api.enrollment.classes.index');

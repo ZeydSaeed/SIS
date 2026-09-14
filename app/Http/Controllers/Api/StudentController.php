@@ -15,6 +15,7 @@ use App\Application\Student\Commands\VoidStudentDocumentHandler;
 use App\Application\Student\Commands\RestoreStudentDocumentCommand;
 use App\Application\Student\Commands\RestoreStudentDocumentHandler;
 use App\Application\Student\DTOs\StudentDocumentDTO;
+use App\Application\Student\DTOs\StudentGuardianLinkDTO;
 use App\Application\Student\Queries\GetStudentDocumentContentHandler;
 use App\Application\Student\Queries\GetStudentDocumentContentQuery;
 use App\Application\Student\Queries\GetStudentDocumentHandler;
@@ -23,6 +24,8 @@ use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
 use App\Application\Student\Queries\ListStudentDocumentsHandler;
 use App\Application\Student\Queries\ListStudentDocumentsQuery;
+use App\Application\Student\Queries\ListStudentGuardiansHandler;
+use App\Application\Student\Queries\ListStudentGuardiansQuery;
 use App\Application\Student\Queries\ListStudentsHandler;
 use App\Application\Student\Queries\ListStudentsQuery;
 use App\Application\Student\Queries\SearchStudentsHandler;
@@ -33,6 +36,7 @@ use App\Http\Requests\Student\CreateStudentRequest;
 use App\Http\Requests\Student\DownloadStudentDocumentRequest;
 use App\Http\Requests\Student\ShowStudentDocumentRequest;
 use App\Http\Requests\Student\ListStudentDocumentsRequest;
+use App\Http\Requests\Student\ListStudentGuardiansRequest;
 use App\Http\Requests\Student\RegisterStudentDocumentRequest;
 use App\Http\Requests\Student\UpdateStudentRequest;
 use App\Http\Requests\Student\UploadStudentDocumentRequest;
@@ -471,6 +475,50 @@ class StudentController extends Controller
                 'file_size' => $dto->fileSize,
                 'file_hash' => $dto->fileHash,
                 'status' => $dto->status,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function indexGuardians(
+        int $student,
+        ListStudentGuardiansRequest $request,
+        ListStudentGuardiansHandler $handler,
+    ): JsonResponse {
+        $items = $handler->handle(new ListStudentGuardiansQuery(
+            schoolId: $this->schoolContext->requireId(),
+            studentId: $student,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Student not found.',
+                'error_code' => 'student.not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataAccess,
+            'students.guardians.index',
+            'listed',
+            $request->user(),
+            'student:'.$student,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (StudentGuardianLinkDTO $dto): array => [
+                'link_id' => $dto->linkId,
+                'student_id' => $dto->studentId,
+                'guardian_id' => $dto->guardianId,
+                'relationship_type' => $dto->relationshipType,
+                'is_primary' => $dto->isPrimary,
+                'is_emergency_contact' => $dto->isEmergencyContact,
+                'guardian_full_name' => $dto->guardianFullName,
+                'guardian_phone' => $dto->guardianPhone,
+                'guardian_email' => $dto->guardianEmail,
+                'created_at' => $dto->createdAt,
             ], $items),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
