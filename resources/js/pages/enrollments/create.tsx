@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { PageHeader } from '@/components/sis/page-header';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -40,102 +41,84 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.enrollments.studentId}</span>
-                                <input
+                            <OpsFormField
+                                label={i18n.enrollments.studentId}
+                                name="student_id"
+                                error={errors.student_id}
+                            >
+                                <OpsTextInput
                                     name="student_id"
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.student_id}
                                 />
-                                {errors.student_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.student_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.enrollments.academicYearId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.enrollments.academicYearId}
+                                name="academic_year_id"
+                                error={errors.academic_year_id}
+                            >
+                                <OpsTextInput
                                     name="academic_year_id"
                                     type="number"
                                     min={1}
                                     required
                                     defaultValue={defaults.academic_year_id ?? undefined}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.academic_year_id}
                                 />
-                                {errors.academic_year_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.academic_year_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.enrollments.classId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.enrollments.classId}
+                                name="class_id"
+                                error={errors.class_id}
+                            >
+                                <OpsTextInput
                                     name="class_id"
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.class_id}
                                 />
-                                {errors.class_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.class_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.enrollments.sectionId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.enrollments.sectionId}
+                                name="section_id"
+                                error={errors.section_id}
+                            >
+                                <OpsTextInput
                                     name="section_id"
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.section_id}
                                 />
-                                {errors.section_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.section_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.enrollments.effectiveFrom}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.enrollments.effectiveFrom}
+                                name="effective_from"
+                                error={errors.effective_from}
+                            >
+                                <OpsTextInput
                                     name="effective_from"
                                     type="date"
                                     required
                                     defaultValue={defaults.effective_from}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.effective_from}
                                 />
-                                {errors.effective_from ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.effective_from}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.enrollments.specializationId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.enrollments.specializationId}
+                                name="specialization_id"
+                                error={errors.specialization_id}
+                            >
+                                <OpsTextInput
                                     name="specialization_id"
                                     type="number"
                                     min={1}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.specialization_id}
                                 />
-                                {errors.specialization_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.specialization_id}
-                                    </span>
-                                ) : null}
-                            </label>
+                            </OpsFormField>
                             <button
                                 type="submit"
                                 disabled={processing}
