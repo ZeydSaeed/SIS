@@ -68,7 +68,7 @@ export default function AttendanceMark({ session }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${i18n.attendance.markPageTitle} ${session.id}`} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.attendance.markTitle}
                     description={`${session.session_date} · ${i18n.attendance.section} ${session.section_id} · ${i18n.attendance.subject} ${session.subject_id}`}
@@ -76,7 +76,7 @@ export default function AttendanceMark({ session }: PageProps) {
                 />
                 <Link
                     href={`/attendance/${session.id}`}
-                    className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
+                    className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar"
                     prefetch
                 >
                     {i18n.common.backToSession}
@@ -127,7 +127,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 min={1}
                                                 required
                                                 defaultValue={row.student_id === '' ? undefined : row.student_id}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                                 dir="ltr"
                                             />
                                         </label>
@@ -141,7 +141,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 defaultValue={
                                                     row.enrollment_id === '' ? undefined : row.enrollment_id
                                                 }
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                                 dir="ltr"
                                             />
                                         </label>
@@ -150,7 +150,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                             <select
                                                 name={`records[${index}][status]`}
                                                 defaultValue={String(row.status)}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                             >
                                                 <option value="1">{i18n.attendance.present}</option>
                                                 <option value="2">{i18n.attendance.absent}</option>
@@ -163,7 +163,7 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 name={`records[${index}][notes]`}
                                                 type="text"
                                                 defaultValue={row.notes}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                             />
                                         </label>
                                     </fieldset>
@@ -172,7 +172,7 @@ export default function AttendanceMark({ session }: PageProps) {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm"
+                                className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm" dir="rtl" lang="ar"
                             >
                                 {processing ? i18n.common.saving : i18n.attendance.saveMarks}
                             </button>
