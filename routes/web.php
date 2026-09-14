@@ -4,6 +4,7 @@ use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
 use App\Http\Controllers\Grades\GradesPageController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
@@ -12,7 +13,7 @@ use App\Http\Controllers\Teachers\TeacherPageController;
 use App\Http\Controllers\Timetable\TimetablePageController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'hub')->name('home');
+Route::get('/', HomeController::class)->name('home');
 Route::inertia('/hub', 'hub')->name('hub');
 
 Route::middleware(['auth', 'verified'])->group(function () {
