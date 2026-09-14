@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { WindowManagerProvider, useWindowManager } from '@/window/window-manager-context';
 import { DesktopWorkspace } from '@/window/desktop-workspace';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { t } from '@/i18n';
 import { login } from '@/routes';
 
 type GateStatus = 'advanced' | 'partial' | 'gap';
@@ -21,40 +22,41 @@ type ModuleLink = {
     requiresAuth: boolean;
 };
 
-const gates: GateRow[] = [
-    { id: 'G1', title: 'Core SIS', status: 'advanced', note: 'Schools, years, students, enrollment' },
-    { id: 'G2', title: 'Academic Operations', status: 'advanced', note: 'Curriculum, teachers, classes, attendance' },
-    { id: 'G3', title: 'Exams & Grades', status: 'advanced', note: 'Sessions, grades, correction/finalize' },
-    { id: 'G4', title: 'Student Lifecycle', status: 'partial', note: 'Admission, promotion, transfers, certificates' },
-    { id: 'G5', title: 'Scheduling', status: 'partial', note: 'Periods/schedule API; conflict UI pending' },
-    { id: 'G6', title: 'Results', status: 'advanced', note: 'Term/annual/GPA/transcript Inertia + API' },
-    { id: 'G7', title: 'Operational UI', status: 'partial', note: 'Daily lists + forms wired' },
-    { id: 'G8', title: 'Release Readiness', status: 'partial', note: 'Window polish + guest hub + docs in progress' },
-];
-
-const modules: ModuleLink[] = [
-    { windowId: 'student.list', title: 'Students', description: 'Directory and profiles', requiresAuth: true },
-    { windowId: 'enrollment.list', title: 'Enrollments', description: 'Placements and forms', requiresAuth: true },
-    { windowId: 'attendance.list', title: 'Attendance', description: 'Sessions, mark, close', requiresAuth: true },
-    { windowId: 'teachers.list', title: 'Teachers', description: 'Staff directory', requiresAuth: true },
-    { windowId: 'timetable.list', title: 'Timetable', description: 'Section schedules', requiresAuth: true },
-    { windowId: 'results.list', title: 'Results', description: 'Official term/annual/GPA', requiresAuth: true },
-    { windowId: 'exams.list', title: 'Exams', description: 'Exam catalog', requiresAuth: true },
-    { windowId: 'grades.list', title: 'Grades', description: 'Enter and finalize', requiresAuth: true },
-    { windowId: 'reports.hub', title: 'Reports', description: 'Daily summary and roster', requiresAuth: true },
-];
-
-const statusLabel: Record<GateStatus, string> = {
-    advanced: 'Advanced',
-    partial: 'Needs work',
-    gap: 'Largest gap',
-};
-
 function HubDesktopBody({ desktop }: { desktop: boolean }) {
+    const i18n = t();
     const wm = useWindowManager();
     const { auth } = usePage().props as { auth?: { user?: unknown } };
     const loggedIn = Boolean(auth?.user);
     const [confirmCloseAll, setConfirmCloseAll] = useState(false);
+
+    const gates: GateRow[] = [
+        { id: 'G1', title: i18n.gates.g1, status: 'advanced', note: i18n.gates.g1Note },
+        { id: 'G2', title: i18n.gates.g2, status: 'advanced', note: i18n.gates.g2Note },
+        { id: 'G3', title: i18n.gates.g3, status: 'advanced', note: i18n.gates.g3Note },
+        { id: 'G4', title: i18n.gates.g4, status: 'partial', note: i18n.gates.g4Note },
+        { id: 'G5', title: i18n.gates.g5, status: 'partial', note: i18n.gates.g5Note },
+        { id: 'G6', title: i18n.gates.g6, status: 'advanced', note: i18n.gates.g6Note },
+        { id: 'G7', title: i18n.gates.g7, status: 'partial', note: i18n.gates.g7Note },
+        { id: 'G8', title: i18n.gates.g8, status: 'partial', note: i18n.gates.g8Note },
+    ];
+
+    const modules: ModuleLink[] = [
+        { windowId: 'student.list', title: i18n.modules.students, description: i18n.modules.studentsDesc, requiresAuth: true },
+        { windowId: 'enrollment.list', title: i18n.modules.enrollments, description: i18n.modules.enrollmentsDesc, requiresAuth: true },
+        { windowId: 'attendance.list', title: i18n.modules.attendance, description: i18n.modules.attendanceDesc, requiresAuth: true },
+        { windowId: 'teachers.list', title: i18n.modules.teachers, description: i18n.modules.teachersDesc, requiresAuth: true },
+        { windowId: 'timetable.list', title: i18n.modules.timetable, description: i18n.modules.timetableDesc, requiresAuth: true },
+        { windowId: 'results.list', title: i18n.modules.results, description: i18n.modules.resultsDesc, requiresAuth: true },
+        { windowId: 'exams.list', title: i18n.modules.exams, description: i18n.modules.examsDesc, requiresAuth: true },
+        { windowId: 'grades.list', title: i18n.modules.grades, description: i18n.modules.gradesDesc, requiresAuth: true },
+        { windowId: 'reports.hub', title: i18n.modules.reports, description: i18n.modules.reportsDesc, requiresAuth: true },
+    ];
+
+    const statusLabel: Record<GateStatus, string> = {
+        advanced: i18n.gates.advanced,
+        partial: i18n.gates.partial,
+        gap: i18n.gates.gap,
+    };
 
     const openModule = (mod: ModuleLink) => {
         if (mod.requiresAuth && !loggedIn) {
@@ -80,10 +82,10 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
     };
 
     return (
-        <div className="sis-desktop-shell">
-            <div className="sis-desktop-shell__menubar" role="menubar" aria-label="SIS desktop menu">
-                <span className="sis-desktop-shell__brand">SIS</span>
-                <nav className="sis-desktop-shell__dock" aria-label="Module launcher">
+        <div className="sis-desktop-shell" lang="ar" dir="rtl">
+            <div className="sis-desktop-shell__menubar" role="menubar" aria-label={i18n.hub.desktopMenu}>
+                <span className="sis-desktop-shell__brand">{i18n.brand}</span>
+                <nav className="sis-desktop-shell__dock" aria-label={i18n.hub.moduleLauncher}>
                     {modules.map((mod) => (
                         <button
                             key={mod.windowId}
@@ -98,12 +100,8 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
                 </nav>
                 {desktop ? (
                     <>
-                        <button
-                            type="button"
-                            className="sis-desktop-shell__action"
-                            onClick={() => wm.cascade()}
-                        >
-                            Cascade
+                        <button type="button" className="sis-desktop-shell__action" onClick={() => wm.cascade()}>
+                            {i18n.hub.cascade}
                         </button>
                         <button
                             type="button"
@@ -111,26 +109,26 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
                             onClick={() => setConfirmCloseAll(true)}
                             disabled={wm.windows.length === 0}
                         >
-                            Close all
+                            {i18n.hub.closeAll}
                         </button>
                     </>
                 ) : null}
                 {!loggedIn ? (
                     <Link href={login()} className="sis-desktop-shell__action ms-auto">
-                        Log in for school data
+                        {i18n.hub.loginForData}
                     </Link>
                 ) : (
                     <Link href="/dashboard" className="sis-desktop-shell__action ms-auto">
-                        Authenticated dashboard
+                        {i18n.hub.authDashboard}
                     </Link>
                 )}
             </div>
 
             <ConfirmDialog
                 open={confirmCloseAll}
-                title="Close all windows?"
-                description="Open module windows will be closed. Unsaved work inside a window may be lost."
-                confirmLabel="Close all"
+                title={i18n.hub.closeAllTitle}
+                description={i18n.hub.closeAllDesc}
+                confirmLabel={i18n.hub.closeAll}
                 onConfirm={() => {
                     wm.windows.forEach((w) => wm.close(w.instanceId));
                     setConfirmCloseAll(false);
@@ -140,18 +138,14 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
 
             <div className="sis-ops-hub flex flex-col gap-6 p-4 md:p-6">
                 <header className="sis-ops-hub__hero max-w-3xl">
-                    <p className="sis-ops-hub__eyebrow">Guest Operational Hub</p>
-                    <h1 className="sis-ops-hub__title">SIS Desktop Workspace</h1>
-                    <p className="sis-ops-hub__lead">
-                        No login required for this hub. School data modules still require
-                        authentication. Desktop mode opens Windows-style windows via the central
-                        Window Manager.
-                    </p>
+                    <p className="sis-ops-hub__eyebrow">{i18n.hub.eyebrow}</p>
+                    <h1 className="sis-ops-hub__title">{i18n.hub.title}</h1>
+                    <p className="sis-ops-hub__lead">{i18n.hub.lead}</p>
                 </header>
 
                 <section aria-labelledby="hub-modules-heading" className="sis-ops-hub__section">
                     <h2 id="hub-modules-heading" className="sis-ops-hub__section-title">
-                        Modules
+                        {i18n.hub.modules}
                     </h2>
                     <ul className="sis-ops-hub__links">
                         {modules.map((mod) => (
@@ -164,7 +158,7 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
                                     <span className="sis-ops-hub__link-title">{mod.title}</span>
                                     <span className="sis-ops-hub__link-desc">
                                         {mod.description}
-                                        {mod.requiresAuth && !loggedIn ? ' · login required' : ''}
+                                        {mod.requiresAuth && !loggedIn ? ` · ${i18n.hub.loginRequired}` : ''}
                                     </span>
                                 </button>
                             </li>
@@ -174,7 +168,7 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
 
                 <section aria-labelledby="hub-gates-heading" className="sis-ops-hub__section">
                     <h2 id="hub-gates-heading" className="sis-ops-hub__section-title">
-                        Operational Transition Gate
+                        {i18n.hub.gates}
                     </h2>
                     <ul className="sis-ops-hub__gates">
                         {gates.map((gate) => (
@@ -183,7 +177,9 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
                                 className={`sis-ops-hub__gate sis-ops-hub__gate--${gate.status}`}
                             >
                                 <div className="sis-ops-hub__gate-head">
-                                    <span className="sis-ops-hub__gate-id">{gate.id}</span>
+                                    <span className="sis-ops-hub__gate-id" dir="ltr">
+                                        {gate.id}
+                                    </span>
                                     <span className="sis-ops-hub__gate-title">{gate.title}</span>
                                     <span className="sis-ops-hub__gate-status">
                                         {statusLabel[gate.status]}
@@ -202,6 +198,7 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
 }
 
 export default function Hub() {
+    const i18n = t();
     const params = useMemo(() => {
         if (typeof window === 'undefined') {
             return new URLSearchParams();
@@ -209,7 +206,6 @@ export default function Hub() {
         return new URLSearchParams(window.location.search);
     }, []);
     const embed = params.get('embed') === '1';
-    // Shortcut / app-mode always forces desktop shell; otherwise desktop viewport enables it.
     const desktop =
         !embed &&
         (params.get('desktop') === '1' ||
@@ -219,10 +215,10 @@ export default function Hub() {
     if (embed) {
         return (
             <>
-                <Head title="Operational Hub" />
-                <div className="sis-ops-hub p-4">
-                    <h1 className="sis-ops-hub__title">Operational Hub</h1>
-                    <p className="sis-ops-hub__lead">Embedded hub pane.</p>
+                <Head title={i18n.hub.title} />
+                <div className="sis-ops-hub p-4" lang="ar" dir="rtl">
+                    <h1 className="sis-ops-hub__title">{i18n.hub.title}</h1>
+                    <p className="sis-ops-hub__lead">{i18n.hub.embedded}</p>
                 </div>
             </>
         );
@@ -230,7 +226,7 @@ export default function Hub() {
 
     return (
         <WindowManagerProvider>
-            <Head title="SIS Operational Hub" />
+            <Head title={i18n.hub.title} />
             <HubDesktopBody desktop={desktop} />
         </WindowManagerProvider>
     );
