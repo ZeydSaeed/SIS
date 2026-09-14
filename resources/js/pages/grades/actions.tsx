@@ -38,8 +38,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function GradesActions({ grade, filters }: PageProps) {
     const [gradeId, setGradeId] = useState(filters.grade_id?.toString() ?? '');
     const [confirmVoid, setConfirmVoid] = useState(false);
+    const [confirmFinalize, setConfirmFinalize] = useState(false);
     const [voidReason, setVoidReason] = useState('');
     const [voiding, setVoiding] = useState(false);
+    const [finalizing, setFinalizing] = useState(false);
 
     const onLookup = (event: FormEvent) => {
         event.preventDefault();
@@ -220,29 +222,41 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                     onOpenChange={setConfirmVoid}
                                 />
                             </div>
-                            <Form
-                                action={`/grades/${grade.id}/finalize`}
-                                method="post"
-                                className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4"
-                            >
-                                {({ processing }) => (
-                                    <>
-                                        <h2 className="font-semibold">Finalize grade</h2>
-                                        <input
-                                            type="hidden"
-                                            name="academic_year_id"
-                                            value={grade.academic_year_id}
-                                        />
-                                        <button
-                                            type="submit"
-                                            disabled={processing}
-                                            className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
-                                        >
-                                            Finalize
-                                        </button>
-                                    </>
-                                )}
-                            </Form>
+                            <div className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4">
+                                <h2 className="font-semibold">Finalize grade</h2>
+                                <p className="text-sm opacity-80">
+                                    Finalizing locks the current grade version for official use.
+                                </p>
+                                <button
+                                    type="button"
+                                    disabled={finalizing}
+                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
+                                    onClick={() => setConfirmFinalize(true)}
+                                >
+                                    Finalize
+                                </button>
+                                <ConfirmDialog
+                                    open={confirmFinalize}
+                                    title="Finalize this grade?"
+                                    description="Finalized grades become official-current. Further edits require correction workflows."
+                                    confirmLabel="Finalize grade"
+                                    confirmPending={finalizing}
+                                    onConfirm={() => {
+                                        setFinalizing(true);
+                                        router.post(
+                                            `/grades/${grade.id}/finalize`,
+                                            { academic_year_id: grade.academic_year_id },
+                                            {
+                                                onFinish: () => {
+                                                    setFinalizing(false);
+                                                    setConfirmFinalize(false);
+                                                },
+                                            },
+                                        );
+                                    }}
+                                    onOpenChange={setConfirmFinalize}
+                                />
+                            </div>
                         </section>
                     </>
                 ) : (
