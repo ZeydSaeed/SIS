@@ -3,6 +3,7 @@ import { GraduationCap } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Exam = {
@@ -42,43 +43,50 @@ type PageProps = {
 };
 
 export default function ExamShow({ exam, sessions }: PageProps) {
+    const i18n = t();
+
     const sessionColumns: DataTableColumn<SessionRow>[] = [
         {
             id: 'session_date',
-            header: 'Date',
-            cell: (row) => row.session_date,
+            header: i18n.attendance.date,
+            cell: (row) => <span dir="ltr">{row.session_date}</span>,
         },
         {
             id: 'subject_id',
-            header: 'Subject',
-            cell: (row) => row.subject_id,
+            header: i18n.results.subject,
+            cell: (row) => <span dir="ltr">{row.subject_id}</span>,
         },
         {
             id: 'time',
-            header: 'Time',
-            cell: (row) => `${row.start_time} – ${row.end_time}`,
+            header: i18n.common.time,
+            cell: (row) => (
+                <span dir="ltr">
+                    {row.start_time} – {row.end_time}
+                </span>
+            ),
             hideOnMobile: true,
         },
         {
             id: 'status',
-            header: 'Status',
-            cell: (row) => row.status,
+            header: i18n.common.status,
+            cell: (row) => <span dir="ltr">{row.status}</span>,
         },
         {
             id: 'grades',
-            header: 'Grades',
+            header: i18n.modules.grades,
             cell: (row) => (
                 <a
                     href={`/grades?session_id=${row.id}&academic_year_id=${exam.academic_year_id}`}
                     className="underline"
                 >
-                    List
+                    {i18n.exams.listGrades}
                 </a>
             ),
         },
     ];
+
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Exams', href: '/exams' },
+        { title: i18n.exams.title, href: '/exams' },
         { title: exam.name, href: `/exams/${exam.id}` },
     ];
 
@@ -88,51 +96,64 @@ export default function ExamShow({ exam, sessions }: PageProps) {
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
                     title={exam.name}
-                    description="Exam detail and scheduled sessions."
+                    description={i18n.exams.detailDesc}
                     icon={<GraduationCap className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
                     <Link href="/exams" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
-                        Back to list
+                        {i18n.common.backToList}
                     </Link>
                 </div>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                     <div>
-                        <dt className="opacity-70">Academic year</dt>
-                        <dd>{exam.academic_year_id}</dd>
-                    </div>
-                    <div>
-                        <dt className="opacity-70">Term</dt>
-                        <dd>{exam.term_id}</dd>
-                    </div>
-                    <div>
-                        <dt className="opacity-70">Dates</dt>
+                        <dt className="opacity-70">{i18n.exams.academicYear}</dt>
                         <dd>
-                            {exam.start_date} – {exam.end_date}
+                            <span dir="ltr">{exam.academic_year_id}</span>
                         </dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Status</dt>
-                        <dd>{exam.status}</dd>
+                        <dt className="opacity-70">{i18n.exams.term}</dt>
+                        <dd>
+                            <span dir="ltr">{exam.term_id}</span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt className="opacity-70">{i18n.exams.dates}</dt>
+                        <dd>
+                            <span dir="ltr">
+                                {exam.start_date} – {exam.end_date}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt className="opacity-70">{i18n.common.status}</dt>
+                        <dd>
+                            <span dir="ltr">{exam.status}</span>
+                        </dd>
                     </div>
                 </dl>
-                <h2 className="text-lg font-semibold">Sessions</h2>
+                <h2 className="text-lg font-semibold">{i18n.exams.sessions}</h2>
                 <DataTable
                     columns={sessionColumns}
                     rows={sessions.data}
                     rowKey={(row) => row.id}
-                    emptyTitle="No sessions"
-                    emptyDescription="No exam sessions scheduled for this exam yet."
-                    caption="Exam sessions"
+                    emptyTitle={i18n.exams.noSessionsTitle}
+                    emptyDescription={i18n.exams.noSessionsDesc}
+                    caption={i18n.exams.sessionsCaption}
                     mobileCard={(row) => (
                         <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-petal)_40%,white)] p-3">
-                            <div className="font-semibold">{row.session_date}</div>
-                            <div className="text-sm opacity-80">Subject {row.subject_id}</div>
+                            <div className="font-semibold">
+                                <span dir="ltr">{row.session_date}</span>
+                            </div>
+                            <div className="text-sm opacity-80">
+                                {i18n.results.subject}{' '}
+                                <span dir="ltr">{row.subject_id}</span>
+                            </div>
                             <a
                                 href={`/grades?session_id=${row.id}&academic_year_id=${exam.academic_year_id}`}
                                 className="sis-ops-hub__link mt-2 inline-block text-sm"
                             >
-                                View grades
+                                {i18n.exams.viewGrades}
                             </a>
                         </div>
                     )}

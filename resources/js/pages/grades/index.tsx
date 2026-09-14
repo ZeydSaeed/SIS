@@ -4,6 +4,7 @@ import { PenLine } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type GradeRow = {
@@ -32,41 +33,44 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Grades', href: '/grades' }];
-
-const columns: DataTableColumn<GradeRow>[] = [
-    {
-        id: 'student_id',
-        header: 'Student',
-        cell: (row) => row.student_id,
-    },
-    {
-        id: 'score',
-        header: 'Score',
-        cell: (row) => (row.is_absent ? 'Absent' : (row.score ?? '—')),
-    },
-    {
-        id: 'status',
-        header: 'Status',
-        cell: (row) => row.status,
-        hideOnMobile: true,
-    },
-    {
-        id: 'actions',
-        header: 'Actions',
-        cell: (row) => (
-            <a
-                href={`/grades/actions?grade_id=${row.id}&academic_year_id=${row.academic_year_id}`}
-                className="underline"
-            >
-                Manage
-            </a>
-        ),
-    },
-];
-
 export default function GradesIndex({ grades, filters }: PageProps) {
+    const i18n = t();
     const [sessionId, setSessionId] = useState(filters.session_id?.toString() ?? '');
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.grades.title, href: '/grades' }];
+
+    const columns: DataTableColumn<GradeRow>[] = [
+        {
+            id: 'student_id',
+            header: i18n.grades.student,
+            cell: (row) => <span dir="ltr">{row.student_id}</span>,
+        },
+        {
+            id: 'score',
+            header: i18n.grades.score,
+            cell: (row) => (
+                <span dir="ltr">{row.is_absent ? i18n.grades.absent : (row.score ?? '—')}</span>
+            ),
+        },
+        {
+            id: 'status',
+            header: i18n.common.status,
+            cell: (row) => <span dir="ltr">{row.status}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'actions',
+            header: i18n.common.actions,
+            cell: (row) => (
+                <a
+                    href={`/grades/actions?grade_id=${row.id}&academic_year_id=${row.academic_year_id}`}
+                    className="underline"
+                >
+                    {i18n.grades.manage}
+                </a>
+            ),
+        },
+    ];
 
     const onFilter = (event: FormEvent) => {
         event.preventDefault();
@@ -83,52 +87,63 @@ export default function GradesIndex({ grades, filters }: PageProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Grades" />
+            <Head title={i18n.grades.title} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Grades"
-                    description="Read grades for an exam session."
+                    title={i18n.grades.title}
+                    description={i18n.grades.description}
                     icon={<PenLine className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
                     <Link href="/grades/enter" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
-                        Enter grade
+                        {i18n.grades.enterGrade}
                     </Link>
                 </div>
                 <form
                     onSubmit={onFilter}
                     className="flex flex-col gap-3 sm:flex-row sm:items-end"
-                    aria-label="Filter grades by session"
+                    aria-label={i18n.common.filterGradesBySession}
                 >
                     <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>Exam session ID</span>
+                        <span>{i18n.grades.sessionId}</span>
                         <input
                             type="number"
                             min={1}
                             value={sessionId}
                             onChange={(e) => setSessionId(e.target.value)}
                             className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            dir="ltr"
                         />
                     </label>
                     <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
-                        Load grades
+                        {i18n.grades.loadGrades}
                     </button>
                 </form>
                 <DataTable
                     columns={columns}
                     rows={grades.data}
                     rowKey={(row) => row.id}
-                    emptyTitle="No grades"
-                    emptyDescription="Enter a session ID and load grades for the academic year."
-                    caption="Session grades"
+                    emptyTitle={i18n.grades.emptyTitle}
+                    emptyDescription={i18n.grades.emptyDesc}
+                    caption={i18n.grades.sessionGradesCaption}
                     mobileCard={(row) => (
                         <a
                             href={`/grades/actions?grade_id=${row.id}&academic_year_id=${row.academic_year_id}`}
                             className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3"
                         >
-                            <div className="font-semibold">Student {row.student_id}</div>
+                            <div className="font-semibold">
+                                {i18n.grades.student}{' '}
+                                <span dir="ltr">{row.student_id}</span>
+                            </div>
                             <div className="text-sm opacity-80">
-                                {row.is_absent ? 'Absent' : `Score ${row.score ?? '—'}`}
+                                {row.is_absent ? (
+                                    i18n.grades.absent
+                                ) : (
+                                    <>
+                                        {i18n.grades.score}{' '}
+                                        <span dir="ltr">{row.score ?? '—'}</span>
+                                    </>
+                                )}
                             </div>
                         </a>
                     )}

@@ -3,6 +3,7 @@ import { GraduationCap } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type ExamRow = {
@@ -27,62 +28,66 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Exams', href: '/exams' }];
-
-const columns: DataTableColumn<ExamRow>[] = [
-    {
-        id: 'name',
-        header: 'Name',
-        cell: (row) => row.name,
-    },
-    {
-        id: 'term_id',
-        header: 'Term',
-        cell: (row) => row.term_id,
-        hideOnMobile: true,
-    },
-    {
-        id: 'dates',
-        header: 'Dates',
-        cell: (row) => `${row.start_date} – ${row.end_date}`,
-    },
-    {
-        id: 'status',
-        header: 'Status',
-        cell: (row) => row.status,
-    },
-    {
-        id: 'actions',
-        header: 'Open',
-        cell: (row) => (
-            <a href={`/exams/${row.id}`} className="underline">
-                View
-            </a>
-        ),
-    },
-];
-
 export default function ExamsIndex({ exams, filters }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.exams.title, href: '/exams' }];
+
+    const columns: DataTableColumn<ExamRow>[] = [
+        {
+            id: 'name',
+            header: i18n.exams.name,
+            cell: (row) => row.name,
+        },
+        {
+            id: 'term_id',
+            header: i18n.exams.term,
+            cell: (row) => <span dir="ltr">{row.term_id}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'dates',
+            header: i18n.exams.dates,
+            cell: (row) => (
+                <span dir="ltr">
+                    {row.start_date} – {row.end_date}
+                </span>
+            ),
+        },
+        {
+            id: 'status',
+            header: i18n.common.status,
+            cell: (row) => <span dir="ltr">{row.status}</span>,
+        },
+        {
+            id: 'actions',
+            header: i18n.common.open,
+            cell: (row) => (
+                <a href={`/exams/${row.id}`} className="underline">
+                    {i18n.common.view}
+                </a>
+            ),
+        },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Exams" />
+            <Head title={i18n.exams.title} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Exams"
-                    description="Exam definitions for the selected academic year."
+                    title={i18n.exams.title}
+                    description={i18n.exams.description}
                     icon={<GraduationCap className="size-6" aria-hidden />}
                 />
                 <DataTable
                     columns={columns}
                     rows={exams.data}
                     rowKey={(row) => row.id}
-                    emptyTitle="No exams"
+                    emptyTitle={i18n.exams.emptyTitle}
                     emptyDescription={
-                        filters.academic_year_id
-                            ? 'No exams for this academic year yet.'
-                            : 'Select an academic year context to load exams.'
+                        filters.academic_year_id ? i18n.exams.emptyDesc : i18n.exams.selectYearContext
                     }
-                    caption="School exams"
+                    caption={i18n.exams.tableCaption}
                     mobileCard={(row) => (
                         <a
                             href={`/exams/${row.id}`}
@@ -90,9 +95,14 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
                         >
                             <div className="font-semibold">{row.name}</div>
                             <div className="text-sm opacity-80">
-                                {row.start_date} – {row.end_date}
+                                <span dir="ltr">
+                                    {row.start_date} – {row.end_date}
+                                </span>
                             </div>
-                            <div className="text-sm opacity-80">Status {row.status}</div>
+                            <div className="text-sm opacity-80">
+                                {i18n.common.status}{' '}
+                                <span dir="ltr">{row.status}</span>
+                            </div>
                         </a>
                     )}
                 />

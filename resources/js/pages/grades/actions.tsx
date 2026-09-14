@@ -4,6 +4,7 @@ import { PenLine } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Grade = {
@@ -30,18 +31,19 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Grades', href: '/grades' },
-    { title: 'Grade actions', href: '/grades/actions' },
-];
-
 export default function GradesActions({ grade, filters }: PageProps) {
+    const i18n = t();
     const [gradeId, setGradeId] = useState(filters.grade_id?.toString() ?? '');
     const [confirmVoid, setConfirmVoid] = useState(false);
     const [confirmFinalize, setConfirmFinalize] = useState(false);
     const [voidReason, setVoidReason] = useState('');
     const [voiding, setVoiding] = useState(false);
     const [finalizing, setFinalizing] = useState(false);
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: i18n.grades.title, href: '/grades' },
+        { title: i18n.grades.actionsBreadcrumb, href: '/grades/actions' },
+    ];
 
     const onLookup = (event: FormEvent) => {
         event.preventDefault();
@@ -58,53 +60,64 @@ export default function GradesActions({ grade, filters }: PageProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Grade actions" />
+            <Head title={i18n.grades.actionsTitle} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Grade actions"
-                    description="Correct, void, or finalize a student grade."
+                    title={i18n.grades.actionsTitle}
+                    description={i18n.grades.actionsDesc}
                     icon={<PenLine className="size-6" aria-hidden />}
                 />
                 <Link href="/grades" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" prefetch>
-                    Back to list
+                    {i18n.common.backToList}
                 </Link>
                 <form
                     onSubmit={onLookup}
                     className="flex flex-col gap-3 sm:flex-row sm:items-end"
-                    aria-label="Lookup grade"
+                    aria-label={i18n.common.lookupGrade}
                 >
                     <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>Grade ID</span>
+                        <span>{i18n.grades.gradeId}</span>
                         <input
                             type="number"
                             min={1}
                             value={gradeId}
                             onChange={(e) => setGradeId(e.target.value)}
                             className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            dir="ltr"
                         />
                     </label>
                     <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
-                        Load grade
+                        {i18n.grades.loadGrade}
                     </button>
                 </form>
                 {grade ? (
                     <>
                         <dl className="grid gap-3 text-sm sm:grid-cols-2">
                             <div>
-                                <dt className="opacity-70">Student</dt>
-                                <dd>{grade.student_id}</dd>
+                                <dt className="opacity-70">{i18n.grades.student}</dt>
+                                <dd>
+                                    <span dir="ltr">{grade.student_id}</span>
+                                </dd>
                             </div>
                             <div>
-                                <dt className="opacity-70">Score</dt>
-                                <dd>{grade.is_absent ? 'Absent' : (grade.score ?? '—')}</dd>
+                                <dt className="opacity-70">{i18n.grades.score}</dt>
+                                <dd>
+                                    <span dir="ltr">
+                                        {grade.is_absent ? i18n.grades.absent : (grade.score ?? '—')}
+                                    </span>
+                                </dd>
                             </div>
                             <div>
-                                <dt className="opacity-70">Status</dt>
-                                <dd>{grade.status}</dd>
+                                <dt className="opacity-70">{i18n.common.status}</dt>
+                                <dd>
+                                    <span dir="ltr">{grade.status}</span>
+                                </dd>
                             </div>
                             <div>
-                                <dt className="opacity-70">Finalized</dt>
-                                <dd>{grade.finalized_at ?? 'Not finalized'}</dd>
+                                <dt className="opacity-70">{i18n.grades.finalized}</dt>
+                                <dd>
+                                    <span dir="ltr">{grade.finalized_at ?? i18n.grades.notFinalized}</span>
+                                </dd>
                             </div>
                         </dl>
                         <section className="grid max-w-xl gap-6">
@@ -115,20 +128,21 @@ export default function GradesActions({ grade, filters }: PageProps) {
                             >
                                 {({ errors, processing }) => (
                                     <>
-                                        <h2 className="font-semibold">Correct grade</h2>
+                                        <h2 className="font-semibold">{i18n.grades.correct}</h2>
                                         <input
                                             type="hidden"
                                             name="academic_year_id"
                                             value={grade.academic_year_id}
                                         />
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>New score</span>
+                                            <span>{i18n.grades.newScore}</span>
                                             <input
                                                 name="score"
                                                 type="number"
                                                 step="0.01"
                                                 defaultValue={grade.score ?? undefined}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                dir="ltr"
                                             />
                                             {errors.score ? (
                                                 <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -137,18 +151,18 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                             ) : null}
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>Absent?</span>
+                                            <span>{i18n.grades.absentQuestion}</span>
                                             <select
                                                 name="is_absent"
                                                 defaultValue={grade.is_absent ? '1' : '0'}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             >
-                                                <option value="0">No</option>
-                                                <option value="1">Yes</option>
+                                                <option value="0">{i18n.common.no}</option>
+                                                <option value="1">{i18n.common.yes}</option>
                                             </select>
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>Reason</span>
+                                            <span>{i18n.grades.reason}</span>
                                             <textarea
                                                 name="reason"
                                                 required
@@ -167,15 +181,15 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                             disabled={processing}
                                             className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
                                         >
-                                            Correct
+                                            {i18n.grades.correct}
                                         </button>
                                     </>
                                 )}
                             </Form>
                             <div className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4">
-                                <h2 className="font-semibold">Void grade</h2>
+                                <h2 className="font-semibold">{i18n.grades.voidGradeAction}</h2>
                                 <label className="flex flex-col gap-1 text-sm">
-                                    <span>Reason</span>
+                                    <span>{i18n.grades.reason}</span>
                                     <textarea
                                         required
                                         minLength={3}
@@ -191,13 +205,13 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                     className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
                                     onClick={() => setConfirmVoid(true)}
                                 >
-                                    Void
+                                    {i18n.grades.void}
                                 </button>
                                 <ConfirmDialog
                                     open={confirmVoid}
-                                    title="Void this grade?"
-                                    description="Voiding marks the grade non-current. This is an audited academic action."
-                                    confirmLabel="Void grade"
+                                    title={i18n.grades.voidConfirmTitle}
+                                    description={i18n.grades.voidConfirmDesc}
+                                    confirmLabel={i18n.grades.voidGradeAction}
                                     confirmPending={voiding}
                                     onConfirm={() => {
                                         if (voidReason.trim().length < 3) {
@@ -223,23 +237,21 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                 />
                             </div>
                             <div className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4">
-                                <h2 className="font-semibold">Finalize grade</h2>
-                                <p className="text-sm opacity-80">
-                                    Finalizing locks the current grade version for official use.
-                                </p>
+                                <h2 className="font-semibold">{i18n.grades.finalizeGradeAction}</h2>
+                                <p className="text-sm opacity-80">{i18n.grades.finalizeDesc}</p>
                                 <button
                                     type="button"
                                     disabled={finalizing}
                                     className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
                                     onClick={() => setConfirmFinalize(true)}
                                 >
-                                    Finalize
+                                    {i18n.grades.finalize}
                                 </button>
                                 <ConfirmDialog
                                     open={confirmFinalize}
-                                    title="Finalize this grade?"
-                                    description="Finalized grades become official-current. Further edits require correction workflows."
-                                    confirmLabel="Finalize grade"
+                                    title={i18n.grades.finalizeConfirmTitle}
+                                    description={i18n.grades.finalizeConfirmDesc}
+                                    confirmLabel={i18n.grades.finalizeGradeAction}
                                     confirmPending={finalizing}
                                     onConfirm={() => {
                                         setFinalizing(true);
@@ -260,7 +272,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                         </section>
                     </>
                 ) : (
-                    <p className="text-sm opacity-80">Enter a grade ID to load correction actions.</p>
+                    <p className="text-sm opacity-80">{i18n.grades.enterGradeIdHint}</p>
                 )}
             </div>
         </AppLayout>
