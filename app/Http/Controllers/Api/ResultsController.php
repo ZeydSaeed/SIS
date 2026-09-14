@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Application\Results\DTOs\CurrentRankingSnapshotDTO;
 use App\Application\Results\DTOs\IssuedTranscriptMetadataDTO;
 use App\Application\Results\DTOs\OfficialTermResultDTO;
+use App\Application\Results\DTOs\OfficialTermResultListItemDTO;
 use App\Application\Results\DTOs\RankingSnapshotEntryDTO;
 use App\Application\Results\Queries\GetCurrentRankingSnapshotHandler;
 use App\Application\Results\Queries\GetCurrentRankingSnapshotQuery;
@@ -16,12 +17,15 @@ use App\Application\Results\Queries\GetOfficialTermResultHandler;
 use App\Application\Results\Queries\GetOfficialTermResultQuery;
 use App\Application\Results\Queries\GetOfficialYearGpaHandler;
 use App\Application\Results\Queries\GetOfficialYearGpaQuery;
+use App\Application\Results\Queries\ListOfficialTermResultsHandler;
+use App\Application\Results\Queries\ListOfficialTermResultsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Results\GetCurrentRankingSnapshotRequest;
 use App\Http\Requests\Results\GetIssuedTranscriptMetadataRequest;
 use App\Http\Requests\Results\GetOfficialAnnualResultRequest;
 use App\Http\Requests\Results\GetOfficialTermResultRequest;
 use App\Http\Requests\Results\GetOfficialYearGpaRequest;
+use App\Http\Requests\Results\ListOfficialTermResultsRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -59,6 +63,45 @@ class ResultsController extends Controller
 
         return response()->json([
             'data' => $this->termPayload($dto),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function listOfficialTerms(
+        ListOfficialTermResultsRequest $request,
+        ListOfficialTermResultsHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $enrollmentId = (int) $request->validated('enrollment_id');
+        $academicYearId = (int) $request->validated('academic_year_id');
+
+        $items = $handler->handle(new ListOfficialTermResultsQuery(
+            schoolId: $schoolId,
+            enrollmentId: $enrollmentId,
+            academicYearId: $academicYearId,
+        ));
+
+        $this->auditAccess($request->user(), 'results.terms.index', 'term_results', [
+            'academic_year_id' => $academicYearId,
+            'enrollment_id' => $enrollmentId,
+            'count' => count($items),
+        ]);
+
+        return response()->json([
+            'data' => array_map(
+                static fn (OfficialTermResultListItemDTO $dto): array => [
+                    'school_id' => $dto->schoolId,
+                    'enrollment_id' => $dto->enrollmentId,
+                    'academic_year_id' => $dto->academicYearId,
+                    'term_result_id' => $dto->termResultId,
+                    'term_id' => $dto->termId,
+                    'subject_id' => $dto->subjectId,
+                    'weighted_total' => $dto->weightedTotal,
+                    'pass_fail' => $dto->passFail,
+                    'incomplete' => $dto->incomplete,
+                ],
+                $items,
+            ),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

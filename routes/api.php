@@ -286,6 +286,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('results/term', [ResultsController::class, 'officialTerm'])
             ->name('api.results.term.show');
+        Route::get('results/terms', [ResultsController::class, 'listOfficialTerms'])
+            ->name('api.results.terms.index');
         Route::get('results/annual', [ResultsController::class, 'officialAnnual'])
             ->name('api.results.annual.show');
         Route::get('results/gpa', [ResultsController::class, 'officialYearGpa'])
