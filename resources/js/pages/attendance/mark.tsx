@@ -4,6 +4,7 @@ import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type AttendanceRecord = {
@@ -49,24 +50,28 @@ function buildInitialRows(records: AttendanceRecord[]): DraftRow[] {
 }
 
 export default function AttendanceMark({ session }: PageProps) {
+    const i18n = t();
     const records = session.records ?? [];
     const initialRows = buildInitialRows(records);
     const [confirmSave, setConfirmSave] = useState(false);
     const allowSubmitRef = useRef(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Attendance', href: '/attendance' },
-        { title: `Session ${session.id}`, href: `/attendance/${session.id}` },
-        { title: 'Mark', href: `/attendance/${session.id}/mark` },
+        { title: i18n.attendance.title, href: '/attendance' },
+        {
+            title: `${i18n.attendance.sessionHead} ${session.id}`,
+            href: `/attendance/${session.id}`,
+        },
+        { title: i18n.attendance.markBreadcrumb, href: `/attendance/${session.id}/mark` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Mark attendance · Session ${session.id}`} />
+            <Head title={`${i18n.attendance.markPageTitle} ${session.id}`} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Mark section attendance"
-                    description={`${session.session_date} · Section ${session.section_id} · Subject ${session.subject_id}`}
+                    title={i18n.attendance.markTitle}
+                    description={`${session.session_date} · ${i18n.attendance.section} ${session.section_id} · ${i18n.attendance.subject} ${session.subject_id}`}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
                 <Link
@@ -74,7 +79,7 @@ export default function AttendanceMark({ session }: PageProps) {
                     className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
                     prefetch
                 >
-                    Back to session
+                    {i18n.common.backToSession}
                 </Link>
                 <Form
                     id={`mark-form-${session.id}`}
@@ -110,9 +115,12 @@ export default function AttendanceMark({ session }: PageProps) {
                                         key={`row-${index}`}
                                         className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-3 sm:grid-cols-2"
                                     >
-                                        <legend className="px-1 text-sm font-medium">Student row {index + 1}</legend>
+                                        <legend className="px-1 text-sm font-medium">
+                                            {i18n.attendance.studentRow}{' '}
+                                            <span dir="ltr">{index + 1}</span>
+                                        </legend>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>Student ID</span>
+                                            <span>{i18n.attendance.studentId}</span>
                                             <input
                                                 name={`records[${index}][student_id]`}
                                                 type="number"
@@ -120,10 +128,11 @@ export default function AttendanceMark({ session }: PageProps) {
                                                 required
                                                 defaultValue={row.student_id === '' ? undefined : row.student_id}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                dir="ltr"
                                             />
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>Enrollment ID</span>
+                                            <span>{i18n.attendance.enrollmentId}</span>
                                             <input
                                                 name={`records[${index}][enrollment_id]`}
                                                 type="number"
@@ -133,22 +142,23 @@ export default function AttendanceMark({ session }: PageProps) {
                                                     row.enrollment_id === '' ? undefined : row.enrollment_id
                                                 }
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                dir="ltr"
                                             />
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>Status</span>
+                                            <span>{i18n.common.status}</span>
                                             <select
                                                 name={`records[${index}][status]`}
                                                 defaultValue={String(row.status)}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             >
-                                                <option value="1">Present</option>
-                                                <option value="2">Absent</option>
-                                                <option value="3">Late</option>
+                                                <option value="1">{i18n.attendance.present}</option>
+                                                <option value="2">{i18n.attendance.absent}</option>
+                                                <option value="3">{i18n.attendance.late}</option>
                                             </select>
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                                            <span>Notes (optional)</span>
+                                            <span>{i18n.attendance.notes}</span>
                                             <input
                                                 name={`records[${index}][notes]`}
                                                 type="text"
@@ -164,13 +174,13 @@ export default function AttendanceMark({ session }: PageProps) {
                                 disabled={processing}
                                 className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm"
                             >
-                                {processing ? 'Saving…' : 'Save attendance'}
+                                {processing ? i18n.common.saving : i18n.attendance.saveMarks}
                             </button>
                             <ConfirmDialog
                                 open={confirmSave}
-                                title="Save section attendance?"
-                                description="Marks will be written for this open session using the Application mark handler."
-                                confirmLabel="Save marks"
+                                title={i18n.attendance.saveConfirmTitle}
+                                description={i18n.attendance.saveConfirmDesc}
+                                confirmLabel={i18n.attendance.saveMarks}
                                 confirmPending={processing}
                                 onConfirm={() => {
                                     allowSubmitRef.current = true;

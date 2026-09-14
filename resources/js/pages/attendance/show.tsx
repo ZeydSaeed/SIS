@@ -4,6 +4,7 @@ import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type AttendanceRecord = {
@@ -33,39 +34,43 @@ type PageProps = {
 
 const SESSION_OPEN = 1;
 
-function sessionStatusLabel(status: number): string {
-    if (status === 1) {
-        return 'Open';
-    }
-    if (status === 2) {
-        return 'Closed';
-    }
-    if (status === 3) {
-        return 'Cancelled';
-    }
-    return String(status);
-}
-
-function recordStatusLabel(status: number): string {
-    if (status === 1) {
-        return 'Present';
-    }
-    if (status === 2) {
-        return 'Absent';
-    }
-    if (status === 3) {
-        return 'Late';
-    }
-    return String(status);
-}
-
 export default function AttendanceShow({ session }: PageProps) {
+    const i18n = t();
     const [confirmClose, setConfirmClose] = useState(false);
     const [closing, setClosing] = useState(false);
 
+    const sessionStatusLabel = (status: number): string => {
+        if (status === 1) {
+            return i18n.attendance.open;
+        }
+        if (status === 2) {
+            return i18n.attendance.closed;
+        }
+        if (status === 3) {
+            return i18n.attendance.cancelled;
+        }
+        return String(status);
+    };
+
+    const recordStatusLabel = (status: number): string => {
+        if (status === 1) {
+            return i18n.attendance.present;
+        }
+        if (status === 2) {
+            return i18n.attendance.absent;
+        }
+        if (status === 3) {
+            return i18n.attendance.late;
+        }
+        return String(status);
+    };
+
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Attendance', href: '/attendance' },
-        { title: `Session ${session.id}`, href: `/attendance/${session.id}` },
+        { title: i18n.attendance.title, href: '/attendance' },
+        {
+            title: `${i18n.attendance.sessionHead} ${session.id}`,
+            href: `/attendance/${session.id}`,
+        },
     ];
 
     const records = session.records ?? [];
@@ -88,16 +93,16 @@ export default function AttendanceShow({ session }: PageProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Attendance session ${session.id}`} />
+            <Head title={`${i18n.attendance.sessionHead} ${session.id}`} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title={`Session ${session.id}`}
-                    description={`${session.session_date} · Section ${session.section_id} · Subject ${session.subject_id}`}
+                    title={`${i18n.attendance.sessionHead} ${session.id}`}
+                    description={`${session.session_date} · ${i18n.attendance.section} ${session.section_id} · ${i18n.attendance.subject} ${session.subject_id}`}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
                     <Link href="/attendance" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
-                        Back to list
+                        {i18n.common.backToList}
                     </Link>
                     {isOpen ? (
                         <Link
@@ -105,38 +110,50 @@ export default function AttendanceShow({ session }: PageProps) {
                             className="sis-ops-hub__link px-3 py-2 text-sm"
                             prefetch
                         >
-                            Mark attendance
+                            {i18n.attendance.mark}
                         </Link>
                     ) : null}
                 </div>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                     <div>
-                        <dt className="opacity-70">Date</dt>
-                        <dd>{session.session_date}</dd>
+                        <dt className="opacity-70">{i18n.attendance.date}</dt>
+                        <dd>
+                            <span dir="ltr">{session.session_date}</span>
+                        </dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Status</dt>
+                        <dt className="opacity-70">{i18n.common.status}</dt>
                         <dd>{sessionStatusLabel(session.status)}</dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Section</dt>
-                        <dd>{session.section_id}</dd>
+                        <dt className="opacity-70">{i18n.attendance.section}</dt>
+                        <dd>
+                            <span dir="ltr">{session.section_id}</span>
+                        </dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Subject</dt>
-                        <dd>{session.subject_id}</dd>
+                        <dt className="opacity-70">{i18n.attendance.subject}</dt>
+                        <dd>
+                            <span dir="ltr">{session.subject_id}</span>
+                        </dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Teacher</dt>
-                        <dd>{session.teacher_id}</dd>
+                        <dt className="opacity-70">{i18n.attendance.teacher}</dt>
+                        <dd>
+                            <span dir="ltr">{session.teacher_id}</span>
+                        </dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Period</dt>
-                        <dd>{session.period_id ?? '—'}</dd>
+                        <dt className="opacity-70">{i18n.attendance.period}</dt>
+                        <dd>
+                            <span dir="ltr">{session.period_id ?? '—'}</span>
+                        </dd>
                     </div>
                     <div>
-                        <dt className="opacity-70">Academic year</dt>
-                        <dd>{session.academic_year_id}</dd>
+                        <dt className="opacity-70">{i18n.enrollments.academicYear}</dt>
+                        <dd>
+                            <span dir="ltr">{session.academic_year_id}</span>
+                        </dd>
                     </div>
                 </dl>
                 {isOpen ? (
@@ -145,22 +162,22 @@ export default function AttendanceShow({ session }: PageProps) {
                         className="sis-ops-hub__link w-fit min-h-11 px-4 py-2 text-sm"
                         onClick={() => setConfirmClose(true)}
                     >
-                        Close session
+                        {i18n.attendance.closeSession}
                     </button>
                 ) : null}
                 <ConfirmDialog
                     open={confirmClose}
-                    title="Close attendance session?"
-                    description="Closing locks further marking on this session. Corrections may still be allowed when policy permits."
-                    confirmLabel="Close session"
+                    title={i18n.attendance.closeConfirmTitle}
+                    description={i18n.attendance.closeConfirmDesc}
+                    confirmLabel={i18n.attendance.closeSession}
                     confirmPending={closing}
                     onConfirm={onConfirmClose}
                     onOpenChange={setConfirmClose}
                 />
                 <section className="flex flex-col gap-2">
-                    <h2 className="text-base font-semibold">Marked records</h2>
+                    <h2 className="text-base font-semibold">{i18n.attendance.markedRecords}</h2>
                     {records.length === 0 ? (
-                        <p className="text-sm opacity-80">No attendance records yet.</p>
+                        <p className="text-sm opacity-80">{i18n.attendance.noRecords}</p>
                     ) : (
                         <ul className="divide-y divide-[color:var(--sis-powder-blue)] rounded-md border border-[color:var(--sis-powder-blue)]">
                             {records.map((record) => (
@@ -169,7 +186,10 @@ export default function AttendanceShow({ session }: PageProps) {
                                     className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
                                 >
                                     <span>
-                                        Student {record.student_id} · Enrollment {record.enrollment_id}
+                                        {i18n.enrollments.student}{' '}
+                                        <span dir="ltr">{record.student_id}</span> ·{' '}
+                                        {i18n.attendance.enrollmentId}{' '}
+                                        <span dir="ltr">{record.enrollment_id}</span>
                                     </span>
                                     <span className="rounded px-2 py-0.5 bg-[color-mix(in_srgb,var(--sis-powder-blue)_25%,white)]">
                                         {recordStatusLabel(record.status)}

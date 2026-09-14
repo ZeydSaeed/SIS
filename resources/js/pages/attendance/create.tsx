@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type PageProps = {
@@ -11,23 +12,25 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Attendance', href: '/attendance' },
-    { title: 'Create session', href: '/attendance/create' },
-];
-
 export default function AttendanceCreate({ defaults }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: i18n.attendance.title, href: '/attendance' },
+        { title: i18n.attendance.createSession, href: '/attendance/create' },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Create attendance session" />
+            <Head title={i18n.attendance.createTitle} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Create attendance session"
-                    description="Open a session for section marking. Server validation is authoritative."
+                    title={i18n.attendance.createTitle}
+                    description={i18n.attendance.createDesc}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
                 <Link href="/attendance" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" prefetch>
-                    Back to list
+                    {i18n.common.backToList}
                 </Link>
                 <Form
                     action="/attendance"
@@ -38,7 +41,7 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                     {({ errors, processing }) => (
                         <>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Academic year ID</span>
+                                <span>{i18n.attendance.academicYearId}</span>
                                 <input
                                     name="academic_year_id"
                                     type="number"
@@ -46,6 +49,7 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                     required
                                     defaultValue={defaults.academic_year_id ?? undefined}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.academic_year_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -54,13 +58,14 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Section ID</span>
+                                <span>{i18n.attendance.sectionId}</span>
                                 <input
                                     name="section_id"
                                     type="number"
                                     min={1}
                                     required
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.section_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -69,13 +74,14 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Subject ID</span>
+                                <span>{i18n.attendance.subjectId}</span>
                                 <input
                                     name="subject_id"
                                     type="number"
                                     min={1}
                                     required
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.subject_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -84,13 +90,14 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Session date</span>
+                                <span>{i18n.attendance.sessionDate}</span>
                                 <input
                                     name="session_date"
                                     type="date"
                                     required
                                     defaultValue={defaults.session_date}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.session_date ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -99,13 +106,14 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Teacher ID</span>
+                                <span>{i18n.attendance.teacherId}</span>
                                 <input
                                     name="teacher_id"
                                     type="number"
                                     min={1}
                                     required
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.teacher_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -114,12 +122,13 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Period ID (optional)</span>
+                                <span>{i18n.attendance.periodIdOptional}</span>
                                 <input
                                     name="period_id"
                                     type="number"
                                     min={1}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.period_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -132,7 +141,7 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                 disabled={processing}
                                 className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
                             >
-                                {processing ? 'Saving…' : 'Create session'}
+                                {processing ? i18n.common.saving : i18n.attendance.createSessionSubmit}
                             </button>
                         </>
                     )}

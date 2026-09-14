@@ -3,6 +3,7 @@ import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type SessionRow = {
@@ -35,48 +36,50 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Attendance', href: '/attendance' }];
-
-const columns: DataTableColumn<SessionRow>[] = [
-    {
-        id: 'session_date',
-        header: 'Date',
-        cell: (row) => row.session_date,
-    },
-    {
-        id: 'section_id',
-        header: 'Section',
-        cell: (row) => row.section_id,
-    },
-    {
-        id: 'subject_id',
-        header: 'Subject',
-        cell: (row) => row.subject_id,
-        hideOnMobile: true,
-    },
-    {
-        id: 'teacher_id',
-        header: 'Teacher',
-        cell: (row) => row.teacher_id,
-        hideOnMobile: true,
-    },
-    {
-        id: 'status',
-        header: 'Status',
-        cell: (row) => row.status,
-    },
-    {
-        id: 'actions',
-        header: 'Open',
-        cell: (row) => (
-            <a href={`/attendance/${row.id}`} className="underline">
-                View
-            </a>
-        ),
-    },
-];
-
 export default function AttendanceIndex({ sessions, filters }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.attendance.title, href: '/attendance' }];
+
+    const columns: DataTableColumn<SessionRow>[] = [
+        {
+            id: 'session_date',
+            header: i18n.attendance.date,
+            cell: (row) => <span dir="ltr">{row.session_date}</span>,
+        },
+        {
+            id: 'section_id',
+            header: i18n.attendance.section,
+            cell: (row) => <span dir="ltr">{row.section_id}</span>,
+        },
+        {
+            id: 'subject_id',
+            header: i18n.attendance.subject,
+            cell: (row) => <span dir="ltr">{row.subject_id}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'teacher_id',
+            header: i18n.attendance.teacher,
+            cell: (row) => <span dir="ltr">{row.teacher_id}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'status',
+            header: i18n.common.status,
+            cell: (row) => <span dir="ltr">{row.status}</span>,
+        },
+        {
+            id: 'actions',
+            header: i18n.common.open,
+            cell: (row) => (
+                <a href={`/attendance/${row.id}`} className="underline">
+                    {i18n.common.view}
+                </a>
+            ),
+        },
+    ];
+
     const goPage = (page: number) => {
         router.get(
             '/attendance',
@@ -94,35 +97,42 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Attendance" />
+            <Head title={i18n.attendance.title} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Attendance"
-                    description="Session list for daily marking and close-out."
+                    title={i18n.attendance.title}
+                    description={i18n.attendance.description}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
                 <p>
                     <Link href="/attendance/create" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
-                        Create session
+                        {i18n.attendance.createSession}
                     </Link>
                 </p>
                 <DataTable
                     columns={columns}
                     rows={sessions.data}
                     rowKey={(row) => row.id}
-                    emptyTitle="No attendance sessions"
-                    emptyDescription="No sessions for this academic year yet."
-                    caption="Attendance sessions"
+                    emptyTitle={i18n.attendance.emptyTitle}
+                    emptyDescription={i18n.attendance.emptyDesc}
+                    caption={i18n.attendance.tableCaption}
                     mobileCard={(row) => (
                         <a
                             href={`/attendance/${row.id}`}
                             className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-petal)_40%,white)] p-3"
                         >
-                            <div className="font-semibold">{row.session_date}</div>
-                            <div className="text-sm opacity-80">
-                                Section {row.section_id} · Subject {row.subject_id}
+                            <div className="font-semibold">
+                                <span dir="ltr">{row.session_date}</span>
                             </div>
-                            <div className="text-sm opacity-80">Status {row.status}</div>
+                            <div className="text-sm opacity-80">
+                                {i18n.attendance.section}{' '}
+                                <span dir="ltr">{row.section_id}</span> · {i18n.attendance.subject}{' '}
+                                <span dir="ltr">{row.subject_id}</span>
+                            </div>
+                            <div className="text-sm opacity-80">
+                                {i18n.common.status}{' '}
+                                <span dir="ltr">{row.status}</span>
+                            </div>
                         </a>
                     )}
                 />
@@ -134,10 +144,13 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                             disabled={currentPage <= 1}
                             onClick={() => goPage(currentPage - 1)}
                         >
-                            Previous
+                            {i18n.common.previous}
                         </button>
                         <span className="text-sm">
-                            Page {currentPage} of {totalPages}
+                            {i18n.common.page}{' '}
+                            <span dir="ltr">
+                                {currentPage} {i18n.common.of} {totalPages}
+                            </span>
                         </span>
                         <button
                             type="button"
@@ -145,7 +158,7 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                             disabled={currentPage >= totalPages}
                             onClick={() => goPage(currentPage + 1)}
                         >
-                            Next
+                            {i18n.common.next}
                         </button>
                     </div>
                 ) : null}
