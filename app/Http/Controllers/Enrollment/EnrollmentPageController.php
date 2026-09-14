@@ -2,14 +2,25 @@
 
 namespace App\Http\Controllers\Enrollment;
 
+use App\Application\Enrollment\Commands\EnrollStudentCommand;
+use App\Application\Enrollment\Commands\EnrollStudentHandler;
+use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementCommand;
+use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementHandler;
+use App\Application\Enrollment\Queries\GetEnrollmentHandler;
+use App\Application\Enrollment\Queries\GetEnrollmentQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentsQuery;
+use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Enrollment\EnrollStudentRequest;
+use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Context\SchoolContext;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,5 +72,166 @@ final class EnrollmentPageController extends Controller
                 'per_page' => $perPage,
             ],
         ]);
+    }
+
+    public function show(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response
+    {
+        $record = EnrollmentRecord::query()->find($enrollment);
+        if ($record === null) {
+            throw EnrollmentNotFoundException::forId($enrollment);
+        }
+
+        try {
+            $this->authorize('view', $record);
+        } catch (AuthorizationException) {
+            $this->securityAudit->record(
+                SecurityEventType::IdorBlocked,
+                'enrollments.web.show',
+                'denied',
+                $request->user(),
+                "enrollment:{$enrollment}",
+            );
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+        $detail = $handler->handle(new GetEnrollmentQuery($enrollment, $schoolId));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataAccess,
+            'enrollments.web.show',
+            'allowed',
+            $request->user(),
+            "enrollment:{$enrollment}",
+        );
+
+        return Inertia::render('enrollments/show', [
+            'enrollment' => $detail->toArray(),
+        ]);
+    }
+
+    public function create(Request $request): Response
+    {
+        $this->authorize('create', EnrollmentRecord::class);
+
+        $requestedYear = $request->filled('academic_year_id')
+            ? (int) $request->query('academic_year_id')
+            : null;
+        $academicYearId = $this->academicYears->resolve($requestedYear);
+
+        return Inertia::render('enrollments/create', [
+            'defaults' => [
+                'academic_year_id' => $academicYearId,
+                'effective_from' => now()->toDateString(),
+            ],
+        ]);
+    }
+
+    public function store(EnrollStudentRequest $request, EnrollStudentHandler $handler): RedirectResponse
+    {
+        $schoolId = $this->schoolContext->requireId();
+
+        $result = $handler->handle(new EnrollStudentCommand(
+            schoolId: $schoolId,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            studentId: (int) $request->validated('student_id'),
+            classId: (int) $request->validated('class_id'),
+            sectionId: (int) $request->validated('section_id'),
+            effectiveFrom: $request->validated('effective_from'),
+            specializationId: $request->validated('specialization_id'),
+            enrolledBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.web.store',
+            'created',
+            $request->user(),
+            "enrollment:{$result->enrollmentId}",
+        );
+
+        return redirect()
+            ->route('enrollments.show', ['enrollment' => $result->enrollmentId])
+            ->with('success', 'Enrollment created.');
+    }
+
+    public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response
+    {
+        $record = EnrollmentRecord::query()->find($enrollment);
+        if ($record === null) {
+            throw EnrollmentNotFoundException::forId($enrollment);
+        }
+
+        try {
+            $this->authorize('update', $record);
+        } catch (AuthorizationException) {
+            $this->securityAudit->record(
+                SecurityEventType::IdorBlocked,
+                'enrollments.web.edit',
+                'denied',
+                $request->user(),
+                "enrollment:{$enrollment}",
+            );
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+        $detail = $handler->handle(new GetEnrollmentQuery($enrollment, $schoolId));
+
+        return Inertia::render('enrollments/edit', [
+            'enrollment' => $detail->toArray(),
+        ]);
+    }
+
+    public function update(
+        UpdateEnrollmentPlacementRequest $request,
+        int $enrollment,
+        UpdateEnrollmentPlacementHandler $handler,
+    ): RedirectResponse {
+        $record = EnrollmentRecord::query()->find($enrollment);
+        if ($record === null) {
+            throw EnrollmentNotFoundException::forId($enrollment);
+        }
+
+        try {
+            $this->authorize('update', $record);
+        } catch (AuthorizationException) {
+            $this->securityAudit->record(
+                SecurityEventType::IdorBlocked,
+                'enrollments.web.update',
+                'denied',
+                $request->user(),
+                "enrollment:{$enrollment}",
+            );
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new UpdateEnrollmentPlacementCommand(
+            enrollmentId: $enrollment,
+            schoolId: $schoolId,
+            classId: (int) $request->validated('class_id'),
+            sectionId: (int) $request->validated('section_id'),
+            specializationId: $request->validated('specialization_id'),
+            updatedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.web.update',
+            'updated',
+            $request->user(),
+            "enrollment:{$enrollment}",
+            [
+                'class_id' => $result->classId,
+                'section_id' => $result->sectionId,
+            ],
+        );
+
+        return redirect()
+            ->route('enrollments.show', ['enrollment' => $enrollment])
+            ->with('success', 'Enrollment placement updated.');
     }
 }

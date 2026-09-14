@@ -21,6 +21,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('enrollments')->name('enrollments.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [EnrollmentPageController::class, 'index'])->name('index');
+        Route::get('/create', [EnrollmentPageController::class, 'create'])->name('create');
+        Route::post('/', [EnrollmentPageController::class, 'store'])->name('store');
+        Route::get('/{enrollment}', [EnrollmentPageController::class, 'show'])->name('show');
+        Route::get('/{enrollment}/edit', [EnrollmentPageController::class, 'edit'])->name('edit');
+        Route::put('/{enrollment}', [EnrollmentPageController::class, 'update'])->name('update');
     });
 
     Route::prefix('attendance')->name('attendance.')->middleware('require.school.context')->group(function (): void {

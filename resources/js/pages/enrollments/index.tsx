@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
@@ -66,6 +66,15 @@ const columns: DataTableColumn<EnrollmentRow>[] = [
         cell: (row) => row.effective_from,
         hideOnMobile: true,
     },
+    {
+        id: 'actions',
+        header: 'Open',
+        cell: (row) => (
+            <a href={`/enrollments/${row.id}`} className="underline">
+                View
+            </a>
+        ),
+    },
 ];
 
 export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
@@ -93,6 +102,11 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
                     description="Active student placements for the selected academic year."
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
+                <p>
+                    <Link href="/enrollments/create" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                        Enroll student
+                    </Link>
+                </p>
                 <DataTable
                     columns={columns}
                     rows={enrollments.data}
@@ -101,13 +115,16 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
                     emptyDescription="No enrollment rows for this school year yet."
                     caption="School enrollments"
                     mobileCard={(row) => (
-                        <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3">
+                        <a
+                            href={`/enrollments/${row.id}`}
+                            className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3"
+                        >
                             <div className="font-semibold">{row.enrollment_number}</div>
                             <div className="text-sm opacity-80">Student {row.student_id}</div>
                             <div className="text-sm opacity-80">
                                 Class {row.class_id} · Section {row.section_id}
                             </div>
-                        </div>
+                        </a>
                     )}
                 />
                 {totalPages > 1 ? (
