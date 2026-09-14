@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\CurriculumController;
 use App\Http\Controllers\Api\EnrollmentController;
+use App\Http\Controllers\Api\EnrollmentStructureController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
@@ -107,6 +108,29 @@ Route::prefix('v1')->group(function (): void {
             ->whereNumber('link')
             ->name('api.enrollment_subjects.show');
 
+        Route::get('enrollment/classes', [EnrollmentStructureController::class, 'indexClasses'])
+            ->name('api.enrollment.classes.index');
+        Route::get('enrollment/classes/{class}', [EnrollmentStructureController::class, 'showClass'])
+            ->whereNumber('class')
+            ->name('api.enrollment.classes.show');
+        Route::get('enrollment/classes/{class}/sections', [EnrollmentStructureController::class, 'indexSections'])
+            ->whereNumber('class')
+            ->name('api.enrollment.sections.index');
+        Route::get('enrollment/sections/{section}', [EnrollmentStructureController::class, 'showSection'])
+            ->whereNumber('section')
+            ->name('api.enrollment.sections.show');
+        Route::post('enrollment/classes/{class}/deactivate', [EnrollmentStructureController::class, 'deactivateClass'])
+            ->whereNumber('class')
+            ->name('api.enrollment.classes.deactivate');
+        Route::post('enrollment/classes/{class}/reactivate', [EnrollmentStructureController::class, 'reactivateClass'])
+            ->whereNumber('class')
+            ->name('api.enrollment.classes.reactivate');
+        Route::post('enrollment/sections/{section}/deactivate', [EnrollmentStructureController::class, 'deactivateSection'])
+            ->whereNumber('section')
+            ->name('api.enrollment.sections.deactivate');
+        Route::post('enrollment/sections/{section}/reactivate', [EnrollmentStructureController::class, 'reactivateSection'])
+            ->whereNumber('section')
+            ->name('api.enrollment.sections.reactivate');
 
         Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store', 'update'])->names([
             'index' => 'api.enrollments.index',

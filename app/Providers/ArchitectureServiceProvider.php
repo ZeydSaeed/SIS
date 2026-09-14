@@ -25,6 +25,7 @@ use App\Domain\Enrollment\Contracts\PrerequisiteCatalogPort;
 use App\Domain\Enrollment\Contracts\PrerequisitePassEvidencePort;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
+use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentSubjectRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
@@ -124,6 +125,7 @@ use App\Infrastructure\Persistence\Attendance\EloquentAttendanceWriteRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentPlacementRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentReadRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentRepository;
+use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentStructureRepository;
 use App\Infrastructure\Persistence\Enrollment\EloquentEnrollmentSubjectRepository;
 use App\Infrastructure\Persistence\Exams\EloquentExamRepository;
 use App\Infrastructure\Persistence\Exams\EloquentStudentGradeReadRepository;
@@ -151,6 +153,7 @@ class ArchitectureServiceProvider extends ServiceProvider
 
         $this->app->bind(EnrollmentRepositoryInterface::class, EloquentEnrollmentRepository::class);
         $this->app->bind(EnrollmentSubjectRepositoryInterface::class, EloquentEnrollmentSubjectRepository::class);
+        $this->app->bind(EnrollmentStructureRepositoryInterface::class, EloquentEnrollmentStructureRepository::class);
         $this->app->bind(PrerequisiteCatalogPort::class, CurriculumPrerequisiteCatalogAdapter::class);
         $this->app->bind(PrerequisitePassEvidencePort::class, EloquentPrerequisitePassEvidenceAdapter::class);
         $this->app->bind(EnrollmentPlacementRepositoryInterface::class, EloquentEnrollmentPlacementRepository::class);
