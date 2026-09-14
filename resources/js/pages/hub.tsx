@@ -1,6 +1,8 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import { WindowManagerProvider, useWindowManager } from '@/window/window-manager-context';
 import { DesktopWorkspace } from '@/window/desktop-workspace';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { login } from '@/routes';
 
 type GateStatus = 'advanced' | 'partial' | 'gap';
@@ -27,7 +29,7 @@ const gates: GateRow[] = [
     { id: 'G5', title: 'Scheduling', status: 'partial', note: 'Periods/schedule API; conflict UI pending' },
     { id: 'G6', title: 'Results', status: 'advanced', note: 'Term/annual/GPA/transcript Inertia + API' },
     { id: 'G7', title: 'Operational UI', status: 'partial', note: 'Daily lists + forms wired' },
-    { id: 'G8', title: 'Release Readiness', status: 'partial', note: 'Window shell + guest hub + checklist in progress' },
+    { id: 'G8', title: 'Release Readiness', status: 'partial', note: 'Window polish + guest hub + docs in progress' },
 ];
 
 const modules: ModuleLink[] = [
@@ -52,6 +54,7 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
     const wm = useWindowManager();
     const { auth } = usePage().props as { auth?: { user?: unknown } };
     const loggedIn = Boolean(auth?.user);
+    const [confirmCloseAll, setConfirmCloseAll] = useState(false);
 
     const openModule = (mod: ModuleLink) => {
         if (mod.requiresAuth && !loggedIn) {
@@ -78,18 +81,40 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
 
     return (
         <div className="sis-desktop-shell">
-            <div className="sis-desktop-shell__menubar">
+            <div className="sis-desktop-shell__menubar" role="menubar" aria-label="SIS desktop menu">
                 <span className="sis-desktop-shell__brand">SIS</span>
-                {modules.slice(0, 6).map((mod) => (
-                    <button
-                        key={mod.windowId}
-                        type="button"
-                        className="sis-desktop-shell__action"
-                        onClick={() => openModule(mod)}
-                    >
-                        {mod.title}
-                    </button>
-                ))}
+                <nav className="sis-desktop-shell__dock" aria-label="Module launcher">
+                    {modules.map((mod) => (
+                        <button
+                            key={mod.windowId}
+                            type="button"
+                            role="menuitem"
+                            className="sis-desktop-shell__action"
+                            onClick={() => openModule(mod)}
+                        >
+                            {mod.title}
+                        </button>
+                    ))}
+                </nav>
+                {desktop ? (
+                    <>
+                        <button
+                            type="button"
+                            className="sis-desktop-shell__action"
+                            onClick={() => wm.cascade()}
+                        >
+                            Cascade
+                        </button>
+                        <button
+                            type="button"
+                            className="sis-desktop-shell__action"
+                            onClick={() => setConfirmCloseAll(true)}
+                            disabled={wm.windows.length === 0}
+                        >
+                            Close all
+                        </button>
+                    </>
+                ) : null}
                 {!loggedIn ? (
                     <Link href={login()} className="sis-desktop-shell__action ms-auto">
                         Log in for school data
@@ -101,13 +126,26 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
                 )}
             </div>
 
+            <ConfirmDialog
+                open={confirmCloseAll}
+                title="Close all windows?"
+                description="Open module windows will be closed. Unsaved work inside a window may be lost."
+                confirmLabel="Close all"
+                onConfirm={() => {
+                    wm.windows.forEach((w) => wm.close(w.instanceId));
+                    setConfirmCloseAll(false);
+                }}
+                onOpenChange={setConfirmCloseAll}
+            />
+
             <div className="sis-ops-hub flex flex-col gap-6 p-4 md:p-6">
                 <header className="sis-ops-hub__hero max-w-3xl">
                     <p className="sis-ops-hub__eyebrow">Guest Operational Hub</p>
                     <h1 className="sis-ops-hub__title">SIS Desktop Workspace</h1>
                     <p className="sis-ops-hub__lead">
-                        Static hub — no school PII without login. On desktop, modules open as
-                        Windows-style windows managed by the central Window Manager.
+                        No login required for this hub. School data modules still require
+                        authentication. Desktop mode opens Windows-style windows via the central
+                        Window Manager.
                     </p>
                 </header>
 
@@ -164,11 +202,18 @@ function HubDesktopBody({ desktop }: { desktop: boolean }) {
 }
 
 export default function Hub() {
-    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const params = useMemo(() => {
+        if (typeof window === 'undefined') {
+            return new URLSearchParams();
+        }
+        return new URLSearchParams(window.location.search);
+    }, []);
     const embed = params.get('embed') === '1';
+    // Shortcut / app-mode always forces desktop shell; otherwise desktop viewport enables it.
     const desktop =
         !embed &&
         (params.get('desktop') === '1' ||
+            params.get('shell') === '1' ||
             (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches));
 
     if (embed) {
