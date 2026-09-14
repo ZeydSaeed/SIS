@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type PageProps = {
@@ -11,23 +12,25 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Enrollments', href: '/enrollments' },
-    { title: 'Enroll student', href: '/enrollments/create' },
-];
-
 export default function EnrollmentCreate({ defaults }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: i18n.enrollments.title, href: '/enrollments' },
+        { title: i18n.enrollments.enrollStudent, href: '/enrollments/create' },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Enroll student" />
+            <Head title={i18n.enrollments.createTitle} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Enroll student"
-                    description="Create a placement for the academic year. Server validation is authoritative."
+                    title={i18n.enrollments.createTitle}
+                    description={i18n.enrollments.createDesc}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
                 <Link href="/enrollments" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" prefetch>
-                    Back to list
+                    {i18n.common.backToList}
                 </Link>
                 <Form
                     action="/enrollments"
@@ -38,13 +41,14 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                     {({ errors, processing }) => (
                         <>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Student ID</span>
+                                <span>{i18n.enrollments.studentId}</span>
                                 <input
                                     name="student_id"
                                     type="number"
                                     min={1}
                                     required
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.student_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -53,7 +57,7 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Academic year ID</span>
+                                <span>{i18n.enrollments.academicYearId}</span>
                                 <input
                                     name="academic_year_id"
                                     type="number"
@@ -61,6 +65,7 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                     required
                                     defaultValue={defaults.academic_year_id ?? undefined}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.academic_year_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -69,13 +74,14 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Class ID</span>
+                                <span>{i18n.enrollments.classId}</span>
                                 <input
                                     name="class_id"
                                     type="number"
                                     min={1}
                                     required
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.class_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -84,13 +90,14 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Section ID</span>
+                                <span>{i18n.enrollments.sectionId}</span>
                                 <input
                                     name="section_id"
                                     type="number"
                                     min={1}
                                     required
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.section_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -99,13 +106,14 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Effective from</span>
+                                <span>{i18n.enrollments.effectiveFrom}</span>
                                 <input
                                     name="effective_from"
                                     type="date"
                                     required
                                     defaultValue={defaults.effective_from}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.effective_from ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -114,12 +122,13 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Specialization ID (optional)</span>
+                                <span>{i18n.enrollments.specializationId}</span>
                                 <input
                                     name="specialization_id"
                                     type="number"
                                     min={1}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.specialization_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -132,7 +141,7 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                 disabled={processing}
                                 className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
                             >
-                                {processing ? 'Saving…' : 'Create enrollment'}
+                                {processing ? i18n.common.saving : i18n.enrollments.createSubmit}
                             </button>
                         </>
                     )}

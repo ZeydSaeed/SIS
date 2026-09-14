@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Enrollment = {
@@ -17,19 +18,21 @@ type PageProps = {
 };
 
 export default function EnrollmentEdit({ enrollment }: PageProps) {
+    const i18n = t();
+
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: 'Enrollments', href: '/enrollments' },
+        { title: i18n.enrollments.title, href: '/enrollments' },
         { title: enrollment.enrollment_number, href: `/enrollments/${enrollment.id}` },
-        { title: 'Edit placement', href: `/enrollments/${enrollment.id}/edit` },
+        { title: i18n.enrollments.editPlacement, href: `/enrollments/${enrollment.id}/edit` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Edit ${enrollment.enrollment_number}`} />
+            <Head title={`${i18n.common.edit} ${enrollment.enrollment_number}`} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Update placement"
-                    description={`Move enrollment ${enrollment.enrollment_number} to another class/section.`}
+                    title={i18n.enrollments.editTitle}
+                    description={`${i18n.enrollments.editDesc} (${enrollment.enrollment_number})`}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
                 <Link
@@ -37,7 +40,7 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                     className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
                     prefetch
                 >
-                    Back to detail
+                    {i18n.common.backToDetail}
                 </Link>
                 <Form
                     action={`/enrollments/${enrollment.id}`}
@@ -47,9 +50,12 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <p className="text-sm opacity-80">Student {enrollment.student_id}</p>
+                            <p className="text-sm opacity-80">
+                                {i18n.enrollments.student}{' '}
+                                <span dir="ltr">{enrollment.student_id}</span>
+                            </p>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Class ID</span>
+                                <span>{i18n.enrollments.classId}</span>
                                 <input
                                     name="class_id"
                                     type="number"
@@ -57,6 +63,7 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                                     required
                                     defaultValue={enrollment.class_id}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.class_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -65,7 +72,7 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Section ID</span>
+                                <span>{i18n.enrollments.sectionId}</span>
                                 <input
                                     name="section_id"
                                     type="number"
@@ -73,6 +80,7 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                                     required
                                     defaultValue={enrollment.section_id}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.section_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -81,12 +89,13 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                                 ) : null}
                             </label>
                             <label className="flex flex-col gap-1 text-sm">
-                                <span>Specialization ID (optional)</span>
+                                <span>{i18n.enrollments.specializationId}</span>
                                 <input
                                     name="specialization_id"
                                     type="number"
                                     min={1}
                                     className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    dir="ltr"
                                 />
                                 {errors.specialization_id ? (
                                     <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -99,7 +108,7 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                                 disabled={processing}
                                 className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
                             >
-                                {processing ? 'Saving…' : 'Update placement'}
+                                {processing ? i18n.common.saving : i18n.enrollments.updatePlacement}
                             </button>
                         </>
                     )}

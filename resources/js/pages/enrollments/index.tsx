@@ -3,6 +3,7 @@ import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type EnrollmentRow = {
@@ -36,48 +37,54 @@ type PageProps = {
     };
 };
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Enrollments', href: '/enrollments' }];
-
-const columns: DataTableColumn<EnrollmentRow>[] = [
-    {
-        id: 'enrollment_number',
-        header: 'Enrollment #',
-        cell: (row) => row.enrollment_number,
-    },
-    {
-        id: 'student_id',
-        header: 'Student',
-        cell: (row) => row.student_id,
-    },
-    {
-        id: 'class_section',
-        header: 'Class / Section',
-        cell: (row) => `${row.class_id} / ${row.section_id}`,
-        hideOnMobile: true,
-    },
-    {
-        id: 'status',
-        header: 'Status',
-        cell: (row) => row.status,
-    },
-    {
-        id: 'effective_from',
-        header: 'Effective from',
-        cell: (row) => row.effective_from,
-        hideOnMobile: true,
-    },
-    {
-        id: 'actions',
-        header: 'Open',
-        cell: (row) => (
-            <a href={`/enrollments/${row.id}`} className="underline">
-                View
-            </a>
-        ),
-    },
-];
-
 export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
+    const i18n = t();
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.enrollments.title, href: '/enrollments' }];
+
+    const columns: DataTableColumn<EnrollmentRow>[] = [
+        {
+            id: 'enrollment_number',
+            header: i18n.enrollments.enrollmentNumber,
+            cell: (row) => <span dir="ltr">{row.enrollment_number}</span>,
+        },
+        {
+            id: 'student_id',
+            header: i18n.enrollments.student,
+            cell: (row) => <span dir="ltr">{row.student_id}</span>,
+        },
+        {
+            id: 'class_section',
+            header: i18n.enrollments.classSection,
+            cell: (row) => (
+                <span dir="ltr">
+                    {row.class_id} / {row.section_id}
+                </span>
+            ),
+            hideOnMobile: true,
+        },
+        {
+            id: 'status',
+            header: i18n.common.status,
+            cell: (row) => <span dir="ltr">{row.status}</span>,
+        },
+        {
+            id: 'effective_from',
+            header: i18n.enrollments.effectiveFrom,
+            cell: (row) => <span dir="ltr">{row.effective_from}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'actions',
+            header: i18n.common.open,
+            cell: (row) => (
+                <a href={`/enrollments/${row.id}`} className="underline">
+                    {i18n.common.view}
+                </a>
+            ),
+        },
+    ];
+
     const goPage = (page: number) => {
         router.get(
             '/enrollments',
@@ -95,34 +102,41 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Enrollments" />
+            <Head title={i18n.enrollments.title} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4">
                 <PageHeader
-                    title="Enrollments"
-                    description="Active student placements for the selected academic year."
+                    title={i18n.enrollments.title}
+                    description={i18n.enrollments.description}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
                 <p>
                     <Link href="/enrollments/create" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
-                        Enroll student
+                        {i18n.enrollments.enrollStudent}
                     </Link>
                 </p>
                 <DataTable
                     columns={columns}
                     rows={enrollments.data}
                     rowKey={(row) => row.id}
-                    emptyTitle="No enrollments"
-                    emptyDescription="No enrollment rows for this school year yet."
-                    caption="School enrollments"
+                    emptyTitle={i18n.enrollments.emptyTitle}
+                    emptyDescription={i18n.enrollments.emptyDesc}
+                    caption={i18n.enrollments.tableCaption}
                     mobileCard={(row) => (
                         <a
                             href={`/enrollments/${row.id}`}
                             className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3"
                         >
-                            <div className="font-semibold">{row.enrollment_number}</div>
-                            <div className="text-sm opacity-80">Student {row.student_id}</div>
+                            <div className="font-semibold">
+                                <span dir="ltr">{row.enrollment_number}</span>
+                            </div>
                             <div className="text-sm opacity-80">
-                                Class {row.class_id} · Section {row.section_id}
+                                {i18n.enrollments.student}{' '}
+                                <span dir="ltr">{row.student_id}</span>
+                            </div>
+                            <div className="text-sm opacity-80">
+                                <span dir="ltr">
+                                    {row.class_id} · {row.section_id}
+                                </span>
                             </div>
                         </a>
                     )}
@@ -135,10 +149,13 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
                             disabled={currentPage <= 1}
                             onClick={() => goPage(currentPage - 1)}
                         >
-                            Previous
+                            {i18n.common.previous}
                         </button>
                         <span className="text-sm">
-                            Page {currentPage} of {totalPages}
+                            {i18n.common.page}{' '}
+                            <span dir="ltr">
+                                {currentPage} {i18n.common.of} {totalPages}
+                            </span>
                         </span>
                         <button
                             type="button"
@@ -146,7 +163,7 @@ export default function EnrollmentsIndex({ enrollments, filters }: PageProps) {
                             disabled={currentPage >= totalPages}
                             onClick={() => goPage(currentPage + 1)}
                         >
-                            Next
+                            {i18n.common.next}
                         </button>
                     </div>
                 ) : null}
