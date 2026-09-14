@@ -231,6 +231,8 @@ export const ar = {
         noGpa: 'لا يوجد معدل رسمي.',
         noTerms: 'لا توجد مواد فصل لهذا المرشح.',
         termDetail: 'تفاصيل نتيجة الفصل',
+        termSingleTitle: 'نتيجة الفصل الرسمية',
+        termSingleDesc: 'نتيجة رسمية لمادة فصل لتسجيل واحد.',
         backSummary: 'العودة للملخص',
         loadTerm: 'تحميل نتيجة الفصل',
         noTerm: 'لا توجد نتيجة فصل رسمية مطابقة.',
