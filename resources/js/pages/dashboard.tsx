@@ -79,6 +79,14 @@ export default function Dashboard() {
                             </Link>
                         </li>
                         <li>
+                            <Link href="/timetable" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Timetable</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Section schedules with conflict-safe slots
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
                             <Link
                                 href="/intelligence/recommendations"
                                 prefetch
