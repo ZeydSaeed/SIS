@@ -55,14 +55,14 @@ export default function ResultsTerm({ term, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.results.termDetail} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.results.termSingleTitle}
                     description={i18n.results.termSingleDesc}
                     icon={<ScrollText className="size-6" aria-hidden />}
                 />
                 <p>
-                    <Link href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                    <Link href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.results.backSummary}
                     </Link>
                 </p>
@@ -76,7 +76,7 @@ export default function ResultsTerm({ term, filters }: PageProps) {
                         <input
                             type="number"
                             min={1}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             value={enrollmentId}
                             onChange={(e) => setEnrollmentId(e.target.value)}
                             dir="ltr"
@@ -87,7 +87,7 @@ export default function ResultsTerm({ term, filters }: PageProps) {
                         <input
                             type="number"
                             min={1}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             value={termId}
                             onChange={(e) => setTermId(e.target.value)}
                             dir="ltr"
@@ -98,13 +98,13 @@ export default function ResultsTerm({ term, filters }: PageProps) {
                         <input
                             type="number"
                             min={1}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             value={subjectId}
                             onChange={(e) => setSubjectId(e.target.value)}
                             dir="ltr"
                         />
                     </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm sm:col-span-3">
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm sm:col-span-3" dir="rtl" lang="ar">
                         {i18n.results.loadTerm}
                     </button>
                 </form>

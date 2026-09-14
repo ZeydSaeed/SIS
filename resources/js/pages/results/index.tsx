@@ -80,17 +80,17 @@ export default function ResultsIndex({ results, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.results.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.results.title}
                     description={i18n.results.description}
                     icon={<ScrollText className="size-6" aria-hidden />}
                 />
                 <p>
-                    <a href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm">
+                    <a href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.summaryLink}
                     </a>
-                    <a href="/results/transcript" className="sis-ops-hub__link ms-2 px-3 py-2 text-sm">
+                    <a href="/results/transcript" className="sis-ops-hub__link ms-2 px-3 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.transcriptLink}
                     </a>
                 </p>
@@ -105,14 +105,14 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                             type="number"
                             min={1}
                             inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             value={enrollmentId}
                             onChange={(e) => setEnrollmentId(e.target.value)}
                             placeholder={i18n.common.required}
                             dir="ltr"
                         />
                     </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.loadResults}
                     </button>
                 </form>

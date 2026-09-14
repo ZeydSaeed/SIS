@@ -49,7 +49,7 @@ export default function ResultsTranscript({ transcript, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.results.transcriptTitle} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.results.transcriptTitle}
                     description={i18n.results.transcriptDesc}
@@ -66,13 +66,13 @@ export default function ResultsTranscript({ transcript, filters }: PageProps) {
                             type="number"
                             min={1}
                             inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             value={enrollmentId}
                             onChange={(e) => setEnrollmentId(e.target.value)}
                             dir="ltr"
                         />
                     </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.loadTranscript}
                     </button>
                 </form>

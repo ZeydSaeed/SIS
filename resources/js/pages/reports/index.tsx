@@ -13,7 +13,7 @@ export default function ReportsIndex() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.reports.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.reports.title}
                     description={i18n.reports.description}
@@ -22,22 +22,22 @@ export default function ReportsIndex() {
                 <nav className="flex flex-col gap-2" aria-label={i18n.common.reportLinks}>
                     <Link
                         href="/reports/attendance-daily"
-                        className="sis-ops-hub__link px-4 py-3 text-sm"
+                        className="sis-ops-hub__link px-4 py-3 text-sm" dir="rtl" lang="ar"
                         prefetch
                     >
                         {i18n.reports.dailySummary}
                     </Link>
                     <Link
                         href="/reports/enrollment-roster"
-                        className="sis-ops-hub__link px-4 py-3 text-sm"
+                        className="sis-ops-hub__link px-4 py-3 text-sm" dir="rtl" lang="ar"
                         prefetch
                     >
                         {i18n.reports.enrollmentRoster}
                     </Link>
-                    <Link href="/attendance" className="sis-ops-hub__link px-4 py-3 text-sm" prefetch>
+                    <Link href="/attendance" className="sis-ops-hub__link px-4 py-3 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.reports.openAttendance}
                     </Link>
-                    <Link href="/enrollments" className="sis-ops-hub__link px-4 py-3 text-sm" prefetch>
+                    <Link href="/enrollments" className="sis-ops-hub__link px-4 py-3 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.reports.openEnrollments}
                     </Link>
                 </nav>

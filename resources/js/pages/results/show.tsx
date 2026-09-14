@@ -61,7 +61,7 @@ export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.results.summaryHead} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.results.summaryTitle}
                     description={i18n.results.summaryDesc}
@@ -78,19 +78,19 @@ export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) 
                             type="number"
                             min={1}
                             inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             value={enrollmentId}
                             onChange={(e) => setEnrollmentId(e.target.value)}
                             dir="ltr"
                         />
                     </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.loadSummary}
                     </button>
                 </form>
 
-                <section aria-labelledby="annual-heading" className="sis-ops-hub__section">
-                    <h2 id="annual-heading" className="sis-ops-hub__section-title">
+                <section aria-labelledby="annual-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
+                    <h2 id="annual-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
                         {i18n.results.annual}
                     </h2>
                     {annual ? (
@@ -117,8 +117,8 @@ export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) 
                     )}
                 </section>
 
-                <section aria-labelledby="gpa-heading" className="sis-ops-hub__section">
-                    <h2 id="gpa-heading" className="sis-ops-hub__section-title">
+                <section aria-labelledby="gpa-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
+                    <h2 id="gpa-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
                         {i18n.results.yearGpa}
                     </h2>
                     {gpa ? (
@@ -147,27 +147,27 @@ export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) 
                     )}
                 </section>
 
-                <section aria-labelledby="terms-heading" className="sis-ops-hub__section">
-                    <h2 id="terms-heading" className="sis-ops-hub__section-title">
+                <section aria-labelledby="terms-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
+                    <h2 id="terms-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
                         {i18n.results.termSubjects}
                     </h2>
                     {terms.length === 0 ? (
                         <p className="text-sm opacity-80">{i18n.results.noTerms}</p>
                     ) : (
-                        <ul className="sis-ops-hub__links">
+                        <ul className="sis-ops-hub__links" dir="rtl" lang="ar">
                             {terms.map((row) => (
                                 <li key={row.term_result_id}>
                                     <Link
                                         href={`/results/term?enrollment_id=${filters.enrollment_id}&academic_year_id=${filters.academic_year_id}&term_id=${row.term_id}&subject_id=${row.subject_id}`}
-                                        className="sis-ops-hub__link"
+                                        className="sis-ops-hub__link" dir="rtl" lang="ar"
                                         prefetch
                                     >
-                                        <span className="sis-ops-hub__link-title">
+                                        <span className="sis-ops-hub__link-title" dir="rtl" lang="ar">
                                             {i18n.results.term}{' '}
                                             <span dir="ltr">{row.term_id}</span> · {i18n.results.subject}{' '}
                                             <span dir="ltr">{row.subject_id}</span>
                                         </span>
-                                        <span className="sis-ops-hub__link-desc">
+                                        <span className="sis-ops-hub__link-desc" dir="rtl" lang="ar">
                                             {i18n.results.totalShort}{' '}
                                             <span dir="ltr">{row.weighted_total ?? '—'}</span>
                                             {row.incomplete ? ` · ${i18n.results.incomplete}` : ''}

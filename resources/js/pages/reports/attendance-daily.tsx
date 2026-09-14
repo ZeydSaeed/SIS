@@ -96,13 +96,13 @@ export default function AttendanceDailyReport({ summary, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.reports.dailyHead} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.reports.dailyHead}
                     description={i18n.reports.dailySummaryDesc}
                     icon={<FileBarChart className="size-6" aria-hidden />}
                 />
-                <Link href="/reports" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" prefetch>
+                <Link href="/reports" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                     {i18n.common.backToReports}
                 </Link>
                 <form
@@ -117,7 +117,7 @@ export default function AttendanceDailyReport({ summary, filters }: PageProps) {
                             min={1}
                             value={sectionId}
                             onChange={(e) => setSectionId(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             dir="ltr"
                         />
                     </label>
@@ -127,7 +127,7 @@ export default function AttendanceDailyReport({ summary, filters }: PageProps) {
                             type="date"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             dir="ltr"
                         />
                     </label>
@@ -137,7 +137,7 @@ export default function AttendanceDailyReport({ summary, filters }: PageProps) {
                             type="date"
                             value={dateFrom}
                             onChange={(e) => setDateFrom(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             dir="ltr"
                         />
                     </label>
@@ -147,13 +147,13 @@ export default function AttendanceDailyReport({ summary, filters }: PageProps) {
                             type="date"
                             value={dateTo}
                             onChange={(e) => setDateTo(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             dir="ltr"
                         />
                     </label>
                     <button
                         type="submit"
-                        className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm sm:col-span-2 lg:col-span-4 lg:w-fit"
+                        className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm sm:col-span-2 lg:col-span-4 lg:w-fit" dir="rtl" lang="ar"
                     >
                         {i18n.common.runReport}
                     </button>
