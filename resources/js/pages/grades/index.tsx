@@ -88,14 +88,14 @@ export default function GradesIndex({ grades, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.grades.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.grades.title}
                     description={i18n.grades.description}
                     icon={<PenLine className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
-                    <Link href="/grades/enter" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                    <Link href="/grades/enter" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.grades.enterGrade}
                     </Link>
                 </div>
@@ -111,11 +111,11 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                             min={1}
                             value={sessionId}
                             onChange={(e) => setSessionId(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             dir="ltr"
                         />
                     </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.grades.loadGrades}
                     </button>
                 </form>

@@ -60,6 +60,15 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
             header: i18n.common.status,
             cell: (row) => <span dir="ltr">{row.status}</span>,
         },
+        {
+            id: 'actions',
+            header: i18n.common.open,
+            cell: (row) => (
+                <a href={`/teachers/${row.id}`} className="underline">
+                    {i18n.common.view}
+                </a>
+            ),
+        },
     ];
 
     const goPage = (page: number) => {
@@ -77,7 +86,7 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.teachers.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.teachers.title}
                     description={i18n.teachers.description}
@@ -103,7 +112,7 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            className="sis-ops-hub__link px-3 py-2 text-sm"
+                            className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                             disabled={teachers.meta.page <= 1}
                             onClick={() => goPage(teachers.meta.page - 1)}
                         >
@@ -117,7 +126,7 @@ export default function TeachersIndex({ teachers, filters }: PageProps) {
                         </span>
                         <button
                             type="button"
-                            className="sis-ops-hub__link px-3 py-2 text-sm"
+                            className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                             disabled={teachers.meta.page >= teachers.meta.last_page}
                             onClick={() => goPage(teachers.meta.page + 1)}
                         >

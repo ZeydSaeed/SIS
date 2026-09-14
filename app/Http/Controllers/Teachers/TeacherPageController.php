@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Teachers;
 
 use App\Application\Teachers\DTOs\TeacherDTO;
+use App\Application\Teachers\Queries\GetTeacherHandler;
+use App\Application\Teachers\Queries\GetTeacherQuery;
 use App\Application\Teachers\Queries\ListTeachersHandler;
 use App\Application\Teachers\Queries\ListTeachersQuery;
 use App\Http\Controllers\Controller;
@@ -91,6 +93,57 @@ final class TeacherPageController extends Controller
                 'academic_year_id' => $academicYearId,
                 'page' => $page,
                 'per_page' => $perPage,
+            ],
+        ]);
+    }
+
+    public function show(Request $request, int $teacher, GetTeacherHandler $handler): Response
+    {
+        $user = $request->user();
+        assert($user !== null);
+
+        if (! $user->can('viewTeachers')) {
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+        $requestedYear = $request->filled('academic_year_id')
+            ? (int) $request->query('academic_year_id')
+            : null;
+        $academicYearId = $this->academicYears->resolve($requestedYear);
+
+        $dto = $handler->handle(new GetTeacherQuery(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            academicYearId: $academicYearId,
+        ));
+
+        if ($dto === null) {
+            abort(404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataAccess,
+            'teachers.web.show',
+            'viewed',
+            $user,
+            'teacher:'.$teacher,
+            ['academic_year_id' => $academicYearId],
+        );
+
+        return Inertia::render('teachers/show', [
+            'teacher' => [
+                'id' => $dto->id,
+                'employee_code' => $dto->employeeCode,
+                'full_name' => $dto->fullName,
+                'specialization_field' => $dto->specializationField,
+                'status' => $dto->status,
+                'is_primary' => $dto->isPrimary,
+                'academic_year_id' => $dto->academicYearId,
+                'hire_date' => $dto->hireDate,
+            ],
+            'filters' => [
+                'academic_year_id' => $academicYearId,
             ],
         ]);
     }

@@ -22,13 +22,13 @@ export default function GradesEnter({ defaults }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.grades.enterTitle} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.grades.enterTitle}
                     description={i18n.grades.enterDesc}
                     icon={<PenLine className="size-6" aria-hidden />}
                 />
-                <Link href="/grades" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" prefetch>
+                <Link href="/grades" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                     {i18n.common.backToList}
                 </Link>
                 <Form
@@ -46,7 +46,7 @@ export default function GradesEnter({ defaults }: PageProps) {
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                     dir="ltr"
                                 />
                                 {errors.exam_enrollment_id ? (
@@ -61,7 +61,7 @@ export default function GradesEnter({ defaults }: PageProps) {
                                     name="score"
                                     type="number"
                                     step="0.01"
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                     dir="ltr"
                                 />
                                 {errors.score ? (
@@ -75,7 +75,7 @@ export default function GradesEnter({ defaults }: PageProps) {
                                 <select
                                     name="is_absent"
                                     defaultValue={defaults.is_absent ? '1' : '0'}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                 >
                                     <option value="0">{i18n.grades.absentNoEnterScore}</option>
                                     <option value="1">{i18n.grades.absentYesAbsent}</option>
@@ -89,7 +89,7 @@ export default function GradesEnter({ defaults }: PageProps) {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm disabled:opacity-50"
+                                className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
                             >
                                 {processing ? i18n.common.saving : i18n.grades.enterGrade}
                             </button>

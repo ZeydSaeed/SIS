@@ -61,13 +61,13 @@ export default function GradesActions({ grade, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.grades.actionsTitle} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.grades.actionsTitle}
                     description={i18n.grades.actionsDesc}
                     icon={<PenLine className="size-6" aria-hidden />}
                 />
-                <Link href="/grades" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" prefetch>
+                <Link href="/grades" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                     {i18n.common.backToList}
                 </Link>
                 <form
@@ -82,11 +82,11 @@ export default function GradesActions({ grade, filters }: PageProps) {
                             min={1}
                             value={gradeId}
                             onChange={(e) => setGradeId(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                             dir="ltr"
                         />
                     </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm">
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.grades.loadGrade}
                     </button>
                 </form>
@@ -141,7 +141,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                                 type="number"
                                                 step="0.01"
                                                 defaultValue={grade.score ?? undefined}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                                 dir="ltr"
                                             />
                                             {errors.score ? (
@@ -155,7 +155,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                             <select
                                                 name="is_absent"
                                                 defaultValue={grade.is_absent ? '1' : '0'}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2"
+                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
                                             >
                                                 <option value="0">{i18n.common.no}</option>
                                                 <option value="1">{i18n.common.yes}</option>
@@ -168,7 +168,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                                 required
                                                 minLength={3}
                                                 rows={2}
-                                                className="sis-ops-hub__link px-3 py-2"
+                                                className="sis-ops-hub__link px-3 py-2" dir="rtl" lang="ar"
                                             />
                                             {errors.reason ? (
                                                 <span className="text-sm text-[color:var(--sis-powder-blush)]">
@@ -179,7 +179,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                         <button
                                             type="submit"
                                             disabled={processing}
-                                            className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
+                                            className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
                                         >
                                             {i18n.grades.correct}
                                         </button>
@@ -194,7 +194,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                         required
                                         minLength={3}
                                         rows={2}
-                                        className="sis-ops-hub__link px-3 py-2"
+                                        className="sis-ops-hub__link px-3 py-2" dir="rtl" lang="ar"
                                         value={voidReason}
                                         onChange={(e) => setVoidReason(e.target.value)}
                                     />
@@ -202,7 +202,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                 <button
                                     type="button"
                                     disabled={voiding}
-                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
+                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
                                     onClick={() => setConfirmVoid(true)}
                                 >
                                     {i18n.grades.void}
@@ -242,7 +242,7 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                 <button
                                     type="button"
                                     disabled={finalizing}
-                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
+                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
                                     onClick={() => setConfirmFinalize(true)}
                                 >
                                     {i18n.grades.finalize}
