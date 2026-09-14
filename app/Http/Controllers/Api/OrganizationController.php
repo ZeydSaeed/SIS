@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Application\Organization\DTOs\BranchDTO;
 use App\Application\Organization\DTOs\DepartmentDTO;
 use App\Application\Organization\DTOs\RoomDTO;
+use App\Application\Organization\Queries\GetDepartmentHandler;
+use App\Application\Organization\Queries\GetDepartmentQuery;
 use App\Application\Organization\Queries\GetRoomHandler;
 use App\Application\Organization\Queries\GetRoomQuery;
 use App\Application\Organization\Queries\ListBranchesHandler;
@@ -17,6 +19,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\ListBranchesRequest;
 use App\Http\Requests\Organization\ListDepartmentsRequest;
 use App\Http\Requests\Organization\ListRoomsRequest;
+use App\Http\Requests\Organization\ShowDepartmentRequest;
 use App\Http\Requests\Organization\ShowRoomRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -84,6 +87,39 @@ class OrganizationController extends Controller
 
         return response()->json([
             'data' => array_map(fn (DepartmentDTO $dto): array => $this->departmentPayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showDepartment(
+        ShowDepartmentRequest $request,
+        int $department,
+        GetDepartmentHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetDepartmentQuery(
+            schoolId: $this->schoolContext->requireId(),
+            departmentId: $department,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Department not found.',
+                'error_code' => 'organization.department_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataAccess,
+            'organization.departments.show',
+            'viewed',
+            $request->user(),
+            'department:'.$department,
+            [],
+        );
+
+        return response()->json([
+            'data' => $this->departmentPayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
