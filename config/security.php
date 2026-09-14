@@ -276,5 +276,16 @@ return [
 
     'dependency_audit_enabled' => env('SECURITY_DEPENDENCY_AUDIT_ENABLED', true),
 
-    'allow_implicit_single_school' => false,
+    /*
+    | When the user has exactly one allowed school, resolve it without X-School-Id.
+    | Safe for single-tenant operators; multi-school still requires session/header.
+    */
+    'allow_implicit_single_school' => env('SECURITY_ALLOW_IMPLICIT_SINGLE_SCHOOL', true),
+
+    /*
+    | Web Inertia: if authenticated and session has no school, bind the first allowed
+    | school into session so Window Manager iframes and ops pages are not blank 403s.
+    | Switching schools remains explicit via POST /context/school.
+    */
+    'bootstrap_web_school_session' => env('SECURITY_BOOTSTRAP_WEB_SCHOOL_SESSION', true),
 ];

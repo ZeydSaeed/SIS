@@ -39,7 +39,9 @@ final class RequireSchoolContextMiddleware
                 ], 403);
             }
 
-            abort(403, 'School context is required.');
+            return \Inertia\Inertia::render('errors/school-context', [
+                'message' => 'يجب اختيار مدرسة مسموحة قبل فتح وحدات التشغيل.',
+            ])->toResponse($request)->setStatusCode(403);
         }
 
         return $next($request);

@@ -8,6 +8,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
+use App\Http\Controllers\SchoolContextController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
 use App\Http\Controllers\Timetable\TimetablePageController;
@@ -18,6 +19,7 @@ Route::inertia('/hub', 'hub')->name('hub');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::post('/context/school', [SchoolContextController::class, 'update'])->name('context.school');
 
     Route::prefix('students')->name('students.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [StudentPageController::class, 'index'])->name('index');

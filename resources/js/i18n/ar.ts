@@ -432,6 +432,16 @@ export const ar = {
         openWindows: 'فتح الوحدات كنوافذ',
         guestHub: 'مساحة العمل للضيف',
     },
+    context: {
+        school: 'المدرسة',
+        schoolRequiredTitle: 'سياق المدرسة مطلوب',
+        noSchools: 'لا توجد مدارس مرتبطة بحسابك. راجع صلاحيات الأدوار.',
+        pickSchoolHint: 'اختر مدرسة من شريط التنقل ثم أعد فتح الوحدة.',
+        year: 'السنة الدراسية',
+        switchSchool: 'تبديل المدرسة',
+        noYear: 'لا توجد سنة دراسية حالية — القوائم ستظهر فارغة حتى تُعرَّف سنة.',
+        contextBar: 'سياق التشغيل',
+    },
 } as const;
 
 export type ArCatalog = typeof ar;

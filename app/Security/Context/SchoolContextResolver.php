@@ -35,12 +35,21 @@ final class SchoolContextResolver
             $fromSession = $request->session()->get('current_school_id');
             if (is_numeric($fromSession)) {
                 $candidate = (int) $fromSession;
+                if (in_array($candidate, $allowed, true)) {
+                    return $candidate;
+                }
+                $request->session()->forget('current_school_id');
+            }
 
-                return in_array($candidate, $allowed, true) ? $candidate : null;
+            if ($this->shouldBootstrapWebSession($request, $allowed)) {
+                $schoolId = $this->preferredSchoolId($allowed);
+                $request->session()->put('current_school_id', $schoolId);
+
+                return $schoolId;
             }
         }
 
-        if (count($allowed) === 1 && config('security.allow_implicit_single_school', false)) {
+        if (count($allowed) === 1 && config('security.allow_implicit_single_school', true)) {
             return $allowed[0];
         }
 
@@ -50,5 +59,33 @@ final class SchoolContextResolver
     public function userCanAccessSchool(User $user, int $schoolId): bool
     {
         return in_array($schoolId, $this->schoolScope->allowedSchoolIds($user), true);
+    }
+
+    /**
+     * @param  list<int>  $allowed
+     */
+    private function shouldBootstrapWebSession(Request $request, array $allowed): bool
+    {
+        if (! config('security.bootstrap_web_school_session', true)) {
+            return false;
+        }
+
+        if ($request->is('api/*')) {
+            return false;
+        }
+
+        return $allowed !== [];
+    }
+
+    /**
+     * @param  list<int>  $allowed
+     */
+    private function preferredSchoolId(array $allowed): int
+    {
+        if (count($allowed) === 1) {
+            return $allowed[0];
+        }
+
+        return $allowed[0];
     }
 }

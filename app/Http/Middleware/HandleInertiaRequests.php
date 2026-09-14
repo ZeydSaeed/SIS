@@ -2,7 +2,12 @@
 
 namespace App\Http\Middleware;
 
+use App\Database\SchemaHelper;
+use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
+use App\Security\Authorization\SchoolScopeService;
+use App\Security\Context\SchoolContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -44,6 +49,97 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'schoolContext' => $this->schoolContextPayload($request),
+            'academicYears' => $this->academicYearsPayload(),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
         ];
+    }
+
+    /**
+     * @return array{schoolId: int|null, schools: list<array{id: int, name: string, code: string}>}
+     */
+    private function schoolContextPayload(Request $request): array
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return ['schoolId' => null, 'schools' => []];
+        }
+
+        $schoolId = app(SchoolContext::class)->id();
+        $allowed = app(SchoolScopeService::class)->allowedSchoolIds($user);
+        $schools = $this->loadSchools($allowed);
+
+        return [
+            'schoolId' => $schoolId,
+            'schools' => $schools,
+        ];
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return list<array{id: int, name: string, code: string}>
+     */
+    private function loadSchools(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $table = SchemaHelper::qualified('organization', 'schools');
+
+        try {
+            /** @var list<object{id: int|string, name: string, code: string}> $rows */
+            $rows = DB::table($table)
+                ->whereIn('id', $ids)
+                ->orderBy('id')
+                ->get(['id', 'name', 'code'])
+                ->all();
+        } catch (\Throwable) {
+            return array_map(
+                static fn (int $id): array => ['id' => $id, 'name' => 'مدرسة #'.$id, 'code' => (string) $id],
+                $ids,
+            );
+        }
+
+        $byId = [];
+        foreach ($rows as $row) {
+            $byId[(int) $row->id] = [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'code' => (string) $row->code,
+            ];
+        }
+
+        $ordered = [];
+        foreach ($ids as $id) {
+            $ordered[] = $byId[$id] ?? ['id' => $id, 'name' => 'مدرسة #'.$id, 'code' => (string) $id];
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * @return list<array{id: int, name: string, code: string, is_current: bool}>
+     */
+    private function academicYearsPayload(): array
+    {
+        try {
+            $years = app(AcademicYearRepositoryInterface::class)->listAll();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        return array_map(
+            static fn ($year): array => [
+                'id' => $year->id,
+                'name' => $year->name,
+                'code' => $year->code,
+                'is_current' => $year->isCurrent,
+            ],
+            $years,
+        );
     }
 }
