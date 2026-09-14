@@ -93,14 +93,14 @@ export default function ExamShow({ exam, sessions }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={exam.name} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={exam.name}
                     description={i18n.exams.detailDesc}
                     icon={<GraduationCap className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
-                    <Link href="/exams" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                    <Link href="/exams" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.common.backToList}
                     </Link>
                 </div>
@@ -151,7 +151,7 @@ export default function ExamShow({ exam, sessions }: PageProps) {
                             </div>
                             <a
                                 href={`/grades?session_id=${row.id}&academic_year_id=${exam.academic_year_id}`}
-                                className="sis-ops-hub__link mt-2 inline-block text-sm"
+                                className="sis-ops-hub__link mt-2 inline-block text-sm" dir="rtl" lang="ar"
                             >
                                 {i18n.exams.viewGrades}
                             </a>

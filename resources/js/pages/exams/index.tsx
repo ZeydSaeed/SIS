@@ -73,7 +73,7 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.exams.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.exams.title}
                     description={i18n.exams.description}
