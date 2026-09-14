@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Exams\Commands\CancelExamCommand;
 use App\Application\Exams\Commands\CancelExamEnrollmentCommand;
 use App\Application\Exams\Commands\CancelExamEnrollmentHandler;
+use App\Application\Exams\Commands\CancelExamHandler;
 use App\Application\Exams\Commands\CloseExamSessionCommand;
 use App\Application\Exams\Commands\CloseExamSessionHandler;
 use App\Application\Exams\Commands\CreateExamCommand;
@@ -18,6 +20,12 @@ use App\Application\Exams\Commands\PresentExamEnrollmentCommand;
 use App\Application\Exams\Commands\PresentExamEnrollmentHandler;
 use App\Application\Exams\Commands\ReopenExamEnrollmentCommand;
 use App\Application\Exams\Commands\ReopenExamEnrollmentHandler;
+use App\Application\Exams\Commands\UpdateExamCommand;
+use App\Application\Exams\Commands\UpdateExamEnrollmentCommand;
+use App\Application\Exams\Commands\UpdateExamEnrollmentHandler;
+use App\Application\Exams\Commands\UpdateExamHandler;
+use App\Application\Exams\Commands\UpdateExamSessionCommand;
+use App\Application\Exams\Commands\UpdateExamSessionHandler;
 use App\Application\Exams\DTOs\ExamDTO;
 use App\Application\Exams\DTOs\ExamEnrollmentDTO;
 use App\Application\Exams\DTOs\ExamSessionDTO;
@@ -36,6 +44,7 @@ use App\Application\Exams\Queries\ListExamsQuery;
 use App\Domain\Exams\Repositories\ExamRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Exams\CancelExamEnrollmentRequest;
+use App\Http\Requests\Exams\CancelExamRequest;
 use App\Http\Requests\Exams\CloseExamSessionRequest;
 use App\Http\Requests\Exams\CreateExamEnrollmentRequest;
 use App\Http\Requests\Exams\CreateExamRequest;
@@ -49,6 +58,9 @@ use App\Http\Requests\Exams\ReopenExamEnrollmentRequest;
 use App\Http\Requests\Exams\ShowExamEnrollmentRequest;
 use App\Http\Requests\Exams\ShowExamRequest;
 use App\Http\Requests\Exams\ShowExamSessionRequest;
+use App\Http\Requests\Exams\UpdateExamEnrollmentRequest;
+use App\Http\Requests\Exams\UpdateExamRequest;
+use App\Http\Requests\Exams\UpdateExamSessionRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -160,6 +172,82 @@ class ExamController extends Controller
         ], $result->fromIdempotencyCache ? 200 : 201);
     }
 
+    public function update(UpdateExamRequest $request, int $exam, UpdateExamHandler $handler): JsonResponse
+    {
+        $result = $handler->handle(new UpdateExamCommand(
+            schoolId: $this->schoolContext->requireId(),
+            examId: $exam,
+            actorUserId: (int) $request->user()->id,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            name: $request->validated('name'),
+            startDate: $request->validated('start_date'),
+            endDate: $request->validated('end_date'),
+            examTypeId: $request->validated('exam_type_id') !== null
+                ? (int) $request->validated('exam_type_id')
+                : null,
+            termId: $request->validated('term_id') !== null
+                ? (int) $request->validated('term_id')
+                : null,
+            targetStatus: $request->validated('target_status') !== null
+                ? (int) $request->validated('target_status')
+                : null,
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::GradeDataModified,
+            'exams.update',
+            'updated',
+            $request->user(),
+            'exam:'.$exam,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->examId,
+                'status' => $result->status,
+            ],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
+    }
+
+    public function cancel(CancelExamRequest $request, int $exam, CancelExamHandler $handler): JsonResponse
+    {
+        $result = $handler->handle(new CancelExamCommand(
+            schoolId: $this->schoolContext->requireId(),
+            examId: $exam,
+            actorUserId: (int) $request->user()->id,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::GradeDataModified,
+            'exams.cancel',
+            'cancelled',
+            $request->user(),
+            'exam:'.$exam,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->examId,
+                'status' => $result->status,
+                'cancelled_session_ids' => $result->cancelledSessionIds,
+                'withdrawn_enrollment_ids' => $result->withdrawnEnrollmentIds,
+            ],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
+    }
+
     public function indexSessions(
         ListExamSessionsRequest $request,
         int $exam,
@@ -266,6 +354,54 @@ class ExamController extends Controller
                 'correlation_id' => CorrelationContext::id(),
             ],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function updateSession(
+        UpdateExamSessionRequest $request,
+        int $examSession,
+        UpdateExamSessionHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new UpdateExamSessionCommand(
+            schoolId: $this->schoolContext->requireId(),
+            examSessionId: $examSession,
+            actorUserId: (int) $request->user()->id,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            sessionDate: $request->validated('session_date'),
+            startTime: $request->validated('start_time'),
+            endTime: $request->validated('end_time'),
+            roomId: $request->exists('room_id')
+                ? ($request->validated('room_id') !== null ? (int) $request->validated('room_id') : null)
+                : null,
+            roomIdProvided: $request->exists('room_id'),
+            maxGrade: $request->validated('max_grade') !== null
+                ? (int) $request->validated('max_grade')
+                : null,
+            passGrade: $request->validated('pass_grade') !== null
+                ? (int) $request->validated('pass_grade')
+                : null,
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::GradeDataModified,
+            'exams.sessions.update',
+            'updated',
+            $request->user(),
+            'exam_session:'.$examSession,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->examSessionId,
+                'exam_id' => $result->examId,
+                'status' => $result->status,
+            ],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
     }
 
     public function openSession(
@@ -438,6 +574,61 @@ class ExamController extends Controller
                 'correlation_id' => CorrelationContext::id(),
             ],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function updateEnrollment(
+        UpdateExamEnrollmentRequest $request,
+        int $examEnrollment,
+        UpdateExamEnrollmentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $snapshot = $this->exams->findExamEnrollmentByIdAndSchool($examEnrollment, $schoolId);
+        if ($snapshot === null) {
+            return response()->json([
+                'message' => 'Exam enrollment not found.',
+                'error_code' => 'exam.enrollment_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $result = $handler->handle(new UpdateExamEnrollmentCommand(
+            schoolId: $schoolId,
+            examEnrollmentId: $examEnrollment,
+            examSessionId: $snapshot->examSessionId,
+            enrollmentId: $snapshot->enrollmentId,
+            actorUserId: (int) $request->user()->id,
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            status: $request->validated('status') !== null
+                ? (int) $request->validated('status')
+                : null,
+            seatNumberProvided: $request->exists('seat_number'),
+            seatNumber: $request->exists('seat_number')
+                ? $request->validated('seat_number')
+                : null,
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::GradeDataModified,
+            'exams.enrollments.update',
+            'updated',
+            $request->user(),
+            'exam_enrollment:'.$examEnrollment,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->examEnrollmentId,
+                'exam_session_id' => $result->examSessionId,
+                'enrollment_id' => $result->enrollmentId,
+                'status' => $result->status,
+            ],
+            'meta' => [
+                'from_idempotency_cache' => $result->fromIdempotencyCache,
+                'correlation_id' => CorrelationContext::id(),
+            ],
+        ]);
     }
 
     public function cancelEnrollment(

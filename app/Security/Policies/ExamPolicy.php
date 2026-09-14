@@ -38,22 +38,14 @@ final class ExamPolicy
             && $this->schoolAccess->canAccessExam($user);
     }
 
-    public function update(User $user, ExamRecord|string|int|null $exam = null): bool
+    public function update(User $user, mixed $exam = null): bool
     {
-        if ($exam === null || $exam === ExamRecord::class) {
-            return false;
-        }
-
         return $this->authorization->userHasPermission($user, Permission::EXAM_UPDATE)
             && $this->schoolAccess->canAccessExam($user);
     }
 
-    public function cancel(User $user, ExamRecord|string|int|null $exam = null): bool
+    public function cancel(User $user, mixed $exam = null): bool
     {
-        if ($exam === null || $exam === ExamRecord::class) {
-            return false;
-        }
-
         return $this->authorization->userHasPermission($user, Permission::EXAM_CANCEL)
             && $this->schoolAccess->canAccessExam($user);
     }
@@ -61,6 +53,12 @@ final class ExamPolicy
     public function createSession(User $user, mixed $exam = null): bool
     {
         return $this->authorization->userHasPermission($user, Permission::EXAM_SESSION_CREATE)
+            && $this->schoolAccess->canAccessExam($user);
+    }
+
+    public function updateSession(User $user, mixed $exam = null): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::EXAM_SESSION_UPDATE)
             && $this->schoolAccess->canAccessExam($user);
     }
 
@@ -79,6 +77,12 @@ final class ExamPolicy
     public function createEnrollment(User $user, mixed $exam = null): bool
     {
         return $this->authorization->userHasPermission($user, Permission::EXAM_ENROLLMENT_CREATE)
+            && $this->schoolAccess->canAccessExam($user);
+    }
+
+    public function updateEnrollment(User $user, mixed $exam = null): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::EXAM_ENROLLMENT_UPDATE)
             && $this->schoolAccess->canAccessExam($user);
     }
 

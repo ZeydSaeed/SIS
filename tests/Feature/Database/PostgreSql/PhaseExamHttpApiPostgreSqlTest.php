@@ -162,6 +162,83 @@ final class PhaseExamHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
     }
 
     #[Test]
+    public function manager_can_update_and_cancel_exam(): void
+    {
+        $schoolId = $this->createSchool('SCH-EX-UPD', 'Exam Update HTTP');
+        $yearId = $this->createAcademicYear('AY-EX-UPD');
+        [$termId, $typeId] = $this->seedTermAndType($yearId, 'U8');
+        $this->actingAsGradesManagerForSchool($schoolId);
+
+        $create = $this->postJson('/api/v1/exams', [
+            'academic_year_id' => $yearId,
+            'term_id' => $termId,
+            'exam_type_id' => $typeId,
+            'name' => 'Draft Exam Wave5',
+            'start_date' => '2026-11-01',
+            'end_date' => '2026-11-15',
+        ], ['X-Idempotency-Key' => 'exam-http-update-create-1'])
+            ->assertCreated();
+
+        $examId = (int) $create->json('data.id');
+
+        $this->patchJson('/api/v1/exams/'.$examId, [
+            'name' => 'Updated Exam Wave5',
+            'target_status' => ExamStatus::Scheduled->value,
+        ], ['X-Idempotency-Key' => 'exam-http-update-1'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $examId)
+            ->assertJsonPath('data.status', ExamStatus::Scheduled->value);
+
+        $this->getJson('/api/v1/exams/'.$examId)
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Updated Exam Wave5');
+
+        $this->postJson('/api/v1/exams/'.$examId.'/cancel', [], [
+            'X-Idempotency-Key' => 'exam-http-cancel-1',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.id', $examId)
+            ->assertJsonPath('data.status', ExamStatus::Cancelled->value);
+    }
+
+    #[Test]
+    public function manager_can_update_exam_session_and_enrollment(): void
+    {
+        $schoolId = $this->createSchool('SCH-EX-U10', 'Exam Session Update HTTP');
+        $this->actingAsGradesManagerForSchool($schoolId);
+        $graph = $this->seedExamGradeGraph($schoolId, suffix: 'U10');
+
+        $this->patchJson('/api/v1/exam-sessions/'.$graph['session_id'], [
+            'session_date' => '2026-11-09',
+            'start_time' => '10:00:00',
+            'end_time' => '12:00:00',
+            'max_grade' => 120,
+            'pass_grade' => 60,
+        ], ['X-Idempotency-Key' => 'exam-http-session-update-1'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $graph['session_id'])
+            ->assertJsonPath('data.status', ExamSessionStatus::Scheduled->value);
+
+        $this->getJson('/api/v1/exam-sessions/'.$graph['session_id'])
+            ->assertOk()
+            ->assertJsonPath('data.session_date', '2026-11-09')
+            ->assertJsonPath('data.max_grade', 120);
+
+        $this->patchJson('/api/v1/exam-enrollments/'.$graph['exam_enrollment_id'], [
+            'seat_number' => 'C9',
+            'status' => ExamEnrollmentStatus::Confirmed->value,
+        ], ['X-Idempotency-Key' => 'exam-http-enroll-update-1'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $graph['exam_enrollment_id'])
+            ->assertJsonPath('data.status', ExamEnrollmentStatus::Confirmed->value);
+
+        $this->getJson('/api/v1/exam-enrollments/'.$graph['exam_enrollment_id'])
+            ->assertOk()
+            ->assertJsonPath('data.seat_number', 'C9')
+            ->assertJsonPath('data.status', ExamEnrollmentStatus::Confirmed->value);
+    }
+
+    #[Test]
     public function cancel_exam_session_http_route_is_absent(): void
     {
         $routes = collect(app('router')->getRoutes())->map(fn ($r) => $r->uri())->implode(' ');

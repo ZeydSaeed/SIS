@@ -107,6 +107,7 @@ Route::prefix('v1')->group(function (): void {
             ->whereNumber('link')
             ->name('api.enrollment_subjects.show');
 
+
         Route::apiResource('enrollments', EnrollmentController::class)->only(['index', 'show', 'store', 'update'])->names([
             'index' => 'api.enrollments.index',
             'show' => 'api.enrollments.show',
@@ -129,6 +130,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('exams', [ExamController::class, 'index'])->name('api.exams.index');
         Route::post('exams', [ExamController::class, 'store'])->name('api.exams.store');
         Route::get('exams/{exam}', [ExamController::class, 'show'])->whereNumber('exam')->name('api.exams.show');
+        Route::patch('exams/{exam}', [ExamController::class, 'update'])->whereNumber('exam')->name('api.exams.update');
+        Route::post('exams/{exam}/cancel', [ExamController::class, 'cancel'])->whereNumber('exam')->name('api.exams.cancel');
         Route::get('exams/{exam}/sessions', [ExamController::class, 'indexSessions'])
             ->whereNumber('exam')
             ->name('api.exams.sessions.index');
@@ -138,6 +141,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('exam-sessions/{examSession}', [ExamController::class, 'showSession'])
             ->whereNumber('examSession')
             ->name('api.exam_sessions.show');
+        Route::patch('exam-sessions/{examSession}', [ExamController::class, 'updateSession'])
+            ->whereNumber('examSession')
+            ->name('api.exam_sessions.update');
         Route::post('exam-sessions/{examSession}/open', [ExamController::class, 'openSession'])
             ->whereNumber('examSession')
             ->name('api.exam_sessions.open');
@@ -153,6 +159,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('exam-enrollments/{examEnrollment}', [ExamController::class, 'showEnrollment'])
             ->whereNumber('examEnrollment')
             ->name('api.exam_enrollments.show');
+        Route::patch('exam-enrollments/{examEnrollment}', [ExamController::class, 'updateEnrollment'])
+            ->whereNumber('examEnrollment')
+            ->name('api.exam_enrollments.update');
         Route::post('exam-enrollments/{examEnrollment}/cancel', [ExamController::class, 'cancelEnrollment'])
             ->whereNumber('examEnrollment')
             ->name('api.exam_enrollments.cancel');
