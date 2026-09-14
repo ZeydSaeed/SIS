@@ -71,6 +71,18 @@ export function getWindowCatalog(): Record<string, SisWindowDescriptor> {
             href: '/reports',
             minimumSize: { width: 640, height: 480 },
         },
+        'dashboard.home': {
+            windowId: 'dashboard.home',
+            title: i18n.dashboard.title,
+            href: '/dashboard',
+            minimumSize: { width: 720, height: 520 },
+        },
+        'attendance.create': {
+            windowId: 'attendance.create',
+            title: i18n.attendance.createSession,
+            href: '/attendance/create',
+            minimumSize: { width: 560, height: 520 },
+        },
     };
 }
 
