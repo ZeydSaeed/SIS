@@ -20,6 +20,7 @@ import {
 } from '@/components/students/student-details-surface';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { t } from '@/i18n';
 
 export type { StudentAuthorization };
 
@@ -60,6 +61,7 @@ type StudentListProps = {
 };
 
 export function StudentList({ students, filters, authorization, preview }: StudentListProps) {
+    const i18n = t();
     const isMobile = useIsMobile();
     const [search, setSearch] = useState(filters.q);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -114,7 +116,7 @@ export function StudentList({ students, filters, authorization, preview }: Stude
     const columns: DataTableColumn<StudentListItem>[] = [
         {
             id: 'code',
-            header: 'Code',
+            header: i18n.students.code,
             cell: (row) => (
                 <span className="font-mono text-xs" dir="ltr">
                     {row.student_code}
@@ -123,18 +125,18 @@ export function StudentList({ students, filters, authorization, preview }: Stude
         },
         {
             id: 'name',
-            header: 'Name',
+            header: i18n.students.name,
             cell: (row) => row.full_name,
         },
         {
             id: 'status',
-            header: 'Status',
+            header: i18n.common.status,
             cell: (row) => <StudentStatusBadge status={row.status} />,
             hideOnMobile: true,
         },
         {
             id: 'birth_date',
-            header: 'Birth date',
+            header: i18n.students.birthDate,
             cell: (row) => <span dir="ltr">{row.birth_date}</span>,
             hideOnMobile: true,
         },
@@ -143,26 +145,27 @@ export function StudentList({ students, filters, authorization, preview }: Stude
             header: '',
             cell: (row) => (
                 <Button asChild size="sm" variant="ghost">
-                    <Link href={`/students/${row.id}`} aria-label={`Open profile for ${row.full_name}`}>
-                        View
+                    <Link
+                        href={`/students/${row.id}`}
+                        aria-label={`${i18n.students.openProfile}: ${row.full_name}`}
+                    >
+                        {i18n.students.view}
                     </Link>
                 </Button>
             ),
         },
     ];
 
-    const previewError =
-        preview && 'error' in preview ? preview.error : null;
-    const previewStudent =
-        preview && 'student' in preview ? preview.student : null;
+    const previewError = preview && 'error' in preview ? preview.error : null;
+    const previewStudent = preview && 'student' in preview ? preview.student : null;
     const previewAuthorization =
         preview && 'authorization' in preview ? preview.authorization : null;
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="sis-ops-hub flex flex-col gap-6" dir="rtl" lang="ar">
             <PageHeader
-                title="Students"
-                description="School-scoped student directory — read-only reference surface."
+                title={i18n.students.title}
+                description={i18n.students.description}
                 icon={<GraduationCap className="text-primary size-8" aria-hidden="true" />}
             />
 
@@ -175,12 +178,13 @@ export function StudentList({ students, filters, authorization, preview }: Stude
                             submitSearch();
                         }
                     }}
-                    placeholder="Search by name or code"
-                    aria-label="Search students"
+                    placeholder={i18n.students.searchPlaceholder}
+                    aria-label={i18n.students.searchAria}
                     className="max-w-md"
+                    dir="rtl"
                 />
                 <Button type="button" onClick={submitSearch}>
-                    Search
+                    {i18n.students.search}
                 </Button>
             </div>
 
@@ -188,21 +192,17 @@ export function StudentList({ students, filters, authorization, preview }: Stude
                 columns={columns}
                 rows={students.data}
                 rowKey={(row) => row.id}
-                caption="Student directory"
-                emptyTitle="No students found"
-                emptyDescription={
-                    filters.q
-                        ? 'Try a different search term.'
-                        : 'No students are available for the current school context.'
-                }
+                caption={i18n.students.tableCaption}
+                emptyTitle={i18n.students.emptyTitle}
+                emptyDescription={filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc}
                 onRowClick={(row) => openPreview(row.id)}
-                getRowAriaLabel={(row) => `View student ${row.full_name}`}
+                getRowAriaLabel={(row) => `${i18n.students.view}: ${row.full_name}`}
                 mobileCard={(row) => (
                     <button
                         type="button"
                         className="border-border hover:bg-muted/40 w-full rounded-xl border p-4 text-start"
                         onClick={() => openPreview(row.id)}
-                        aria-label={`View student ${row.full_name}`}
+                        aria-label={`${i18n.students.view}: ${row.full_name}`}
                     >
                         <div className="flex items-start justify-between gap-3">
                             <div>
@@ -220,8 +220,13 @@ export function StudentList({ students, filters, authorization, preview }: Stude
             {students.meta.last_page > 1 ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-muted-foreground text-sm">
-                        Page {students.meta.page} of {students.meta.last_page} ·{' '}
-                        <span dir="ltr">{students.meta.total}</span> total
+                        {i18n.common.page}{' '}
+                        <span dir="ltr">
+                            {students.meta.page}
+                        </span>{' '}
+                        {i18n.common.of}{' '}
+                        <span dir="ltr">{students.meta.last_page}</span> ·{' '}
+                        <span dir="ltr">{students.meta.total}</span> {i18n.common.total}
                     </p>
                     <div className="flex gap-2">
                         <Button
@@ -229,37 +234,37 @@ export function StudentList({ students, filters, authorization, preview }: Stude
                             variant="outline"
                             size="sm"
                             disabled={students.meta.page <= 1}
-                            onClick={() => visitList({ page: students.meta.page - 1, student: undefined })}
+                            onClick={() =>
+                                visitList({ page: students.meta.page - 1, student: undefined })
+                            }
                         >
-                            Previous
+                            {i18n.common.previous}
                         </Button>
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             disabled={students.meta.page >= students.meta.last_page}
-                            onClick={() => visitList({ page: students.meta.page + 1, student: undefined })}
+                            onClick={() =>
+                                visitList({ page: students.meta.page + 1, student: undefined })
+                            }
                         >
-                            Next
+                            {i18n.common.next}
                         </Button>
                     </div>
                 </div>
             ) : null}
 
             {!authorization.canViewPii ? (
-                <p className="text-muted-foreground text-xs">
-                    Sensitive fields are hidden — PII visibility is controlled by server authorization.
-                </p>
+                <p className="text-muted-foreground text-xs">{i18n.students.piiHidden}</p>
             ) : null}
 
             {!isMobile ? (
                 <Dialog open={dialogOpen} onOpenChange={(open) => !open && closePreview()}>
-                    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+                    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl" dir="rtl">
                         <DialogHeader>
-                            <DialogTitle>Student details</DialogTitle>
-                            <DialogDescription>
-                                Desktop preview surface — canonical route remains /students/:id.
-                            </DialogDescription>
+                            <DialogTitle>{i18n.students.detailsTitle}</DialogTitle>
+                            <DialogDescription>{i18n.students.detailsDesc}</DialogDescription>
                         </DialogHeader>
                         <StudentDetailsSurface
                             student={previewStudent}
@@ -273,9 +278,9 @@ export function StudentList({ students, filters, authorization, preview }: Stude
 
             {isMobile && previewStudent ? (
                 <Sheet open onOpenChange={(open) => !open && closePreview()}>
-                    <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+                    <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto" dir="rtl">
                         <SheetHeader>
-                            <SheetTitle>Student details</SheetTitle>
+                            <SheetTitle>{i18n.students.detailsTitle}</SheetTitle>
                         </SheetHeader>
                         <StudentDetailsSurface
                             student={previewStudent}
