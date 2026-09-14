@@ -48,4 +48,41 @@ final class EloquentRoomRepository implements RoomRepositoryInterface
             ))
             ->all();
     }
+
+    public function findForSchool(int $schoolId, int $roomId): ?RoomSnapshot
+    {
+        $row = DB::table(SchemaHelper::qualified('organization', 'rooms').' as r')
+            ->join(SchemaHelper::qualified('organization', 'branches').' as b', 'b.id', '=', 'r.branch_id')
+            ->where('b.school_id', $schoolId)
+            ->where('r.id', $roomId)
+            ->first([
+                'r.id',
+                'r.branch_id',
+                'b.school_id',
+                'r.code',
+                'r.name',
+                'r.capacity',
+                'r.room_type',
+                'r.status',
+                'r.created_at',
+                'r.updated_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new RoomSnapshot(
+            id: (int) $row->id,
+            branchId: (int) $row->branch_id,
+            schoolId: (int) $row->school_id,
+            code: (string) $row->code,
+            name: (string) $row->name,
+            capacity: $row->capacity !== null ? (int) $row->capacity : null,
+            roomType: (int) $row->room_type,
+            status: (int) $row->status,
+            createdAt: (string) $row->created_at,
+            updatedAt: (string) $row->updated_at,
+        );
+    }
 }

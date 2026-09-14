@@ -125,9 +125,21 @@ Route::prefix('v1')->group(function (): void {
         Route::get('academic/grade-levels/{gradeLevel}', [AcademicController::class, 'showGradeLevel'])
             ->whereNumber('gradeLevel')
             ->name('api.academic.grade-levels.show');
+        Route::get('academic/terms', [AcademicController::class, 'indexTerms'])
+            ->name('api.academic.terms.index');
+        Route::get('academic/terms/{term}', [AcademicController::class, 'showTerm'])
+            ->whereNumber('term')
+            ->name('api.academic.terms.show');
+        Route::get('academic/holidays', [AcademicController::class, 'indexHolidays'])
+            ->name('api.academic.holidays.index');
 
+        Route::get('organization/branches', [OrganizationController::class, 'indexBranches'])
+            ->name('api.organization.branches.index');
         Route::get('organization/rooms', [OrganizationController::class, 'indexRooms'])
             ->name('api.organization.rooms.index');
+        Route::get('organization/rooms/{room}', [OrganizationController::class, 'showRoom'])
+            ->whereNumber('room')
+            ->name('api.organization.rooms.show');
 
         Route::get('enrollment/classes', [EnrollmentStructureController::class, 'indexClasses'])
             ->name('api.enrollment.classes.index');
