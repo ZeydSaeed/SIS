@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react';
 import { ScrollText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -94,6 +95,11 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                         {i18n.results.transcriptLink}
                     </a>
                 </p>
+                <OpsYearFilter
+                    action="/results"
+                    academicYearId={filters.academic_year_id}
+                    extraParams={{ enrollment_id: filters.enrollment_id ?? undefined }}
+                />
                 <form
                     onSubmit={onFilter}
                     className="flex flex-col gap-3 sm:flex-row sm:items-end"
@@ -105,7 +111,7 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                             type="number"
                             min={1}
                             inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2"
                             value={enrollmentId}
                             onChange={(e) => setEnrollmentId(e.target.value)}
                             placeholder={i18n.common.required}
