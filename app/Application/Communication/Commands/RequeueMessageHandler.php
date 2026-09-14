@@ -42,12 +42,9 @@ final class RequeueMessageHandler implements CommandHandler
         }
 
         $ok = $this->unitOfWork->transaction(function () use ($command, $key): bool {
-            $updated = $this->messages->updateStatus(
+            $updated = $this->messages->requeueMessage(
                 $command->schoolId,
                 $command->messageId,
-                MessageStatus::Failed,
-                MessageStatus::Queued,
-                clearSentAt: true,
             );
             if (! $updated) {
                 return false;

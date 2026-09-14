@@ -88,25 +88,31 @@ final class EloquentMessageRepository implements MessageRepositoryInterface
             ]) === 1;
     }
 
-    public function updateStatus(
-        int $schoolId,
-        int $messageId,
-        int $fromStatus,
-        int $toStatus,
-        bool $clearSentAt = false,
-    ): bool {
+    public function cancelMessage(int $schoolId, int $messageId): bool
+    {
         $this->bindSchool($schoolId);
-
-        $fields = ['status' => $toStatus];
-        if ($clearSentAt) {
-            $fields['sent_at'] = null;
-        }
 
         return DB::table(SchemaHelper::qualified('communication', 'messages'))
             ->where('school_id', $schoolId)
             ->where('id', $messageId)
-            ->where('status', $fromStatus)
-            ->update($fields) === 1;
+            ->where('status', MessageStatus::Queued)
+            ->update([
+                'status' => MessageStatus::Failed,
+            ]) === 1;
+    }
+
+    public function requeueMessage(int $schoolId, int $messageId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('communication', 'messages'))
+            ->where('school_id', $schoolId)
+            ->where('id', $messageId)
+            ->where('status', MessageStatus::Failed)
+            ->update([
+                'status' => MessageStatus::Queued,
+                'sent_at' => null,
+            ]) === 1;
     }
 
     public function listBySchool(

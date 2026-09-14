@@ -25,13 +25,11 @@ interface MessageRepositoryInterface
 
     public function markSent(int $schoolId, int $messageId, int $status, string $sentAt): bool;
 
-    public function updateStatus(
-        int $schoolId,
-        int $messageId,
-        int $fromStatus,
-        int $toStatus,
-        bool $clearSentAt = false,
-    ): bool;
+    /** Queued → Failed (soft cancel; Schema NONE — no Cancelled status). */
+    public function cancelMessage(int $schoolId, int $messageId): bool;
+
+    /** Failed → Queued soft reopen. */
+    public function requeueMessage(int $schoolId, int $messageId): bool;
 
     /**
      * @return list<MessageSnapshot>

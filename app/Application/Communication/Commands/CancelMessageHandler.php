@@ -42,11 +42,9 @@ final class CancelMessageHandler implements CommandHandler
         }
 
         $ok = $this->unitOfWork->transaction(function () use ($command, $key): bool {
-            $updated = $this->messages->updateStatus(
+            $updated = $this->messages->cancelMessage(
                 $command->schoolId,
                 $command->messageId,
-                MessageStatus::Queued,
-                MessageStatus::Failed,
             );
             if (! $updated) {
                 return false;
