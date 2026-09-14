@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { PageHeader } from '@/components/sis/page-header';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -40,102 +41,84 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.attendance.academicYearId}</span>
-                                <input
+                            <OpsFormField
+                                label={i18n.attendance.academicYearId}
+                                name="academic_year_id"
+                                error={errors.academic_year_id}
+                            >
+                                <OpsTextInput
                                     name="academic_year_id"
                                     type="number"
                                     min={1}
                                     required
                                     defaultValue={defaults.academic_year_id ?? undefined}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.academic_year_id}
                                 />
-                                {errors.academic_year_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.academic_year_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.attendance.sectionId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.attendance.sectionId}
+                                name="section_id"
+                                error={errors.section_id}
+                            >
+                                <OpsTextInput
                                     name="section_id"
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.section_id}
                                 />
-                                {errors.section_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.section_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.attendance.subjectId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.attendance.subjectId}
+                                name="subject_id"
+                                error={errors.subject_id}
+                            >
+                                <OpsTextInput
                                     name="subject_id"
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.subject_id}
                                 />
-                                {errors.subject_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.subject_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.attendance.sessionDate}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.attendance.sessionDate}
+                                name="session_date"
+                                error={errors.session_date}
+                            >
+                                <OpsTextInput
                                     name="session_date"
                                     type="date"
                                     required
                                     defaultValue={defaults.session_date}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.session_date}
                                 />
-                                {errors.session_date ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.session_date}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.attendance.teacherId}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.attendance.teacherId}
+                                name="teacher_id"
+                                error={errors.teacher_id}
+                            >
+                                <OpsTextInput
                                     name="teacher_id"
                                     type="number"
                                     min={1}
                                     required
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.teacher_id}
                                 />
-                                {errors.teacher_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.teacher_id}
-                                    </span>
-                                ) : null}
-                            </label>
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span>{i18n.attendance.periodIdOptional}</span>
-                                <input
+                            </OpsFormField>
+                            <OpsFormField
+                                label={i18n.attendance.periodIdOptional}
+                                name="period_id"
+                                error={errors.period_id}
+                            >
+                                <OpsTextInput
                                     name="period_id"
                                     type="number"
                                     min={1}
-                                    className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                    dir="ltr"
+                                    error={errors.period_id}
                                 />
-                                {errors.period_id ? (
-                                    <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                        {errors.period_id}
-                                    </span>
-                                ) : null}
-                            </label>
+                            </OpsFormField>
                             <button
                                 type="submit"
                                 disabled={processing}
