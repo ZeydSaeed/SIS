@@ -10,6 +10,13 @@ type Props = {
 export function WindowFrame({ window: win }: Props) {
     const wm = useWindowManager();
     const dragRef = useRef<{ ox: number; oy: number; sx: number; sy: number } | null>(null);
+    const resizeRef = useRef<{
+        ox: number;
+        oy: number;
+        sw: number;
+        sh: number;
+    } | null>(null);
+    const focused = wm.focusedInstanceId === win.instanceId;
 
     const onTitlePointerDown = useCallback(
         (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -47,20 +54,61 @@ export function WindowFrame({ window: win }: Props) {
         }
     }, []);
 
+    const onResizePointerDown = useCallback(
+        (event: ReactPointerEvent<HTMLDivElement>) => {
+            if (win.maximized || win.resizable === false) {
+                return;
+            }
+            event.stopPropagation();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            resizeRef.current = {
+                ox: event.clientX,
+                oy: event.clientY,
+                sw: win.width,
+                sh: win.height,
+            };
+            wm.focus(win.instanceId);
+        },
+        [wm, win],
+    );
+
+    const onResizePointerMove = useCallback(
+        (event: ReactPointerEvent<HTMLDivElement>) => {
+            if (!resizeRef.current) {
+                return;
+            }
+            const dx = event.clientX - resizeRef.current.ox;
+            const dy = event.clientY - resizeRef.current.oy;
+            wm.resize(
+                win.instanceId,
+                resizeRef.current.sw + dx,
+                resizeRef.current.sh + dy,
+            );
+        },
+        [wm, win.instanceId],
+    );
+
+    const onResizePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+        if (resizeRef.current) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+            resizeRef.current = null;
+        }
+    }, []);
+
     if (win.minimized) {
         return null;
     }
 
     const style = win.maximized
         ? {
-              left: 0,
+              insetInlineStart: 0,
               top: 0,
               width: '100%',
               height: '100%',
               zIndex: win.zIndex,
           }
         : {
-              left: win.x,
+              insetInlineStart: win.x,
               top: win.y,
               width: win.width,
               height: win.height,
@@ -69,12 +117,14 @@ export function WindowFrame({ window: win }: Props) {
 
     return (
         <section
-            className="sis-window"
+            className={`sis-window${focused ? ' sis-window--focused' : ''}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby={`sis-window-title-${win.instanceId}`}
             data-window-id={win.windowId}
             data-instance-id={win.instanceId}
             style={style}
             onMouseDown={() => wm.focus(win.instanceId)}
-            aria-label={win.title}
         >
             <div
                 className="sis-window__titlebar"
@@ -82,8 +132,10 @@ export function WindowFrame({ window: win }: Props) {
                 onPointerMove={onTitlePointerMove}
                 onPointerUp={onTitlePointerUp}
             >
-                <h2 className="sis-window__title">{win.title}</h2>
-                <div className="sis-window__controls">
+                <h2 id={`sis-window-title-${win.instanceId}`} className="sis-window__title">
+                    {win.title}
+                </h2>
+                <div className="sis-window__controls" role="group" aria-label={`${win.title} window controls`}>
                     {win.minimizable !== false ? (
                         <button
                             type="button"
@@ -98,7 +150,9 @@ export function WindowFrame({ window: win }: Props) {
                         <button
                             type="button"
                             className="sis-window__control"
-                            aria-label={win.maximized ? `Restore ${win.title}` : `Maximize ${win.title}`}
+                            aria-label={
+                                win.maximized ? `Restore ${win.title}` : `Maximize ${win.title}`
+                            }
                             onClick={() => wm.maximize(win.instanceId)}
                         >
                             <Square className="size-3.5" aria-hidden />
@@ -124,6 +178,17 @@ export function WindowFrame({ window: win }: Props) {
                     sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
                 />
             </div>
+            {!win.maximized && win.resizable !== false ? (
+                <div
+                    className="sis-window__resize"
+                    role="separator"
+                    aria-orientation="horizontal"
+                    aria-label={`Resize ${win.title}`}
+                    onPointerDown={onResizePointerDown}
+                    onPointerMove={onResizePointerMove}
+                    onPointerUp={onResizePointerUp}
+                />
+            ) : null}
         </section>
     );
 }
