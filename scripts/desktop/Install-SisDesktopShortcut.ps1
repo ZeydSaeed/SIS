@@ -4,15 +4,27 @@ $ErrorActionPreference = 'Stop'
 $desktop = [Environment]::GetFolderPath('Desktop')
 $url = 'http://sis.test/hub?desktop=1'
 $displayName = 'نظام معلومات الطالب'
-$lnkPath = Join-Path $desktop "$displayName.lnk"
-$urlPath = Join-Path $desktop "$displayName.url"
-$legacyNames = @('SIS Operational Hub.lnk', 'SIS Operational Hub.url')
+$tempLnk = Join-Path $desktop 'SIS-Hub-Temp.lnk'
+$lnkPath = Join-Path $desktop ($displayName + '.lnk')
+$urlPath = Join-Path $desktop ($displayName + '.url')
+$legacyNames = @(
+    'SIS Operational Hub.lnk',
+    'SIS Operational Hub.url',
+    'SIS-Hub-Temp.lnk',
+    'SIS.lnk'
+)
 
 foreach ($legacy in $legacyNames) {
     $legacyPath = Join-Path $desktop $legacy
-    if (Test-Path $legacyPath) {
+    if (Test-Path -LiteralPath $legacyPath) {
         Remove-Item -LiteralPath $legacyPath -Force
     }
+}
+if (Test-Path -LiteralPath $lnkPath) {
+    Remove-Item -LiteralPath $lnkPath -Force
+}
+if (Test-Path -LiteralPath $urlPath) {
+    Remove-Item -LiteralPath $urlPath -Force
 }
 
 $candidates = @(
@@ -23,8 +35,9 @@ $candidates = @(
 )
 $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
+# WScript.Shell cannot always Save() directly to Arabic filenames — write ASCII then rename.
 $wsh = New-Object -ComObject WScript.Shell
-$shortcut = $wsh.CreateShortcut($lnkPath)
+$shortcut = $wsh.CreateShortcut($tempLnk)
 if ($browser) {
     $shortcut.TargetPath = $browser
     $shortcut.Arguments = "--app=$url"
@@ -32,13 +45,12 @@ if ($browser) {
 } else {
     $shortcut.TargetPath = $url
 }
-$shortcut.Description = 'مساحة العمل التشغيلية — نظام معلومات الطالب (ضيف)'
+$shortcut.Description = $displayName
 $shortcut.Save()
+Move-Item -LiteralPath $tempLnk -Destination $lnkPath -Force
 
-@"
-[InternetShortcut]
-URL=$url
-"@ | Set-Content -Path $urlPath -Encoding ASCII
+$urlContent = "[InternetShortcut]`r`nURL=$url`r`n"
+[System.IO.File]::WriteAllText($urlPath, $urlContent, [System.Text.UTF8Encoding]::new($false))
 
 Write-Host "Installed .lnk: $lnkPath"
 Write-Host "Installed .url: $urlPath"
