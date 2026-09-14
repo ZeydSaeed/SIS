@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/sis/error-state';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import { t } from '@/i18n';
 
 export type StudentDetail = {
     id: number;
@@ -36,7 +37,7 @@ type StudentDetailsSurfaceProps = {
 function DetailField({ label, value }: { label: string; value: string | null | undefined }) {
     return (
         <div className="grid gap-1">
-            <dt className="text-muted-foreground text-xs font-medium uppercase tracking-wide">{label}</dt>
+            <dt className="text-muted-foreground text-xs font-medium tracking-wide">{label}</dt>
             <dd className="text-sm">{value ?? '—'}</dd>
         </div>
     );
@@ -48,46 +49,60 @@ export function StudentDetailsSurface({
     error = null,
     showProfileLink = true,
 }: StudentDetailsSurfaceProps) {
+    const i18n = t();
+
     if (error === 'forbidden') {
-        return <ErrorState title="Access denied" description="You are not allowed to view this student." />;
+        return (
+            <ErrorState
+                title={i18n.students.accessDenied}
+                description={i18n.students.accessDeniedDesc}
+            />
+        );
     }
 
     if (error === 'not_found' || !student) {
-        return <ErrorState title="Student not found" description="The requested student record does not exist." />;
+        return (
+            <ErrorState
+                title={i18n.students.notFound}
+                description={i18n.students.notFoundDesc}
+            />
+        );
     }
 
+    const genderLabel =
+        student.gender === 1
+            ? i18n.students.male
+            : student.gender === 2
+              ? i18n.students.female
+              : String(student.gender);
+
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6" dir="rtl" lang="ar">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 className="text-xl font-semibold">{student.full_name}</h2>
                     <p className="text-muted-foreground mt-1 text-sm">
-                        Code: <span dir="ltr">{student.student_code}</span>
+                        {i18n.students.code}:{' '}
+                        <span dir="ltr">{student.student_code}</span>
                     </p>
                 </div>
                 <StudentStatusBadge status={student.status} />
             </div>
 
             <dl className="grid gap-4 sm:grid-cols-2">
-                <DetailField label="Birth date" value={student.birth_date} />
-                <DetailField label="Gender" value={student.gender === 1 ? 'Male' : student.gender === 2 ? 'Female' : String(student.gender)} />
-                <DetailField label="Nationality" value={student.nationality} />
-                <DetailField label="Birth place" value={student.birth_place} />
+                <DetailField label={i18n.students.birthDate} value={student.birth_date} />
+                <DetailField label={i18n.students.gender} value={genderLabel} />
+                <DetailField label={i18n.students.nationality} value={student.nationality} />
+                <DetailField label={i18n.students.birthPlace} value={student.birth_place} />
                 {authorization?.canViewPii ? (
-                    <DetailField label="National ID" value={student.national_id} />
+                    <DetailField label={i18n.students.nationalId} value={student.national_id} />
                 ) : null}
-                <DetailField label="Updated" value={student.updated_at} />
+                <DetailField label={i18n.students.updated} value={student.updated_at} />
             </dl>
 
-            {authorization?.canUpdate ? (
-                <p className="text-muted-foreground text-xs">
-                    Edit actions are deferred to a later phase — authorization is server-derived only.
-                </p>
-            ) : null}
-
             {showProfileLink ? (
-                <Button asChild variant="outline" size="sm" className="self-start">
-                    <Link href={`/students/${student.id}`}>Open full profile</Link>
+                <Button asChild variant="outline" className="w-fit">
+                    <Link href={`/students/${student.id}`}>{i18n.students.openProfile}</Link>
                 </Button>
             ) : null}
         </div>
