@@ -16,8 +16,8 @@ const gates: GateRow[] = [
     { id: 'G3', title: 'Exams & Grades', status: 'advanced', note: 'Sessions, grades, correction/finalize' },
     { id: 'G4', title: 'Student Lifecycle', status: 'partial', note: 'Admission, promotion, transfers, certificates' },
     { id: 'G5', title: 'Scheduling', status: 'partial', note: 'Periods/schedule API; conflict UI pending' },
-    { id: 'G6', title: 'Results', status: 'partial', note: 'Term/annual/GPA/transcript reads; UI thin' },
-    { id: 'G7', title: 'Operational UI', status: 'gap', note: 'Daily staff/teacher/admin flows' },
+    { id: 'G6', title: 'Results', status: 'partial', note: 'Term/annual/GPA/transcript reads + Inertia pages' },
+    { id: 'G7', title: 'Operational UI', status: 'partial', note: 'Daily lists + results; forms and reports expanding' },
     { id: 'G8', title: 'Release Readiness', status: 'gap', note: 'Regression, RLS, backup, perf baseline' },
 ];
 
@@ -83,6 +83,38 @@ export default function Dashboard() {
                                 <span className="sis-ops-hub__link-title">Timetable</span>
                                 <span className="sis-ops-hub__link-desc">
                                     Section schedules with conflict-safe slots
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
+                            <Link href="/results" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Results</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Official term, annual, GPA, and transcript metadata
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
+                            <Link href="/exams" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Exams</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Exam catalog and session operational views
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
+                            <Link href="/grades" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Grades</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Enter, correct, and finalize student grades
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
+                            <Link href="/reports" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Reports</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Daily attendance summary and operational rosters
                                 </span>
                             </Link>
                         </li>

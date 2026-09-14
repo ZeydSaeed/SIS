@@ -4,8 +4,10 @@ import {
     CalendarCheck,
     CalendarRange,
     ClipboardList,
+    FileBarChart,
     GraduationCap,
     LayoutGrid,
+    ScrollText,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -53,6 +55,26 @@ const mainNavItems: NavItem[] = [
         title: 'Timetable',
         href: '/timetable',
         icon: CalendarRange,
+    },
+    {
+        title: 'Results',
+        href: '/results',
+        icon: ScrollText,
+    },
+    {
+        title: 'Exams',
+        href: '/exams',
+        icon: GraduationCap,
+    },
+    {
+        title: 'Grades',
+        href: '/grades',
+        icon: ClipboardList,
+    },
+    {
+        title: 'Reports',
+        href: '/reports',
+        icon: FileBarChart,
     },
     {
         title: 'Database Intelligence',
