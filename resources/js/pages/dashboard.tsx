@@ -16,8 +16,8 @@ const gates: GateRow[] = [
     { id: 'G3', title: 'Exams & Grades', status: 'advanced', note: 'Sessions, grades, correction/finalize' },
     { id: 'G4', title: 'Student Lifecycle', status: 'partial', note: 'Admission, promotion, transfers, certificates' },
     { id: 'G5', title: 'Scheduling', status: 'partial', note: 'Periods/schedule API; conflict UI pending' },
-    { id: 'G6', title: 'Results', status: 'partial', note: 'Term/annual/GPA/transcript reads + Inertia pages' },
-    { id: 'G7', title: 'Operational UI', status: 'partial', note: 'Daily lists + results; forms and reports expanding' },
+    { id: 'G6', title: 'Results', status: 'advanced', note: 'Term/annual/GPA/transcript Inertia + API' },
+    { id: 'G7', title: 'Operational UI', status: 'partial', note: 'Daily lists + forms for enrollment/attendance/exams/grades/reports' },
     { id: 'G8', title: 'Release Readiness', status: 'gap', note: 'Regression, RLS, backup, perf baseline' },
 ];
 

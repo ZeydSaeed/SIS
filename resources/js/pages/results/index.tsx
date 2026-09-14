@@ -90,6 +90,9 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                     <a href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm">
                         Open enrollment summary (annual + GPA)
                     </a>
+                    <a href="/results/transcript" className="sis-ops-hub__link ms-2 px-3 py-2 text-sm">
+                        Issued transcript metadata
+                    </a>
                 </p>
                 <form
                     onSubmit={onFilter}
