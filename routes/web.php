@@ -3,6 +3,7 @@
 use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Results\ResultsPageController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
 use App\Http\Controllers\Timetable\TimetablePageController;
@@ -32,6 +33,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('timetable')->name('timetable.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [TimetablePageController::class, 'index'])->name('index');
+    });
+
+    Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [ResultsPageController::class, 'index'])->name('index');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {
