@@ -29,8 +29,10 @@ use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentSubjectRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
+use App\Domain\Academic\Repositories\GradeLevelRepositoryInterface;
 use App\Domain\Exams\Repositories\ExamRepositoryInterface;
 use App\Infrastructure\Persistence\Academic\EloquentAcademicYearRepository;
+use App\Infrastructure\Persistence\Academic\EloquentGradeLevelRepository;
 use App\Domain\Exams\Repositories\StudentGradeRepositoryInterface;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Promotion\Repositories\PromotionRepositoryInterface;
@@ -198,6 +200,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(SpecializationCatalogPort::class, VocationalSpecializationCatalogAdapter::class);
         $this->app->bind(ActorSchoolRolesPort::class, EloquentActorSchoolRolesAdapter::class);
         $this->app->bind(AcademicYearRepositoryInterface::class, EloquentAcademicYearRepository::class);
+        $this->app->bind(GradeLevelRepositoryInterface::class, EloquentGradeLevelRepository::class);
         $this->app->bind(ExamRepositoryInterface::class, EloquentExamRepository::class);
         $this->app->bind(ExamAdministrationAuthorityPort::class, PermissionCatalogExamAuthority::class);
         $this->app->bind(StudentRepositoryInterface::class, EloquentStudentRepository::class);

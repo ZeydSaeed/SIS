@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AcademicController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\CurriculumController;
@@ -107,6 +108,19 @@ Route::prefix('v1')->group(function (): void {
         Route::get('enrollment-subjects/{link}', [EnrollmentController::class, 'showSubject'])
             ->whereNumber('link')
             ->name('api.enrollment_subjects.show');
+
+        Route::get('academic/years', [AcademicController::class, 'indexYears'])
+            ->name('api.academic.years.index');
+        Route::post('academic/years', [AcademicController::class, 'storeYear'])
+            ->name('api.academic.years.store');
+        Route::get('academic/years/{year}', [AcademicController::class, 'showYear'])
+            ->whereNumber('year')
+            ->name('api.academic.years.show');
+        Route::get('academic/grade-levels', [AcademicController::class, 'indexGradeLevels'])
+            ->name('api.academic.grade-levels.index');
+        Route::get('academic/grade-levels/{gradeLevel}', [AcademicController::class, 'showGradeLevel'])
+            ->whereNumber('gradeLevel')
+            ->name('api.academic.grade-levels.show');
 
         Route::get('enrollment/classes', [EnrollmentStructureController::class, 'indexClasses'])
             ->name('api.enrollment.classes.index');
