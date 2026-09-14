@@ -3,6 +3,7 @@ import { GraduationCap } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { PageHeader } from '@/components/sis/page-header';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -69,7 +70,7 @@ export default function ExamShow({ exam, sessions }: PageProps) {
         {
             id: 'status',
             header: i18n.common.status,
-            cell: (row) => <span dir="ltr">{row.status}</span>,
+            cell: (row) => <StatusChip kind="exam" status={row.status} />,
         },
         {
             id: 'grades',
@@ -128,7 +129,7 @@ export default function ExamShow({ exam, sessions }: PageProps) {
                     <div>
                         <dt className="opacity-70">{i18n.common.status}</dt>
                         <dd>
-                            <span dir="ltr">{exam.status}</span>
+                            <StatusChip kind="exam" status={exam.status} />
                         </dd>
                     </div>
                 </dl>
@@ -148,6 +149,9 @@ export default function ExamShow({ exam, sessions }: PageProps) {
                             <div className="text-sm opacity-80">
                                 {i18n.results.subject}{' '}
                                 <span dir="ltr">{row.subject_id}</span>
+                            </div>
+                            <div className="mt-1">
+                                <StatusChip kind="exam" status={row.status} />
                             </div>
                             <a
                                 href={`/grades?session_id=${row.id}&academic_year_id=${exam.academic_year_id}`}
