@@ -7,11 +7,14 @@ use App\Application\Portal\Commands\LinkPortalPartyScopeHandler;
 use App\Application\Portal\Commands\UnlinkPortalPartyScopeCommand;
 use App\Application\Portal\Commands\UnlinkPortalPartyScopeHandler;
 use App\Application\Portal\DTOs\PortalScopeDTO;
+use App\Application\Portal\Queries\GetPortalScopeHandler;
+use App\Application\Portal\Queries\GetPortalScopeQuery;
 use App\Application\Portal\Queries\ListPortalPartyScopesHandler;
 use App\Application\Portal\Queries\ListPortalPartyScopesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Portal\LinkPortalPartyScopeRequest;
 use App\Http\Requests\Portal\ListPortalPartyScopesRequest;
+use App\Http\Requests\Portal\ShowPortalScopeRequest;
 use App\Http\Requests\Portal\UnlinkPortalPartyScopeRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -153,6 +156,42 @@ class PortalScopesController extends Controller
                 ],
                 $dtoList,
             ),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        ShowPortalScopeRequest $request,
+        int $scope,
+        GetPortalScopeHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetPortalScopeQuery($scope));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Portal scope not found.',
+                'error_code' => 'portal.scopes.not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::PrivilegeChanged,
+            'portal.scopes.show',
+            'viewed',
+            $request->user(),
+            'scope:'.$scope,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'user_id' => $dto->userId,
+                'scope_type' => $dto->scopeType,
+                'scope_id' => $dto->scopeId,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

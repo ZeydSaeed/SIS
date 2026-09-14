@@ -38,4 +38,6 @@ interface ApprovalRequestRepositoryInterface
         ?int $entityId = null,
         ?int $status = null,
     ): array;
+
+    public function markReopened(int $schoolId, int $requestId): bool;
 }

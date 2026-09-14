@@ -55,6 +55,32 @@ final class EloquentLoginHistoryRepository implements LoginHistoryRepositoryInte
         ))->all();
     }
 
+    public function findByIdForSchool(int $schoolId, int $entryId): ?LoginHistorySnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('audit', 'login_history'))
+            ->where('school_id', $schoolId)
+            ->where('id', $entryId)
+            ->first([
+                'id', 'school_id', 'user_id', 'ip_address', 'user_agent', 'login_status', 'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new LoginHistorySnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            userId: (int) $row->user_id,
+            ipAddress: $row->ip_address !== null ? (string) $row->ip_address : null,
+            userAgent: $row->user_agent !== null ? (string) $row->user_agent : null,
+            loginStatus: (int) $row->login_status,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
     private function bindSchool(int $schoolId): void
     {
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);

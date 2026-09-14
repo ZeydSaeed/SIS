@@ -10,6 +10,8 @@ use App\Application\Audit\DTOs\AuditLogDTO;
 use App\Application\Audit\DTOs\LoginHistoryDTO;
 use App\Application\Audit\Queries\GetAuditLogHandler;
 use App\Application\Audit\Queries\GetAuditLogQuery;
+use App\Application\Audit\Queries\GetLoginHistoryHandler;
+use App\Application\Audit\Queries\GetLoginHistoryQuery;
 use App\Application\Audit\Queries\ListAuditLogsHandler;
 use App\Application\Audit\Queries\ListAuditLogsQuery;
 use App\Application\Audit\Queries\ListLoginHistoryHandler;
@@ -20,6 +22,7 @@ use App\Http\Requests\Audit\ListLoginHistoryRequest;
 use App\Http\Requests\Audit\RecordLoginHistoryRequest;
 use App\Http\Requests\Audit\RegisterAuditLogRequest;
 use App\Http\Requests\Audit\ShowAuditLogRequest;
+use App\Http\Requests\Audit\ShowLoginHistoryRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -207,6 +210,48 @@ class AuditLogController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function showLoginHistory(
+        int $entry,
+        ShowLoginHistoryRequest $request,
+        GetLoginHistoryHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetLoginHistoryQuery(
+            schoolId: $schoolId,
+            entryId: $entry,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Login history entry not found.',
+                'error_code' => 'audit.login_history_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::AuditTrailDataAccess,
+            'audit.login_history.show',
+            'viewed',
+            $request->user(),
+            'login_history:'.$entry,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'user_id' => $dto->userId,
+                'ip_address' => $dto->ipAddress,
+                'user_agent' => $dto->userAgent,
+                'login_status' => $dto->loginStatus,
+                'created_at' => $dto->createdAt,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function indexLoginHistory(

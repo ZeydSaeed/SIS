@@ -2,6 +2,7 @@
 
 namespace App\Domain\Transfers\Repositories;
 
+use App\Domain\Transfers\Data\TransferRecordSnapshot;
 use App\Domain\Transfers\Data\TransferRequestSnapshot;
 
 interface TransferRepositoryInterface
@@ -58,4 +59,8 @@ interface TransferRepositoryInterface
     ): int;
 
     public function updateStudentCurrentSchool(int $studentId, int $toSchoolId): void;
+
+    public function findRecordForSchool(int $schoolId, int $recordId): ?TransferRecordSnapshot;
+
+    public function markReopened(int $requestId, int $schoolId): bool;
 }

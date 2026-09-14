@@ -95,6 +95,18 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         $record->save();
     }
 
+    public function reopen(int $enrollmentId): bool
+    {
+        return EnrollmentRecord::query()
+            ->whereKey($enrollmentId)
+            ->where('status', EnrollmentStatus::CANCELLED)
+            ->update([
+                'status' => EnrollmentStatus::ACTIVE,
+                'effective_to' => null,
+                'updated_at' => now(),
+            ]) === 1;
+    }
+
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool
     {
         \Illuminate\Support\Facades\DB::statement(

@@ -8,6 +8,8 @@ use App\Application\Workflow\Commands\CreateApprovalRequestCommand;
 use App\Application\Workflow\Commands\CreateApprovalRequestHandler;
 use App\Application\Workflow\Commands\DecideApprovalRequestCommand;
 use App\Application\Workflow\Commands\DecideApprovalRequestHandler;
+use App\Application\Workflow\Commands\ReopenApprovalRequestCommand;
+use App\Application\Workflow\Commands\ReopenApprovalRequestHandler;
 use App\Application\Workflow\DTOs\ApprovalRequestDTO;
 use App\Application\Workflow\Queries\GetApprovalRequestHandler;
 use App\Application\Workflow\Queries\GetApprovalRequestQuery;
@@ -18,6 +20,7 @@ use App\Http\Requests\Workflow\CancelApprovalRequestRequest;
 use App\Http\Requests\Workflow\CreateApprovalRequestRequest;
 use App\Http\Requests\Workflow\DecideApprovalRequestRequest;
 use App\Http\Requests\Workflow\ListApprovalRequestsRequest;
+use App\Http\Requests\Workflow\ReopenApprovalRequestRequest;
 use App\Http\Requests\Workflow\ShowApprovalRequestRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -245,5 +248,49 @@ class ApprovalRequestController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], 200);
+    }
+
+    public function reopen(
+        int $approvalRequest,
+        ReopenApprovalRequestRequest $request,
+        ReopenApprovalRequestHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new ReopenApprovalRequestCommand(
+            schoolId: $schoolId,
+            requestId: $approvalRequest,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'workflow.approval_request_reopen_failed';
+
+            return response()->json([
+                'message' => 'Approval request reopen rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'workflow.approval_request_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::WorkflowDataModified,
+            'workflow.approval_request.reopen',
+            'reopened',
+            $request->user(),
+            'request:'.$result->requestId,
+            [
+                'from_idempotency' => $result->fromIdempotencyCache,
+                'status' => $result->status,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'request_id' => $result->requestId,
+                'status' => $result->status,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 }

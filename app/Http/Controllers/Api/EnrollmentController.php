@@ -10,6 +10,8 @@ use App\Application\Enrollment\Commands\DeactivateEnrollmentSubjectCommand;
 use App\Application\Enrollment\Commands\DeactivateEnrollmentSubjectHandler;
 use App\Application\Enrollment\Commands\ReactivateEnrollmentSubjectCommand;
 use App\Application\Enrollment\Commands\ReactivateEnrollmentSubjectHandler;
+use App\Application\Enrollment\Commands\ReopenEnrollmentCommand;
+use App\Application\Enrollment\Commands\ReopenEnrollmentHandler;
 use App\Application\Enrollment\Commands\EnrollStudentCommand;
 use App\Application\Enrollment\Commands\EnrollStudentHandler;
 use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementCommand;
@@ -29,6 +31,7 @@ use App\Http\Requests\Enrollment\AssignEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\CancelEnrollmentRequest;
 use App\Http\Requests\Enrollment\DeactivateEnrollmentSubjectRequest;
 use App\Http\Requests\Enrollment\ReactivateEnrollmentSubjectRequest;
+use App\Http\Requests\Enrollment\ReopenEnrollmentRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\ListEnrollmentSubjectsRequest;
 use App\Http\Requests\Enrollment\ShowEnrollmentSubjectRequest;
@@ -271,6 +274,47 @@ class EnrollmentController extends Controller
                 'from_idempotency_cache' => $result->fromIdempotencyCache,
                 'correlation_id' => CorrelationContext::id(),
             ],
+        ]);
+    }
+
+    public function reopen(
+        ReopenEnrollmentRequest $request,
+        int $enrollment,
+        ReopenEnrollmentHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new ReopenEnrollmentCommand(
+            schoolId: $schoolId,
+            enrollmentId: $enrollment,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'enrollment.reopen_failed';
+
+            return response()->json([
+                'message' => 'Enrollment reopen rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'enrollment.not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.reopen',
+            'reopened',
+            $request->user(),
+            "enrollment:{$enrollment}",
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $result->enrollmentId,
+                'status' => $result->status,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
 

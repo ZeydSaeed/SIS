@@ -3,6 +3,8 @@
 namespace App\Domain\Vocational\Repositories;
 
 use App\Domain\Vocational\Data\SpecializationRead;
+use App\Domain\Vocational\Data\SpecializationSubjectSnapshot;
+use App\Domain\Vocational\Data\TrackSnapshot;
 
 interface VocationalCatalogRepositoryInterface
 {
@@ -70,4 +72,18 @@ interface VocationalCatalogRepositoryInterface
     ): array;
 
     public function findSpecialization(int $schoolId, int $specializationId, bool $withChildren = true): ?SpecializationRead;
+
+    public function findTrack(int $schoolId, int $trackId): ?TrackSnapshot;
+
+    public function findSpecializationSubjectLink(int $schoolId, int $linkId): ?SpecializationSubjectSnapshot;
+
+    /**
+     * @return list<TrackSnapshot>
+     */
+    public function listTracksForSpecialization(int $schoolId, int $specializationId): array;
+
+    public function specializationBelongsToSchool(int $schoolId, int $specializationId): bool;
+
+    /** @return list<SpecializationSubjectSnapshot>|null null when specialization missing */
+    public function listSpecializationSubjects(int $schoolId, int $specializationId, ?int $status): ?array;
 }

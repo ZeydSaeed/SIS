@@ -26,4 +26,6 @@ interface PortalScopeRepositoryInterface
      * @return list<PortalScopeSnapshot>
      */
     public function listForUser(int $userId): array;
+
+    public function findById(int $scopeRowId): ?PortalScopeSnapshot;
 }

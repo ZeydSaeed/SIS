@@ -36,6 +36,8 @@ use App\Application\Curriculum\DTOs\PrerequisiteDTO;
 use App\Application\Curriculum\DTOs\SubjectDTO;
 use App\Application\Curriculum\Queries\GetCurriculumHandler;
 use App\Application\Curriculum\Queries\GetCurriculumQuery;
+use App\Application\Curriculum\Queries\GetCurriculumSubjectHandler;
+use App\Application\Curriculum\Queries\GetCurriculumSubjectQuery;
 use App\Application\Curriculum\Queries\GetPrerequisiteHandler;
 use App\Application\Curriculum\Queries\GetPrerequisiteQuery;
 use App\Application\Curriculum\Queries\GetSubjectHandler;
@@ -66,6 +68,7 @@ use App\Http\Requests\Curriculum\ListSubjectsRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\ReactivateSubjectRequest;
 use App\Http\Requests\Curriculum\ShowCurriculumRequest;
+use App\Http\Requests\Curriculum\ShowCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\ShowPrerequisiteRequest;
 use App\Http\Requests\Curriculum\ShowSubjectRequest;
 use App\Http\Requests\Curriculum\UpdateCurriculumRequest;
@@ -616,6 +619,39 @@ class CurriculumController extends Controller
 
         return response()->json([
             'data' => array_map(fn (CurriculumSubjectDTO $dto): array => $this->curriculumSubjectPayload($dto), $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showCurriculumSubject(
+        int $link,
+        ShowCurriculumSubjectRequest $request,
+        GetCurriculumSubjectHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetCurriculumSubjectQuery(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Curriculum subject link not found.',
+                'error_code' => 'curriculum.curriculum_subject_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.curriculum_subjects.show',
+            'viewed',
+            $request->user(),
+            'curriculum_subject:'.$link,
+            [],
+        );
+
+        return response()->json([
+            'data' => $this->curriculumSubjectPayload($dto),
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

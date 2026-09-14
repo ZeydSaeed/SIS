@@ -17,6 +17,8 @@ use App\Application\Student\Commands\RestoreStudentDocumentHandler;
 use App\Application\Student\DTOs\StudentDocumentDTO;
 use App\Application\Student\Queries\GetStudentDocumentContentHandler;
 use App\Application\Student\Queries\GetStudentDocumentContentQuery;
+use App\Application\Student\Queries\GetStudentDocumentHandler;
+use App\Application\Student\Queries\GetStudentDocumentQuery;
 use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
 use App\Application\Student\Queries\ListStudentDocumentsHandler;
@@ -29,6 +31,7 @@ use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\CreateStudentRequest;
 use App\Http\Requests\Student\DownloadStudentDocumentRequest;
+use App\Http\Requests\Student\ShowStudentDocumentRequest;
 use App\Http\Requests\Student\ListStudentDocumentsRequest;
 use App\Http\Requests\Student\RegisterStudentDocumentRequest;
 use App\Http\Requests\Student\UpdateStudentRequest;
@@ -350,6 +353,49 @@ class StudentController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function showDocument(
+        int $document,
+        ShowStudentDocumentRequest $request,
+        GetStudentDocumentHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetStudentDocumentQuery(
+            schoolId: $this->schoolContext->requireId(),
+            documentId: $document,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Student document not found.',
+                'error_code' => 'student.document_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataAccess,
+            'students.documents.show',
+            'viewed',
+            $request->user(),
+            'student_document:'.$document,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'student_id' => $dto->studentId,
+                'document_type' => $dto->documentType,
+                'storage_key' => $dto->storageKey,
+                'file_name' => $dto->fileName,
+                'mime_type' => $dto->mimeType,
+                'file_size' => $dto->fileSize,
+                'file_hash' => $dto->fileHash,
+                'status' => $dto->status,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function downloadDocument(

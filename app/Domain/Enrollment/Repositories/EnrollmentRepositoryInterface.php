@@ -24,6 +24,8 @@ interface EnrollmentRepositoryInterface
 
     public function cancel(int $enrollmentId, string $effectiveTo): void;
 
+    public function reopen(int $enrollmentId): bool;
+
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool;
 
     public function generateEnrollmentNumber(int $schoolId, int $academicYearId): string;

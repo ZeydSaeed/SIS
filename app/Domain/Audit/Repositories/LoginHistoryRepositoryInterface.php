@@ -17,4 +17,6 @@ interface LoginHistoryRepositoryInterface
 
     /** @return list<LoginHistorySnapshot> */
     public function listForSchool(int $schoolId, ?int $userId, int $limit): array;
+
+    public function findByIdForSchool(int $schoolId, int $entryId): ?LoginHistorySnapshot;
 }

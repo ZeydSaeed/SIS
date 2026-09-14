@@ -5,6 +5,7 @@ namespace App\Infrastructure\Persistence\Teachers;
 use App\Database\SchemaHelper;
 use App\Domain\Teachers\Data\TeacherQualificationSnapshot;
 use App\Domain\Teachers\Data\TeacherSnapshot;
+use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\ValueObjects\QualificationStatus;
 use Illuminate\Support\Facades\DB;
@@ -385,6 +386,27 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
                 'created_at',
             ])
             ->map(fn (object $row): TeacherQualificationSnapshot => $this->mapQualification($row))
+            ->all();
+    }
+
+    public function listSubjectAssignments(int $teacherId, int $schoolId, int $academicYearId): array
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teacher_subjects'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->orderBy('id')
+            ->get(['id', 'teacher_id', 'subject_id', 'academic_year_id', 'school_id', 'created_at'])
+            ->map(fn (object $row): TeacherSubjectSnapshot => new TeacherSubjectSnapshot(
+                id: (int) $row->id,
+                teacherId: (int) $row->teacher_id,
+                subjectId: (int) $row->subject_id,
+                academicYearId: (int) $row->academic_year_id,
+                schoolId: (int) $row->school_id,
+                createdAt: (string) $row->created_at,
+            ))
             ->all();
     }
 

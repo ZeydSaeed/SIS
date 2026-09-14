@@ -53,4 +53,6 @@ interface PromotionRepositoryInterface
      * @return list<PromotionRecordSnapshot>
      */
     public function listRecords(int $schoolId, int $academicYearId): array;
+
+    public function findRecord(int $schoolId, int $recordId): ?PromotionRecordSnapshot;
 }

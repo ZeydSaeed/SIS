@@ -8,6 +8,8 @@ use App\Application\Communication\Commands\CompleteNotificationJobCommand;
 use App\Application\Communication\Commands\CompleteNotificationJobHandler;
 use App\Application\Communication\Commands\CreateNotificationJobCommand;
 use App\Application\Communication\Commands\CreateNotificationJobHandler;
+use App\Application\Communication\Commands\ReopenNotificationJobCommand;
+use App\Application\Communication\Commands\ReopenNotificationJobHandler;
 use App\Application\Communication\DTOs\NotificationJobDTO;
 use App\Application\Communication\Queries\GetNotificationJobHandler;
 use App\Application\Communication\Queries\GetNotificationJobQuery;
@@ -18,6 +20,7 @@ use App\Http\Requests\Communication\CancelNotificationJobRequest;
 use App\Http\Requests\Communication\CompleteNotificationJobRequest;
 use App\Http\Requests\Communication\CreateNotificationJobRequest;
 use App\Http\Requests\Communication\ListNotificationJobsRequest;
+use App\Http\Requests\Communication\ReopenNotificationJobRequest;
 use App\Http\Requests\Communication\ShowNotificationJobRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -233,6 +236,46 @@ class NotificationJobController extends Controller
             'data' => [
                 'notification_job_id' => $result->notificationJobId,
                 'status' => 3,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reopen(
+        int $job,
+        ReopenNotificationJobRequest $request,
+        ReopenNotificationJobHandler $handler,
+    ): JsonResponse {
+        $result = $handler->handle(new ReopenNotificationJobCommand(
+            schoolId: $this->schoolContext->requireId(),
+            notificationJobId: $job,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'communication.job_reopen_failed';
+
+            return response()->json([
+                'message' => 'Notification job reopen rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'communication.job_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CommunicationDataModified,
+            'communication.jobs.reopen',
+            'reopened',
+            $request->user(),
+            'notification_job:'.$result->notificationJobId,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'notification_job_id' => $result->notificationJobId,
+                'status' => 1,
                 'from_idempotency' => $result->fromIdempotencyCache,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],

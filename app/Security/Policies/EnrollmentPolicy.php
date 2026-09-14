@@ -56,4 +56,9 @@ final class EnrollmentPolicy
         return $this->authorization->userHasPermission($user, Permission::ENROLLMENT_CANCEL)
             && $this->schoolAccess->canAccessEnrollment($user, $enrollment);
     }
+
+    public function reopen(User $user, EnrollmentRecord|string|int|null $enrollment = null): bool
+    {
+        return $this->cancel($user, $enrollment);
+    }
 }

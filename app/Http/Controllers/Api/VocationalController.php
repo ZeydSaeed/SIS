@@ -37,10 +37,20 @@ use App\Application\Vocational\Commands\UpdateSpecializationHandler;
 use App\Application\Vocational\Commands\UpdateTrackCommand;
 use App\Application\Vocational\Commands\UpdateTrackHandler;
 use App\Application\Vocational\DTOs\SpecializationDTO;
+use App\Application\Vocational\DTOs\SpecializationSubjectDTO;
+use App\Application\Vocational\DTOs\TrackDTO;
 use App\Application\Vocational\DTOs\WorkshopDTO;
 use App\Application\Vocational\DTOs\WorkshopEquipmentDTO;
 use App\Application\Vocational\Queries\GetSpecializationHandler;
 use App\Application\Vocational\Queries\GetSpecializationQuery;
+use App\Application\Vocational\Queries\GetSpecializationSubjectHandler;
+use App\Application\Vocational\Queries\GetSpecializationSubjectQuery;
+use App\Application\Vocational\Queries\GetTrackHandler;
+use App\Application\Vocational\Queries\GetTrackQuery;
+use App\Application\Vocational\Queries\ListSpecializationSubjectsHandler;
+use App\Application\Vocational\Queries\ListSpecializationSubjectsQuery;
+use App\Application\Vocational\Queries\ListSpecializationTracksHandler;
+use App\Application\Vocational\Queries\ListSpecializationTracksQuery;
 use App\Application\Vocational\Queries\GetWorkshopEquipmentHandler;
 use App\Application\Vocational\Queries\GetWorkshopEquipmentQuery;
 use App\Application\Vocational\Queries\GetWorkshopHandler;
@@ -67,10 +77,14 @@ use App\Http\Requests\Vocational\ReactivateTrackRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ReactivateWorkshopRequest;
 use App\Http\Requests\Vocational\LinkSpecializationSubjectRequest;
+use App\Http\Requests\Vocational\ListSpecializationSubjectLinksRequest;
 use App\Http\Requests\Vocational\ListSpecializationsRequest;
 use App\Http\Requests\Vocational\ListWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ListWorkshopsRequest;
+use App\Http\Requests\Vocational\ListSpecializationTracksRequest;
 use App\Http\Requests\Vocational\ShowSpecializationRequest;
+use App\Http\Requests\Vocational\ShowSpecializationSubjectRequest;
+use App\Http\Requests\Vocational\ShowTrackRequest;
 use App\Http\Requests\Vocational\ShowWorkshopEquipmentRequest;
 use App\Http\Requests\Vocational\ShowWorkshopRequest;
 use App\Http\Requests\Vocational\UpdateSpecializationRequest;
@@ -224,6 +238,48 @@ class VocationalController extends Controller
         return $this->idResponse($result->specializationId, $result->fromIdempotencyCache);
     }
 
+    public function indexTracks(
+        ListSpecializationTracksRequest $request,
+        int $specialization,
+        ListSpecializationTracksHandler $handler,
+    ): JsonResponse {
+        $items = $handler->handle(new ListSpecializationTracksQuery(
+            schoolId: $this->schoolContext->requireId(),
+            specializationId: $specialization,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Specialization not found.',
+                'error_code' => 'vocational.specialization_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.tracks.index',
+            'viewed',
+            $request->user(),
+            'specialization:'.$specialization,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (TrackDTO $dto): array => [
+                'id' => $dto->id,
+                'specialization_id' => $dto->specializationId,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+                'updated_at' => $dto->updatedAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
     public function storeTrack(
         CreateTrackRequest $request,
         int $specialization,
@@ -296,6 +352,48 @@ class VocationalController extends Controller
         return $this->idResponse($result->trackId, $result->fromIdempotencyCache);
     }
 
+    public function showTrack(
+        ShowTrackRequest $request,
+        int $track,
+        GetTrackHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetTrackQuery(
+            schoolId: $this->schoolContext->requireId(),
+            trackId: $track,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Track not found.',
+                'error_code' => 'vocational.track_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.tracks.show',
+            'viewed',
+            $request->user(),
+            'track:'.$track,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'specialization_id' => $dto->specializationId,
+                'school_id' => $dto->schoolId,
+                'code' => $dto->code,
+                'name' => $dto->name,
+                'status' => $dto->status,
+                'created_at' => $dto->createdAt,
+                'updated_at' => $dto->updatedAt,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
     public function linkSubject(
         LinkSpecializationSubjectRequest $request,
         int $specialization,
@@ -316,6 +414,49 @@ class VocationalController extends Controller
         $this->audit($request->user(), 'vocational.specialization_subjects.store', 'created', 'specialization_subject:'.($result->linkId ?? 'unknown'));
 
         return $this->idResponse($result->linkId, $result->fromIdempotencyCache, $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function indexSubjectLinks(
+        ListSpecializationSubjectLinksRequest $request,
+        int $specialization,
+        ListSpecializationSubjectsHandler $handler,
+    ): JsonResponse {
+        $status = $request->validated('link_status');
+        $items = $handler->handle(new ListSpecializationSubjectsQuery(
+            schoolId: $this->schoolContext->requireId(),
+            specializationId: $specialization,
+            status: $status !== null ? (int) $status : null,
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Specialization not found.',
+                'error_code' => 'vocational.specialization_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.specialization_subjects.index',
+            'viewed',
+            $request->user(),
+            'specialization:'.$specialization,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(static fn (SpecializationSubjectDTO $dto): array => [
+                'id' => $dto->id,
+                'specialization_id' => $dto->specializationId,
+                'school_id' => $dto->schoolId,
+                'subject_id' => $dto->subjectId,
+                'is_required' => $dto->isRequired,
+                'credit_hours' => $dto->creditHours,
+                'status' => $dto->status,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function deactivateSubjectLink(
@@ -350,6 +491,47 @@ class VocationalController extends Controller
         $this->audit($request->user(), 'vocational.specialization_subjects.reactivate', 'reactivated', 'specialization_subject:'.($result->linkId ?? 'unknown'));
 
         return $this->idResponse($result->linkId, $result->fromIdempotencyCache);
+    }
+
+    public function showSubjectLink(
+        ShowSpecializationSubjectRequest $request,
+        int $link,
+        GetSpecializationSubjectHandler $handler,
+    ): JsonResponse {
+        $dto = $handler->handle(new GetSpecializationSubjectQuery(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Specialization subject link not found.',
+                'error_code' => 'vocational.specialization_subject_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::VocationalDataAccess,
+            'vocational.specialization_subjects.show',
+            'viewed',
+            $request->user(),
+            'specialization_subject:'.$link,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'specialization_id' => $dto->specializationId,
+                'school_id' => $dto->schoolId,
+                'subject_id' => $dto->subjectId,
+                'is_required' => $dto->isRequired,
+                'credit_hours' => $dto->creditHours,
+                'status' => $dto->status,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function storeWorkshop(

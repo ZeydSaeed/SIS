@@ -12,6 +12,8 @@ use App\Application\Promotion\Commands\RecordPromotionDecisionCommand;
 use App\Application\Promotion\Commands\RecordPromotionDecisionHandler;
 use App\Application\Promotion\DTOs\PromotionRecordDTO;
 use App\Application\Promotion\DTOs\PromotionRuleDTO;
+use App\Application\Promotion\Queries\GetPromotionRecordHandler;
+use App\Application\Promotion\Queries\GetPromotionRecordQuery;
 use App\Application\Promotion\Queries\GetPromotionRuleHandler;
 use App\Application\Promotion\Queries\GetPromotionRuleQuery;
 use App\Application\Promotion\Queries\ListPromotionRecordsHandler;
@@ -25,6 +27,7 @@ use App\Http\Requests\Promotion\ReactivatePromotionRuleRequest;
 use App\Http\Requests\Promotion\ListPromotionRecordsRequest;
 use App\Http\Requests\Promotion\ListPromotionRulesRequest;
 use App\Http\Requests\Promotion\RecordPromotionDecisionRequest;
+use App\Http\Requests\Promotion\ShowPromotionRecordRequest;
 use App\Http\Requests\Promotion\ShowPromotionRuleRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -288,6 +291,53 @@ class PromotionController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
+    public function showRecord(
+        int $record,
+        ShowPromotionRecordRequest $request,
+        GetPromotionRecordHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetPromotionRecordQuery(
+            schoolId: $schoolId,
+            recordId: $record,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Promotion record not found.',
+                'error_code' => 'promotion.record_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::PromotionDataAccess,
+            'promotion.record.show',
+            'viewed',
+            $request->user(),
+            'promotion_record:'.$record,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'school_id' => $dto->schoolId,
+                'enrollment_id' => $dto->enrollmentId,
+                'academic_year_id' => $dto->academicYearId,
+                'from_grade_level_id' => $dto->fromGradeLevelId,
+                'to_grade_level_id' => $dto->toGradeLevelId,
+                'promotion_status' => $dto->promotionStatus,
+                'gpa_at_promotion' => $dto->gpaAtPromotion,
+                'decided_by' => $dto->decidedBy,
+                'decided_at' => $dto->decidedAt,
+                'notes' => $dto->notes,
+                'created_at' => $dto->createdAt,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
     }
 
     public function indexRecords(

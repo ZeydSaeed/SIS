@@ -25,6 +25,8 @@ interface StudentDocumentRepositoryInterface
 
     public function findVoided(int $schoolId, int $documentId): ?StudentDocumentSnapshot;
 
+    public function find(int $schoolId, int $documentId): ?StudentDocumentSnapshot;
+
     /** @return list<StudentDocumentSnapshot> */
     public function listActiveForStudent(int $schoolId, int $studentId): array;
 

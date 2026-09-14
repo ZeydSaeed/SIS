@@ -95,4 +95,23 @@ final class EloquentPortalScopeRepository implements PortalScopeRepositoryInterf
             ))
             ->all();
     }
+
+    public function findById(int $scopeRowId): ?PortalScopeSnapshot
+    {
+        $row = DB::table(SchemaHelper::qualified('security', 'scopes'))
+            ->where('id', $scopeRowId)
+            ->first(['id', 'user_id', 'scope_type', 'scope_id', 'created_at']);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new PortalScopeSnapshot(
+            id: (int) $row->id,
+            userId: (int) $row->user_id,
+            scopeType: (string) $row->scope_type,
+            scopeId: (int) $row->scope_id,
+            createdAt: (string) $row->created_at,
+        );
+    }
 }

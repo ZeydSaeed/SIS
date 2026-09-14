@@ -110,6 +110,20 @@ final class EloquentNotificationJobRepository implements NotificationJobReposito
             ]) > 0;
     }
 
+    public function markReopened(int $schoolId, int $id): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('communication', 'notification_jobs'))
+            ->where('school_id', $schoolId)
+            ->where('id', $id)
+            ->where('status', NotificationJobStatus::Cancelled)
+            ->update([
+                'status' => NotificationJobStatus::Open,
+                'completed_at' => null,
+            ]) > 0;
+    }
+
     private function map(object $row): NotificationJobSnapshot
     {
         $filter = $row->target_filter;

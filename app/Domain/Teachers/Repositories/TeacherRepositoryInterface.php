@@ -4,6 +4,7 @@ namespace App\Domain\Teachers\Repositories;
 
 use App\Domain\Teachers\Data\TeacherQualificationSnapshot;
 use App\Domain\Teachers\Data\TeacherSnapshot;
+use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
 
 interface TeacherRepositoryInterface
 {
@@ -120,4 +121,9 @@ interface TeacherRepositoryInterface
      * @return list<TeacherQualificationSnapshot>
      */
     public function listQualifications(int $teacherId): array;
+
+    /**
+     * @return list<TeacherSubjectSnapshot>
+     */
+    public function listSubjectAssignments(int $teacherId, int $schoolId, int $academicYearId): array;
 }

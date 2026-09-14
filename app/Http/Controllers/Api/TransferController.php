@@ -12,7 +12,13 @@ use App\Application\Transfers\Commands\CreateTransferRequestCommand;
 use App\Application\Transfers\Commands\CreateTransferRequestHandler;
 use App\Application\Transfers\Commands\RejectTransferRequestCommand;
 use App\Application\Transfers\Commands\RejectTransferRequestHandler;
+use App\Application\Transfers\Commands\ReopenTransferRequestCommand;
+use App\Application\Transfers\Commands\ReopenTransferRequestHandler;
 use App\Application\Transfers\DTOs\TransferRequestDTO;
+use App\Application\Transfers\Queries\GetTransferRecordHandler;
+use App\Application\Transfers\Queries\GetTransferRecordQuery;
+use App\Application\Transfers\Queries\GetTransferRequestHandler;
+use App\Application\Transfers\Queries\GetTransferRequestQuery;
 use App\Application\Transfers\Queries\ListTransferRequestsHandler;
 use App\Application\Transfers\Queries\ListTransferRequestsQuery;
 use App\Http\Controllers\Controller;
@@ -20,6 +26,9 @@ use App\Http\Requests\Transfers\CompleteTransferRequestRequest;
 use App\Http\Requests\Transfers\CreateTransferRequestRequest;
 use App\Http\Requests\Transfers\DecideTransferRequestRequest;
 use App\Http\Requests\Transfers\ListTransferRequestsRequest;
+use App\Http\Requests\Transfers\ReopenTransferRequestRequest;
+use App\Http\Requests\Transfers\ShowTransferRecordRequest;
+use App\Http\Requests\Transfers\ShowTransferRequestRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -114,6 +123,54 @@ class TransferController extends Controller
                 'approved_at' => $dto->approvedAt,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function show(
+        int $transferRequest,
+        ShowTransferRequestRequest $request,
+        GetTransferRequestHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetTransferRequestQuery(
+            schoolId: $schoolId,
+            transferRequestId: $transferRequest,
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Transfer request not found.',
+                'error_code' => 'transfers.request_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TransfersDataAccess,
+            'transfers.request.show',
+            'viewed',
+            $request->user(),
+            'transfer_request:'.$transferRequest,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'student_id' => $dto->studentId,
+                'from_school_id' => $dto->fromSchoolId,
+                'to_school_id' => $dto->toSchoolId,
+                'from_enrollment_id' => $dto->fromEnrollmentId,
+                'academic_year_id' => $dto->academicYearId,
+                'reason' => $dto->reason,
+                'status' => $dto->status,
+                'requested_by' => $dto->requestedBy,
+                'requested_at' => $dto->requestedAt,
+                'approved_by' => $dto->approvedBy,
+                'approved_at' => $dto->approvedAt,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }
@@ -284,6 +341,89 @@ class TransferController extends Controller
                 'transfer_request_id' => $result->transferRequestId,
                 'status' => 5,
                 'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function reopen(
+        int $transferRequest,
+        ReopenTransferRequestRequest $request,
+        ReopenTransferRequestHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new ReopenTransferRequestCommand(
+            schoolId: $schoolId,
+            transferRequestId: $transferRequest,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'transfers.reopen_failed';
+
+            return response()->json([
+                'message' => 'Transfer reopen rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'transfers.request_not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TransfersDataModified,
+            'transfers.request.reopen',
+            'reopened',
+            $request->user(),
+            'transfer_request:'.$transferRequest,
+            ['from_idempotency' => $result->fromIdempotencyCache],
+        );
+
+        return response()->json([
+            'data' => [
+                'transfer_request_id' => $result->transferRequestId,
+                'status' => 1,
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showRecord(
+        int $record,
+        ShowTransferRecordRequest $request,
+        GetTransferRecordHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetTransferRecordQuery($schoolId, $record));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Transfer record not found.',
+                'error_code' => 'transfers.record_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TransfersDataAccess,
+            'transfers.record.show',
+            'viewed',
+            $request->user(),
+            'transfer_record:'.$record,
+            [],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'transfer_request_id' => $dto->transferRequestId,
+                'student_id' => $dto->studentId,
+                'from_school_id' => $dto->fromSchoolId,
+                'to_school_id' => $dto->toSchoolId,
+                'from_enrollment_id' => $dto->fromEnrollmentId,
+                'to_enrollment_id' => $dto->toEnrollmentId,
+                'effective_date' => $dto->effectiveDate,
+                'completed_at' => $dto->completedAt,
+                'created_at' => $dto->createdAt,
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);

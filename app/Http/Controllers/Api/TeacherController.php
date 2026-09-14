@@ -32,8 +32,13 @@ use App\Application\Teachers\Commands\RestoreTeacherQualificationCommand;
 use App\Application\Teachers\Commands\RestoreTeacherQualificationHandler;
 use App\Application\Teachers\DTOs\TeacherDTO;
 use App\Application\Teachers\DTOs\TeacherQualificationDTO;
+use App\Application\Teachers\DTOs\TeacherSubjectDTO;
 use App\Application\Teachers\Queries\GetTeacherHandler;
+use App\Application\Teachers\Queries\GetTeacherQualificationHandler;
+use App\Application\Teachers\Queries\GetTeacherQualificationQuery;
 use App\Application\Teachers\Queries\GetTeacherQuery;
+use App\Application\Teachers\Queries\ListTeacherSubjectsHandler;
+use App\Application\Teachers\Queries\ListTeacherSubjectsQuery;
 use App\Application\Teachers\Queries\ListTeacherQualificationsHandler;
 use App\Application\Teachers\Queries\ListTeacherQualificationsQuery;
 use App\Application\Teachers\Queries\ListTeachersHandler;
@@ -48,6 +53,8 @@ use App\Http\Requests\Teachers\DeactivateTeacherRequest;
 use App\Http\Requests\Teachers\ReactivateTeacherRequest;
 use App\Http\Requests\Teachers\LeaveTeacherSchoolRequest;
 use App\Http\Requests\Teachers\ListTeacherQualificationsRequest;
+use App\Http\Requests\Teachers\ListTeacherSubjectsRequest;
+use App\Http\Requests\Teachers\ShowTeacherQualificationRequest;
 use App\Http\Requests\Teachers\ListTeachersRequest;
 use App\Http\Requests\Teachers\RegisterTeacherRequest;
 use App\Http\Requests\Teachers\SetTeacherPrimarySchoolRequest;
@@ -313,6 +320,48 @@ class TeacherController extends Controller
         ]);
     }
 
+    public function indexSubjects(
+        int $teacher,
+        ListTeacherSubjectsRequest $request,
+        ListTeacherSubjectsHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $items = $handler->handle(new ListTeacherSubjectsQuery(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            academicYearId: (int) $request->validated('academic_year_id'),
+        ));
+
+        if ($items === null) {
+            return response()->json([
+                'message' => 'Teacher not found in school context.',
+                'error_code' => 'teachers.not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataAccess,
+            'teachers.subject.list',
+            'listed',
+            $request->user(),
+            'teacher:'.$teacher,
+            ['count' => count($items)],
+        );
+
+        return response()->json([
+            'data' => array_map(fn (TeacherSubjectDTO $dto): array => [
+                'id' => $dto->id,
+                'teacher_id' => $dto->teacherId,
+                'subject_id' => $dto->subjectId,
+                'academic_year_id' => $dto->academicYearId,
+                'school_id' => $dto->schoolId,
+                'created_at' => $dto->createdAt,
+            ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
     public function assignSubject(
         int $teacher,
         AssignTeacherSubjectRequest $request,
@@ -496,6 +545,55 @@ class TeacherController extends Controller
                 'effective_to' => $dto->effectiveTo,
                 'created_at' => $dto->createdAt,
             ], $items),
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ]);
+    }
+
+    public function showQualification(
+        int $teacher,
+        int $qualification,
+        ShowTeacherQualificationRequest $request,
+        GetTeacherQualificationHandler $handler,
+    ): JsonResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $dto = $handler->handle(new GetTeacherQualificationQuery(
+            schoolId: $schoolId,
+            teacherId: $teacher,
+            qualificationId: $qualification,
+            academicYearId: (int) $request->validated('academic_year_id'),
+        ));
+
+        if ($dto === null) {
+            return response()->json([
+                'message' => 'Teacher qualification not found.',
+                'error_code' => 'teachers.qualification_not_found',
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], 404);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::TeacherDataAccess,
+            'teachers.qualification.show',
+            'viewed',
+            $request->user(),
+            'teacher:'.$teacher,
+            ['qualification_id' => $qualification],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $dto->id,
+                'teacher_id' => $dto->teacherId,
+                'qualification_type' => $dto->qualificationType,
+                'title' => $dto->title,
+                'institution' => $dto->institution,
+                'year_obtained' => $dto->yearObtained,
+                'document_storage_key' => $dto->documentStorageKey,
+                'status' => $dto->status,
+                'effective_from' => $dto->effectiveFrom,
+                'effective_to' => $dto->effectiveTo,
+                'created_at' => $dto->createdAt,
+            ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
     }

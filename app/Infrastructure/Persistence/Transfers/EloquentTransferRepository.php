@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Transfers;
 
 use App\Database\SchemaHelper;
+use App\Domain\Transfers\Data\TransferRecordSnapshot;
 use App\Domain\Transfers\Data\TransferRequestSnapshot;
 use App\Domain\Transfers\Repositories\TransferRepositoryInterface;
 use App\Domain\Transfers\ValueObjects\TransferRequestStatus;
@@ -212,6 +213,61 @@ final class EloquentTransferRepository implements TransferRepositoryInterface
                 'school_id' => $toSchoolId,
                 'updated_at' => now(),
             ]);
+    }
+
+    public function findRecordForSchool(int $schoolId, int $recordId): ?TransferRecordSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('transfers', 'transfer_records'))
+            ->where('id', $recordId)
+            ->where(function ($q) use ($schoolId): void {
+                $q->where('from_school_id', $schoolId)->orWhere('to_school_id', $schoolId);
+            })
+            ->first([
+                'id',
+                'transfer_request_id',
+                'student_id',
+                'from_school_id',
+                'to_school_id',
+                'from_enrollment_id',
+                'to_enrollment_id',
+                'effective_date',
+                'completed_at',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new TransferRecordSnapshot(
+            id: (int) $row->id,
+            transferRequestId: (int) $row->transfer_request_id,
+            studentId: (int) $row->student_id,
+            fromSchoolId: (int) $row->from_school_id,
+            toSchoolId: (int) $row->to_school_id,
+            fromEnrollmentId: (int) $row->from_enrollment_id,
+            toEnrollmentId: (int) $row->to_enrollment_id,
+            effectiveDate: (string) $row->effective_date,
+            completedAt: (string) $row->completed_at,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
+    public function markReopened(int $requestId, int $schoolId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('transfers', 'transfer_requests'))
+            ->where('id', $requestId)
+            ->where(function ($q) use ($schoolId): void {
+                $q->where('from_school_id', $schoolId)->orWhere('to_school_id', $schoolId);
+            })
+            ->where('status', TransferRequestStatus::Cancelled)
+            ->update([
+                'status' => TransferRequestStatus::Pending,
+            ]) === 1;
     }
 
     private function map(object $row): TransferRequestSnapshot

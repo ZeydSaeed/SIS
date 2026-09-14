@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\StudentFeeController;
 use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\ResultsWriteController;
+use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\HrController;
@@ -65,6 +66,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('students/{student}/documents', [StudentController::class, 'indexDocuments'])
             ->whereNumber('student')
             ->name('api.students.documents.index');
+        Route::get('student-documents/{document}', [StudentController::class, 'showDocument'])
+            ->whereNumber('document')
+            ->name('api.student_documents.show');
         Route::get('student-documents/{document}/content', [StudentController::class, 'downloadDocument'])
             ->whereNumber('document')
             ->name('api.student_documents.download');
@@ -83,6 +87,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('enrollments/{enrollment}/cancel', [EnrollmentController::class, 'cancel'])
             ->name('api.enrollments.cancel');
+        Route::post('enrollments/{enrollment}/reopen', [EnrollmentController::class, 'reopen'])
+            ->whereNumber('enrollment')
+            ->name('api.enrollments.reopen');
         Route::post('enrollments/{enrollment}/subjects', [EnrollmentController::class, 'storeSubject'])
             ->whereNumber('enrollment')
             ->name('api.enrollments.subjects.store');
@@ -162,6 +169,11 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.timetable.schedule_exceptions.show');
         Route::patch('timetable/schedule-exceptions/{exception}', [ScheduleController::class, 'updateException'])
             ->name('api.timetable.schedule_exceptions.update');
+        Route::get('timetable/periods', [PeriodController::class, 'index'])
+            ->name('api.timetable.periods.index');
+        Route::get('timetable/periods/{period}', [PeriodController::class, 'show'])
+            ->whereNumber('period')
+            ->name('api.timetable.periods.show');
 
         Route::get('results/term', [ResultsController::class, 'officialTerm'])
             ->name('api.results.term.show');
@@ -212,6 +224,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.portal.scopes.destroy');
         Route::get('portal/scopes', [PortalScopesController::class, 'index'])
             ->name('api.portal.scopes.index');
+        Route::get('portal/scopes/{scope}', [PortalScopesController::class, 'show'])
+            ->whereNumber('scope')
+            ->name('api.portal.scopes.show');
 
         Route::post('teachers', [TeacherController::class, 'store'])
             ->name('api.teachers.store');
@@ -237,6 +252,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('teachers/{teacher}/leave-school', [TeacherController::class, 'leaveSchool'])
             ->whereNumber('teacher')
             ->name('api.teachers.leave-school');
+        Route::get('teachers/{teacher}/subjects', [TeacherController::class, 'indexSubjects'])
+            ->whereNumber('teacher')
+            ->name('api.teachers.subjects.index');
         Route::post('teachers/{teacher}/subjects', [TeacherController::class, 'assignSubject'])
             ->name('api.teachers.subjects.assign');
         Route::delete('teachers/{teacher}/subjects', [TeacherController::class, 'unlinkSubject'])
@@ -245,6 +263,10 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.teachers.qualifications.store');
         Route::get('teachers/{teacher}/qualifications', [TeacherController::class, 'indexQualifications'])
             ->name('api.teachers.qualifications.index');
+        Route::get('teachers/{teacher}/qualifications/{qualification}', [TeacherController::class, 'showQualification'])
+            ->whereNumber('teacher')
+            ->whereNumber('qualification')
+            ->name('api.teachers.qualifications.show');
         Route::post('teachers/{teacher}/qualifications/{qualification}/void', [TeacherController::class, 'voidQualification'])
             ->whereNumber('teacher')
             ->whereNumber('qualification')
@@ -275,11 +297,17 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.promotion.records.store');
         Route::get('promotion/records', [PromotionController::class, 'indexRecords'])
             ->name('api.promotion.records.index');
+        Route::get('promotion/records/{record}', [PromotionController::class, 'showRecord'])
+            ->whereNumber('record')
+            ->name('api.promotion.records.show');
 
         Route::post('transfers/requests', [TransferController::class, 'store'])
             ->name('api.transfers.requests.store');
         Route::get('transfers/requests', [TransferController::class, 'index'])
             ->name('api.transfers.requests.index');
+        Route::get('transfers/requests/{transferRequest}', [TransferController::class, 'show'])
+            ->whereNumber('transferRequest')
+            ->name('api.transfers.requests.show');
         Route::post('transfers/requests/{transferRequest}/approve', [TransferController::class, 'approve'])
             ->name('api.transfers.requests.approve');
         Route::post('transfers/requests/{transferRequest}/reject', [TransferController::class, 'reject'])
@@ -288,6 +316,12 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.transfers.requests.complete');
         Route::post('transfers/requests/{transferRequest}/cancel', [TransferController::class, 'cancel'])
             ->name('api.transfers.requests.cancel');
+        Route::post('transfers/requests/{transferRequest}/reopen', [TransferController::class, 'reopen'])
+            ->whereNumber('transferRequest')
+            ->name('api.transfers.requests.reopen');
+        Route::get('transfers/records/{record}', [TransferController::class, 'showRecord'])
+            ->whereNumber('record')
+            ->name('api.transfers.records.show');
 
         Route::post('documents', [DocumentController::class, 'store'])
             ->name('api.documents.store');
@@ -313,6 +347,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.audit.login_history.store');
         Route::get('audit/login-history', [AuditLogController::class, 'indexLoginHistory'])
             ->name('api.audit.login_history.index');
+        Route::get('audit/login-history/{entry}', [AuditLogController::class, 'showLoginHistory'])
+            ->whereNumber('entry')
+            ->name('api.audit.login_history.show');
 
         Route::post('finance/fee-types', [FeeTypeController::class, 'store'])
             ->name('api.finance.fee-types.store');
@@ -392,6 +429,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('communication/jobs/{job}/cancel', [NotificationJobController::class, 'cancel'])
             ->whereNumber('job')
             ->name('api.communication.jobs.cancel');
+        Route::post('communication/jobs/{job}/reopen', [NotificationJobController::class, 'reopen'])
+            ->whereNumber('job')
+            ->name('api.communication.jobs.reopen');
 
         Route::post('workflow/approval-flows', [ApprovalFlowController::class, 'store'])
             ->name('api.workflow.approval-flows.store');
@@ -419,6 +459,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('workflow/approval-requests/{approvalRequest}/cancel', [ApprovalRequestController::class, 'cancel'])
             ->whereNumber('approvalRequest')
             ->name('api.workflow.approval-requests.cancel');
+        Route::post('workflow/approval-requests/{approvalRequest}/reopen', [ApprovalRequestController::class, 'reopen'])
+            ->whereNumber('approvalRequest')
+            ->name('api.workflow.approval-requests.reopen');
 
         Route::post('vocational/specializations', [VocationalController::class, 'storeSpecialization'])
             ->name('api.vocational.specializations.store');
@@ -433,8 +476,14 @@ Route::prefix('v1')->group(function (): void {
         Route::post('vocational/specializations/{specialization}/reactivate', [VocationalController::class, 'reactivateSpecialization'])
             ->whereNumber('specialization')
             ->name('api.vocational.specializations.reactivate');
+        Route::get('vocational/specializations/{specialization}/tracks', [VocationalController::class, 'indexTracks'])
+            ->whereNumber('specialization')
+            ->name('api.vocational.tracks.index');
         Route::post('vocational/specializations/{specialization}/tracks', [VocationalController::class, 'storeTrack'])
             ->name('api.vocational.tracks.store');
+        Route::get('vocational/tracks/{track}', [VocationalController::class, 'showTrack'])
+            ->whereNumber('track')
+            ->name('api.vocational.tracks.show');
         Route::patch('vocational/tracks/{track}', [VocationalController::class, 'updateTrack'])
             ->name('api.vocational.tracks.update');
         Route::post('vocational/tracks/{track}/deactivate', [VocationalController::class, 'deactivateTrack'])
@@ -444,6 +493,12 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.vocational.tracks.reactivate');
         Route::post('vocational/specializations/{specialization}/subjects', [VocationalController::class, 'linkSubject'])
             ->name('api.vocational.specialization_subjects.store');
+        Route::get('vocational/specializations/{specialization}/subjects', [VocationalController::class, 'indexSubjectLinks'])
+            ->whereNumber('specialization')
+            ->name('api.vocational.specialization_subjects.index');
+        Route::get('vocational/specialization-subjects/{link}', [VocationalController::class, 'showSubjectLink'])
+            ->whereNumber('link')
+            ->name('api.vocational.specialization_subjects.show');
         Route::post('vocational/specialization-subjects/{link}/deactivate', [VocationalController::class, 'deactivateSubjectLink'])
             ->name('api.vocational.specialization_subjects.deactivate');
         Route::post('vocational/specialization-subjects/{link}/reactivate', [VocationalController::class, 'reactivateSubjectLink'])
@@ -543,6 +598,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('curriculum/curricula/{curriculum}/subjects', [CurriculumController::class, 'indexCurriculumSubjects'])
             ->whereNumber('curriculum')
             ->name('api.curriculum.curriculum_subjects.index');
+        Route::get('curriculum/curriculum-subjects/{link}', [CurriculumController::class, 'showCurriculumSubject'])
+            ->whereNumber('link')
+            ->name('api.curriculum.curriculum_subjects.show');
         Route::post('curriculum/curriculum-subjects/{link}/deactivate', [CurriculumController::class, 'deactivateCurriculumSubject'])
             ->whereNumber('link')
             ->name('api.curriculum.curriculum_subjects.deactivate');

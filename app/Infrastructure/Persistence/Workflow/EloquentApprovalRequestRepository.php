@@ -125,6 +125,20 @@ final class EloquentApprovalRequestRepository implements ApprovalRequestReposito
         ])->map(fn (object $row): ApprovalRequestSnapshot => $this->mapRow($row))->all();
     }
 
+    public function markReopened(int $schoolId, int $requestId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('workflow', 'approval_requests'))
+            ->where('school_id', $schoolId)
+            ->where('id', $requestId)
+            ->where('status', ApprovalRequestStatus::Cancelled)
+            ->update([
+                'status' => ApprovalRequestStatus::Pending,
+                'completed_at' => null,
+            ]) > 0;
+    }
+
     private function mapRow(object $row): ApprovalRequestSnapshot
     {
         return new ApprovalRequestSnapshot(

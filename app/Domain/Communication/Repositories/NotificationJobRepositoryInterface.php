@@ -30,4 +30,6 @@ interface NotificationJobRepositoryInterface
     public function markCompleted(int $schoolId, int $id, int $sentCount, string $completedAt): bool;
 
     public function markCancelled(int $schoolId, int $id, string $completedAt): bool;
+
+    public function markReopened(int $schoolId, int $id): bool;
 }

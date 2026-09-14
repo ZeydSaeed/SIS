@@ -4,6 +4,8 @@ namespace App\Infrastructure\Persistence\Vocational;
 
 use App\Database\SchemaHelper;
 use App\Domain\Vocational\Data\SpecializationRead;
+use App\Domain\Vocational\Data\SpecializationSubjectSnapshot;
+use App\Domain\Vocational\Data\TrackSnapshot;
 use App\Domain\Vocational\Exceptions\VocationalNotFoundException;
 use App\Domain\Vocational\Exceptions\VocationalValidationException;
 use App\Domain\Vocational\Repositories\VocationalCatalogRepositoryInterface;
@@ -353,6 +355,135 @@ final class EloquentVocationalCatalogRepository implements VocationalCatalogRepo
             tracks: $tracks,
             subjectLinks: $subjectLinks,
         );
+    }
+
+    public function findTrack(int $schoolId, int $trackId): ?TrackSnapshot
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $row = DB::table(SchemaHelper::qualified('vocational', 'tracks').' as t')
+            ->join(SchemaHelper::qualified('vocational', 'specializations').' as sp', 'sp.id', '=', 't.specialization_id')
+            ->where('t.id', $trackId)
+            ->where('sp.school_id', $schoolId)
+            ->first([
+                't.id',
+                't.specialization_id',
+                'sp.school_id',
+                't.code',
+                't.name',
+                't.status',
+                't.created_at',
+                't.updated_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new TrackSnapshot(
+            id: (int) $row->id,
+            specializationId: (int) $row->specialization_id,
+            schoolId: (int) $row->school_id,
+            code: (string) $row->code,
+            name: (string) $row->name,
+            status: (int) $row->status,
+            createdAt: (string) $row->created_at,
+            updatedAt: (string) $row->updated_at,
+        );
+    }
+
+    public function findSpecializationSubjectLink(int $schoolId, int $linkId): ?SpecializationSubjectSnapshot
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $row = DB::table(SchemaHelper::qualified('vocational', 'specialization_subjects').' as ss')
+            ->join(SchemaHelper::qualified('vocational', 'specializations').' as sp', 'sp.id', '=', 'ss.specialization_id')
+            ->where('ss.id', $linkId)
+            ->where('sp.school_id', $schoolId)
+            ->first([
+                'ss.id',
+                'ss.specialization_id',
+                'sp.school_id',
+                'ss.subject_id',
+                'ss.is_required',
+                'ss.credit_hours',
+                'ss.status',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new SpecializationSubjectSnapshot(
+            id: (int) $row->id,
+            specializationId: (int) $row->specialization_id,
+            schoolId: (int) $row->school_id,
+            subjectId: (int) $row->subject_id,
+            isRequired: (bool) $row->is_required,
+            creditHours: $row->credit_hours !== null ? (int) $row->credit_hours : null,
+            status: (int) $row->status,
+        );
+    }
+
+    public function listTracksForSpecialization(int $schoolId, int $specializationId): array
+    {
+        if ($this->findSpecialization($schoolId, $specializationId, withChildren: false) === null) {
+            return [];
+        }
+
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        return DB::table(SchemaHelper::qualified('vocational', 'tracks'))
+            ->where('specialization_id', $specializationId)
+            ->orderBy('code')
+            ->orderBy('id')
+            ->get(['id', 'specialization_id', 'code', 'name', 'status', 'created_at', 'updated_at'])
+            ->map(fn (object $row): TrackSnapshot => new TrackSnapshot(
+                id: (int) $row->id,
+                specializationId: (int) $row->specialization_id,
+                schoolId: $schoolId,
+                code: (string) $row->code,
+                name: (string) $row->name,
+                status: (int) $row->status,
+                createdAt: (string) $row->created_at,
+                updatedAt: (string) $row->updated_at,
+            ))
+            ->all();
+    }
+
+    public function specializationBelongsToSchool(int $schoolId, int $specializationId): bool
+    {
+        return $this->findSpecialization($schoolId, $specializationId, withChildren: false) !== null;
+    }
+
+    public function listSpecializationSubjects(int $schoolId, int $specializationId, ?int $status): ?array
+    {
+        if ($this->findSpecialization($schoolId, $specializationId, withChildren: false) === null) {
+            return null;
+        }
+
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $query = DB::table(SchemaHelper::qualified('vocational', 'specialization_subjects'))
+            ->where('specialization_id', $specializationId)
+            ->orderBy('id');
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query
+            ->get(['id', 'specialization_id', 'subject_id', 'is_required', 'credit_hours', 'status'])
+            ->map(fn (object $row): SpecializationSubjectSnapshot => new SpecializationSubjectSnapshot(
+                id: (int) $row->id,
+                specializationId: (int) $row->specialization_id,
+                schoolId: $schoolId,
+                subjectId: (int) $row->subject_id,
+                isRequired: (bool) $row->is_required,
+                creditHours: $row->credit_hours !== null ? (int) $row->credit_hours : null,
+                status: (int) $row->status,
+            ))
+            ->all();
     }
 
     private function requireCode(string $code): void

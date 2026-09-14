@@ -233,6 +233,48 @@ final class EloquentPromotionRepository implements PromotionRepositoryInterface
             ->all();
     }
 
+    public function findRecord(int $schoolId, int $recordId): ?PromotionRecordSnapshot
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('promotion', 'records'))
+            ->where('school_id', $schoolId)
+            ->where('id', $recordId)
+            ->first([
+                'id',
+                'school_id',
+                'enrollment_id',
+                'academic_year_id',
+                'from_grade_level_id',
+                'to_grade_level_id',
+                'promotion_status',
+                'gpa_at_promotion',
+                'decided_by',
+                'decided_at',
+                'notes',
+                'created_at',
+            ]);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return new PromotionRecordSnapshot(
+            id: (int) $row->id,
+            schoolId: (int) $row->school_id,
+            enrollmentId: (int) $row->enrollment_id,
+            academicYearId: (int) $row->academic_year_id,
+            fromGradeLevelId: (int) $row->from_grade_level_id,
+            toGradeLevelId: (int) $row->to_grade_level_id,
+            promotionStatus: (int) $row->promotion_status,
+            gpaAtPromotion: $row->gpa_at_promotion !== null ? (string) $row->gpa_at_promotion : null,
+            decidedBy: $row->decided_by !== null ? (int) $row->decided_by : null,
+            decidedAt: (string) $row->decided_at,
+            notes: $row->notes !== null ? (string) $row->notes : null,
+            createdAt: (string) $row->created_at,
+        );
+    }
+
     private function bindSchool(int $schoolId): void
     {
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
