@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { t } from '@/i18n';
 import { dashboard } from '@/routes';
 
 type GateStatus = 'advanced' | 'partial' | 'gap';
@@ -10,112 +11,93 @@ type GateRow = {
     note: string;
 };
 
-const gates: GateRow[] = [
-    { id: 'G1', title: 'Core SIS', status: 'advanced', note: 'Schools, years, students, enrollment' },
-    { id: 'G2', title: 'Academic Operations', status: 'advanced', note: 'Curriculum, teachers, classes, attendance' },
-    { id: 'G3', title: 'Exams & Grades', status: 'advanced', note: 'Sessions, grades, correction/finalize' },
-    { id: 'G4', title: 'Student Lifecycle', status: 'partial', note: 'Admission, promotion, transfers, certificates' },
-    { id: 'G5', title: 'Scheduling', status: 'partial', note: 'Periods/schedule API; conflict UI pending' },
-    { id: 'G6', title: 'Results', status: 'advanced', note: 'Term/annual/GPA/transcript Inertia + API' },
-    { id: 'G7', title: 'Operational UI', status: 'partial', note: 'Daily lists + forms for enrollment/attendance/exams/grades/reports' },
-    { id: 'G8', title: 'Release Readiness', status: 'gap', note: 'Regression, RLS, backup, perf baseline' },
-];
-
-const statusLabel: Record<GateStatus, string> = {
-    advanced: 'Advanced',
-    partial: 'Needs work',
-    gap: 'Largest gap',
-};
-
 export default function Dashboard() {
+    const i18n = t();
+
+    const gates: GateRow[] = [
+        { id: 'G1', title: i18n.gates.g1, status: 'advanced', note: i18n.gates.g1Note },
+        { id: 'G2', title: i18n.gates.g2, status: 'advanced', note: i18n.gates.g2Note },
+        { id: 'G3', title: i18n.gates.g3, status: 'advanced', note: i18n.gates.g3Note },
+        { id: 'G4', title: i18n.gates.g4, status: 'partial', note: i18n.gates.g4Note },
+        { id: 'G5', title: i18n.gates.g5, status: 'partial', note: i18n.gates.g5Note },
+        { id: 'G6', title: i18n.gates.g6, status: 'advanced', note: i18n.gates.g6Note },
+        { id: 'G7', title: i18n.gates.g7, status: 'partial', note: i18n.gates.g7Note },
+        { id: 'G8', title: i18n.gates.g8, status: 'partial', note: i18n.gates.g8Note },
+    ];
+
+    const statusLabel: Record<GateStatus, string> = {
+        advanced: i18n.gates.advanced,
+        partial: i18n.gates.partial,
+        gap: i18n.gates.gap,
+    };
+
     return (
         <>
-            <Head title="Operational Hub" />
-            <div className="sis-ops-hub flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
+            <Head title={i18n.dashboard.title} />
+            <div className="sis-ops-hub flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6" dir="rtl" lang="ar">
                 <header className="sis-ops-hub__hero max-w-3xl">
-                    <p className="sis-ops-hub__eyebrow">SIS Core Operational Release</p>
-                    <h1 className="sis-ops-hub__title">Operational Hub</h1>
-                    <p className="sis-ops-hub__lead">
-                        Daily school work starts here. Enrichment stops when G1–G8 pass — not when
-                        Payroll, Inventory, or Desktop appear.
-                    </p>
+                    <p className="sis-ops-hub__eyebrow">{i18n.dashboard.eyebrow}</p>
+                    <h1 className="sis-ops-hub__title">{i18n.dashboard.title}</h1>
+                    <p className="sis-ops-hub__lead">{i18n.dashboard.lead}</p>
                 </header>
 
                 <section aria-labelledby="ops-flows-heading" className="sis-ops-hub__section">
                     <h2 id="ops-flows-heading" className="sis-ops-hub__section-title">
-                        Available now
+                        {i18n.dashboard.available}
                     </h2>
                     <ul className="sis-ops-hub__links">
                         <li>
                             <Link href="/students" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Students</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Directory, profile, enrollment-facing student work
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.students}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.studentsDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/enrollments" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Enrollments</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Placements by class and section for the school year
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.enrollments}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.enrollmentsDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/attendance" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Attendance</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Daily sessions for marking and close-out
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.attendance}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.attendanceDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/teachers" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Teachers</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Staff directory for the academic year
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.teachers}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.teachersDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/timetable" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Timetable</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Section schedules with conflict-safe slots
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.timetable}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.timetableDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/results" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Results</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Official term, annual, GPA, and transcript metadata
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.results}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.resultsDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/exams" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Exams</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Exam catalog and session operational views
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.exams}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.examsDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/grades" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Grades</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Enter, correct, and finalize student grades
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.grades}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.gradesDesc}</span>
                             </Link>
                         </li>
                         <li>
                             <Link href="/reports" prefetch className="sis-ops-hub__link">
-                                <span className="sis-ops-hub__link-title">Reports</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Daily attendance summary and operational rosters
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.reports}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.reportsDesc}</span>
                             </Link>
                         </li>
                         <li>
@@ -124,10 +106,8 @@ export default function Dashboard() {
                                 prefetch
                                 className="sis-ops-hub__link"
                             >
-                                <span className="sis-ops-hub__link-title">Database Intelligence</span>
-                                <span className="sis-ops-hub__link-desc">
-                                    Recommendations and operational DB guidance
-                                </span>
+                                <span className="sis-ops-hub__link-title">{i18n.modules.intelligence}</span>
+                                <span className="sis-ops-hub__link-desc">{i18n.modules.intelligenceDesc}</span>
                             </Link>
                         </li>
                     </ul>
@@ -135,16 +115,16 @@ export default function Dashboard() {
 
                 <section aria-labelledby="ops-gates-heading" className="sis-ops-hub__section">
                     <h2 id="ops-gates-heading" className="sis-ops-hub__section-title">
-                        Operational Transition Gate
+                        {i18n.dashboard.gateSection}
                     </h2>
-                    <p className="sis-ops-hub__section-lead">
-                        When every gate is PASS: stop enrichment and enter the operational phase.
-                    </p>
+                    <p className="sis-ops-hub__section-lead">{i18n.dashboard.gateLead}</p>
                     <ul className="sis-ops-hub__gates">
                         {gates.map((gate) => (
                             <li key={gate.id} className={`sis-ops-hub__gate sis-ops-hub__gate--${gate.status}`}>
                                 <div className="sis-ops-hub__gate-head">
-                                    <span className="sis-ops-hub__gate-id">{gate.id}</span>
+                                    <span className="sis-ops-hub__gate-id" dir="ltr">
+                                        {gate.id}
+                                    </span>
                                     <span className="sis-ops-hub__gate-title">{gate.title}</span>
                                     <span className="sis-ops-hub__gate-status">{statusLabel[gate.status]}</span>
                                 </div>
@@ -161,7 +141,7 @@ export default function Dashboard() {
 Dashboard.layout = {
     breadcrumbs: [
         {
-            title: 'Dashboard',
+            title: 'لوحة التحكم',
             href: dashboard(),
         },
     ],
