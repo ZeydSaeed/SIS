@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react';
 import { PenLine } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import type { BreadcrumbItem } from '@/types';
 
 type Grade = {
@@ -36,6 +37,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function GradesActions({ grade, filters }: PageProps) {
     const [gradeId, setGradeId] = useState(filters.grade_id?.toString() ?? '');
+    const [confirmVoid, setConfirmVoid] = useState(false);
+    const [voidReason, setVoidReason] = useState('');
+    const [voiding, setVoiding] = useState(false);
 
     const onLookup = (event: FormEvent) => {
         event.preventDefault();
@@ -166,44 +170,56 @@ export default function GradesActions({ grade, filters }: PageProps) {
                                     </>
                                 )}
                             </Form>
-                            <Form
-                                action={`/grades/${grade.id}/void`}
-                                method="post"
-                                className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4"
-                            >
-                                {({ errors, processing }) => (
-                                    <>
-                                        <h2 className="font-semibold">Void grade</h2>
-                                        <input
-                                            type="hidden"
-                                            name="academic_year_id"
-                                            value={grade.academic_year_id}
-                                        />
-                                        <label className="flex flex-col gap-1 text-sm">
-                                            <span>Reason</span>
-                                            <textarea
-                                                name="reason"
-                                                required
-                                                minLength={3}
-                                                rows={2}
-                                                className="sis-ops-hub__link px-3 py-2"
-                                            />
-                                            {errors.reason ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors.reason}
-                                                </span>
-                                            ) : null}
-                                        </label>
-                                        <button
-                                            type="submit"
-                                            disabled={processing}
-                                            className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
-                                        >
-                                            Void
-                                        </button>
-                                    </>
-                                )}
-                            </Form>
+                            <div className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4">
+                                <h2 className="font-semibold">Void grade</h2>
+                                <label className="flex flex-col gap-1 text-sm">
+                                    <span>Reason</span>
+                                    <textarea
+                                        required
+                                        minLength={3}
+                                        rows={2}
+                                        className="sis-ops-hub__link px-3 py-2"
+                                        value={voidReason}
+                                        onChange={(e) => setVoidReason(e.target.value)}
+                                    />
+                                </label>
+                                <button
+                                    type="button"
+                                    disabled={voiding}
+                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50"
+                                    onClick={() => setConfirmVoid(true)}
+                                >
+                                    Void
+                                </button>
+                                <ConfirmDialog
+                                    open={confirmVoid}
+                                    title="Void this grade?"
+                                    description="Voiding marks the grade non-current. This is an audited academic action."
+                                    confirmLabel="Void grade"
+                                    confirmPending={voiding}
+                                    onConfirm={() => {
+                                        if (voidReason.trim().length < 3) {
+                                            setConfirmVoid(false);
+                                            return;
+                                        }
+                                        setVoiding(true);
+                                        router.post(
+                                            `/grades/${grade.id}/void`,
+                                            {
+                                                academic_year_id: grade.academic_year_id,
+                                                reason: voidReason,
+                                            },
+                                            {
+                                                onFinish: () => {
+                                                    setVoiding(false);
+                                                    setConfirmVoid(false);
+                                                },
+                                            },
+                                        );
+                                    }}
+                                    onOpenChange={setConfirmVoid}
+                                />
+                            </div>
                             <Form
                                 action={`/grades/${grade.id}/finalize`}
                                 method="post"
