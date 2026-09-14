@@ -86,6 +86,11 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                     description="Read official term subject results for a student enrollment."
                     icon={<ScrollText className="size-6" aria-hidden />}
                 />
+                <p>
+                    <a href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm">
+                        Open enrollment summary (annual + GPA)
+                    </a>
+                </p>
                 <form
                     onSubmit={onFilter}
                     className="flex flex-col gap-3 sm:flex-row sm:items-end"

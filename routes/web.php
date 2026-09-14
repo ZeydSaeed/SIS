@@ -37,6 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ResultsPageController::class, 'index'])->name('index');
+        Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
+        Route::get('/term', [ResultsPageController::class, 'term'])->name('term');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {
