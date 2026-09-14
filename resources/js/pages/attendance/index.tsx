@@ -2,7 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -67,7 +69,7 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
         {
             id: 'status',
             header: i18n.common.status,
-            cell: (row) => <span dir="ltr">{row.status}</span>,
+            cell: (row) => <StatusChip kind="attendance" status={row.status} />,
         },
         {
             id: 'actions',
@@ -109,6 +111,11 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                         {i18n.attendance.createSession}
                     </Link>
                 </p>
+                <OpsYearFilter
+                    action="/attendance"
+                    academicYearId={filters.academic_year_id}
+                    extraParams={{ per_page: filters.per_page }}
+                />
                 <DataTable
                     columns={columns}
                     rows={sessions.data}
@@ -130,8 +137,7 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                                 <span dir="ltr">{row.subject_id}</span>
                             </div>
                             <div className="text-sm opacity-80">
-                                {i18n.common.status}{' '}
-                                <span dir="ltr">{row.status}</span>
+                                <StatusChip kind="attendance" status={row.status} />
                             </div>
                         </a>
                     )}
