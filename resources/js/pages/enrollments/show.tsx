@@ -33,26 +33,26 @@ export default function EnrollmentShow({ enrollment }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={enrollment.enrollment_number} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={enrollment.enrollment_number}
                     description={i18n.enrollments.showDesc}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
-                    <Link href="/enrollments" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                    <Link href="/enrollments" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.common.backToList}
                     </Link>
                     <Link
                         href={`/enrollments/${enrollment.id}/edit`}
-                        className="sis-ops-hub__link px-3 py-2 text-sm"
+                        className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                         prefetch
                     >
                         {i18n.enrollments.updatePlacement}
                     </Link>
                     <Link
                         href={`/results/show?enrollment_id=${enrollment.id}&academic_year_id=${enrollment.academic_year_id}`}
-                        className="sis-ops-hub__link px-3 py-2 text-sm"
+                        className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar"
                         prefetch
                     >
                         {i18n.enrollments.viewResults}
