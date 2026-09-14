@@ -1,30 +1,42 @@
-﻿# Install SIS Desktop launcher as a Windows .lnk using Edge/Chrome app mode when available.
+﻿# Install SIS Desktop launcher (.lnk + .url) with Edge/Chrome --app mode.
 # Browser host only — NOT Electron/Tauri/Blazor (RUNTIME-CONTRACT HOLD).
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 $desktop = [Environment]::GetFolderPath('Desktop')
 $url = 'http://sis.test/hub?desktop=1'
-$displayName = 'نظام معلومات الطالب'
+$displayNameAr = 'نظام معلومات الطالب'
+$displayNameEn = 'SIS'
+
+# Prefer project favicon; fall back to Desktop SIS.png if present.
+$repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$iconCandidates = @(
+    (Join-Path $repoRoot 'public\favicon.ico'),
+    (Join-Path $desktop 'SIS.png'),
+    (Join-Path $repoRoot 'public\apple-touch-icon.png')
+)
+$iconPath = $iconCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+
 $tempLnk = Join-Path $desktop 'SIS-Hub-Temp.lnk'
-$lnkPath = Join-Path $desktop ($displayName + '.lnk')
-$urlPath = Join-Path $desktop ($displayName + '.url')
-$legacyNames = @(
+$lnkAr = Join-Path $desktop ($displayNameAr + '.lnk')
+$lnkEn = Join-Path $desktop ($displayNameEn + '.lnk')
+$urlAr = Join-Path $desktop ($displayNameAr + '.url')
+$urlEn = Join-Path $desktop ($displayNameEn + '.url')
+
+$toRemove = @(
     'SIS Operational Hub.lnk',
     'SIS Operational Hub.url',
     'SIS-Hub-Temp.lnk',
-    'SIS.lnk'
+    $lnkAr,
+    $lnkEn,
+    $urlAr,
+    $urlEn
 )
-
-foreach ($legacy in $legacyNames) {
-    $legacyPath = Join-Path $desktop $legacy
-    if (Test-Path -LiteralPath $legacyPath) {
-        Remove-Item -LiteralPath $legacyPath -Force
+foreach ($name in $toRemove) {
+    $path = if ([System.IO.Path]::IsPathRooted($name)) { $name } else { Join-Path $desktop $name }
+    if (Test-Path -LiteralPath $path) {
+        Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
     }
-}
-if (Test-Path -LiteralPath $lnkPath) {
-    Remove-Item -LiteralPath $lnkPath -Force
-}
-if (Test-Path -LiteralPath $urlPath) {
-    Remove-Item -LiteralPath $urlPath -Force
 }
 
 $candidates = @(
@@ -35,24 +47,45 @@ $candidates = @(
 )
 $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-# WScript.Shell cannot always Save() directly to Arabic filenames — write ASCII then rename.
-$wsh = New-Object -ComObject WScript.Shell
-$shortcut = $wsh.CreateShortcut($tempLnk)
-if ($browser) {
-    $shortcut.TargetPath = $browser
-    $shortcut.Arguments = "--app=$url"
-    $shortcut.WorkingDirectory = Split-Path $browser
-} else {
-    $shortcut.TargetPath = $url
+function New-SisShortcut {
+    param(
+        [string]$TempPath,
+        [string]$FinalPath,
+        [string]$Description
+    )
+    $wsh = New-Object -ComObject WScript.Shell
+    $shortcut = $wsh.CreateShortcut($TempPath)
+    if ($browser) {
+        $shortcut.TargetPath = $browser
+        $shortcut.Arguments = "--app=$url"
+        $shortcut.WorkingDirectory = Split-Path $browser
+    } else {
+        $shortcut.TargetPath = $url
+    }
+    $shortcut.Description = $Description
+    if ($iconPath) {
+        $shortcut.IconLocation = "$iconPath,0"
+    }
+    $shortcut.Save()
+    Move-Item -LiteralPath $TempPath -Destination $FinalPath -Force
 }
-$shortcut.Description = $displayName
-$shortcut.Save()
-Move-Item -LiteralPath $tempLnk -Destination $lnkPath -Force
+
+# ASCII shortcut first (always visible in Explorer), then Arabic rename copy.
+New-SisShortcut -TempPath $tempLnk -FinalPath $lnkEn -Description $displayNameAr
+Copy-Item -LiteralPath $lnkEn -Destination $tempLnk -Force
+Move-Item -LiteralPath $tempLnk -Destination $lnkAr -Force
 
 $urlContent = "[InternetShortcut]`r`nURL=$url`r`n"
-[System.IO.File]::WriteAllText($urlPath, $urlContent, [System.Text.UTF8Encoding]::new($false))
+if ($iconPath) {
+    $urlContent += "IconFile=$iconPath`r`nIconIndex=0`r`n"
+}
+[System.IO.File]::WriteAllText($urlEn, $urlContent, [System.Text.UTF8Encoding]::new($false))
+[System.IO.File]::WriteAllText($urlAr, $urlContent, [System.Text.UTF8Encoding]::new($false))
 
-Write-Host "Installed .lnk: $lnkPath"
-Write-Host "Installed .url: $urlPath"
+Write-Host "Installed .lnk (EN): $lnkEn"
+Write-Host "Installed .lnk (AR): $lnkAr"
+Write-Host "Installed .url (EN): $urlEn"
+Write-Host "Installed .url (AR): $urlAr"
+Write-Host "Icon: $(if ($iconPath) { $iconPath } else { 'default' })"
 Write-Host "Browser: $(if ($browser) { $browser } else { 'default handler' })"
 Write-Host "URL: $url"

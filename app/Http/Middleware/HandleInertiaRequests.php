@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Database\SchemaHelper;
 use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
+use App\Http\Support\AcademicYearContextResolver;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use Illuminate\Http\Request;
@@ -51,6 +52,7 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'schoolContext' => $this->schoolContextPayload($request),
             'academicYears' => $this->academicYearsPayload(),
+            'academicYearId' => $this->currentAcademicYearId($request),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -141,5 +143,17 @@ class HandleInertiaRequests extends Middleware
             ],
             $years,
         );
+    }
+
+    private function currentAcademicYearId(Request $request): ?int
+    {
+        try {
+            return app(AcademicYearContextResolver::class)->resolve(
+                $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null,
+                $request,
+            );
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

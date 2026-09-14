@@ -7,18 +7,33 @@ type YearOption = { id: number; name: string; code: string; is_current: boolean 
 type SharedProps = {
     schoolContext?: { schoolId: number | null; schools: SchoolOption[] };
     academicYears?: YearOption[];
+    academicYearId?: number | null;
 };
 
 /** School + academic year context controls for authenticated ops shell. */
 export function OpsContextBar() {
     const i18n = t();
-    const { schoolContext, academicYears } = usePage().props as SharedProps;
+    const { schoolContext, academicYears, academicYearId } = usePage().props as SharedProps;
     const schools = schoolContext?.schools ?? [];
     const schoolId = schoolContext?.schoolId ?? null;
     const years = academicYears ?? [];
+    const yearId =
+        academicYearId ??
+        years.find((y) => y.is_current)?.id ??
+        years[0]?.id ??
+        null;
 
     if (schools.length === 0 && years.length === 0) {
-        return null;
+        return (
+            <div
+                className="border-b border-[color:var(--sis-powder-blush)] px-4 py-3 text-sm"
+                dir="rtl"
+                lang="ar"
+                role="status"
+            >
+                {i18n.context.noSchools} — {i18n.context.noYear}
+            </div>
+        );
     }
 
     return (
@@ -29,7 +44,7 @@ export function OpsContextBar() {
             aria-label={i18n.context.contextBar}
         >
             {schools.length > 0 ? (
-                <label className="flex min-w-[12rem] flex-col gap-1 text-sm">
+                <label className="flex min-w-[14rem] flex-1 flex-col gap-1 text-sm">
                     <span>{i18n.context.school}</span>
                     <select
                         className="sis-ops-hub__link min-h-11 px-3 py-2"
@@ -58,9 +73,36 @@ export function OpsContextBar() {
                 <p className="text-sm text-[color:var(--sis-powder-blush)]">{i18n.context.noSchools}</p>
             )}
 
-            {years.length === 0 ? (
+            {years.length > 0 ? (
+                <label className="flex min-w-[14rem] flex-1 flex-col gap-1 text-sm">
+                    <span>{i18n.context.year}</span>
+                    <select
+                        className="sis-ops-hub__link min-h-11 px-3 py-2"
+                        value={yearId ?? ''}
+                        aria-label={i18n.context.year}
+                        onChange={(event) => {
+                            const next = Number(event.target.value);
+                            if (!Number.isFinite(next) || next < 1) {
+                                return;
+                            }
+                            router.post(
+                                '/context/academic-year',
+                                { academic_year_id: next },
+                                { preserveScroll: true },
+                            );
+                        }}
+                    >
+                        {years.map((year) => (
+                            <option key={year.id} value={year.id}>
+                                {year.name}
+                                {year.is_current ? ` · ${i18n.status.active}` : ''}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            ) : (
                 <p className="text-sm text-[color:var(--sis-powder-blush)]">{i18n.context.noYear}</p>
-            ) : null}
+            )}
         </div>
     );
 }

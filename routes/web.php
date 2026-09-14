@@ -19,7 +19,8 @@ Route::inertia('/hub', 'hub')->name('hub');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
-    Route::post('/context/school', [SchoolContextController::class, 'update'])->name('context.school');
+    Route::post('/context/school', [SchoolContextController::class, 'updateSchool'])->name('context.school');
+    Route::post('/context/academic-year', [SchoolContextController::class, 'updateYear'])->name('context.academic-year');
 
     Route::prefix('students')->name('students.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [StudentPageController::class, 'index'])->name('index');

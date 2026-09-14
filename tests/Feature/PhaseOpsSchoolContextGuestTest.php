@@ -23,4 +23,11 @@ final class PhaseOpsSchoolContextGuestTest extends TestCase
         $this->assertTrue((bool) config('security.allow_implicit_single_school'));
         $this->assertTrue((bool) config('security.bootstrap_web_school_session'));
     }
+
+    #[Test]
+    public function context_routes_require_authentication(): void
+    {
+        $this->post('/context/school', ['school_id' => 1])->assertRedirect();
+        $this->post('/context/academic-year', ['academic_year_id' => 1])->assertRedirect();
+    }
 }
