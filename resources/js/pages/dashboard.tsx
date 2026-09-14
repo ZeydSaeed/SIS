@@ -55,6 +55,14 @@ export default function Dashboard() {
                             </Link>
                         </li>
                         <li>
+                            <Link href="/enrollments" prefetch className="sis-ops-hub__link">
+                                <span className="sis-ops-hub__link-title">Enrollments</span>
+                                <span className="sis-ops-hub__link-desc">
+                                    Placements by class and section for the school year
+                                </span>
+                            </Link>
+                        </li>
+                        <li>
                             <Link
                                 href="/intelligence/recommendations"
                                 prefetch
