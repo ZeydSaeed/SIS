@@ -3,7 +3,9 @@ import { FormEvent, useState } from 'react';
 import { PenLine } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -55,7 +57,7 @@ export default function GradesIndex({ grades, filters }: PageProps) {
         {
             id: 'status',
             header: i18n.common.status,
-            cell: (row) => <span dir="ltr">{row.status}</span>,
+            cell: (row) => <StatusChip kind="generic" status={row.status} />,
             hideOnMobile: true,
         },
         {
@@ -99,6 +101,11 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                         {i18n.grades.enterGrade}
                     </Link>
                 </div>
+                <OpsYearFilter
+                    action="/grades"
+                    academicYearId={filters.academic_year_id}
+                    extraParams={{ session_id: filters.session_id ?? undefined }}
+                />
                 <form
                     onSubmit={onFilter}
                     className="flex flex-col gap-3 sm:flex-row sm:items-end"
@@ -111,8 +118,9 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                             min={1}
                             value={sessionId}
                             onChange={(e) => setSessionId(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2"
                             dir="ltr"
+                            inputMode="numeric"
                         />
                     </label>
                     <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
@@ -144,6 +152,9 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                                         <span dir="ltr">{row.score ?? '—'}</span>
                                     </>
                                 )}
+                            </div>
+                            <div className="mt-1">
+                                <StatusChip kind="generic" status={row.status} />
                             </div>
                         </a>
                     )}
