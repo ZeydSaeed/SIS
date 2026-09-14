@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { CalendarCheck } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
@@ -65,6 +65,15 @@ const columns: DataTableColumn<SessionRow>[] = [
         header: 'Status',
         cell: (row) => row.status,
     },
+    {
+        id: 'actions',
+        header: 'Open',
+        cell: (row) => (
+            <a href={`/attendance/${row.id}`} className="underline">
+                View
+            </a>
+        ),
+    },
 ];
 
 export default function AttendanceIndex({ sessions, filters }: PageProps) {
@@ -92,6 +101,11 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                     description="Session list for daily marking and close-out."
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
+                <p>
+                    <Link href="/attendance/create" className="sis-ops-hub__link px-3 py-2 text-sm" prefetch>
+                        Create session
+                    </Link>
+                </p>
                 <DataTable
                     columns={columns}
                     rows={sessions.data}
@@ -100,13 +114,16 @@ export default function AttendanceIndex({ sessions, filters }: PageProps) {
                     emptyDescription="No sessions for this academic year yet."
                     caption="Attendance sessions"
                     mobileCard={(row) => (
-                        <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-petal)_40%,white)] p-3">
+                        <a
+                            href={`/attendance/${row.id}`}
+                            className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-petal)_40%,white)] p-3"
+                        >
                             <div className="font-semibold">{row.session_date}</div>
                             <div className="text-sm opacity-80">
                                 Section {row.section_id} · Subject {row.subject_id}
                             </div>
                             <div className="text-sm opacity-80">Status {row.status}</div>
-                        </div>
+                        </a>
                     )}
                 />
                 {totalPages > 1 ? (

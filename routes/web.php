@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
+use App\Http\Controllers\Exams\ExamPageController;
+use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
@@ -30,6 +33,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('attendance')->name('attendance.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [AttendancePageController::class, 'index'])->name('index');
+        Route::get('/create', [AttendancePageController::class, 'create'])->name('create');
+        Route::post('/', [AttendancePageController::class, 'store'])->name('store');
+        Route::get('/{session}', [AttendancePageController::class, 'show'])->name('show');
+        Route::get('/{session}/mark', [AttendancePageController::class, 'markForm'])->name('mark');
+        Route::post('/{session}/mark', [AttendancePageController::class, 'markStore'])->name('mark.store');
+        Route::post('/{session}/close', [AttendancePageController::class, 'close'])->name('close');
     });
 
     Route::prefix('teachers')->name('teachers.')->middleware('require.school.context')->group(function (): void {
@@ -45,6 +54,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
         Route::get('/term', [ResultsPageController::class, 'term'])->name('term');
         Route::get('/transcript', [ResultsPageController::class, 'transcript'])->name('transcript');
+    });
+
+    Route::prefix('exams')->name('exams.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [ExamPageController::class, 'index'])->name('index');
+        Route::get('/{exam}', [ExamPageController::class, 'show'])->name('show');
+    });
+
+    Route::prefix('grades')->name('grades.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [GradesPageController::class, 'index'])->name('index');
+        Route::get('/enter', [GradesPageController::class, 'enterForm'])->name('enter');
+        Route::post('/', [GradesPageController::class, 'store'])->name('store');
+        Route::get('/actions', [GradesPageController::class, 'actions'])->name('actions');
+        Route::post('/{grade}/correct', [GradesPageController::class, 'correct'])->name('correct');
+        Route::post('/{grade}/void', [GradesPageController::class, 'void'])->name('void');
+        Route::post('/{grade}/finalize', [GradesPageController::class, 'finalize'])->name('finalize');
+    });
+
+    Route::prefix('reports')->name('reports.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [ReportsPageController::class, 'index'])->name('index');
+        Route::get('/attendance-daily', [ReportsPageController::class, 'attendanceDaily'])->name('attendance-daily');
+        Route::get('/enrollment-roster', [ReportsPageController::class, 'enrollmentRoster'])->name('enrollment-roster');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {
