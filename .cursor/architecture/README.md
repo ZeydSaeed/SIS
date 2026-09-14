@@ -92,6 +92,7 @@
 | [improvement-matrix.md](./improvement-matrix.md) | Priority matrix (93/100 design target) |
 | [DATABASE-CHANGE-CHECKLIST.md](./DATABASE-CHANGE-CHECKLIST.md) | Mandatory DB checklist |
 | [WORK-PLAN.md](./WORK-PLAN.md) | Phase A–F guide |
+| [OPERATIONAL-TRANSITION-GATE.md](./OPERATIONAL-TRANSITION-GATE.md) | **G1–G8 enrichment stop-line → Operational Phase** |
 | [adr/](./adr/) | **12 Architecture Decision Records** |
 | [phases/](./phases/) | Phase implementation guides |
 

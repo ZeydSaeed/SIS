@@ -84,6 +84,7 @@ Layer 4 — Resilience        : Backup, PITR, DR, Monitoring, Archiving, Load Te
 ## Reference Files
 
 - Index: `.cursor/architecture/README.md`
+- **Operational stop-line:** `.cursor/architecture/OPERATIONAL-TRANSITION-GATE.md` (G1–G8 → STOP ENRICHMENT)
 - Work plan: `.cursor/architecture/WORK-PLAN.md`
 - Intelligence layer: `.cursor/architecture/DATABASE-INTELLIGENCE-LAYER.md`
 - Knowledge base: `.cursor/architecture/DATABASE-KNOWLEDGE-BASE.md`
@@ -96,3 +97,4 @@ Layer 4 — Resilience        : Backup, PITR, DR, Monitoring, Archiving, Load Te
 - Normalization + CQRS: `.cursor/architecture/normalization-and-cqrs.md`
 - ADRs: `.cursor/architecture/adr/`
 - Cursor rules: `.cursor/rules/`
+- Live unit progress: `.cursor/database/`
