@@ -20,12 +20,9 @@ function OpsBootstrapPanel({ needed }: { needed: boolean }) {
     }
 
     return (
-        <div
-            className="w-full rounded-md border border-[color:var(--sis-powder-blush)] bg-[color-mix(in_srgb,var(--sis-powder-blush)_22%,white)] p-3 text-sm"
-            role="status"
-        >
+        <div className="sis-ops-hub__notice w-full" role="status">
             <p className="font-medium">{i18n.context.bootstrapTitle}</p>
-            <p className="mt-1 opacity-85">{i18n.context.bootstrapLead}</p>
+            <p>{i18n.context.bootstrapLead}</p>
             <Form
                 action="/context/ops-bootstrap"
                 method="post"
@@ -63,13 +60,13 @@ export function OpsContextBar() {
 
     if (schools.length === 0 && years.length === 0) {
         return (
-            <div className="flex flex-col gap-3 border-b border-[color:var(--sis-powder-blush)] px-4 py-3" dir="rtl" lang="ar">
+            <div className="sis-ops-context-bar sis-ops-context-bar--empty" dir="rtl" lang="ar">
                 {flash?.success ? (
                     <p className="text-sm" role="status">
                         {flash.success}
                     </p>
                 ) : null}
-                <p className="text-sm" role="status">
+                <p className="sis-ops-context-bar__warn" role="status">
                     {i18n.context.noSchools} — {i18n.context.noYear}
                 </p>
                 <OpsBootstrapPanel needed={bootstrapNeeded} />
@@ -79,7 +76,7 @@ export function OpsContextBar() {
 
     return (
         <div
-            className="flex flex-wrap items-end gap-3 border-b border-[color:var(--sis-powder-blue)] px-4 py-3"
+            className="sis-ops-context-bar"
             dir="rtl"
             lang="ar"
             aria-label={i18n.context.contextBar}
@@ -119,7 +116,7 @@ export function OpsContextBar() {
                     </select>
                 </label>
             ) : (
-                <p className="text-sm text-[color:var(--sis-powder-blush)]">{i18n.context.noSchools}</p>
+                <p className="sis-ops-context-bar__warn">{i18n.context.noSchools}</p>
             )}
 
             {years.length > 0 ? (
@@ -150,7 +147,7 @@ export function OpsContextBar() {
                     </select>
                 </label>
             ) : (
-                <p className="text-sm text-[color:var(--sis-powder-blush)]">{i18n.context.noYear}</p>
+                <p className="sis-ops-context-bar__warn">{i18n.context.noYear}</p>
             )}
         </div>
     );

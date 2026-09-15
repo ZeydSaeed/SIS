@@ -69,7 +69,7 @@ function DashboardBody({ desktop }: { desktop: boolean }) {
     };
 
     return (
-        <div className="sis-desktop-shell" lang="ar" dir="rtl">
+        <div className="sis-desktop-shell sis-dashboard" lang="ar" dir="rtl">
             {desktop ? (
                 <div className="sis-desktop-shell__menubar" role="menubar" aria-label={i18n.hub.desktopMenu}>
                     <span className="sis-desktop-shell__brand">{i18n.dashboard.title}</span>
@@ -125,12 +125,9 @@ function DashboardBody({ desktop }: { desktop: boolean }) {
                         </p>
                     ) : null}
                     {bootstrapNeeded ? (
-                        <div
-                            className="mt-4 rounded-md border border-[color:var(--sis-powder-blush)] bg-[color-mix(in_srgb,var(--sis-powder-blush)_22%,white)] p-4 text-sm"
-                            role="status"
-                        >
+                        <div className="sis-ops-hub__notice" role="status">
                             <p className="font-medium">{i18n.context.bootstrapTitle}</p>
-                            <p className="mt-1 opacity-85">{i18n.context.bootstrapLead}</p>
+                            <p>{i18n.context.bootstrapLead}</p>
                             <Form
                                 action="/context/ops-bootstrap"
                                 method="post"
