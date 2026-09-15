@@ -236,6 +236,17 @@
     outline: none !important;
 }
 
+.sis-titlebar .sis-window__control,
+.sis-titlebar .sis-window__control:hover,
+.sis-titlebar .sis-window__control:focus-visible,
+.sis-titlebar .sis-window__control:active,
+.sis-titlebar .sis-window__control--close:hover,
+.sis-titlebar .sis-window__control--close:focus-visible {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
 .sis-titlebar__menu {
     display: flex;
     flex-wrap: nowrap;
@@ -261,6 +272,227 @@
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.sis-titlebar__menu-item--active {
+    border-bottom-color: var(--sis-pearl);
+}
+
+.sis-titlebar__controls {
+    margin-left: auto;
+    background: transparent !important;
+    color: var(--sis-pearl);
+}
+
+.sis-titlebar .sis-window__control {
+    color: var(--sis-pearl) !important;
+}
+
+/* File ribbon (Word-like) under title bar — fixed height for all tabs */
+.sis-ribbon {
+    display: flex;
+    align-items: stretch;
+    gap: 0.35rem;
+    height: 6rem;
+    min-height: 6rem;
+    max-height: 6rem;
+    padding: 0.4rem 0.55rem 0.3rem;
+    background: var(--sis-pearl);
+    border-bottom: 1px solid var(--sis-oxford);
+    color: var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.sis-ribbon__body {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.sis-ribbon__group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.2rem;
+    min-width: max-content;
+    height: 100%;
+    min-height: 0;
+    padding-inline: 0.55rem;
+}
+
+.sis-ribbon__separator {
+    width: 1px;
+    align-self: stretch;
+    margin-block: 0.1rem;
+    background: color-mix(in srgb, var(--sis-oxford) 35%, transparent);
+}
+
+.sis-ribbon__items {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    overflow: hidden;
+}
+
+.sis-ribbon__item {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-width: 3.4rem;
+    max-width: 5.2rem;
+    height: 100%;
+    max-height: 100%;
+    padding: 0.2rem 0.3rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+    font-size: 0.7rem;
+    font-weight: 400;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+}
+
+.sis-ribbon__item:hover,
+.sis-ribbon__item:focus-visible {
+    background: var(--sis-hover);
+    outline: none;
+}
+
+.sis-ribbon__icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    flex-shrink: 0;
+    stroke-width: 1.7;
+}
+
+.sis-ribbon__label {
+    display: block;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.sis-ribbon__group-label {
+    font-size: 0.68rem;
+    color: var(--sis-steel);
+    line-height: 1;
+    padding-block: 0.15rem;
+}
+
+.sis-ribbon__font-controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+    min-width: 10.5rem;
+    height: 100%;
+    padding: 0.1rem 0.2rem;
+}
+
+.sis-ribbon__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin: 0;
+}
+
+.sis-ribbon__field-label {
+    font-size: 0.68rem;
+    color: var(--sis-steel);
+    line-height: 1;
+}
+
+.sis-ribbon__select {
+    min-height: 1.7rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: 0.2rem;
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+    font-size: 0.75rem;
+    padding: 0.15rem 0.35rem;
+    cursor: pointer;
+}
+
+.sis-ribbon__select--size {
+    width: 4.5rem;
+}
+
+.sis-ribbon__select:focus-visible {
+    outline: 2px solid var(--sis-steel);
+    outline-offset: 1px;
+}
+
+.sis-ribbon__collapse {
+    align-self: flex-end;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-bottom: 0.1rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--sis-oxford);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.sis-ribbon__collapse:hover,
+.sis-ribbon__collapse:focus-visible {
+    background: var(--sis-hover);
+    outline: none;
+}
+
+/* Dashboard: sidebar toggle only (no full title bar) */
+.sis-dashboard-toggle {
+    display: flex;
+    align-items: center;
+    min-height: 2.25rem;
+    height: 2.25rem;
+    padding-inline: 0.75rem;
+    background: var(--sis-steel);
+    color: var(--sis-color-sidebar-text);
+    border-bottom: 1px solid var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+}
+
+.sis-dashboard-toggle .sis-titlebar__trigger,
+.sis-dashboard-toggle button {
+    color: var(--sis-color-sidebar-text) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sis-dashboard-toggle .sis-titlebar__trigger:hover,
+.sis-dashboard-toggle .sis-titlebar__trigger:focus,
+.sis-dashboard-toggle .sis-titlebar__trigger:active,
+.sis-dashboard-toggle button:hover,
+.sis-dashboard-toggle button:focus,
+.sis-dashboard-toggle button:active {
+    color: var(--sis-color-sidebar-text) !important;
+    background: transparent !important;
+    opacity: 1 !important;
+    outline: none !important;
 }
 
 /* Sidebar text — same color/type as title bar */

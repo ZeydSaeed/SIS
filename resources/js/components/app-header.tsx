@@ -74,11 +74,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
         <>
             <div className="sis-titlebar">
                 <div className="mx-auto flex h-9 items-center gap-3 px-4 md:max-w-7xl">
-                    <TitleBarMenu
-                        onHome={() => {
-                            router.visit(dashboard());
-                        }}
-                    />
+                    <TitleBarMenu />
                     {/* Mobile Menu */}
                     <div className="lg:hidden">
                         <Sheet>

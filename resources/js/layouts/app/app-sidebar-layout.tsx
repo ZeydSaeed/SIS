@@ -3,6 +3,7 @@ import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import type { AppLayoutProps } from '@/types';
 
@@ -20,7 +21,13 @@ export default function AppSidebarLayout({
                 variant="sidebar"
                 className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
             >
-                <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                {isDashboard ? (
+                    <div className="sis-dashboard-toggle shrink-0">
+                        <SidebarTrigger className="sis-titlebar__trigger size-7" />
+                    </div>
+                ) : (
+                    <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                )}
                 <div
                     className={cn(
                         'min-h-0 flex-1',

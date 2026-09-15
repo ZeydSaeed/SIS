@@ -4,7 +4,6 @@ import {
     BadgeCheck,
     Banknote,
     BookOpen,
-    Brain,
     Briefcase,
     CalendarCheck,
     CalendarDays,
@@ -35,11 +34,160 @@ export type SisModuleNavItem = {
     icon: LucideIcon;
     /** When true, shown in sidebar but not as a dashboard launcher tile. */
     sidebarOnly?: boolean;
+    /** When true, excluded from sidebar sections (dashboard tile only). */
+    dashboardOnly?: boolean;
 };
 
-/** Shared module map — sidebar + dashboard launcher (SSOT). */
+export type SisNavSection = {
+    id: string;
+    titleAr: string;
+    titleEn: string;
+    items: SisModuleNavItem[];
+};
+
+type ModuleKey =
+    | 'students'
+    | 'guardians'
+    | 'admission'
+    | 'enrollments'
+    | 'attendance'
+    | 'holidays'
+    | 'health'
+    | 'teachers'
+    | 'hr'
+    | 'timetable'
+    | 'curriculum'
+    | 'exams'
+    | 'grades'
+    | 'results'
+    | 'promotion'
+    | 'transfers'
+    | 'graduation'
+    | 'certificates'
+    | 'finance'
+    | 'documents'
+    | 'communication'
+    | 'workflow'
+    | 'reports';
+
+const MODULE_DEFS: Record<
+    ModuleKey,
+    { href: string; icon: LucideIcon; dashboardOnly?: boolean }
+> = {
+    students: { href: '/students', icon: GraduationCap },
+    guardians: { href: '/guardians', icon: UserRound },
+    admission: { href: '/admission', icon: UserPlus },
+    enrollments: { href: '/enrollments', icon: ClipboardList },
+    attendance: { href: '/attendance', icon: CalendarCheck },
+    holidays: { href: '/holidays', icon: CalendarDays },
+    health: { href: '/health', icon: HeartPulse },
+    teachers: { href: '/teachers', icon: Users },
+    hr: { href: '/hr', icon: Briefcase },
+    timetable: { href: '/timetable', icon: CalendarRange },
+    curriculum: { href: '/curriculum', icon: BookOpen },
+    exams: { href: '/exams', icon: NotebookPen },
+    grades: { href: '/grades', icon: ListChecks },
+    results: { href: '/results', icon: ScrollText },
+    promotion: { href: '/promotion', icon: Award },
+    transfers: { href: '/transfers', icon: ArrowLeftRight },
+    graduation: { href: '/graduation', icon: BadgeCheck },
+    certificates: { href: '/certificates', icon: FileBadge },
+    finance: { href: '/finance', icon: Banknote },
+    documents: { href: '/documents', icon: FolderOpen },
+    communication: { href: '/communication', icon: MessagesSquare },
+    workflow: { href: '/workflow', icon: Workflow },
+    reports: { href: '/reports', icon: FileBarChart },
+};
+
+function moduleItem(key: ModuleKey): SisModuleNavItem {
+    const i18n = t();
+    const def = MODULE_DEFS[key];
+
+    return {
+        title: i18n.modules[key],
+        href: def.href,
+        icon: def.icon,
+        dashboardOnly: def.dashboardOnly,
+    };
+}
+
+/** Sidebar sections — SSOT for grouped navigation. */
+export function getSisSidebarSections(): SisNavSection[] {
+    return [
+        {
+            id: 'student-management',
+            titleAr: 'إدارة الطلاب',
+            titleEn: 'Student Management',
+            items: [
+                moduleItem('enrollments'),
+                moduleItem('admission'),
+                moduleItem('students'),
+                moduleItem('attendance'),
+                moduleItem('holidays'),
+            ],
+        },
+        {
+            id: 'student-affairs',
+            titleAr: 'شؤون الطلبة',
+            titleEn: 'Student Affairs',
+            items: [
+                moduleItem('timetable'),
+                moduleItem('curriculum'),
+                moduleItem('guardians'),
+                moduleItem('health'),
+                moduleItem('transfers'),
+                moduleItem('communication'),
+            ],
+        },
+        {
+            id: 'examinations',
+            titleAr: 'الامتحانات والتقييم',
+            titleEn: 'Examinations',
+            items: [
+                moduleItem('exams'),
+                moduleItem('grades'),
+                moduleItem('results'),
+            ],
+        },
+        {
+            id: 'staff-faculty',
+            titleAr: 'الكادر التدريسي',
+            titleEn: 'Staff & Faculty',
+            items: [
+                moduleItem('teachers'),
+                moduleItem('hr'),
+                moduleItem('promotion'),
+                moduleItem('finance'),
+            ],
+        },
+        {
+            id: 'graduation',
+            titleAr: 'التخرج والخريجون',
+            titleEn: 'Graduation',
+            items: [
+                moduleItem('graduation'),
+                moduleItem('certificates'),
+            ],
+        },
+        {
+            id: 'administration',
+            titleAr: 'الشؤون الإدارية',
+            titleEn: 'Administration',
+            items: [
+                moduleItem('documents'),
+                moduleItem('reports'),
+                moduleItem('workflow'),
+            ],
+        },
+    ];
+}
+
+/** Flat module map — preserves sidebar section order (SSOT). */
 export function getSisModuleNavItems(): SisModuleNavItem[] {
     const i18n = t();
+    const sectionItems = getSisSidebarSections().flatMap(
+        (section) => section.items,
+    );
 
     return [
         {
@@ -48,125 +196,6 @@ export function getSisModuleNavItems(): SisModuleNavItem[] {
             icon: LayoutGrid,
             sidebarOnly: true,
         },
-        {
-            title: i18n.modules.students,
-            href: '/students',
-            icon: GraduationCap,
-        },
-        {
-            title: i18n.modules.guardians,
-            href: '/guardians',
-            icon: UserRound,
-        },
-        {
-            title: i18n.modules.admission,
-            href: '/admission',
-            icon: UserPlus,
-        },
-        {
-            title: i18n.modules.enrollments,
-            href: '/enrollments',
-            icon: ClipboardList,
-        },
-        {
-            title: i18n.modules.attendance,
-            href: '/attendance',
-            icon: CalendarCheck,
-        },
-        {
-            title: i18n.modules.holidays,
-            href: '/holidays',
-            icon: CalendarDays,
-        },
-        {
-            title: i18n.modules.health,
-            href: '/health',
-            icon: HeartPulse,
-        },
-        {
-            title: i18n.modules.teachers,
-            href: '/teachers',
-            icon: Users,
-        },
-        {
-            title: i18n.modules.hr,
-            href: '/hr',
-            icon: Briefcase,
-        },
-        {
-            title: i18n.modules.timetable,
-            href: '/timetable',
-            icon: CalendarRange,
-        },
-        {
-            title: i18n.modules.curriculum,
-            href: '/curriculum',
-            icon: BookOpen,
-        },
-        {
-            title: i18n.modules.exams,
-            href: '/exams',
-            icon: NotebookPen,
-        },
-        {
-            title: i18n.modules.grades,
-            href: '/grades',
-            icon: ListChecks,
-        },
-        {
-            title: i18n.modules.results,
-            href: '/results',
-            icon: ScrollText,
-        },
-        {
-            title: i18n.modules.promotion,
-            href: '/promotion',
-            icon: Award,
-        },
-        {
-            title: i18n.modules.transfers,
-            href: '/transfers',
-            icon: ArrowLeftRight,
-        },
-        {
-            title: i18n.modules.graduation,
-            href: '/graduation',
-            icon: BadgeCheck,
-        },
-        {
-            title: i18n.modules.certificates,
-            href: '/certificates',
-            icon: FileBadge,
-        },
-        {
-            title: i18n.modules.finance,
-            href: '/finance',
-            icon: Banknote,
-        },
-        {
-            title: i18n.modules.documents,
-            href: '/documents',
-            icon: FolderOpen,
-        },
-        {
-            title: i18n.modules.communication,
-            href: '/communication',
-            icon: MessagesSquare,
-        },
-        {
-            title: i18n.modules.workflow,
-            href: '/workflow',
-            icon: Workflow,
-        },
-        {
-            title: i18n.modules.reports,
-            href: '/reports',
-            icon: FileBarChart,
-        },
-        {
-            title: i18n.modules.intelligence,
-            href: '/intelligence/recommendations',
-            icon: Brain,
-        },
+        ...sectionItems,
     ];
 }

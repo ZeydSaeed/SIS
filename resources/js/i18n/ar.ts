@@ -51,7 +51,7 @@ export const ar = {
         guardiansDesc: 'ربط أولياء الأمور بالطلاب',
         admission: 'القبول',
         admissionDesc: 'فترات وطلبات القبول',
-        enrollments: 'التسجيلات',
+        enrollments: 'التسجيل',
         enrollmentsDesc: 'التوزيع والنماذج',
         attendance: 'الحضور',
         attendanceDesc: 'جلسات، تسجيل، إغلاق',

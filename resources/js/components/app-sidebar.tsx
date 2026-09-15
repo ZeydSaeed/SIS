@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { LayoutGrid } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -11,16 +12,22 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useCurrentUrl } from '@/hooks/use-current-url';
 import { getSisModuleNavItems } from '@/nav/sis-module-nav';
+import { t } from '@/i18n';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
-    const mainNavItems: NavItem[] = getSisModuleNavItems().map((item) => ({
-        title: item.title,
-        href: item.href,
-        icon: item.icon,
-    }));
+    const i18n = t();
+    const { isCurrentUrl } = useCurrentUrl();
+    const mainNavItems: NavItem[] = getSisModuleNavItems()
+        .filter((item) => !item.sidebarOnly)
+        .map((item) => ({
+            title: item.title,
+            href: item.href,
+            icon: item.icon,
+        }));
 
     return (
         <Sidebar collapsible="icon" variant="inset" side="right">
@@ -30,6 +37,18 @@ export function AppSidebar() {
                         <SidebarMenuButton size="lg" asChild>
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={isCurrentUrl(dashboard.url())}
+                            tooltip={{ children: i18n.modules.dashboard }}
+                        >
+                            <Link href={dashboard()} prefetch>
+                                <LayoutGrid />
+                                <span>{i18n.modules.dashboard}</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

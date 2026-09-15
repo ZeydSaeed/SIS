@@ -88,12 +88,6 @@ export function getWindowCatalog(): Record<string, SisWindowDescriptor> {
             href: embedHref('/attendance/create'),
             minimumSize: { width: 560, height: 520 },
         },
-        'intelligence.recommendations': {
-            windowId: 'intelligence.recommendations',
-            title: i18n.modules.intelligence,
-            href: embedHref('/intelligence/recommendations'),
-            minimumSize: { width: 720, height: 520 },
-        },
     };
 }
 
@@ -120,7 +114,6 @@ export function windowIdForPath(path: string): string | null {
         '/exams': 'exams.list',
         '/grades': 'grades.list',
         '/reports': 'reports.hub',
-        '/intelligence/recommendations': 'intelligence.recommendations',
     };
     return map[clean] ?? null;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
-import { Copy, Minus, Square, X } from 'lucide-react';
+import { WindowControls } from '@/components/window-controls';
 import { t } from '@/i18n';
 import { useWindowManager } from '@/window/window-manager-context';
 import type { SisOpenWindow } from '@/window/types';
@@ -177,51 +177,20 @@ export function WindowFrame({ window: win }: Props) {
                 <h2 id={`sis-window-title-${win.instanceId}`} className="sis-window__title">
                     {win.title}
                 </h2>
-                <div
-                    className="sis-window__controls"
-                    role="group"
-                    aria-label={`${win.title} — ${i18n.window.controls}`}
-                    onPointerDown={(event) => event.stopPropagation()}
-                >
-                    {win.minimizable !== false ? (
-                        <button
-                            type="button"
-                            className="sis-window__control"
-                            aria-label={`${i18n.window.minimize}: ${win.title}`}
-                            onClick={() => wm.minimize(win.instanceId)}
-                        >
-                            <Minus className="size-3.5" aria-hidden />
-                        </button>
-                    ) : null}
-                    {win.maximizable !== false ? (
-                        <button
-                            type="button"
-                            className="sis-window__control"
-                            aria-label={
-                                win.maximized
-                                    ? `${i18n.window.restore}: ${win.title}`
-                                    : `${i18n.window.maximize}: ${win.title}`
-                            }
-                            onClick={() => wm.maximize(win.instanceId)}
-                        >
-                            {win.maximized ? (
-                                <Copy className="size-3.5" aria-hidden />
-                            ) : (
-                                <Square className="size-3.5" aria-hidden />
-                            )}
-                        </button>
-                    ) : null}
-                    {win.closable !== false ? (
-                        <button
-                            type="button"
-                            className="sis-window__control sis-window__control--close"
-                            aria-label={`${i18n.window.close}: ${win.title}`}
-                            onClick={() => wm.close(win.instanceId)}
-                        >
-                            <X className="size-3.5" aria-hidden />
-                        </button>
-                    ) : null}
-                </div>
+                <WindowControls
+                    label={`${win.title} — ${i18n.window.controls}`}
+                    minimizeLabel={`${i18n.window.minimize}: ${win.title}`}
+                    maximizeLabel={`${i18n.window.maximize}: ${win.title}`}
+                    restoreLabel={`${i18n.window.restore}: ${win.title}`}
+                    closeLabel={`${i18n.window.close}: ${win.title}`}
+                    maximized={win.maximized}
+                    minimizable={win.minimizable !== false}
+                    maximizable={win.maximizable !== false}
+                    closable={win.closable !== false}
+                    onMinimize={() => wm.minimize(win.instanceId)}
+                    onMaximize={() => wm.maximize(win.instanceId)}
+                    onClose={() => wm.close(win.instanceId)}
+                />
             </div>
             <div className="sis-window__body">
                 <iframe
