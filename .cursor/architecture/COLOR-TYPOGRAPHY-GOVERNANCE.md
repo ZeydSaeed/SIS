@@ -61,12 +61,27 @@ No UI implementation may bypass this governance.
 The SIS application has exactly FIVE approved base colors.
 
 ```css
---twilight-indigo: #3a405a;
---powder-blue: #aec5eb;
---powder-petal: #f9dec9;
---powder-blush: #e9afa3;
---ash-brown: #685044;
+--night: #0d1b2a;
+--oxford: #1b263b;
+--steel: #415a77;
+--mist: #778da9;
+--pearl: #e0e1dd;
 ```
+
+| Name | HEX | Role |
+|------|-----|------|
+| Night | `#0D1B2A` | Sidebar / primary dark |
+| Oxford | `#1B263B` | Secondary text / borders / depth |
+| Steel | `#415A77` | Toolbar / title bars |
+| Mist | `#778DA9` | Interactive / cards / secondary surfaces |
+| Pearl | `#E0E1DD` | Window / page background |
+
+**Surface mapping (mandatory):**
+
+* Sidebar → `#0D1B2A`
+* Window background → `#E0E1DD`
+* Toolbar → `#415A77`
+* Remaining UI → `#778DA9`, `#1B263B`
 
 These five colors are the **SSOT base palette**.
 
@@ -76,12 +91,12 @@ No other arbitrary colors may be introduced.
 
 # 2. Approved Color Palette
 
-## 2.1 Twilight Indigo
+## 2.1 Ink Black (was Twilight Indigo)
 
 ```text
-Name: Twilight Indigo
-HEX: #3A405A
-RGB: 58, 64, 90
+Name: Ink Black
+HEX: #0D1321
+RGB: 13, 19, 33
 ```
 
 Semantic role:

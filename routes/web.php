@@ -6,6 +6,7 @@ use App\Http\Controllers\Exams\ExamPageController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Ops\OpsModulePageController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
 use App\Http\Controllers\SchoolContextController;
@@ -90,6 +91,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [ReportsPageController::class, 'index'])->name('index');
         Route::get('/attendance-daily', [ReportsPageController::class, 'attendanceDaily'])->name('attendance-daily');
         Route::get('/enrollment-roster', [ReportsPageController::class, 'enrollmentRoster'])->name('enrollment-roster');
+    });
+
+    // Blueprint lifecycle / support shells (UI scaffolding — handlers land per module gate).
+    Route::middleware('require.school.context')->group(function (): void {
+        Route::get('/guardians', [OpsModulePageController::class, 'guardians'])->name('guardians.index');
+        Route::get('/admission', [OpsModulePageController::class, 'admission'])->name('admission.index');
+        Route::get('/curriculum', [OpsModulePageController::class, 'curriculum'])->name('curriculum.index');
+        Route::get('/promotion', [OpsModulePageController::class, 'promotion'])->name('promotion.index');
+        Route::get('/transfers', [OpsModulePageController::class, 'transfers'])->name('transfers.index');
+        Route::get('/graduation', [OpsModulePageController::class, 'graduation'])->name('graduation.index');
+        Route::get('/certificates', [OpsModulePageController::class, 'certificates'])->name('certificates.index');
+        Route::get('/finance', [OpsModulePageController::class, 'finance'])->name('finance.index');
+        Route::get('/holidays', [OpsModulePageController::class, 'holidays'])->name('holidays.index');
+        Route::get('/health', [OpsModulePageController::class, 'health'])->name('health.index');
+        Route::get('/hr', [OpsModulePageController::class, 'hr'])->name('hr.index');
+        Route::get('/documents', [OpsModulePageController::class, 'documents'])->name('documents.index');
+        Route::get('/communication', [OpsModulePageController::class, 'communication'])->name('communication.index');
+        Route::get('/workflow', [OpsModulePageController::class, 'workflow'])->name('workflow.index');
     });
 
     Route::prefix('intelligence')->name('intelligence.')->group(function () {

@@ -1,8 +1,9 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { TitleBarMenu } from '@/components/title-bar-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,8 +72,13 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
 
     return (
         <>
-            <div className="border-sidebar-border/80 border-b">
-                <div className="mx-auto flex h-16 items-center px-4 md:max-w-7xl">
+            <div className="sis-titlebar">
+                <div className="mx-auto flex h-9 items-center gap-3 px-4 md:max-w-7xl">
+                    <TitleBarMenu
+                        onHome={() => {
+                            router.visit(dashboard());
+                        }}
+                    />
                     {/* Mobile Menu */}
                     <div className="lg:hidden">
                         <Sheet>

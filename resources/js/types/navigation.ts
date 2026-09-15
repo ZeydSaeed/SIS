@@ -11,4 +11,6 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon | null;
     isActive?: boolean;
+    /** When set, sidebar opens a free window instead of full-page navigation. */
+    windowId?: string;
 };

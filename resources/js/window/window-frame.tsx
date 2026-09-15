@@ -1,5 +1,5 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
-import { Minus, Square, X } from 'lucide-react';
+import { Copy, Minus, Square, X } from 'lucide-react';
 import { t } from '@/i18n';
 import { useWindowManager } from '@/window/window-manager-context';
 import type { SisOpenWindow } from '@/window/types';
@@ -8,12 +8,17 @@ type Props = {
     window: SisOpenWindow;
 };
 
+type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
 export function WindowFrame({ window: win }: Props) {
     const wm = useWindowManager();
     const dragRef = useRef<{ ox: number; oy: number; sx: number; sy: number } | null>(null);
     const resizeRef = useRef<{
+        edge: ResizeEdge;
         ox: number;
         oy: number;
+        sx: number;
+        sy: number;
         sw: number;
         sh: number;
     } | null>(null);
@@ -23,6 +28,9 @@ export function WindowFrame({ window: win }: Props) {
     const onTitlePointerDown = useCallback(
         (event: ReactPointerEvent<HTMLDivElement>) => {
             if (win.maximized || win.movable === false) {
+                return;
+            }
+            if ((event.target as HTMLElement).closest('.sis-window__controls')) {
                 return;
             }
             event.currentTarget.setPointerCapture(event.pointerId);
@@ -56,16 +64,26 @@ export function WindowFrame({ window: win }: Props) {
         }
     }, []);
 
+    const onTitleDoubleClick = useCallback(() => {
+        if (win.maximizable === false) {
+            return;
+        }
+        wm.maximize(win.instanceId);
+    }, [wm, win.instanceId, win.maximizable]);
+
     const onResizePointerDown = useCallback(
-        (event: ReactPointerEvent<HTMLDivElement>) => {
+        (edge: ResizeEdge) => (event: ReactPointerEvent<HTMLDivElement>) => {
             if (win.maximized || win.resizable === false) {
                 return;
             }
             event.stopPropagation();
             event.currentTarget.setPointerCapture(event.pointerId);
             resizeRef.current = {
+                edge,
                 ox: event.clientX,
                 oy: event.clientY,
+                sx: win.x,
+                sy: win.y,
                 sw: win.width,
                 sh: win.height,
             };
@@ -76,18 +94,37 @@ export function WindowFrame({ window: win }: Props) {
 
     const onResizePointerMove = useCallback(
         (event: ReactPointerEvent<HTMLDivElement>) => {
-            if (!resizeRef.current) {
+            const state = resizeRef.current;
+            if (!state) {
                 return;
             }
-            const dx = event.clientX - resizeRef.current.ox;
-            const dy = event.clientY - resizeRef.current.oy;
-            wm.resize(
-                win.instanceId,
-                resizeRef.current.sw + dx,
-                resizeRef.current.sh + dy,
-            );
+            const dx = event.clientX - state.ox;
+            const dy = event.clientY - state.oy;
+            const min = win.minimumSize ?? { width: 480, height: 360 };
+            let x = state.sx;
+            let y = state.sy;
+            let width = state.sw;
+            let height = state.sh;
+
+            if (state.edge.includes('e')) {
+                width = Math.max(min.width, state.sw + dx);
+            }
+            if (state.edge.includes('s')) {
+                height = Math.max(min.height, state.sh + dy);
+            }
+            if (state.edge.includes('w')) {
+                width = Math.max(min.width, state.sw - dx);
+                x = state.sx + (state.sw - width);
+            }
+            if (state.edge.includes('n')) {
+                height = Math.max(min.height, state.sh - dy);
+                y = state.sy + (state.sh - height);
+            }
+
+            wm.move(win.instanceId, x, y);
+            wm.resize(win.instanceId, width, height);
         },
-        [wm, win.instanceId],
+        [wm, win.instanceId, win.minimumSize],
     );
 
     const onResizePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -117,6 +154,8 @@ export function WindowFrame({ window: win }: Props) {
               zIndex: win.zIndex,
           };
 
+    const edges: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+
     return (
         <section
             className={`sis-window${focused ? ' sis-window--focused' : ''}`}
@@ -133,6 +172,7 @@ export function WindowFrame({ window: win }: Props) {
                 onPointerDown={onTitlePointerDown}
                 onPointerMove={onTitlePointerMove}
                 onPointerUp={onTitlePointerUp}
+                onDoubleClick={onTitleDoubleClick}
             >
                 <h2 id={`sis-window-title-${win.instanceId}`} className="sis-window__title">
                     {win.title}
@@ -141,6 +181,7 @@ export function WindowFrame({ window: win }: Props) {
                     className="sis-window__controls"
                     role="group"
                     aria-label={`${win.title} — ${i18n.window.controls}`}
+                    onPointerDown={(event) => event.stopPropagation()}
                 >
                     {win.minimizable !== false ? (
                         <button
@@ -163,7 +204,11 @@ export function WindowFrame({ window: win }: Props) {
                             }
                             onClick={() => wm.maximize(win.instanceId)}
                         >
-                            <Square className="size-3.5" aria-hidden />
+                            {win.maximized ? (
+                                <Copy className="size-3.5" aria-hidden />
+                            ) : (
+                                <Square className="size-3.5" aria-hidden />
+                            )}
                         </button>
                     ) : null}
                     {win.closable !== false ? (
@@ -186,17 +231,17 @@ export function WindowFrame({ window: win }: Props) {
                     sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
                 />
             </div>
-            {!win.maximized && win.resizable !== false ? (
-                <div
-                    className="sis-window__resize"
-                    role="separator"
-                    aria-orientation="horizontal"
-                    aria-label={`${i18n.window.resize}: ${win.title}`}
-                    onPointerDown={onResizePointerDown}
-                    onPointerMove={onResizePointerMove}
-                    onPointerUp={onResizePointerUp}
-                />
-            ) : null}
+            {!win.maximized && win.resizable !== false
+                ? edges.map((edge) => (
+                      <div
+                          key={edge}
+                          className={`sis-window__edge sis-window__edge--${edge}`}
+                          onPointerDown={onResizePointerDown(edge)}
+                          onPointerMove={onResizePointerMove}
+                          onPointerUp={onResizePointerUp}
+                      />
+                  ))
+                : null}
         </section>
     );
 }

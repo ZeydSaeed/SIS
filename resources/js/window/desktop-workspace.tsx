@@ -8,11 +8,17 @@ export function DesktopWorkspace() {
     const wm = useWindowManager();
     const minimized = wm.windows.filter((w) => w.minimized);
     const open = wm.windows.filter((w) => !w.minimized);
+    const taskItems = [...open, ...minimized].sort((a, b) => a.zIndex - b.zIndex);
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             const target = event.target as HTMLElement | null;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            if (
+                target &&
+                (target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable)
+            ) {
                 return;
             }
             if (event.key === 'Escape') {
@@ -41,18 +47,16 @@ export function DesktopWorkspace() {
             lang="ar"
             dir="rtl"
         >
-            <div className="sis-desktop-workspace__brand" aria-hidden>
-                <span className="sis-desktop-workspace__brand-mark" dir="ltr">
-                    SIS
-                </span>
-                <span className="sis-desktop-workspace__brand-sub">{i18n.hub.workspace}</span>
-            </div>
             <div className="sis-desktop-workspace__canvas" aria-live="polite">
                 {open.map((win) => (
                     <WindowFrame key={win.instanceId} window={win} />
                 ))}
             </div>
-            <div className="sis-desktop-workspace__taskbar" role="toolbar" aria-label={i18n.window.taskbar}>
+            <div
+                className="sis-desktop-workspace__taskbar"
+                role="toolbar"
+                aria-label={i18n.window.taskbar}
+            >
                 <button
                     type="button"
                     className="sis-desktop-workspace__task"
@@ -61,12 +65,20 @@ export function DesktopWorkspace() {
                 >
                     {i18n.hub.cascade}
                 </button>
-                {minimized.map((win) => (
+                {taskItems.map((win) => (
                     <button
                         key={win.instanceId}
                         type="button"
-                        className="sis-desktop-workspace__task"
-                        onClick={() => wm.restore(win.instanceId)}
+                        className={`sis-desktop-workspace__task${
+                            wm.focusedInstanceId === win.instanceId
+                                ? ' sis-desktop-workspace__task--active'
+                                : ''
+                        }`}
+                        onClick={() =>
+                            win.minimized
+                                ? wm.restore(win.instanceId)
+                                : wm.focus(win.instanceId)
+                        }
                     >
                         {win.title}
                     </button>

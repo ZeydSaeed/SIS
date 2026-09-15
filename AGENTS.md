@@ -99,7 +99,7 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 
 | Rule | Scope |
 |------|--------|
-| Five approved base colors | Twilight Indigo, Powder Blue, Powder Petal, Powder Blush, Ash Brown |
+| Five approved base colors | Night, Oxford, Steel, Mist, Pearl |
 | Four approved fonts | Segoe UI, Tahoma, Calibri, Aptos — no Google Fonts |
 | Legacy baseline | `app.css` shadcn/Instrument Sans — migrate on touch; do not extend on new UI |
 

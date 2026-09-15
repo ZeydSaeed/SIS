@@ -1,15 +1,4 @@
 import { Link } from '@inertiajs/react';
-import {
-    Brain,
-    CalendarCheck,
-    CalendarRange,
-    ClipboardList,
-    FileBarChart,
-    GraduationCap,
-    LayoutGrid,
-    ScrollText,
-    Users,
-} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -22,70 +11,16 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { t } from '@/i18n';
+import { getSisModuleNavItems } from '@/nav/sis-module-nav';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
-    const i18n = t();
-
-    const mainNavItems: NavItem[] = [
-        {
-            title: i18n.modules.dashboard,
-            href: dashboard(),
-            icon: LayoutGrid,
-        },
-        {
-            title: i18n.modules.students,
-            href: '/students',
-            icon: GraduationCap,
-        },
-        {
-            title: i18n.modules.enrollments,
-            href: '/enrollments',
-            icon: ClipboardList,
-        },
-        {
-            title: i18n.modules.attendance,
-            href: '/attendance',
-            icon: CalendarCheck,
-        },
-        {
-            title: i18n.modules.teachers,
-            href: '/teachers',
-            icon: Users,
-        },
-        {
-            title: i18n.modules.timetable,
-            href: '/timetable',
-            icon: CalendarRange,
-        },
-        {
-            title: i18n.modules.results,
-            href: '/results',
-            icon: ScrollText,
-        },
-        {
-            title: i18n.modules.exams,
-            href: '/exams',
-            icon: GraduationCap,
-        },
-        {
-            title: i18n.modules.grades,
-            href: '/grades',
-            icon: ClipboardList,
-        },
-        {
-            title: i18n.modules.reports,
-            href: '/reports',
-            icon: FileBarChart,
-        },
-        {
-            title: i18n.modules.intelligence,
-            href: '/intelligence/recommendations',
-            icon: Brain,
-        },
-    ];
+    const mainNavItems: NavItem[] = getSisModuleNavItems().map((item) => ({
+        title: item.title,
+        href: item.href,
+        icon: item.icon,
+    }));
 
     return (
         <Sidebar collapsible="icon" variant="inset" side="right">
@@ -101,7 +36,7 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="sis-scroll-hidden min-h-0 flex-1 overflow-y-auto overscroll-contain group-data-[collapsible=icon]:overflow-y-auto">
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 

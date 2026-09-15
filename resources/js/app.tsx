@@ -6,10 +6,16 @@ import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-
 void createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: (title) => {
+        // Native window chrome title (Edge/Chrome --app): centered by OS when possible.
+        const brand = 'Student Information System';
+        if (!title || title.trim().toUpperCase() === 'SIS' || title === brand) {
+            return brand;
+        }
+
+        return `${title} — ${brand}`;
+    },
     layout: (name) => {
         switch (true) {
             case name === 'welcome':
@@ -19,7 +25,8 @@ void createInertiaApp({
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
             default:
-                return AppLayout;
+                // Dashboard + ops pages wrap AppLayout in the page (sidebar only on dashboard).
+                return null;
         }
     },
     strictMode: true,

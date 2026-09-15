@@ -59,96 +59,123 @@
 }
 
 :root {
-    /* SSOT base palette — COLOR-TYPOGRAPHY-GOVERNANCE.md */
-    --sis-twilight-indigo: #3a405a;
-    --sis-powder-blue: #aec5eb;
-    --sis-powder-petal: #f9dec9;
-    --sis-powder-blush: #e9afa3;
-    --sis-ash-brown: #685044;
+    /* Five base colors — human-approved */
+    --sis-night: #0d1b2a;          /* sidebar */
+    --sis-oxford: #1b263b;         /* text/depth */
+    --sis-steel: #415a77;          /* toolbar */
+    --sis-mist: #778da9;           /* interactive / secondary */
+    --sis-pearl: #e0e1dd;          /* window background */
+    --sis-hover: #caf0f8;          /* hover */
 
-    /* Semantic roles (derivatives of the five bases only) */
-    --sis-color-primary: var(--sis-twilight-indigo);
-    --sis-color-primary-text: var(--sis-powder-petal);
-    --sis-color-secondary: var(--sis-powder-blue);
-    --sis-color-surface: var(--sis-powder-petal);
-    --sis-color-surface-soft: color-mix(in srgb, var(--sis-powder-blue) 42%, var(--sis-powder-petal));
-    --sis-color-text-primary: var(--sis-twilight-indigo);
-    --sis-color-text-secondary: var(--sis-ash-brown);
-    --sis-color-border: color-mix(in srgb, var(--sis-ash-brown) 50%, var(--sis-powder-blue));
-    --sis-color-attention: var(--sis-powder-blush);
-    --sis-color-hover: color-mix(in srgb, var(--sis-powder-blue) 48%, var(--sis-powder-petal));
-    --sis-color-selected: var(--sis-powder-blue);
-    --sis-color-focus: var(--sis-twilight-indigo);
-    --sis-color-info: var(--sis-powder-blue);
-    --sis-color-warning: var(--sis-powder-blush);
-    --sis-color-danger: color-mix(in srgb, var(--sis-powder-blush) 62%, var(--sis-ash-brown));
-    --sis-color-shell: var(--sis-twilight-indigo);
-    --sis-color-shell-text: var(--sis-powder-petal);
+    /* Canonical aliases used across ops CSS */
+    --sis-twilight-indigo: var(--sis-night);
+    --sis-ash-brown: var(--sis-oxford);
+    --sis-powder-blush: var(--sis-steel);
+    --sis-powder-blue: var(--sis-mist);
+    --sis-powder-petal: var(--sis-pearl);
 
-    /* Bridge legacy theme tokens → SIS semantic roles */
-    --background: var(--sis-color-surface-soft);
-    --foreground: var(--sis-color-text-primary);
-    --card: color-mix(in srgb, var(--sis-powder-petal) 78%, var(--sis-powder-blue));
-    --card-foreground: var(--sis-color-text-primary);
-    --popover: var(--sis-powder-petal);
-    --popover-foreground: var(--sis-color-text-primary);
-    --primary: var(--sis-color-primary);
-    --primary-foreground: var(--sis-color-primary-text);
-    --secondary: var(--sis-powder-blue);
-    --secondary-foreground: var(--sis-twilight-indigo);
-    --muted: color-mix(in srgb, var(--sis-powder-blue) 32%, var(--sis-powder-petal));
-    --muted-foreground: var(--sis-ash-brown);
-    --accent: var(--sis-color-hover);
-    --accent-foreground: var(--sis-twilight-indigo);
-    --destructive: var(--sis-color-danger);
-    --destructive-foreground: var(--sis-powder-petal);
-    --border: var(--sis-color-border);
-    --input: color-mix(in srgb, var(--sis-powder-blue) 45%, var(--sis-powder-petal));
-    --ring: var(--sis-color-focus);
-    --chart-1: var(--sis-twilight-indigo);
-    --chart-2: var(--sis-powder-blue);
-    --chart-3: var(--sis-ash-brown);
-    --chart-4: var(--sis-powder-blush);
-    --chart-5: var(--sis-powder-petal);
+    --sis-ink-black: var(--sis-night);
+    --sis-deep-space-blue: var(--sis-oxford);
+    --sis-blue-slate: var(--sis-steel);
+    --sis-dusty-denim: var(--sis-mist);
+    --sis-eggshell: var(--sis-pearl);
+
+    --sis-deep-navy: var(--sis-night);
+    --sis-imperial-blue: var(--sis-oxford);
+    --sis-bright-marine: var(--sis-steel);
+    --sis-aquatic-blue: var(--sis-mist);
+    --sis-icy-blue: var(--sis-pearl);
+
+    --sis-color-primary: var(--sis-night);
+    --sis-color-primary-text: var(--sis-pearl);
+    --sis-color-secondary: var(--sis-mist);
+    --sis-color-surface: var(--sis-pearl);
+    --sis-color-surface-soft: var(--sis-pearl);
+    --sis-color-text-primary: var(--sis-oxford);
+    --sis-color-text-secondary: var(--sis-steel);
+    --sis-color-border: var(--sis-oxford);
+    --sis-color-attention: var(--sis-steel);
+    --sis-color-hover: var(--sis-hover);
+    --sis-color-selected: var(--sis-mist);
+    --sis-color-focus: var(--sis-steel);
+    --sis-color-info: var(--sis-mist);
+    --sis-color-warning: var(--sis-steel);
+    --sis-color-danger: var(--sis-steel);
+    --sis-color-shell: var(--sis-pearl);
+    --sis-color-shell-text: var(--sis-oxford);
+    --sis-color-toolbar: var(--sis-steel);
+    --sis-color-sidebar: var(--sis-night);
+    --sis-color-sidebar-text: var(--sis-pearl);
+    --sis-titlebar-text: var(--sis-pearl);
+    --sis-chrome-font: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
+    --sis-chrome-text-size: 0.875rem;
+    --sis-chrome-text-weight: 400;
+    --sis-window-controls: #a3b18a;
+
+    --background: var(--sis-pearl);
+    --foreground: var(--sis-oxford);
+    --card: var(--sis-mist);
+    --card-foreground: var(--sis-oxford);
+    --popover: var(--sis-pearl);
+    --popover-foreground: var(--sis-oxford);
+    --primary: var(--sis-night);
+    --primary-foreground: var(--sis-pearl);
+    --secondary: var(--sis-mist);
+    --secondary-foreground: var(--sis-oxford);
+    --muted: var(--sis-mist);
+    --muted-foreground: var(--sis-oxford);
+    --accent: var(--sis-hover);
+    --accent-foreground: var(--sis-oxford);
+    --destructive: var(--sis-steel);
+    --destructive-foreground: var(--sis-pearl);
+    --border: var(--sis-oxford);
+    --input: var(--sis-mist);
+    --ring: var(--sis-steel);
+    --chart-1: var(--sis-night);
+    --chart-2: var(--sis-mist);
+    --chart-3: var(--sis-oxford);
+    --chart-4: var(--sis-steel);
+    --chart-5: var(--sis-pearl);
     --radius: 0.625rem;
-    --sidebar: var(--sis-color-shell);
-    --sidebar-foreground: var(--sis-color-shell-text);
-    --sidebar-primary: var(--sis-powder-blue);
-    --sidebar-primary-foreground: var(--sis-twilight-indigo);
-    --sidebar-accent: color-mix(in srgb, var(--sis-twilight-indigo) 72%, var(--sis-powder-blue));
-    --sidebar-accent-foreground: var(--sis-powder-petal);
-    --sidebar-border: color-mix(in srgb, var(--sis-twilight-indigo) 78%, var(--sis-ash-brown));
-    --sidebar-ring: var(--sis-powder-blue);
+    /* Sidebar = #0D1B2A */
+    --sidebar: var(--sis-night);
+    --sidebar-foreground: var(--sis-pearl);
+    --sidebar-primary: var(--sis-mist);
+    --sidebar-primary-foreground: var(--sis-night);
+    --sidebar-accent: var(--sis-hover);
+    --sidebar-accent-foreground: var(--sis-oxford);
+    --sidebar-border: var(--sis-oxford);
+    --sidebar-ring: var(--sis-mist);
 }
 
 .dark {
-    --background: color-mix(in srgb, var(--sis-twilight-indigo) 88%, var(--sis-ash-brown));
-    --foreground: var(--sis-powder-petal);
-    --card: color-mix(in srgb, var(--sis-twilight-indigo) 82%, var(--sis-powder-blue));
-    --card-foreground: var(--sis-powder-petal);
-    --popover: color-mix(in srgb, var(--sis-twilight-indigo) 85%, var(--sis-ash-brown));
-    --popover-foreground: var(--sis-powder-petal);
-    --primary: var(--sis-powder-blue);
-    --primary-foreground: var(--sis-twilight-indigo);
-    --secondary: color-mix(in srgb, var(--sis-twilight-indigo) 70%, var(--sis-powder-blue));
-    --secondary-foreground: var(--sis-powder-petal);
-    --muted: color-mix(in srgb, var(--sis-twilight-indigo) 75%, var(--sis-ash-brown));
-    --muted-foreground: var(--sis-powder-petal);
-    --accent: color-mix(in srgb, var(--sis-twilight-indigo) 65%, var(--sis-powder-blue));
-    --accent-foreground: var(--sis-powder-petal);
-    --destructive: var(--sis-color-danger);
-    --destructive-foreground: var(--sis-powder-petal);
-    --border: color-mix(in srgb, var(--sis-ash-brown) 55%, var(--sis-powder-blue));
-    --input: color-mix(in srgb, var(--sis-twilight-indigo) 70%, var(--sis-powder-blue));
-    --ring: var(--sis-powder-blue);
-    --sidebar: color-mix(in srgb, var(--sis-twilight-indigo) 92%, var(--sis-ash-brown));
-    --sidebar-foreground: var(--sis-powder-petal);
-    --sidebar-primary: var(--sis-powder-blue);
-    --sidebar-primary-foreground: var(--sis-twilight-indigo);
-    --sidebar-accent: color-mix(in srgb, var(--sis-twilight-indigo) 68%, var(--sis-powder-blue));
-    --sidebar-accent-foreground: var(--sis-powder-petal);
-    --sidebar-border: color-mix(in srgb, var(--sis-ash-brown) 60%, var(--sis-twilight-indigo));
-    --sidebar-ring: var(--sis-powder-blue);
+    --background: var(--sis-night);
+    --foreground: var(--sis-pearl);
+    --card: var(--sis-oxford);
+    --card-foreground: var(--sis-pearl);
+    --popover: var(--sis-night);
+    --popover-foreground: var(--sis-pearl);
+    --primary: var(--sis-mist);
+    --primary-foreground: var(--sis-night);
+    --secondary: var(--sis-oxford);
+    --secondary-foreground: var(--sis-pearl);
+    --muted: var(--sis-oxford);
+    --muted-foreground: var(--sis-pearl);
+    --accent: var(--sis-steel);
+    --accent-foreground: var(--sis-pearl);
+    --destructive: var(--sis-steel);
+    --destructive-foreground: var(--sis-pearl);
+    --border: var(--sis-mist);
+    --input: var(--sis-oxford);
+    --ring: var(--sis-mist);
+    --sidebar: var(--sis-night);
+    --sidebar-foreground: var(--sis-pearl);
+    --sidebar-primary: var(--sis-mist);
+    --sidebar-primary-foreground: var(--sis-night);
+    --sidebar-accent: var(--sis-hover);
+    --sidebar-accent-foreground: var(--sis-oxford);
+    --sidebar-border: var(--sis-oxford);
+    --sidebar-ring: var(--sis-mist);
 }
 
 @layer base {
@@ -161,20 +188,255 @@
     }
 }
 
+/* App title bar — #415A77 — text matches sidebar */
+.sis-titlebar {
+    background: var(--sis-steel);
+    color: var(--sis-color-sidebar-text);
+    border-bottom: 1px solid var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+    font-size: var(--sis-chrome-text-size);
+    font-weight: var(--sis-chrome-text-weight);
+    min-height: 2.25rem;
+}
+
+.sis-titlebar a,
+.sis-titlebar button,
+.sis-titlebar [data-slot='breadcrumb-page'],
+.sis-titlebar [data-slot='breadcrumb-link'],
+.sis-titlebar [data-slot='breadcrumb-separator'],
+.sis-titlebar .text-muted-foreground {
+    color: var(--sis-color-sidebar-text) !important;
+    font-family: var(--sis-chrome-font);
+    font-size: var(--sis-chrome-text-size);
+    font-weight: var(--sis-chrome-text-weight);
+}
+
+/* No hover / active / focus visual effects on title bar */
+.sis-titlebar a:hover,
+.sis-titlebar button:hover,
+.sis-titlebar a:focus,
+.sis-titlebar button:focus,
+.sis-titlebar a:active,
+.sis-titlebar button:active,
+.sis-titlebar [data-slot='breadcrumb-page']:hover,
+.sis-titlebar [data-slot='breadcrumb-link']:hover,
+.sis-titlebar .sis-titlebar__trigger:hover,
+.sis-titlebar [data-sidebar='trigger']:hover,
+.sis-titlebar [data-sidebar='trigger']:focus,
+.sis-titlebar [data-sidebar='trigger']:active,
+.sis-titlebar .sis-titlebar__menu-item:hover,
+.sis-titlebar .sis-titlebar__menu-item:focus,
+.sis-titlebar .sis-titlebar__menu-item:active {
+    color: var(--sis-color-sidebar-text) !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    text-decoration: none !important;
+    outline: none !important;
+}
+
+.sis-titlebar__menu {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.125rem;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.sis-titlebar__menu-item {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--sis-color-sidebar-text);
+    font-family: var(--sis-chrome-font);
+    font-size: var(--sis-chrome-text-size);
+    font-weight: var(--sis-chrome-text-weight);
+    line-height: 1.2;
+    padding: 0.25rem 0.55rem;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* Sidebar text — same color/type as title bar */
+[data-slot='sidebar'],
+[data-sidebar='sidebar'] {
+    color: var(--sis-color-sidebar-text);
+    font-family: var(--sis-chrome-font);
+    font-size: var(--sis-chrome-text-size);
+    font-weight: var(--sis-chrome-text-weight);
+}
+
+[data-sidebar='menu'] {
+    gap: 0.55rem;
+}
+
+[data-sidebar='menu-button'],
+[data-slot='sidebar-menu-button'] {
+    font-weight: 400 !important;
+}
+
+[data-sidebar='menu-button'][data-active='true'],
+[data-slot='sidebar-menu-button'][data-active='true'] {
+    font-weight: 400 !important;
+}
+
+[data-sidebar='group-label'],
+[data-slot='sidebar-group-label'] {
+    font-weight: 400 !important;
+}
+
+[data-slot='sidebar'] .font-medium,
+[data-sidebar='sidebar'] .font-medium,
+[data-slot='sidebar'] .font-semibold,
+[data-sidebar='sidebar'] .font-semibold,
+[data-slot='sidebar'] .font-bold,
+[data-sidebar='sidebar'] .font-bold {
+    font-weight: 400 !important;
+}
+
+/* Project-wide: hand cursor on all interactive buttons */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+input[type='button']:not(:disabled),
+input[type='submit']:not(:disabled),
+input[type='reset']:not(:disabled) {
+    cursor: pointer;
+}
+
+button:disabled,
+[role='button'][aria-disabled='true'],
+input[type='button']:disabled,
+input[type='submit']:disabled,
+input[type='reset']:disabled {
+    cursor: not-allowed;
+}
+
 /* Operational Hub / Dashboard — Color/Typography SSOT derivatives */
 .sis-dashboard {
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
     background: var(--sis-color-surface-soft);
     color: var(--sis-color-text-primary);
     font-family: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
+}
+
+.sis-dashboard-launch {
+    box-sizing: border-box;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+    padding: 3.25rem 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.sis-dashboard-launch__grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-rows: auto;
+    gap: 0.85rem 0.9rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex: 0 1 auto;
+    width: min(64rem, 92%);
+    max-height: calc(100% - 0.5rem);
+    justify-content: center;
+    overflow: hidden;
+}
+
+.sis-dashboard-launch__tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    width: 100%;
+    min-height: 7.25rem;
+    height: auto;
+    padding: 0.65rem 0.4rem 0.55rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--sis-oxford);
+    /* Per-row background set inline (rotated icon palette) */
+    background: #eac4d5;
+    color: var(--sis-oxford);
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    overflow: visible;
+}
+
+.sis-dashboard-launch__tile:hover,
+.sis-dashboard-launch__tile:focus-visible {
+    filter: brightness(0.97);
+    color: var(--sis-oxford);
+    outline: none;
+}
+
+.sis-dashboard-launch__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.9rem;
+    height: 2.9rem;
+    flex-shrink: 0;
+    border-radius: 0.55rem;
+    color: var(--sis-night);
+}
+
+.sis-dashboard-launch__icon svg {
+    width: 1.7rem;
+    height: 1.7rem;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sis-dashboard-launch__label {
+    font-family: var(--sis-chrome-font);
+    font-size: 0.78rem;
+    font-weight: 400;
+    line-height: 1.3;
+    max-width: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+/* Hide scrollbar; keep wheel / touch / keyboard scroll */
+.sis-scroll-hidden {
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sis-scroll-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .sis-ops-hub__notice {
     margin-top: 1rem;
     padding: 1rem;
     border-radius: 0.5rem;
-    border: 1px solid color-mix(in srgb, var(--sis-powder-blush) 55%, var(--sis-ash-brown));
-    background: color-mix(in srgb, var(--sis-powder-blush) 35%, var(--sis-powder-petal));
+    border: 1px solid var(--sis-ash-brown);
+    background: var(--sis-powder-blush);
     color: var(--sis-color-text-primary);
 }
 
@@ -191,31 +453,6 @@
 .sis-ops-hub {
     font-family: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
     color: var(--sis-color-text-primary);
-}
-
-.sis-ops-context-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 0.75rem;
-    border-bottom: 1px solid var(--sis-color-border);
-    padding: 0.75rem 1rem;
-    background: color-mix(in srgb, var(--sis-powder-blue) 28%, var(--sis-powder-petal));
-    color: var(--sis-color-text-primary);
-    font-family: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
-}
-
-.sis-ops-context-bar--empty {
-    flex-direction: column;
-    align-items: stretch;
-    border-bottom-color: var(--sis-color-attention);
-    background: color-mix(in srgb, var(--sis-powder-blush) 28%, var(--sis-powder-petal));
-}
-
-.sis-ops-context-bar__warn {
-    margin: 0;
-    font-size: 0.875rem;
-    color: var(--sis-color-text-secondary);
 }
 
 .sis-ops-hub__eyebrow {
@@ -270,9 +507,9 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 1rem 1.1rem;
-    border: 1px solid color-mix(in srgb, var(--sis-powder-blue) 70%, var(--sis-twilight-indigo));
+    border: 1px solid var(--sis-twilight-indigo);
     border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--sis-powder-blue) 40%, var(--sis-powder-petal));
+    background: var(--sis-powder-blue);
     text-decoration: none;
     color: inherit;
     transition: background-color 120ms ease, border-color 120ms ease;
@@ -280,8 +517,8 @@
 
 .sis-ops-hub__link:hover,
 .sis-ops-hub__link:focus-visible {
-    background: var(--sis-color-hover);
-    border-color: var(--sis-twilight-indigo);
+    background: var(--sis-hover);
+    border-color: var(--sis-oxford);
     outline: 2px solid transparent;
 }
 
@@ -310,23 +547,23 @@
 .sis-ops-hub__gate {
     padding: 0.75rem 0.9rem;
     border-radius: 0.45rem;
-    border: 1px solid color-mix(in srgb, var(--sis-powder-blue) 55%, var(--sis-ash-brown));
-    background: color-mix(in srgb, var(--sis-powder-petal) 70%, var(--sis-powder-blue));
+    border: 1px solid var(--sis-ash-brown);
+    background: var(--sis-powder-petal);
 }
 
 .sis-ops-hub__gate--advanced {
-    border-color: color-mix(in srgb, var(--sis-powder-blue) 65%, var(--sis-twilight-indigo));
-    background: color-mix(in srgb, var(--sis-powder-blue) 35%, var(--sis-powder-petal));
+    border-color: var(--sis-twilight-indigo);
+    background: var(--sis-powder-blue);
 }
 
 .sis-ops-hub__gate--partial {
-    border-color: color-mix(in srgb, var(--sis-powder-blush) 55%, var(--sis-ash-brown));
-    background: color-mix(in srgb, var(--sis-powder-blush) 40%, var(--sis-powder-petal));
+    border-color: var(--sis-ash-brown);
+    background: var(--sis-powder-blush);
 }
 
 .sis-ops-hub__gate--gap {
-    border-color: color-mix(in srgb, var(--sis-ash-brown) 45%, var(--sis-twilight-indigo));
-    background: color-mix(in srgb, var(--sis-powder-petal) 75%, var(--sis-ash-brown));
+    border-color: var(--sis-ash-brown);
+    background: var(--sis-powder-petal);
 }
 
 .sis-ops-hub__gate-head {
@@ -365,12 +602,9 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background:
-        radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--sis-powder-blue) 55%, var(--sis-powder-petal)), transparent 42%),
-        radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--sis-powder-petal) 70%, var(--sis-powder-blue)), transparent 40%),
-        var(--sis-color-surface-soft);
+    background: var(--sis-pearl); /* window background #E0E1DD */
     font-family: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
-    color: var(--sis-twilight-indigo);
+    color: var(--sis-oxford);
 }
 
 .sis-desktop-shell__menubar {
@@ -379,40 +613,51 @@
     gap: 0.5rem;
     align-items: center;
     padding: 0.65rem 1rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--sis-powder-blue) 55%, var(--sis-twilight-indigo));
-    background: color-mix(in srgb, var(--sis-powder-blue) 35%, var(--sis-powder-petal));
+    border-bottom: 1px solid var(--sis-oxford);
+    background: var(--sis-steel); /* toolbar #415A77 */
+    color: var(--sis-pearl);
 }
 
 .sis-desktop-shell__brand {
     font-weight: 700;
     margin-inline-end: 0.75rem;
+    color: var(--sis-pearl);
 }
 
 .sis-desktop-shell__action {
     min-height: 2.5rem;
     padding: 0.4rem 0.85rem;
     border-radius: 0.4rem;
-    border: 1px solid color-mix(in srgb, var(--sis-powder-blue) 70%, var(--sis-twilight-indigo));
-    background: color-mix(in srgb, var(--sis-powder-petal) 65%, var(--sis-powder-blue));
-    color: var(--sis-twilight-indigo);
+    border: 1px solid var(--sis-oxford);
+    background: var(--sis-mist);
+    color: var(--sis-oxford);
     font-size: 0.875rem;
     cursor: pointer;
 }
 
+.sis-desktop-shell__action:hover,
 .sis-desktop-shell__action:focus-visible {
-    outline: 2px solid var(--sis-twilight-indigo);
+    background: var(--sis-hover);
+    color: var(--sis-oxford);
+}
+
+.sis-desktop-shell__action:focus-visible {
+    outline: 2px solid var(--sis-pearl);
     outline-offset: 2px;
 }
 
 .sis-desktop-workspace {
     position: relative;
     flex: 1;
-    min-height: 70vh;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: var(--sis-pearl);
 }
 
 .sis-desktop-workspace__canvas {
     position: absolute;
-    inset: 0;
+    inset: 0 0 2.75rem 0;
     overflow: hidden;
 }
 
@@ -420,22 +665,30 @@
     position: absolute;
     inset-inline: 0;
     bottom: 0;
+    z-index: 50;
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
-    padding: 0.45rem 0.65rem;
-    background: color-mix(in srgb, var(--sis-twilight-indigo) 88%, var(--sis-powder-blue));
+    padding: 0.35rem 0.65rem;
+    min-height: 2.75rem;
+    background: var(--sis-steel); /* toolbar family */
 }
 
 .sis-desktop-workspace__task {
     min-height: 2.25rem;
     padding: 0.3rem 0.75rem;
     border-radius: 0.3rem;
-    border: 1px solid color-mix(in srgb, var(--sis-powder-blue) 55%, var(--sis-powder-petal));
-    background: color-mix(in srgb, var(--sis-powder-blue) 45%, var(--sis-powder-petal));
-    color: var(--sis-twilight-indigo);
+    border: 1px solid var(--sis-oxford);
+    background: var(--sis-mist);
+    color: var(--sis-oxford);
     font-size: 0.8rem;
     cursor: pointer;
+}
+
+.sis-desktop-workspace__task--active {
+    background: var(--sis-hover);
+    color: var(--sis-oxford);
+    border-color: var(--sis-pearl);
 }
 
 .sis-window {
@@ -444,10 +697,9 @@
     flex-direction: column;
     min-width: 20rem;
     min-height: 14rem;
-    border: 1px solid color-mix(in srgb, var(--sis-twilight-indigo) 55%, var(--sis-powder-blue));
+    border: 1px solid var(--sis-oxford);
     border-radius: 0.45rem;
-    background: var(--sis-powder-petal);
-    box-shadow: 0 10px 28px color-mix(in srgb, var(--sis-twilight-indigo) 28%, transparent);
+    background: var(--sis-pearl);
     overflow: hidden;
 }
 
@@ -457,8 +709,8 @@
     gap: 0.5rem;
     min-height: 2.5rem;
     padding: 0.25rem 0.4rem 0.25rem 0.75rem;
-    background: color-mix(in srgb, var(--sis-twilight-indigo) 92%, var(--sis-powder-blue));
-    color: var(--sis-powder-petal);
+    background: var(--sis-window-controls); /* #A3B18A control bar */
+    color: var(--sis-oxford);
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -477,6 +729,8 @@
 .sis-window__controls {
     display: flex;
     gap: 0.2rem;
+    background: var(--sis-window-controls);
+    border-radius: 0.25rem;
 }
 
 .sis-window__control {
@@ -492,27 +746,35 @@
     cursor: pointer;
 }
 
+.sis-desktop-workspace__task:hover,
+.sis-desktop-workspace__task:focus-visible {
+    background: var(--sis-hover);
+    color: var(--sis-oxford);
+}
+
 .sis-window__control:hover,
 .sis-window__control:focus-visible {
-    background: color-mix(in srgb, var(--sis-powder-petal) 28%, transparent);
+    background: var(--sis-hover);
+    color: var(--sis-oxford);
 }
 
 .sis-window__control--close:hover,
 .sis-window__control--close:focus-visible {
-    background: color-mix(in srgb, var(--sis-powder-blush) 75%, var(--sis-twilight-indigo));
+    background: var(--sis-oxford);
+    color: var(--sis-pearl);
 }
 
 .sis-window__body {
     flex: 1;
     min-height: 0;
-    background: color-mix(in srgb, var(--sis-powder-petal) 55%, var(--sis-powder-blue));
+    background: var(--sis-pearl); /* window background #E0E1DD */
 }
 
 .sis-window__frame {
     width: 100%;
     height: 100%;
     border: 0;
-    background: var(--sis-powder-petal);
+    background: var(--sis-pearl);
 }
 
 .sis-desktop-shell__dock {
@@ -523,8 +785,8 @@
 }
 
 .sis-window--focused {
-    box-shadow: 0 14px 34px color-mix(in srgb, var(--sis-twilight-indigo) 36%, transparent);
-    border-color: var(--sis-twilight-indigo);
+    border-color: var(--sis-steel);
+    outline: 2px solid var(--sis-mist);
 }
 
 .sis-window__resize {
@@ -538,9 +800,80 @@
         linear-gradient(
             135deg,
             transparent 50%,
-            color-mix(in srgb, var(--sis-powder-blue) 70%, var(--sis-twilight-indigo)) 50%
+            var(--sis-oxford) 50%
         );
     touch-action: none;
+}
+
+.sis-window__edge {
+    position: absolute;
+    z-index: 5;
+    touch-action: none;
+}
+
+.sis-window__edge--n {
+    inset-inline: 0.5rem;
+    top: -0.2rem;
+    height: 0.45rem;
+    cursor: ns-resize;
+}
+
+.sis-window__edge--s {
+    inset-inline: 0.5rem;
+    bottom: -0.2rem;
+    height: 0.45rem;
+    cursor: ns-resize;
+}
+
+.sis-window__edge--e {
+    inset-block: 0.5rem;
+    inset-inline-end: -0.2rem;
+    width: 0.45rem;
+    cursor: ew-resize;
+}
+
+.sis-window__edge--w {
+    inset-block: 0.5rem;
+    inset-inline-start: -0.2rem;
+    width: 0.45rem;
+    cursor: ew-resize;
+}
+
+.sis-window__edge--ne {
+    top: -0.2rem;
+    inset-inline-end: -0.2rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    cursor: nesw-resize;
+}
+
+.sis-window__edge--nw {
+    top: -0.2rem;
+    inset-inline-start: -0.2rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    cursor: nwse-resize;
+}
+
+.sis-window__edge--se {
+    bottom: -0.2rem;
+    inset-inline-end: -0.2rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    cursor: nwse-resize;
+}
+
+.sis-window__edge--sw {
+    bottom: -0.2rem;
+    inset-inline-start: -0.2rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    cursor: nesw-resize;
+}
+
+.sis-embed {
+    min-height: 100%;
+    background: var(--sis-pearl);
 }
 
 .sis-desktop-workspace__brand {

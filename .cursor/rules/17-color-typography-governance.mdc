@@ -12,7 +12,7 @@ alwaysApply: true
 
 ## Absolute rules
 
-1. **Five approved base colors only** — Twilight Indigo, Powder Blue, Powder Petal, Powder Blush, Ash Brown (SSOT).
+1. **Five approved base colors only** — Night, Oxford, Steel, Mist, Pearl (SSOT).
 2. **Four approved font families only** — Segoe UI, Tahoma, Calibri, Aptos. No Google Fonts / remote imports.
 3. **Semantic tokens** — no scattered HEX in JSX/CSS; derivatives must trace to a base color parent.
 4. **Contrast** — normal text ≥ 4.5:1, large text ≥ 3:1; verify all interactive states.
