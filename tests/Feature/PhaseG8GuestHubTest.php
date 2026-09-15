@@ -8,19 +8,15 @@ use Tests\TestCase;
 final class PhaseG8GuestHubTest extends TestCase
 {
     #[Test]
-    public function guest_can_open_home_hub(): void
+    public function guest_home_redirects_to_login(): void
     {
-        $this->get('/')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('hub'));
+        $this->get('/')->assertRedirect('/login');
     }
 
     #[Test]
-    public function guest_can_open_hub_route(): void
+    public function guest_hub_redirects_to_login(): void
     {
-        $this->get('/hub')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('hub'));
+        $this->get('/hub')->assertRedirect('/login');
     }
 
     #[Test]

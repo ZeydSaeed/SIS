@@ -94,9 +94,6 @@ export default function SchoolContextRequired({ message }: { message: string }) 
                 <Link href="/dashboard" className="sis-ops-hub__link w-fit px-4 py-2 text-sm">
                     {i18n.dashboard.title}
                 </Link>
-                <Link href="/hub?desktop=1" className="sis-ops-hub__link w-fit px-4 py-2 text-sm">
-                    {i18n.dashboard.guestHub}
-                </Link>
             </div>
         </>
     );

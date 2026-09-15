@@ -1,6 +1,6 @@
-﻿# Launch SIS guest hub in desktop window shell (prefer Edge/Chrome --app mode).
+﻿# Launch SIS dashboard in desktop window shell (prefer Edge/Chrome --app mode).
 $ErrorActionPreference = 'Stop'
-$url = 'http://sis.test/hub?desktop=1'
+$url = 'http://sis.test/dashboard?desktop=1'
 $candidates = @(
     "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe",
     "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",

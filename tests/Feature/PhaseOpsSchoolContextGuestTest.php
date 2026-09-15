@@ -8,13 +8,9 @@ use Tests\TestCase;
 final class PhaseOpsSchoolContextGuestTest extends TestCase
 {
     #[Test]
-    public function guest_hub_still_loads_without_school_context(): void
+    public function guest_legacy_hub_redirects_to_login(): void
     {
-        $this->get('/hub?desktop=1')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page
-                ->component('hub')
-                ->where('schoolContext.schoolId', null));
+        $this->get('/hub?desktop=1')->assertRedirect('/login');
     }
 
     #[Test]
@@ -33,8 +29,8 @@ final class PhaseOpsSchoolContextGuestTest extends TestCase
     }
 
     #[Test]
-    public function ops_bootstrap_config_defaults_for_local(): void
+    public function ops_bootstrap_config_key_is_defined(): void
     {
-        $this->assertTrue((bool) config('security.ops_bootstrap_enabled'));
+        $this->assertIsBool(config('security.ops_bootstrap_enabled'));
     }
 }

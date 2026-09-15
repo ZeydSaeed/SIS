@@ -8,19 +8,15 @@ use Tests\TestCase;
 final class PhaseG8WindowPolishGuestHubTest extends TestCase
 {
     #[Test]
-    public function guest_can_open_hub_with_desktop_query(): void
+    public function guest_legacy_hub_redirects_to_login(): void
     {
-        $this->get('/hub?desktop=1')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('hub'));
+        $this->get('/hub?desktop=1')->assertRedirect('/login');
     }
 
     #[Test]
-    public function guest_home_still_serves_hub_without_login(): void
+    public function guest_home_redirects_to_login(): void
     {
-        $this->get('/')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('hub'));
+        $this->get('/')->assertRedirect('/login');
     }
 
     #[Test]

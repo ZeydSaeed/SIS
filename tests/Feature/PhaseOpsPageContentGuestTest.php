@@ -8,11 +8,9 @@ use Tests\TestCase;
 final class PhaseOpsPageContentGuestTest extends TestCase
 {
     #[Test]
-    public function guest_hub_still_loads_for_window_shell(): void
+    public function guest_legacy_hub_redirects_to_login(): void
     {
-        $this->get('/hub?desktop=1')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('hub'));
+        $this->get('/hub?desktop=1')->assertRedirect('/login');
     }
 
     #[Test]

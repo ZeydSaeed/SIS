@@ -9,22 +9,15 @@ use Tests\TestCase;
 final class PhaseOpsHomePagesTest extends TestCase
 {
     #[Test]
-    public function guest_home_serves_hub_without_login(): void
+    public function guest_home_redirects_to_login(): void
     {
-        $this->get('/')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('hub'));
+        $this->get('/')->assertRedirect('/login');
     }
 
     #[Test]
-    public function guest_hub_desktop_remains_public_arabic_rtl(): void
+    public function guest_legacy_hub_redirects_to_login_then_dashboard(): void
     {
-        $this->get('/hub?desktop=1')
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page
-                ->component('hub')
-                ->where('locale', 'ar')
-                ->where('dir', 'rtl'));
+        $this->get('/hub?desktop=1')->assertRedirect('/login');
     }
 
     #[Test]
@@ -41,6 +34,22 @@ final class PhaseOpsHomePagesTest extends TestCase
         $this->actingAs($user)
             ->get('/')
             ->assertRedirect(route('dashboard'));
+    }
+
+    #[Test]
+    public function authenticated_legacy_hub_redirects_to_dashboard(): void
+    {
+        $user = new User;
+        $user->forceFill([
+            'id' => 2,
+            'name' => 'Ops Hub Tester',
+            'email' => 'ops-hub@example.test',
+        ]);
+        $user->exists = true;
+
+        $this->actingAs($user)
+            ->get('/hub?desktop=1')
+            ->assertRedirect('/dashboard?desktop=1');
     }
 
     #[Test]

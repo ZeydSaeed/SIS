@@ -97,9 +97,6 @@ function DashboardBody({ desktop }: { desktop: boolean }) {
                     >
                         {i18n.hub.closeAll}
                     </button>
-                    <Link href="/hub?desktop=1" className="sis-desktop-shell__action ms-auto">
-                        {i18n.dashboard.guestHub}
-                    </Link>
                 </div>
             ) : null}
 

@@ -12,12 +12,19 @@ use App\Http\Controllers\SchoolContextController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
 use App\Http\Controllers\Timetable\TimetablePageController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
-Route::inertia('/hub', 'hub')->name('hub');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Legacy /hub bookmarks → dashboard only (no guest workspace).
+    Route::get('/hub', function (Request $request) {
+        $desktop = $request->boolean('desktop') || $request->boolean('shell');
+
+        return redirect($desktop ? '/dashboard?desktop=1' : route('dashboard'));
+    })->name('hub');
+
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::post('/context/school', [SchoolContextController::class, 'updateSchool'])->name('context.school');
     Route::post('/context/academic-year', [SchoolContextController::class, 'updateYear'])->name('context.academic-year');

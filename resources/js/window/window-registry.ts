@@ -5,10 +5,10 @@ import { t } from '@/i18n';
 export function getWindowCatalog(): Record<string, SisWindowDescriptor> {
     const i18n = t();
     return {
-        'ops.hub': {
-            windowId: 'ops.hub',
-            title: i18n.hub.title,
-            href: '/hub?embed=1',
+        'ops.dashboard': {
+            windowId: 'ops.dashboard',
+            title: i18n.dashboard.title,
+            href: '/dashboard?desktop=1&embed=1',
             minimumSize: { width: 640, height: 480 },
         },
         'student.list': {

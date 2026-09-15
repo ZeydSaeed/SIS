@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $desktop = [Environment]::GetFolderPath('Desktop')
-$url = 'http://sis.test/hub?desktop=1'
+$url = 'http://sis.test/dashboard?desktop=1'
 $displayNameAr = 'نظام معلومات الطالب'
 $displayNameEn = 'SIS'
 
