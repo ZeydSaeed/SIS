@@ -22,7 +22,7 @@ final class StudentResponseSanitizer
         $data = $detail->toArray();
 
         if ($user === null || ! $this->authorization->userHasPermission($user, Permission::STUDENTS_VIEW_PII)) {
-            unset($data['national_id']);
+            unset($data['national_id'], $data['mobile'], $data['guardian_mobile'], $data['email']);
         }
 
         return $data;
@@ -32,10 +32,20 @@ final class StudentResponseSanitizer
      * @param  list<StudentListItemDTO>  $items
      * @return list<array<string, mixed>>
      */
-    public function sanitizeList(array $items): array
+    public function sanitizeList(array $items, ?User $user = null): array
     {
+        $canViewPii = $user !== null
+            && $this->authorization->userHasPermission($user, Permission::STUDENTS_VIEW_PII);
+
         return array_map(
-            fn (StudentListItemDTO $item): array => $item->toArray(),
+            function (StudentListItemDTO $item) use ($canViewPii): array {
+                $data = $item->toArray();
+                if (! $canViewPii) {
+                    unset($data['national_id'], $data['mobile'], $data['guardian_mobile'], $data['email']);
+                }
+
+                return $data;
+            },
             $items,
         );
     }

@@ -69,7 +69,7 @@ final class StudentPageController extends Controller
         }
 
         $payload = $result->toArray();
-        $payload['data'] = $this->sanitizer->sanitizeList($result->items);
+        $payload['data'] = $this->sanitizer->sanitizeList($result->items, $user);
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataAccess,

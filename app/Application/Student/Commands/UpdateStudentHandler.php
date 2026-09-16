@@ -36,15 +36,21 @@ final class UpdateStudentHandler implements CommandHandler
         }
 
         $fullName = StudentNameFormatter::fullName(
-            $command->firstName,
-            $command->middleName,
-            $command->lastName,
+            firstName: $command->firstName,
+            lastName: $command->lastName,
+            fatherName: $command->fatherName,
+            grandfatherName: $command->grandfatherName,
+            greatGrandfatherName: $command->greatGrandfatherName,
+            middleName: $command->middleName,
         );
 
         $this->unitOfWork->transaction(function () use ($command, $fullName): void {
             $this->students->update($command->studentId, new UpdateStudentData(
                 firstName: $command->firstName,
                 middleName: $command->middleName,
+                fatherName: $command->fatherName,
+                grandfatherName: $command->grandfatherName,
+                greatGrandfatherName: $command->greatGrandfatherName,
                 lastName: $command->lastName,
                 fullName: $fullName,
                 gender: $command->gender,
@@ -52,6 +58,27 @@ final class UpdateStudentHandler implements CommandHandler
                 nationalId: $command->nationalId,
                 birthPlace: $command->birthPlace,
                 nationality: $command->nationality,
+                guardianTripleName: $command->guardianTripleName,
+                governorate: $command->governorate,
+                neighborhood: $command->neighborhood,
+                locality: $command->locality,
+                houseNumber: $command->houseNumber,
+                registrationPlace: $command->registrationPlace,
+                religion: $command->religion,
+                mawalidDate: $command->mawalidDate,
+                previousSchoolName: $command->previousSchoolName,
+                transferDocumentNumber: $command->transferDocumentNumber,
+                transferDocumentDate: $command->transferDocumentDate,
+                schoolStartDate: $command->schoolStartDate,
+                admittedClassName: $command->admittedClassName,
+                notes: $command->notes,
+                mobile: $command->mobile,
+                guardianMobile: $command->guardianMobile,
+                email: $command->email,
+                schoolName: $command->schoolName,
+                departmentName: $command->departmentName,
+                stageName: $command->stageName,
+                sectionName: $command->sectionName,
             ));
 
             $this->outbox->stage(new StudentProfileUpdated(

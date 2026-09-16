@@ -28,9 +28,37 @@ export type StudentListItem = {
     id: number;
     student_code: string;
     full_name: string;
-    status: number;
-    gender: number;
+    first_name: string;
+    father_name?: string | null;
+    grandfather_name?: string | null;
+    great_grandfather_name?: string | null;
+    last_name: string;
+    guardian_triple_name?: string | null;
+    governorate?: string | null;
+    neighborhood?: string | null;
+    locality?: string | null;
+    house_number?: string | null;
     birth_date: string;
+    registration_place?: string | null;
+    gender: number;
+    nationality?: string | null;
+    religion: number;
+    mawalid_date?: string | null;
+    national_id?: string | null;
+    previous_school_name?: string | null;
+    transfer_document_number?: number | null;
+    transfer_document_date?: string | null;
+    school_start_date?: string | null;
+    admitted_class_name?: string | null;
+    notes?: string | null;
+    mobile?: string | null;
+    guardian_mobile?: string | null;
+    email?: string | null;
+    school_name?: string | null;
+    department_name?: string | null;
+    stage_name?: string | null;
+    section_name?: string | null;
+    status: number;
 };
 
 export type StudentsPayload = {
@@ -59,6 +87,39 @@ type StudentListProps = {
     authorization: StudentAuthorization;
     preview: PreviewPayload;
 };
+
+function textOrDash(value: string | number | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
+        return '—';
+    }
+
+    return String(value);
+}
+
+function genderLabel(gender: number, i18n: ReturnType<typeof t>): string {
+    if (gender === 1) {
+        return i18n.students.male;
+    }
+    if (gender === 2) {
+        return i18n.students.female;
+    }
+
+    return String(gender);
+}
+
+function religionLabel(religion: number, i18n: ReturnType<typeof t>): string {
+    if (religion === 1) {
+        return i18n.students.religionMuslim;
+    }
+    if (religion === 2) {
+        return i18n.students.religionChristian;
+    }
+    if (religion === 3) {
+        return i18n.students.religionOther;
+    }
+
+    return String(religion);
+}
 
 export function StudentList({ students, filters, authorization, preview }: StudentListProps) {
     const i18n = t();
@@ -115,29 +176,203 @@ export function StudentList({ students, filters, authorization, preview }: Stude
 
     const columns: DataTableColumn<StudentListItem>[] = [
         {
-            id: 'code',
-            header: i18n.students.code,
-            cell: (row) => (
-                <span className="font-mono text-xs" dir="ltr">
-                    {row.student_code}
-                </span>
-            ),
+            id: 'first_name',
+            header: i18n.students.firstName,
+            cell: (row) => row.first_name,
         },
         {
-            id: 'name',
-            header: i18n.students.name,
-            cell: (row) => row.full_name,
+            id: 'father_name',
+            header: i18n.students.fatherName,
+            cell: (row) => textOrDash(row.father_name),
+            hideOnMobile: true,
         },
         {
-            id: 'status',
-            header: i18n.common.status,
-            cell: (row) => <StudentStatusBadge status={row.status} />,
+            id: 'grandfather_name',
+            header: i18n.students.grandfatherName,
+            cell: (row) => textOrDash(row.grandfather_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'great_grandfather_name',
+            header: i18n.students.greatGrandfatherName,
+            cell: (row) => textOrDash(row.great_grandfather_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'last_name',
+            header: i18n.students.familyName,
+            cell: (row) => row.last_name,
+        },
+        {
+            id: 'guardian_triple_name',
+            header: i18n.students.guardianTripleName,
+            cell: (row) => textOrDash(row.guardian_triple_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'governorate',
+            header: i18n.students.governorate,
+            cell: (row) => textOrDash(row.governorate),
+            hideOnMobile: true,
+        },
+        {
+            id: 'neighborhood',
+            header: i18n.students.neighborhood,
+            cell: (row) => textOrDash(row.neighborhood),
+            hideOnMobile: true,
+        },
+        {
+            id: 'locality',
+            header: i18n.students.locality,
+            cell: (row) => textOrDash(row.locality),
+            hideOnMobile: true,
+        },
+        {
+            id: 'house_number',
+            header: i18n.students.houseNumber,
+            cell: (row) => <span dir="ltr">{textOrDash(row.house_number)}</span>,
             hideOnMobile: true,
         },
         {
             id: 'birth_date',
             header: i18n.students.birthDate,
             cell: (row) => <span dir="ltr">{row.birth_date}</span>,
+        },
+        {
+            id: 'registration_place',
+            header: i18n.students.registrationPlace,
+            cell: (row) => textOrDash(row.registration_place),
+            hideOnMobile: true,
+        },
+        {
+            id: 'gender',
+            header: i18n.students.gender,
+            cell: (row) => genderLabel(row.gender, i18n),
+        },
+        {
+            id: 'nationality',
+            header: i18n.students.nationality,
+            cell: (row) => textOrDash(row.nationality),
+            hideOnMobile: true,
+        },
+        {
+            id: 'religion',
+            header: i18n.students.religion,
+            cell: (row) => religionLabel(row.religion, i18n),
+            hideOnMobile: true,
+        },
+        {
+            id: 'mawalid_date',
+            header: i18n.students.mawalidDate,
+            cell: (row) => <span dir="ltr">{textOrDash(row.mawalid_date)}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'national_id',
+            header: i18n.students.nationalId,
+            cell: (row) =>
+                authorization.canViewPii ? (
+                    <span dir="ltr">{textOrDash(row.national_id)}</span>
+                ) : (
+                    '—'
+                ),
+            hideOnMobile: true,
+        },
+        {
+            id: 'previous_school_name',
+            header: i18n.students.previousSchoolName,
+            cell: (row) => textOrDash(row.previous_school_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'transfer_document_number',
+            header: i18n.students.transferDocumentNumber,
+            cell: (row) => <span dir="ltr">{textOrDash(row.transfer_document_number)}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'transfer_document_date',
+            header: i18n.students.transferDocumentDate,
+            cell: (row) => <span dir="ltr">{textOrDash(row.transfer_document_date)}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'school_start_date',
+            header: i18n.students.schoolStartDate,
+            cell: (row) => <span dir="ltr">{textOrDash(row.school_start_date)}</span>,
+            hideOnMobile: true,
+        },
+        {
+            id: 'admitted_class_name',
+            header: i18n.students.admittedClassName,
+            cell: (row) => textOrDash(row.admitted_class_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'notes',
+            header: i18n.students.notes,
+            cell: (row) => (
+                <span className="line-clamp-2 max-w-[14rem] whitespace-pre-wrap">
+                    {textOrDash(row.notes)}
+                </span>
+            ),
+            hideOnMobile: true,
+        },
+        {
+            id: 'mobile',
+            header: i18n.students.mobile,
+            cell: (row) =>
+                authorization.canViewPii ? (
+                    <span dir="ltr">{textOrDash(row.mobile)}</span>
+                ) : (
+                    '—'
+                ),
+            hideOnMobile: true,
+        },
+        {
+            id: 'guardian_mobile',
+            header: i18n.students.guardianMobile,
+            cell: (row) =>
+                authorization.canViewPii ? (
+                    <span dir="ltr">{textOrDash(row.guardian_mobile)}</span>
+                ) : (
+                    '—'
+                ),
+            hideOnMobile: true,
+        },
+        {
+            id: 'email',
+            header: i18n.students.email,
+            cell: (row) =>
+                authorization.canViewPii ? (
+                    <span dir="ltr">{textOrDash(row.email)}</span>
+                ) : (
+                    '—'
+                ),
+            hideOnMobile: true,
+        },
+        {
+            id: 'school_name',
+            header: i18n.students.schoolName,
+            cell: (row) => textOrDash(row.school_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'department_name',
+            header: i18n.students.departmentName,
+            cell: (row) => textOrDash(row.department_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'stage_name',
+            header: i18n.students.stageName,
+            cell: (row) => textOrDash(row.stage_name),
+            hideOnMobile: true,
+        },
+        {
+            id: 'section_name',
+            header: i18n.students.sectionName,
+            cell: (row) => textOrDash(row.section_name),
             hideOnMobile: true,
         },
         {
@@ -188,43 +423,50 @@ export function StudentList({ students, filters, authorization, preview }: Stude
                 </Button>
             </div>
 
-            <DataTable
-                columns={columns}
-                rows={students.data}
-                rowKey={(row) => row.id}
-                caption={i18n.students.tableCaption}
-                emptyTitle={i18n.students.emptyTitle}
-                emptyDescription={filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc}
-                onRowClick={(row) => openPreview(row.id)}
-                getRowAriaLabel={(row) => `${i18n.students.view}: ${row.full_name}`}
-                mobileCard={(row) => (
-                    <button
-                        type="button"
-                        className="border-border hover:bg-muted/40 w-full rounded-xl border p-4 text-start"
-                        onClick={() => openPreview(row.id)}
-                        aria-label={`${i18n.students.view}: ${row.full_name}`}
-                    >
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <p className="font-medium">{row.full_name}</p>
-                                <p className="text-muted-foreground mt-1 text-xs" dir="ltr">
-                                    {row.student_code}
-                                </p>
+            <section aria-labelledby="students-table-heading" className="flex flex-col gap-3">
+                <h2 id="students-table-heading" className="sis-ops-hub__section-title text-base">
+                    {i18n.students.tableHeading}
+                </h2>
+                <DataTable
+                    columns={columns}
+                    rows={students?.data ?? []}
+                    rowKey={(row) => row.id}
+                    caption={i18n.students.tableCaption}
+                    emptyTitle={i18n.students.emptyTitle}
+                    emptyDescription={
+                        filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc
+                    }
+                    onRowClick={(row) => openPreview(row.id)}
+                    getRowAriaLabel={(row) => `${i18n.students.view}: ${row.full_name}`}
+                    mobileCard={(row) => (
+                        <button
+                            type="button"
+                            className="border-border hover:bg-muted/40 w-full rounded-xl border p-4 text-start"
+                            onClick={() => openPreview(row.id)}
+                            aria-label={`${i18n.students.view}: ${row.full_name}`}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="font-medium">{row.full_name}</p>
+                                    <p className="text-muted-foreground mt-1 text-xs">
+                                        {row.first_name} {row.last_name}
+                                    </p>
+                                    <p className="text-muted-foreground mt-1 text-xs" dir="ltr">
+                                        {row.birth_date}
+                                    </p>
+                                </div>
+                                <StudentStatusBadge status={row.status} />
                             </div>
-                            <StudentStatusBadge status={row.status} />
-                        </div>
-                    </button>
-                )}
-            />
+                        </button>
+                    )}
+                />
+            </section>
 
-            {students.meta.last_page > 1 ? (
+            {students?.meta && students.meta.last_page > 1 ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-muted-foreground text-sm">
                         {i18n.common.page}{' '}
-                        <span dir="ltr">
-                            {students.meta.page}
-                        </span>{' '}
-                        {i18n.common.of}{' '}
+                        <span dir="ltr">{students.meta.page}</span> {i18n.common.of}{' '}
                         <span dir="ltr">{students.meta.last_page}</span> ·{' '}
                         <span dir="ltr">{students.meta.total}</span> {i18n.common.total}
                     </p>
@@ -261,7 +503,7 @@ export function StudentList({ students, filters, authorization, preview }: Stude
 
             {!isMobile ? (
                 <Dialog open={dialogOpen} onOpenChange={(open) => !open && closePreview()}>
-                    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl" dir="rtl">
+                    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl" dir="rtl">
                         <DialogHeader>
                             <DialogTitle>{i18n.students.detailsTitle}</DialogTitle>
                             <DialogDescription>{i18n.students.detailsDesc}</DialogDescription>

@@ -1,16 +1,21 @@
-import type { SVGAttributes } from 'react';
-import { GraduationCap } from 'lucide-react';
+import type { ImgHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-/** SIS brand mark — student / academic system (replaces Laravel logo). */
+const SIS_MARK_SRC = '/sis-mark.png?v=sis8';
+
+/** SIS brand mark — black mark on yellow field (SSOT image). */
 export default function AppLogoIcon({
     className,
+    alt = '',
     ...props
-}: SVGAttributes<SVGElement>) {
+}: ImgHTMLAttributes<HTMLImageElement>) {
     return (
-        <GraduationCap
-            aria-hidden
-            className={cn('size-5 shrink-0', className)}
+        <img
+            src={SIS_MARK_SRC}
+            alt={alt}
+            decoding="async"
+            draggable={false}
+            className={cn('size-5 shrink-0 object-contain', className)}
             {...props}
         />
     );

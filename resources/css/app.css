@@ -111,6 +111,7 @@
     --sis-chrome-text-size: 0.875rem;
     --sis-chrome-text-weight: 400;
     --sis-window-controls: #a3b18a;
+    --sis-caption: #c49a45;
 
     --background: var(--sis-pearl);
     --foreground: var(--sis-oxford);

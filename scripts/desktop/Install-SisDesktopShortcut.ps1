@@ -8,10 +8,16 @@ $url = 'http://sis.test/dashboard?desktop=1'
 $displayNameAr = 'نظام معلومات الطالب'
 $displayNameEn = 'SIS'
 
-# Prefer project favicon; fall back to Desktop SIS.png if present.
+# Prefer project favicon (same brand mark as sidebar); mirror to Desktop\SIS.ico for reliable Explorer icons.
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$faviconIco = Join-Path $repoRoot 'public\favicon.ico'
+$desktopIco = Join-Path $desktop 'SIS.ico'
+if (Test-Path -LiteralPath $faviconIco) {
+    Copy-Item -LiteralPath $faviconIco -Destination $desktopIco -Force
+}
 $iconCandidates = @(
-    (Join-Path $repoRoot 'public\favicon.ico'),
+    $desktopIco,
+    $faviconIco,
     (Join-Path $desktop 'SIS.png'),
     (Join-Path $repoRoot 'public\apple-touch-icon.png')
 )

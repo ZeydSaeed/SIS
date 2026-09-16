@@ -10,17 +10,42 @@ class StudentRecord extends Model
     protected $table;
 
     protected $fillable = [
+        'school_id',
         'public_id',
         'student_code',
         'national_id',
         'first_name',
         'middle_name',
+        'father_name',
+        'grandfather_name',
+        'great_grandfather_name',
         'last_name',
         'full_name',
+        'guardian_triple_name',
         'gender',
         'birth_date',
+        'mawalid_date',
         'birth_place',
         'nationality',
+        'governorate',
+        'neighborhood',
+        'locality',
+        'house_number',
+        'registration_place',
+        'religion',
+        'previous_school_name',
+        'transfer_document_number',
+        'transfer_document_date',
+        'school_start_date',
+        'admitted_class_name',
+        'notes',
+        'mobile',
+        'guardian_mobile',
+        'email',
+        'school_name',
+        'department_name',
+        'stage_name',
+        'section_name',
         'photo_storage_key',
         'status',
     ];
@@ -35,8 +60,13 @@ class StudentRecord extends Model
     {
         return [
             'birth_date' => 'date',
+            'mawalid_date' => 'date',
+            'transfer_document_date' => 'date',
+            'school_start_date' => 'date',
+            'transfer_document_number' => 'integer',
             'status' => 'integer',
             'gender' => 'integer',
+            'religion' => 'integer',
         ];
     }
 }

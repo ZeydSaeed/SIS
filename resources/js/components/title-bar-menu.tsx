@@ -11,6 +11,18 @@ const TITLE_BAR_ITEMS = [
     'مساعدة',
 ] as const;
 
+const LABEL_TO_TAB: Partial<Record<(typeof TITLE_BAR_ITEMS)[number], RibbonTab>> =
+    {
+        ملف: 'file',
+        'الصفحة الرئيسية': 'home',
+        اضافة: 'add',
+        اعدادات: 'settings',
+        قوائم: 'lists',
+        ادوات: 'tools',
+        تقارير: 'reports',
+        مساعدة: 'help',
+    };
+
 type TitleBarMenuProps = {
     activeRibbon?: RibbonTab | null;
     onRibbonChange?: (tab: RibbonTab | null) => void;
@@ -25,14 +37,7 @@ export function TitleBarMenu({
     return (
         <nav className="sis-titlebar__menu" aria-label="شريط القوائم" dir="rtl">
             {TITLE_BAR_ITEMS.map((label) => {
-                const tab: RibbonTab | null =
-                    label === 'ملف'
-                        ? 'file'
-                        : label === 'الصفحة الرئيسية'
-                          ? 'home'
-                          : label === 'اضافة'
-                            ? 'add'
-                            : null;
+                const tab = LABEL_TO_TAB[label] ?? null;
                 const isActive = tab !== null && activeRibbon === tab;
 
                 return (

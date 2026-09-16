@@ -287,14 +287,38 @@
 | public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
 | student_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
-| first_name | VARCHAR(100) | NOT NULL |
-| middle_name | VARCHAR(100) | |
-| last_name | VARCHAR(100) | NOT NULL |
-| full_name | VARCHAR(255) | NOT NULL |
-| gender | SMALLINT | NOT NULL |
-| birth_date | DATE | NOT NULL |
+| first_name | VARCHAR(100) | NOT NULL — اسم الطالب |
+| middle_name | VARCHAR(100) | legacy middle; prefer father_name |
+| father_name | VARCHAR(100) | اسم الأب |
+| grandfather_name | VARCHAR(100) | اسم الجد |
+| great_grandfather_name | VARCHAR(100) | اسم أب الجد |
+| last_name | VARCHAR(100) | NOT NULL — اللقب |
+| full_name | VARCHAR(255) | NOT NULL — computed display |
+| guardian_triple_name | VARCHAR(255) | اسم ولي أمره الثلاثي |
+| gender | SMALLINT | NOT NULL — 1=ذكر, 2=أنثى |
+| birth_date | DATE | NOT NULL — التولد |
+| mawalid_date | DATE | المواليد |
 | birth_place | VARCHAR(255) | |
-| nationality | VARCHAR(50) | |
+| nationality | VARCHAR(50) | الجنسية |
+| governorate | VARCHAR(100) | المحافظة |
+| neighborhood | VARCHAR(100) | الحي |
+| locality | VARCHAR(100) | المحلة |
+| house_number | VARCHAR(50) | رقم الدار |
+| registration_place | VARCHAR(255) | محل التسجيل |
+| religion | SMALLINT | NOT NULL DEFAULT 1 — 1=مسلم, 2=مسيحي, 3=أخرى; CHECK IN (1,2,3) |
+| previous_school_name | VARCHAR(255) | اسم المدرسة المنقول منها |
+| transfer_document_number | BIGINT | رقم وثيقة النقل |
+| transfer_document_date | DATE | تاريخ وثيقة النقل |
+| school_start_date | DATE | تاريخ ابتداء الدوام |
+| admitted_class_name | VARCHAR(100) | الصف الذي قُبل فيه |
+| notes | TEXT | الملاحظات |
+| mobile | VARCHAR(30) | رقم موبايل الطالب (PII) |
+| guardian_mobile | VARCHAR(30) | رقم موبايل ولي الأمر (PII) |
+| email | VARCHAR(255) | البريد الإلكتروني (PII) |
+| school_name | VARCHAR(255) | المدرسة (تسمية سجل؛ school_id يبقى سياق المستأجر) |
+| department_name | VARCHAR(100) | القسم |
+| stage_name | VARCHAR(100) | المرحلة |
+| section_name | VARCHAR(100) | الشعبة |
 | photo_storage_key | VARCHAR(500) | |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |

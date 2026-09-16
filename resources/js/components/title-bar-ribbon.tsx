@@ -3,33 +3,54 @@ import {
     AlignCenter,
     AlignLeft,
     AlignRight,
+    BarChart3,
     Bold,
     BookMarked,
     BookOpen,
+    Briefcase,
     Building2,
     CalendarCheck,
     CalendarDays,
     CalendarRange,
+    ClipboardList,
     ClipboardPaste,
     Copy,
+    Database,
+    FileBadge,
+    FileBarChart,
     FileDown,
     FilePlus,
+    FileText,
+    FlaskConical,
     FolderOpen,
     GraduationCap,
+    Hammer,
+    Headphones,
     Info,
     Italic,
     Layers,
+    LifeBuoy,
     ListChecks,
+    ListTodo,
+    MessagesSquare,
     NotebookPen,
+    Package,
+    Palette,
+    PieChart,
     Printer,
+    RefreshCw,
     Replace,
     Save,
     Scissors,
     Settings,
+    Smartphone,
+    StickyNote,
     Underline,
     UserPlus,
     UserRound,
     Users,
+    Wand2,
+    Wrench,
     X,
     type LucideIcon,
 } from 'lucide-react';
@@ -73,12 +94,69 @@ export type AddRibbonActionId =
     | 'addSection'
     | 'addSubject';
 
+export type SettingsRibbonActionId =
+    | 'settingsAppearance'
+    | 'settingsTimetable'
+    | 'settingsAccount'
+    | 'settingsNotes'
+    | 'settingsDefinitions'
+    | 'settingsPractical'
+    | 'settingsLabs'
+    | 'settingsReports'
+    | 'settingsScheduling'
+    | 'settingsDocuments'
+    | 'settingsTasks'
+    | 'settingsStats';
+
+export type ListsRibbonActionId =
+    | 'listStudents'
+    | 'listCommunications'
+    | 'listSchools'
+    | 'listDepartments'
+    | 'listSections'
+    | 'listWorkshops'
+    | 'listEmployees'
+    | 'listTeachers'
+    | 'listEquipment'
+    | 'listGuardians';
+
+export type ToolsRibbonActionId =
+    | 'toolsCertificates'
+    | 'toolsDbMaintenance'
+    | 'toolsMobileSync'
+    | 'toolsEvaluations'
+    | 'toolsInstallWizard'
+    | 'toolsStudentRequirements'
+    | 'toolsTeacherRequirements';
+
+export type ReportsRibbonActionId =
+    | 'reportsStandard'
+    | 'reportsCharts';
+
+export type HelpRibbonActionId =
+    | 'helpLiveSupport'
+    | 'helpDocsSupport'
+    | 'helpUpdate';
+
 export type RibbonActionId =
     | FileRibbonActionId
     | HomeRibbonActionId
-    | AddRibbonActionId;
+    | AddRibbonActionId
+    | SettingsRibbonActionId
+    | ListsRibbonActionId
+    | ToolsRibbonActionId
+    | ReportsRibbonActionId
+    | HelpRibbonActionId;
 
-export type RibbonTab = 'file' | 'home' | 'add';
+export type RibbonTab =
+    | 'file'
+    | 'home'
+    | 'add'
+    | 'settings'
+    | 'lists'
+    | 'tools'
+    | 'reports'
+    | 'help';
 
 type RibbonItem = {
     id: RibbonActionId;
@@ -175,6 +253,133 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
             { id: 'addAttendance', label: 'حضور', icon: CalendarCheck },
             { id: 'addHoliday', label: 'اجازة', icon: CalendarDays },
             { id: 'addDocument', label: 'مستند', icon: FolderOpen },
+        ],
+    },
+];
+
+const SETTINGS_RIBBON_GROUPS: RibbonGroup[] = [
+    {
+        id: 'profile',
+        label: 'الحساب',
+        items: [
+            { id: 'settingsAppearance', label: 'المظهر', icon: Palette },
+            { id: 'settingsAccount', label: 'الحساب', icon: UserRound },
+        ],
+    },
+    {
+        id: 'schedule',
+        label: 'الجدولة',
+        items: [
+            { id: 'settingsTimetable', label: 'الجدول الدراسي', icon: CalendarRange },
+            { id: 'settingsScheduling', label: 'الجدولة', icon: ClipboardList },
+        ],
+    },
+    {
+        id: 'content',
+        label: 'المحتوى',
+        items: [
+            { id: 'settingsNotes', label: 'الملاحظات', icon: StickyNote },
+            { id: 'settingsDefinitions', label: 'التعريفات', icon: BookOpen },
+            { id: 'settingsDocuments', label: 'المستندات', icon: FolderOpen },
+        ],
+    },
+    {
+        id: 'operations',
+        label: 'العملي',
+        items: [
+            { id: 'settingsPractical', label: 'العملي', icon: Wrench },
+            { id: 'settingsLabs', label: 'المختبرات', icon: FlaskConical },
+            { id: 'settingsTasks', label: 'المهام', icon: ListTodo },
+        ],
+    },
+    {
+        id: 'analytics',
+        label: 'التقارير',
+        items: [
+            { id: 'settingsReports', label: 'التقارير', icon: FileBarChart },
+            { id: 'settingsStats', label: 'الاحصائيات', icon: BarChart3 },
+        ],
+    },
+];
+
+const LISTS_RIBBON_GROUPS: RibbonGroup[] = [
+    {
+        id: 'people',
+        label: 'الأشخاص',
+        items: [
+            { id: 'listStudents', label: 'الطلاب', icon: GraduationCap },
+            { id: 'listTeachers', label: 'المعلمون', icon: Users },
+            { id: 'listEmployees', label: 'الموظفون', icon: Briefcase },
+            { id: 'listGuardians', label: 'اولياء الامور', icon: UserRound },
+        ],
+    },
+    {
+        id: 'org',
+        label: 'الهيكل',
+        items: [
+            { id: 'listSchools', label: 'المدارس', icon: Building2 },
+            { id: 'listDepartments', label: 'الاقسام', icon: Layers },
+            { id: 'listSections', label: 'الشعب', icon: ClipboardList },
+        ],
+    },
+    {
+        id: 'facilities',
+        label: 'المرافق',
+        items: [
+            { id: 'listWorkshops', label: 'الورش', icon: Hammer },
+            { id: 'listEquipment', label: 'التجهيزات', icon: Package },
+            { id: 'listCommunications', label: 'الاتصالات', icon: MessagesSquare },
+        ],
+    },
+];
+
+const TOOLS_RIBBON_GROUPS: RibbonGroup[] = [
+    {
+        id: 'documents',
+        label: 'الشهادات',
+        items: [
+            { id: 'toolsCertificates', label: 'الشهادات', icon: FileBadge },
+        ],
+    },
+    {
+        id: 'system',
+        label: 'النظام',
+        items: [
+            { id: 'toolsDbMaintenance', label: 'صيانة قاعدة البيانات', icon: Database },
+            { id: 'toolsMobileSync', label: 'تزامن الموبايل', icon: Smartphone },
+            { id: 'toolsInstallWizard', label: 'معالج التنصيب', icon: Wand2 },
+        ],
+    },
+    {
+        id: 'requirements',
+        label: 'المتطلبات',
+        items: [
+            { id: 'toolsEvaluations', label: 'التقييمات', icon: ListChecks },
+            { id: 'toolsStudentRequirements', label: 'متطلبات الطلاب', icon: GraduationCap },
+            { id: 'toolsTeacherRequirements', label: 'متطلبات المعلمون', icon: Users },
+        ],
+    },
+];
+
+const REPORTS_RIBBON_GROUPS: RibbonGroup[] = [
+    {
+        id: 'reports',
+        label: 'التقارير',
+        items: [
+            { id: 'reportsStandard', label: 'القياسي', icon: FileText },
+            { id: 'reportsCharts', label: 'الرسومات', icon: PieChart },
+        ],
+    },
+];
+
+const HELP_RIBBON_GROUPS: RibbonGroup[] = [
+    {
+        id: 'support',
+        label: 'الدعم',
+        items: [
+            { id: 'helpLiveSupport', label: 'الدعم المباشر', icon: Headphones },
+            { id: 'helpDocsSupport', label: 'دعم المستندات', icon: LifeBuoy },
+            { id: 'helpUpdate', label: 'تحديث', icon: RefreshCw },
         ],
     },
 ];
@@ -302,17 +507,37 @@ export function TitleBarRibbon({
             ? FILE_RIBBON_GROUPS
             : tab === 'add'
               ? ADD_RIBBON_GROUPS
-              : buildHomeGroups(
-                    onFontFamily ?? (() => undefined),
-                    onFontSize ?? (() => undefined),
-                );
+              : tab === 'settings'
+                ? SETTINGS_RIBBON_GROUPS
+                : tab === 'lists'
+                  ? LISTS_RIBBON_GROUPS
+                  : tab === 'tools'
+                    ? TOOLS_RIBBON_GROUPS
+                    : tab === 'reports'
+                      ? REPORTS_RIBBON_GROUPS
+                      : tab === 'help'
+                        ? HELP_RIBBON_GROUPS
+                        : buildHomeGroups(
+                              onFontFamily ?? (() => undefined),
+                              onFontSize ?? (() => undefined),
+                          );
 
     const ariaLabel =
         tab === 'file'
             ? 'شريط ملف'
             : tab === 'add'
               ? 'شريط اضافة'
-              : 'شريط الصفحة الرئيسية';
+              : tab === 'settings'
+                ? 'شريط اعدادات'
+                : tab === 'lists'
+                  ? 'شريط قوائم'
+                  : tab === 'tools'
+                    ? 'شريط ادوات'
+                    : tab === 'reports'
+                      ? 'شريط تقارير'
+                      : tab === 'help'
+                        ? 'شريط مساعدة'
+                        : 'شريط الصفحة الرئيسية';
 
     return (
         <div className="sis-ribbon" role="region" aria-label={ariaLabel} dir="rtl">

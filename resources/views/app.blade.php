@@ -8,6 +8,10 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#C49A45">
+        <meta name="msapplication-TileColor" content="#C49A45">
+        <meta name="msapplication-navbutton-color" content="#C49A45">
+        <link rel="manifest" href="/manifest.webmanifest">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
@@ -35,9 +39,10 @@
             }
         </style>
 
-        <link rel="icon" href="/favicon.svg?v=sis4" type="image/svg+xml">
-        <link rel="icon" href="/favicon.ico?v=sis4" sizes="any">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=sis4">
+        <link rel="icon" href="/favicon.svg?v=sis8" type="image/svg+xml">
+        <link rel="icon" href="/favicon.ico?v=sis8" sizes="any">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=sis8">
+        <link rel="manifest" href="/manifest.webmanifest">
 
         @fonts
 

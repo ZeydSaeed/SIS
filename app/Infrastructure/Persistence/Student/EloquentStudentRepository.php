@@ -15,20 +15,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
     public function saveNew(CreateStudentData $data): int
     {
         $record = new StudentRecord;
-        $record->forceFill([
-            'school_id' => $data->schoolId,
-            'student_code' => $data->studentCode,
-            'national_id' => $data->nationalId,
-            'first_name' => $data->firstName,
-            'middle_name' => $data->middleName,
-            'last_name' => $data->lastName,
-            'full_name' => $data->fullName,
-            'gender' => $data->gender,
-            'birth_date' => $data->birthDate,
-            'birth_place' => $data->birthPlace,
-            'nationality' => $data->nationality,
-            'status' => $data->status,
-        ]);
+        $record->forceFill($this->attributesFromCreate($data));
         $record->save();
 
         return (int) $record->getKey();
@@ -38,17 +25,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
     {
         StudentRecord::query()
             ->whereKey($studentId)
-            ->update([
-                'national_id' => $data->nationalId,
-                'first_name' => $data->firstName,
-                'middle_name' => $data->middleName,
-                'last_name' => $data->lastName,
-                'full_name' => $data->fullName,
-                'gender' => $data->gender,
-                'birth_date' => $data->birthDate,
-                'birth_place' => $data->birthPlace,
-                'nationality' => $data->nationality,
-            ]);
+            ->update($this->attributesFromUpdate($data));
     }
 
     public function findById(int $studentId): ?Student
@@ -94,5 +71,92 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         $next = ((int) StudentRecord::query()->max('id')) + 1;
 
         return sprintf('STU-%06d', $next);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributesFromCreate(CreateStudentData $data): array
+    {
+        return [
+            'school_id' => $data->schoolId,
+            'student_code' => $data->studentCode,
+            'national_id' => $data->nationalId,
+            'first_name' => $data->firstName,
+            'middle_name' => $data->middleName,
+            'father_name' => $data->fatherName,
+            'grandfather_name' => $data->grandfatherName,
+            'great_grandfather_name' => $data->greatGrandfatherName,
+            'last_name' => $data->lastName,
+            'full_name' => $data->fullName,
+            'guardian_triple_name' => $data->guardianTripleName,
+            'gender' => $data->gender,
+            'birth_date' => $data->birthDate,
+            'mawalid_date' => $data->mawalidDate,
+            'birth_place' => $data->birthPlace,
+            'nationality' => $data->nationality,
+            'governorate' => $data->governorate,
+            'neighborhood' => $data->neighborhood,
+            'locality' => $data->locality,
+            'house_number' => $data->houseNumber,
+            'registration_place' => $data->registrationPlace,
+            'religion' => $data->religion,
+            'previous_school_name' => $data->previousSchoolName,
+            'transfer_document_number' => $data->transferDocumentNumber,
+            'transfer_document_date' => $data->transferDocumentDate,
+            'school_start_date' => $data->schoolStartDate,
+            'admitted_class_name' => $data->admittedClassName,
+            'notes' => $data->notes,
+            'mobile' => $data->mobile,
+            'guardian_mobile' => $data->guardianMobile,
+            'email' => $data->email,
+            'school_name' => $data->schoolName,
+            'department_name' => $data->departmentName,
+            'stage_name' => $data->stageName,
+            'section_name' => $data->sectionName,
+            'status' => $data->status,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributesFromUpdate(UpdateStudentData $data): array
+    {
+        return [
+            'national_id' => $data->nationalId,
+            'first_name' => $data->firstName,
+            'middle_name' => $data->middleName,
+            'father_name' => $data->fatherName,
+            'grandfather_name' => $data->grandfatherName,
+            'great_grandfather_name' => $data->greatGrandfatherName,
+            'last_name' => $data->lastName,
+            'full_name' => $data->fullName,
+            'guardian_triple_name' => $data->guardianTripleName,
+            'gender' => $data->gender,
+            'birth_date' => $data->birthDate,
+            'mawalid_date' => $data->mawalidDate,
+            'birth_place' => $data->birthPlace,
+            'nationality' => $data->nationality,
+            'governorate' => $data->governorate,
+            'neighborhood' => $data->neighborhood,
+            'locality' => $data->locality,
+            'house_number' => $data->houseNumber,
+            'registration_place' => $data->registrationPlace,
+            'religion' => $data->religion,
+            'previous_school_name' => $data->previousSchoolName,
+            'transfer_document_number' => $data->transferDocumentNumber,
+            'transfer_document_date' => $data->transferDocumentDate,
+            'school_start_date' => $data->schoolStartDate,
+            'admitted_class_name' => $data->admittedClassName,
+            'notes' => $data->notes,
+            'mobile' => $data->mobile,
+            'guardian_mobile' => $data->guardianMobile,
+            'email' => $data->email,
+            'school_name' => $data->schoolName,
+            'department_name' => $data->departmentName,
+            'stage_name' => $data->stageName,
+            'section_name' => $data->sectionName,
+        ];
     }
 }

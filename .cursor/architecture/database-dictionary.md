@@ -18,12 +18,39 @@
 | id | BIGINT | NO | PK | | Internal ID |
 | public_id | UUID | NO | YES | | External/public identifier |
 | student_code | VARCHAR(50) | NO | YES | | Official province student number |
-| national_id | VARCHAR(20) | YES | YES | **YES** | National ID card |
-| first_name | VARCHAR(100) | NO | | **YES** | |
-| last_name | VARCHAR(100) | NO | | **YES** | |
-| full_name | VARCHAR(255) | NO | | **YES** | Display name |
-| gender | SMALLINT | NO | | | 1=M, 2=F (app enum) |
-| birth_date | DATE | NO | | **YES** | |
+| national_id | VARCHAR(20) | YES | YES | **YES** | رقم البطاقة الوطنية |
+| first_name | VARCHAR(100) | NO | | **YES** | اسم الطالب |
+| middle_name | VARCHAR(100) | YES | | **YES** | Legacy middle name |
+| father_name | VARCHAR(100) | YES | | **YES** | اسم الأب |
+| grandfather_name | VARCHAR(100) | YES | | **YES** | اسم الجد |
+| great_grandfather_name | VARCHAR(100) | YES | | **YES** | اسم أب الجد |
+| last_name | VARCHAR(100) | NO | | **YES** | اللقب |
+| full_name | VARCHAR(255) | NO | | **YES** | Display name (computed) |
+| guardian_triple_name | VARCHAR(255) | YES | | **YES** | اسم ولي أمره الثلاثي |
+| gender | SMALLINT | NO | | | 1=ذكر, 2=أنثى |
+| birth_date | DATE | NO | | **YES** | التولد |
+| mawalid_date | DATE | YES | | **YES** | المواليد |
+| birth_place | VARCHAR(255) | YES | | | Place of birth (legacy) |
+| nationality | VARCHAR(50) | YES | | | الجنسية |
+| governorate | VARCHAR(100) | YES | | | المحافظة |
+| neighborhood | VARCHAR(100) | YES | | | الحي |
+| locality | VARCHAR(100) | YES | | | المحلة |
+| house_number | VARCHAR(50) | YES | | | رقم الدار |
+| registration_place | VARCHAR(255) | YES | | | محل التسجيل |
+| religion | SMALLINT | NO | | | 1=مسلم (default), 2=مسيحي, 3=أخرى |
+| previous_school_name | VARCHAR(255) | YES | | | المدرسة المنقول منها |
+| transfer_document_number | BIGINT | YES | | | رقم وثيقة النقل |
+| transfer_document_date | DATE | YES | | | تاريخ وثيقة النقل |
+| school_start_date | DATE | YES | | | تاريخ ابتداء الدوام |
+| admitted_class_name | VARCHAR(100) | YES | | | الصف الذي قُبل فيه |
+| notes | TEXT | YES | | | الملاحظات |
+| mobile | VARCHAR(30) | YES | | **YES** | رقم الموبايل |
+| guardian_mobile | VARCHAR(30) | YES | | **YES** | رقم موبايل ولي الأمر |
+| email | VARCHAR(255) | YES | | **YES** | البريد الإلكتروني |
+| school_name | VARCHAR(255) | YES | | | المدرسة (تسمية سجل) |
+| department_name | VARCHAR(100) | YES | | | القسم |
+| stage_name | VARCHAR(100) | YES | | | المرحلة |
+| section_name | VARCHAR(100) | YES | | | الشعبة |
 | status | SMALLINT | NO | | | 1=active, 2=inactive, etc. |
 | created_at | TIMESTAMPTZ | NO | | | |
 | updated_at | TIMESTAMPTZ | NO | | | |

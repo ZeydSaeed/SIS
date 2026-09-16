@@ -7,15 +7,7 @@ import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
 void createInertiaApp({
-    title: (title) => {
-        // Native window chrome title (Edge/Chrome --app): centered by OS when possible.
-        const brand = 'Student Information System';
-        if (!title || title.trim().toUpperCase() === 'SIS' || title === brand) {
-            return brand;
-        }
-
-        return `${title} — ${brand}`;
-    },
+    title: () => 'Student Information System',
     layout: (name) => {
         switch (true) {
             case name === 'welcome':

@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Application\Student\Commands\CreateStudentCommand;
 use App\Application\Student\Commands\CreateStudentHandler;
 use App\Application\Student\Commands\RegisterStudentDocumentCommand;
 use App\Application\Student\Commands\RegisterStudentDocumentHandler;
-use App\Application\Student\Commands\UpdateStudentCommand;
 use App\Application\Student\Commands\UpdateStudentHandler;
 use App\Application\Student\Commands\UploadStudentDocumentCommand;
 use App\Application\Student\Commands\UploadStudentDocumentHandler;
@@ -79,7 +77,7 @@ class StudentController extends Controller
         ));
 
         $payload = $result->toArray();
-        $payload['data'] = $this->sanitizer->sanitizeList($result->items);
+        $payload['data'] = $this->sanitizer->sanitizeList($result->items, $request->user());
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataAccess,
@@ -110,7 +108,7 @@ class StudentController extends Controller
         ));
 
         $payload = $result->toArray();
-        $payload['data'] = $this->sanitizer->sanitizeList($result->items);
+        $payload['data'] = $this->sanitizer->sanitizeList($result->items, $request->user());
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataAccess,
@@ -168,19 +166,7 @@ class StudentController extends Controller
     ): JsonResponse {
         $schoolId = $this->schoolContext->requireId();
 
-        $result = $handler->handle(new CreateStudentCommand(
-            firstName: $request->validated('first_name'),
-            middleName: $request->validated('middle_name'),
-            lastName: $request->validated('last_name'),
-            gender: (int) $request->validated('gender'),
-            birthDate: $request->validated('birth_date'),
-            studentCode: $request->validated('student_code'),
-            nationalId: $request->validated('national_id'),
-            birthPlace: $request->validated('birth_place'),
-            nationality: $request->validated('nationality'),
-            idempotencyKey: $request->header('X-Idempotency-Key'),
-            schoolId: $schoolId,
-        ));
+        $result = $handler->handle(StudentProfileCommandFactory::createFromRequest($request, $schoolId));
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataModified,
@@ -223,17 +209,7 @@ class StudentController extends Controller
             throw new AuthorizationException('This action is unauthorized.');
         }
 
-        $result = $handler->handle(new UpdateStudentCommand(
-            studentId: $student,
-            firstName: $request->validated('first_name'),
-            middleName: $request->validated('middle_name'),
-            lastName: $request->validated('last_name'),
-            gender: (int) $request->validated('gender'),
-            birthDate: $request->validated('birth_date'),
-            nationalId: $request->validated('national_id'),
-            birthPlace: $request->validated('birth_place'),
-            nationality: $request->validated('nationality'),
-        ));
+        $result = $handler->handle(StudentProfileCommandFactory::updateFromRequest($request, $student));
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataModified,

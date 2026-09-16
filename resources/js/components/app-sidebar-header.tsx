@@ -1,6 +1,5 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
-import { Breadcrumbs } from '@/components/breadcrumbs';
 import { TitleBarControls } from '@/components/title-bar-controls';
 import { TitleBarMenu } from '@/components/title-bar-menu';
 import {
@@ -81,8 +80,57 @@ const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     addSubject: '/curriculum',
 };
 
+const SETTINGS_ROUTES: Partial<Record<RibbonActionId, string>> = {
+    settingsAppearance: appearance.edit.url(),
+    settingsTimetable: '/timetable',
+    settingsAccount: profileEdit.url(),
+    settingsNotes: '/documents',
+    settingsDefinitions: '/curriculum',
+    settingsPractical: '/curriculum',
+    settingsLabs: '/curriculum',
+    settingsReports: '/reports',
+    settingsScheduling: '/timetable',
+    settingsDocuments: '/documents',
+    settingsTasks: '/workflow',
+    settingsStats: '/reports',
+};
+
+const LISTS_ROUTES: Partial<Record<RibbonActionId, string>> = {
+    listStudents: '/students',
+    listCommunications: '/communication',
+    listSchools: '/admission',
+    listDepartments: '/curriculum',
+    listSections: '/enrollments',
+    listWorkshops: '/hr',
+    listEmployees: '/hr',
+    listTeachers: '/teachers',
+    listEquipment: '/documents',
+    listGuardians: '/guardians',
+};
+
+const TOOLS_ROUTES: Partial<Record<RibbonActionId, string>> = {
+    toolsCertificates: '/certificates',
+    toolsDbMaintenance: '/reports',
+    toolsMobileSync: '/communication',
+    toolsEvaluations: '/grades',
+    toolsInstallWizard: '/admission',
+    toolsStudentRequirements: '/students',
+    toolsTeacherRequirements: '/teachers',
+};
+
+const REPORTS_ROUTES: Partial<Record<RibbonActionId, string>> = {
+    reportsStandard: '/reports',
+    reportsCharts: '/reports',
+};
+
+const HELP_ROUTES: Partial<Record<RibbonActionId, string>> = {
+    helpLiveSupport: '/communication',
+    helpDocsSupport: '/documents',
+    helpUpdate: '/dashboard',
+};
+
 export function AppSidebarHeader({
-    breadcrumbs = [],
+    breadcrumbs: _breadcrumbs = [],
 }: {
     breadcrumbs?: BreadcrumbItemType[];
 }) {
@@ -93,6 +141,41 @@ export function AppSidebarHeader({
         if (addHref) {
             setActiveRibbon(null);
             router.visit(addHref);
+            return;
+        }
+
+        const settingsHref = SETTINGS_ROUTES[id];
+        if (settingsHref) {
+            setActiveRibbon(null);
+            router.visit(settingsHref);
+            return;
+        }
+
+        const listsHref = LISTS_ROUTES[id];
+        if (listsHref) {
+            setActiveRibbon(null);
+            router.visit(listsHref);
+            return;
+        }
+
+        const toolsHref = TOOLS_ROUTES[id];
+        if (toolsHref) {
+            setActiveRibbon(null);
+            router.visit(toolsHref);
+            return;
+        }
+
+        const reportsHref = REPORTS_ROUTES[id];
+        if (reportsHref) {
+            setActiveRibbon(null);
+            router.visit(reportsHref);
+            return;
+        }
+
+        const helpHref = HELP_ROUTES[id];
+        if (helpHref) {
+            setActiveRibbon(null);
+            router.visit(helpHref);
             return;
         }
 
@@ -166,7 +249,6 @@ export function AppSidebarHeader({
                         activeRibbon={activeRibbon}
                         onRibbonChange={setActiveRibbon}
                     />
-                    <Breadcrumbs breadcrumbs={breadcrumbs} />
                 </div>
                 <TitleBarControls />
             </header>
