@@ -66,6 +66,7 @@
     --sis-mist: #778da9;           /* interactive / secondary */
     --sis-pearl: #e0e1dd;          /* window background */
     --sis-hover: #caf0f8;          /* hover */
+    --sis-ribbon: #edf6f9;         /* file ribbon surface */
 
     /* Canonical aliases used across ops CSS */
     --sis-twilight-indigo: var(--sis-night);
@@ -299,7 +300,7 @@
     min-height: 6rem;
     max-height: 6rem;
     padding: 0.4rem 0.55rem 0.3rem;
-    background: var(--sis-pearl);
+    background: var(--sis-ribbon);
     border-bottom: 1px solid var(--sis-oxford);
     color: var(--sis-oxford);
     font-family: var(--sis-chrome-font);
@@ -1136,3 +1137,23 @@ input[type='reset']:disabled {
 .sis-desktop-workspace__taskbar {
     z-index: 10000;
 }
+
+/* Students table borders */
+.sis-students-table-wrap > div {
+    border: 1px solid #000;
+    border-radius: 0.75rem;
+}
+
+.sis-students-table-wrap table {
+    border-collapse: collapse;
+}
+
+.sis-students-table-wrap th,
+.sis-students-table-wrap td {
+    border: 1px solid #000;
+}
+
+.sis-students-table-wrap thead th {
+    border-bottom-width: 1px;
+}
+

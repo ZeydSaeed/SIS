@@ -398,40 +398,43 @@ export function StudentList({ students, filters, authorization, preview }: Stude
 
     return (
         <div className="sis-ops-hub flex flex-col gap-6" dir="rtl" lang="ar">
-            <PageHeader
-                title={i18n.students.title}
-                description={i18n.students.description}
-                icon={<GraduationCap className="text-primary size-8" aria-hidden="true" />}
-            />
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                            submitSearch();
+            <div className="grid w-full grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
+                <div className="flex justify-start">
+                    <PageHeader
+                        title={i18n.students.title}
+                        icon={
+                            <GraduationCap className="text-primary size-8" aria-hidden="true" />
                         }
-                    }}
-                    placeholder={i18n.students.searchPlaceholder}
-                    aria-label={i18n.students.searchAria}
-                    className="max-w-md"
-                    dir="rtl"
-                />
-                <Button type="button" onClick={submitSearch}>
-                    {i18n.students.search}
-                </Button>
+                    />
+                </div>
+
+                <div className="flex w-full items-center justify-center gap-3 sm:w-auto">
+                    <Input
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                submitSearch();
+                            }
+                        }}
+                        placeholder={i18n.students.searchPlaceholder}
+                        aria-label={i18n.students.searchAria}
+                        className="w-full max-w-md sm:w-64 md:w-80"
+                        dir="rtl"
+                    />
+                    <Button type="button" className="shrink-0" onClick={submitSearch}>
+                        {i18n.students.search}
+                    </Button>
+                </div>
+
+                <div className="hidden sm:block" aria-hidden="true" />
             </div>
 
-            <section aria-labelledby="students-table-heading" className="flex flex-col gap-3">
-                <h2 id="students-table-heading" className="sis-ops-hub__section-title text-base">
-                    {i18n.students.tableHeading}
-                </h2>
+            <section aria-label={i18n.students.title} className="sis-students-table-wrap flex flex-col gap-3">
                 <DataTable
                     columns={columns}
                     rows={students?.data ?? []}
                     rowKey={(row) => row.id}
-                    caption={i18n.students.tableCaption}
                     emptyTitle={i18n.students.emptyTitle}
                     emptyDescription={
                         filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc

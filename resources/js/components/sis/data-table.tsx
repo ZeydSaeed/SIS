@@ -102,7 +102,7 @@ export function DataTable<T>({
                                 className="text-muted-foreground px-4 py-10 text-center"
                             >
                                 <div className="flex flex-col gap-1">
-                                    <span className="font-medium text-foreground">{emptyTitle}</span>
+                                    <span className="text-foreground font-medium">{emptyTitle}</span>
                                     {emptyDescription ? (
                                         <span className="text-sm">{emptyDescription}</span>
                                     ) : null}
