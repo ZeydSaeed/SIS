@@ -59,7 +59,7 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="sis-scroll-hidden min-h-0 flex-1 overflow-y-auto overscroll-contain group-data-[collapsible=icon]:overflow-y-auto">
+            <SidebarContent className="sis-scroll-hidden min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-x-none overscroll-contain group-data-[collapsible=icon]:overflow-x-hidden group-data-[collapsible=icon]:overflow-y-auto">
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 

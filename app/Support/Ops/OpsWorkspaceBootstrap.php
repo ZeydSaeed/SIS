@@ -21,6 +21,7 @@ final class OpsWorkspaceBootstrap
     private const OPS_MANAGER_ROLES = [
         'student_manager',
         'enrollment_manager',
+        'admission_manager',
         'grades_manager',
         'attendance_manager',
         'timetable_manager',
@@ -62,6 +63,7 @@ final class OpsWorkspaceBootstrap
         }
 
         Cache::forget("security.schools.user.{$user->id}");
+        Cache::forget("security.permissions.user.{$user->id}");
 
         return [
             'school_id' => $schoolId,

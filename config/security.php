@@ -6,6 +6,8 @@ return [
         'students.create' => 'Create student records',
         'students.update' => 'Update student records',
         'students.view_pii' => 'View student PII (national ID)',
+        'admission.view' => 'View admission periods and applications',
+        'admission.manage' => 'Manage admission periods, applications, documents, and conversion',
         'enrollment.view' => 'View enrollment records',
         'enrollment.create' => 'Create enrollment records',
         'enrollment.update' => 'Update enrollment placement',
@@ -91,6 +93,18 @@ return [
             'enrollment.update',
             'enrollment.cancel',
             'students.view',
+            'admission.view',
+            'admission.manage',
+        ],
+        'admission_viewer' => [
+            'admission.view',
+            'students.view',
+        ],
+        'admission_manager' => [
+            'admission.view',
+            'admission.manage',
+            'students.view',
+            'students.create',
         ],
         'enrollment_viewer' => [
             'enrollment.view',

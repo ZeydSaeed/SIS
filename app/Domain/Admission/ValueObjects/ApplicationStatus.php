@@ -30,4 +30,68 @@ enum ApplicationStatus: int
     {
         return $this === self::Accepted;
     }
+
+    /**
+     * Allowed manual transitions (Converted only via ConvertApplicationToStudent).
+     *
+     * @return list<self>
+     */
+    public function allowedTransitions(): array
+    {
+        return match ($this) {
+            self::Draft => [self::Submitted, self::Withdrawn],
+            self::Submitted => [self::UnderReview, self::Withdrawn],
+            self::UnderReview => [
+                self::Interview,
+                self::Waitlisted,
+                self::Accepted,
+                self::Rejected,
+                self::Withdrawn,
+            ],
+            self::Interview => [
+                self::Waitlisted,
+                self::Accepted,
+                self::Rejected,
+                self::UnderReview,
+                self::Withdrawn,
+            ],
+            self::Waitlisted => [
+                self::Interview,
+                self::Accepted,
+                self::Rejected,
+                self::Withdrawn,
+            ],
+            self::Accepted => [self::Withdrawn],
+            self::Rejected, self::Withdrawn, self::Converted => [],
+        };
+    }
+
+    public function canTransitionTo(self $target): bool
+    {
+        foreach ($this->allowedTransitions() as $allowed) {
+            if ($allowed === $target) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Ordered pipeline steps for UI (excludes terminal reject/withdraw).
+     *
+     * @return list<self>
+     */
+    public static function pipelineSteps(): array
+    {
+        return [
+            self::Draft,
+            self::Submitted,
+            self::UnderReview,
+            self::Interview,
+            self::Waitlisted,
+            self::Accepted,
+            self::Converted,
+        ];
+    }
 }

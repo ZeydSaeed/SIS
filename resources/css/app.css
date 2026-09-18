@@ -68,6 +68,24 @@
     --sis-hover: #caf0f8;          /* hover */
     --sis-ribbon: #edf6f9;         /* file ribbon surface */
 
+    /* Admission workflow progress — per-stage palette (ops brief) */
+    --sis-admission-status-1: #bc4749;
+    --sis-admission-status-2: #f2e8cf;
+    --sis-admission-status-3: #a7c957;
+    --sis-admission-status-4: #6a994e;
+    --sis-admission-status-5: #f4a259;
+    --sis-admission-status-6: #386641;
+    --sis-admission-status-9: #001427;
+    --sis-admission-status-text-light: #0d1b2a;
+    --sis-admission-status-text-dark: #ffffff;
+    --sis-admission-surface: color-mix(in srgb, #cbeef3 45%, #ffffff);
+    --sis-admission-surface-text: var(--sis-oxford);
+    --sis-admission-year-bg: #284b63;
+    --sis-admission-year-text: #ffffff;
+    --sis-admission-overall: var(--sis-oxford);
+    --sis-admission-track-gap: var(--sis-admission-surface);
+    --sis-admission-pending: #e6e6e6;
+
     /* Canonical aliases used across ops CSS */
     --sis-twilight-indigo: var(--sis-night);
     --sis-ash-brown: var(--sis-oxford);
@@ -190,6 +208,34 @@
     }
 }
 
+/* Unlayered so it wins over @layer base / Tailwind: lock chrome against x-pan */
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+}
+
+/* App chrome stays fixed: no mouse-drag / wheel / overscroll pan on the shell */
+[data-slot='sidebar-wrapper'] {
+    height: 100svh;
+    max-height: 100svh;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+[data-slot='sidebar'],
+[data-slot='sidebar'] [data-sidebar='sidebar'],
+[data-slot='sidebar-inset'],
+[data-sidebar='content'] {
+    overscroll-behavior-x: none;
+}
+
+[data-sidebar='content'] {
+    overflow-x: hidden;
+}
+
 /* App title bar — #415A77 — text matches sidebar */
 .sis-titlebar {
     background: var(--sis-steel);
@@ -256,6 +302,7 @@
     gap: 0.125rem;
     min-width: 0;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
 }
 
 .sis-titlebar__menu-item {
@@ -318,6 +365,7 @@
     gap: 0;
     overflow-x: auto;
     overflow-y: hidden;
+    overscroll-behavior-x: contain;
 }
 
 .sis-ribbon__group {
@@ -567,6 +615,7 @@ input[type='reset']:disabled {
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: none;
+    overscroll-behavior-x: none;
     touch-action: none;
     padding: 3.25rem 1.5rem 1.25rem;
     display: flex;
@@ -652,9 +701,12 @@ input[type='reset']:disabled {
     hyphens: auto;
 }
 
-/* Hide scrollbar; keep wheel / touch / keyboard scroll */
+/* Hide scrollbar; keep vertical wheel / keyboard scroll. overflow-x must be
+   hidden (not visible): a non-visible overflow-y computes overflow-x to auto. */
 .sis-scroll-hidden {
+    overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior-x: none;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -1155,5 +1207,150 @@ input[type='reset']:disabled {
 
 .sis-students-table-wrap thead th {
     border-bottom-width: 1px;
+}
+
+/* Admission workflow segmented progress (RTL) — fixed per-stage colors */
+.sis-admission-progress {
+    padding: 0.75rem;
+    background: var(--sis-admission-surface);
+    color: var(--sis-admission-surface-text);
+    border: 1px solid color-mix(in srgb, var(--sis-admission-surface) 75%, #000000);
+}
+
+.sis-admission-progress .sis-ops-hub__section-title {
+    color: var(--sis-admission-surface-text);
+}
+
+.sis-admission-year-control {
+    background: var(--sis-admission-year-bg) !important;
+    color: var(--sis-admission-year-text) !important;
+    border-color: color-mix(in srgb, var(--sis-admission-year-bg) 80%, #000000) !important;
+    min-height: 2.5rem !important;
+    height: 2.5rem !important;
+    padding-block: 0.25rem !important;
+    font-size: 1rem !important;
+    line-height: 1.3 !important;
+}
+
+.sis-admission-year-control option {
+    background: var(--sis-admission-year-bg);
+    color: var(--sis-admission-year-text);
+}
+
+.sis-admission-progress__track {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    gap: 0.15rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    background: var(--sis-admission-track-gap);
+}
+
+.sis-admission-progress__segment {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 6.5rem;
+    min-height: 3.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: var(--sis-admission-pending);
+}
+
+.sis-admission-progress__segment--status-1 {
+    background: var(--sis-admission-status-1);
+}
+
+.sis-admission-progress__segment--status-2 {
+    background: var(--sis-admission-status-2);
+}
+
+.sis-admission-progress__segment--status-3 {
+    background: var(--sis-admission-status-3);
+}
+
+.sis-admission-progress__segment--status-4 {
+    background: var(--sis-admission-status-4);
+}
+
+.sis-admission-progress__segment--status-5 {
+    background: var(--sis-admission-status-5);
+}
+
+.sis-admission-progress__segment--status-6 {
+    background: var(--sis-admission-status-6);
+}
+
+.sis-admission-progress__segment--status-9 {
+    background: var(--sis-admission-status-9);
+}
+
+.sis-admission-progress__segment--tone-dark {
+    color: var(--sis-admission-status-text-dark);
+}
+
+.sis-admission-progress__segment--tone-light {
+    color: var(--sis-admission-status-text-light);
+}
+
+.sis-admission-progress__fill {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    background: color-mix(in srgb, currentColor 22%, transparent);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.sis-admission-progress__segment--tone-dark .sis-admission-progress__fill {
+    background: color-mix(in srgb, #ffffff 28%, transparent);
+}
+
+.sis-admission-progress__segment--tone-light .sis-admission-progress__fill {
+    background: color-mix(in srgb, #000000 16%, transparent);
+}
+
+.sis-admission-progress__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.45rem 0.35rem;
+    text-align: center;
+    line-height: 1.15;
+}
+
+.sis-admission-progress__icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex-shrink: 0;
+}
+
+.sis-admission-progress__label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--sis-chrome-font);
+}
+
+.sis-admission-progress__percent {
+    font-size: 0.65rem;
+    font-weight: 600;
+    opacity: 0.95;
+}
+
+.sis-admission-progress__overall {
+    margin: 0.55rem 0 0;
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sis-admission-overall);
+    font-family: var(--sis-chrome-font);
 }
 

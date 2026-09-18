@@ -23,6 +23,7 @@ use App\Security\Authorization\Permission;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\AttendancePolicy;
+use App\Security\Policies\AdmissionPolicy;
 use App\Security\Policies\AuditPolicy;
 use App\Security\Policies\CommunicationPolicy;
 use App\Security\Policies\CurriculumPolicy;
@@ -98,6 +99,14 @@ class SecurityServiceProvider extends ServiceProvider
 
         Gate::define('manageTeachers', function (User $user): bool {
             return app(TeacherPolicy::class)->manage($user);
+        });
+
+        Gate::define('viewAdmission', function (User $user): bool {
+            return app(AdmissionPolicy::class)->view($user);
+        });
+
+        Gate::define('manageAdmission', function (User $user): bool {
+            return app(AdmissionPolicy::class)->manage($user);
         });
 
         Gate::define('viewPromotion', function (User $user): bool {

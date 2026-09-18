@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admission\AdmissionPageController;
 use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
@@ -34,6 +35,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('students')->name('students.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [StudentPageController::class, 'index'])->name('index');
         Route::get('/{student}', [StudentPageController::class, 'show'])->name('show');
+    });
+
+    Route::prefix('admission')->name('admission.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [AdmissionPageController::class, 'index'])->name('index');
+        Route::post('/periods', [AdmissionPageController::class, 'storePeriod'])->name('periods.store');
+        Route::post('/applications', [AdmissionPageController::class, 'storeApplication'])->name('applications.store');
+        Route::post('/applications/{application}/transition', [AdmissionPageController::class, 'transition'])
+            ->whereNumber('application')
+            ->name('applications.transition');
+        Route::post('/applications/{application}/convert', [AdmissionPageController::class, 'convert'])
+            ->whereNumber('application')
+            ->name('applications.convert');
+        Route::post('/applications/{application}/documents', [AdmissionPageController::class, 'storeDocument'])
+            ->whereNumber('application')
+            ->name('applications.documents.store');
     });
 
     Route::prefix('enrollments')->name('enrollments.')->middleware('require.school.context')->group(function (): void {
@@ -96,7 +112,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Blueprint lifecycle / support shells (UI scaffolding — handlers land per module gate).
     Route::middleware('require.school.context')->group(function (): void {
         Route::get('/guardians', [OpsModulePageController::class, 'guardians'])->name('guardians.index');
-        Route::get('/admission', [OpsModulePageController::class, 'admission'])->name('admission.index');
         Route::get('/curriculum', [OpsModulePageController::class, 'curriculum'])->name('curriculum.index');
         Route::get('/promotion', [OpsModulePageController::class, 'promotion'])->name('promotion.index');
         Route::get('/transfers', [OpsModulePageController::class, 'transfers'])->name('transfers.index');

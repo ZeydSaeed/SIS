@@ -5,6 +5,7 @@ import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { lockChromePan } from '@/lib/lock-chrome-pan';
 
 void createInertiaApp({
     title: () => 'Student Information System',
@@ -37,3 +38,4 @@ void createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+lockChromePan();

@@ -115,7 +115,7 @@ export default function RecommendationsIndex({
                     ))}
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border">
+                <div className="overflow-x-auto rounded-xl border" data-allow-x-scroll>
                     <table className="w-full min-w-[720px] text-sm">
                         <thead className="bg-muted/50">
                             <tr className="text-start">

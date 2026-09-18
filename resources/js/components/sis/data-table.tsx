@@ -71,7 +71,7 @@ export function DataTable<T>({
         : columns;
 
     return (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="overflow-x-auto rounded-xl border" data-allow-x-scroll>
             <table className="w-max min-w-full text-sm">
                 {caption ? (
                     <caption className="bg-muted/30 border-b px-4 py-2 text-start text-sm font-medium">

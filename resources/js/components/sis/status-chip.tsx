@@ -1,12 +1,26 @@
 import { t } from '@/i18n';
 
 type StatusChipProps = {
-    kind: 'student' | 'attendance' | 'enrollment' | 'exam' | 'schedule' | 'generic';
+    kind: 'student' | 'attendance' | 'enrollment' | 'exam' | 'schedule' | 'admission' | 'generic';
     status: number;
 };
 
 function labelFor(kind: StatusChipProps['kind'], status: number): string {
     const i18n = t();
+    if (kind === 'admission') {
+        const map: Record<number, string> = {
+            1: i18n.admission.statusDraft,
+            2: i18n.admission.statusSubmitted,
+            3: i18n.admission.statusUnderReview,
+            4: i18n.admission.statusInterview,
+            5: i18n.admission.statusWaitlisted,
+            6: i18n.admission.statusAccepted,
+            7: i18n.admission.statusRejected,
+            8: i18n.admission.statusWithdrawn,
+            9: i18n.admission.statusConverted,
+        };
+        return map[status] ?? `${i18n.common.status} ${status}`;
+    }
     if (kind === 'student') {
         const map: Record<number, string> = {
             0: i18n.status.inactive,

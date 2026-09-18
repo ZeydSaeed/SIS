@@ -12,6 +12,10 @@ final class Permission
 
     public const STUDENTS_VIEW_PII = 'students.view_pii';
 
+    public const ADMISSION_VIEW = 'admission.view';
+
+    public const ADMISSION_MANAGE = 'admission.manage';
+
     public const ENROLLMENT_VIEW = 'enrollment.view';
 
     public const ENROLLMENT_CREATE = 'enrollment.create';

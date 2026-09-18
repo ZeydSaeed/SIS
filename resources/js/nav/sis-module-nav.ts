@@ -119,8 +119,8 @@ export function getSisSidebarSections(): SisNavSection[] {
             titleAr: 'إدارة الطلاب',
             titleEn: 'Student Management',
             items: [
-                moduleItem('enrollments'),
                 moduleItem('admission'),
+                moduleItem('enrollments'),
                 moduleItem('students'),
                 moduleItem('attendance'),
                 moduleItem('holidays'),

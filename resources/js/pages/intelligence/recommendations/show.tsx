@@ -105,7 +105,7 @@ export default function RecommendationShow({ recommendation }: PageProps) {
                     <section className="rounded-xl border p-4">
                         <h2 className="mb-2 font-semibold">Detection</h2>
                         <p className="mb-2 text-sm">{recommendation.detection.title}</p>
-                        <pre className="bg-muted overflow-x-auto rounded-lg p-3 text-xs" dir="ltr">
+                        <pre className="bg-muted overflow-x-auto rounded-lg p-3 text-xs" dir="ltr" data-allow-x-scroll>
                             {JSON.stringify(recommendation.detection.evidence, null, 2)}
                         </pre>
                     </section>
