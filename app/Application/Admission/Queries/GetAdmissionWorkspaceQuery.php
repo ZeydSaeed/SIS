@@ -9,5 +9,6 @@ final readonly class GetAdmissionWorkspaceQuery implements Query
     public function __construct(
         public int $schoolId,
         public int $academicYearId,
+        public ?int $applicationPeriodId = null,
     ) {}
 }

@@ -59,6 +59,7 @@ import {
     type PageRibbonTone,
 } from '@/components/sis/page-ribbon-context';
 import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
+import { preservePageClipboardSelection } from '@/hooks/use-page-clipboard';
 import {
     usePageTextStyle,
     type PageTextStyleFlag,
@@ -664,6 +665,10 @@ export function TitleBarRibbon({
                                     ? group.custom
                                     : group.items?.map((item) => {
                                           const Icon = item.icon;
+                                          const isClipboard =
+                                              item.id === 'copy' ||
+                                              item.id === 'cut' ||
+                                              item.id === 'paste';
 
                                           return (
                                               <button
@@ -672,6 +677,12 @@ export function TitleBarRibbon({
                                                   className="sis-ribbon__item"
                                                   disabled={item.disabled}
                                                   aria-label={item.label}
+                                                  onMouseDown={(event) => {
+                                                      if (isClipboard) {
+                                                          event.preventDefault();
+                                                          preservePageClipboardSelection();
+                                                      }
+                                                  }}
                                                   onClick={() => {
                                                       if (item.onSelect) {
                                                           item.onSelect();

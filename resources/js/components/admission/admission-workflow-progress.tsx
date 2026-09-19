@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     CheckCircle2,
@@ -9,6 +10,10 @@ import {
     MessagesSquare,
     Send,
 } from 'lucide-react';
+import type {
+    AdmissionActivePeriodSummary,
+    AdmissionWorkflowProgress as WorkflowProgressData,
+} from '@/components/admission/admission-workspace';
 import { t } from '@/i18n';
 
 export type AdmissionWorkflowStep = { status: number; key: string };
@@ -46,10 +51,6 @@ const STAGE_TONE: Record<number, 'light' | 'dark'> = {
     9: 'dark',
 };
 
-function pipelineIndex(status: number, steps: AdmissionWorkflowStep[]): number {
-    return steps.findIndex((step) => step.status === status);
-}
-
 function labelForStatus(status: number): string {
     const i18n = t().admission;
     const map: Record<number, string> = {
@@ -65,88 +66,121 @@ function labelForStatus(status: number): string {
     return map[status] ?? String(status);
 }
 
+function clampPercent(value: number): number {
+    if (value < 0) {
+        return 0;
+    }
+    if (value > 100) {
+        return 100;
+    }
+
+    return Math.round(value);
+}
+
+function percentForStatus(status: number, progress: WorkflowProgressData): number {
+    const match = progress.stages.find((stage) => stage.status === status);
+
+    return clampPercent(match?.percent ?? 0);
+}
+
 function buildStages(
     steps: AdmissionWorkflowStep[],
-    applicationStatuses: number[],
-): { stages: StageVisual[]; overallPercent: number } {
-    const pipelineStatuses = applicationStatuses
-        .map((status) => pipelineIndex(status, steps))
-        .filter((index) => index >= 0);
-
-    const furthest =
-        pipelineStatuses.length === 0 ? 0 : Math.max(...pipelineStatuses);
-
-    const stages: StageVisual[] = steps.map((step, index) => {
-        const atCount = pipelineStatuses.filter((i) => i === index).length;
-        const reachedCount = pipelineStatuses.filter((i) => i >= index).length;
-        const passedCount = pipelineStatuses.filter((i) => i > index).length;
-
-        let percent = 0;
-        if (pipelineStatuses.length === 0) {
-            percent = 0;
-        } else if (index < furthest) {
-            percent = 100;
-        } else if (index === furthest) {
-            percent =
-                reachedCount === 0
-                    ? 0
-                    : Math.round((passedCount / reachedCount) * 100);
-            if (atCount > 0 && percent < 15) {
-                percent = Math.max(percent, 35);
-            }
-            if (atCount > 0 && passedCount === 0) {
-                percent = Math.max(25, Math.min(60, 20 + atCount * 10));
-            }
-            if (atCount === 0 && passedCount > 0) {
-                percent = 100;
-            }
-        }
-
-        return {
-            status: step.status,
-            label: labelForStatus(step.status),
-            icon: STAGE_ICONS[step.status] ?? FilePenLine,
-            percent,
-            tone: STAGE_TONE[step.status] ?? 'light',
-        };
-    });
-
-    const overallPercent =
-        pipelineStatuses.length === 0
-            ? 0
-            : Math.round(
-                  (pipelineStatuses.reduce((sum, index) => sum + (index + 1), 0) /
-                      (pipelineStatuses.length * steps.length)) *
-                      100,
-              );
-
-    return { stages, overallPercent };
+    progress: WorkflowProgressData,
+): StageVisual[] {
+    return steps.map((step) => ({
+        status: step.status,
+        label: labelForStatus(step.status),
+        icon: STAGE_ICONS[step.status] ?? FilePenLine,
+        percent: percentForStatus(step.status, progress),
+        tone: STAGE_TONE[step.status] ?? 'light',
+    }));
 }
 
 type Props = {
     steps: AdmissionWorkflowStep[];
-    applicationStatuses: number[];
+    progress?: WorkflowProgressData;
+    activePeriods?: AdmissionActivePeriodSummary[];
     activeStatus?: number | null;
     onStageSelect?: (status: number) => void;
+    homeHref?: string | null;
 };
+
+function AdmissionHomeMark() {
+    return (
+        <svg
+            className="sis-admission-drafts-home__mark"
+            viewBox="0 0 32 28"
+            fill="none"
+            aria-hidden="true"
+        >
+            <rect className="sis-admission-drafts-home__chimney" x="21.4" y="3" width="2.5" height="5.4" rx="0.35" />
+            <path
+                className="sis-admission-drafts-home__roof"
+                d="M4 13.6 16 3.4 28 13.6"
+                strokeWidth="2.45"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+            <path
+                className="sis-admission-drafts-home__body"
+                d="M7.2 13.1h17.6V24.8H7.2z"
+                strokeWidth="1.35"
+                strokeLinejoin="round"
+            />
+            <rect className="sis-admission-drafts-home__door" x="13.7" y="18.3" width="4.6" height="6.5" rx="0.35" />
+        </svg>
+    );
+}
 
 /** Segmented RTL admission workflow — each stage is an actionable button. */
 export function AdmissionWorkflowProgress({
     steps,
-    applicationStatuses,
+    progress,
+    activePeriods = [],
     activeStatus = null,
     onStageSelect,
+    homeHref = null,
 }: Props) {
     const i18n = t();
     const displaySteps =
         steps[0]?.status === ADMISSION_REQUEST_STEP.status
             ? steps
             : [ADMISSION_REQUEST_STEP, ...steps];
-    const { stages, overallPercent } = buildStages(displaySteps, applicationStatuses);
+    const stages = buildStages(displaySteps, progress ?? { overall_percent: 0, stages: [] });
+    const overallPercent = clampPercent(progress?.overall_percent ?? 0);
 
     return (
         <section aria-label={i18n.admission.workflowTitle} className="sis-admission-progress flex flex-col">
-            <h2 className="sis-ops-hub__section-title text-base">{i18n.admission.workflowTitle}</h2>
+            <div className="sis-admission-progress__headline">
+                <h2 className="sis-ops-hub__section-title text-base">{i18n.admission.workflowTitle}</h2>
+                {activePeriods.length === 0 ? (
+                    <p className="sis-admission-progress__active-empty">{i18n.admission.noActivePeriod}</p>
+                ) : (
+                    <ul className="sis-admission-progress__active-periods">
+                        {activePeriods.map((period) => (
+                            <li key={period.id}>
+                                <span className="sis-admission-progress__active-name">{period.name}</span>
+                                <span>
+                                    {i18n.admission.periodMax}{' '}
+                                    <span dir="ltr">
+                                        {period.max_applications ?? i18n.admission.unlimitedCapacity}
+                                    </span>
+                                </span>
+                                <span>
+                                    {i18n.admission.submittedInPeriod}{' '}
+                                    <span dir="ltr">{period.submitted_count}</span>
+                                </span>
+                                <span>
+                                    {i18n.admission.remainingInPeriod}{' '}
+                                    <span dir="ltr">
+                                        {period.remaining ?? i18n.admission.unlimitedCapacity}
+                                    </span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
 
             <ol className="sis-admission-progress__track" dir="rtl">
                 {stages.map((stage) => {
@@ -158,8 +192,10 @@ export function AdmissionWorkflowProgress({
                             <button
                                 type="button"
                                 className={`sis-admission-progress__segment sis-admission-progress__segment--status-${stage.status} sis-admission-progress__segment--tone-${stage.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
-                                aria-label={stage.label}
+                                aria-label={`${stage.label} ${stage.percent}%`}
                                 aria-pressed={isActive}
+                                aria-current={isActive ? 'true' : undefined}
+                                data-active={isActive ? 'true' : undefined}
                                 title={
                                     stage.status === 0
                                         ? i18n.admission.draftDialogTitle
@@ -185,10 +221,42 @@ export function AdmissionWorkflowProgress({
                 })}
             </ol>
 
-            <p className="sis-admission-progress__overall" dir="rtl">
-                {i18n.admission.overallProgress}:{' '}
-                <span dir="ltr">{overallPercent}%</span>
-            </p>
+            <div className="sis-admission-progress__overall-block">
+                <div
+                    className="sis-admission-progress__overall-track"
+                    role="progressbar"
+                    aria-label={i18n.admission.overallProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={overallPercent}
+                >
+                    <span
+                        className="sis-admission-progress__overall-fill"
+                        style={{ width: `${overallPercent}%` }}
+                    />
+                </div>
+                <div className="sis-admission-progress__overall-row">
+                    <p className="sis-admission-progress__overall" dir="rtl">
+                        {i18n.admission.overallProgress}:{' '}
+                        <span dir="ltr">{overallPercent}%</span>
+                    </p>
+                    {homeHref ? (
+                        <Link
+                            href={homeHref}
+                            prefetch
+                            className="sis-admission-drafts-home"
+                            aria-label={i18n.admission.backToAdmission}
+                        >
+                            <i className="icofont-home" aria-hidden="true">
+                                <AdmissionHomeMark />
+                            </i>
+                            <span className="sis-admission-drafts-home__caption">
+                                {i18n.admission.homeCaption}
+                            </span>
+                        </Link>
+                    ) : null}
+                </div>
+            </div>
         </section>
     );
 }

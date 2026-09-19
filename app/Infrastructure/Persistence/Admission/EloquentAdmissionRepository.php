@@ -6,6 +6,7 @@ use App\Database\SchemaHelper;
 use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
+use App\Domain\Admission\Data\UpdateApplicationDraftData;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
@@ -197,6 +198,17 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'student_id' => $row->student_id !== null ? (int) $row->student_id : null,
             'school_id' => (int) $row->school_id,
         ];
+    }
+
+    public function updateDraft(UpdateApplicationDraftData $data): void
+    {
+        DB::table(SchemaHelper::qualified('admission', 'applications'))
+            ->where('id', $data->applicationId)
+            ->update([
+                'notes' => $data->notes,
+                'reviewed_at' => $data->reviewedAt,
+                'updated_at' => now(),
+            ]);
     }
 
     public function transitionApplicationStatus(

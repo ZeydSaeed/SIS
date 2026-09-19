@@ -15,6 +15,9 @@ final readonly class AdmissionWorkspaceDTO
      * @param  list<array{id:int, name:string}>  $departments
      * @param  list<array{id:int, name:string}>  $specializations
      * @param  list<array{status:int, key:string}>  $workflowSteps
+     * @param  array{overall_percent:int, stages:list<array{status:int, percent:int}>}  $workflowProgress
+     * @param  list<array{id:int, name:string, start_date:string, max_applications:?int, total_count:int, submitted_count:int, remaining:?int}>  $activePeriods
+     * @param  int|null  $selectedPeriodId
      */
     public function __construct(
         public array $periods,
@@ -25,6 +28,9 @@ final readonly class AdmissionWorkspaceDTO
         public array $departments,
         public array $specializations,
         public array $workflowSteps,
+        public array $workflowProgress = ['overall_percent' => 0, 'stages' => []],
+        public array $activePeriods = [],
+        public ?int $selectedPeriodId = null,
     ) {}
 
     /**
@@ -49,6 +55,9 @@ final readonly class AdmissionWorkspaceDTO
                     ],
                     ApplicationStatus::pipelineSteps(),
                 ),
+            'workflow_progress' => $this->workflowProgress,
+            'active_periods' => $this->activePeriods,
+            'selected_period_id' => $this->selectedPeriodId,
         ];
     }
 }

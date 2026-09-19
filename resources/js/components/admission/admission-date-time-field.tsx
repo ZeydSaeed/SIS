@@ -8,6 +8,7 @@ type Props = {
     name: string;
     error?: string;
     required?: boolean;
+    dateOnly?: boolean;
     defaultValue?: string;
     idPrefix?: string;
     onValueChange?: (value: string) => void;
@@ -102,6 +103,7 @@ export function AdmissionDateTimeField({
     name,
     error,
     required = false,
+    dateOnly = false,
     defaultValue,
     idPrefix,
     onValueChange,
@@ -130,7 +132,7 @@ export function AdmissionDateTimeField({
     };
 
     return (
-        <div className="sis-admission-datetime">
+        <div className={`sis-admission-datetime${dateOnly ? ' sis-admission-datetime--date-only' : ''}`}>
             <input type="hidden" name={name} value={value} />
             <div className="sis-admission-datetime__date" dir="rtl" lang="en">
                 <DatePart
@@ -176,49 +178,51 @@ export function AdmissionDateTimeField({
                     }}
                 />
             </div>
-            <div className="sis-admission-datetime__clock" dir="rtl">
-                <div className="sis-admission-datetime__digits" dir="ltr" lang="en">
-                    <DatePart
-                        className="sis-admission-datetime__hour"
-                        value={hour}
-                        options={HOURS}
-                        includeBlank={false}
-                        ariaLabel={i18n.hourLabel}
-                        onChange={(next) => {
-                            setHour(next);
-                            emit(day, month, year, next, minute, period);
+            {dateOnly ? null : (
+                <div className="sis-admission-datetime__clock" dir="rtl">
+                    <div className="sis-admission-datetime__digits" dir="ltr" lang="en">
+                        <DatePart
+                            className="sis-admission-datetime__hour"
+                            value={hour}
+                            options={HOURS}
+                            includeBlank={false}
+                            ariaLabel={i18n.hourLabel}
+                            onChange={(next) => {
+                                setHour(next);
+                                emit(day, month, year, next, minute, period);
+                            }}
+                        />
+                        <span className="sis-admission-datetime__colon" aria-hidden="true">
+                            :
+                        </span>
+                        <DatePart
+                            className="sis-admission-datetime__minute"
+                            value={minute}
+                            options={MINUTES}
+                            includeBlank={false}
+                            ariaLabel={i18n.minuteLabel}
+                            onChange={(next) => {
+                                setMinute(next);
+                                emit(day, month, year, hour, next, period);
+                            }}
+                        />
+                    </div>
+                    <select
+                        className="sis-admission-datetime__period"
+                        dir="rtl"
+                        value={period}
+                        aria-label={i18n.dayPeriod}
+                        onChange={(event) => {
+                            const next = event.target.value as DayPeriod;
+                            setPeriod(next);
+                            emit(day, month, year, hour, minute, next);
                         }}
-                    />
-                    <span className="sis-admission-datetime__colon" aria-hidden="true">
-                        :
-                    </span>
-                    <DatePart
-                        className="sis-admission-datetime__minute"
-                        value={minute}
-                        options={MINUTES}
-                        includeBlank={false}
-                        ariaLabel={i18n.minuteLabel}
-                        onChange={(next) => {
-                            setMinute(next);
-                            emit(day, month, year, hour, next, period);
-                        }}
-                    />
+                    >
+                        <option value="am">{i18n.timeAm}</option>
+                        <option value="pm">{i18n.timePm}</option>
+                    </select>
                 </div>
-                <select
-                    className="sis-admission-datetime__period"
-                    dir="rtl"
-                    value={period}
-                    aria-label={i18n.dayPeriod}
-                    onChange={(event) => {
-                        const next = event.target.value as DayPeriod;
-                        setPeriod(next);
-                        emit(day, month, year, hour, minute, next);
-                    }}
-                >
-                    <option value="am">{i18n.timeAm}</option>
-                    <option value="pm">{i18n.timePm}</option>
-                </select>
-            </div>
+            )}
         </div>
     );
 }

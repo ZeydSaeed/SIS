@@ -21,12 +21,41 @@ type OpsYearFilterProps = {
 };
 
 function yearOptionLabel(name: string, code: string): string {
-    const cleaned = name
-        .replaceAll('السنة الدراسية', '')
-        .replaceAll('السنه الدراسية', '')
-        .trim();
+    const stripWords = (value: string): string =>
+        value
+            .replaceAll(/السنة الدراسية/gi, '')
+            .replaceAll(/السنه الدراسية/gi, '')
+            .replaceAll(/academic\s*year/gi, '')
+            .replaceAll(/^[-–—:\s]+|[-–—:\s]+$/g, '')
+            .trim();
 
-    return cleaned !== '' ? cleaned : code;
+    const pickYearToken = (value: string): string | null => {
+        const range = value.match(/\d{4}\s*[-–/]\s*\d{2,4}/);
+        if (range) {
+            return range[0].replace(/\s+/g, '');
+        }
+
+        const single = value.match(/\d{4}/);
+
+        return single ? single[0] : null;
+    };
+
+    const fromName = pickYearToken(stripWords(name));
+    if (fromName) {
+        return fromName;
+    }
+
+    const fromCode = pickYearToken(code);
+    if (fromCode) {
+        return fromCode;
+    }
+
+    const cleanedName = stripWords(name);
+    if (cleanedName !== '') {
+        return cleanedName;
+    }
+
+    return stripWords(code) || code;
 }
 
 /** Shared academic-year filter — prefers shared catalog select when available. */

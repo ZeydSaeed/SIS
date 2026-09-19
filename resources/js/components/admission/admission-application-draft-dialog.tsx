@@ -1,5 +1,9 @@
 import { Form } from '@inertiajs/react';
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import {
+    admissionDateTimeNow,
+    parseAdmissionDateTime,
+} from '@/components/admission/format-admission-datetime';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +39,7 @@ type Props = {
     departments: DraftNamedOption[];
     specializations: DraftNamedOption[];
     canManage: boolean;
+    academicYearId?: number | null;
 };
 
 function filledClass(value: string): string {
@@ -44,6 +49,43 @@ function filledClass(value: string): string {
 function markFilled(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void {
     const el = event.currentTarget;
     el.classList.toggle('sis-admission-draft-field--filled', el.value.trim() !== '');
+}
+
+function DraftApplicationWhen({ value }: { value: string }) {
+    const i18n = t().admission;
+    const parts = parseAdmissionDateTime(value);
+
+    if (parts === null) {
+        return (
+            <span className="sis-admission-periods-table__when" dir="ltr">
+                {value}
+            </span>
+        );
+    }
+
+    const periodLabel = parts.period === 'pm' ? i18n.timePm : i18n.timeAm;
+
+    return (
+        <span className="sis-admission-periods-table__when">
+            <span className="sis-admission-periods-table__date" dir="rtl" lang="en">
+                <span>{parts.day}</span>
+                <span className="sis-admission-periods-table__date-sep" aria-hidden="true">
+                    /
+                </span>
+                <span>{parts.month}</span>
+                <span className="sis-admission-periods-table__date-sep" aria-hidden="true">
+                    /
+                </span>
+                <span>{parts.year}</span>
+            </span>
+            <span className="sis-admission-periods-table__time" dir="rtl">
+                <span className="sis-admission-periods-table__clock" dir="ltr" lang="en">
+                    {parts.hour}:{parts.minute}
+                </span>
+                <span className="sis-admission-periods-table__period">{periodLabel}</span>
+            </span>
+        </span>
+    );
 }
 
 /** Admission draft dialog — row layout, compact fields. */
@@ -56,6 +98,7 @@ export function AdmissionApplicationDraftDialog({
     departments,
     specializations,
     canManage,
+    academicYearId = null,
 }: Props) {
     const i18n = t();
     const activePeriods = useMemo(
@@ -69,6 +112,7 @@ export function AdmissionApplicationDraftDialog({
     const [gradeName, setGradeName] = useState('');
     const [specializationId, setSpecializationId] = useState('');
     const [specializationName, setSpecializationName] = useState('');
+    const [applicationAt, setApplicationAt] = useState(admissionDateTimeNow);
 
     useEffect(() => {
         if (open) {
@@ -77,6 +121,7 @@ export function AdmissionApplicationDraftDialog({
             setGradeName('');
             setSpecializationId('');
             setSpecializationName('');
+            setApplicationAt(admissionDateTimeNow());
         }
     }, [open, activePeriods]);
 
@@ -109,8 +154,11 @@ export function AdmissionApplicationDraftDialog({
                     >
                         {({ errors, processing }) => (
                             <>
+                                {academicYearId !== null ? (
+                                    <input type="hidden" name="academic_year_id" value={academicYearId} />
+                                ) : null}
                                 <div className="sis-admission-draft-rows">
-                                    <div className="sis-admission-draft-row sis-admission-draft-row--2">
+                                    <div className="sis-admission-draft-row sis-admission-draft-row--3">
                                         <OpsFormField
                                             label={i18n.admission.periodName}
                                             name="application_period_id"
@@ -141,6 +189,18 @@ export function AdmissionApplicationDraftDialog({
                                                 aria-live="polite"
                                             >
                                                 {selectedPeriod ? selectedPeriod.id : '—'}
+                                            </div>
+                                        </OpsFormField>
+
+                                        <OpsFormField
+                                            label={i18n.admission.applicationDate}
+                                            name="application_at"
+                                        >
+                                            <div
+                                                className="sis-ops-hub__link sis-admission-draft-control sis-admission-draft-readonly sis-admission-draft-field--filled sis-admission-draft-when-box"
+                                                aria-live="polite"
+                                            >
+                                                <DraftApplicationWhen value={applicationAt} />
                                             </div>
                                         </OpsFormField>
                                     </div>

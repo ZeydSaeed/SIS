@@ -39,6 +39,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('admission')->name('admission.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [AdmissionPageController::class, 'index'])->name('index');
+        Route::get('/drafts', [AdmissionPageController::class, 'drafts'])->name('drafts');
+        Route::get('/submitted', [AdmissionPageController::class, 'submitted'])->name('submitted');
+        Route::get('/under-review', [AdmissionPageController::class, 'underReview'])->name('under-review');
+        Route::get('/interview', [AdmissionPageController::class, 'interview'])->name('interview');
+        Route::get('/waitlisted', [AdmissionPageController::class, 'waitlisted'])->name('waitlisted');
+        Route::get('/accepted', [AdmissionPageController::class, 'accepted'])->name('accepted');
+        Route::get('/converted', [AdmissionPageController::class, 'converted'])->name('converted');
         Route::post('/periods', [AdmissionPageController::class, 'storePeriod'])->name('periods.store');
         Route::put('/periods/{period}', [AdmissionPageController::class, 'updatePeriod'])
             ->whereNumber('period')
@@ -50,6 +57,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('period')
             ->name('periods.archive');
         Route::post('/applications', [AdmissionPageController::class, 'storeApplication'])->name('applications.store');
+        Route::put('/applications/{application}', [AdmissionPageController::class, 'updateApplication'])
+            ->whereNumber('application')
+            ->name('applications.update');
+        Route::post('/applications/bulk-transition', [AdmissionPageController::class, 'bulkTransition'])
+            ->name('applications.bulk-transition');
         Route::post('/applications/{application}/transition', [AdmissionPageController::class, 'transition'])
             ->whereNumber('application')
             ->name('applications.transition');

@@ -7,21 +7,19 @@ import {
     type RibbonActionId,
     type RibbonTab,
 } from '@/components/title-bar-ribbon';
+import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { applyPageAlignment } from '@/hooks/use-page-alignment';
+import {
+    pageClipboardCopy,
+    pageClipboardCut,
+    pageClipboardPaste,
+} from '@/hooks/use-page-clipboard';
 import { togglePageTextStyle } from '@/hooks/use-page-text-style';
 import appearance from '@/routes/appearance';
 import { edit as profileEdit } from '@/routes/profile';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
-
-function runDocumentCommand(command: string, value?: string): void {
-    try {
-        document.execCommand(command, false, value);
-    } catch {
-        // Browser may block some commands outside contenteditable contexts.
-    }
-}
 
 function findAndReplace(): void {
     const findText = window.prompt('بحث عن:');
@@ -198,23 +196,13 @@ export function AppSidebarHeader({
                 router.visit(dashboard());
                 break;
             case 'copy':
-                runDocumentCommand('copy');
+                void pageClipboardCopy();
                 break;
             case 'cut':
-                runDocumentCommand('cut');
+                void pageClipboardCut();
                 break;
             case 'paste':
-                void navigator.clipboard
-                    ?.readText()
-                    .then((text) => {
-                        if (!text) {
-                            return;
-                        }
-                        runDocumentCommand('insertText', text);
-                    })
-                    .catch(() => {
-                        runDocumentCommand('paste');
-                    });
+                void pageClipboardPaste();
                 break;
             case 'alignStart':
                 applyPageAlignment('start');
@@ -244,7 +232,10 @@ export function AppSidebarHeader({
 
     return (
         <div className="sis-chrome shrink-0">
-            <header className="sis-titlebar flex h-9 shrink-0 items-center gap-3 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-9 md:px-3">
+            <header
+                className="sis-titlebar flex h-9 shrink-0 items-center gap-2 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-9 md:px-3"
+                dir="rtl"
+            >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                     <SidebarTrigger className="sis-titlebar__trigger size-7" />
                     <TitleBarMenu
@@ -252,7 +243,10 @@ export function AppSidebarHeader({
                         onRibbonChange={setActiveRibbon}
                     />
                 </div>
-                <TitleBarControls />
+                <div className="sis-titlebar__leading flex shrink-0 items-center gap-1" dir="ltr">
+                    <TitleBarControls />
+                    <TitleBarUtilities />
+                </div>
             </header>
             {activeRibbon ? (
                 <TitleBarRibbon

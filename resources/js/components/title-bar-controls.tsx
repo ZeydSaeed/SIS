@@ -18,13 +18,9 @@ export function TitleBarControls() {
         router.visit(dashboard());
     }, [isDashboard]);
 
-    if (isDashboard) {
-        return null;
-    }
-
     return (
         <WindowControls
-            className="sis-titlebar__controls ml-auto shrink-0"
+            className="sis-titlebar__controls shrink-0"
             label={`${pageTitle} — ${i18n.window.controls}`}
             minimizeLabel=""
             maximizeLabel=""

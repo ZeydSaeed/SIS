@@ -2,8 +2,8 @@ import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import type { BreadcrumbItem } from '@/types';
 
 /**
- * All operational pages keep the sidebar so the full module map stays reachable.
- * Toggle sidebar control remains dashboard-only (see AppSidebarHeader).
+ * All authenticated ops pages (including dashboard) use the shared sidebar chrome
+ * with the global title bar + ribbon.
  */
 export default function AppLayout({
     breadcrumbs = [],

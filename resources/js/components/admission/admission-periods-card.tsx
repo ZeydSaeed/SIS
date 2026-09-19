@@ -176,8 +176,8 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
             aria-selected={selected}
             onClick={() => onSelect(period.id)}
         >
-            <td className="sis-admission-periods-table__num" dir="ltr">
-                {period.id}
+            <td className="sis-admission-periods-table__num">
+                <span dir="ltr">{period.id}</span>
             </td>
             <td>
                 {editing ? (
@@ -447,6 +447,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                     <p className="text-muted-foreground text-sm">{i18n.admission.emptyPeriods}</p>
                 ) : (
                     <div className="sis-admission-periods-table">
+                        <div className="sis-admission-periods-table__scroller" data-allow-x-scroll>
                         <table>
                             <thead>
                                 <tr>
@@ -476,6 +477,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 )}
             </div>

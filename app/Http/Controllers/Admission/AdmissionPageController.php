@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admission;
 
+use App\Application\Admission\Commands\BulkTransitionApplicationStatusCommand;
+use App\Application\Admission\Commands\BulkTransitionApplicationStatusHandler;
 use App\Application\Admission\Commands\ChangeApplicationPeriodStatusCommand;
 use App\Application\Admission\Commands\ChangeApplicationPeriodStatusHandler;
 use App\Application\Admission\Commands\ConvertApplicationToStudentCommand;
@@ -14,6 +16,8 @@ use App\Application\Admission\Commands\RegisterApplicationDocumentCommand;
 use App\Application\Admission\Commands\RegisterApplicationDocumentHandler;
 use App\Application\Admission\Commands\TransitionApplicationStatusCommand;
 use App\Application\Admission\Commands\TransitionApplicationStatusHandler;
+use App\Application\Admission\Commands\UpdateApplicationDraftCommand;
+use App\Application\Admission\Commands\UpdateApplicationDraftHandler;
 use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
 use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
@@ -21,12 +25,14 @@ use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admission\ArchiveApplicationPeriodRequest;
+use App\Http\Requests\Admission\BulkTransitionApplicationStatusRequest;
 use App\Http\Requests\Admission\ChangeApplicationPeriodStatusRequest;
 use App\Http\Requests\Admission\ConvertApplicationRequest;
 use App\Http\Requests\Admission\CreateApplicationDraftRequest;
 use App\Http\Requests\Admission\OpenApplicationPeriodRequest;
 use App\Http\Requests\Admission\RegisterApplicationDocumentRequest;
 use App\Http\Requests\Admission\TransitionApplicationStatusRequest;
+use App\Http\Requests\Admission\UpdateApplicationDraftRequest;
 use App\Http\Requests\Admission\UpdateApplicationPeriodRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -48,6 +54,112 @@ final class AdmissionPageController extends Controller
 
     public function index(Request $request, GetAdmissionWorkspaceHandler $handler): Response
     {
+        return $this->workspacePage($request, $handler, 'admission/index', 'admission.web.index');
+    }
+
+    public function drafts(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->workspacePage($request, $handler, 'admission/drafts', 'admission.web.drafts');
+    }
+
+    public function submitted(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->workspacePage($request, $handler, 'admission/submitted', 'admission.web.submitted');
+    }
+
+    public function underReview(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 3,
+            path: '/admission/under-review',
+            labelKey: 'statusUnderReview',
+            auditAction: 'admission.web.under_review',
+        );
+    }
+
+    public function interview(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 4,
+            path: '/admission/interview',
+            labelKey: 'statusInterview',
+            auditAction: 'admission.web.interview',
+        );
+    }
+
+    public function waitlisted(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 5,
+            path: '/admission/waitlisted',
+            labelKey: 'statusWaitlisted',
+            auditAction: 'admission.web.waitlisted',
+        );
+    }
+
+    public function accepted(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 6,
+            path: '/admission/accepted',
+            labelKey: 'statusAccepted',
+            auditAction: 'admission.web.accepted',
+        );
+    }
+
+    public function converted(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 9,
+            path: '/admission/converted',
+            labelKey: 'statusConverted',
+            auditAction: 'admission.web.converted',
+        );
+    }
+
+    private function stageWorkspacePage(
+        Request $request,
+        GetAdmissionWorkspaceHandler $handler,
+        int $status,
+        string $path,
+        string $labelKey,
+        string $auditAction,
+    ): Response {
+        return $this->workspacePage(
+            $request,
+            $handler,
+            'admission/stage',
+            $auditAction,
+            [
+                'stage' => [
+                    'status' => $status,
+                    'path' => $path,
+                    'label_key' => $labelKey,
+                ],
+            ],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function workspacePage(
+        Request $request,
+        GetAdmissionWorkspaceHandler $handler,
+        string $component,
+        string $auditAction,
+        array $extra = [],
+    ): Response {
         $user = $request->user();
         assert($user !== null);
 
@@ -64,26 +176,30 @@ final class AdmissionPageController extends Controller
         $workspace = $handler->handle(new GetAdmissionWorkspaceQuery(
             schoolId: $schoolId,
             academicYearId: $academicYearId,
+            applicationPeriodId: $request->filled('application_period_id')
+                ? (int) $request->query('application_period_id')
+                : null,
         ));
 
         $this->securityAudit->record(
             SecurityEventType::AdmissionDataAccess,
-            'admission.web.index',
+            $auditAction,
             'allowed',
             $user,
             'admission',
             ['academic_year_id' => $academicYearId],
         );
 
-        return Inertia::render('admission/index', [
+        return Inertia::render($component, array_merge([
             'workspace' => $workspace->toArray(),
             'filters' => [
                 'academic_year_id' => $academicYearId,
+                'application_period_id' => $workspace->selectedPeriodId,
             ],
             'authorization' => [
                 'can_manage' => $user->can('manageAdmission'),
             ],
-        ]);
+        ], $extra));
     }
 
     public function storePeriod(
@@ -255,12 +371,41 @@ final class AdmissionPageController extends Controller
             "admission_application:{$result->applicationId}",
         );
 
+        $academicYearId = $request->input('academic_year_id')
+            ?? $request->query('academic_year_id');
+
         return redirect()
-            ->route('admission.index', [
-                'academic_year_id' => $request->query('academic_year_id')
-                    ?? $request->input('academic_year_id'),
-            ])
+            ->route('admission.drafts', array_filter([
+                'academic_year_id' => $academicYearId,
+            ]))
             ->with('success', "Draft application {$result->applicationNumber} created.");
+    }
+
+    public function updateApplication(
+        UpdateApplicationDraftRequest $request,
+        int $application,
+        UpdateApplicationDraftHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new UpdateApplicationDraftCommand(
+            schoolId: $schoolId,
+            applicationId: $application,
+            notes: $request->validated('notes'),
+            reviewedAt: $request->validated('reviewed_at'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.application.update',
+            'updated',
+            $request->user(),
+            "admission_application:{$result->applicationId}",
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Draft application updated.');
     }
 
     public function transition(
@@ -291,8 +436,42 @@ final class AdmissionPageController extends Controller
         );
 
         return redirect()
-            ->route('admission.index')
+            ->back()
             ->with('success', 'Application status updated.');
+    }
+
+    public function bulkTransition(
+        BulkTransitionApplicationStatusRequest $request,
+        BulkTransitionApplicationStatusHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        /** @var list<int> $applicationIds */
+        $applicationIds = array_map('intval', $request->validated('application_ids'));
+        $result = $handler->handle(new BulkTransitionApplicationStatusCommand(
+            schoolId: $schoolId,
+            applicationIds: $applicationIds,
+            toStatus: (int) $request->validated('to_status'),
+            reviewedBy: $request->user()?->id,
+            notes: $request->validated('notes'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.application.bulk_transition',
+            'updated',
+            $request->user(),
+            'admission_application:bulk',
+            [
+                'application_ids' => $result->applicationIds,
+                'to_status' => $result->toStatus,
+                'count' => $result->count,
+            ],
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Application statuses updated.');
     }
 
     public function convert(
@@ -318,7 +497,7 @@ final class AdmissionPageController extends Controller
         );
 
         return redirect()
-            ->route('admission.index')
+            ->back()
             ->with('success', "Converted to student #{$result->studentId}.");
     }
 
@@ -347,7 +526,7 @@ final class AdmissionPageController extends Controller
         );
 
         return redirect()
-            ->route('admission.index')
+            ->back()
             ->with('success', 'Application document registered.');
     }
 }

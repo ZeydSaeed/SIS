@@ -18,7 +18,7 @@ const STORAGE_KEY = 'sis-page-alignment';
 const TARGET_ATTR = 'data-sis-align-target';
 const ALIGN_ATTR = 'data-sis-align';
 const CHROME_SELECTOR =
-    '.sis-chrome, .sis-ribbon, .sis-titlebar, .sis-dashboard-toggle, [data-slot="sidebar"], [data-sidebar="sidebar"]';
+    '.sis-chrome, .sis-ribbon, .sis-titlebar, [data-slot="sidebar"], [data-sidebar="sidebar"]';
 const SURFACE_SELECTOR =
     '.sis-page-surface, [role="dialog"], [data-slot="dialog-content"], [data-slot="sheet-content"]';
 

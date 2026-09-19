@@ -48,7 +48,8 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             )
             ->where('periods.school_id', $schoolId)
             ->where('periods.academic_year_id', $academicYearId)
-            ->orderByDesc('apps.id')
+            ->orderBy('apps.created_at')
+            ->orderBy('apps.id')
             ->limit(200)
             ->get([
                 'apps.id',
@@ -212,6 +213,42 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             'departments' => $departments,
             'specializations' => $specializations,
             'workflow_steps' => $workflowSteps,
+            'period_counts' => $this->periodApplicationCounts($schoolId, $academicYearId),
         ];
+    }
+
+    /**
+     * @return array<int, array{total: int, submitted: int}>
+     */
+    private function periodApplicationCounts(int $schoolId, int $academicYearId): array
+    {
+        $submittedFrom = ApplicationStatus::Submitted->value;
+        $rows = DB::table(SchemaHelper::qualified('admission', 'applications').' as apps')
+            ->join(
+                SchemaHelper::qualified('admission', 'application_periods').' as periods',
+                'periods.id',
+                '=',
+                'apps.application_period_id',
+            )
+            ->where('periods.school_id', $schoolId)
+            ->where('periods.academic_year_id', $academicYearId)
+            ->groupBy('apps.application_period_id')
+            ->select('apps.application_period_id')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw(
+                'SUM(CASE WHEN apps.status >= ? THEN 1 ELSE 0 END) as submitted',
+                [$submittedFrom],
+            )
+            ->get();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(int) $row->application_period_id] = [
+                'total' => (int) $row->total,
+                'submitted' => (int) $row->submitted,
+            ];
+        }
+
+        return $counts;
     }
 }

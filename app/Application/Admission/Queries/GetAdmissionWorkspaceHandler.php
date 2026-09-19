@@ -6,11 +6,16 @@ use App\Application\Admission\Contracts\AdmissionReadRepositoryInterface;
 use App\Application\Admission\DTOs\AdmissionWorkspaceDTO;
 use App\Application\Contracts\Query;
 use App\Application\Contracts\QueryHandler;
+use App\Domain\Admission\Services\ActiveAdmissionPeriodSummarizer;
+use App\Domain\Admission\Services\AdmissionWorkflowProgressCalculator;
+use App\Domain\Admission\ValueObjects\ApplicationStatus;
 
 final class GetAdmissionWorkspaceHandler implements QueryHandler
 {
     public function __construct(
         private readonly AdmissionReadRepositoryInterface $admission,
+        private readonly AdmissionWorkflowProgressCalculator $progress,
+        private readonly ActiveAdmissionPeriodSummarizer $activePeriods,
     ) {}
 
     public function handle(Query $query): AdmissionWorkspaceDTO
@@ -18,16 +23,82 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
         assert($query instanceof GetAdmissionWorkspaceQuery);
 
         $workspace = $this->admission->workspace($query->schoolId, $query->academicYearId);
+        $summaries = $this->activePeriods->summarize(
+            $workspace['periods'],
+            $workspace['period_counts'] ?? [],
+        );
+        $selectedId = $this->activePeriods->resolveSelectedId(
+            $summaries,
+            $query->applicationPeriodId,
+        );
+        $applications = $this->activePeriods->applicationsInPeriod(
+            $workspace['applications'],
+            $selectedId,
+        );
 
         return new AdmissionWorkspaceDTO(
             periods: $workspace['periods'],
-            applications: $workspace['applications'],
-            documents: $workspace['documents'],
+            applications: $applications,
+            documents: $this->activePeriods->documentsForApplications(
+                $workspace['documents'],
+                $applications,
+            ),
             gradeLevels: $workspace['grade_levels'],
             schools: $workspace['schools'],
             departments: $workspace['departments'],
             specializations: $workspace['specializations'],
             workflowSteps: $workspace['workflow_steps'],
+            workflowProgress: $this->workflowProgress($applications, $summaries, $selectedId),
+            activePeriods: $summaries,
+            selectedPeriodId: $selectedId,
         );
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $applications
+     * @param  list<array{id:int, max_applications:?int, total_count:int}>  $summaries
+     * @return array{overall_percent: int, stages: list<array{status:int, percent:int}>}
+     */
+    private function workflowProgress(array $applications, array $summaries, ?int $selectedId): array
+    {
+        $pipeline = [];
+        foreach (ApplicationStatus::pipelineSteps() as $status) {
+            $pipeline[] = $status->value;
+        }
+
+        $statuses = [];
+        foreach ($applications as $application) {
+            $statuses[] = (int) $application['status'];
+        }
+
+        $calculated = $this->progress->calculate($pipeline, $statuses);
+        $stages = [
+            ['status' => 0, 'percent' => $statuses === [] ? 0 : 100],
+        ];
+        foreach ($pipeline as $status) {
+            $stages[] = [
+                'status' => $status,
+                'percent' => $calculated['stage_percents'][$status] ?? 0,
+            ];
+        }
+
+        $overall = $calculated['overall_percent'];
+        foreach ($summaries as $summary) {
+            if ($summary['id'] === $selectedId) {
+                $capacity = $this->activePeriods->capacityPercent(
+                    $summary['max_applications'],
+                    $summary['total_count'],
+                );
+                if ($capacity > 0 || $summary['max_applications'] !== null) {
+                    $overall = $capacity;
+                }
+                break;
+            }
+        }
+
+        return [
+            'overall_percent' => $overall,
+            'stages' => $stages,
+        ];
     }
 }
