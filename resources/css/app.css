@@ -1590,10 +1590,17 @@ input[type='reset']:disabled {
 
 .sis-admission-drafts-table__content-cell {
     text-align: start;
-    white-space: normal;
-    min-width: 6rem;
-    max-width: 14rem;
+    white-space: nowrap;
+    width: 1%;
+    min-width: 5.5rem;
+    max-width: 9rem;
     vertical-align: middle;
+    overflow: hidden;
+}
+
+.sis-admission-drafts-table__content-cell:has(.sis-admission-collapse[open]) {
+    white-space: normal;
+    overflow: visible;
 }
 
 .sis-admission-drafts-table__content-cell--filled {
@@ -1602,10 +1609,12 @@ input[type='reset']:disabled {
 
 .sis-admission-drafts-table__content-text {
     display: block;
+    max-width: 100%;
     font-size: 0.74rem;
     line-height: 1.25;
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sis-admission-drafts-table__abbr {
@@ -1617,8 +1626,10 @@ input[type='reset']:disabled {
     display: block;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     margin: 0;
     padding: 0;
+    overflow: hidden;
 }
 
 .sis-admission-collapse--filled,
@@ -1628,6 +1639,9 @@ input[type='reset']:disabled {
 
 .sis-admission-collapse__summary {
     display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
     cursor: pointer;
     list-style: none;
     text-align: start;
@@ -1684,9 +1698,13 @@ input[type='reset']:disabled {
 
 .sis-admission-drafts-table__notes-input {
     width: 100%;
-    min-width: 5rem;
+    min-width: 0;
+    max-width: 100%;
     height: var(--sis-admission-drafts-row-h);
     font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sis-admission-drafts-table__notes-input--filled {
@@ -3013,9 +3031,13 @@ input[type='reset']:disabled {
     min-height: 1.85rem;
     padding: 0.25rem 0.55rem;
     margin: 0;
-    border: 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: 0 !important;
     border-radius: 0;
-    background: transparent;
+    background: transparent !important;
+    background-color: transparent !important;
     color: var(--sis-oxford);
     font-size: 0.875rem;
     font-weight: 500;
@@ -3024,28 +3046,38 @@ input[type='reset']:disabled {
     line-height: 1.2;
     text-decoration: none;
     cursor: pointer;
-    box-shadow: none;
-    outline: none;
-    transition:
-        background-color 140ms ease,
-        color 140ms ease;
+    box-shadow: none !important;
+    outline: none !important;
+    transition: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-.sis-admission-pagination__link:hover:not(:disabled):not(.sis-admission-pagination__link--active),
-.sis-admission-pagination__link:focus-visible:not(:disabled):not(.sis-admission-pagination__link--active) {
-    background: color-mix(in srgb, var(--sis-mist) 48%, var(--sis-pearl));
+.sis-admission-pagination__link:hover:not(:disabled),
+.sis-admission-pagination__link:focus,
+.sis-admission-pagination__link:focus-visible,
+.sis-admission-pagination__link:active {
+    background: transparent !important;
+    background-color: transparent !important;
     color: var(--sis-oxford);
-    outline: none;
-    box-shadow: none;
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-.sis-admission-pagination__link--active {
-    background: color-mix(in srgb, var(--sis-oxford) 18%, var(--sis-pearl));
-    color: var(--sis-oxford);
+.sis-admission-pagination .sis-admission-pagination__link--active,
+.sis-admission-pagination .sis-admission-pagination__link--active:hover,
+.sis-admission-pagination .sis-admission-pagination__link--active:focus,
+.sis-admission-pagination .sis-admission-pagination__link--active:focus-visible,
+.sis-admission-pagination .sis-admission-pagination__link--active:active {
+    background: color-mix(in srgb, var(--sis-mist) 38%, var(--sis-pearl)) !important;
+    background-color: color-mix(in srgb, var(--sis-mist) 38%, var(--sis-pearl)) !important;
+    color: var(--sis-night);
     font-weight: 700;
-    border: 0;
-    box-shadow: none;
-    outline: none;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
+    outline: none !important;
+    text-decoration: none;
     cursor: default;
 }
 
