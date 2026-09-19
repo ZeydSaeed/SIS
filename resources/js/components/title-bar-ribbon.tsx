@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type ReactNode } from 'react';
+import { Fragment, useId, type ReactNode } from 'react';
 import {
     AlignCenter,
     AlignLeft,
@@ -54,6 +54,22 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
+import {
+    usePageRibbonRegistration,
+    type PageRibbonTone,
+} from '@/components/sis/page-ribbon-context';
+import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
+import {
+    usePageTextStyle,
+    type PageTextStyleFlag,
+} from '@/hooks/use-page-text-style';
+import {
+    APPROVED_PAGE_FONTS,
+    PAGE_FONT_SIZES,
+    PAGE_TYPOGRAPHY_DEFAULT,
+    usePageTypography,
+} from '@/hooks/use-page-typography';
+import { t } from '@/i18n';
 
 export type FileRibbonActionId =
     | 'new'
@@ -159,9 +175,12 @@ export type RibbonTab =
     | 'help';
 
 type RibbonItem = {
-    id: RibbonActionId;
+    id: string;
     label: string;
     icon: LucideIcon;
+    disabled?: boolean;
+    tone?: PageRibbonTone;
+    onSelect?: () => void;
 };
 
 type RibbonGroup = {
@@ -170,9 +189,6 @@ type RibbonGroup = {
     items?: RibbonItem[];
     custom?: ReactNode;
 };
-
-const APPROVED_FONTS = ['Segoe UI', 'Tahoma', 'Calibri', 'Aptos'] as const;
-const FONT_SIZES = ['10', '11', '12', '14', '16', '18', '20', '24'] as const;
 
 const FILE_RIBBON_GROUPS: RibbonGroup[] = [
     {
@@ -384,17 +400,12 @@ const HELP_RIBBON_GROUPS: RibbonGroup[] = [
     },
 ];
 
-function FontControls({
-    onFontFamily,
-    onFontSize,
-}: {
-    onFontFamily: (value: string) => void;
-    onFontSize: (value: string) => void;
-}) {
+function FontControls() {
     const fontId = useId();
     const sizeId = useId();
-    const [font, setFont] = useState<string>(APPROVED_FONTS[0]);
-    const [size, setSize] = useState<string>('14');
+    const defaultLabel = t().common.fontDefault;
+    const { fontFamily, fontSize, setFontFamily, setFontSize, resetTypography } =
+        usePageTypography();
 
     return (
         <div className="sis-ribbon__font-controls">
@@ -403,18 +414,25 @@ function FontControls({
                 <select
                     id={fontId}
                     className="sis-ribbon__select"
-                    value={font}
+                    value={fontFamily}
                     onChange={(event) => {
                         const value = event.target.value;
-                        setFont(value);
-                        onFontFamily(value);
+                        event.currentTarget.blur();
+
+                        if (value === PAGE_TYPOGRAPHY_DEFAULT) {
+                            resetTypography();
+                            return;
+                        }
+
+                        setFontFamily(value as (typeof APPROVED_PAGE_FONTS)[number]);
                     }}
                 >
-                    {APPROVED_FONTS.map((name) => (
+                    {APPROVED_PAGE_FONTS.map((name) => (
                         <option key={name} value={name} style={{ fontFamily: name }}>
                             {name}
                         </option>
                     ))}
+                    <option value={PAGE_TYPOGRAPHY_DEFAULT}>{defaultLabel}</option>
                 </select>
             </label>
             <label className="sis-ribbon__field" htmlFor={sizeId}>
@@ -422,28 +440,117 @@ function FontControls({
                 <select
                     id={sizeId}
                     className="sis-ribbon__select sis-ribbon__select--size"
-                    value={size}
+                    value={fontSize}
                     onChange={(event) => {
                         const value = event.target.value;
-                        setSize(value);
-                        onFontSize(value);
+                        event.currentTarget.blur();
+
+                        if (value === PAGE_TYPOGRAPHY_DEFAULT) {
+                            setFontSize(PAGE_TYPOGRAPHY_DEFAULT);
+                            return;
+                        }
+
+                        setFontSize(value as (typeof PAGE_FONT_SIZES)[number]);
                     }}
                 >
-                    {FONT_SIZES.map((value) => (
+                    {PAGE_FONT_SIZES.map((value) => (
                         <option key={value} value={value}>
                             {value}
                         </option>
                     ))}
+                    <option value={PAGE_TYPOGRAPHY_DEFAULT}>{defaultLabel}</option>
                 </select>
             </label>
         </div>
     );
 }
 
-function buildHomeGroups(
-    onFontFamily: (value: string) => void,
-    onFontSize: (value: string) => void,
-): RibbonGroup[] {
+const ALIGN_ACTIONS: {
+    id: PageAlignment;
+    action: 'alignStart' | 'alignCenter' | 'alignEnd';
+    label: string;
+    icon: LucideIcon;
+}[] = [
+    { id: 'start', action: 'alignStart', label: 'بداية', icon: AlignRight },
+    { id: 'center', action: 'alignCenter', label: 'توسيط', icon: AlignCenter },
+    { id: 'end', action: 'alignEnd', label: 'نهاية', icon: AlignLeft },
+];
+
+function AlignControls() {
+    const { alignment, applyAlignment } = usePageAlignment();
+
+    return (
+        <>
+            {ALIGN_ACTIONS.map((item) => {
+                const Icon = item.icon;
+                const pressed = alignment === item.id;
+
+                return (
+                    <button
+                        key={item.action}
+                        type="button"
+                        className="sis-ribbon__item"
+                        aria-label={item.label}
+                        aria-pressed={pressed}
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                        }}
+                        onClick={() => {
+                            applyAlignment(item.id);
+                        }}
+                    >
+                        <Icon className="sis-ribbon__icon" aria-hidden />
+                        <span className="sis-ribbon__label">{item.label}</span>
+                    </button>
+                );
+            })}
+        </>
+    );
+}
+
+const STYLE_ACTIONS: {
+    id: PageTextStyleFlag;
+    label: string;
+    icon: LucideIcon;
+}[] = [
+    { id: 'bold', label: 'بولد', icon: Bold },
+    { id: 'italic', label: 'ايتالك', icon: Italic },
+    { id: 'underline', label: 'اندر لاين', icon: Underline },
+];
+
+function StyleControls() {
+    const { bold, italic, underline, toggleStyle } = usePageTextStyle();
+    const pressed: Record<PageTextStyleFlag, boolean> = { bold, italic, underline };
+
+    return (
+        <>
+            {STYLE_ACTIONS.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                    <button
+                        key={item.id}
+                        type="button"
+                        className="sis-ribbon__item"
+                        aria-label={item.label}
+                        aria-pressed={pressed[item.id]}
+                        onMouseDown={(event) => {
+                            event.preventDefault();
+                        }}
+                        onClick={() => {
+                            toggleStyle(item.id);
+                        }}
+                    >
+                        <Icon className="sis-ribbon__icon" aria-hidden />
+                        <span className="sis-ribbon__label">{item.label}</span>
+                    </button>
+                );
+            })}
+        </>
+    );
+}
+
+function buildHomeGroups(): RibbonGroup[] {
     return [
         {
             id: 'clipboard',
@@ -458,26 +565,18 @@ function buildHomeGroups(
             id: 'font',
             label: 'الخط',
             custom: (
-                <FontControls onFontFamily={onFontFamily} onFontSize={onFontSize} />
+                <FontControls />
             ),
         },
         {
             id: 'align',
             label: 'المحاذاة',
-            items: [
-                { id: 'alignStart', label: 'بداية', icon: AlignRight },
-                { id: 'alignCenter', label: 'توسيط', icon: AlignCenter },
-                { id: 'alignEnd', label: 'نهاية', icon: AlignLeft },
-            ],
+            custom: <AlignControls />,
         },
         {
             id: 'style',
             label: 'النمط',
-            items: [
-                { id: 'bold', label: 'بولد', icon: Bold },
-                { id: 'italic', label: 'ايتالك', icon: Italic },
-                { id: 'underline', label: 'اندر لاين', icon: Underline },
-            ],
+            custom: <StyleControls />,
         },
         {
             id: 'edit',
@@ -491,18 +590,15 @@ type TitleBarRibbonProps = {
     tab: RibbonTab;
     onAction?: (id: RibbonActionId) => void;
     onCollapse?: () => void;
-    onFontFamily?: (value: string) => void;
-    onFontSize?: (value: string) => void;
 };
 
 export function TitleBarRibbon({
     tab,
     onAction,
     onCollapse,
-    onFontFamily,
-    onFontSize,
 }: TitleBarRibbonProps) {
-    const groups =
+    const pageRibbon = usePageRibbonRegistration();
+    const staticGroups =
         tab === 'file'
             ? FILE_RIBBON_GROUPS
             : tab === 'add'
@@ -517,10 +613,25 @@ export function TitleBarRibbon({
                       ? REPORTS_RIBBON_GROUPS
                       : tab === 'help'
                         ? HELP_RIBBON_GROUPS
-                        : buildHomeGroups(
-                              onFontFamily ?? (() => undefined),
-                              onFontSize ?? (() => undefined),
-                          );
+                        : buildHomeGroups();
+    const pageGroups = pageRibbon?.tab === tab ? pageRibbon.groups : [];
+    const groups: RibbonGroup[] = [
+        ...pageGroups.map(
+            (group): RibbonGroup => ({
+                id: group.id,
+                label: group.label,
+                items: group.commands.map((command) => ({
+                    id: command.id,
+                    label: command.label,
+                    icon: command.icon,
+                    disabled: command.disabled,
+                    tone: command.tone,
+                    onSelect: command.onSelect,
+                })),
+            }),
+        ),
+        ...staticGroups,
+    ];
 
     const ariaLabel =
         tab === 'file'
@@ -559,12 +670,30 @@ export function TitleBarRibbon({
                                                   key={item.id}
                                                   type="button"
                                                   className="sis-ribbon__item"
-                                                  onClick={() => onAction?.(item.id)}
+                                                  disabled={item.disabled}
+                                                  aria-label={item.label}
+                                                  onClick={() => {
+                                                      if (item.onSelect) {
+                                                          item.onSelect();
+
+                                                          return;
+                                                      }
+
+                                                      onAction?.(item.id as RibbonActionId);
+                                                  }}
                                               >
-                                                  <Icon
-                                                      className="sis-ribbon__icon"
-                                                      aria-hidden
-                                                  />
+                                                  {item.tone ? (
+                                                      <span
+                                                          className={`sis-page-action sis-page-action--${item.tone}`}
+                                                      >
+                                                          <Icon aria-hidden />
+                                                      </span>
+                                                  ) : (
+                                                      <Icon
+                                                          className="sis-ribbon__icon"
+                                                          aria-hidden
+                                                      />
+                                                  )}
                                                   <span className="sis-ribbon__label">
                                                       {item.label}
                                                   </span>

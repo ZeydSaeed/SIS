@@ -1,9 +1,21 @@
 import { Form, router } from '@inertiajs/react';
 import { Pencil, Save, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
 import { parseAdmissionDateTime } from '@/components/admission/format-admission-datetime';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import {
+    useRegisterPageRibbon,
+    type PageRibbonGroup,
+} from '@/components/sis/page-ribbon-context';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
@@ -68,19 +80,25 @@ function AdmissionPeriodWhen({ value }: { value: string }) {
     );
 }
 
-function PeriodEditorRow({
-    period,
-    academicYearId,
-    canManage,
-    onAskArchive,
-}: {
+export type PeriodRowHandle = {
+    save: () => void;
+};
+
+type PeriodEditorRowProps = {
     period: AdmissionPeriodRow;
     academicYearId: number | null;
     canManage: boolean;
-    onAskArchive: (period: AdmissionPeriodRow) => void;
-}) {
+    selected: boolean;
+    editing: boolean;
+    onSelect: (periodId: number) => void;
+    onSaved: () => void;
+};
+
+const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(function PeriodEditorRow(
+    { period, academicYearId, canManage, selected, editing, onSelect, onSaved },
+    ref,
+) {
     const i18n = t().admission;
-    const [editing, setEditing] = useState(false);
     const [name, setName] = useState(period.name);
     const [startDate, setStartDate] = useState(period.start_date);
     const [endDate, setEndDate] = useState(period.end_date);
@@ -90,8 +108,19 @@ function PeriodEditorRow({
     const [saving, setSaving] = useState(false);
     const yearReady = academicYearId !== null;
 
-    const save = () => {
-        if (!yearReady || saving) {
+    useEffect(() => {
+        if (editing) {
+            return;
+        }
+
+        setName(period.name);
+        setStartDate(period.start_date);
+        setEndDate(period.end_date);
+        setMaxApplications(period.max_applications === null ? '' : String(period.max_applications));
+    }, [editing, period]);
+
+    const save = useCallback(() => {
+        if (!yearReady || saving || startDate === '' || endDate === '') {
             return;
         }
 
@@ -107,13 +136,24 @@ function PeriodEditorRow({
             },
             {
                 preserveScroll: true,
-                onFinish: () => {
-                    setSaving(false);
-                    setEditing(false);
-                },
+                preserveState: true,
+                onSuccess: () => onSaved(),
+                onFinish: () => setSaving(false),
             },
         );
-    };
+    }, [
+        academicYearId,
+        endDate,
+        maxApplications,
+        name,
+        onSaved,
+        period.id,
+        saving,
+        startDate,
+        yearReady,
+    ]);
+
+    useImperativeHandle(ref, () => ({ save }), [save]);
 
     const changeStatus = (status: string) => {
         if (!yearReady) {
@@ -126,12 +166,16 @@ function PeriodEditorRow({
                 academic_year_id: academicYearId,
                 status: Number(status),
             },
-            { preserveScroll: true },
+            { preserveScroll: true, preserveState: true },
         );
     };
 
     return (
-        <tr>
+        <tr
+            className={selected ? 'sis-admission-periods-table__row--selected' : undefined}
+            aria-selected={selected}
+            onClick={() => onSelect(period.id)}
+        >
             <td className="sis-admission-periods-table__num" dir="ltr">
                 {period.id}
             </td>
@@ -190,7 +234,10 @@ function PeriodEditorRow({
                     <span dir="ltr">{period.max_applications ?? '—'}</span>
                 )}
             </td>
-            <td className="sis-admission-periods-table__status">
+            <td
+                className="sis-admission-periods-table__status"
+                data-status={period.status}
+            >
                 {canManage ? (
                     <select
                         className="sis-admission-periods-table__status-select"
@@ -207,49 +254,92 @@ function PeriodEditorRow({
                     periodStatusLabel(period.status)
                 )}
             </td>
-            {canManage ? (
-                <td className="sis-admission-periods-table__actions">
-                    <button
-                        type="button"
-                        className="sis-admission-periods-table__action sis-admission-periods-table__action--edit"
-                        aria-label={i18n.editPeriod}
-                        disabled={!yearReady}
-                        onClick={() => setEditing(true)}
-                    >
-                        <Pencil aria-hidden="true" />
-                    </button>
-                    <button
-                        type="button"
-                        className="sis-admission-periods-table__action sis-admission-periods-table__action--save"
-                        aria-label={i18n.savePeriod}
-                        disabled={!yearReady || !editing || saving || startDate === '' || endDate === ''}
-                        onClick={save}
-                    >
-                        <Save aria-hidden="true" />
-                    </button>
-                    <button
-                        type="button"
-                        className="sis-admission-periods-table__action sis-admission-periods-table__action--delete"
-                        aria-label={i18n.deletePeriod}
-                        disabled={!yearReady}
-                        onClick={() => onAskArchive(period)}
-                    >
-                        <Trash2 aria-hidden="true" />
-                    </button>
-                </td>
-            ) : null}
         </tr>
     );
-}
+});
 
 export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Props) {
     const i18n = t();
+    const selectedRowRef = useRef<PeriodRowHandle>(null);
+    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [editing, setEditing] = useState(false);
     const [archiveTarget, setArchiveTarget] = useState<AdmissionPeriodRow | null>(null);
     const [archiving, setArchiving] = useState(false);
     const sorted = useMemo(
         () => [...periods].sort((left, right) => left.id - right.id),
         [periods],
     );
+    const yearReady = academicYearId !== null;
+    const hasSelection = selectedId !== null;
+
+    useEffect(() => {
+        if (selectedId !== null && !sorted.some((period) => period.id === selectedId)) {
+            setSelectedId(null);
+            setEditing(false);
+        }
+    }, [selectedId, sorted]);
+
+    const selectRow = useCallback((periodId: number) => {
+        setSelectedId(periodId);
+        setEditing((wasEditing) => (selectedId === periodId ? wasEditing : false));
+    }, [selectedId]);
+
+    const exitEditing = useCallback(() => setEditing(false), []);
+
+    const ribbonGroups = useMemo((): PageRibbonGroup[] => {
+        if (!canManage) {
+            return [];
+        }
+
+        return [
+            {
+                id: 'admission-period-actions',
+                label: i18n.common.actions,
+                commands: [
+                    {
+                        id: 'edit-period',
+                        label: i18n.common.edit,
+                        icon: Pencil,
+                        disabled: !yearReady || !hasSelection,
+                        onSelect: () => setEditing(true),
+                    },
+                    {
+                        id: 'save-period',
+                        label: i18n.common.save,
+                        icon: Save,
+                        disabled: !yearReady || !hasSelection || !editing,
+                        onSelect: () => selectedRowRef.current?.save(),
+                    },
+                    {
+                        id: 'delete-period',
+                        label: i18n.common.delete,
+                        icon: Trash2,
+                        disabled: !yearReady || !hasSelection,
+                        onSelect: () => {
+                            const row = sorted.find((period) => period.id === selectedId);
+
+                            if (row) {
+                                setArchiveTarget(row);
+                            }
+                        },
+                    },
+                ],
+            },
+        ];
+    }, [
+        canManage,
+        editing,
+        hasSelection,
+        i18n.common.actions,
+        i18n.common.delete,
+        i18n.common.edit,
+        i18n.common.save,
+        selectedId,
+        sorted,
+        yearReady,
+    ]);
+
+    useRegisterPageRibbon('home', ribbonGroups);
 
     const confirmArchive = () => {
         if (archiveTarget === null || academicYearId === null) {
@@ -262,6 +352,13 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
             { academic_year_id: academicYearId },
             {
                 preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    if (selectedId === archiveTarget.id) {
+                        setSelectedId(null);
+                        setEditing(false);
+                    }
+                },
                 onFinish: () => {
                     setArchiving(false);
                     setArchiveTarget(null);
@@ -271,7 +368,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
     };
 
     return (
-        <section aria-label={i18n.admission.periodsTitle} className="flex flex-col gap-3">
+        <section aria-label={i18n.admission.periodsTitle} className="sis-admission-periods">
             <h2 className="sis-ops-hub__section-title sis-admission-periods-title text-base">
                 {i18n.admission.periodsTitle}
             </h2>
@@ -361,17 +458,20 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                         {i18n.admission.maxApplications}
                                     </th>
                                     <th>{i18n.admission.periodStatus}</th>
-                                    {canManage ? <th>{i18n.common.actions}</th> : null}
                                 </tr>
                             </thead>
                             <tbody>
                                 {sorted.map((period) => (
                                     <PeriodEditorRow
                                         key={period.id}
+                                        ref={selectedId === period.id ? selectedRowRef : null}
                                         period={period}
                                         academicYearId={academicYearId}
                                         canManage={canManage}
-                                        onAskArchive={setArchiveTarget}
+                                        selected={selectedId === period.id}
+                                        editing={editing && selectedId === period.id}
+                                        onSelect={selectRow}
+                                        onSaved={exitEditing}
                                     />
                                 ))}
                             </tbody>

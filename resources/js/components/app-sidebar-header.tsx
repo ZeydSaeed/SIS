@@ -8,6 +8,8 @@ import {
     type RibbonTab,
 } from '@/components/title-bar-ribbon';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { applyPageAlignment } from '@/hooks/use-page-alignment';
+import { togglePageTextStyle } from '@/hooks/use-page-text-style';
 import appearance from '@/routes/appearance';
 import { edit as profileEdit } from '@/routes/profile';
 import { dashboard } from '@/routes';
@@ -215,22 +217,22 @@ export function AppSidebarHeader({
                     });
                 break;
             case 'alignStart':
-                runDocumentCommand('justifyRight');
+                applyPageAlignment('start');
                 break;
             case 'alignCenter':
-                runDocumentCommand('justifyCenter');
+                applyPageAlignment('center');
                 break;
             case 'alignEnd':
-                runDocumentCommand('justifyLeft');
+                applyPageAlignment('end');
                 break;
             case 'bold':
-                runDocumentCommand('bold');
+                togglePageTextStyle('bold');
                 break;
             case 'italic':
-                runDocumentCommand('italic');
+                togglePageTextStyle('italic');
                 break;
             case 'underline':
-                runDocumentCommand('underline');
+                togglePageTextStyle('underline');
                 break;
             case 'findReplace':
                 findAndReplace();
@@ -257,13 +259,6 @@ export function AppSidebarHeader({
                     tab={activeRibbon}
                     onAction={onRibbonAction}
                     onCollapse={() => setActiveRibbon(null)}
-                    onFontFamily={(value) => runDocumentCommand('fontName', value)}
-                    onFontSize={(value) => {
-                        const mapped = String(
-                            Math.max(1, Math.min(7, Math.round(Number(value) / 4))),
-                        );
-                        runDocumentCommand('fontSize', mapped);
-                    }}
                 />
             ) : null}
         </div>

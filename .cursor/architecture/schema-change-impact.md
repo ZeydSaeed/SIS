@@ -167,6 +167,18 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-09-19 admission.applications civil profile
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Table | `admission.applications` |
+| Change | Additive civil-profile columns + nullable `grade_level_id` + FK `target_school_id` |
+| Risk | Existing rows valid (nullable). New drafts validated in FormRequest. |
+| Blueprint | Updated |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

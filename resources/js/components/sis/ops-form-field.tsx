@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 
 type OpsFormFieldProps = {
     label: string;
@@ -40,6 +40,8 @@ type OpsTextInputProps = {
     dir?: 'ltr' | 'rtl';
     error?: string;
     placeholder?: string;
+    className?: string;
+    onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
 };
 
 export function OpsTextInput({
@@ -51,6 +53,8 @@ export function OpsTextInput({
     dir = 'ltr',
     error,
     placeholder,
+    className,
+    onChange,
 }: OpsTextInputProps) {
     return (
         <input
@@ -61,10 +65,11 @@ export function OpsTextInput({
             defaultValue={defaultValue}
             min={min}
             placeholder={placeholder}
-            className="sis-ops-hub__link min-h-11 px-3 py-2"
+            className={['sis-ops-hub__link min-h-11 px-3 py-2', className].filter(Boolean).join(' ')}
             dir={dir}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${name}-error` : undefined}
+            onChange={onChange}
         />
     );
 }

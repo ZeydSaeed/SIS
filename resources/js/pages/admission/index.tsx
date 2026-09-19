@@ -1,6 +1,8 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { AdmissionApplicationDraftDialog } from '@/components/admission/admission-application-draft-dialog';
 import { AdmissionPeriodsCard } from '@/components/admission/admission-periods-card';
 import { AdmissionWorkflowProgress } from '@/components/admission/admission-workflow-progress';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
@@ -57,6 +59,8 @@ type DocumentRow = {
 };
 
 type GradeLevel = { id: number; name: string };
+type SchoolOption = { id: number; name: string };
+type NamedOption = { id: number; name: string };
 
 type WorkflowStep = { status: number; key: string };
 
@@ -66,6 +70,9 @@ type PageProps = {
         applications: Application[];
         documents: DocumentRow[];
         grade_levels: GradeLevel[];
+        schools: SchoolOption[];
+        departments: NamedOption[];
+        specializations: NamedOption[];
         workflow_steps: WorkflowStep[];
     };
     filters: {
@@ -103,29 +110,66 @@ function documentTypeLabel(type: number): string {
 export default function AdmissionIndex({ workspace, filters, authorization }: PageProps) {
     const i18n = t();
     const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.admission.title, href: '/admission' }];
+    const [draftOpen, setDraftOpen] = useState(false);
+    const [stageFilter, setStageFilter] = useState<number | null>(null);
+
+    const visibleApplications = useMemo(() => {
+        if (stageFilter === null || stageFilter === 0) {
+            return workspace.applications;
+        }
+
+        return workspace.applications.filter((app) => app.status === stageFilter);
+    }, [stageFilter, workspace.applications]);
+
+    const handleStageSelect = (status: number) => {
+        if (status === 0) {
+            if (authorization.can_manage) {
+                setDraftOpen(true);
+            }
+
+            return;
+        }
+
+        setStageFilter((current) => (current === status ? null : status));
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.admission.title} />
-            <div className="sis-ops-hub flex flex-col gap-6 p-4" dir="rtl" lang="ar">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="sis-ops-hub sis-admission-page flex flex-col gap-6 p-4" dir="rtl" lang="ar">
+                <div className="sis-admission-page-head">
                     <PageHeader
                         title={i18n.admission.title}
                         icon={<UserPlus className="text-primary size-8" aria-hidden="true" />}
                     />
-                    <OpsYearFilter
-                        action="/admission"
-                        academicYearId={filters.academic_year_id}
-                        showLabel
-                        inlineLabel
-                        showCurrentBadge={false}
-                        controlClassName="sis-admission-year-control"
-                    />
+                    <div className="sis-admission-year-filter">
+                        <OpsYearFilter
+                            action="/admission"
+                            academicYearId={filters.academic_year_id}
+                            showLabel
+                            inlineLabel
+                            showCurrentBadge={false}
+                            controlClassName="sis-admission-year-control"
+                        />
+                    </div>
                 </div>
 
                 <AdmissionWorkflowProgress
                     steps={workspace.workflow_steps}
                     applicationStatuses={workspace.applications.map((app) => app.status)}
+                    activeStatus={stageFilter}
+                    onStageSelect={handleStageSelect}
+                />
+
+                <AdmissionApplicationDraftDialog
+                    open={draftOpen}
+                    onOpenChange={setDraftOpen}
+                    periods={workspace.periods}
+                    schools={workspace.schools}
+                    gradeLevels={workspace.grade_levels}
+                    departments={workspace.departments}
+                    specializations={workspace.specializations}
+                    canManage={authorization.can_manage}
                 />
 
                 <AdmissionPeriodsCard
@@ -139,145 +183,11 @@ export default function AdmissionIndex({ workspace, filters, authorization }: Pa
                         {i18n.admission.applicationsTitle}
                     </h2>
 
-                    {authorization.can_manage ? (
-                        <Form
-                            action="/admission/applications"
-                            method="post"
-                            className="border-border grid gap-3 rounded-xl border p-4 md:grid-cols-2"
-                            options={{ preserveScroll: true }}
-                        >
-                            {({ errors, processing }) => (
-                                <>
-                                    <OpsFormField
-                                        label={i18n.admission.periodId}
-                                        name="application_period_id"
-                                        error={errors.application_period_id}
-                                    >
-                                        <select
-                                            name="application_period_id"
-                                            required
-                                            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                                            defaultValue={workspace.periods[0]?.id ?? ''}
-                                        >
-                                            {workspace.periods.map((period) => (
-                                                <option key={period.id} value={period.id}>
-                                                    {period.name} (#{period.id})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.firstName}
-                                        name="first_name"
-                                        error={errors.first_name}
-                                    >
-                                        <OpsTextInput
-                                            name="first_name"
-                                            required
-                                            error={errors.first_name}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.lastName}
-                                        name="last_name"
-                                        error={errors.last_name}
-                                    >
-                                        <OpsTextInput
-                                            name="last_name"
-                                            required
-                                            error={errors.last_name}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.nationalId}
-                                        name="national_id"
-                                        error={errors.national_id}
-                                    >
-                                        <OpsTextInput name="national_id" error={errors.national_id} />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.birthDate}
-                                        name="birth_date"
-                                        error={errors.birth_date}
-                                    >
-                                        <OpsTextInput
-                                            name="birth_date"
-                                            type="date"
-                                            required
-                                            error={errors.birth_date}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.gender}
-                                        name="gender"
-                                        error={errors.gender}
-                                    >
-                                        <select
-                                            name="gender"
-                                            required
-                                            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                                            defaultValue={1}
-                                        >
-                                            <option value={1}>{i18n.admission.genderMale}</option>
-                                            <option value={2}>{i18n.admission.genderFemale}</option>
-                                        </select>
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.gradeLevel}
-                                        name="grade_level_id"
-                                        error={errors.grade_level_id}
-                                    >
-                                        <select
-                                            name="grade_level_id"
-                                            required
-                                            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                                            defaultValue={workspace.grade_levels[0]?.id ?? ''}
-                                        >
-                                            {workspace.grade_levels.map((level) => (
-                                                <option key={level.id} value={level.id}>
-                                                    {level.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.specializationId}
-                                        name="specialization_id"
-                                        error={errors.specialization_id}
-                                    >
-                                        <OpsTextInput
-                                            name="specialization_id"
-                                            type="number"
-                                            min={1}
-                                            error={errors.specialization_id}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.notes}
-                                        name="notes"
-                                        error={errors.notes}
-                                    >
-                                        <textarea
-                                            name="notes"
-                                            rows={2}
-                                            className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm md:col-span-2"
-                                        />
-                                    </OpsFormField>
-                                    <div className="flex items-end md:col-span-2">
-                                        <Button type="submit" disabled={processing || workspace.periods.length === 0}>
-                                            {i18n.admission.createDraft}
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                        </Form>
-                    ) : null}
-
-                    {workspace.applications.length === 0 ? (
+                    {visibleApplications.length === 0 ? (
                         <p className="text-muted-foreground text-sm">{i18n.admission.emptyApplications}</p>
                     ) : (
                         <div className="flex flex-col gap-4">
-                            {workspace.applications.map((app) => (
+                            {visibleApplications.map((app) => (
                                 <article
                                     key={app.id}
                                     className="border-border flex flex-col gap-3 rounded-xl border p-4"

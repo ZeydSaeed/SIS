@@ -218,12 +218,31 @@ final class AdmissionPageController extends Controller
             schoolId: $schoolId,
             applicationPeriodId: (int) $request->validated('application_period_id'),
             firstName: (string) $request->validated('first_name'),
+            fatherName: (string) $request->validated('father_name'),
+            grandfatherName: (string) $request->validated('grandfather_name'),
+            greatGrandfatherName: (string) $request->validated('great_grandfather_name'),
             lastName: (string) $request->validated('last_name'),
+            motherName: (string) $request->validated('mother_name'),
+            maternalFatherName: (string) $request->validated('maternal_father_name'),
+            maternalGrandfatherName: (string) $request->validated('maternal_grandfather_name'),
             birthDate: (string) $request->validated('birth_date'),
+            birthPlace: (string) $request->validated('birth_place'),
             gender: (int) $request->validated('gender'),
-            gradeLevelId: (int) $request->validated('grade_level_id'),
+            targetSchoolId: (int) $request->validated('target_school_id'),
+            intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
             nationalId: $request->validated('national_id'),
-            specializationId: $request->validated('specialization_id'),
+            gradeLevelId: (int) $request->validated('grade_level_id'),
+            departmentName: $request->validated('department_name') !== null && $request->validated('department_name') !== ''
+                ? (string) $request->validated('department_name')
+                : null,
+            specializationId: $request->validated('specialization_id') !== null
+                ? (int) $request->validated('specialization_id')
+                : null,
+            specializationName: $request->validated('specialization_name') !== null && $request->validated('specialization_name') !== ''
+                ? (string) $request->validated('specialization_name')
+                : null,
+            governorate: $request->validated('governorate'),
+            neighborhood: $request->validated('neighborhood'),
             notes: $request->validated('notes'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
@@ -237,7 +256,10 @@ final class AdmissionPageController extends Controller
         );
 
         return redirect()
-            ->route('admission.index')
+            ->route('admission.index', [
+                'academic_year_id' => $request->query('academic_year_id')
+                    ?? $request->input('academic_year_id'),
+            ])
             ->with('success', "Draft application {$result->applicationNumber} created.");
     }
 

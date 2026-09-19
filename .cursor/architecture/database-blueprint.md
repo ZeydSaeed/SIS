@@ -462,13 +462,26 @@
 | id | BIGINT | PK |
 | application_period_id | BIGINT | FK → application_periods |
 | application_number | VARCHAR(50) | UNIQUE NOT NULL |
-| first_name | VARCHAR(100) | NOT NULL |
-| last_name | VARCHAR(100) | NOT NULL |
-| national_id | VARCHAR(20) | nullable — **not** globally unique |
-| birth_date | DATE | NOT NULL |
+| first_name | VARCHAR(100) | NOT NULL — اسم الطالب |
+| father_name | VARCHAR(100) | nullable — اسم الأب (مطلوب عند الإنشاء) |
+| grandfather_name | VARCHAR(100) | nullable — اسم الجد |
+| great_grandfather_name | VARCHAR(100) | nullable — اسم أب الجد |
+| last_name | VARCHAR(100) | NOT NULL — اللقب |
+| mother_name | VARCHAR(100) | nullable — اسم الأم |
+| maternal_father_name | VARCHAR(100) | nullable — اسم أب الأم |
+| maternal_grandfather_name | VARCHAR(100) | nullable — اسم جد الأم |
+| national_id | VARCHAR(20) | nullable — رقم هوية الأحوال المدنية — **not** globally unique |
+| birth_date | DATE | NOT NULL — التولد |
+| birth_place | VARCHAR(255) | nullable — محل الولادة |
 | gender | SMALLINT | NOT NULL; CHECK IN (1, 2) |
-| grade_level_id | SMALLINT | FK → grade_levels |
+| target_school_id | BIGINT | FK → organization.schools, nullable — المدرسة المراد التقديم عليها |
+| grade_level_id | SMALLINT | FK → grade_levels, **nullable** (قائمة المراحل لاحقاً) |
+| intended_grade_name | VARCHAR(100) | nullable — نص المرحلة المطلوبة حتى ضبط القائمة |
+| department_name | VARCHAR(100) | nullable — القسم (قائمة لاحقاً) |
 | specialization_id | BIGINT | FK → specializations, nullable |
+| specialization_name | VARCHAR(100) | nullable — الاختصاص (نص حتى ضبط القائمة) |
+| governorate | VARCHAR(100) | nullable — المحافظة |
+| neighborhood | VARCHAR(100) | nullable — الحي |
 | status | SMALLINT | NOT NULL DEFAULT 1; CHECK 1–9 (see ApplicationStatus) |
 | submitted_at | TIMESTAMPTZ | |
 | reviewed_by | BIGINT | FK → public.users, nullable |
@@ -478,7 +491,7 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`, `PARTIAL BTREE(student_id) WHERE student_id IS NOT NULL`
+**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`, `PARTIAL BTREE(student_id) WHERE student_id IS NOT NULL`, `BTREE(target_school_id)` (JOIN/filter by intended school)
 
 **Identity rule:** Applicant PII lives on the application until conversion. Do **not** create `admission.students`. Waitlist = status 5; interviews/status_history tables deferred (not in 87 SSOT).
 

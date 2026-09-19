@@ -55,12 +55,25 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.application_period_id',
                 'apps.application_number',
                 'apps.first_name',
+                'apps.father_name',
+                'apps.grandfather_name',
+                'apps.great_grandfather_name',
                 'apps.last_name',
+                'apps.mother_name',
+                'apps.maternal_father_name',
+                'apps.maternal_grandfather_name',
                 'apps.national_id',
                 'apps.birth_date',
+                'apps.birth_place',
                 'apps.gender',
+                'apps.target_school_id',
                 'apps.grade_level_id',
+                'apps.intended_grade_name',
+                'apps.department_name',
                 'apps.specialization_id',
+                'apps.specialization_name',
+                'apps.governorate',
+                'apps.neighborhood',
                 'apps.status',
                 'apps.submitted_at',
                 'apps.reviewed_by',
@@ -78,12 +91,25 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                     'application_period_id' => (int) $row->application_period_id,
                     'application_number' => (string) $row->application_number,
                     'first_name' => (string) $row->first_name,
+                    'father_name' => $row->father_name !== null ? (string) $row->father_name : null,
+                    'grandfather_name' => $row->grandfather_name !== null ? (string) $row->grandfather_name : null,
+                    'great_grandfather_name' => $row->great_grandfather_name !== null ? (string) $row->great_grandfather_name : null,
                     'last_name' => (string) $row->last_name,
+                    'mother_name' => $row->mother_name !== null ? (string) $row->mother_name : null,
+                    'maternal_father_name' => $row->maternal_father_name !== null ? (string) $row->maternal_father_name : null,
+                    'maternal_grandfather_name' => $row->maternal_grandfather_name !== null ? (string) $row->maternal_grandfather_name : null,
                     'national_id' => $row->national_id !== null ? (string) $row->national_id : null,
                     'birth_date' => (string) $row->birth_date,
+                    'birth_place' => $row->birth_place !== null ? (string) $row->birth_place : null,
                     'gender' => (int) $row->gender,
-                    'grade_level_id' => (int) $row->grade_level_id,
+                    'target_school_id' => $row->target_school_id !== null ? (int) $row->target_school_id : null,
+                    'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
+                    'intended_grade_name' => $row->intended_grade_name !== null ? (string) $row->intended_grade_name : null,
+                    'department_name' => $row->department_name !== null ? (string) $row->department_name : null,
                     'specialization_id' => $row->specialization_id !== null ? (int) $row->specialization_id : null,
+                    'specialization_name' => $row->specialization_name !== null ? (string) $row->specialization_name : null,
+                    'governorate' => $row->governorate !== null ? (string) $row->governorate : null,
+                    'neighborhood' => $row->neighborhood !== null ? (string) $row->neighborhood : null,
                     'status' => (int) $row->status,
                     'submitted_at' => $row->submitted_at !== null ? (string) $row->submitted_at : null,
                     'reviewed_by' => $row->reviewed_by !== null ? (int) $row->reviewed_by : null,
@@ -129,7 +155,39 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 ->all();
 
         $gradeLevels = DB::table(SchemaHelper::qualified('academic', 'grade_levels'))
-            ->orderBy('id')
+            ->where('status', 1)
+            ->orderBy('level_order')
+            ->get(['id', 'name'])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+            ])
+            ->all();
+
+        $schools = DB::table(SchemaHelper::qualified('organization', 'schools'))
+            ->where('id', $schoolId)
+            ->get(['id', 'name'])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+            ])
+            ->all();
+
+        $departments = DB::table(SchemaHelper::qualified('organization', 'departments'))
+            ->where('school_id', $schoolId)
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+            ])
+            ->all();
+
+        $specializations = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
+            ->where('school_id', $schoolId)
+            ->where('status', 1)
+            ->orderBy('name')
             ->get(['id', 'name'])
             ->map(static fn ($row): array => [
                 'id' => (int) $row->id,
@@ -150,6 +208,9 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             'applications' => $applications,
             'documents' => $documents,
             'grade_levels' => $gradeLevels,
+            'schools' => $schools,
+            'departments' => $departments,
+            'specializations' => $specializations,
             'workflow_steps' => $workflowSteps,
         ];
     }

@@ -4,6 +4,7 @@ import {
     ClipboardList,
     Clock3,
     FilePenLine,
+    FilePlus2,
     GraduationCap,
     MessagesSquare,
     Send,
@@ -20,7 +21,10 @@ type StageVisual = {
     tone: 'light' | 'dark';
 };
 
+const ADMISSION_REQUEST_STEP: AdmissionWorkflowStep = { status: 0, key: 'AdmissionRequest' };
+
 const STAGE_ICONS: Record<number, LucideIcon> = {
+    0: FilePlus2,
     1: FilePenLine,
     2: Send,
     3: ClipboardList,
@@ -32,6 +36,7 @@ const STAGE_ICONS: Record<number, LucideIcon> = {
 
 /** Stages with light backgrounds use dark text; dark backgrounds use white. */
 const STAGE_TONE: Record<number, 'light' | 'dark'> = {
+    0: 'dark',
     1: 'dark',
     2: 'light',
     3: 'light',
@@ -48,6 +53,7 @@ function pipelineIndex(status: number, steps: AdmissionWorkflowStep[]): number {
 function labelForStatus(status: number): string {
     const i18n = t().admission;
     const map: Record<number, string> = {
+        0: i18n.statusAdmissionRequest,
         1: i18n.statusDraft,
         2: i18n.statusSubmitted,
         3: i18n.statusUnderReview,
@@ -77,7 +83,7 @@ function buildStages(
 
         let percent = 0;
         if (pipelineStatuses.length === 0) {
-            percent = index === 0 ? 0 : 0;
+            percent = 0;
         } else if (index < furthest) {
             percent = 100;
         } else if (index === furthest) {
@@ -120,38 +126,60 @@ function buildStages(
 type Props = {
     steps: AdmissionWorkflowStep[];
     applicationStatuses: number[];
+    activeStatus?: number | null;
+    onStageSelect?: (status: number) => void;
 };
 
-/** Segmented RTL admission workflow progress with fixed per-stage palette. */
-export function AdmissionWorkflowProgress({ steps, applicationStatuses }: Props) {
+/** Segmented RTL admission workflow — each stage is an actionable button. */
+export function AdmissionWorkflowProgress({
+    steps,
+    applicationStatuses,
+    activeStatus = null,
+    onStageSelect,
+}: Props) {
     const i18n = t();
-    const { stages, overallPercent } = buildStages(steps, applicationStatuses);
+    const displaySteps =
+        steps[0]?.status === ADMISSION_REQUEST_STEP.status
+            ? steps
+            : [ADMISSION_REQUEST_STEP, ...steps];
+    const { stages, overallPercent } = buildStages(displaySteps, applicationStatuses);
 
     return (
-        <section aria-label={i18n.admission.workflowTitle} className="sis-admission-progress flex flex-col gap-3">
+        <section aria-label={i18n.admission.workflowTitle} className="sis-admission-progress flex flex-col">
             <h2 className="sis-ops-hub__section-title text-base">{i18n.admission.workflowTitle}</h2>
 
             <ol className="sis-admission-progress__track" dir="rtl">
                 {stages.map((stage) => {
                     const Icon = stage.icon;
+                    const isActive = activeStatus === stage.status;
 
                     return (
-                        <li
-                            key={stage.status}
-                            className={`sis-admission-progress__segment sis-admission-progress__segment--status-${stage.status} sis-admission-progress__segment--tone-${stage.tone}`}
-                        >
-                            <span
-                                className="sis-admission-progress__fill"
-                                style={{ width: `${stage.percent}%` }}
-                                aria-hidden="true"
-                            />
-                            <span className="sis-admission-progress__content">
-                                <Icon className="sis-admission-progress__icon" aria-hidden="true" />
-                                <span className="sis-admission-progress__label">{stage.label}</span>
-                                <span className="sis-admission-progress__percent" dir="ltr">
-                                    {stage.percent}%
+                        <li key={stage.status} className="sis-admission-progress__item">
+                            <button
+                                type="button"
+                                className={`sis-admission-progress__segment sis-admission-progress__segment--status-${stage.status} sis-admission-progress__segment--tone-${stage.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
+                                aria-label={stage.label}
+                                aria-pressed={isActive}
+                                title={
+                                    stage.status === 0
+                                        ? i18n.admission.draftDialogTitle
+                                        : i18n.admission.stageFilterHint
+                                }
+                                onClick={() => onStageSelect?.(stage.status)}
+                            >
+                                <span
+                                    className="sis-admission-progress__fill"
+                                    style={{ width: `${stage.percent}%` }}
+                                    aria-hidden="true"
+                                />
+                                <span className="sis-admission-progress__content">
+                                    <Icon className="sis-admission-progress__icon" aria-hidden="true" />
+                                    <span className="sis-admission-progress__label">{stage.label}</span>
+                                    <span className="sis-admission-progress__percent" dir="ltr">
+                                        {stage.percent}%
+                                    </span>
                                 </span>
-                            </span>
+                            </button>
                         </li>
                     );
                 })}

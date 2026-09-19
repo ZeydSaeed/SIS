@@ -1,9 +1,13 @@
 import { usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { PageRibbonProvider } from '@/components/sis/page-ribbon-context';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { restorePageAlignments } from '@/hooks/use-page-alignment';
+import { restorePageTextStyle } from '@/hooks/use-page-text-style';
 import { cn } from '@/lib/utils';
 import type { AppLayoutProps } from '@/types';
 
@@ -11,11 +15,17 @@ export default function AppSidebarLayout({
     breadcrumbs = [],
     children,
 }: AppLayoutProps) {
-    const { component } = usePage();
+    const { component, url } = usePage();
     const isDashboard = component === 'dashboard';
+
+    useEffect(() => {
+        restorePageAlignments();
+        restorePageTextStyle();
+    }, [component, url]);
 
     return (
         <AppShell variant="sidebar">
+            <PageRibbonProvider>
             <AppSidebar />
             <AppContent
                 variant="sidebar"
@@ -30,7 +40,7 @@ export default function AppSidebarLayout({
                 )}
                 <div
                     className={cn(
-                        'min-h-0 flex-1 overscroll-x-none',
+                        'sis-page-surface min-h-0 flex-1 overscroll-x-none',
                         isDashboard
                             ? 'overflow-hidden overscroll-none'
                             : 'sis-scroll-hidden overflow-x-hidden overflow-y-auto',
@@ -39,6 +49,7 @@ export default function AppSidebarLayout({
                     {children}
                 </div>
             </AppContent>
+            </PageRibbonProvider>
         </AppShell>
     );
 }
