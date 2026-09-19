@@ -14,6 +14,7 @@ type PageProps = {
     filters: {
         academic_year_id: number | null;
         application_period_id?: number | null;
+        q?: string | null;
     };
     authorization: AdmissionPageAuthorization;
 };
@@ -28,6 +29,8 @@ export default function AdmissionDrafts({ workspace, filters, authorization }: P
     const admissionHref = `/admission${admissionWorkspaceQuery(
         filters.academic_year_id,
         filters.application_period_id ?? workspace.selected_period_id,
+        null,
+        filters.q,
     )}`;
 
     return (
@@ -45,6 +48,9 @@ export default function AdmissionDrafts({ workspace, filters, authorization }: P
                 workspace={workspace}
                 canManage={authorization.can_manage}
                 status={ADMISSION_STATUS_DRAFT}
+                yearFilterAction="/admission/drafts"
+                academicYearId={filters.academic_year_id}
+                homeHref={admissionHref}
             />
         </AdmissionPageShell>
     );

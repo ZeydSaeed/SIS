@@ -12,6 +12,7 @@ type PageProps = {
     filters: {
         academic_year_id: number | null;
         application_period_id?: number | null;
+        q?: string | null;
     };
     authorization: AdmissionPageAuthorization;
 };

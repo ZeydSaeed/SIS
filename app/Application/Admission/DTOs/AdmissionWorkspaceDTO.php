@@ -17,7 +17,8 @@ final readonly class AdmissionWorkspaceDTO
      * @param  list<array{status:int, key:string}>  $workflowSteps
      * @param  array{overall_percent:int, stages:list<array{status:int, percent:int}>}  $workflowProgress
      * @param  list<array{id:int, name:string, start_date:string, max_applications:?int, total_count:int, submitted_count:int, remaining:?int}>  $activePeriods
-     * @param  int|null  $selectedPeriodId
+     * @param  array{page:int, per_page:int, total:int, total_pages:int}  $pagination
+     * @param  array<int, list<int>>  $statusTransitions
      */
     public function __construct(
         public array $periods,
@@ -31,6 +32,13 @@ final readonly class AdmissionWorkspaceDTO
         public array $workflowProgress = ['overall_percent' => 0, 'stages' => []],
         public array $activePeriods = [],
         public ?int $selectedPeriodId = null,
+        public array $pagination = [
+            'page' => 1,
+            'per_page' => 15,
+            'total' => 0,
+            'total_pages' => 1,
+        ],
+        public array $statusTransitions = [],
     ) {}
 
     /**
@@ -58,6 +66,8 @@ final readonly class AdmissionWorkspaceDTO
             'workflow_progress' => $this->workflowProgress,
             'active_periods' => $this->activePeriods,
             'selected_period_id' => $this->selectedPeriodId,
+            'pagination' => $this->pagination,
+            'status_transitions' => $this->statusTransitions,
         ];
     }
 }

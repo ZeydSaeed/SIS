@@ -54,17 +54,35 @@ final class AdmissionPageController extends Controller
 
     public function index(Request $request, GetAdmissionWorkspaceHandler $handler): Response
     {
-        return $this->workspacePage($request, $handler, 'admission/index', 'admission.web.index');
+        return $this->workspacePage(
+            $request,
+            $handler,
+            'admission/index',
+            'admission.web.index',
+            includeApplications: false,
+        );
     }
 
     public function drafts(Request $request, GetAdmissionWorkspaceHandler $handler): Response
     {
-        return $this->workspacePage($request, $handler, 'admission/drafts', 'admission.web.drafts');
+        return $this->workspacePage(
+            $request,
+            $handler,
+            'admission/drafts',
+            'admission.web.drafts',
+            statusFilter: 1,
+        );
     }
 
     public function submitted(Request $request, GetAdmissionWorkspaceHandler $handler): Response
     {
-        return $this->workspacePage($request, $handler, 'admission/submitted', 'admission.web.submitted');
+        return $this->workspacePage(
+            $request,
+            $handler,
+            'admission/submitted',
+            'admission.web.submitted',
+            statusFilter: 2,
+        );
     }
 
     public function underReview(Request $request, GetAdmissionWorkspaceHandler $handler): Response
@@ -147,6 +165,7 @@ final class AdmissionPageController extends Controller
                     'label_key' => $labelKey,
                 ],
             ],
+            statusFilter: $status,
         );
     }
 
@@ -159,6 +178,8 @@ final class AdmissionPageController extends Controller
         string $component,
         string $auditAction,
         array $extra = [],
+        ?int $statusFilter = null,
+        bool $includeApplications = true,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -172,6 +193,13 @@ final class AdmissionPageController extends Controller
             ? (int) $request->query('academic_year_id')
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear);
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 15)));
+
+        $search = $request->filled('q')
+            ? mb_substr(trim((string) $request->query('q')), 0, 80)
+            : null;
+        $search = $search === '' ? null : $search;
 
         $workspace = $handler->handle(new GetAdmissionWorkspaceQuery(
             schoolId: $schoolId,
@@ -179,6 +207,11 @@ final class AdmissionPageController extends Controller
             applicationPeriodId: $request->filled('application_period_id')
                 ? (int) $request->query('application_period_id')
                 : null,
+            statusFilter: $statusFilter,
+            includeApplications: $includeApplications,
+            page: $page,
+            perPage: $perPage,
+            search: $search,
         ));
 
         $this->securityAudit->record(
@@ -187,14 +220,21 @@ final class AdmissionPageController extends Controller
             'allowed',
             $user,
             'admission',
-            ['academic_year_id' => $academicYearId],
+            [
+                'academic_year_id' => $academicYearId,
+                'status_filter' => $statusFilter,
+                'page' => $workspace->pagination['page'] ?? $page,
+            ],
         );
 
         return Inertia::render($component, array_merge([
             'workspace' => $workspace->toArray(),
             'filters' => [
                 'academic_year_id' => $academicYearId,
-                'application_period_id' => $workspace->selectedPeriodId,
+                'application_period_id' => $workspace->selectedPeriodId ?? 0,
+                'q' => $search,
+                'page' => $workspace->pagination['page'] ?? $page,
+                'per_page' => $workspace->pagination['per_page'] ?? $perPage,
             ],
             'authorization' => [
                 'can_manage' => $user->can('manageAdmission'),

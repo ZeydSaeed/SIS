@@ -32,6 +32,24 @@
 | (student_id, academic_year_id) | COMPOSITE | Student year lookup |
 | (student_id, academic_year_id) WHERE status=1 | PARTIAL UNIQUE | One active enrollment |
 
+### `admission.application_periods`
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (academic_year_id, school_id) | COMPOSITE | Year/school period lists |
+| (school_id, academic_year_id, status) | COMPOSITE | Active-period stage workspace filter |
+
+### `admission.applications`
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| application_number | UNIQUE | Direct lookup |
+| application_period_id | B-Tree | Period membership |
+| status | B-Tree | Status filter |
+| (application_period_id, status, created_at, id) | COMPOSITE | Stage paginated lists ORDER BY created_at |
+| student_id WHERE student_id IS NOT NULL | PARTIAL | Converted link lookup |
+| target_school_id | B-Tree | Intended school filter |
+
 ### `attendance.daily_section_summary` ⚡ NEW
 
 | Column(s) | Type | Reason |

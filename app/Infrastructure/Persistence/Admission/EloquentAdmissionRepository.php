@@ -14,9 +14,13 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
 {
+    public function __construct(
+        private readonly AdmissionWorkspaceCache $workspaceCache,
+    ) {}
+
     public function createPeriod(CreateApplicationPeriodData $data): int
     {
-        return (int) DB::table(SchemaHelper::qualified('admission', 'application_periods'))->insertGetId([
+        $id = (int) DB::table(SchemaHelper::qualified('admission', 'application_periods'))->insertGetId([
             'academic_year_id' => $data->academicYearId,
             'school_id' => $data->schoolId,
             'name' => $data->name,
@@ -26,13 +30,16 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'status' => $data->status,
             'created_at' => now(),
         ]);
+        $this->workspaceCache->forgetSchoolYear($data->schoolId, $data->academicYearId);
+
+        return $id;
     }
 
     public function createApplication(CreateApplicationDraftData $data): int
     {
         $now = now();
 
-        return (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
+        $id = (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
             'application_period_id' => $data->applicationPeriodId,
             'application_number' => $data->applicationNumber,
             'first_name' => $data->firstName,
@@ -64,6 +71,9 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        $this->workspaceCache->forgetForPeriodId($data->applicationPeriodId);
+
+        return $id;
     }
 
     public function generateApplicationNumber(int $schoolId, int $academicYearId): string
@@ -132,6 +142,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'end_date' => $data->endDate,
                 'max_applications' => $data->maxApplications,
             ]);
+        $this->workspaceCache->forgetForPeriodId($data->periodId);
     }
 
     public function updatePeriodStatus(int $periodId, int $status): void
@@ -141,6 +152,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             ->update([
                 'status' => $status,
             ]);
+        $this->workspaceCache->forgetForPeriodId($periodId);
     }
 
     public function countApplicationsInPeriod(int $periodId): int
@@ -209,6 +221,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'reviewed_at' => $data->reviewedAt,
                 'updated_at' => now(),
             ]);
+        $this->workspaceCache->forgetForApplicationId($data->applicationId);
     }
 
     public function transitionApplicationStatus(
@@ -235,6 +248,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         DB::table(SchemaHelper::qualified('admission', 'applications'))
             ->where('id', $applicationId)
             ->update($payload);
+        $this->workspaceCache->forgetForApplicationId($applicationId);
     }
 
     public function markConverted(int $applicationId, int $studentId, ?int $reviewedBy): void
@@ -248,11 +262,12 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'reviewed_at' => now(),
                 'updated_at' => now(),
             ]);
+        $this->workspaceCache->forgetForApplicationId($applicationId);
     }
 
     public function registerDocument(RegisterApplicationDocumentData $data): int
     {
-        return (int) DB::table(SchemaHelper::qualified('admission', 'application_documents'))->insertGetId([
+        $id = (int) DB::table(SchemaHelper::qualified('admission', 'application_documents'))->insertGetId([
             'application_id' => $data->applicationId,
             'document_type' => $data->documentType,
             'storage_key' => $data->storageKey,
@@ -260,5 +275,8 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'file_hash' => $data->fileHash,
             'created_at' => now(),
         ]);
+        $this->workspaceCache->forgetForApplicationId($data->applicationId);
+
+        return $id;
     }
 }

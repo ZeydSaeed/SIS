@@ -10,5 +10,10 @@ final readonly class GetAdmissionWorkspaceQuery implements Query
         public int $schoolId,
         public int $academicYearId,
         public ?int $applicationPeriodId = null,
+        public ?int $statusFilter = null,
+        public bool $includeApplications = true,
+        public int $page = 1,
+        public int $perPage = 15,
+        public ?string $search = null,
     ) {}
 }

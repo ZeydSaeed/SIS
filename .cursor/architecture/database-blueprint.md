@@ -449,7 +449,7 @@
 | status | SMALLINT | NOT NULL DEFAULT 1; CHECK IN (0,1,2) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(academic_year_id, school_id)`
+**Indexes:** `BTREE(academic_year_id, school_id)`, `BTREE(school_id, academic_year_id, status)` — Active-period stage filter
 
 **RLS:** Fail-closed on `school_id` (Phase 2).
 
@@ -491,7 +491,7 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`, `PARTIAL BTREE(student_id) WHERE student_id IS NOT NULL`, `BTREE(target_school_id)` (JOIN/filter by intended school)
+**Indexes:** `UNIQUE(application_number)`, `BTREE(application_period_id)`, `BTREE(status)`, `BTREE(application_period_id, status, created_at, id)` — stage paginated lists, `PARTIAL BTREE(student_id) WHERE student_id IS NOT NULL`, `BTREE(target_school_id)` (JOIN/filter by intended school)
 
 **Identity rule:** Applicant PII lives on the application until conversion. Do **not** create `admission.students`. Waitlist = status 5; interviews/status_history tables deferred (not in 87 SSOT).
 

@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 import { TitleBarControls } from '@/components/title-bar-controls';
+import { TitleBarHome } from '@/components/title-bar-home';
 import { TitleBarMenu } from '@/components/title-bar-menu';
 import {
     TitleBarRibbon,
@@ -245,6 +246,7 @@ export function AppSidebarHeader({
                 </div>
                 <div className="sis-titlebar__leading flex shrink-0 items-center gap-1" dir="ltr">
                     <TitleBarControls />
+                    <TitleBarHome />
                     <TitleBarUtilities />
                 </div>
             </header>

@@ -14,6 +14,23 @@ final class AdmissionWorkflowProgressCalculator
      */
     public function calculate(array $pipelineStatuses, array $applicationStatuses): array
     {
+        $counts = [];
+        foreach ($applicationStatuses as $status) {
+            $counts[$status] = ($counts[$status] ?? 0) + 1;
+        }
+
+        return $this->calculateFromCounts($pipelineStatuses, $counts);
+    }
+
+    /**
+     * Aggregate-friendly path for large years — never expands millions of rows.
+     *
+     * @param  list<int>  $pipelineStatuses
+     * @param  array<int, int>  $countsByStatus  status => count
+     * @return array{overall_percent: int, stage_percents: array<int, int>}
+     */
+    public function calculateFromCounts(array $pipelineStatuses, array $countsByStatus): array
+    {
         $indexByStatus = [];
         $stagePercents = [];
         foreach ($pipelineStatuses as $index => $status) {
@@ -21,7 +38,11 @@ final class AdmissionWorkflowProgressCalculator
             $stagePercents[$status] = 0;
         }
 
-        $total = count($applicationStatuses);
+        $total = 0;
+        foreach ($countsByStatus as $count) {
+            $total += max(0, (int) $count);
+        }
+
         $length = count($pipelineStatuses);
         if ($total === 0 || $length === 0) {
             return [
@@ -30,17 +51,19 @@ final class AdmissionWorkflowProgressCalculator
             ];
         }
 
-        $counts = [];
         $progressSum = 0;
-        foreach ($applicationStatuses as $status) {
-            $counts[$status] = ($counts[$status] ?? 0) + 1;
+        foreach ($countsByStatus as $status => $count) {
+            $count = (int) $count;
+            if ($count <= 0) {
+                continue;
+            }
             if (isset($indexByStatus[$status])) {
-                $progressSum += $indexByStatus[$status] + 1;
+                $progressSum += ($indexByStatus[$status] + 1) * $count;
             }
         }
 
         foreach ($pipelineStatuses as $status) {
-            $stagePercents[$status] = (int) round((($counts[$status] ?? 0) / $total) * 100);
+            $stagePercents[$status] = (int) round((($countsByStatus[$status] ?? 0) / $total) * 100);
         }
 
         return [

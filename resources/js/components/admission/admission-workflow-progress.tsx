@@ -1,4 +1,3 @@
-import { Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
 import {
     CheckCircle2,
@@ -100,35 +99,7 @@ type Props = {
     progress?: WorkflowProgressData;
     activeStatus?: number | null;
     onStageSelect?: (status: number) => void;
-    homeHref?: string | null;
 };
-
-function AdmissionHomeMark() {
-    return (
-        <svg
-            className="sis-admission-drafts-home__mark"
-            viewBox="0 0 32 28"
-            fill="none"
-            aria-hidden="true"
-        >
-            <rect className="sis-admission-drafts-home__chimney" x="21.4" y="3" width="2.5" height="5.4" rx="0.35" />
-            <path
-                className="sis-admission-drafts-home__roof"
-                d="M4 13.6 16 3.4 28 13.6"
-                strokeWidth="2.45"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-            <path
-                className="sis-admission-drafts-home__body"
-                d="M7.2 13.1h17.6V24.8H7.2z"
-                strokeWidth="1.35"
-                strokeLinejoin="round"
-            />
-            <rect className="sis-admission-drafts-home__door" x="13.7" y="18.3" width="4.6" height="6.5" rx="0.35" />
-        </svg>
-    );
-}
 
 /** Segmented RTL admission workflow — each stage is an actionable button. */
 export function AdmissionWorkflowProgress({
@@ -136,7 +107,6 @@ export function AdmissionWorkflowProgress({
     progress,
     activeStatus = null,
     onStageSelect,
-    homeHref = null,
 }: Props) {
     const i18n = t();
     const displaySteps =
@@ -147,11 +117,7 @@ export function AdmissionWorkflowProgress({
     const overallPercent = clampPercent(progress?.overall_percent ?? 0);
 
     return (
-        <section aria-label={i18n.admission.workflowTitle} className="sis-admission-progress flex flex-col">
-            <div className="sis-admission-progress__headline">
-                <h2 className="sis-ops-hub__section-title text-base">{i18n.admission.workflowTitle}</h2>
-            </div>
-
+        <section aria-labelledby="sis-admission-workflow-title" className="sis-admission-progress flex flex-col">
             <ol className="sis-admission-progress__track" dir="rtl">
                 {stages.map((stage) => {
                     const Icon = stage.icon;
@@ -199,32 +165,15 @@ export function AdmissionWorkflowProgress({
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={overallPercent}
+                    data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
                 >
                     <span
                         className="sis-admission-progress__overall-fill"
                         style={{ width: `${overallPercent}%` }}
                     />
-                </div>
-                <div className="sis-admission-progress__overall-row">
-                    <p className="sis-admission-progress__overall" dir="rtl">
-                        {i18n.admission.overallProgress}:{' '}
-                        <span dir="ltr">{overallPercent}%</span>
-                    </p>
-                    {homeHref ? (
-                        <Link
-                            href={homeHref}
-                            prefetch
-                            className="sis-admission-drafts-home"
-                            aria-label={i18n.admission.backToAdmission}
-                        >
-                            <i className="icofont-home" aria-hidden="true">
-                                <AdmissionHomeMark />
-                            </i>
-                            <span className="sis-admission-drafts-home__caption">
-                                {i18n.admission.homeCaption}
-                            </span>
-                        </Link>
-                    ) : null}
+                    <span className="sis-admission-progress__overall-value" dir="ltr">
+                        {overallPercent}%
+                    </span>
                 </div>
             </div>
         </section>

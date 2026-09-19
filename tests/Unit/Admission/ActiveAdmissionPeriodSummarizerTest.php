@@ -71,9 +71,10 @@ class ActiveAdmissionPeriodSummarizerTest extends TestCase
             [],
         );
 
-        $this->assertSame(4, $summarizer->resolveSelectedId($summaries, null));
+        $this->assertNull($summarizer->resolveSelectedId($summaries, null));
+        $this->assertNull($summarizer->resolveSelectedId($summaries, 0));
         $this->assertSame(9, $summarizer->resolveSelectedId($summaries, 9));
-        $this->assertSame(4, $summarizer->resolveSelectedId($summaries, 99));
+        $this->assertNull($summarizer->resolveSelectedId($summaries, 99));
         $this->assertNull($summarizer->resolveSelectedId([], 9));
     }
 

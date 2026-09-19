@@ -14,6 +14,7 @@ type PageProps = {
     filters: {
         academic_year_id: number | null;
         application_period_id?: number | null;
+        q?: string | null;
     };
     authorization: AdmissionPageAuthorization;
     stage: {
@@ -54,6 +55,8 @@ export default function AdmissionStage({
     const admissionHref = `/admission${admissionWorkspaceQuery(
         filters.academic_year_id,
         filters.application_period_id ?? workspace.selected_period_id,
+        null,
+        filters.q,
     )}`;
 
     return (
@@ -71,6 +74,9 @@ export default function AdmissionStage({
                 workspace={workspace}
                 canManage={authorization.can_manage}
                 status={stage.status}
+                yearFilterAction={path}
+                academicYearId={filters.academic_year_id}
+                homeHref={admissionHref}
             />
         </AdmissionPageShell>
     );

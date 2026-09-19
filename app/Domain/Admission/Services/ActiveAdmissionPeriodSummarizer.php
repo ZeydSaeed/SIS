@@ -58,19 +58,17 @@ final class ActiveAdmissionPeriodSummarizer
      */
     public function resolveSelectedId(array $summaries, ?int $requestedId): ?int
     {
-        if ($summaries === []) {
+        if ($summaries === [] || $requestedId === null || $requestedId === 0) {
             return null;
         }
 
-        if ($requestedId !== null) {
-            foreach ($summaries as $summary) {
-                if ($summary['id'] === $requestedId) {
-                    return $requestedId;
-                }
+        foreach ($summaries as $summary) {
+            if ($summary['id'] === $requestedId) {
+                return $requestedId;
             }
         }
 
-        return $summaries[0]['id'];
+        return null;
     }
 
     /**

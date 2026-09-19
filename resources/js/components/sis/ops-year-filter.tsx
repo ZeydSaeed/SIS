@@ -18,6 +18,8 @@ type OpsYearFilterProps = {
     controlClassName?: string;
     /** Place label beside the control (RTL: to the right). */
     inlineLabel?: boolean;
+    /** Shrink the control to the selected text instead of a fixed min-width. */
+    compact?: boolean;
 };
 
 function yearOptionLabel(name: string, code: string): string {
@@ -68,6 +70,7 @@ export function OpsYearFilter({
     showCurrentBadge = true,
     controlClassName,
     inlineLabel = false,
+    compact = false,
 }: OpsYearFilterProps) {
     const i18n = t();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
@@ -78,6 +81,12 @@ export function OpsYearFilter({
         years[0]?.id.toString() ??
         '';
     const [year, setYear] = useState(initial);
+    const selectedYear = years.find((item) => item.id.toString() === year);
+    const selectedYearLabel = selectedYear
+        ? `${yearOptionLabel(selectedYear.name, selectedYear.code)}${
+              showCurrentBadge && selectedYear.is_current ? ` · ${i18n.status.active}` : ''
+          }`
+        : year;
 
     const apply = (nextYear: string) => {
         const cleaned: Record<string, string | number> = {};
@@ -109,8 +118,8 @@ export function OpsYearFilter({
             <label
                 className={
                     inlineLabel
-                        ? 'flex min-w-[12rem] flex-row items-center gap-2 text-sm'
-                        : 'flex min-w-[12rem] flex-col gap-1 text-sm'
+                        ? `flex flex-row items-center gap-2 text-sm ${compact ? 'min-w-0' : 'min-w-[12rem]'}`
+                        : `flex flex-col gap-1 text-sm ${compact ? 'min-w-0' : 'min-w-[12rem]'}`
                 }
                 dir="rtl"
             >
@@ -120,32 +129,59 @@ export function OpsYearFilter({
                     </span>
                 ) : null}
                 {years.length > 0 ? (
-                    <select
-                        value={year}
-                        onChange={(event) => {
-                            setYear(event.target.value);
-                            apply(event.target.value);
-                        }}
-                        className={`sis-ops-hub__link min-h-11 min-w-[10rem] px-3 py-2 ${controlClassName ?? ''}`}
-                        dir="rtl"
-                        aria-label={label ?? i18n.enrollments.academicYear}
-                    >
-                        {years.map((item) => (
-                            <option key={item.id} value={item.id}>
-                                {yearOptionLabel(item.name, item.code)}
-                                {showCurrentBadge && item.is_current
-                                    ? ` · ${i18n.status.active}`
-                                    : ''}
-                            </option>
-                        ))}
-                    </select>
+                    compact ? (
+                        <span className="sis-admission-select-fit">
+                            <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                {selectedYearLabel}
+                            </span>
+                            <select
+                                value={year}
+                                onChange={(event) => {
+                                    setYear(event.target.value);
+                                    apply(event.target.value);
+                                }}
+                                className={`sis-ops-hub__link px-3 py-2 min-h-0 min-w-0 ${controlClassName ?? ''}`}
+                                dir="rtl"
+                                aria-label={label ?? i18n.enrollments.academicYear}
+                            >
+                                {years.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {yearOptionLabel(item.name, item.code)}
+                                        {showCurrentBadge && item.is_current
+                                            ? ` · ${i18n.status.active}`
+                                            : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </span>
+                    ) : (
+                        <select
+                            value={year}
+                            onChange={(event) => {
+                                setYear(event.target.value);
+                                apply(event.target.value);
+                            }}
+                            className={`sis-ops-hub__link min-h-11 min-w-[10rem] px-3 py-2 ${controlClassName ?? ''}`}
+                            dir="rtl"
+                            aria-label={label ?? i18n.enrollments.academicYear}
+                        >
+                            {years.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                    {yearOptionLabel(item.name, item.code)}
+                                    {showCurrentBadge && item.is_current
+                                        ? ` · ${i18n.status.active}`
+                                        : ''}
+                                </option>
+                            ))}
+                        </select>
+                    )
                 ) : (
                     <input
                         type="number"
                         min={1}
                         value={year}
                         onChange={(event) => setYear(event.target.value)}
-                        className={`sis-ops-hub__link min-h-11 min-w-[10rem] px-3 py-2 ${controlClassName ?? ''}`}
+                        className={`sis-ops-hub__link px-3 py-2 ${compact ? 'min-h-0 min-w-0' : 'min-h-11 min-w-[10rem]'} ${controlClassName ?? ''}`}
                         dir="ltr"
                         inputMode="numeric"
                     />

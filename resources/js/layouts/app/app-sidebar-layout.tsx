@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { PageRibbonProvider } from '@/components/sis/page-ribbon-context';
+import { PageTitlebarHomeProvider } from '@/components/sis/page-titlebar-home-context';
 import { restorePageAlignments } from '@/hooks/use-page-alignment';
 import { restorePageTextStyle } from '@/hooks/use-page-text-style';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,7 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <PageRibbonProvider>
+            <PageTitlebarHomeProvider>
             <AppSidebar />
             <AppContent
                 variant="sidebar"
@@ -42,6 +44,7 @@ export default function AppSidebarLayout({
                     {children}
                 </div>
             </AppContent>
+            </PageTitlebarHomeProvider>
             </PageRibbonProvider>
         </AppShell>
     );

@@ -177,6 +177,17 @@ proposed_optimization:
 | Risk | Existing rows valid (nullable). New drafts validated in FormRequest. |
 | Blueprint | Updated |
 
+## Change log — 2026-09-19 admission stage query indexes
+
+| Item | Value |
+|------|-------|
+| Class | Medium |
+| Tables | `admission.application_periods`, `admission.applications` |
+| Change | Additive BTREE `(school_id, academic_year_id, status)` and `(application_period_id, status, created_at, id)` |
+| Evidence | Stage JOIN/filter/ORDER BY LIMIT; baseline Seq Scan at 200 rows (~0.25–0.4ms); indexes for multi-year / large cardinality |
+| Risk | Write overhead low; no lock beyond CREATE INDEX |
+| Blueprint / indexing-matrix | Updated |
+
 ---
 
 ## Related

@@ -37,6 +37,11 @@ Next read → cache miss → PostgreSQL → repopulate Redis
 | School dashboard | `dashboard:school:{school_id}:{year_id}` | 5m | daily_summary refresh / MV refresh |
 | Directorate dashboard | `dashboard:directorate:{directorate_id}:{year_id}` | 5m | MV refresh |
 | Timetable (section) | `timetable:section:{section_id}:{year_id}` | 10m | schedules CRUD |
+| Admission grade levels | `admission:grade_levels` | 1h | grade_levels change |
+| Admission school refs | `admission:refs:{school_id}` | 1h | departments/specializations/school |
+| Admission periods shell | `admission:periods:{school_id}:{year_id}` | 20s | period CRUD / status |
+| Admission period counts | `admission:period_counts:{school_id}:{year_id}` | 20s | application write / transition |
+| Admission status histogram | `admission:status_counts:{school_id}:{year_id}:{period\|all}` | 15s | application write / transition |
 
 ---
 

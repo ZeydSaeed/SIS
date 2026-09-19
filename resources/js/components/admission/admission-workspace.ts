@@ -42,18 +42,18 @@ export type AdmissionApplication = {
     student_id: number | null;
     created_at: string;
     updated_at: string;
-    allowed_transitions: number[];
-    can_convert: boolean;
+    allowed_transitions?: number[];
+    can_convert?: boolean;
 };
 
 export type AdmissionDocumentRow = {
     id: number;
     application_id: number;
     document_type: number;
-    storage_key: string;
-    file_name: string;
-    file_hash: string;
-    created_at: string;
+    storage_key?: string;
+    file_name?: string;
+    file_hash?: string;
+    created_at?: string;
 };
 
 export type AdmissionNamedOption = { id: number; name: string };
@@ -77,6 +77,13 @@ export type AdmissionActivePeriodSummary = {
     remaining: number | null;
 };
 
+export type AdmissionPagination = {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+};
+
 export type AdmissionWorkspace = {
     periods: AdmissionPeriod[];
     applications: AdmissionApplication[];
@@ -89,6 +96,9 @@ export type AdmissionWorkspace = {
     workflow_progress?: AdmissionWorkflowProgress;
     active_periods?: AdmissionActivePeriodSummary[];
     selected_period_id?: number | null;
+    pagination?: AdmissionPagination;
+    /** Shared once — use instead of per-row allowed_transitions. */
+    status_transitions?: Record<number, number[]>;
 };
 
 export type AdmissionPageAuthorization = {
@@ -115,9 +125,13 @@ export const ADMISSION_STAGE_PATHS: Record<number, string> = {
     [ADMISSION_STATUS_CONVERTED]: '/admission/converted',
 };
 
+export const ADMISSION_PERIOD_FILTER_ALL = 0;
+
 export function admissionWorkspaceQuery(
     academicYearId: number | null | undefined,
     periodId?: number | null,
+    page?: number | null,
+    search?: string | null,
 ): string {
     const params = new URLSearchParams();
     if (academicYearId != null) {
@@ -125,6 +139,15 @@ export function admissionWorkspaceQuery(
     }
     if (periodId != null && periodId > 0) {
         params.set('application_period_id', String(periodId));
+    } else if (periodId === ADMISSION_PERIOD_FILTER_ALL) {
+        params.set('application_period_id', String(ADMISSION_PERIOD_FILTER_ALL));
+    }
+    if (page != null && page > 1) {
+        params.set('page', String(page));
+    }
+    const queryText = search?.trim() ?? '';
+    if (queryText !== '') {
+        params.set('q', queryText);
     }
     const query = params.toString();
 
@@ -144,6 +167,37 @@ export function admissionApplicationFullName(app: AdmissionApplication): string 
         .join(' ');
 }
 
+/** Split a name into plain / match segments for yellow search highlighting. */
+export function admissionSearchSegments(
+    text: string,
+    query: string,
+): Array<{ text: string; hit: boolean }> {
+    const tokens = query
+        .trim()
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length > 0);
+
+    if (text === '' || tokens.length === 0) {
+        return [{ text, hit: false }];
+    }
+
+    const pattern = tokens
+        .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+    const matcher = new RegExp(`(${pattern})`, 'giu');
+    const parts = text.split(matcher);
+
+    return parts
+        .filter((part) => part !== '')
+        .map((part) => ({
+            text: part,
+            hit: tokens.some((token) =>
+                part.toLocaleLowerCase('ar').includes(token.toLocaleLowerCase('ar')),
+            ),
+        }));
+}
+
 export function lookupName(
     options: AdmissionNamedOption[],
     id: number | null,
@@ -160,4 +214,23 @@ export function lookupName(
     const text = fallback?.trim() ?? '';
 
     return text !== '' ? text : '—';
+}
+
+export function admissionAllowedTransitions(
+    workspace: AdmissionWorkspace,
+    app: AdmissionApplication,
+): number[] {
+    return (
+        workspace.status_transitions?.[app.status] ??
+        app.allowed_transitions ??
+        []
+    );
+}
+
+export function admissionCanConvert(app: AdmissionApplication): boolean {
+    if (typeof app.can_convert === 'boolean') {
+        return app.can_convert;
+    }
+
+    return app.status === ADMISSION_STATUS_ACCEPTED;
 }

@@ -22,60 +22,95 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
     {
         assert($query instanceof GetAdmissionWorkspaceQuery);
 
-        $workspace = $this->admission->workspace($query->schoolId, $query->academicYearId);
+        $shell = $this->admission->periodShell($query->schoolId, $query->academicYearId);
         $summaries = $this->activePeriods->summarize(
-            $workspace['periods'],
-            $workspace['period_counts'] ?? [],
+            $shell['periods'],
+            $shell['period_counts'] ?? [],
         );
-        $selectedId = $this->activePeriods->resolveSelectedId(
-            $summaries,
-            $query->applicationPeriodId,
+
+        $wantsAllPeriods = $query->applicationPeriodId === 0;
+        $selectedId = $wantsAllPeriods
+            ? 0
+            : $this->activePeriods->resolveSelectedId($summaries, $query->applicationPeriodId);
+        $statusScopePeriodId = $wantsAllPeriods ? null : $selectedId;
+        $selected = $wantsAllPeriods
+            ? null
+            : $this->activePeriods->selectedSummary($summaries, $selectedId);
+
+        $workspace = $this->admission->workspace(
+            $query->schoolId,
+            $query->academicYearId,
+            $query->statusFilter,
+            $query->includeApplications,
+            $query->page,
+            $query->perPage,
+            $statusScopePeriodId,
+            $query->search,
         );
-        $applications = $this->activePeriods->applicationsInActivePeriods(
-            $workspace['applications'],
-            $summaries,
-        );
-        $selected = $this->activePeriods->selectedSummary($summaries, $selectedId);
 
         return new AdmissionWorkspaceDTO(
             periods: $workspace['periods'],
-            applications: $applications,
-            documents: $this->activePeriods->documentsForApplications(
-                $workspace['documents'],
-                $applications,
-            ),
+            applications: $workspace['applications'],
+            documents: $workspace['documents'],
             gradeLevels: $workspace['grade_levels'],
             schools: $workspace['schools'],
             departments: $workspace['departments'],
             specializations: $workspace['specializations'],
             workflowSteps: $workspace['workflow_steps'],
-            workflowProgress: $this->workflowProgress($applications, $summaries, $selected),
+            workflowProgress: $this->workflowProgress(
+                $workspace['status_counts'] ?? [],
+                $summaries,
+                $selected,
+            ),
             activePeriods: $summaries,
             selectedPeriodId: $selectedId,
+            pagination: $workspace['pagination'] ?? [
+                'page' => 1,
+                'per_page' => $query->perPage,
+                'total' => 0,
+                'total_pages' => 1,
+            ],
+            statusTransitions: $this->statusTransitions(),
         );
     }
 
     /**
-     * @param  list<array<string, mixed>>  $applications
+     * @return array<int, list<int>>
+     */
+    private function statusTransitions(): array
+    {
+        $map = [];
+        foreach (ApplicationStatus::cases() as $status) {
+            $map[$status->value] = array_map(
+                static fn (ApplicationStatus $s): int => $s->value,
+                $status->allowedTransitions(),
+            );
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<int, int>  $statusCounts
      * @param  list<array{id:int, max_applications:?int, total_count:int}>  $activeSummaries
      * @param  array<string, mixed>|null  $selected
      * @return array{overall_percent: int, stages: list<array{status:int, percent:int}>}
      */
-    private function workflowProgress(array $applications, array $activeSummaries, ?array $selected): array
+    private function workflowProgress(array $statusCounts, array $activeSummaries, ?array $selected): array
     {
         $pipeline = [];
         foreach (ApplicationStatus::pipelineSteps() as $status) {
             $pipeline[] = $status->value;
         }
 
-        $statuses = [];
-        foreach ($applications as $application) {
-            $statuses[] = (int) $application['status'];
+        $calculated = $this->progress->calculateFromCounts($pipeline, $statusCounts);
+        $totalApps = 0;
+        foreach ($statusCounts as $count) {
+            $totalApps += (int) $count;
         }
 
-        $calculated = $this->progress->calculate($pipeline, $statuses);
         $stages = [
-            ['status' => 0, 'percent' => $statuses === [] ? 0 : 100],
+            ['status' => 0, 'percent' => $totalApps === 0 ? 0 : 100],
         ];
         foreach ($pipeline as $status) {
             $stages[] = [
@@ -85,25 +120,26 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
         }
 
         $overall = $calculated['overall_percent'];
-        $combinedMax = 0;
-        $combinedTotal = 0;
-        $hasBoundedCapacity = false;
-        foreach ($activeSummaries as $summary) {
-            if ($summary['max_applications'] === null) {
-                continue;
-            }
-            $hasBoundedCapacity = true;
-            $combinedMax += (int) $summary['max_applications'];
-            $combinedTotal += (int) $summary['total_count'];
-        }
-
-        if ($hasBoundedCapacity) {
-            $overall = $this->activePeriods->capacityPercent($combinedMax, $combinedTotal);
-        } elseif (is_array($selected) && is_int($selected['max_applications'] ?? null)) {
+        if (is_array($selected) && is_int($selected['max_applications'] ?? null)) {
             $overall = $this->activePeriods->capacityPercent(
                 (int) $selected['max_applications'],
                 (int) ($selected['total_count'] ?? 0),
             );
+        } else {
+            $combinedMax = 0;
+            $combinedTotal = 0;
+            $hasBoundedCapacity = false;
+            foreach ($activeSummaries as $summary) {
+                if ($summary['max_applications'] === null) {
+                    continue;
+                }
+                $hasBoundedCapacity = true;
+                $combinedMax += (int) $summary['max_applications'];
+                $combinedTotal += (int) $summary['total_count'];
+            }
+            if ($hasBoundedCapacity) {
+                $overall = $this->activePeriods->capacityPercent($combinedMax, $combinedTotal);
+            }
         }
 
         return [

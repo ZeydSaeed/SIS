@@ -48,6 +48,25 @@ class AdmissionWorkflowProgressCalculatorTest extends TestCase
         $this->assertSame(7, $result['overall_percent']);
     }
 
+    public function test_calculate_from_counts_matches_expanded_statuses(): void
+    {
+        $counts = [
+            ApplicationStatus::Draft->value => 2,
+            ApplicationStatus::Submitted->value => 1,
+            ApplicationStatus::Converted->value => 1,
+        ];
+
+        $fromCounts = $this->calculator()->calculateFromCounts($this->pipeline(), $counts);
+        $fromList = $this->calculator()->calculate($this->pipeline(), [
+            ApplicationStatus::Draft->value,
+            ApplicationStatus::Draft->value,
+            ApplicationStatus::Submitted->value,
+            ApplicationStatus::Converted->value,
+        ]);
+
+        $this->assertSame($fromList, $fromCounts);
+    }
+
     /**
      * @return list<int>
      */
