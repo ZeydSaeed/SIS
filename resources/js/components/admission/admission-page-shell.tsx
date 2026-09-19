@@ -2,10 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { AdmissionActivePeriodsTable } from '@/components/admission/admission-active-periods-table';
 import { AdmissionApplicationDraftDialog } from '@/components/admission/admission-application-draft-dialog';
 import {
     ADMISSION_STAGE_PATHS,
     ADMISSION_STATUS_REQUEST,
+    admissionWorkspaceQuery,
     type AdmissionPageAuthorization,
     type AdmissionWorkspace,
 } from '@/components/admission/admission-workspace';
@@ -42,8 +44,16 @@ export function AdmissionPageShell({
 }: Props) {
     const [draftOpen, setDraftOpen] = useState(false);
 
-    const yearQuery =
-        academicYearId !== null ? `?academic_year_id=${academicYearId}` : '';
+    const selectedPeriodId = workspace.selected_period_id ?? null;
+    const workspaceQuery = admissionWorkspaceQuery(academicYearId, selectedPeriodId);
+
+    const handlePeriodSelect = (periodId: number) => {
+        if (periodId === selectedPeriodId) {
+            return;
+        }
+
+        router.visit(`${yearFilterAction}${admissionWorkspaceQuery(academicYearId, periodId)}`);
+    };
 
     const handleStageSelect = (status: number) => {
         if (status === ADMISSION_STATUS_REQUEST) {
@@ -57,7 +67,7 @@ export function AdmissionPageShell({
         const stagePath = ADMISSION_STAGE_PATHS[status];
         if (stagePath) {
             if (activeStatus !== status) {
-                router.visit(`${stagePath}${yearQuery}`);
+                router.visit(`${stagePath}${workspaceQuery}`);
             }
 
             return;
@@ -68,7 +78,7 @@ export function AdmissionPageShell({
             return;
         }
 
-        router.visit(`/admission${yearQuery}`);
+        router.visit(`/admission${workspaceQuery}`);
     };
 
     return (
@@ -80,6 +90,13 @@ export function AdmissionPageShell({
                         title={title}
                         icon={<UserPlus className="text-primary size-8" aria-hidden="true" />}
                     />
+                    <div className="sis-admission-active-periods">
+                        <AdmissionActivePeriodsTable
+                            periods={workspace.active_periods ?? []}
+                            selectedPeriodId={selectedPeriodId}
+                            onPeriodSelect={handlePeriodSelect}
+                        />
+                    </div>
                     <div className="sis-admission-year-filter">
                         <OpsYearFilter
                             action={yearFilterAction}
@@ -96,7 +113,6 @@ export function AdmissionPageShell({
                 <AdmissionWorkflowProgress
                     steps={workspace.workflow_steps}
                     progress={workspace.workflow_progress}
-                    activePeriods={workspace.active_periods}
                     activeStatus={draftOpen ? ADMISSION_STATUS_REQUEST : activeStatus}
                     onStageSelect={handleStageSelect}
                     homeHref={homeHref}

@@ -11,6 +11,7 @@ type PageProps = {
     workspace: AdmissionWorkspace;
     filters: {
         academic_year_id: number | null;
+        application_period_id?: number | null;
     };
     authorization: AdmissionPageAuthorization;
 };

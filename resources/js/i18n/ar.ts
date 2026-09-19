@@ -297,6 +297,7 @@ export const ar = {
         periodMax: 'الحد',
         submittedInPeriod: 'مقدّم',
         remainingInPeriod: 'المتبقي',
+        periodApplicationsCount: 'عدد الطلبة المقدمين',
         unlimitedCapacity: 'غير محدود',
         noActivePeriod: 'لا توجد فترة نشطة',
         overallProgress: 'التقدم الإجمالي',

@@ -2,6 +2,7 @@ import { AdmissionDraftsCard } from '@/components/admission/admission-drafts-car
 import { AdmissionPageShell } from '@/components/admission/admission-page-shell';
 import {
     ADMISSION_STAGE_PATHS,
+    admissionWorkspaceQuery,
     type AdmissionPageAuthorization,
     type AdmissionWorkspace,
 } from '@/components/admission/admission-workspace';
@@ -12,6 +13,7 @@ type PageProps = {
     workspace: AdmissionWorkspace;
     filters: {
         academic_year_id: number | null;
+        application_period_id?: number | null;
     };
     authorization: AdmissionPageAuthorization;
     stage: {
@@ -49,10 +51,10 @@ export default function AdmissionStage({
         { title: label, href: path },
     ];
 
-    const admissionHref =
-        filters.academic_year_id !== null
-            ? `/admission?academic_year_id=${filters.academic_year_id}`
-            : '/admission';
+    const admissionHref = `/admission${admissionWorkspaceQuery(
+        filters.academic_year_id,
+        filters.application_period_id ?? workspace.selected_period_id,
+    )}`;
 
     return (
         <AdmissionPageShell

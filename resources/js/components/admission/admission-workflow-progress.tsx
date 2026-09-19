@@ -11,7 +11,6 @@ import {
     Send,
 } from 'lucide-react';
 import type {
-    AdmissionActivePeriodSummary,
     AdmissionWorkflowProgress as WorkflowProgressData,
 } from '@/components/admission/admission-workspace';
 import { t } from '@/i18n';
@@ -99,7 +98,6 @@ function buildStages(
 type Props = {
     steps: AdmissionWorkflowStep[];
     progress?: WorkflowProgressData;
-    activePeriods?: AdmissionActivePeriodSummary[];
     activeStatus?: number | null;
     onStageSelect?: (status: number) => void;
     homeHref?: string | null;
@@ -136,7 +134,6 @@ function AdmissionHomeMark() {
 export function AdmissionWorkflowProgress({
     steps,
     progress,
-    activePeriods = [],
     activeStatus = null,
     onStageSelect,
     homeHref = null,
@@ -153,33 +150,6 @@ export function AdmissionWorkflowProgress({
         <section aria-label={i18n.admission.workflowTitle} className="sis-admission-progress flex flex-col">
             <div className="sis-admission-progress__headline">
                 <h2 className="sis-ops-hub__section-title text-base">{i18n.admission.workflowTitle}</h2>
-                {activePeriods.length === 0 ? (
-                    <p className="sis-admission-progress__active-empty">{i18n.admission.noActivePeriod}</p>
-                ) : (
-                    <ul className="sis-admission-progress__active-periods">
-                        {activePeriods.map((period) => (
-                            <li key={period.id}>
-                                <span className="sis-admission-progress__active-name">{period.name}</span>
-                                <span>
-                                    {i18n.admission.periodMax}{' '}
-                                    <span dir="ltr">
-                                        {period.max_applications ?? i18n.admission.unlimitedCapacity}
-                                    </span>
-                                </span>
-                                <span>
-                                    {i18n.admission.submittedInPeriod}{' '}
-                                    <span dir="ltr">{period.submitted_count}</span>
-                                </span>
-                                <span>
-                                    {i18n.admission.remainingInPeriod}{' '}
-                                    <span dir="ltr">
-                                        {period.remaining ?? i18n.admission.unlimitedCapacity}
-                                    </span>
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
             </div>
 
             <ol className="sis-admission-progress__track" dir="rtl">

@@ -113,6 +113,35 @@ final class ActiveAdmissionPeriodSummarizer
     }
 
     /**
+     * Stage pages list applicants for every Active period — never Inactive/Archived.
+     *
+     * @param  list<array<string, mixed>>  $applications
+     * @param  list<array{id:int}>  $activeSummaries
+     * @return list<array<string, mixed>>
+     */
+    public function applicationsInActivePeriods(array $applications, array $activeSummaries): array
+    {
+        if ($activeSummaries === []) {
+            return [];
+        }
+
+        $activeIds = [];
+        foreach ($activeSummaries as $summary) {
+            $activeIds[(int) $summary['id']] = true;
+        }
+
+        $scoped = [];
+        foreach ($applications as $application) {
+            $periodId = (int) $application['application_period_id'];
+            if (isset($activeIds[$periodId])) {
+                $scoped[] = $application;
+            }
+        }
+
+        return $scoped;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $documents
      * @param  list<array<string, mixed>>  $applications
      * @return list<array<string, mixed>>
@@ -141,6 +170,9 @@ final class ActiveAdmissionPeriodSummarizer
         }
 
         $percent = (int) round(($totalCount / $maxApplications) * 100);
+        if ($percent === 0 && $totalCount > 0) {
+            return 1;
+        }
 
         return $percent > 100 ? 100 : $percent;
     }

@@ -112,7 +112,7 @@ function uniqueTransitions(apps: AdmissionApplication[]): number[] {
         }
     }
 
-    return unique;
+    return withConvertTransition(apps, unique);
 }
 
 function intersectTransitions(apps: AdmissionApplication[]): number[] {
@@ -120,10 +120,28 @@ function intersectTransitions(apps: AdmissionApplication[]): number[] {
         return [];
     }
 
-    return apps.reduce(
+    const shared = apps.reduce(
         (acc, app) => acc.filter((value) => app.allowed_transitions.includes(value)),
         apps[0].allowed_transitions,
     );
+
+    return withConvertTransition(apps, shared);
+}
+
+/** Accepted applications expose convert-to-student beside manual transitions. */
+function withConvertTransition(
+    apps: AdmissionApplication[],
+    transitions: number[],
+): number[] {
+    if (apps.length === 0 || !apps.every((app) => app.can_convert)) {
+        return transitions;
+    }
+
+    if (transitions.includes(ADMISSION_STATUS_CONVERTED)) {
+        return transitions;
+    }
+
+    return [...transitions, ADMISSION_STATUS_CONVERTED];
 }
 
 type DraftRowHandle = {
@@ -387,6 +405,38 @@ export function AdmissionDraftsCard({
         }
 
         setTransitioning(true);
+
+        const clearSelection = () => {
+            setCheckedIds([]);
+            setSelectedId(null);
+            setEditing(false);
+            setTransitioning(false);
+        };
+
+        if (toStatus === ADMISSION_STATUS_CONVERTED) {
+            const ids = [...visibleCheckedIds];
+            const convertNext = (index: number) => {
+                if (index >= ids.length) {
+                    clearSelection();
+                    return;
+                }
+
+                router.post(
+                    `/admission/applications/${ids[index]}/convert`,
+                    {},
+                    {
+                        preserveScroll: true,
+                        preserveState: true,
+                        onSuccess: () => convertNext(index + 1),
+                        onError: () => setTransitioning(false),
+                    },
+                );
+            };
+
+            convertNext(0);
+            return;
+        }
+
         router.post(
             '/admission/applications/bulk-transition',
             {

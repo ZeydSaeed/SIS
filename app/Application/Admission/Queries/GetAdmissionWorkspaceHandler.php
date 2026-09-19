@@ -31,9 +31,9 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             $summaries,
             $query->applicationPeriodId,
         );
-        $applications = $this->activePeriods->applicationsInPeriod(
+        $applications = $this->activePeriods->applicationsInActivePeriods(
             $workspace['applications'],
-            $selectedId,
+            $summaries,
         );
         $selected = $this->activePeriods->selectedSummary($summaries, $selectedId);
 
@@ -49,7 +49,7 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             departments: $workspace['departments'],
             specializations: $workspace['specializations'],
             workflowSteps: $workspace['workflow_steps'],
-            workflowProgress: $this->workflowProgress($applications, $selected),
+            workflowProgress: $this->workflowProgress($applications, $summaries, $selected),
             activePeriods: $summaries,
             selectedPeriodId: $selectedId,
         );
@@ -57,10 +57,11 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
 
     /**
      * @param  list<array<string, mixed>>  $applications
+     * @param  list<array{id:int, max_applications:?int, total_count:int}>  $activeSummaries
      * @param  array<string, mixed>|null  $selected
      * @return array{overall_percent: int, stages: list<array{status:int, percent:int}>}
      */
-    private function workflowProgress(array $applications, ?array $selected): array
+    private function workflowProgress(array $applications, array $activeSummaries, ?array $selected): array
     {
         $pipeline = [];
         foreach (ApplicationStatus::pipelineSteps() as $status) {
@@ -84,9 +85,23 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
         }
 
         $overall = $calculated['overall_percent'];
-        if ($selected !== null && array_key_exists('max_applications', $selected)) {
+        $combinedMax = 0;
+        $combinedTotal = 0;
+        $hasBoundedCapacity = false;
+        foreach ($activeSummaries as $summary) {
+            if ($summary['max_applications'] === null) {
+                continue;
+            }
+            $hasBoundedCapacity = true;
+            $combinedMax += (int) $summary['max_applications'];
+            $combinedTotal += (int) $summary['total_count'];
+        }
+
+        if ($hasBoundedCapacity) {
+            $overall = $this->activePeriods->capacityPercent($combinedMax, $combinedTotal);
+        } elseif (is_array($selected) && is_int($selected['max_applications'] ?? null)) {
             $overall = $this->activePeriods->capacityPercent(
-                $selected['max_applications'] !== null ? (int) $selected['max_applications'] : null,
+                (int) $selected['max_applications'],
                 (int) ($selected['total_count'] ?? 0),
             );
         }

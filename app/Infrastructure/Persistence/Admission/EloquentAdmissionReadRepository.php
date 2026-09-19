@@ -50,7 +50,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             ->where('periods.academic_year_id', $academicYearId)
             ->orderBy('apps.created_at')
             ->orderBy('apps.id')
-            ->limit(200)
+            ->limit(500)
             ->get([
                 'apps.id',
                 'apps.application_period_id',

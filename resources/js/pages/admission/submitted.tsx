@@ -2,6 +2,7 @@ import { AdmissionDraftsCard } from '@/components/admission/admission-drafts-car
 import { AdmissionPageShell } from '@/components/admission/admission-page-shell';
 import {
     ADMISSION_STATUS_SUBMITTED,
+    admissionWorkspaceQuery,
     type AdmissionPageAuthorization,
     type AdmissionWorkspace,
 } from '@/components/admission/admission-workspace';
@@ -12,6 +13,7 @@ type PageProps = {
     workspace: AdmissionWorkspace;
     filters: {
         academic_year_id: number | null;
+        application_period_id?: number | null;
     };
     authorization: AdmissionPageAuthorization;
 };
@@ -23,10 +25,10 @@ export default function AdmissionSubmitted({ workspace, filters, authorization }
         { title: i18n.admission.statusSubmitted, href: '/admission/submitted' },
     ];
 
-    const admissionHref =
-        filters.academic_year_id !== null
-            ? `/admission?academic_year_id=${filters.academic_year_id}`
-            : '/admission';
+    const admissionHref = `/admission${admissionWorkspaceQuery(
+        filters.academic_year_id,
+        filters.application_period_id ?? workspace.selected_period_id,
+    )}`;
 
     return (
         <AdmissionPageShell

@@ -70,7 +70,9 @@ export type AdmissionWorkflowProgress = {
 export type AdmissionActivePeriodSummary = {
     id: number;
     name: string;
+    start_date?: string;
     max_applications: number | null;
+    total_count: number;
     submitted_count: number;
     remaining: number | null;
 };
@@ -86,6 +88,7 @@ export type AdmissionWorkspace = {
     workflow_steps: AdmissionWorkflowStep[];
     workflow_progress?: AdmissionWorkflowProgress;
     active_periods?: AdmissionActivePeriodSummary[];
+    selected_period_id?: number | null;
 };
 
 export type AdmissionPageAuthorization = {
@@ -111,6 +114,22 @@ export const ADMISSION_STAGE_PATHS: Record<number, string> = {
     [ADMISSION_STATUS_ACCEPTED]: '/admission/accepted',
     [ADMISSION_STATUS_CONVERTED]: '/admission/converted',
 };
+
+export function admissionWorkspaceQuery(
+    academicYearId: number | null | undefined,
+    periodId?: number | null,
+): string {
+    const params = new URLSearchParams();
+    if (academicYearId != null) {
+        params.set('academic_year_id', String(academicYearId));
+    }
+    if (periodId != null && periodId > 0) {
+        params.set('application_period_id', String(periodId));
+    }
+    const query = params.toString();
+
+    return query === '' ? '' : `?${query}`;
+}
 
 export function admissionApplicationFullName(app: AdmissionApplication): string {
     return [
