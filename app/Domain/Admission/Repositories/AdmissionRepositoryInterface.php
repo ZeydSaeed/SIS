@@ -5,6 +5,7 @@ namespace App\Domain\Admission\Repositories;
 use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
+use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 
 interface AdmissionRepositoryInterface
 {
@@ -19,6 +20,7 @@ interface AdmissionRepositoryInterface
      *     id:int,
      *     school_id:int,
      *     academic_year_id:int,
+     *     name:string,
      *     status:int,
      *     start_date:string,
      *     end_date:string,
@@ -26,6 +28,10 @@ interface AdmissionRepositoryInterface
      * }|null
      */
     public function findPeriodForSchool(int $periodId, int $schoolId): ?array;
+
+    public function updatePeriod(UpdateApplicationPeriodData $data): void;
+
+    public function updatePeriodStatus(int $periodId, int $status): void;
 
     public function countApplicationsInPeriod(int $periodId): int;
 

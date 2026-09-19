@@ -1,6 +1,7 @@
 import { Form, Head, router } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { AdmissionPeriodsCard } from '@/components/admission/admission-periods-card';
 import { AdmissionWorkflowProgress } from '@/components/admission/admission-workflow-progress';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
@@ -91,14 +92,6 @@ function applicationStatusLabel(status: number): string {
     return map[status] ?? String(status);
 }
 
-function periodStatusLabel(status: number): string {
-    const i18n = t().admission;
-    if (status === 0) return i18n.periodInactive;
-    if (status === 1) return i18n.periodActive;
-    if (status === 2) return i18n.periodArchived;
-    return String(status);
-}
-
 function documentTypeLabel(type: number): string {
     const i18n = t().admission;
     if (type === 1) return i18n.documentTypeId;
@@ -135,135 +128,11 @@ export default function AdmissionIndex({ workspace, filters, authorization }: Pa
                     applicationStatuses={workspace.applications.map((app) => app.status)}
                 />
 
-                <section aria-label={i18n.admission.periodsTitle} className="flex flex-col gap-3">
-                    <h2 className="sis-ops-hub__section-title text-base">{i18n.admission.periodsTitle}</h2>
-                    {authorization.can_manage ? (
-                        <Form
-                            action="/admission/periods"
-                            method="post"
-                            className="border-border grid gap-3 rounded-xl border p-4 md:grid-cols-2"
-                            options={{ preserveScroll: true }}
-                        >
-                            {({ errors, processing }) => (
-                                <>
-                                    <OpsFormField
-                                        label={i18n.admission.academicYearId}
-                                        name="academic_year_id"
-                                        error={errors.academic_year_id}
-                                    >
-                                        <OpsTextInput
-                                            name="academic_year_id"
-                                            type="number"
-                                            min={1}
-                                            required
-                                            defaultValue={filters.academic_year_id ?? undefined}
-                                            error={errors.academic_year_id}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.periodName}
-                                        name="name"
-                                        error={errors.name}
-                                    >
-                                        <OpsTextInput name="name" required error={errors.name} />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.startDate}
-                                        name="start_date"
-                                        error={errors.start_date}
-                                    >
-                                        <OpsTextInput
-                                            name="start_date"
-                                            type="datetime-local"
-                                            required
-                                            error={errors.start_date}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.endDate}
-                                        name="end_date"
-                                        error={errors.end_date}
-                                    >
-                                        <OpsTextInput
-                                            name="end_date"
-                                            type="datetime-local"
-                                            required
-                                            error={errors.end_date}
-                                        />
-                                    </OpsFormField>
-                                    <OpsFormField
-                                        label={i18n.admission.maxApplications}
-                                        name="max_applications"
-                                        error={errors.max_applications}
-                                    >
-                                        <OpsTextInput
-                                            name="max_applications"
-                                            type="number"
-                                            min={1}
-                                            error={errors.max_applications}
-                                        />
-                                    </OpsFormField>
-                                    <div className="flex items-end">
-                                        <Button type="submit" disabled={processing}>
-                                            {i18n.admission.openPeriod}
-                                        </Button>
-                                    </div>
-                                </>
-                            )}
-                        </Form>
-                    ) : null}
-
-                    {workspace.periods.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">{i18n.admission.emptyPeriods}</p>
-                    ) : (
-                        <div className="overflow-x-auto rounded-xl border border-black">
-                            <table className="w-full border-collapse text-sm">
-                                <thead>
-                                    <tr>
-                                        <th className="border border-black px-3 py-2 text-start">ID</th>
-                                        <th className="border border-black px-3 py-2 text-start">
-                                            {i18n.admission.periodName}
-                                        </th>
-                                        <th className="border border-black px-3 py-2 text-start">
-                                            {i18n.admission.startDate}
-                                        </th>
-                                        <th className="border border-black px-3 py-2 text-start">
-                                            {i18n.admission.endDate}
-                                        </th>
-                                        <th className="border border-black px-3 py-2 text-start">
-                                            {i18n.admission.maxApplications}
-                                        </th>
-                                        <th className="border border-black px-3 py-2 text-start">
-                                            {i18n.admission.periodStatus}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {workspace.periods.map((period) => (
-                                        <tr key={period.id}>
-                                            <td className="border border-black px-3 py-2" dir="ltr">
-                                                {period.id}
-                                            </td>
-                                            <td className="border border-black px-3 py-2">{period.name}</td>
-                                            <td className="border border-black px-3 py-2" dir="ltr">
-                                                {period.start_date}
-                                            </td>
-                                            <td className="border border-black px-3 py-2" dir="ltr">
-                                                {period.end_date}
-                                            </td>
-                                            <td className="border border-black px-3 py-2" dir="ltr">
-                                                {period.max_applications ?? '—'}
-                                            </td>
-                                            <td className="border border-black px-3 py-2">
-                                                {periodStatusLabel(period.status)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
+                <AdmissionPeriodsCard
+                    periods={workspace.periods}
+                    academicYearId={filters.academic_year_id}
+                    canManage={authorization.can_manage}
+                />
 
                 <section aria-label={i18n.admission.applicationsTitle} className="flex flex-col gap-3">
                     <h2 className="sis-ops-hub__section-title text-base">

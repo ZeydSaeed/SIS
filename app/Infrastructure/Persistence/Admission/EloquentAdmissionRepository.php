@@ -6,6 +6,7 @@ use App\Database\SchemaHelper;
 use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
+use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use Illuminate\Support\Facades\DB;
@@ -84,6 +85,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'id',
                 'school_id',
                 'academic_year_id',
+                'name',
                 'status',
                 'start_date',
                 'end_date',
@@ -98,11 +100,33 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'id' => (int) $row->id,
             'school_id' => (int) $row->school_id,
             'academic_year_id' => (int) $row->academic_year_id,
+            'name' => (string) $row->name,
             'status' => (int) $row->status,
             'start_date' => (string) $row->start_date,
             'end_date' => (string) $row->end_date,
             'max_applications' => $row->max_applications !== null ? (int) $row->max_applications : null,
         ];
+    }
+
+    public function updatePeriod(UpdateApplicationPeriodData $data): void
+    {
+        DB::table(SchemaHelper::qualified('admission', 'application_periods'))
+            ->where('id', $data->periodId)
+            ->update([
+                'name' => $data->name,
+                'start_date' => $data->startDate,
+                'end_date' => $data->endDate,
+                'max_applications' => $data->maxApplications,
+            ]);
+    }
+
+    public function updatePeriodStatus(int $periodId, int $status): void
+    {
+        DB::table(SchemaHelper::qualified('admission', 'application_periods'))
+            ->where('id', $periodId)
+            ->update([
+                'status' => $status,
+            ]);
     }
 
     public function countApplicationsInPeriod(int $periodId): int

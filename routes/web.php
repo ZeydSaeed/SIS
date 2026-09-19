@@ -40,6 +40,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admission')->name('admission.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [AdmissionPageController::class, 'index'])->name('index');
         Route::post('/periods', [AdmissionPageController::class, 'storePeriod'])->name('periods.store');
+        Route::put('/periods/{period}', [AdmissionPageController::class, 'updatePeriod'])
+            ->whereNumber('period')
+            ->name('periods.update');
+        Route::patch('/periods/{period}/status', [AdmissionPageController::class, 'changePeriodStatus'])
+            ->whereNumber('period')
+            ->name('periods.status');
+        Route::post('/periods/{period}/archive', [AdmissionPageController::class, 'archivePeriod'])
+            ->whereNumber('period')
+            ->name('periods.archive');
         Route::post('/applications', [AdmissionPageController::class, 'storeApplication'])->name('applications.store');
         Route::post('/applications/{application}/transition', [AdmissionPageController::class, 'transition'])
             ->whereNumber('application')

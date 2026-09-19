@@ -20,6 +20,7 @@ final class CreateApplicationDraftGuard
      *     id:int,
      *     school_id:int,
      *     academic_year_id:int,
+     *     name:string,
      *     status:int,
      *     start_date:string,
      *     end_date:string,

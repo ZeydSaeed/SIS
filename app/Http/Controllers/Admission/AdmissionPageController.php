@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admission;
 
+use App\Application\Admission\Commands\ChangeApplicationPeriodStatusCommand;
+use App\Application\Admission\Commands\ChangeApplicationPeriodStatusHandler;
 use App\Application\Admission\Commands\ConvertApplicationToStudentCommand;
 use App\Application\Admission\Commands\ConvertApplicationToStudentHandler;
 use App\Application\Admission\Commands\CreateApplicationDraftCommand;
@@ -12,14 +14,20 @@ use App\Application\Admission\Commands\RegisterApplicationDocumentCommand;
 use App\Application\Admission\Commands\RegisterApplicationDocumentHandler;
 use App\Application\Admission\Commands\TransitionApplicationStatusCommand;
 use App\Application\Admission\Commands\TransitionApplicationStatusHandler;
+use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
+use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
+use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admission\ArchiveApplicationPeriodRequest;
+use App\Http\Requests\Admission\ChangeApplicationPeriodStatusRequest;
 use App\Http\Requests\Admission\ConvertApplicationRequest;
 use App\Http\Requests\Admission\CreateApplicationDraftRequest;
 use App\Http\Requests\Admission\OpenApplicationPeriodRequest;
 use App\Http\Requests\Admission\RegisterApplicationDocumentRequest;
 use App\Http\Requests\Admission\TransitionApplicationStatusRequest;
+use App\Http\Requests\Admission\UpdateApplicationPeriodRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -104,6 +112,101 @@ final class AdmissionPageController extends Controller
         return redirect()
             ->route('admission.index', ['academic_year_id' => $request->validated('academic_year_id')])
             ->with('success', 'Application period opened.');
+    }
+
+    public function updatePeriod(
+        UpdateApplicationPeriodRequest $request,
+        int $period,
+        UpdateApplicationPeriodHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $academicYearId = (int) $request->validated('academic_year_id');
+        $result = $handler->handle(new UpdateApplicationPeriodCommand(
+            schoolId: $schoolId,
+            academicYearId: $academicYearId,
+            periodId: $period,
+            name: (string) $request->validated('name'),
+            startDate: (string) $request->validated('start_date'),
+            endDate: (string) $request->validated('end_date'),
+            maxApplications: $request->validated('max_applications'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.period.update',
+            'updated',
+            $request->user(),
+            "admission_period:{$result->periodId}",
+        );
+
+        return redirect()
+            ->route('admission.index', ['academic_year_id' => $academicYearId])
+            ->with('success', 'Application period updated.');
+    }
+
+    public function changePeriodStatus(
+        ChangeApplicationPeriodStatusRequest $request,
+        int $period,
+        ChangeApplicationPeriodStatusHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $academicYearId = (int) $request->validated('academic_year_id');
+        $result = $handler->handle(new ChangeApplicationPeriodStatusCommand(
+            schoolId: $schoolId,
+            academicYearId: $academicYearId,
+            periodId: $period,
+            status: (int) $request->validated('status'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.period.status',
+            'updated',
+            $request->user(),
+            "admission_period:{$period}",
+            [
+                'from_status' => $result->fromStatus,
+                'to_status' => $result->toStatus,
+            ],
+        );
+
+        return redirect()
+            ->route('admission.index', ['academic_year_id' => $academicYearId])
+            ->with('success', 'Application period status updated.');
+    }
+
+    public function archivePeriod(
+        ArchiveApplicationPeriodRequest $request,
+        int $period,
+        ChangeApplicationPeriodStatusHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $academicYearId = (int) $request->validated('academic_year_id');
+        $result = $handler->handle(new ChangeApplicationPeriodStatusCommand(
+            schoolId: $schoolId,
+            academicYearId: $academicYearId,
+            periodId: $period,
+            status: ApplicationPeriodStatus::Archived->value,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.period.archive',
+            'archived',
+            $request->user(),
+            "admission_period:{$period}",
+            [
+                'from_status' => $result->fromStatus,
+                'to_status' => $result->toStatus,
+            ],
+        );
+
+        return redirect()
+            ->route('admission.index', ['academic_year_id' => $academicYearId])
+            ->with('success', 'Application period archived.');
     }
 
     public function storeApplication(
