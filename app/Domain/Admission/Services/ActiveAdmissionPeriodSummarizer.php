@@ -74,6 +74,25 @@ final class ActiveAdmissionPeriodSummarizer
     }
 
     /**
+     * @param  list<array{id:int}>  $summaries
+     * @return array<string, mixed>|null
+     */
+    public function selectedSummary(array $summaries, ?int $selectedId): ?array
+    {
+        if ($selectedId === null) {
+            return null;
+        }
+
+        foreach ($summaries as $summary) {
+            if ($summary['id'] === $selectedId) {
+                return $summary;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $applications
      * @return list<array<string, mixed>>
      */
