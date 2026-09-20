@@ -18,6 +18,11 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { Button } from '@/components/ui/button';
+import { useAdmissionSearchQuery } from '@/components/admission/admission-search-context';
+import {
+    admissionQueryMatches,
+    admissionSearchSegments,
+} from '@/components/admission/admission-workspace';
 import { t } from '@/i18n';
 
 export type AdmissionPeriodRow = {
@@ -90,12 +95,13 @@ type PeriodEditorRowProps = {
     canManage: boolean;
     selected: boolean;
     editing: boolean;
+    searchQuery: string;
     onSelect: (periodId: number) => void;
     onSaved: () => void;
 };
 
 const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(function PeriodEditorRow(
-    { period, academicYearId, canManage, selected, editing, onSelect, onSaved },
+    { period, academicYearId, canManage, selected, editing, searchQuery, onSelect, onSaved },
     ref,
 ) {
     const i18n = t().admission;
@@ -190,7 +196,15 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                         onChange={(event) => setName(event.target.value)}
                     />
                 ) : (
-                    period.name
+                    admissionSearchSegments(period.name, searchQuery).map((segment, index) =>
+                        segment.hit ? (
+                            <mark key={`hit-${index}`} className="sis-admission-search-hit">
+                                {segment.text}
+                            </mark>
+                        ) : (
+                            <span key={`plain-${index}`}>{segment.text}</span>
+                        ),
+                    )
                 )}
             </td>
             <td className="sis-admission-periods-table__when-cell">
@@ -260,6 +274,7 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
 
 export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Props) {
     const i18n = t();
+    const searchQuery = useAdmissionSearchQuery();
     const selectedRowRef = useRef<PeriodRowHandle>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [editing, setEditing] = useState(false);
@@ -269,15 +284,27 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
         () => [...periods].sort((left, right) => left.id - right.id),
         [periods],
     );
+    const visible = useMemo(() => {
+        if (searchQuery.trim() === '') {
+            return sorted;
+        }
+
+        return sorted.filter((period) =>
+            admissionQueryMatches(
+                [period.name, period.start_date, period.end_date, String(period.id)].join(' '),
+                searchQuery,
+            ),
+        );
+    }, [searchQuery, sorted]);
     const yearReady = academicYearId !== null;
     const hasSelection = selectedId !== null;
 
     useEffect(() => {
-        if (selectedId !== null && !sorted.some((period) => period.id === selectedId)) {
+        if (selectedId !== null && !visible.some((period) => period.id === selectedId)) {
             setSelectedId(null);
             setEditing(false);
         }
-    }, [selectedId, sorted]);
+    }, [selectedId, visible]);
 
     const selectRow = useCallback((periodId: number) => {
         setSelectedId(periodId);
@@ -445,6 +472,8 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
 
                 {sorted.length === 0 ? (
                     <p className="text-muted-foreground text-sm">{i18n.admission.emptyPeriods}</p>
+                ) : visible.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">{i18n.admission.emptySearch}</p>
                 ) : (
                     <div className="sis-admission-periods-table">
                         <div className="sis-admission-periods-table__scroller" data-allow-x-scroll>
@@ -462,7 +491,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                 </tr>
                             </thead>
                             <tbody>
-                                {sorted.map((period) => (
+                                {visible.map((period) => (
                                     <PeriodEditorRow
                                         key={period.id}
                                         ref={selectedId === period.id ? selectedRowRef : null}
@@ -471,6 +500,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                         canManage={canManage}
                                         selected={selectedId === period.id}
                                         editing={editing && selectedId === period.id}
+                                        searchQuery={searchQuery}
                                         onSelect={selectRow}
                                         onSaved={exitEditing}
                                     />

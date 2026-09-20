@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { UserPlus } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
@@ -18,10 +18,9 @@ import { AdmissionWorkflowProgress } from '@/components/admission/admission-work
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { SisSearchField } from '@/components/sis/sis-search-field';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
-
-const SEARCH_DEBOUNCE_MS = 300;
 
 /** Ionicons arrow-up-right-box-outline — local SVG, no remote icon package. */
 function ArrowUpRightBoxIcon() {
@@ -88,20 +87,23 @@ export function AdmissionPageShell({
     const i18n = t();
     const [draftOpen, setDraftOpen] = useState(false);
     const filtersQ = searchFromPageFilters(usePage().props.filters);
-    const [search, setSearch] = useState(filtersQ);
-    const skipSearchVisit = useRef(true);
-
-    useEffect(() => {
-        setSearch(filtersQ);
-    }, [filtersQ]);
+    const searchDraftRef = useRef(filtersQ);
+    const academicYearIdRef = useRef(academicYearId);
+    const periodQueryIdRef = useRef(0);
+    const yearFilterActionRef = useRef(yearFilterAction);
 
     const selectedPeriodId = workspace.selected_period_id ?? null;
     const periodQueryId = selectedPeriodId ?? ADMISSION_PERIOD_FILTER_ALL;
+
+    academicYearIdRef.current = academicYearId;
+    periodQueryIdRef.current = periodQueryId;
+    yearFilterActionRef.current = yearFilterAction;
+
     const workspaceQuery = admissionWorkspaceQuery(
         academicYearId,
         periodQueryId,
         null,
-        search,
+        filtersQ,
     );
     const titlebarHome = useMemo(
         () => ({
@@ -111,51 +113,39 @@ export function AdmissionPageShell({
                     academicYearId,
                     periodQueryId,
                     null,
-                    search,
+                    filtersQ,
                 )}`,
             ariaLabel: i18n.admission.backToAdmission,
         }),
         [
             academicYearId,
+            filtersQ,
             homeHref,
             i18n.admission.backToAdmission,
             periodQueryId,
-            search,
         ],
     );
 
     useRegisterPageTitlebarHome(titlebarHome);
 
-    useEffect(() => {
-        if (skipSearchVisit.current) {
-            skipSearchVisit.current = false;
-
-            return;
-        }
-
-        if (search.trim() === filtersQ.trim()) {
-            return;
-        }
-
-        const timer = window.setTimeout(() => {
-            router.visit(
-                `${yearFilterAction}${admissionWorkspaceQuery(
-                    academicYearId,
-                    periodQueryId,
-                    1,
-                    search,
-                )}`,
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                    only: ['workspace', 'filters'],
-                },
-            );
-        }, SEARCH_DEBOUNCE_MS);
-
-        return () => window.clearTimeout(timer);
-    }, [academicYearId, filtersQ, periodQueryId, search, yearFilterAction]);
+    const commitSearch = useCallback((query: string) => {
+        searchDraftRef.current = query;
+        router.visit(
+            `${yearFilterActionRef.current}${admissionWorkspaceQuery(
+                academicYearIdRef.current,
+                periodQueryIdRef.current,
+                1,
+                query,
+            )}`,
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ['workspace', 'filters'],
+                showProgress: false,
+            },
+        );
+    }, []);
 
     const handlePeriodSelect = (periodId: number) => {
         const next = periodId > 0 ? periodId : ADMISSION_PERIOD_FILTER_ALL;
@@ -164,7 +154,12 @@ export function AdmissionPageShell({
         }
 
         router.visit(
-            `${yearFilterAction}${admissionWorkspaceQuery(academicYearId, next, 1, search)}`,
+            `${yearFilterAction}${admissionWorkspaceQuery(
+                academicYearId,
+                next,
+                1,
+                searchDraftRef.current,
+            )}`,
         );
     };
 
@@ -178,9 +173,16 @@ export function AdmissionPageShell({
         }
 
         const stagePath = ADMISSION_STAGE_PATHS[status];
+        const liveQuery = admissionWorkspaceQuery(
+            academicYearId,
+            periodQueryId,
+            null,
+            searchDraftRef.current,
+        );
+
         if (stagePath) {
             if (activeStatus !== status) {
-                router.visit(`${stagePath}${workspaceQuery}`);
+                router.visit(`${stagePath}${liveQuery}`);
             }
 
             return;
@@ -191,7 +193,7 @@ export function AdmissionPageShell({
             return;
         }
 
-        router.visit(`/admission${workspaceQuery}`);
+        router.visit(`/admission${liveQuery}`);
     };
 
     return (
@@ -209,6 +211,7 @@ export function AdmissionPageShell({
                                 periods={workspace.active_periods ?? []}
                                 selectedPeriodId={selectedPeriodId}
                                 onPeriodSelect={handlePeriodSelect}
+                                searchQuery={activeStatus === null ? filtersQ : ''}
                             />
                         </div>
                         <div className="sis-admission-filter-stack">
@@ -217,7 +220,11 @@ export function AdmissionPageShell({
                                     action={yearFilterAction}
                                     academicYearId={academicYearId}
                                     extraParams={{
-                                        q: search.trim() || undefined,
+                                        get q() {
+                                            const value = searchDraftRef.current.trim();
+
+                                            return value === '' ? undefined : value;
+                                        },
                                     }}
                                     label={t().enrollments.academicYear}
                                     showLabel
@@ -232,19 +239,15 @@ export function AdmissionPageShell({
                                     onPeriodSelect={handlePeriodSelect}
                                 />
                             </div>
-                            <label className="sis-admission-search">
-                                <span className="sr-only">{t().admission.searchStudents}</span>
-                                <input
-                                    type="search"
-                                    value={search}
-                                    maxLength={80}
-                                    autoComplete="off"
-                                    placeholder={t().admission.searchStudents}
-                                    aria-label={t().admission.searchStudents}
-                                    className="sis-admission-search__input"
-                                    onChange={(event) => setSearch(event.target.value)}
-                                />
-                            </label>
+                            <SisSearchField
+                                committedQuery={filtersQ}
+                                label={t().admission.searchStudents}
+                                placeholder={t().admission.searchStudents}
+                                onDraftChange={(query) => {
+                                    searchDraftRef.current = query;
+                                }}
+                                onCommit={commitSearch}
+                            />
                         </div>
                     </div>
                     <div className="sis-admission-workflow-title-row">
@@ -285,7 +288,7 @@ export function AdmissionPageShell({
                 />
 
                 <div className="sis-admission-page-body">
-                    <AdmissionSearchProvider value={search}>{children}</AdmissionSearchProvider>
+                    <AdmissionSearchProvider value={filtersQ}>{children}</AdmissionSearchProvider>
                 </div>
             </div>
         </AppLayout>

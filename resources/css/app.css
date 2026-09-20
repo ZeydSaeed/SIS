@@ -1500,11 +1500,12 @@ input[type='reset']:disabled {
 }
 
 .sis-students-page .sis-admission-drafts-table {
-    --sis-admission-drafts-row-h: 2rem;
+    --sis-admission-drafts-row-h: 2.1rem;
 }
 
 .sis-students-page .sis-admission-drafts-table__scroller {
     overflow-x: hidden;
+    overflow-y: hidden;
 }
 
 .sis-students-page .sis-admission-drafts-table table {
@@ -1517,7 +1518,7 @@ input[type='reset']:disabled {
 
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th,
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td {
-    padding-block: 0.2rem;
+    padding-block: 0.12rem;
     padding-inline: 0.45rem;
     font-family: var(--sis-font-stack);
     font-size: 0.78rem;
@@ -1537,14 +1538,18 @@ input[type='reset']:disabled {
 }
 
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td {
-    height: auto;
+    height: var(--sis-admission-drafts-row-h);
     min-height: var(--sis-admission-drafts-row-h);
-    max-height: none;
+    max-height: var(--sis-admission-drafts-row-h);
     white-space: nowrap;
     overflow-wrap: normal;
     word-break: normal;
     overflow: hidden;
     text-overflow: clip;
+}
+
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table tbody tr {
+    height: var(--sis-admission-drafts-row-h);
 }
 
 .sis-students-page .sis-students-table__cell-scroll {

@@ -25,6 +25,7 @@ import {
 } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { PageHeader } from '@/components/sis/page-header';
+import { SisSearchField } from '@/components/sis/sis-search-field';
 import { StudentViewDialog } from '@/components/students/student-record-form';
 import {
     useRegisterPageRibbon,
@@ -39,7 +40,6 @@ import { t } from '@/i18n';
 
 export type { StudentAuthorization };
 
-const SEARCH_DEBOUNCE_MS = 300;
 const STUDENTS_PER_PAGE = 15;
 const STUDENT_STATUS_WITHDRAWN = 4;
 
@@ -167,6 +167,7 @@ type VisitParams = {
     page?: number;
     per_page?: number;
     student?: number | null;
+    quiet?: boolean;
 };
 
 function textOrDash(value: string | number | null | undefined): string {
@@ -767,7 +768,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
 
 export function StudentList({ students, filters, authorization }: StudentListProps) {
     const i18n = t();
-    const [search, setSearch] = useState(filters.q);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
@@ -777,10 +777,11 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     const [deleteTarget, setDeleteTarget] = useState<StudentListItem | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [applyingStatus, setApplyingStatus] = useState(false);
-    const skipSearchVisit = useRef(true);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
+    const filtersRef = useRef(filters);
     const rowRefs = useRef(new Map<number, StudentRowHandle>());
+    filtersRef.current = filters;
     const rows = students?.data ?? [];
     const pagination = students?.meta ?? {
         page: filters.page,
@@ -801,10 +802,6 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     const overallPercent = clampPercent(students.status_progress?.overall_percent ?? 0);
 
     useEffect(() => {
-        setSearch(filters.q);
-    }, [filters.q]);
-
-    useEffect(() => {
         if (selectAllRef.current) {
             selectAllRef.current.indeterminate = someChecked;
         }
@@ -815,30 +812,34 @@ export function StudentList({ students, filters, authorization }: StudentListPro
         ariaLabel: i18n.students.backToStudents,
     });
 
-    const visitList = useCallback(
-        (params: VisitParams) => {
-            const nextStatus = 'status' in params ? params.status : filters.status;
-            const nextStudent = 'student' in params ? params.student : undefined;
+    const visitList = useCallback((params: VisitParams) => {
+        const current = filtersRef.current;
+        const nextStatus = 'status' in params ? params.status : current.status;
+        const nextStudent = 'student' in params ? params.student : undefined;
+        const nextQuery = ('q' in params ? params.q : current.q) ?? '';
 
-            router.get(
-                '/students',
-                {
-                    q: (params.q ?? filters.q).trim() || undefined,
-                    page: params.page ?? filters.page,
-                    per_page: STUDENTS_PER_PAGE,
-                    status: nextStatus ?? undefined,
-                    student: nextStudent ?? undefined,
-                },
-                {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: nextStudent === undefined,
-                    only: ['students', 'filters', 'preview', 'authorization'],
-                },
-            );
-        },
-        [filters.page, filters.q, filters.status],
-    );
+        router.get(
+            '/students',
+            {
+                q: nextQuery.trim() || undefined,
+                page: params.page ?? current.page,
+                per_page: STUDENTS_PER_PAGE,
+                status: nextStatus ?? undefined,
+                student: nextStudent ?? undefined,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: nextStudent === undefined,
+                only: ['students', 'filters', 'preview', 'authorization'],
+                showProgress: params.quiet !== true,
+            },
+        );
+    }, []);
+
+    const commitSearch = useCallback((query: string) => {
+        visitList({ q: query, page: 1, student: undefined, quiet: true });
+    }, [visitList]);
 
     const selectRow = useCallback((studentId: number) => {
         setSelectedId(studentId);
@@ -864,24 +865,6 @@ export function StudentList({ students, filters, authorization }: StudentListPro
         setEditingIds([]);
         setSavingRows(false);
     }, []);
-
-    useEffect(() => {
-        if (skipSearchVisit.current) {
-            skipSearchVisit.current = false;
-
-            return;
-        }
-
-        if (search.trim() === filters.q.trim()) {
-            return;
-        }
-
-        const timer = window.setTimeout(() => {
-            visitList({ q: search, page: 1, student: undefined });
-        }, SEARCH_DEBOUNCE_MS);
-
-        return () => window.clearTimeout(timer);
-    }, [filters.q, search, visitList]);
 
     useEffect(() => {
         const table = tableRef.current;
@@ -1190,19 +1173,12 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                         }
                     />
                     <div className="sis-admission-filter-stack">
-                        <label className="sis-admission-search">
-                            <span className="sr-only">{i18n.students.searchAria}</span>
-                            <input
-                                type="search"
-                                value={search}
-                                maxLength={80}
-                                autoComplete="off"
-                                placeholder={i18n.students.search}
-                                aria-label={i18n.students.searchAria}
-                                className="sis-admission-search__input"
-                                onChange={(event) => setSearch(event.target.value)}
-                            />
-                        </label>
+                        <SisSearchField
+                            committedQuery={filters.q}
+                            label={i18n.students.searchAria}
+                            placeholder={i18n.students.search}
+                            onCommit={commitSearch}
+                        />
                     </div>
                     <div aria-hidden="true" />
                 </div>
@@ -1365,7 +1341,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                                         checked={checked}
                                                         editing={editing && editingIds.includes(row.id)}
                                                         applyingStatus={applyingStatus}
-                                                        search={search}
+                                                        search={filters.q}
                                                         onSelect={selectRow}
                                                         onToggleChecked={toggleChecked}
                                                     />

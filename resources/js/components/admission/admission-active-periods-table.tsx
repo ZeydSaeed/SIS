@@ -1,10 +1,15 @@
-import type { AdmissionActivePeriodSummary } from '@/components/admission/admission-workspace';
+import {
+    admissionQueryMatches,
+    admissionSearchSegments,
+    type AdmissionActivePeriodSummary,
+} from '@/components/admission/admission-workspace';
 import { t } from '@/i18n';
 
 type Props = {
     periods: AdmissionActivePeriodSummary[];
     selectedPeriodId?: number | null;
     onPeriodSelect?: (periodId: number) => void;
+    searchQuery?: string;
 };
 
 /** Compact active-period capacity table — same palette as periods registration table. */
@@ -12,12 +17,22 @@ export function AdmissionActivePeriodsTable({
     periods,
     selectedPeriodId = null,
     onPeriodSelect,
+    searchQuery = '',
 }: Props) {
     const i18n = t().admission;
+    const visible = searchQuery.trim() === ''
+        ? periods
+        : periods.filter((period) => admissionQueryMatches(period.name, searchQuery));
 
     if (periods.length === 0) {
         return (
             <p className="sis-admission-active-periods__empty">{i18n.noActivePeriod}</p>
+        );
+    }
+
+    if (visible.length === 0) {
+        return (
+            <p className="sis-admission-active-periods__empty">{i18n.emptySearch}</p>
         );
     }
 
@@ -35,7 +50,7 @@ export function AdmissionActivePeriodsTable({
                         </tr>
                     </thead>
                     <tbody>
-                        {periods.map((period) => {
+                        {visible.map((period) => {
                             const selected = selectedPeriodId === period.id;
                             const remainingValue =
                                 period.remaining ?? i18n.unlimitedCapacity;
@@ -53,7 +68,21 @@ export function AdmissionActivePeriodsTable({
                                     }
                                     onClick={() => onPeriodSelect?.(period.id)}
                                 >
-                                    <td>{period.name}</td>
+                                    <td>
+                                        {admissionSearchSegments(period.name, searchQuery).map(
+                                            (segment, index) =>
+                                                segment.hit ? (
+                                                    <mark
+                                                        key={`hit-${index}`}
+                                                        className="sis-admission-search-hit"
+                                                    >
+                                                        {segment.text}
+                                                    </mark>
+                                                ) : (
+                                                    <span key={`plain-${index}`}>{segment.text}</span>
+                                                ),
+                                        )}
+                                    </td>
                                     <td className="sis-admission-periods-table__max" dir="ltr">
                                         {maxValue}
                                     </td>

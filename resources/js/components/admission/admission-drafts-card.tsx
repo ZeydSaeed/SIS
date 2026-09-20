@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { Home, Pencil, Save, Trash2 } from 'lucide-react';
 import {
     forwardRef,
@@ -424,10 +424,7 @@ export function AdmissionDraftsCard({
     homeHref = null,
 }: Props) {
     const i18n = t();
-    const filters = usePage().props.filters as { q?: string | null } | undefined;
-    const liveSearch = useAdmissionSearchQuery();
-    const filtersSearch = typeof filters?.q === 'string' ? filters.q : '';
-    const searchQuery = liveSearch.trim() !== '' ? liveSearch : filtersSearch;
+    const searchQuery = useAdmissionSearchQuery();
     const selectedRowRef = useRef<DraftRowHandle>(null);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -457,6 +454,10 @@ export function AdmissionDraftsCard({
         );
     const canEditStage = status !== ADMISSION_STATUS_CONVERTED;
     const emptyMessage = (() => {
+        if (searchQuery.trim() !== '') {
+            return i18n.admission.emptySearch;
+        }
+
         switch (status) {
             case ADMISSION_STATUS_DRAFT:
                 return i18n.admission.emptyDrafts;

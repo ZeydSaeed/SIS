@@ -417,6 +417,7 @@ export const ar = {
         selectAllApplications: 'اختيار الكل',
         transitionsNeedSelection: 'اختر طالباً واحداً أو أكثر ثم اختر الانتقال',
         emptyPeriods: 'لا توجد فترات تسجيل طلاب لهذه السنة.',
+        emptySearch: 'لا توجد نتائج مطابقة للبحث.',
         emptyApplications: 'لا توجد طلبات قبول لهذه السنة.',
         emptyDrafts: 'لا توجد مسودات لهذه السنة.',
         emptySubmitted: 'لا توجد طلبات مُرسلة لهذه السنة.',

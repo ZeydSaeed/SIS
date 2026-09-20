@@ -168,6 +168,14 @@ export function admissionApplicationFullName(app: AdmissionApplication): string 
 }
 
 /** Split a name into plain / match segments for yellow search highlighting. */
+export function admissionQueryMatches(text: string, query: string): boolean {
+    if (query.trim() === '') {
+        return true;
+    }
+
+    return admissionSearchSegments(text, query).some((segment) => segment.hit);
+}
+
 export function admissionSearchSegments(
     text: string,
     query: string,
