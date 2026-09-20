@@ -170,6 +170,27 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
     }
 
     /**
+     * @return array<int, int>
+     */
+    public function countByStatus(int $schoolId): array
+    {
+        $rows = StudentRecord::query()
+            ->toBase()
+            ->select('status')
+            ->selectRaw('COUNT(*) as total')
+            ->where('school_id', $schoolId)
+            ->groupBy('status')
+            ->get();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(int) $row->status] = (int) $row->total;
+        }
+
+        return $counts;
+    }
+
+    /**
      * @return array{items: list<StudentListItemDTO>, pagination: array{page: int, per_page: int, total: int, last_page: int}}
      */
     private function paginateQuery(Builder $query, int $page, int $perPage): array

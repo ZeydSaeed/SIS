@@ -69,6 +69,11 @@ final class StudentUiTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('students/index')
                 ->has('students.data')
+                ->has('students.status_progress')
+                ->where('students.status_progress.overall_percent', 100)
+                ->where('students.status_progress.stages.0.percent', 100)
+                ->where('students.status_progress.stages.1.status', 1)
+                ->where('students.status_progress.stages.1.percent', 100)
                 ->has('authorization')
                 ->where('authorization.canView', true));
     }

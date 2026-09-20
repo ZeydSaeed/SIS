@@ -25,9 +25,6 @@ final class SearchStudentsHandler implements QueryHandler
             $query->status,
         );
 
-        return new StudentListPageDTO(
-            items: $page['items'],
-            pagination: $page['pagination'],
-        );
+        return StudentListPageDTO::fromPage($page, $this->students->countByStatus($query->schoolId));
     }
 }

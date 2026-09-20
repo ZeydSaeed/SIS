@@ -1540,11 +1540,29 @@ input[type='reset']:disabled {
     height: auto;
     min-height: var(--sis-admission-drafts-row-h);
     max-height: none;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
     overflow: hidden;
-    text-overflow: unset;
+    text-overflow: clip;
+}
+
+.sis-students-page .sis-students-table__cell-scroll {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sis-students-page .sis-students-table__cell-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-admission-drafts-table__num,
@@ -1557,24 +1575,24 @@ input[type='reset']:disabled {
     overflow-wrap: normal;
     word-break: normal;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
 }
 
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th.sis-admission-drafts-table__num,
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-admission-drafts-table__num {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    max-width: 2.75rem;
-    padding-inline: 0.2rem;
+    width: 1.5rem;
+    min-width: 1.5rem;
+    max-width: 1.5rem;
+    padding-inline: 0.06rem;
     overflow: visible;
     text-overflow: unset;
 }
 
 .sis-students-page .sis-admission-drafts-table__num {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    max-width: 2.75rem;
-    padding-inline: 0.2rem;
+    width: 1.5rem;
+    min-width: 1.5rem;
+    max-width: 1.5rem;
+    padding-inline: 0.06rem;
     font-size: 0.78rem;
 }
 
@@ -1592,11 +1610,13 @@ input[type='reset']:disabled {
     margin: 0 auto;
 }
 
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th.sis-admission-drafts-table__name-head,
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-admission-drafts-table__name,
 .sis-students-page .sis-admission-drafts-table__name,
 .sis-students-page .sis-admission-drafts-table__name-head {
-    width: 14%;
-    min-width: 0;
-    max-width: none;
+    width: 15rem;
+    min-width: 15rem;
+    max-width: 15rem;
 }
 
 .sis-students-page .sis-admission-drafts-table__name-head {
@@ -1608,7 +1628,12 @@ input[type='reset']:disabled {
 .sis-students-page .sis-admission-drafts-table__name {
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
+}
+
+.sis-students-page .sis-admission-drafts-table tbody td:has(.sis-students-table__name-edit),
+.sis-students-page .sis-admission-drafts-table tbody td:has(.sis-students-table__edit-input) {
+    overflow: hidden;
 }
 
 .sis-students-page .sis-students-table__status {
@@ -1675,6 +1700,25 @@ input[type='reset']:disabled {
 .sis-students-page .sis-admission-drafts-table__text--wide {
     width: auto;
     min-width: 0;
+}
+
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th.sis-students-table__birth,
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-students-table__birth,
+.sis-students-page .sis-students-table__birth {
+    width: 8.5rem;
+    min-width: 8.5rem;
+    max-width: 8.5rem;
+    font-variant-numeric: tabular-nums lining-nums;
+}
+
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th.sis-students-table__mobile,
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-students-table__mobile,
+.sis-students-page .sis-students-table__mobile {
+    width: 7.25rem;
+    min-width: 7.25rem;
+    max-width: 7.25rem;
+    padding-inline: 0.3rem;
+    font-variant-numeric: tabular-nums lining-nums;
 }
 
 .sis-students-page .sis-students-table__edit-input {
@@ -1792,6 +1836,10 @@ input[type='reset']:disabled {
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+}
+
+.sis-students-tabs .sis-admission-progress__percent {
+    flex-shrink: 0;
 }
 
 .sis-students-tabs .sis-admission-progress__segment--status-all {
@@ -3935,6 +3983,20 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     -ms-overflow-style: none;
 }
 
+.sis-student-view-dialog [data-sis-align-target],
+.sis-student-record-form [data-sis-align-target],
+.sis-student-record-form .sis-admission-draft-control:focus,
+.sis-student-record-form .sis-admission-draft-control:focus-visible,
+.sis-student-record-form .sis-admission-draft-control:focus-within,
+.sis-student-record-form .sis-ops-hub__link.sis-admission-draft-control:focus,
+.sis-student-record-form .sis-ops-hub__link.sis-admission-draft-control:focus-visible,
+.sis-student-record-form .sis-ops-hub__link.sis-admission-draft-control:focus-within,
+.sis-student-record-form .sis-student-record-form__value:focus,
+.sis-student-record-form .sis-student-record-form__value:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 .sis-student-view-dialog::-webkit-scrollbar,
 .sis-student-view-dialog__body::-webkit-scrollbar {
     width: 0;
@@ -3983,6 +4045,117 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.45rem;
+}
+
+.sis-student-record-form .sis-admission-draft-control,
+.sis-student-record-form .sis-ops-hub__link.sis-admission-draft-control {
+    flex-direction: row;
+    justify-content: center;
+    text-align: center;
+    text-align-last: center;
+}
+
+.sis-student-record-form__value {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    text-align: inherit;
+    text-align-last: inherit;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.sis-student-record-form select.sis-student-record-form__value {
+    cursor: pointer;
+}
+
+.sis-student-record-form select.sis-student-record-form__value option {
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+}
+
+.sis-student-record-form select.sis-student-record-form__value option:checked,
+.sis-student-record-form select.sis-student-record-form__value option:hover {
+    background: var(--sis-oxford);
+    color: var(--sis-pearl);
+}
+
+.sis-student-record-form textarea.sis-student-record-form__value {
+    height: auto;
+    min-height: 1.7rem;
+    resize: vertical;
+}
+
+.sis-student-record-form__value::-webkit-datetime-edit,
+.sis-student-record-form__value::-webkit-date-and-time-value {
+    width: 100%;
+    text-align: inherit;
+}
+
+.sis-student-record-form__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.8rem;
+    min-height: 1.35rem;
+    height: 1.45rem;
+    padding: 0 0.7rem;
+    border: 0;
+    border-radius: 0;
+    font-family: var(--sis-font-stack);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: none !important;
+    outline: none !important;
+    outline-offset: 0;
+}
+
+.sis-student-record-form__action--edit {
+    background: var(--sis-student-status-all);
+    color: var(--sis-student-status-text-dark);
+}
+
+.sis-student-record-form__action--close {
+    background: var(--sis-oxford);
+    color: var(--sis-pearl);
+}
+
+.sis-student-record-form__action:hover:not(:disabled) {
+    filter: brightness(0.92);
+}
+
+.sis-student-record-form__action:focus,
+.sis-student-record-form__action:focus-visible,
+.sis-student-record-form__action:active {
+    outline: none !important;
+    box-shadow: none !important;
+    border: 0;
+    filter: none;
+}
+
+.sis-student-record-form__action:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    filter: none;
+}
+
+.sis-student-view-dialog button[data-slot='dialog-close']:focus,
+.sis-student-view-dialog button[data-slot='dialog-close']:focus-visible {
+    outline: none;
+    box-shadow: none;
 }
 
 .sis-admission-draft-form textarea.sis-admission-draft-control,

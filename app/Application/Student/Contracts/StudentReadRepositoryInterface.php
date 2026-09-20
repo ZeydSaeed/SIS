@@ -18,4 +18,9 @@ interface StudentReadRepositoryInterface
      * @return array{items: list<StudentListItemDTO>, pagination: array{page: int, per_page: int, total: int, last_page: int}}
      */
     public function search(string $term, int $schoolId, int $page, int $perPage, ?int $status = null): array;
+
+    /**
+     * @return array<int, int> status => count for the school
+     */
+    public function countByStatus(int $schoolId): array;
 }

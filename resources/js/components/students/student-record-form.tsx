@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
-import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -206,6 +205,41 @@ function controlClass(filled: boolean): string {
     return `sis-ops-hub__link sis-admission-draft-control${filled ? ' sis-admission-draft-field--filled' : ''}`;
 }
 
+function StatusLikeButton({
+    children,
+    tone,
+    disabled = false,
+    onClick,
+}: {
+    children: string;
+    tone: 'edit' | 'close';
+    disabled?: boolean;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className={
+                tone === 'close'
+                    ? 'sis-student-record-form__action sis-student-record-form__action--close'
+                    : 'sis-student-record-form__action sis-student-record-form__action--edit'
+            }
+            disabled={disabled}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+                onClick();
+                requestAnimationFrame(() => {
+                    if (document.activeElement instanceof HTMLElement) {
+                        document.activeElement.blur();
+                    }
+                });
+            }}
+        >
+            {children}
+        </button>
+    );
+}
+
 function isFilled(value: string | number | null | undefined): boolean {
     if (value === null || value === undefined) {
         return false;
@@ -236,24 +270,24 @@ function DraftField({
     return (
         <label className="flex flex-col gap-1 text-sm">
             <span>{label}</span>
-            {editing ? (
-                <input
-                    type={type}
-                    dir={dir}
-                    className={controlClass(isFilled(value))}
-                    value={value}
-                    placeholder=" "
-                    aria-label={label}
-                    onChange={(event) => onChange(event.target.value)}
-                />
-            ) : (
-                <div
-                    className={`${controlClass(isFilled(display))} sis-admission-draft-readonly`}
-                    dir={dir}
-                >
-                    {display}
-                </div>
-            )}
+            <div
+                className={`${controlClass(isFilled(editing ? value : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
+                dir={dir}
+            >
+                {editing ? (
+                    <input
+                        type={type}
+                        dir={dir}
+                        className="sis-student-record-form__value"
+                        value={value}
+                        placeholder=" "
+                        aria-label={label}
+                        onChange={(event) => onChange(event.target.value)}
+                    />
+                ) : (
+                    display
+                )}
+            </div>
         </label>
     );
 }
@@ -276,24 +310,26 @@ function DraftSelect({
     return (
         <label className="flex flex-col gap-1 text-sm">
             <span>{label}</span>
-            {editing ? (
-                <select
-                    className={controlClass(true)}
-                    aria-label={label}
-                    value={value}
-                    onChange={(event) => onChange(Number(event.target.value))}
-                >
-                    {options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-            ) : (
-                <div className={`${controlClass(isFilled(display))} sis-admission-draft-readonly`}>
-                    {display}
-                </div>
-            )}
+            <div
+                className={`${controlClass(isFilled(editing ? value : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
+            >
+                {editing ? (
+                    <select
+                        className="sis-student-record-form__value"
+                        aria-label={label}
+                        value={value}
+                        onChange={(event) => onChange(Number(event.target.value))}
+                    >
+                        {options.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    display
+                )}
+            </div>
         </label>
     );
 }
@@ -314,22 +350,22 @@ function DraftNotes({
     return (
         <label className="flex flex-col gap-1 text-sm">
             <span>{label}</span>
-            {editing ? (
-                <textarea
-                    className={controlClass(isFilled(value))}
-                    aria-label={label}
-                    value={value}
-                    placeholder=" "
-                    rows={2}
-                    onChange={(event) => onChange(event.target.value)}
-                />
-            ) : (
-                <div
-                    className={`${controlClass(isFilled(display))} sis-admission-draft-readonly sis-student-record-form__notes`}
-                >
-                    {display}
-                </div>
-            )}
+            <div
+                className={`${controlClass(isFilled(editing ? value : display))} sis-student-record-form__notes${editing ? '' : ' sis-admission-draft-readonly'}`}
+            >
+                {editing ? (
+                    <textarea
+                        className="sis-student-record-form__value"
+                        aria-label={label}
+                        value={value}
+                        placeholder=" "
+                        rows={2}
+                        onChange={(event) => onChange(event.target.value)}
+                    />
+                ) : (
+                    display
+                )}
+            </div>
         </label>
     );
 }
@@ -484,13 +520,13 @@ export function StudentRecordForm({
                     <StudentStatusBadge status={student.status} />
                     {canUpdate ? (
                         editing ? (
-                            <Button type="button" disabled={saving} onClick={save}>
+                            <StatusLikeButton tone="edit" disabled={saving} onClick={save}>
                                 {saving ? i18n.common.saving : i18n.common.save}
-                            </Button>
+                            </StatusLikeButton>
                         ) : (
-                            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+                            <StatusLikeButton tone="edit" onClick={() => setEditing(true)}>
                                 {i18n.common.edit}
-                            </Button>
+                            </StatusLikeButton>
                         )
                     ) : null}
                 </div>
@@ -623,7 +659,7 @@ export function StudentRecordForm({
                     />
                 </div>
 
-                <div className="sis-admission-draft-row sis-admission-draft-row--4">
+                <div className="sis-admission-draft-row sis-admission-draft-row--3">
                     <DraftField
                         label={i18n.students.schoolName}
                         editing={editing}
@@ -644,13 +680,6 @@ export function StudentRecordForm({
                         value={draft.department_name}
                         display={displayValue(student.department_name)}
                         onChange={(value) => setField('department_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.specialization}
-                        editing={editing}
-                        value={draft.specialization_name}
-                        display={displayValue(student.specialization_name)}
-                        onChange={(value) => setField('specialization_name', value)}
                     />
                 </div>
 
@@ -835,7 +864,10 @@ export function StudentViewDialog({
                 className="sis-admission-draft-dialog sis-student-view-dialog max-h-[90vh] overflow-y-auto sm:max-w-5xl"
                 dir="rtl"
                 lang="ar"
+                data-sis-align-exempt=""
                 aria-describedby="student-view-dialog-desc"
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
             >
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
@@ -855,9 +887,9 @@ export function StudentViewDialog({
                     ))}
                 </div>
                 <div className="sis-admission-draft-actions">
-                    <Button type="button" variant="outline" onClick={onClose}>
+                    <StatusLikeButton tone="close" onClick={onClose}>
                         {i18n.window.close}
-                    </Button>
+                    </StatusLikeButton>
                 </div>
             </DialogContent>
         </Dialog>

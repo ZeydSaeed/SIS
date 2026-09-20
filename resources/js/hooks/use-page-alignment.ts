@@ -19,6 +19,8 @@ const TARGET_ATTR = 'data-sis-align-target';
 const ALIGN_ATTR = 'data-sis-align';
 const CHROME_SELECTOR =
     '.sis-chrome, .sis-ribbon, .sis-titlebar, [data-slot="sidebar"], [data-sidebar="sidebar"]';
+const ALIGN_EXEMPT_SELECTOR =
+    '[data-sis-align-exempt], .sis-student-view-dialog, .sis-student-record-form';
 const SURFACE_SELECTOR =
     '.sis-page-surface, [role="dialog"], [data-slot="dialog-content"], [data-slot="sheet-content"]';
 
@@ -77,6 +79,9 @@ const cssEscape = (value: string): string => {
 const isChrome = (node: EventTarget | null): boolean =>
     node instanceof Element && Boolean(node.closest(CHROME_SELECTOR));
 
+const isAlignExempt = (node: EventTarget | null): boolean =>
+    node instanceof Element && Boolean(node.closest(ALIGN_EXEMPT_SELECTOR));
+
 const closestSurface = (element: Element): HTMLElement | null => {
     const surface = element.closest(SURFACE_SELECTOR);
 
@@ -133,7 +138,7 @@ const nearestAlignBox = (element: HTMLElement, surface: HTMLElement): HTMLElemen
 };
 
 const resolveAlignTarget = (target: EventTarget | null): HTMLElement | null => {
-    if (isChrome(target)) {
+    if (isChrome(target) || isAlignExempt(target)) {
         return null;
     }
 
@@ -394,6 +399,11 @@ export function applyPageAlignment(alignment: PageAlignment): void {
 
 const selectFromEvent = (event: Event): void => {
     if (isChrome(event.target)) {
+        return;
+    }
+
+    if (isAlignExempt(event.target)) {
+        markTarget(null);
         return;
     }
 

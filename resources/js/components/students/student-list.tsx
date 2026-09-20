@@ -21,6 +21,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type ReactNode,
 } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { PageHeader } from '@/components/sis/page-header';
@@ -65,6 +66,27 @@ const STUDENT_STATUS_ACTIONS: Array<{
     { status: 3, tone: 'dark' },
     { status: 4, tone: 'light' },
 ];
+
+function clampPercent(value: number): number {
+    if (value < 0) {
+        return 0;
+    }
+
+    if (value > 100) {
+        return 100;
+    }
+
+    return Math.round(value);
+}
+
+function percentForStatus(
+    status: number | null,
+    progress: StudentsPayload['status_progress'],
+): number {
+    const match = progress?.stages.find((stage) => stage.status === status);
+
+    return clampPercent(match?.percent ?? 0);
+}
 
 export type StudentListItem = {
     id: number;
@@ -115,6 +137,10 @@ export type StudentsPayload = {
         per_page: number;
         total: number;
         last_page: number;
+    };
+    status_progress?: {
+        overall_percent: number;
+        stages: Array<{ status: number | null; percent: number }>;
     };
 };
 
@@ -178,6 +204,18 @@ function formatCivilDate(value: string | null | undefined): string {
     return `${match[2]}/${match[3]}/${match[1]}`;
 }
 
+const MOBILE_DIGIT_COUNT = 11;
+
+function maskMobileDigits(value: string): string {
+    return value.replace(/\D/g, '').slice(0, MOBILE_DIGIT_COUNT);
+}
+
+function displayMobile(value: string | null | undefined): string {
+    const digits = maskMobileDigits(value ?? '');
+
+    return digits === '' ? '—' : digits;
+}
+
 function genderLabel(gender: number, i18n: ReturnType<typeof t>): string {
     if (gender === 1) {
         return i18n.students.male;
@@ -188,6 +226,10 @@ function genderLabel(gender: number, i18n: ReturnType<typeof t>): string {
     }
 
     return String(gender);
+}
+
+function CellScroll({ children }: { children: ReactNode }) {
+    return <div className="sis-students-table__cell-scroll">{children}</div>;
 }
 
 function HighlightedText({ text, query }: { text: string; query: string }) {
@@ -303,12 +345,16 @@ function TableEditInput({
     label,
     type = 'text',
     dir,
+    maxLength,
+    inputMode,
     onChange,
 }: {
     value: string;
     label: string;
     type?: string;
     dir?: 'ltr' | 'rtl';
+    maxLength?: number;
+    inputMode?: 'numeric' | 'tel' | 'text';
     onChange: (value: string) => void;
 }) {
     return (
@@ -318,6 +364,9 @@ function TableEditInput({
             value={value}
             aria-label={label}
             dir={dir}
+            maxLength={maxLength}
+            inputMode={inputMode}
+            autoComplete="off"
             onClick={(event) => event.stopPropagation()}
             onChange={(event) => onChange(event.target.value)}
         />
@@ -370,9 +419,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
         const [lastName, setLastName] = useState(row.last_name);
         const [birthDate, setBirthDate] = useState(dateInputValue(row.birth_date));
         const [departmentName, setDepartmentName] = useState(row.department_name ?? '');
-        const [specializationName, setSpecializationName] = useState(
-            row.specialization_name ?? '',
-        );
         const [stageName, setStageName] = useState(row.stage_name ?? '');
         const [governorate, setGovernorate] = useState(row.governorate ?? '');
         const [neighborhood, setNeighborhood] = useState(row.neighborhood ?? '');
@@ -389,7 +435,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
         const [admittedClassName, setAdmittedClassName] = useState(
             row.admitted_class_name ?? '',
         );
-        const [mobile, setMobile] = useState(row.mobile ?? '');
+        const [mobile, setMobile] = useState(() => maskMobileDigits(row.mobile ?? ''));
         const [saving, setSaving] = useState(false);
 
         useEffect(() => {
@@ -404,7 +450,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             setLastName(row.last_name);
             setBirthDate(dateInputValue(row.birth_date));
             setDepartmentName(row.department_name ?? '');
-            setSpecializationName(row.specialization_name ?? '');
             setStageName(row.stage_name ?? '');
             setGovernorate(row.governorate ?? '');
             setNeighborhood(row.neighborhood ?? '');
@@ -415,7 +460,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             );
             setTransferDocumentDate(dateInputValue(row.transfer_document_date));
             setAdmittedClassName(row.admitted_class_name ?? '');
-            setMobile(row.mobile ?? '');
+            setMobile(maskMobileDigits(row.mobile ?? ''));
         }, [editing, row]);
 
         const save = useCallback((): Promise<void> => {
@@ -433,7 +478,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 great_grandfather_name: emptyToNull(greatGrandfatherName),
                 birth_date: birthDate,
                 department_name: emptyToNull(departmentName),
-                specialization_name: emptyToNull(specializationName),
+                specialization_name: row.specialization_name ?? null,
                 admitted_class_name: emptyToNull(admittedClassName),
                 stage_name: emptyToNull(stageName),
                 governorate: emptyToNull(governorate),
@@ -492,7 +537,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             previousSchoolName,
             row,
             saving,
-            specializationName,
             stageName,
             transferDocumentDate,
             transferDocumentNumber,
@@ -561,10 +605,12 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             />
                         </div>
                     ) : (
-                        <HighlightedText text={name} query={search} />
+                        <CellScroll>
+                            <HighlightedText text={name} query={search} />
+                        </CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                <td className="sis-admission-drafts-table__text sis-students-table__nowrap sis-students-table__birth">
                     {editing ? (
                         <input
                             type="date"
@@ -575,7 +621,9 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={(event) => setBirthDate(event.target.value)}
                         />
                     ) : (
-                        <span dir="ltr">{formatCivilDate(row.birth_date)}</span>
+                        <CellScroll>
+                            <span dir="ltr">{formatCivilDate(row.birth_date)}</span>
+                        </CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
@@ -588,20 +636,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={(event) => setDepartmentName(event.target.value)}
                         />
                     ) : (
-                        textOrDash(row.department_name)
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {editing ? (
-                        <input
-                            className="sis-students-table__edit-input"
-                            value={specializationName}
-                            aria-label={i18n.students.specialization}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => setSpecializationName(event.target.value)}
-                        />
-                    ) : (
-                        textOrDash(row.specialization_name)
+                        <CellScroll>{textOrDash(row.department_name)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
@@ -612,7 +647,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setStageName}
                         />
                     ) : (
-                        textOrDash(row.stage_name)
+                        <CellScroll>{textOrDash(row.stage_name)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text">
@@ -623,7 +658,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setGovernorate}
                         />
                     ) : (
-                        textOrDash(row.governorate)
+                        <CellScroll>{textOrDash(row.governorate)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text">
@@ -634,7 +669,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setNeighborhood}
                         />
                     ) : (
-                        textOrDash(row.neighborhood)
+                        <CellScroll>{textOrDash(row.neighborhood)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text">
@@ -650,7 +685,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             <option value="2">{i18n.students.female}</option>
                         </select>
                     ) : (
-                        genderLabel(row.gender, i18n)
+                        <CellScroll>{genderLabel(row.gender, i18n)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
@@ -661,7 +696,7 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setPreviousSchoolName}
                         />
                     ) : (
-                        textOrDash(row.previous_school_name)
+                        <CellScroll>{textOrDash(row.previous_school_name)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
@@ -673,7 +708,9 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setTransferDocumentNumber}
                         />
                     ) : (
-                        <span dir="ltr">{textOrDash(row.transfer_document_number)}</span>
+                        <CellScroll>
+                            <span dir="ltr">{textOrDash(row.transfer_document_number)}</span>
+                        </CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
@@ -685,7 +722,9 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setTransferDocumentDate}
                         />
                     ) : (
-                        <span dir="ltr">{formatCivilDate(row.transfer_document_date)}</span>
+                        <CellScroll>
+                            <span dir="ltr">{formatCivilDate(row.transfer_document_date)}</span>
+                        </CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
@@ -696,26 +735,30 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             onChange={setAdmittedClassName}
                         />
                     ) : (
-                        textOrDash(row.admitted_class_name)
+                        <CellScroll>{textOrDash(row.admitted_class_name)}</CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                <td className="sis-admission-drafts-table__text sis-students-table__nowrap sis-students-table__mobile">
                     {editing && canViewPii ? (
                         <TableEditInput
                             value={mobile}
                             label={i18n.students.mobile}
                             dir="ltr"
-                            onChange={setMobile}
+                            maxLength={MOBILE_DIGIT_COUNT}
+                            inputMode="numeric"
+                            onChange={(value) => setMobile(maskMobileDigits(value))}
                         />
                     ) : (
-                        <span dir="ltr">{textOrDash(row.mobile)}</span>
+                        <CellScroll>
+                            <span dir="ltr">{displayMobile(row.mobile)}</span>
+                        </CellScroll>
                     )}
                 </td>
                 <td
                     className={`sis-students-table__status sis-students-table__status--tone-${statusTone(row.status)}`}
                     data-status={row.status}
                 >
-                    {statusTabLabel(row.status, i18n)}
+                    <CellScroll>{statusTabLabel(row.status, i18n)}</CellScroll>
                 </td>
             </tr>
         );
@@ -736,6 +779,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     const [applyingStatus, setApplyingStatus] = useState(false);
     const skipSearchVisit = useRef(true);
     const selectAllRef = useRef<HTMLInputElement>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
     const rowRefs = useRef(new Map<number, StudentRowHandle>());
     const rows = students?.data ?? [];
     const pagination = students?.meta ?? {
@@ -754,6 +798,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
     const canApplyStatus = canSelect && visibleCheckedIds.length > 0 && !applyingStatus;
+    const overallPercent = clampPercent(students.status_progress?.overall_percent ?? 0);
 
     useEffect(() => {
         setSearch(filters.q);
@@ -837,6 +882,64 @@ export function StudentList({ students, filters, authorization }: StudentListPro
 
         return () => window.clearTimeout(timer);
     }, [filters.q, search, visitList]);
+
+    useEffect(() => {
+        const table = tableRef.current;
+
+        if (table === null) {
+            return;
+        }
+
+        const onWheel = (event: WheelEvent) => {
+            const target = event.target;
+
+            if (!(target instanceof Element)) {
+                return;
+            }
+
+            const cell = target.closest('td');
+
+            if (!(cell instanceof HTMLTableCellElement) || !table.contains(cell)) {
+                return;
+            }
+
+            if (
+                cell.classList.contains('sis-admission-drafts-table__select')
+                || cell.classList.contains('sis-admission-drafts-table__num')
+                || cell.querySelector('input, select, textarea') !== null
+            ) {
+                return;
+            }
+
+            const scroller =
+                target.closest('.sis-students-table__cell-scroll')
+                ?? cell.querySelector(':scope > .sis-students-table__cell-scroll');
+
+            if (!(scroller instanceof HTMLElement)) {
+                return;
+            }
+
+            if (scroller.scrollWidth <= scroller.clientWidth + 1) {
+                return;
+            }
+
+            const deltaX = event.deltaX;
+            const deltaY = event.deltaY;
+            const rtl = getComputedStyle(scroller).direction === 'rtl';
+            const delta = deltaX !== 0 ? deltaX : (rtl ? -deltaY : deltaY);
+
+            if (delta === 0) {
+                return;
+            }
+
+            event.preventDefault();
+            scroller.scrollLeft += delta;
+        };
+
+        table.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => table.removeEventListener('wheel', onWheel);
+    }, [rows]);
 
     const toggleChecked = useCallback((studentId: number) => {
         setCheckedIds((current) =>
@@ -1114,6 +1217,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                         const Icon = tab.icon;
                         const isActive = filters.status === tab.status;
                         const label = statusTabLabel(tab.status, i18n);
+                        const percent = percentForStatus(tab.status, students.status_progress);
                         const statusClass =
                             tab.status === null
                                 ? 'sis-admission-progress__segment--status-all'
@@ -1125,7 +1229,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                     type="button"
                                     role="tab"
                                     className={`sis-admission-progress__segment ${statusClass} sis-admission-progress__segment--tone-${tab.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
-                                    aria-label={label}
+                                    aria-label={`${label} ${percent}%`}
                                     title={label}
                                     aria-selected={isActive}
                                     aria-pressed={isActive}
@@ -1133,15 +1237,42 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                     data-active={isActive ? 'true' : undefined}
                                     onClick={() => onStatusTabClick(tab.status, isActive)}
                                 >
+                                    <span
+                                        className="sis-admission-progress__fill"
+                                        style={{ width: `${percent}%` }}
+                                        aria-hidden="true"
+                                    />
                                     <span className="sis-admission-progress__content">
                                         <Icon className="sis-admission-progress__icon" aria-hidden="true" />
                                         <span className="sis-admission-progress__label">{label}</span>
+                                        <span className="sis-admission-progress__percent" dir="ltr">
+                                            {percent}%
+                                        </span>
                                     </span>
                                 </button>
                             </li>
                         );
                     })}
                 </ol>
+                <div className="sis-admission-progress__overall-block">
+                    <div
+                        className="sis-admission-progress__overall-track"
+                        role="progressbar"
+                        aria-label={i18n.students.overallProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={overallPercent}
+                        data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
+                    >
+                        <span
+                            className="sis-admission-progress__overall-fill"
+                            style={{ width: `${overallPercent}%` }}
+                        />
+                        <span className="sis-admission-progress__overall-value" dir="ltr">
+                            {overallPercent}%
+                        </span>
+                    </div>
+                </div>
             </section>
 
             <div className="sis-admission-page-body">
@@ -1182,7 +1313,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                             ) : null}
                             <div className="sis-admission-periods-table sis-admission-drafts-table">
                                 <div className="sis-admission-drafts-table__scroller">
-                                    <table>
+                                    <table ref={tableRef}>
                                         <thead>
                                             <tr>
                                                 {canSelect ? (
@@ -1203,9 +1334,8 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                                 <th className="sis-admission-drafts-table__name-head">
                                                     {i18n.students.quadName}
                                                 </th>
-                                                <th>{i18n.students.birthDate}</th>
+                                                <th className="sis-students-table__birth">{i18n.students.birthDate}</th>
                                                 <th>{i18n.students.departmentName}</th>
-                                                <th>{i18n.students.specialization}</th>
                                                 <th>{i18n.students.gradeLevel}</th>
                                                 <th>{i18n.students.governorate}</th>
                                                 <th>{i18n.students.neighborhood}</th>
@@ -1214,7 +1344,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                                 <th>{i18n.students.transferDocumentNumber}</th>
                                                 <th>{i18n.students.transferDocumentDate}</th>
                                                 <th>{i18n.students.admittedClassName}</th>
-                                                <th>{i18n.students.mobile}</th>
+                                                <th className="sis-students-table__mobile">{i18n.students.mobile}</th>
                                                 <th>{i18n.students.statusTabsTitle}</th>
                                             </tr>
                                         </thead>

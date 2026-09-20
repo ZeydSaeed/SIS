@@ -221,6 +221,7 @@ export const ar = {
         specialization: 'الاختصاص',
         allStatuses: 'الكل',
         statusTabsTitle: 'حالة الطالب',
+        overallProgress: 'النسبة الإجمالية',
         selectAllStudents: 'اختيار كل الطلاب المعروضين',
         selectStudent: 'اختيار الطالب',
         statusActionsTitle: 'تحديد الحالة',

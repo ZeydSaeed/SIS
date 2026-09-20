@@ -19,9 +19,6 @@ final class ListStudentsHandler implements QueryHandler
 
         $page = $this->students->paginate($query->status, $query->schoolId, $query->page, $query->perPage);
 
-        return new StudentListPageDTO(
-            items: $page['items'],
-            pagination: $page['pagination'],
-        );
+        return StudentListPageDTO::fromPage($page, $this->students->countByStatus($query->schoolId));
     }
 }
