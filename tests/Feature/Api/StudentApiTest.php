@@ -130,4 +130,36 @@ class StudentApiTest extends TestCase
             ->assertJsonPath('meta.from_idempotency_cache', true)
             ->assertJsonPath('data.id', $first->json('data.id'));
     }
+
+    #[Test]
+    public function list_and_search_honor_gender_filter(): void
+    {
+        $schoolId = $this->createSchool('SCHOOL-GENDER-API', 'Gender API School');
+        $this->actingAsStudentManager(null, $schoolId);
+
+        $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-API-MALE',
+            'first_name' => 'ApiMale',
+            'last_name' => 'One',
+            'full_name' => 'ApiMale One',
+            'gender' => 1,
+        ]);
+        $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-API-FEMALE',
+            'first_name' => 'ApiFemale',
+            'last_name' => 'One',
+            'full_name' => 'ApiFemale One',
+            'gender' => 2,
+        ]);
+
+        $this->getJson('/api/v1/students?gender=2')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.student_code', 'STU-API-FEMALE');
+
+        $this->getJson('/api/v1/students/search?q=Api&gender=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.student_code', 'STU-API-MALE');
+    }
 }

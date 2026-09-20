@@ -20,15 +20,21 @@ final class StudentStatusProgressTest extends TestCase
 
         $this->assertSame(50, $progress['overall_percent']);
         $this->assertSame(100, $progress['stages'][0]['percent']);
+        $this->assertSame(4, $progress['stages'][0]['count']);
         $this->assertNull($progress['stages'][0]['status']);
         $this->assertSame(StudentStatus::Active->value, $progress['stages'][1]['status']);
         $this->assertSame(50, $progress['stages'][1]['percent']);
+        $this->assertSame(2, $progress['stages'][1]['count']);
         $this->assertSame(StudentStatus::Inactive->value, $progress['stages'][2]['status']);
         $this->assertSame(25, $progress['stages'][2]['percent']);
+        $this->assertSame(1, $progress['stages'][2]['count']);
         $this->assertSame(StudentStatus::Suspended->value, $progress['stages'][3]['status']);
         $this->assertSame(25, $progress['stages'][3]['percent']);
+        $this->assertSame(1, $progress['stages'][3]['count']);
         $this->assertSame(0, $progress['stages'][4]['percent']);
+        $this->assertSame(0, $progress['stages'][4]['count']);
         $this->assertSame(0, $progress['stages'][5]['percent']);
+        $this->assertSame(0, $progress['stages'][5]['count']);
     }
 
     #[Test]
@@ -38,5 +44,6 @@ final class StudentStatusProgressTest extends TestCase
 
         $this->assertSame(0, $progress['overall_percent']);
         $this->assertSame(0, $progress['stages'][0]['percent']);
+        $this->assertSame(0, $progress['stages'][0]['count']);
     }
 }

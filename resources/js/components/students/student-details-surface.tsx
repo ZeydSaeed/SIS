@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/sis/error-state';
+import { formatAcademicYearOptionLabel } from '@/components/sis/ops-year-filter';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
 import { t } from '@/i18n';
 
@@ -44,6 +45,9 @@ export type StudentDetail = {
     specialization_name?: string | null;
     stage_name?: string | null;
     section_name?: string | null;
+    academic_year_id?: number | null;
+    academic_year_name?: string | null;
+    academic_year_code?: string | null;
     status: number;
     created_at: string;
     updated_at: string;
@@ -220,6 +224,15 @@ export function StudentDetailsSurface({
                     </>
                 ) : null}
                 <DetailField label={i18n.students.schoolName} value={student.school_name} />
+                <DetailField
+                    label={i18n.students.academicYear}
+                    value={
+                        formatAcademicYearOptionLabel(
+                            student.academic_year_name ?? '',
+                            student.academic_year_code ?? '',
+                        ) || null
+                    }
+                />
                 <DetailField
                     label={i18n.students.departmentName}
                     value={student.department_name}

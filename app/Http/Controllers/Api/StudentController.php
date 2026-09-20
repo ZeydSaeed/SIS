@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Application\Student\Commands\CreateStudentHandler;
 use App\Application\Student\Commands\RegisterStudentDocumentCommand;
 use App\Application\Student\Commands\RegisterStudentDocumentHandler;
+use App\Application\Student\Commands\RestoreStudentDocumentCommand;
+use App\Application\Student\Commands\RestoreStudentDocumentHandler;
 use App\Application\Student\Commands\UpdateStudentHandler;
 use App\Application\Student\Commands\UploadStudentDocumentCommand;
 use App\Application\Student\Commands\UploadStudentDocumentHandler;
 use App\Application\Student\Commands\VoidStudentDocumentCommand;
 use App\Application\Student\Commands\VoidStudentDocumentHandler;
-use App\Application\Student\Commands\RestoreStudentDocumentCommand;
-use App\Application\Student\Commands\RestoreStudentDocumentHandler;
 use App\Application\Student\DTOs\StudentDocumentDTO;
 use App\Application\Student\DTOs\StudentGuardianLinkDTO;
 use App\Application\Student\Queries\GetStudentDocumentContentHandler;
@@ -32,14 +32,14 @@ use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\CreateStudentRequest;
 use App\Http\Requests\Student\DownloadStudentDocumentRequest;
-use App\Http\Requests\Student\ShowStudentDocumentRequest;
 use App\Http\Requests\Student\ListStudentDocumentsRequest;
 use App\Http\Requests\Student\ListStudentGuardiansRequest;
 use App\Http\Requests\Student\RegisterStudentDocumentRequest;
+use App\Http\Requests\Student\RestoreStudentDocumentRequest;
+use App\Http\Requests\Student\ShowStudentDocumentRequest;
 use App\Http\Requests\Student\UpdateStudentRequest;
 use App\Http\Requests\Student\UploadStudentDocumentRequest;
 use App\Http\Requests\Student\VoidStudentDocumentRequest;
-use App\Http\Requests\Student\RestoreStudentDocumentRequest;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -68,12 +68,16 @@ class StudentController extends Controller
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(max(1, (int) $request->query('per_page', 25)), 100);
         $schoolId = $this->schoolContext->requireId();
+        $academicYearId = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
+        $gender = $this->queryGender($request);
 
         $result = $handler->handle(new ListStudentsQuery(
             status: $status,
             schoolId: $schoolId,
             page: $page,
             perPage: $perPage,
+            academicYearId: $academicYearId,
+            gender: $gender,
         ));
 
         $payload = $result->toArray();
@@ -99,12 +103,18 @@ class StudentController extends Controller
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(max(1, (int) $request->query('per_page', 25)), 100);
         $schoolId = $this->schoolContext->requireId();
+        $academicYearId = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
+        $status = $request->filled('status') ? (int) $request->query('status') : null;
+        $gender = $this->queryGender($request);
 
         $result = $handler->handle(new SearchStudentsQuery(
             term: $term,
             schoolId: $schoolId,
             page: $page,
             perPage: $perPage,
+            status: $status,
+            academicYearId: $academicYearId,
+            gender: $gender,
         ));
 
         $payload = $result->toArray();
@@ -145,7 +155,8 @@ class StudentController extends Controller
         }
 
         $schoolId = $this->schoolContext->requireId();
-        $detail = $handler->handle(new GetStudentQuery($student, $schoolId));
+        $academicYearId = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
+        $detail = $handler->handle(new GetStudentQuery($student, $schoolId, $academicYearId));
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataAccess,
@@ -578,5 +589,16 @@ class StudentController extends Controller
             ],
             'meta' => ['correlation_id' => CorrelationContext::id()],
         ]);
+    }
+
+    private function queryGender(Request $request): ?int
+    {
+        if (! $request->filled('gender')) {
+            return null;
+        }
+
+        $gender = (int) $request->query('gender');
+
+        return $gender === 1 || $gender === 2 ? $gender : null;
     }
 }

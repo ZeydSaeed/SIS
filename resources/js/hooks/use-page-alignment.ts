@@ -20,7 +20,7 @@ const ALIGN_ATTR = 'data-sis-align';
 const CHROME_SELECTOR =
     '.sis-chrome, .sis-ribbon, .sis-titlebar, [data-slot="sidebar"], [data-sidebar="sidebar"]';
 const ALIGN_EXEMPT_SELECTOR =
-    '[data-sis-align-exempt], .sis-student-view-dialog, .sis-student-record-form';
+    '[data-sis-align-exempt], .sis-student-view-dialog, .sis-student-record-form, .sis-admission-datetime, .sis-list-select__menu';
 const SURFACE_SELECTOR =
     '.sis-page-surface, [role="dialog"], [data-slot="dialog-content"], [data-slot="sheet-content"]';
 
@@ -366,6 +366,14 @@ export function restorePageAlignments(): void {
     if (selectedElement !== null || selectedPath !== null) {
         markTarget(null);
     }
+}
+
+export function clearPageAlignmentTarget(): void {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    markTarget(null);
 }
 
 export function applyPageAlignment(alignment: PageAlignment): void {

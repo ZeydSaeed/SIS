@@ -18,7 +18,11 @@ final class GetStudentHandler implements QueryHandler
     {
         assert($query instanceof GetStudentQuery);
 
-        $detail = $this->students->findDetail($query->studentId, $query->schoolId);
+        $detail = $this->students->findDetail(
+            $query->studentId,
+            $query->schoolId,
+            $query->academicYearId,
+        );
         if ($detail === null) {
             throw StudentNotFoundException::forId($query->studentId);
         }

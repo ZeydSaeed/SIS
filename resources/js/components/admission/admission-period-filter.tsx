@@ -2,6 +2,7 @@ import {
     ADMISSION_PERIOD_FILTER_ALL,
     type AdmissionActivePeriodSummary,
 } from '@/components/admission/admission-workspace';
+import { SisListSelect } from '@/components/sis/sis-list-select';
 import { t } from '@/i18n';
 
 type Props = {
@@ -25,21 +26,20 @@ export function AdmissionPeriodFilter({
     return (
         <label className="sis-admission-period-filter" dir="rtl">
             <span className="shrink-0 font-medium">{i18n.filterByPeriod}</span>
-            <select
+            <SisListSelect
                 value={value}
-                onChange={(event) => {
-                    onPeriodSelect(Number(event.target.value));
-                }}
-                className="sis-ops-hub__link sis-admission-year-control"
-                aria-label={i18n.filterByPeriod}
-            >
-                <option value={ADMISSION_PERIOD_FILTER_ALL}>{i18n.allPeriods}</option>
-                {periods.map((period) => (
-                    <option key={period.id} value={period.id}>
-                        {period.name}
-                    </option>
-                ))}
-            </select>
+                options={[
+                    { value: String(ADMISSION_PERIOD_FILTER_ALL), label: i18n.allPeriods },
+                    ...periods.map((period) => ({
+                        value: String(period.id),
+                        label: period.name,
+                    })),
+                ]}
+                onChange={(next) => onPeriodSelect(Number(next))}
+                triggerClassName="sis-ops-hub__link sis-admission-year-control"
+                dir="rtl"
+                ariaLabel={i18n.filterByPeriod}
+            />
         </label>
     );
 }

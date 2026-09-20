@@ -11,7 +11,15 @@ import {
     type ReactNode,
 } from 'react';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
+import { SisListSelect } from '@/components/sis/sis-list-select';
+import {
+    selectTableRow,
+    tableActionIds,
+    toggleTableRowChecked,
+    toggleTableSelectAll,
+} from '@/components/sis/table-row-selection';
 import { useAdmissionSearchQuery } from '@/components/admission/admission-search-context';
+import { useAdmissionSelectionClearer } from '@/components/admission/admission-selection';
 import {
     ADMISSION_STATUS_ACCEPTED,
     ADMISSION_STATUS_CONVERTED,
@@ -278,8 +286,8 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
 
     return (
         <tr
-            className={selected ? 'sis-admission-periods-table__row--selected' : undefined}
-            aria-selected={selected}
+            className={selected || checked ? 'sis-admission-periods-table__row--selected' : undefined}
+            aria-selected={selected || checked}
             onClick={() => onSelect(app.id)}
         >
             {canManage ? (
@@ -351,16 +359,20 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                     formatWhen(app.reviewed_at)
                 )}
             </td>
-            <td className="sis-admission-drafts-table__reviewer-cell">
-                <select
-                    className="sis-admission-drafts-table__reviewer"
-                    aria-label={i18n.reviewedBy}
-                    defaultValue="future"
+            <td
+                className="sis-admission-drafts-table__reviewer-cell"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+            >
+                <SisListSelect
+                    value="future"
+                    options={[{ value: 'future', label: i18n.reviewerListSoon }]}
+                    onChange={() => undefined}
                     disabled={!editing}
-                    onClick={(event) => event.stopPropagation()}
-                >
-                    <option value="future">{i18n.reviewerListSoon}</option>
-                </select>
+                    triggerClassName="sis-admission-drafts-table__reviewer"
+                    dir="rtl"
+                    ariaLabel={i18n.reviewedBy}
+                />
             </td>
             <td
                 className={
@@ -483,17 +495,21 @@ export function AdmissionDraftsCard({
         () => checkedIds.filter((id) => rowIds.includes(id)),
         [checkedIds, rowIds],
     );
+    const actionIds = useMemo(
+        () => tableActionIds(visibleCheckedIds, selectedId),
+        [selectedId, visibleCheckedIds],
+    );
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
     const selectedApps = useMemo(
-        () => rows.filter((app) => visibleCheckedIds.includes(app.id)),
-        [rows, visibleCheckedIds],
+        () => rows.filter((app) => actionIds.includes(app.id)),
+        [actionIds, rows],
     );
     const toolbarTransitions =
         selectedApps.length > 0
             ? intersectTransitions(workspace, selectedApps)
             : uniqueTransitions(workspace, rows);
-    const canApplyTransition = canManage && visibleCheckedIds.length > 0 && !transitioning;
+    const canApplyTransition = canManage && actionIds.length > 0 && !transitioning;
 
     useEffect(() => {
         if (selectedId !== null && !rows.some((app) => app.id === selectedId)) {
@@ -509,27 +525,42 @@ export function AdmissionDraftsCard({
     }, [someChecked]);
 
     const selectRow = useCallback((applicationId: number) => {
-        setSelectedId(applicationId);
+        const next = selectTableRow(applicationId);
+        setSelectedId(next.selectedId);
+        setCheckedIds(next.checkedIds);
         setEditing((wasEditing) => (selectedId === applicationId ? wasEditing : false));
     }, [selectedId]);
 
     const exitEditing = useCallback(() => setEditing(false), []);
 
     const toggleChecked = useCallback((applicationId: number) => {
-        setCheckedIds((current) =>
-            current.includes(applicationId)
-                ? current.filter((id) => id !== applicationId)
-                : [...current, applicationId],
-        );
-    }, []);
+        const next = toggleTableRowChecked(checkedIds, applicationId);
+        setCheckedIds(next.checkedIds);
+        setSelectedId(next.selectedId);
+        if (next.selectedId === null) {
+            setEditing(false);
+        }
+    }, [checkedIds]);
 
     const toggleAll = useCallback(() => {
-        setCheckedIds((current) => {
-            const visible = current.filter((id) => rowIds.includes(id));
+        const next = toggleTableSelectAll(checkedIds, rowIds, selectedId);
+        setCheckedIds(next.checkedIds);
+        setSelectedId(next.selectedId);
+        if (next.selectedId === null) {
+            setEditing(false);
+        }
+    }, [checkedIds, rowIds, selectedId]);
 
-            return visible.length === rowIds.length ? [] : rowIds;
-        });
-    }, [rowIds]);
+    const clearTableSelection = useCallback(() => {
+        setCheckedIds([]);
+        setSelectedId(null);
+        setEditing(false);
+    }, []);
+
+    useAdmissionSelectionClearer(
+        clearTableSelection,
+        hasSelection || checkedIds.length > 0 || editing,
+    );
 
     const applyTransition = useCallback((toStatus: number) => {
         if (!canApplyTransition) {
@@ -546,7 +577,7 @@ export function AdmissionDraftsCard({
         };
 
         if (toStatus === ADMISSION_STATUS_CONVERTED) {
-            const ids = [...visibleCheckedIds];
+            const ids = [...actionIds];
             const convertNext = (index: number) => {
                 if (index >= ids.length) {
                     clearSelection();
@@ -572,7 +603,7 @@ export function AdmissionDraftsCard({
         router.post(
             '/admission/applications/bulk-transition',
             {
-                application_ids: visibleCheckedIds,
+                application_ids: actionIds,
                 to_status: toStatus,
             },
             {
@@ -586,7 +617,7 @@ export function AdmissionDraftsCard({
                 onFinish: () => setTransitioning(false),
             },
         );
-    }, [canApplyTransition, visibleCheckedIds]);
+    }, [actionIds, canApplyTransition]);
 
     const goPage = useCallback(
         (page: number) => {

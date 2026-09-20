@@ -10,7 +10,10 @@ use App\Application\Enrollment\Queries\GetEnrollmentHandler;
 use App\Application\Enrollment\Queries\GetEnrollmentQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentsQuery;
+use App\Application\Student\Queries\GetStudentHandler;
+use App\Application\Student\Queries\GetStudentQuery;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
+use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
@@ -110,18 +113,32 @@ final class EnrollmentPageController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request, GetStudentHandler $students): Response
     {
         $this->authorize('create', EnrollmentRecord::class);
 
+        $schoolId = $this->schoolContext->requireId();
         $requestedYear = $request->filled('academic_year_id')
             ? (int) $request->query('academic_year_id')
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear);
+        $studentId = $request->filled('student_id') ? (int) $request->query('student_id') : null;
+
+        if ($studentId !== null) {
+            try {
+                $student = $students->handle(new GetStudentQuery($studentId, $schoolId, $academicYearId));
+                if ($student->academicYearId !== null) {
+                    $academicYearId = $student->academicYearId;
+                }
+            } catch (StudentNotFoundException) {
+                // Keep the resolved year when the student is unknown for this school.
+            }
+        }
 
         return Inertia::render('enrollments/create', [
             'defaults' => [
                 'academic_year_id' => $academicYearId,
+                'student_id' => $studentId,
                 'effective_from' => now()->toDateString(),
             ],
         ]);

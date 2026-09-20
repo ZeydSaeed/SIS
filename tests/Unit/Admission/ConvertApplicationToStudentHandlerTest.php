@@ -46,6 +46,7 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
             'notes' => null,
             'student_id' => null,
             'school_id' => 9,
+            'academic_year_id' => 12,
         ]);
         $admission->expects($this->once())->method('markConverted')->with(44, 81, 7);
 
@@ -69,7 +70,8 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
                 && $data->admittedClassName === 'الرابع'
                 && $data->departmentName === 'صناعي'
                 && $data->specializationName === 'كهرباء'
-                && $data->nationalId === 'NID-44'))
+                && $data->nationalId === 'NID-44'
+                && $data->admittedAcademicYearId === 12))
             ->willReturn(81);
 
         $unitOfWork = $this->createMock(UnitOfWork::class);

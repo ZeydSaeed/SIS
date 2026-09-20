@@ -60,7 +60,7 @@ export type AdmissionNamedOption = { id: number; name: string };
 
 export type AdmissionWorkflowStep = { status: number; key: string };
 
-export type AdmissionWorkflowStagePercent = { status: number; percent: number };
+export type AdmissionWorkflowStagePercent = { status: number; percent: number; count: number };
 
 export type AdmissionWorkflowProgress = {
     overall_percent: number;

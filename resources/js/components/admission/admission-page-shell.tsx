@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, XCircle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { AdmissionActivePeriodsTable } from '@/components/admission/admission-active-periods-table';
 import { AdmissionApplicationDraftDialog } from '@/components/admission/admission-application-draft-dialog';
 import { AdmissionPeriodFilter } from '@/components/admission/admission-period-filter';
+import { useAdmissionSelection } from '@/components/admission/admission-selection';
 import {
     ADMISSION_PERIOD_FILTER_ALL,
     ADMISSION_STAGE_PATHS,
@@ -15,7 +16,12 @@ import {
 } from '@/components/admission/admission-workspace';
 import { AdmissionSearchProvider } from '@/components/admission/admission-search-context';
 import { AdmissionWorkflowProgress } from '@/components/admission/admission-workflow-progress';
+import {
+    useRegisterPageRibbon,
+    type PageRibbonGroup,
+} from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
+import { usePageAlignment } from '@/hooks/use-page-alignment';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
 import { SisSearchField } from '@/components/sis/sis-search-field';
@@ -70,6 +76,39 @@ function searchFromPageFilters(filters: unknown): string {
     }
 
     return '';
+}
+
+function AdmissionCancelRibbon() {
+    const i18n = t();
+    const { hasTarget } = usePageAlignment();
+    const { hasTableSelection, clearSelection } = useAdmissionSelection();
+    const canClearSelection = hasTarget || hasTableSelection;
+    const cancelRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        return [
+            {
+                id: 'page-actions',
+                label: i18n.common.actions,
+                commands: [
+                    {
+                        id: 'cancel-admission-selection',
+                        label: i18n.common.cancel,
+                        icon: XCircle,
+                        disabled: !canClearSelection,
+                        onSelect: clearSelection,
+                    },
+                ],
+            },
+        ];
+    }, [
+        canClearSelection,
+        clearSelection,
+        i18n.common.actions,
+        i18n.common.cancel,
+    ]);
+
+    useRegisterPageRibbon('home', cancelRibbonGroups);
+
+    return null;
 }
 
 export function AdmissionPageShell({
@@ -199,6 +238,7 @@ export function AdmissionPageShell({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={title} />
+            <AdmissionCancelRibbon />
             <div className="sis-ops-hub sis-admission-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4" dir="rtl" lang="ar">
                 <div className="sis-admission-page-head">
                     <div className="sis-admission-page-head__row">

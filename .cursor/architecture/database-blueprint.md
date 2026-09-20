@@ -314,6 +314,7 @@
 | transfer_document_date | DATE | تاريخ وثيقة النقل |
 | school_start_date | DATE | تاريخ ابتداء الدوام |
 | admitted_class_name | VARCHAR(100) | الصف الذي قُبل فيه |
+| admitted_academic_year_id | BIGINT | FK → academic.academic_years, nullable — سنة القبول المحفوظة بعد التحويل |
 | notes | TEXT | الملاحظات |
 | mobile | VARCHAR(30) | رقم موبايل الطالب (PII) |
 | guardian_mobile | VARCHAR(30) | رقم موبايل ولي الأمر (PII) |
@@ -330,6 +331,7 @@
 
 **Indexes:**
 - `BTREE(school_id)`
+- `BTREE(admitted_academic_year_id)` — student list year filter
 - `UNIQUE(student_code)`
 - `UNIQUE(national_id)` (partial: WHERE national_id IS NOT NULL)
 - `PARTIAL(status) WHERE status = 1` — active students

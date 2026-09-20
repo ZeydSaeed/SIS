@@ -40,7 +40,7 @@ final class EloquentAcademicYearRepository implements AcademicYearRepositoryInte
     public function listAll(): array
     {
         return DB::table(SchemaHelper::qualified('academic', 'academic_years'))
-            ->orderByDesc('start_date')
+            ->orderBy('start_date')
             ->orderBy('id')
             ->get([
                 'id',

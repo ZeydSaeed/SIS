@@ -21,6 +21,7 @@
 | national_id | UNIQUE (partial) | Identity search |
 | status | PARTIAL WHERE status=1 | Active student lists |
 | (status) INCLUDE (student_code, full_name) | COVERING | Student list without table access |
+| admitted_academic_year_id | B-Tree | Year filter after admission conversion |
 
 ### `enrollment.enrollments`
 

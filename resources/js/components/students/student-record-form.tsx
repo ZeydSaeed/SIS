@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { router, usePage } from '@inertiajs/react';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import {
+    formatAcademicYearOptionLabel,
+    type YearOption,
+} from '@/components/sis/ops-year-filter';
+import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
     Dialog,
     DialogContent,
@@ -48,6 +53,9 @@ export type StudentRecordFormValues = {
     specialization_name?: string | null;
     stage_name?: string | null;
     section_name?: string | null;
+    academic_year_id?: number | null;
+    academic_year_name?: string | null;
+    academic_year_code?: string | null;
     status: number;
 };
 
@@ -126,6 +134,15 @@ function displayValue(value: string | number | null | undefined): string {
     }
 
     return String(value);
+}
+
+function displayAcademicYear(student: StudentRecordFormValues): string {
+    const formatted = formatAcademicYearOptionLabel(
+        student.academic_year_name ?? '',
+        student.academic_year_code ?? '',
+    );
+
+    return formatted === '' ? '—' : formatted;
 }
 
 function formatCivilDate(value: string | null | undefined): string {
@@ -250,6 +267,58 @@ function isFilled(value: string | number | null | undefined): boolean {
     return text !== '' && text !== '—';
 }
 
+function AcademicYearListField({
+    label,
+    student,
+}: {
+    label: string;
+    student: StudentRecordFormValues;
+}) {
+    const { academicYears } = usePage().props as { academicYears?: YearOption[] };
+    const years = academicYears ?? [];
+    const selectedId = student.academic_year_id ?? null;
+    const value = selectedId === null ? '' : String(selectedId);
+    const options = years.map((year) => ({
+        value: String(year.id),
+        label: formatAcademicYearOptionLabel(year.name, year.code),
+    }));
+
+    if (
+        selectedId !== null &&
+        !options.some((option) => option.value === String(selectedId))
+    ) {
+        options.unshift({
+            value: String(selectedId),
+            label: displayAcademicYear(student),
+        });
+    }
+
+    if (options.length === 0) {
+        options.push({
+            value: value || 'none',
+            label: displayAcademicYear(student),
+        });
+    }
+
+    const filled = isFilled(displayAcademicYear(student));
+
+    return (
+        <label className="flex flex-col gap-1 text-sm">
+            <span>{label}</span>
+            <div className={`${controlClass(filled)} sis-student-record-form__year-list`}>
+                <SisListSelect
+                    value={value}
+                    options={options}
+                    onChange={() => undefined}
+                    triggerClassName="sis-student-record-form__value"
+                    dir="ltr"
+                    ariaLabel={label}
+                />
+            </div>
+        </label>
+    );
+}
+
 function DraftField({
     label,
     editing,
@@ -314,18 +383,17 @@ function DraftSelect({
                 className={`${controlClass(isFilled(editing ? value : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
             >
                 {editing ? (
-                    <select
-                        className="sis-student-record-form__value"
-                        aria-label={label}
-                        value={value}
-                        onChange={(event) => onChange(Number(event.target.value))}
-                    >
-                        {options.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
+                    <SisListSelect
+                        value={String(value)}
+                        options={options.map((option) => ({
+                            value: String(option.value),
+                            label: option.label,
+                        }))}
+                        onChange={(next) => onChange(Number(next))}
+                        triggerClassName="sis-student-record-form__value"
+                        dir="rtl"
+                        ariaLabel={label}
+                    />
                 ) : (
                     display
                 )}
@@ -359,7 +427,7 @@ function DraftNotes({
                         aria-label={label}
                         value={value}
                         placeholder=" "
-                        rows={2}
+                        rows={1}
                         onChange={(event) => onChange(event.target.value)}
                     />
                 ) : (
@@ -367,6 +435,25 @@ function DraftNotes({
                 )}
             </div>
         </label>
+    );
+}
+
+function FormSection({
+    id,
+    title,
+    children,
+}: {
+    id: string;
+    title: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="sis-student-record-form__section" aria-labelledby={id}>
+            <h4 id={id} className="sis-student-record-form__section-title">
+                {title}
+            </h4>
+            {children}
+        </section>
     );
 }
 
@@ -532,271 +619,326 @@ export function StudentRecordForm({
                 </div>
             </header>
 
-            <div className="sis-admission-draft-rows">
-                <div className="sis-admission-draft-row sis-admission-draft-row--5">
-                    <DraftField
-                        label={i18n.students.firstName}
-                        editing={editing}
-                        value={draft.first_name}
-                        display={displayValue(student.first_name)}
-                        onChange={(value) => setField('first_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.fatherName}
-                        editing={editing}
-                        value={draft.father_name}
-                        display={displayValue(student.father_name)}
-                        onChange={(value) => setField('father_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.grandfatherName}
-                        editing={editing}
-                        value={draft.grandfather_name}
-                        display={displayValue(student.grandfather_name)}
-                        onChange={(value) => setField('grandfather_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.greatGrandfatherName}
-                        editing={editing}
-                        value={draft.great_grandfather_name}
-                        display={displayValue(student.great_grandfather_name)}
-                        onChange={(value) => setField('great_grandfather_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.familyName}
-                        editing={editing}
-                        value={draft.last_name}
-                        display={displayValue(student.last_name)}
-                        onChange={(value) => setField('last_name', value)}
-                    />
+            <div className="sis-student-record-form__sections">
+                <FormSection
+                    id={`student-personal-${student.id}`}
+                    title={i18n.students.personalSection}
+                >
+                    <div className="sis-admission-draft-rows">
+                        <div className="sis-admission-draft-row">
+                            <DraftField
+                                label={i18n.students.firstName}
+                                editing={editing}
+                                value={draft.first_name}
+                                display={displayValue(student.first_name)}
+                                onChange={(value) => setField('first_name', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.fatherName}
+                                editing={editing}
+                                value={draft.father_name}
+                                display={displayValue(student.father_name)}
+                                onChange={(value) => setField('father_name', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.grandfatherName}
+                                editing={editing}
+                                value={draft.grandfather_name}
+                                display={displayValue(student.grandfather_name)}
+                                onChange={(value) => setField('grandfather_name', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.greatGrandfatherName}
+                                editing={editing}
+                                value={draft.great_grandfather_name}
+                                display={displayValue(student.great_grandfather_name)}
+                                onChange={(value) => setField('great_grandfather_name', value)}
+                            />
+                        </div>
+                        <div className="sis-admission-draft-row">
+                            <DraftField
+                                label={i18n.students.familyName}
+                                editing={editing}
+                                value={draft.last_name}
+                                display={displayValue(student.last_name)}
+                                onChange={(value) => setField('last_name', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.motherName}
+                                editing={editing}
+                                value={draft.mother_name}
+                                display={displayValue(student.mother_name)}
+                                onChange={(value) => setField('mother_name', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.maternalFatherName}
+                                editing={editing}
+                                value={draft.maternal_father_name}
+                                display={displayValue(student.maternal_father_name)}
+                                onChange={(value) => setField('maternal_father_name', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.maternalGrandfatherName}
+                                editing={editing}
+                                value={draft.maternal_grandfather_name}
+                                display={displayValue(student.maternal_grandfather_name)}
+                                onChange={(value) => setField('maternal_grandfather_name', value)}
+                            />
+                        </div>
+                        <div className="sis-admission-draft-row">
+                            <DraftField
+                                label={i18n.students.birthDate}
+                                editing={editing}
+                                type="date"
+                                value={draft.birth_date}
+                                display={formatCivilDate(student.birth_date)}
+                                onChange={(value) => setField('birth_date', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.birthPlace}
+                                editing={editing}
+                                value={draft.birth_place}
+                                display={displayValue(student.birth_place)}
+                                onChange={(value) => setField('birth_place', value)}
+                            />
+                            <DraftSelect
+                                label={i18n.students.gender}
+                                editing={editing}
+                                value={draft.gender}
+                                display={genderLabel}
+                                onChange={(value) => setField('gender', value)}
+                                options={[
+                                    { value: 1, label: i18n.students.male },
+                                    { value: 2, label: i18n.students.female },
+                                ]}
+                            />
+                            <DraftField
+                                label={i18n.students.nationality}
+                                editing={editing}
+                                value={draft.nationality}
+                                display={displayValue(student.nationality)}
+                                onChange={(value) => setField('nationality', value)}
+                            />
+                        </div>
+                        <div className="sis-admission-draft-row">
+                            <DraftSelect
+                                label={i18n.students.religion}
+                                editing={editing}
+                                value={draft.religion}
+                                display={religionLabel}
+                                onChange={(value) => setField('religion', value)}
+                                options={[
+                                    { value: 1, label: i18n.students.religionMuslim },
+                                    { value: 2, label: i18n.students.religionChristian },
+                                    { value: 3, label: i18n.students.religionOther },
+                                ]}
+                            />
+                            {canViewPii ? (
+                                <DraftField
+                                    label={i18n.students.nationalId}
+                                    editing={editing}
+                                    value={draft.national_id}
+                                    display={displayValue(student.national_id)}
+                                    dir="ltr"
+                                    onChange={(value) => setField('national_id', value)}
+                                />
+                            ) : null}
+                            <DraftField
+                                label={i18n.students.mawalidDate}
+                                editing={editing}
+                                type="date"
+                                value={draft.mawalid_date}
+                                display={formatCivilDate(student.mawalid_date)}
+                                onChange={(value) => setField('mawalid_date', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.registrationPlace}
+                                editing={editing}
+                                value={draft.registration_place}
+                                display={displayValue(student.registration_place)}
+                                onChange={(value) => setField('registration_place', value)}
+                            />
+                        </div>
+                    </div>
+                </FormSection>
+
+                <div className="sis-student-record-form__stack">
+                    <FormSection
+                        id={`student-address-${student.id}`}
+                        title={i18n.students.addressSection}
+                    >
+                        <div className="sis-admission-draft-row">
+                            <DraftField
+                                label={i18n.students.governorate}
+                                editing={editing}
+                                value={draft.governorate}
+                                display={displayValue(student.governorate)}
+                                onChange={(value) => setField('governorate', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.neighborhood}
+                                editing={editing}
+                                value={draft.neighborhood}
+                                display={displayValue(student.neighborhood)}
+                                onChange={(value) => setField('neighborhood', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.locality}
+                                editing={editing}
+                                value={draft.locality}
+                                display={displayValue(student.locality)}
+                                onChange={(value) => setField('locality', value)}
+                            />
+                            <DraftField
+                                label={i18n.students.houseNumber}
+                                editing={editing}
+                                value={draft.house_number}
+                                display={displayValue(student.house_number)}
+                                onChange={(value) => setField('house_number', value)}
+                            />
+                        </div>
+                    </FormSection>
+
+                    <FormSection
+                        id={`student-study-${student.id}`}
+                        title={i18n.students.studySection}
+                    >
+                        <div className="sis-admission-draft-rows">
+                            <div className="sis-admission-draft-row">
+                                <DraftField
+                                    label={i18n.students.schoolName}
+                                    editing={editing}
+                                    value={draft.school_name}
+                                    display={displayValue(student.school_name)}
+                                    onChange={(value) => setField('school_name', value)}
+                                />
+                                <AcademicYearListField
+                                    label={i18n.students.academicYear}
+                                    student={student}
+                                />
+                                <DraftField
+                                    label={i18n.students.stageName}
+                                    editing={editing}
+                                    value={draft.stage_name}
+                                    display={displayValue(student.stage_name)}
+                                    onChange={(value) => setField('stage_name', value)}
+                                />
+                                <DraftField
+                                    label={i18n.students.departmentName}
+                                    editing={editing}
+                                    value={draft.department_name}
+                                    display={displayValue(student.department_name)}
+                                    onChange={(value) => setField('department_name', value)}
+                                />
+                            </div>
+                            <div className="sis-admission-draft-row">
+                                <DraftField
+                                    label={i18n.students.sectionName}
+                                    editing={editing}
+                                    value={draft.section_name}
+                                    display={displayValue(student.section_name)}
+                                    onChange={(value) => setField('section_name', value)}
+                                />
+                                <DraftField
+                                    label={i18n.students.admittedClassName}
+                                    editing={editing}
+                                    value={draft.admitted_class_name}
+                                    display={displayValue(student.admitted_class_name)}
+                                    onChange={(value) => setField('admitted_class_name', value)}
+                                />
+                                <DraftField
+                                    label={i18n.students.specialization}
+                                    editing={editing}
+                                    value={draft.specialization_name}
+                                    display={displayValue(student.specialization_name)}
+                                    onChange={(value) => setField('specialization_name', value)}
+                                />
+                                <DraftField
+                                    label={i18n.students.schoolStartDate}
+                                    editing={editing}
+                                    type="date"
+                                    value={draft.school_start_date}
+                                    display={formatCivilDate(student.school_start_date)}
+                                    onChange={(value) => setField('school_start_date', value)}
+                                />
+                            </div>
+                            <div className="sis-admission-draft-row">
+                                <DraftField
+                                    label={i18n.students.previousSchoolName}
+                                    editing={editing}
+                                    value={draft.previous_school_name}
+                                    display={displayValue(student.previous_school_name)}
+                                    onChange={(value) => setField('previous_school_name', value)}
+                                />
+                                <DraftField
+                                    label={i18n.students.transferDocumentNumber}
+                                    editing={editing}
+                                    value={draft.transfer_document_number}
+                                    display={displayValue(student.transfer_document_number)}
+                                    onChange={(value) => setField('transfer_document_number', value)}
+                                />
+                                <DraftField
+                                    label={i18n.students.transferDocumentDate}
+                                    editing={editing}
+                                    type="date"
+                                    value={draft.transfer_document_date}
+                                    display={formatCivilDate(student.transfer_document_date)}
+                                    onChange={(value) => setField('transfer_document_date', value)}
+                                />
+                            </div>
+                        </div>
+                    </FormSection>
+
+                    <FormSection
+                        id={`student-contact-${student.id}`}
+                        title={i18n.students.contactSection}
+                    >
+                        <div className="sis-admission-draft-row">
+                            <DraftField
+                                label={i18n.students.guardianTripleName}
+                                editing={editing}
+                                value={draft.guardian_triple_name}
+                                display={displayValue(student.guardian_triple_name)}
+                                onChange={(value) => setField('guardian_triple_name', value)}
+                            />
+                            {canViewPii ? (
+                                <>
+                                    <DraftField
+                                        label={i18n.students.mobile}
+                                        editing={editing}
+                                        value={draft.mobile}
+                                        display={displayValue(student.mobile)}
+                                        dir="ltr"
+                                        onChange={(value) => setField('mobile', value)}
+                                    />
+                                    <DraftField
+                                        label={i18n.students.guardianMobile}
+                                        editing={editing}
+                                        value={draft.guardian_mobile}
+                                        display={displayValue(student.guardian_mobile)}
+                                        dir="ltr"
+                                        onChange={(value) => setField('guardian_mobile', value)}
+                                    />
+                                    <DraftField
+                                        label={i18n.students.email}
+                                        editing={editing}
+                                        type="email"
+                                        value={draft.email}
+                                        display={displayValue(student.email)}
+                                        dir="ltr"
+                                        onChange={(value) => setField('email', value)}
+                                    />
+                                </>
+                            ) : null}
+                        </div>
+                    </FormSection>
                 </div>
 
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    <DraftField
-                        label={i18n.students.motherName}
-                        editing={editing}
-                        value={draft.mother_name}
-                        display={displayValue(student.mother_name)}
-                        onChange={(value) => setField('mother_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.maternalFatherName}
-                        editing={editing}
-                        value={draft.maternal_father_name}
-                        display={displayValue(student.maternal_father_name)}
-                        onChange={(value) => setField('maternal_father_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.maternalGrandfatherName}
-                        editing={editing}
-                        value={draft.maternal_grandfather_name}
-                        display={displayValue(student.maternal_grandfather_name)}
-                        onChange={(value) => setField('maternal_grandfather_name', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    <DraftField
-                        label={i18n.students.birthDate}
-                        editing={editing}
-                        type="date"
-                        value={draft.birth_date}
-                        display={formatCivilDate(student.birth_date)}
-                        onChange={(value) => setField('birth_date', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.birthPlace}
-                        editing={editing}
-                        value={draft.birth_place}
-                        display={displayValue(student.birth_place)}
-                        onChange={(value) => setField('birth_place', value)}
-                    />
-                    <DraftSelect
-                        label={i18n.students.gender}
-                        editing={editing}
-                        value={draft.gender}
-                        display={genderLabel}
-                        onChange={(value) => setField('gender', value)}
-                        options={[
-                            { value: 1, label: i18n.students.male },
-                            { value: 2, label: i18n.students.female },
-                        ]}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    {canViewPii ? (
-                        <DraftField
-                            label={i18n.students.nationalId}
-                            editing={editing}
-                            value={draft.national_id}
-                            display={displayValue(student.national_id)}
-                            dir="ltr"
-                            onChange={(value) => setField('national_id', value)}
-                        />
-                    ) : (
-                        <DraftField
-                            label={i18n.students.locality}
-                            editing={editing}
-                            value={draft.locality}
-                            display={displayValue(student.locality)}
-                            onChange={(value) => setField('locality', value)}
-                        />
-                    )}
-                    <DraftField
-                        label={i18n.students.governorate}
-                        editing={editing}
-                        value={draft.governorate}
-                        display={displayValue(student.governorate)}
-                        onChange={(value) => setField('governorate', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.neighborhood}
-                        editing={editing}
-                        value={draft.neighborhood}
-                        display={displayValue(student.neighborhood)}
-                        onChange={(value) => setField('neighborhood', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    <DraftField
-                        label={i18n.students.schoolName}
-                        editing={editing}
-                        value={draft.school_name}
-                        display={displayValue(student.school_name)}
-                        onChange={(value) => setField('school_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.stageName}
-                        editing={editing}
-                        value={draft.stage_name}
-                        display={displayValue(student.stage_name)}
-                        onChange={(value) => setField('stage_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.departmentName}
-                        editing={editing}
-                        value={draft.department_name}
-                        display={displayValue(student.department_name)}
-                        onChange={(value) => setField('department_name', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    {canViewPii ? (
-                        <DraftField
-                            label={i18n.students.locality}
-                            editing={editing}
-                            value={draft.locality}
-                            display={displayValue(student.locality)}
-                            onChange={(value) => setField('locality', value)}
-                        />
-                    ) : null}
-                    <DraftField
-                        label={i18n.students.houseNumber}
-                        editing={editing}
-                        value={draft.house_number}
-                        display={displayValue(student.house_number)}
-                        onChange={(value) => setField('house_number', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.guardianTripleName}
-                        editing={editing}
-                        value={draft.guardian_triple_name}
-                        display={displayValue(student.guardian_triple_name)}
-                        onChange={(value) => setField('guardian_triple_name', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    <DraftField
-                        label={i18n.students.mawalidDate}
-                        editing={editing}
-                        type="date"
-                        value={draft.mawalid_date}
-                        display={formatCivilDate(student.mawalid_date)}
-                        onChange={(value) => setField('mawalid_date', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.registrationPlace}
-                        editing={editing}
-                        value={draft.registration_place}
-                        display={displayValue(student.registration_place)}
-                        onChange={(value) => setField('registration_place', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.nationality}
-                        editing={editing}
-                        value={draft.nationality}
-                        display={displayValue(student.nationality)}
-                        onChange={(value) => setField('nationality', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    <DraftSelect
-                        label={i18n.students.religion}
-                        editing={editing}
-                        value={draft.religion}
-                        display={religionLabel}
-                        onChange={(value) => setField('religion', value)}
-                        options={[
-                            { value: 1, label: i18n.students.religionMuslim },
-                            { value: 2, label: i18n.students.religionChristian },
-                            { value: 3, label: i18n.students.religionOther },
-                        ]}
-                    />
-                    <DraftField
-                        label={i18n.students.sectionName}
-                        editing={editing}
-                        value={draft.section_name}
-                        display={displayValue(student.section_name)}
-                        onChange={(value) => setField('section_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.admittedClassName}
-                        editing={editing}
-                        value={draft.admitted_class_name}
-                        display={displayValue(student.admitted_class_name)}
-                        onChange={(value) => setField('admitted_class_name', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row sis-admission-draft-row--4">
-                    <DraftField
-                        label={i18n.students.previousSchoolName}
-                        editing={editing}
-                        value={draft.previous_school_name}
-                        display={displayValue(student.previous_school_name)}
-                        onChange={(value) => setField('previous_school_name', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.transferDocumentNumber}
-                        editing={editing}
-                        value={draft.transfer_document_number}
-                        display={displayValue(student.transfer_document_number)}
-                        onChange={(value) => setField('transfer_document_number', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.transferDocumentDate}
-                        editing={editing}
-                        type="date"
-                        value={draft.transfer_document_date}
-                        display={formatCivilDate(student.transfer_document_date)}
-                        onChange={(value) => setField('transfer_document_date', value)}
-                    />
-                    <DraftField
-                        label={i18n.students.schoolStartDate}
-                        editing={editing}
-                        type="date"
-                        value={draft.school_start_date}
-                        display={formatCivilDate(student.school_start_date)}
-                        onChange={(value) => setField('school_start_date', value)}
-                    />
-                </div>
-
-                <div className="sis-admission-draft-row">
+                <div
+                    className="sis-student-record-form__notes-row"
+                    role="group"
+                    aria-label={i18n.students.notes}
+                >
                     <DraftNotes
                         label={i18n.students.notes}
                         editing={editing}
@@ -805,36 +947,6 @@ export function StudentRecordForm({
                         onChange={(value) => setField('notes', value)}
                     />
                 </div>
-
-                {canViewPii ? (
-                    <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                        <DraftField
-                            label={i18n.students.mobile}
-                            editing={editing}
-                            value={draft.mobile}
-                            display={displayValue(student.mobile)}
-                            dir="ltr"
-                            onChange={(value) => setField('mobile', value)}
-                        />
-                        <DraftField
-                            label={i18n.students.guardianMobile}
-                            editing={editing}
-                            value={draft.guardian_mobile}
-                            display={displayValue(student.guardian_mobile)}
-                            dir="ltr"
-                            onChange={(value) => setField('guardian_mobile', value)}
-                        />
-                        <DraftField
-                            label={i18n.students.email}
-                            editing={editing}
-                            type="email"
-                            value={draft.email}
-                            display={displayValue(student.email)}
-                            dir="ltr"
-                            onChange={(value) => setField('email', value)}
-                        />
-                    </div>
-                ) : null}
             </div>
         </article>
     );
@@ -861,13 +973,25 @@ export function StudentViewDialog({
             }
         }}>
             <DialogContent
-                className="sis-admission-draft-dialog sis-student-view-dialog max-h-[90vh] overflow-y-auto sm:max-w-5xl"
+                className={`sis-admission-draft-dialog sis-student-view-dialog gap-1.5 p-3 sm:max-w-[min(96vw,92rem)]${count > 1 ? ' sis-student-view-dialog--many' : ''}`}
                 dir="rtl"
                 lang="ar"
                 data-sis-align-exempt=""
                 aria-describedby="student-view-dialog-desc"
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
+                onFocusOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
             >
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>

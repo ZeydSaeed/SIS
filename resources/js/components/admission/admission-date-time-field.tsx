@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { parseAdmissionDateTime } from '@/components/admission/format-admission-datetime';
+import { SisListSelect } from '@/components/sis/sis-list-select';
 import { t } from '@/i18n';
 
 type DayPeriod = 'am' | 'pm';
@@ -12,11 +13,13 @@ type Props = {
     defaultValue?: string;
     idPrefix?: string;
     onValueChange?: (value: string) => void;
+    boundStart?: string;
+    boundEnd?: string;
 };
 
 const DAYS = Array.from({ length: 31 }, (_, day) => String(day + 1));
 const MONTHS = Array.from({ length: 12 }, (_, month) => String(month + 1));
-const YEARS = Array.from({ length: 21 }, (_, offset) => String(2020 + offset));
+const YEARS = Array.from({ length: 21 }, (_, offset) => String(2020 + offset)); // 2020–2040
 const HOURS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const;
 const MINUTES = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, '0'));
 
@@ -45,6 +48,78 @@ function combineDateTime(
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour}:${minute}`;
 }
 
+function dateOnly(value?: string): string | null {
+    if (!value) {
+        return null;
+    }
+
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+
+    return match ? match[1] : null;
+}
+
+function monthsWithinBounds(year: string, boundStart?: string, boundEnd?: string): string[] {
+    const start = dateOnly(boundStart);
+    const end = dateOnly(boundEnd);
+
+    if (year === '' || start === null || end === null) {
+        return MONTHS;
+    }
+
+    const startYear = start.slice(0, 4);
+    const endYear = end.slice(0, 4);
+    const startMonth = Number(start.slice(5, 7));
+    const endMonth = Number(end.slice(5, 7));
+    let from = 1;
+    let to = 12;
+
+    if (year === startYear) {
+        from = startMonth;
+    }
+
+    if (year === endYear) {
+        to = endMonth;
+    }
+
+    if (from > to) {
+        return [];
+    }
+
+    return Array.from({ length: to - from + 1 }, (_, index) => String(from + index));
+}
+
+function daysWithinBounds(
+    year: string,
+    month: string,
+    boundStart?: string,
+    boundEnd?: string,
+): string[] {
+    if (year === '' || month === '') {
+        return DAYS;
+    }
+
+    const monthCount = new Date(Number(year), Number(month), 0).getDate();
+    const start = dateOnly(boundStart);
+    const end = dateOnly(boundEnd);
+    let from = 1;
+    let to = monthCount;
+    const paddedMonth = month.padStart(2, '0');
+
+    if (start !== null && year === start.slice(0, 4) && paddedMonth === start.slice(5, 7)) {
+        from = Number(start.slice(8, 10));
+    }
+
+    if (end !== null && year === end.slice(0, 4) && paddedMonth === end.slice(5, 7)) {
+        to = Math.min(to, Number(end.slice(8, 10)));
+    }
+
+    if (from > to) {
+        return [];
+    }
+
+    return Array.from({ length: to - from + 1 }, (_, index) => String(from + index));
+}
+
 type DatePartProps = {
     id?: string;
     className: string;
@@ -53,8 +128,6 @@ type DatePartProps = {
     required?: boolean;
     includeBlank?: boolean;
     ariaLabel: string;
-    ariaInvalid?: boolean;
-    ariaDescribedBy?: string;
     onChange: (value: string) => void;
 };
 
@@ -66,8 +139,6 @@ function DatePart({
     required = false,
     includeBlank = true,
     ariaLabel,
-    ariaInvalid,
-    ariaDescribedBy,
     onChange,
 }: DatePartProps) {
     return (
@@ -75,25 +146,17 @@ function DatePart({
             <span className="sis-admission-datetime__face" aria-hidden="true">
                 {value}
             </span>
-            <select
+            <SisListSelect
+                variant="overlay"
                 id={id}
-                className="sis-admission-datetime__control"
-                dir="ltr"
-                lang="en"
-                required={required}
                 value={value}
-                aria-label={ariaLabel}
-                aria-invalid={ariaInvalid}
-                aria-describedby={ariaDescribedBy}
-                onChange={(event) => onChange(event.target.value)}
-            >
-                {includeBlank ? <option value="" /> : null}
-                {options.map((item) => (
-                    <option key={item} value={item}>
-                        {item}
-                    </option>
-                ))}
-            </select>
+                options={options.map((item) => ({ value: item, label: item }))}
+                includeBlank={includeBlank}
+                required={required}
+                dir="ltr"
+                ariaLabel={ariaLabel}
+                onChange={onChange}
+            />
         </span>
     );
 }
@@ -107,6 +170,8 @@ export function AdmissionDateTimeField({
     defaultValue,
     idPrefix,
     onValueChange,
+    boundStart,
+    boundEnd,
 }: Props) {
     const i18n = t().admission;
     const initial = parseAdmissionDateTime(defaultValue ?? '');
@@ -119,6 +184,8 @@ export function AdmissionDateTimeField({
     const describedBy = error ? `${name}-error` : undefined;
     const value = combineDateTime(day, month, year, hour, minute, period);
     const controlId = idPrefix ? `${idPrefix}-${name}` : name;
+    const monthOptions = monthsWithinBounds(year, boundStart, boundEnd);
+    const dayOptions = daysWithinBounds(year, month, boundStart, boundEnd);
 
     const emit = (
         nextDay: string,
@@ -132,18 +199,21 @@ export function AdmissionDateTimeField({
     };
 
     return (
-        <div className={`sis-admission-datetime${dateOnly ? ' sis-admission-datetime--date-only' : ''}`}>
+        <div
+            className={`sis-admission-datetime${dateOnly ? ' sis-admission-datetime--date-only' : ''}`}
+            data-sis-align-exempt=""
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+        >
             <input type="hidden" name={name} value={value} />
             <div className="sis-admission-datetime__date" dir="rtl" lang="en">
                 <DatePart
                     id={controlId}
                     className="sis-admission-datetime__day"
                     value={day}
-                    options={DAYS}
+                    options={dayOptions}
                     required={required}
                     ariaLabel={i18n.dayLabel}
-                    ariaInvalid={error ? true : undefined}
-                    ariaDescribedBy={describedBy}
                     onChange={(next) => {
                         setDay(next);
                         emit(next, month, year, hour, minute, period);
@@ -152,17 +222,24 @@ export function AdmissionDateTimeField({
                 <span className="sis-admission-datetime__slash" aria-hidden="true">
                     /
                 </span>
-                <DatePart
-                    className="sis-admission-datetime__month"
-                    value={month}
-                    options={MONTHS}
-                    required={required}
-                    ariaLabel={i18n.monthLabel}
-                    onChange={(next) => {
-                        setMonth(next);
-                        emit(day, next, year, hour, minute, period);
-                    }}
-                />
+                <span className="sis-admission-datetime__unit sis-admission-datetime__month">
+                    <span className="sis-admission-datetime__face" aria-hidden="true">
+                        {month}
+                    </span>
+                    <SisListSelect
+                        variant="overlay"
+                        value={month}
+                        options={monthOptions.map((item) => ({ value: item, label: item }))}
+                        includeBlank
+                        required={required}
+                        dir="ltr"
+                        ariaLabel={i18n.monthLabel}
+                        onChange={(next) => {
+                            setMonth(next);
+                            emit(day, next, year, hour, minute, period);
+                        }}
+                    />
+                </span>
                 <span className="sis-admission-datetime__slash" aria-hidden="true">
                     /
                 </span>

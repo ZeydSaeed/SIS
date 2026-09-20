@@ -15,7 +15,7 @@ final readonly class AdmissionWorkspaceDTO
      * @param  list<array{id:int, name:string}>  $departments
      * @param  list<array{id:int, name:string}>  $specializations
      * @param  list<array{status:int, key:string}>  $workflowSteps
-     * @param  array{overall_percent:int, stages:list<array{status:int, percent:int}>}  $workflowProgress
+     * @param  array{overall_percent:int, stages:list<array{status:int, percent:int, count:int}>}  $workflowProgress
      * @param  list<array{id:int, name:string, start_date:string, max_applications:?int, total_count:int, submitted_count:int, remaining:?int}>  $activePeriods
      * @param  array{page:int, per_page:int, total:int, total_pages:int}  $pagination
      * @param  array<int, list<int>>  $statusTransitions

@@ -9,7 +9,7 @@ final readonly class StudentListPageDTO
     /**
      * @param  list<StudentListItemDTO>  $items
      * @param  array{page: int, per_page: int, total: int, last_page: int}  $pagination
-     * @param  array{overall_percent: int, stages: list<array{status: int|null, percent: int}>}  $statusProgress
+     * @param  array{overall_percent: int, stages: list<array{status: int|null, percent: int, count: int}>}  $statusProgress
      */
     public function __construct(
         public array $items,
@@ -32,7 +32,7 @@ final readonly class StudentListPageDTO
 
     /**
      * @param  array<int, int>  $countsByStatus
-     * @return array{overall_percent: int, stages: list<array{status: int|null, percent: int}>}
+     * @return array{overall_percent: int, stages: list<array{status: int|null, percent: int, count: int}>}
      */
     public static function progressFromCounts(array $countsByStatus): array
     {
@@ -46,7 +46,7 @@ final readonly class StudentListPageDTO
         };
 
         $stages = [
-            ['status' => null, 'percent' => $total === 0 ? 0 : 100],
+            ['status' => null, 'percent' => $total === 0 ? 0 : 100, 'count' => $total],
         ];
         foreach ([
             StudentStatus::Active->value,
@@ -55,9 +55,11 @@ final readonly class StudentListPageDTO
             StudentStatus::Graduated->value,
             StudentStatus::Withdrawn->value,
         ] as $status) {
+            $count = (int) ($countsByStatus[$status] ?? 0);
             $stages[] = [
                 'status' => $status,
-                'percent' => $percentOf((int) ($countsByStatus[$status] ?? 0)),
+                'percent' => $percentOf($count),
+                'count' => $count,
             ];
         }
 

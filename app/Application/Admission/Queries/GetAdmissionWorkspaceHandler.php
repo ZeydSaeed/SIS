@@ -94,7 +94,7 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
      * @param  array<int, int>  $statusCounts
      * @param  list<array{id:int, max_applications:?int, total_count:int}>  $activeSummaries
      * @param  array<string, mixed>|null  $selected
-     * @return array{overall_percent: int, stages: list<array{status:int, percent:int}>}
+     * @return array{overall_percent: int, stages: list<array{status:int, percent:int, count:int}>}
      */
     private function workflowProgress(array $statusCounts, array $activeSummaries, ?array $selected): array
     {
@@ -110,12 +110,13 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
         }
 
         $stages = [
-            ['status' => 0, 'percent' => $totalApps === 0 ? 0 : 100],
+            ['status' => 0, 'percent' => $totalApps === 0 ? 0 : 100, 'count' => $totalApps],
         ];
         foreach ($pipeline as $status) {
             $stages[] = [
                 'status' => $status,
                 'percent' => $calculated['stage_percents'][$status] ?? 0,
+                'count' => (int) ($statusCounts[$status] ?? 0),
             ];
         }
 

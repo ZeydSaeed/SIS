@@ -15,6 +15,7 @@ use App\Application\Student\Queries\SearchStudentsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ChangeStudentStatusesRequest;
 use App\Http\Requests\Student\UpdateStudentListRowRequest;
+use App\Http\Support\AcademicYearContextResolver;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -40,6 +41,7 @@ final class StudentPageController extends Controller
         private readonly AuthorizationServiceInterface $authorization,
         private readonly StudentSchoolAccessService $schoolAccess,
         private readonly StudentPolicy $studentPolicy,
+        private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
     public function index(
@@ -58,6 +60,11 @@ final class StudentPageController extends Controller
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(max(1, (int) $request->query('per_page', 15)), 100);
         $status = $request->filled('status') ? (int) $request->query('status') : null;
+        $gender = $this->queryGender($request);
+        $academicYearId = $this->academicYears->resolve(
+            $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null,
+            $request,
+        );
 
         if ($q !== '') {
             $result = $searchHandler->handle(new SearchStudentsQuery(
@@ -66,6 +73,8 @@ final class StudentPageController extends Controller
                 page: $page,
                 perPage: $perPage,
                 status: $status,
+                academicYearId: $academicYearId,
+                gender: $gender,
             ));
         } else {
             $result = $listHandler->handle(new ListStudentsQuery(
@@ -73,6 +82,8 @@ final class StudentPageController extends Controller
                 schoolId: $schoolId,
                 page: $page,
                 perPage: $perPage,
+                academicYearId: $academicYearId,
+                gender: $gender,
             ));
         }
 
@@ -95,13 +106,20 @@ final class StudentPageController extends Controller
                 'status' => $status,
                 'page' => $page,
                 'per_page' => $perPage,
+                'academic_year_id' => $academicYearId,
+                'gender' => $gender,
             ],
             'authorization' => $this->listAuthorization($user),
             'preview' => null,
         ];
 
         if ($request->filled('student')) {
-            $props['preview'] = $this->resolvePreview($request, (int) $request->query('student'), $getHandler);
+            $props['preview'] = $this->resolvePreview(
+                $request,
+                (int) $request->query('student'),
+                $getHandler,
+                $academicYearId,
+            );
         }
 
         return Inertia::render('students/index', $props);
@@ -227,7 +245,11 @@ final class StudentPageController extends Controller
         }
 
         $schoolId = $this->schoolContext->requireId();
-        $detail = $handler->handle(new GetStudentQuery($student, $schoolId));
+        $academicYearId = $this->academicYears->resolve(
+            $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null,
+            $request,
+        );
+        $detail = $handler->handle(new GetStudentQuery($student, $schoolId, $academicYearId));
 
         $this->securityAudit->record(
             SecurityEventType::StudentDataAccess,
@@ -246,8 +268,12 @@ final class StudentPageController extends Controller
     /**
      * @return array<string, mixed>|null
      */
-    private function resolvePreview(Request $request, int $studentId, GetStudentHandler $handler): ?array
-    {
+    private function resolvePreview(
+        Request $request,
+        int $studentId,
+        GetStudentHandler $handler,
+        ?int $academicYearId,
+    ): ?array {
         $user = $request->user();
         assert($user !== null);
 
@@ -264,12 +290,23 @@ final class StudentPageController extends Controller
         }
 
         $schoolId = $this->schoolContext->requireId();
-        $detail = $handler->handle(new GetStudentQuery($studentId, $schoolId));
+        $detail = $handler->handle(new GetStudentQuery($studentId, $schoolId, $academicYearId));
 
         return [
             'student' => $this->sanitizer->sanitizeDetail($detail, $user),
             'authorization' => $this->recordAuthorization($user, $studentId),
         ];
+    }
+
+    private function queryGender(Request $request): ?int
+    {
+        if (! $request->filled('gender')) {
+            return null;
+        }
+
+        $gender = (int) $request->query('gender');
+
+        return $gender === 1 || $gender === 2 ? $gender : null;
     }
 
     /**

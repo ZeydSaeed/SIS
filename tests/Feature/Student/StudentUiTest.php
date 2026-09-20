@@ -72,8 +72,10 @@ final class StudentUiTest extends TestCase
                 ->has('students.status_progress')
                 ->where('students.status_progress.overall_percent', 100)
                 ->where('students.status_progress.stages.0.percent', 100)
+                ->where('students.status_progress.stages.0.count', 1)
                 ->where('students.status_progress.stages.1.status', 1)
                 ->where('students.status_progress.stages.1.percent', 100)
+                ->where('students.status_progress.stages.1.count', 1)
                 ->has('authorization')
                 ->where('authorization.canView', true));
     }
@@ -290,6 +292,109 @@ final class StudentUiTest extends TestCase
                 ->where('filters.status', 0)
                 ->has('students.data', 1)
                 ->where('students.data.0.full_name', 'Inactive One'));
+    }
+
+    #[Test]
+    public function student_list_gender_filter_applies_across_status_tabs(): void
+    {
+        $this->withoutVite();
+        $this->actingAsStudentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-GENDER-2026');
+
+        $maleActive = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-GENDER-M-ACTIVE',
+            'first_name' => 'Male',
+            'last_name' => 'Active',
+            'full_name' => 'Male Active',
+            'gender' => 1,
+            'status' => 1,
+        ]);
+        $femaleActive = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-GENDER-F-ACTIVE',
+            'first_name' => 'Female',
+            'last_name' => 'Active',
+            'full_name' => 'Female Active',
+            'gender' => 2,
+            'status' => 1,
+        ]);
+        $maleInactive = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-GENDER-M-INACTIVE',
+            'first_name' => 'Male',
+            'last_name' => 'Inactive',
+            'full_name' => 'Male Inactive',
+            'gender' => 1,
+            'status' => 0,
+        ]);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $maleActive);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $femaleActive);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $maleInactive);
+
+        $this->get("/students?academic_year_id={$yearId}&gender=1")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.gender', 1)
+                ->has('students.data', 2)
+                ->where('students.data.0.gender', 1)
+                ->where('students.data.1.gender', 1));
+
+        $this->get("/students?academic_year_id={$yearId}&gender=2&status=1")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.gender', 2)
+                ->where('filters.status', 1)
+                ->has('students.data', 1)
+                ->where('students.data.0.full_name', 'Female Active'));
+
+        $this->get("/students?academic_year_id={$yearId}&gender=1&status=0")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.gender', 1)
+                ->where('filters.status', 0)
+                ->has('students.data', 1)
+                ->where('students.data.0.full_name', 'Male Inactive'));
+
+        $this->get("/students?academic_year_id={$yearId}&gender=9")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.gender', null)
+                ->has('students.data', 3));
+    }
+
+    #[Test]
+    public function student_list_search_keeps_gender_filter(): void
+    {
+        $this->withoutVite();
+        $this->actingAsStudentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-GENDER-SEARCH');
+
+        $male = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-GENDER-SEARCH-M',
+            'first_name' => 'GenderSearch',
+            'last_name' => 'Male',
+            'full_name' => 'GenderSearch Male',
+            'gender' => 1,
+            'status' => 1,
+        ]);
+        $female = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-GENDER-SEARCH-F',
+            'first_name' => 'GenderSearch',
+            'last_name' => 'Female',
+            'full_name' => 'GenderSearch Female',
+            'gender' => 2,
+            'status' => 1,
+        ]);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $male);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $female);
+
+        $this->get("/students?academic_year_id={$yearId}&q=GenderSearch&gender=2")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.q', 'GenderSearch')
+                ->where('filters.gender', 2)
+                ->has('students.data', 1)
+                ->where('students.data.0.student_code', 'STU-GENDER-SEARCH-F'));
     }
 
     #[Test]
@@ -624,5 +729,68 @@ final class StudentUiTest extends TestCase
             'last_name' => 'Only',
             'birth_date' => '2012-05-01',
         ])->assertForbidden();
+    }
+
+    #[Test]
+    public function student_list_scopes_to_selected_academic_year(): void
+    {
+        $this->withoutVite();
+        $this->actingAsStudentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+
+        $yearA = $this->createAcademicYear('AY-2026');
+        $yearB = $this->createAcademicYear('AY-2027');
+
+        $inYearA = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-YEAR-A',
+            'first_name' => 'Year',
+            'last_name' => 'Alpha',
+            'full_name' => 'Year Alpha',
+        ]);
+        $inYearB = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-YEAR-B',
+            'first_name' => 'Year',
+            'last_name' => 'Beta',
+            'full_name' => 'Year Beta',
+        ]);
+        $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-YEAR-NONE',
+            'first_name' => 'Year',
+            'last_name' => 'None',
+            'full_name' => 'Year None',
+        ]);
+
+        $this->createActiveEnrollmentForSchool($schoolId, $yearA, $inYearA);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearB, $inYearB);
+
+        $this->get("/students?academic_year_id={$yearA}")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.academic_year_id', $yearA)
+                ->has('students.data', 1)
+                ->where('students.data.0.full_name', 'Year Alpha'));
+    }
+
+    #[Test]
+    public function student_preview_includes_selected_academic_year(): void
+    {
+        $this->withoutVite();
+        $this->actingAsStudentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-FORM-2026');
+
+        $student = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-YEAR-FORM',
+            'first_name' => 'Form',
+            'last_name' => 'Year',
+            'full_name' => 'Form Year',
+        ]);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+
+        $this->get("/students?academic_year_id={$yearId}&student={$student->id}")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('preview.student.academic_year_id', $yearId)
+                ->where('preview.student.academic_year_code', 'AY-FORM-2026'));
     }
 }

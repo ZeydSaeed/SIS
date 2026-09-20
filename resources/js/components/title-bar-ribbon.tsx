@@ -54,7 +54,7 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
-import { usePageRibbonRegistration } from '@/components/sis/page-ribbon-context';
+import { usePageRibbonGroups } from '@/components/sis/page-ribbon-context';
 import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
 import { preservePageClipboardSelection } from '@/hooks/use-page-clipboard';
 import {
@@ -594,7 +594,9 @@ export function TitleBarRibbon({
     onAction,
     onCollapse,
 }: TitleBarRibbonProps) {
-    const pageRibbon = usePageRibbonRegistration();
+    const tabGroups = usePageRibbonGroups(tab);
+    const homeGroups = usePageRibbonGroups('home');
+    const pageGroups = tab === 'home' ? homeGroups : [...tabGroups, ...homeGroups];
     const staticGroups =
         tab === 'file'
             ? FILE_RIBBON_GROUPS
@@ -611,7 +613,6 @@ export function TitleBarRibbon({
                       : tab === 'help'
                         ? HELP_RIBBON_GROUPS
                         : buildHomeGroups();
-    const pageGroups = pageRibbon?.tab === tab ? pageRibbon.groups : [];
     const groups: RibbonGroup[] = [
         ...pageGroups.map(
             (group): RibbonGroup => ({
@@ -664,6 +665,9 @@ export function TitleBarRibbon({
                                               item.id === 'copy' ||
                                               item.id === 'cut' ||
                                               item.id === 'paste';
+                                          const isSelectionCancel =
+                                              item.id === 'cancel-admission-selection' ||
+                                              item.id === 'cancel-student-selection';
 
                                           return (
                                               <button
@@ -673,9 +677,11 @@ export function TitleBarRibbon({
                                                   disabled={item.disabled}
                                                   aria-label={item.label}
                                                   onMouseDown={(event) => {
-                                                      if (isClipboard) {
+                                                      if (isClipboard || isSelectionCancel) {
                                                           event.preventDefault();
-                                                          preservePageClipboardSelection();
+                                                          if (isClipboard) {
+                                                              preservePageClipboardSelection();
+                                                          }
                                                       }
                                                   }}
                                                   onClick={() => {

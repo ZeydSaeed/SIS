@@ -1,9 +1,17 @@
 import { router } from '@inertiajs/react';
 import { usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { SisListSelect } from '@/components/sis/sis-list-select';
 import { t } from '@/i18n';
 
-type YearOption = { id: number; name: string; code: string; is_current: boolean };
+export type YearOption = {
+    id: number;
+    name: string;
+    code: string;
+    is_current: boolean;
+    start_date?: string;
+    end_date?: string;
+};
 
 type OpsYearFilterProps = {
     action: string;
@@ -22,7 +30,7 @@ type OpsYearFilterProps = {
     compact?: boolean;
 };
 
-function yearOptionLabel(name: string, code: string): string {
+export function formatAcademicYearOptionLabel(name: string, code: string): string {
     const stripWords = (value: string): string =>
         value
             .replaceAll(/السنة الدراسية/gi, '')
@@ -83,7 +91,7 @@ export function OpsYearFilter({
     const [year, setYear] = useState(initial);
     const selectedYear = years.find((item) => item.id.toString() === year);
     const selectedYearLabel = selectedYear
-        ? `${yearOptionLabel(selectedYear.name, selectedYear.code)}${
+        ? `${formatAcademicYearOptionLabel(selectedYear.name, selectedYear.code)}${
               showCurrentBadge && selectedYear.is_current ? ` · ${i18n.status.active}` : ''
           }`
         : year;
@@ -134,46 +142,44 @@ export function OpsYearFilter({
                             <span className="sis-admission-select-fit__mirror" aria-hidden="true">
                                 {selectedYearLabel}
                             </span>
-                            <select
+                            <SisListSelect
                                 value={year}
-                                onChange={(event) => {
-                                    setYear(event.target.value);
-                                    apply(event.target.value);
-                                }}
-                                className={`sis-ops-hub__link px-3 py-2 min-h-0 min-w-0 ${controlClassName ?? ''}`}
-                                dir="rtl"
-                                aria-label={label ?? i18n.enrollments.academicYear}
-                            >
-                                {years.map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                        {yearOptionLabel(item.name, item.code)}
-                                        {showCurrentBadge && item.is_current
+                                options={years.map((item) => ({
+                                    value: item.id.toString(),
+                                    label: `${formatAcademicYearOptionLabel(item.name, item.code)}${
+                                        showCurrentBadge && item.is_current
                                             ? ` · ${i18n.status.active}`
-                                            : ''}
-                                    </option>
-                                ))}
-                            </select>
+                                            : ''
+                                    }`,
+                                }))}
+                                onChange={(next) => {
+                                    setYear(next);
+                                    apply(next);
+                                }}
+                                triggerClassName={`sis-ops-hub__link px-3 py-2 min-h-0 min-w-0 ${controlClassName ?? ''}`}
+                                dir="rtl"
+                                ariaLabel={label ?? i18n.enrollments.academicYear}
+                            />
                         </span>
                     ) : (
-                        <select
+                        <SisListSelect
                             value={year}
-                            onChange={(event) => {
-                                setYear(event.target.value);
-                                apply(event.target.value);
-                            }}
-                            className={`sis-ops-hub__link min-h-11 min-w-[10rem] px-3 py-2 ${controlClassName ?? ''}`}
-                            dir="rtl"
-                            aria-label={label ?? i18n.enrollments.academicYear}
-                        >
-                            {years.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {yearOptionLabel(item.name, item.code)}
-                                    {showCurrentBadge && item.is_current
+                            options={years.map((item) => ({
+                                value: item.id.toString(),
+                                label: `${formatAcademicYearOptionLabel(item.name, item.code)}${
+                                    showCurrentBadge && item.is_current
                                         ? ` · ${i18n.status.active}`
-                                        : ''}
-                                </option>
-                            ))}
-                        </select>
+                                        : ''
+                                }`,
+                            }))}
+                            onChange={(next) => {
+                                setYear(next);
+                                apply(next);
+                            }}
+                            triggerClassName={`sis-ops-hub__link min-h-11 min-w-[10rem] px-3 py-2 ${controlClassName ?? ''}`}
+                            dir="rtl"
+                            ariaLabel={label ?? i18n.enrollments.academicYear}
+                        />
                     )
                 ) : (
                     <input

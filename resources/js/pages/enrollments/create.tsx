@@ -9,6 +9,7 @@ import type { BreadcrumbItem } from '@/types';
 type PageProps = {
     defaults: {
         academic_year_id: number | null;
+        student_id?: number | null;
         effective_from: string;
     };
 };
@@ -51,6 +52,7 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                                     type="number"
                                     min={1}
                                     required
+                                    defaultValue={defaults.student_id ?? undefined}
                                     error={errors.student_id}
                                 />
                             </OpsFormField>

@@ -17,8 +17,18 @@ final class ListStudentsHandler implements QueryHandler
     {
         assert($query instanceof ListStudentsQuery);
 
-        $page = $this->students->paginate($query->status, $query->schoolId, $query->page, $query->perPage);
+        $page = $this->students->paginate(
+            $query->status,
+            $query->schoolId,
+            $query->page,
+            $query->perPage,
+            $query->academicYearId,
+            $query->gender,
+        );
 
-        return StudentListPageDTO::fromPage($page, $this->students->countByStatus($query->schoolId));
+        return StudentListPageDTO::fromPage(
+            $page,
+            $this->students->countByStatus($query->schoolId, $query->academicYearId, $query->gender),
+        );
     }
 }

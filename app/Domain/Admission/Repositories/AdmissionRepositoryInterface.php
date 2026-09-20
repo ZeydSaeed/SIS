@@ -64,7 +64,8 @@ interface AdmissionRepositoryInterface
      *     status:int,
      *     notes:?string,
      *     student_id:?int,
-     *     school_id:int
+     *     school_id:int,
+     *     academic_year_id:int
      * }|null
      */
     public function findApplicationForSchool(int $applicationId, int $schoolId): ?array;

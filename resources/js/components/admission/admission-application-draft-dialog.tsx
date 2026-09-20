@@ -5,6 +5,7 @@ import {
     parseAdmissionDateTime,
 } from '@/components/admission/format-admission-datetime';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
+import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -46,7 +47,7 @@ function filledClass(value: string): string {
     return value.trim() !== '' ? ' sis-admission-draft-field--filled' : '';
 }
 
-function markFilled(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void {
+function markFilled(event: ChangeEvent<HTMLInputElement>): void {
     const el = event.currentTarget;
     el.classList.toggle('sis-admission-draft-field--filled', el.value.trim() !== '');
 }
@@ -112,6 +113,9 @@ export function AdmissionApplicationDraftDialog({
     const [gradeName, setGradeName] = useState('');
     const [specializationId, setSpecializationId] = useState('');
     const [specializationName, setSpecializationName] = useState('');
+    const [gender, setGender] = useState('1');
+    const [schoolId, setSchoolId] = useState(String(defaultSchoolId));
+    const [departmentName, setDepartmentName] = useState('');
     const [applicationAt, setApplicationAt] = useState(admissionDateTimeNow);
 
     useEffect(() => {
@@ -121,9 +125,12 @@ export function AdmissionApplicationDraftDialog({
             setGradeName('');
             setSpecializationId('');
             setSpecializationName('');
+            setGender('1');
+            setSchoolId(String(schools[0]?.id ?? ''));
+            setDepartmentName('');
             setApplicationAt(admissionDateTimeNow());
         }
-    }, [open, activePeriods]);
+    }, [open, activePeriods, schools]);
 
     const selectedPeriod = activePeriods.find((period) => String(period.id) === periodId);
 
@@ -137,6 +144,18 @@ export function AdmissionApplicationDraftDialog({
                 className="sis-admission-draft-dialog max-h-[90vh] overflow-y-auto sm:max-w-5xl"
                 dir="rtl"
                 lang="ar"
+                onPointerDownOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
+                onFocusOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
             >
                 <DialogHeader>
                     <DialogTitle>{i18n.admission.draftDialogTitle}</DialogTitle>
@@ -164,22 +183,19 @@ export function AdmissionApplicationDraftDialog({
                                             name="application_period_id"
                                             error={errors.application_period_id}
                                         >
-                                            <select
+                                            <SisListSelect
                                                 name="application_period_id"
                                                 required
-                                                className={`sis-ops-hub__link sis-admission-draft-control${filledClass(periodId)}`}
                                                 value={periodId}
-                                                onChange={(event) => {
-                                                    setPeriodId(event.target.value);
-                                                    markFilled(event);
-                                                }}
-                                            >
-                                                {activePeriods.map((period) => (
-                                                    <option key={period.id} value={period.id}>
-                                                        {period.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                options={activePeriods.map((period) => ({
+                                                    value: String(period.id),
+                                                    label: period.name,
+                                                }))}
+                                                onChange={setPeriodId}
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(periodId)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.periodName}
+                                            />
                                         </OpsFormField>
 
                                         <OpsFormField label={i18n.admission.periodNumber} name="period_number">
@@ -366,16 +382,19 @@ export function AdmissionApplicationDraftDialog({
                                             name="gender"
                                             error={errors.gender}
                                         >
-                                            <select
+                                            <SisListSelect
                                                 name="gender"
                                                 required
-                                                className="sis-ops-hub__link sis-admission-draft-control sis-admission-draft-field--filled"
-                                                defaultValue={1}
-                                                onChange={markFilled}
-                                            >
-                                                <option value={1}>{i18n.admission.genderMale}</option>
-                                                <option value={2}>{i18n.admission.genderFemale}</option>
-                                            </select>
+                                                value={gender}
+                                                options={[
+                                                    { value: '1', label: i18n.admission.genderMale },
+                                                    { value: '2', label: i18n.admission.genderFemale },
+                                                ]}
+                                                onChange={setGender}
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(gender)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.gender}
+                                            />
                                         </OpsFormField>
                                     </div>
 
@@ -430,45 +449,47 @@ export function AdmissionApplicationDraftDialog({
                                             name="target_school_id"
                                             error={errors.target_school_id}
                                         >
-                                            <select
+                                            <SisListSelect
                                                 name="target_school_id"
                                                 required
-                                                className={`sis-ops-hub__link sis-admission-draft-control${filledClass(String(defaultSchoolId))}`}
-                                                defaultValue={defaultSchoolId}
-                                                onChange={markFilled}
-                                            >
-                                                {schools.map((school) => (
-                                                    <option key={school.id} value={school.id}>
-                                                        {school.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                value={schoolId}
+                                                options={schools.map((school) => ({
+                                                    value: String(school.id),
+                                                    label: school.name,
+                                                }))}
+                                                onChange={setSchoolId}
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(schoolId)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.school}
+                                            />
                                         </OpsFormField>
                                         <OpsFormField
                                             label={i18n.admission.gradeLevel}
                                             name="grade_level_id"
                                             error={errors.grade_level_id ?? errors.intended_grade_name}
                                         >
-                                            <select
+                                            <SisListSelect
                                                 name="grade_level_id"
                                                 required
-                                                className={`sis-ops-hub__link sis-admission-draft-control${filledClass(gradeLevelId)}`}
                                                 value={gradeLevelId}
-                                                onChange={(event) => {
-                                                    const nextId = event.target.value;
-                                                    const option = event.target.selectedOptions[0];
-                                                    setGradeLevelId(nextId);
-                                                    setGradeName(nextId === '' ? '' : (option?.text ?? ''));
-                                                    markFilled(event);
+                                                options={[
+                                                    { value: '', label: i18n.admission.selectOption },
+                                                    ...gradeLevels.map((level) => ({
+                                                        value: String(level.id),
+                                                        label: level.name,
+                                                    })),
+                                                ]}
+                                                onChange={(next) => {
+                                                    const option = gradeLevels.find(
+                                                        (level) => String(level.id) === next,
+                                                    );
+                                                    setGradeLevelId(next);
+                                                    setGradeName(option?.name ?? '');
                                                 }}
-                                            >
-                                                <option value="">{i18n.admission.selectOption}</option>
-                                                {gradeLevels.map((level) => (
-                                                    <option key={level.id} value={level.id}>
-                                                        {level.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(gradeLevelId)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.gradeLevel}
+                                            />
                                             <input type="hidden" name="intended_grade_name" value={gradeName} />
                                         </OpsFormField>
                                         <OpsFormField
@@ -476,46 +497,48 @@ export function AdmissionApplicationDraftDialog({
                                             name="department_name"
                                             error={errors.department_name}
                                         >
-                                            <select
+                                            <SisListSelect
                                                 name="department_name"
-                                                className="sis-ops-hub__link sis-admission-draft-control"
-                                                defaultValue=""
-                                                onChange={markFilled}
-                                            >
-                                                <option value="">{i18n.admission.selectOption}</option>
-                                                {departments.map((department) => (
-                                                    <option key={department.id} value={department.name}>
-                                                        {department.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                value={departmentName}
+                                                options={[
+                                                    { value: '', label: i18n.admission.selectOption },
+                                                    ...departments.map((department) => ({
+                                                        value: department.name,
+                                                        label: department.name,
+                                                    })),
+                                                ]}
+                                                onChange={setDepartmentName}
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(departmentName)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.department}
+                                            />
                                         </OpsFormField>
                                         <OpsFormField
                                             label={i18n.admission.specialization}
                                             name="specialization_id"
                                             error={errors.specialization_id}
                                         >
-                                            <select
+                                            <SisListSelect
                                                 name="specialization_id"
-                                                className={`sis-ops-hub__link sis-admission-draft-control${filledClass(specializationId)}`}
                                                 value={specializationId}
-                                                onChange={(event) => {
-                                                    const nextId = event.target.value;
-                                                    const option = event.target.selectedOptions[0];
-                                                    setSpecializationId(nextId);
-                                                    setSpecializationName(
-                                                        nextId === '' ? '' : (option?.text ?? ''),
+                                                options={[
+                                                    { value: '', label: i18n.admission.selectOption },
+                                                    ...specializations.map((item) => ({
+                                                        value: String(item.id),
+                                                        label: item.name,
+                                                    })),
+                                                ]}
+                                                onChange={(next) => {
+                                                    const option = specializations.find(
+                                                        (item) => String(item.id) === next,
                                                     );
-                                                    markFilled(event);
+                                                    setSpecializationId(next);
+                                                    setSpecializationName(option?.name ?? '');
                                                 }}
-                                            >
-                                                <option value="">{i18n.admission.selectOption}</option>
-                                                {specializations.map((item) => (
-                                                    <option key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(specializationId)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.specialization}
+                                            />
                                             <input
                                                 type="hidden"
                                                 name="specialization_name"

@@ -1,4 +1,4 @@
-import { Form, router } from '@inertiajs/react';
+import { Form, router, usePage } from '@inertiajs/react';
 import { Pencil, Save, Trash2 } from 'lucide-react';
 import {
     forwardRef,
@@ -17,8 +17,14 @@ import {
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
+import { SisListSelect } from '@/components/sis/sis-list-select';
+import {
+    formatAcademicYearOptionLabel,
+    type YearOption,
+} from '@/components/sis/ops-year-filter';
 import { Button } from '@/components/ui/button';
 import { useAdmissionSearchQuery } from '@/components/admission/admission-search-context';
+import { useAdmissionSelectionClearer } from '@/components/admission/admission-selection';
 import {
     admissionQueryMatches,
     admissionSearchSegments,
@@ -27,12 +33,38 @@ import { t } from '@/i18n';
 
 export type AdmissionPeriodRow = {
     id: number;
+    academic_year_id: number;
     name: string;
     start_date: string;
     end_date: string;
     max_applications: number | null;
     status: number;
 };
+
+function catalogAcademicYears(years: YearOption[]): YearOption[] {
+    return years.filter((year) => {
+        const startYear = Number((year.start_date ?? '').slice(0, 4));
+        if (Number.isFinite(startYear) && startYear >= 2020 && startYear <= 2040) {
+            return true;
+        }
+
+        const token = year.code.match(/20\d{2}/);
+        if (token === null) {
+            return false;
+        }
+
+        const parsed = Number(token[0]);
+
+        return parsed >= 2020 && parsed <= 2040;
+    });
+}
+
+function yearBounds(year: YearOption | undefined): { start?: string; end?: string } {
+    return {
+        start: year?.start_date,
+        end: year?.end_date,
+    };
+}
 
 type Props = {
     periods: AdmissionPeriodRow[];
@@ -91,7 +123,7 @@ export type PeriodRowHandle = {
 
 type PeriodEditorRowProps = {
     period: AdmissionPeriodRow;
-    academicYearId: number | null;
+    years: YearOption[];
     canManage: boolean;
     selected: boolean;
     editing: boolean;
@@ -101,18 +133,24 @@ type PeriodEditorRowProps = {
 };
 
 const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(function PeriodEditorRow(
-    { period, academicYearId, canManage, selected, editing, searchQuery, onSelect, onSaved },
+    { period, years, canManage, selected, editing, searchQuery, onSelect, onSaved },
     ref,
 ) {
     const i18n = t().admission;
     const [name, setName] = useState(period.name);
+    const [academicYearId, setAcademicYearId] = useState(period.academic_year_id);
     const [startDate, setStartDate] = useState(period.start_date);
     const [endDate, setEndDate] = useState(period.end_date);
     const [maxApplications, setMaxApplications] = useState(
         period.max_applications === null ? '' : String(period.max_applications),
     );
     const [saving, setSaving] = useState(false);
-    const yearReady = academicYearId !== null;
+    const selectedYear = years.find((year) => year.id === academicYearId);
+    const bounds = yearBounds(selectedYear);
+    const yearReady = academicYearId > 0;
+    const yearLabel = selectedYear
+        ? formatAcademicYearOptionLabel(selectedYear.name, selectedYear.code)
+        : String(period.academic_year_id);
 
     useEffect(() => {
         if (editing) {
@@ -120,6 +158,7 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
         }
 
         setName(period.name);
+        setAcademicYearId(period.academic_year_id);
         setStartDate(period.start_date);
         setEndDate(period.end_date);
         setMaxApplications(period.max_applications === null ? '' : String(period.max_applications));
@@ -210,10 +249,13 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
             <td className="sis-admission-periods-table__when-cell">
                 {editing ? (
                     <AdmissionDateTimeField
+                        key={`start-${period.id}-${academicYearId}`}
                         name={`start_date_${period.id}`}
                         idPrefix={`edit-${period.id}`}
                         defaultValue={period.start_date}
                         required
+                        boundStart={bounds.start}
+                        boundEnd={bounds.end}
                         onValueChange={setStartDate}
                     />
                 ) : (
@@ -223,10 +265,13 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
             <td className="sis-admission-periods-table__when-cell">
                 {editing ? (
                     <AdmissionDateTimeField
+                        key={`end-${period.id}-${academicYearId}`}
                         name={`end_date_${period.id}`}
                         idPrefix={`edit-${period.id}`}
                         defaultValue={period.end_date}
                         required
+                        boundStart={bounds.start}
+                        boundEnd={bounds.end}
                         onValueChange={setEndDate}
                     />
                 ) : (
@@ -248,22 +293,41 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                     <span dir="ltr">{period.max_applications ?? '—'}</span>
                 )}
             </td>
+            <td className="sis-admission-periods-table__year">
+                {editing ? (
+                    <SisListSelect
+                        value={String(academicYearId)}
+                        options={years.map((year) => ({
+                            value: String(year.id),
+                            label: formatAcademicYearOptionLabel(year.name, year.code),
+                        }))}
+                        onChange={(next) => setAcademicYearId(Number(next))}
+                        triggerClassName="sis-ops-hub__link"
+                        dir="ltr"
+                        ariaLabel={i18n.academicYear}
+                    />
+                ) : (
+                    <span dir="ltr">{yearLabel}</span>
+                )}
+            </td>
             <td
                 className="sis-admission-periods-table__status"
                 data-status={period.status}
             >
                 {canManage ? (
-                    <select
-                        className="sis-admission-periods-table__status-select"
-                        value={period.status}
+                    <SisListSelect
+                        value={String(period.status)}
+                        options={[
+                            { value: '0', label: i18n.periodInactive },
+                            { value: '1', label: i18n.periodActive },
+                            { value: '2', label: i18n.periodArchived },
+                        ]}
+                        onChange={changeStatus}
                         disabled={!yearReady}
-                        aria-label={i18n.periodStatus}
-                        onChange={(event) => changeStatus(event.target.value)}
-                    >
-                        <option value={0}>{i18n.periodInactive}</option>
-                        <option value={1}>{i18n.periodActive}</option>
-                        <option value={2}>{i18n.periodArchived}</option>
-                    </select>
+                        triggerClassName="sis-admission-periods-table__status-select"
+                        dir="rtl"
+                        ariaLabel={i18n.periodStatus}
+                    />
                 ) : (
                     periodStatusLabel(period.status)
                 )}
@@ -275,6 +339,28 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
 export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Props) {
     const i18n = t();
     const searchQuery = useAdmissionSearchQuery();
+    const { academicYears } = usePage().props as { academicYears?: YearOption[] };
+    const years = useMemo(() => {
+        const all = academicYears ?? [];
+        const catalog = catalogAcademicYears(all);
+        const byId = new Map(catalog.map((year) => [year.id, year]));
+
+        for (const period of periods) {
+            if (!byId.has(period.academic_year_id)) {
+                const found = all.find((year) => year.id === period.academic_year_id);
+                if (found) {
+                    byId.set(found.id, found);
+                }
+            }
+        }
+
+        return [...byId.values()].sort((left, right) =>
+            (left.start_date ?? '').localeCompare(right.start_date ?? ''),
+        );
+    }, [academicYears, periods]);
+    const [createYearId, setCreateYearId] = useState<number | null>(academicYearId);
+    const createYear = years.find((year) => year.id === createYearId);
+    const createBounds = yearBounds(createYear);
     const selectedRowRef = useRef<PeriodRowHandle>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [editing, setEditing] = useState(false);
@@ -300,6 +386,10 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
     const hasSelection = selectedId !== null;
 
     useEffect(() => {
+        setCreateYearId(academicYearId);
+    }, [academicYearId]);
+
+    useEffect(() => {
         if (selectedId !== null && !visible.some((period) => period.id === selectedId)) {
             setSelectedId(null);
             setEditing(false);
@@ -312,6 +402,13 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
     }, [selectedId]);
 
     const exitEditing = useCallback(() => setEditing(false), []);
+
+    const clearTableSelection = useCallback(() => {
+        setSelectedId(null);
+        setEditing(false);
+    }, []);
+
+    useAdmissionSelectionClearer(clearTableSelection, hasSelection || editing);
 
     const ribbonGroups = useMemo((): PageRibbonGroup[] => {
         if (!canManage) {
@@ -409,11 +506,6 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                     >
                         {({ errors, processing }) => (
                             <>
-                                <input
-                                    type="hidden"
-                                    name="academic_year_id"
-                                    value={academicYearId ?? ''}
-                                />
                                 <OpsFormField
                                     label={i18n.admission.periodName}
                                     name="name"
@@ -427,9 +519,12 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                     error={errors.start_date}
                                 >
                                     <AdmissionDateTimeField
+                                        key={`create-start-${createYearId ?? 'none'}`}
                                         name="start_date"
                                         required
                                         error={errors.start_date}
+                                        boundStart={createBounds.start}
+                                        boundEnd={createBounds.end}
                                     />
                                 </OpsFormField>
                                 <OpsFormField
@@ -438,9 +533,12 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                     error={errors.end_date}
                                 >
                                     <AdmissionDateTimeField
+                                        key={`create-end-${createYearId ?? 'none'}`}
                                         name="end_date"
                                         required
                                         error={errors.end_date}
+                                        boundStart={createBounds.start}
+                                        boundEnd={createBounds.end}
                                     />
                                 </OpsFormField>
                                 <OpsFormField
@@ -455,12 +553,33 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                         error={errors.max_applications}
                                     />
                                 </OpsFormField>
+                                <OpsFormField
+                                    label={i18n.admission.academicYear}
+                                    name="academic_year_id"
+                                    error={errors.academic_year_id}
+                                >
+                                    <SisListSelect
+                                        name="academic_year_id"
+                                        required
+                                        value={createYearId === null ? '' : String(createYearId)}
+                                        options={years.map((year) => ({
+                                            value: String(year.id),
+                                            label: formatAcademicYearOptionLabel(year.name, year.code),
+                                        }))}
+                                        onChange={(next) =>
+                                            setCreateYearId(next === '' ? null : Number(next))
+                                        }
+                                        triggerClassName="sis-ops-hub__link"
+                                        dir="ltr"
+                                        ariaLabel={i18n.admission.academicYear}
+                                    />
+                                </OpsFormField>
                                 <div className="sis-admission-period-card__submit">
                                     <Button
                                         type="submit"
                                         size="sm"
                                         className="sis-admission-period-submit"
-                                        disabled={processing || academicYearId === null}
+                                        disabled={processing || createYearId === null}
                                     >
                                         {i18n.admission.openPeriod}
                                     </Button>
@@ -487,6 +606,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                     <th className="sis-admission-periods-table__max">
                                         {i18n.admission.maxApplications}
                                     </th>
+                                    <th>{i18n.admission.academicYear}</th>
                                     <th>{i18n.admission.periodStatus}</th>
                                 </tr>
                             </thead>
@@ -496,7 +616,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                         key={period.id}
                                         ref={selectedId === period.id ? selectedRowRef : null}
                                         period={period}
-                                        academicYearId={academicYearId}
+                                        years={years}
                                         canManage={canManage}
                                         selected={selectedId === period.id}
                                         editing={editing && selectedId === period.id}

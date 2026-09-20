@@ -9,6 +9,7 @@ use App\Database\SchemaHelper;
 use App\Domain\Student\ValueObjects\StudentReligion;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentStudentManagementReadRepository implements StudentReadRepositoryInterface
 {
@@ -106,7 +107,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'updated_at',
     ];
 
-    public function findDetail(int $studentId, int $schoolId): ?StudentDetailDTO
+    public function findDetail(int $studentId, int $schoolId, ?int $academicYearId = null): ?StudentDetailDTO
     {
         $record = StudentRecord::query()
             ->select(self::DETAIL_COLUMNS)
@@ -118,15 +119,27 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             return null;
         }
 
-        return $this->mapDetail($record);
+        return $this->mapDetail(
+            $record,
+            $this->resolveAcademicYearContext($studentId, $schoolId, $academicYearId),
+        );
     }
 
-    public function paginate(?int $status, int $schoolId, int $page, int $perPage): array
-    {
+    public function paginate(
+        ?int $status,
+        int $schoolId,
+        int $page,
+        int $perPage,
+        ?int $academicYearId = null,
+        ?int $gender = null,
+    ): array {
         $query = StudentRecord::query()
             ->select(self::LIST_COLUMNS)
             ->where('school_id', $schoolId)
             ->orderByDesc('id');
+
+        $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
+        $this->applyGenderScope($query, $gender);
 
         if ($status !== null) {
             $query->where('status', $status);
@@ -135,13 +148,23 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         return $this->paginateQuery($query, $page, $perPage);
     }
 
-    public function search(string $term, int $schoolId, int $page, int $perPage, ?int $status = null): array
-    {
+    public function search(
+        string $term,
+        int $schoolId,
+        int $page,
+        int $perPage,
+        ?int $status = null,
+        ?int $academicYearId = null,
+        ?int $gender = null,
+    ): array {
         $term = trim($term);
         $query = StudentRecord::query()
             ->select(self::LIST_COLUMNS)
             ->where('school_id', $schoolId)
             ->orderBy('full_name');
+
+        $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
+        $this->applyGenderScope($query, $gender);
 
         if ($status !== null) {
             $query->where('status', $status);
@@ -172,13 +195,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
     /**
      * @return array<int, int>
      */
-    public function countByStatus(int $schoolId): array
+    public function countByStatus(int $schoolId, ?int $academicYearId = null, ?int $gender = null): array
     {
-        $rows = StudentRecord::query()
+        $query = StudentRecord::query()->where('school_id', $schoolId);
+        $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
+        $this->applyGenderScope($query, $gender);
+
+        $rows = $query
             ->toBase()
             ->select('status')
             ->selectRaw('COUNT(*) as total')
-            ->where('school_id', $schoolId)
             ->groupBy('status')
             ->get();
 
@@ -263,7 +289,10 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         );
     }
 
-    private function mapDetail(StudentRecord $record): StudentDetailDTO
+    /**
+     * @param  array{id: int|null, name: string|null, code: string|null}  $year
+     */
+    private function mapDetail(StudentRecord $record, array $year): StudentDetailDTO
     {
         return new StudentDetailDTO(
             id: (int) $record->getKey(),
@@ -308,9 +337,148 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             specializationName: $record->specialization_name,
             stageName: $record->stage_name,
             sectionName: $record->section_name,
+            academicYearId: $year['id'],
+            academicYearName: $year['name'],
+            academicYearCode: $year['code'],
             status: (int) $record->status,
             createdAt: $record->created_at->toIso8601String(),
             updatedAt: $record->updated_at->toIso8601String(),
         );
+    }
+
+    private function applyAcademicYearScope(Builder $query, int $schoolId, ?int $academicYearId): void
+    {
+        if ($academicYearId === null) {
+            return;
+        }
+
+        $studentsTable = $query->getModel()->getTable();
+        $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
+
+        $applicationsTable = SchemaHelper::qualified('admission', 'applications');
+        $periodsTable = SchemaHelper::qualified('admission', 'application_periods');
+
+        $query->where(function (Builder $builder) use (
+            $studentsTable,
+            $enrollmentsTable,
+            $applicationsTable,
+            $periodsTable,
+            $schoolId,
+            $academicYearId,
+        ): void {
+            $builder
+                ->where($studentsTable.'.admitted_academic_year_id', $academicYearId)
+                ->orWhereExists(function ($exists) use ($studentsTable, $enrollmentsTable, $schoolId, $academicYearId): void {
+                    $exists->selectRaw('1')
+                        ->from($enrollmentsTable)
+                        ->whereColumn($enrollmentsTable.'.student_id', $studentsTable.'.id')
+                        ->where($enrollmentsTable.'.school_id', $schoolId)
+                        ->where($enrollmentsTable.'.academic_year_id', $academicYearId);
+                })
+                ->orWhereExists(function ($exists) use (
+                    $studentsTable,
+                    $applicationsTable,
+                    $periodsTable,
+                    $schoolId,
+                    $academicYearId,
+                ): void {
+                    $exists->selectRaw('1')
+                        ->from($applicationsTable)
+                        ->join($periodsTable, $periodsTable.'.id', '=', $applicationsTable.'.application_period_id')
+                        ->whereColumn($applicationsTable.'.student_id', $studentsTable.'.id')
+                        ->where($periodsTable.'.school_id', $schoolId)
+                        ->where($periodsTable.'.academic_year_id', $academicYearId);
+                });
+        });
+    }
+
+    private function applyGenderScope(Builder $query, ?int $gender): void
+    {
+        if ($gender !== 1 && $gender !== 2) {
+            return;
+        }
+
+        $query->where('gender', $gender);
+    }
+
+    /**
+     * @return array{id: int|null, name: string|null, code: string|null}
+     */
+    private function resolveAcademicYearContext(int $studentId, int $schoolId, ?int $preferredYearId): array
+    {
+        $empty = ['id' => null, 'name' => null, 'code' => null];
+        $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
+        $yearsTable = SchemaHelper::qualified('academic', 'academic_years');
+
+        $enrollmentYearQuery = static function () use ($enrollmentsTable, $yearsTable, $studentId, $schoolId) {
+            return DB::table($enrollmentsTable)
+                ->join($yearsTable, $yearsTable.'.id', '=', $enrollmentsTable.'.academic_year_id')
+                ->where($enrollmentsTable.'.student_id', $studentId)
+                ->where($enrollmentsTable.'.school_id', $schoolId)
+                ->select([
+                    $yearsTable.'.id as id',
+                    $yearsTable.'.name as name',
+                    $yearsTable.'.code as code',
+                ]);
+        };
+
+        if ($preferredYearId !== null) {
+            $match = $enrollmentYearQuery()
+                ->where($enrollmentsTable.'.academic_year_id', $preferredYearId)
+                ->first();
+            if ($match !== null) {
+                return [
+                    'id' => (int) $match->id,
+                    'name' => (string) $match->name,
+                    'code' => (string) $match->code,
+                ];
+            }
+
+            $admittedPreferred = $this->admittedAcademicYearRow($studentId, $schoolId);
+            if ($admittedPreferred !== null && (int) $admittedPreferred->id === $preferredYearId) {
+                return [
+                    'id' => (int) $admittedPreferred->id,
+                    'name' => (string) $admittedPreferred->name,
+                    'code' => (string) $admittedPreferred->code,
+                ];
+            }
+        }
+
+        $latest = $enrollmentYearQuery()->orderByDesc($enrollmentsTable.'.id')->first();
+        if ($latest !== null) {
+            return [
+                'id' => (int) $latest->id,
+                'name' => (string) $latest->name,
+                'code' => (string) $latest->code,
+            ];
+        }
+
+        $admitted = $this->admittedAcademicYearRow($studentId, $schoolId);
+        if ($admitted === null) {
+            return $empty;
+        }
+
+        return [
+            'id' => (int) $admitted->id,
+            'name' => (string) $admitted->name,
+            'code' => (string) $admitted->code,
+        ];
+    }
+
+    private function admittedAcademicYearRow(int $studentId, int $schoolId): ?object
+    {
+        $studentsTable = SchemaHelper::qualified('students', 'students');
+        $yearsTable = SchemaHelper::qualified('academic', 'academic_years');
+
+        return DB::table($studentsTable)
+            ->join($yearsTable, $yearsTable.'.id', '=', $studentsTable.'.admitted_academic_year_id')
+            ->where($studentsTable.'.id', $studentId)
+            ->where($studentsTable.'.school_id', $schoolId)
+            ->select([
+                $yearsTable.'.id as id',
+                $yearsTable.'.name as name',
+                $yearsTable.'.code as code',
+            ])
+            ->first();
     }
 }

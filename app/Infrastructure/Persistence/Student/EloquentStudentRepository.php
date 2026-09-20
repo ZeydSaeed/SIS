@@ -210,6 +210,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'stage_name' => $data->stageName,
             'section_name' => $data->sectionName,
             'status' => $data->status,
+            'admitted_academic_year_id' => $data->admittedAcademicYearId,
         ];
     }
 

@@ -21,6 +21,7 @@ type StageVisual = {
     label: string;
     icon: LucideIcon;
     percent: number;
+    count: number;
     tone: 'light' | 'dark';
 };
 
@@ -81,6 +82,13 @@ function percentForStatus(status: number, progress: WorkflowProgressData): numbe
     return clampPercent(match?.percent ?? 0);
 }
 
+function countForStatus(status: number, progress: WorkflowProgressData): number {
+    const match = progress.stages.find((stage) => stage.status === status);
+    const count = match?.count ?? 0;
+
+    return count < 0 ? 0 : Math.round(count);
+}
+
 function buildStages(
     steps: AdmissionWorkflowStep[],
     progress: WorkflowProgressData,
@@ -90,6 +98,7 @@ function buildStages(
         label: labelForStatus(step.status),
         icon: STAGE_ICONS[step.status] ?? FilePenLine,
         percent: percentForStatus(step.status, progress),
+        count: countForStatus(step.status, progress),
         tone: STAGE_TONE[step.status] ?? 'light',
     }));
 }
@@ -128,7 +137,7 @@ export function AdmissionWorkflowProgress({
                             <button
                                 type="button"
                                 className={`sis-admission-progress__segment sis-admission-progress__segment--status-${stage.status} sis-admission-progress__segment--tone-${stage.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
-                                aria-label={`${stage.label} ${stage.percent}%`}
+                                aria-label={`${stage.label} ${stage.count}`}
                                 aria-pressed={isActive}
                                 aria-current={isActive ? 'true' : undefined}
                                 data-active={isActive ? 'true' : undefined}
@@ -147,8 +156,8 @@ export function AdmissionWorkflowProgress({
                                 <span className="sis-admission-progress__content">
                                     <Icon className="sis-admission-progress__icon" aria-hidden="true" />
                                     <span className="sis-admission-progress__label">{stage.label}</span>
-                                    <span className="sis-admission-progress__percent" dir="ltr">
-                                        {stage.percent}%
+                                    <span className="sis-admission-progress__count" dir="ltr">
+                                        {stage.count}
                                     </span>
                                 </span>
                             </button>

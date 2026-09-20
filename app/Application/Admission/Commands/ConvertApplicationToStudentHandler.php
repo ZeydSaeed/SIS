@@ -2,12 +2,12 @@
 
 namespace App\Application\Admission\Commands;
 
+use App\Application\Admission\Results\ConvertApplicationToStudentResult;
 use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
-use App\Application\Admission\Results\ConvertApplicationToStudentResult;
 use App\Application\Student\Support\StudentNameFormatter;
 use App\Domain\Admission\Events\ApplicationConvertedToStudent;
 use App\Domain\Admission\Exceptions\ApplicationNotConvertibleException;
@@ -93,6 +93,7 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 departmentName: $application['department_name'] ?? null,
                 specializationName: $application['specialization_name'] ?? null,
                 schoolId: $command->schoolId,
+                admittedAcademicYearId: $application['academic_year_id'],
             ));
 
             $this->admission->markConverted($command->applicationId, $id, $command->reviewedBy);

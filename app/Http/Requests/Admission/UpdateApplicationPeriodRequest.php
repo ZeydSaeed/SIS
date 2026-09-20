@@ -6,6 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 final class UpdateApplicationPeriodRequest extends FormRequest
 {
+    use ValidatesApplicationPeriodAcademicYear;
+
     public function authorize(): bool
     {
         return $this->user()?->can('manageAdmission') ?? false;
@@ -17,7 +19,7 @@ final class UpdateApplicationPeriodRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'academic_year_id' => ['required', 'integer', 'min:1'],
+            'academic_year_id' => $this->academicYearIdRule(),
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],

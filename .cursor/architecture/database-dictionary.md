@@ -46,6 +46,7 @@
 | transfer_document_date | DATE | YES | | | تاريخ وثيقة النقل |
 | school_start_date | DATE | YES | | | تاريخ ابتداء الدوام |
 | admitted_class_name | VARCHAR(100) | YES | | | الصف الذي قُبل فيه |
+| admitted_academic_year_id | BIGINT | YES | academic_years | | سنة القبول بعد التحويل من فترة التسجيل |
 | notes | TEXT | YES | | | الملاحظات |
 | mobile | VARCHAR(30) | YES | | **YES** | رقم الموبايل |
 | guardian_mobile | VARCHAR(30) | YES | | **YES** | رقم موبايل ولي الأمر |

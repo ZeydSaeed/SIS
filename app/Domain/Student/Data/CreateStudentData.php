@@ -47,5 +47,6 @@ final readonly class CreateStudentData
         public ?string $sectionName = null,
         public int $status = 1,
         public ?int $schoolId = null,
+        public ?int $admittedAcademicYearId = null,
     ) {}
 }

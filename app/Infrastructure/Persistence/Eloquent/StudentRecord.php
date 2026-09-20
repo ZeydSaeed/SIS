@@ -52,6 +52,7 @@ class StudentRecord extends Model
         'section_name',
         'photo_storage_key',
         'status',
+        'admitted_academic_year_id',
     ];
 
     public function __construct(array $attributes = [])

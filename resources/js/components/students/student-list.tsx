@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     CircleSlash,
@@ -26,6 +26,14 @@ import {
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { PageHeader } from '@/components/sis/page-header';
 import { SisSearchField } from '@/components/sis/sis-search-field';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
+import { SisListSelect } from '@/components/sis/sis-list-select';
+import {
+    selectTableRow,
+    tableActionIds,
+    toggleTableRowChecked,
+    toggleTableSelectAll,
+} from '@/components/sis/table-row-selection';
 import { StudentViewDialog } from '@/components/students/student-record-form';
 import {
     useRegisterPageRibbon,
@@ -88,6 +96,16 @@ function percentForStatus(
     return clampPercent(match?.percent ?? 0);
 }
 
+function countForStatus(
+    status: number | null,
+    progress: StudentsPayload['status_progress'],
+): number {
+    const match = progress?.stages.find((stage) => stage.status === status);
+    const count = match?.count ?? 0;
+
+    return count < 0 ? 0 : Math.round(count);
+}
+
 export type StudentListItem = {
     id: number;
     student_code: string;
@@ -127,6 +145,9 @@ export type StudentListItem = {
     stage_name?: string | null;
     section_name?: string | null;
     specialization_name?: string | null;
+    academic_year_id?: number | null;
+    academic_year_name?: string | null;
+    academic_year_code?: string | null;
     status: number;
 };
 
@@ -140,7 +161,7 @@ export type StudentsPayload = {
     };
     status_progress?: {
         overall_percent: number;
-        stages: Array<{ status: number | null; percent: number }>;
+        stages: Array<{ status: number | null; percent: number; count: number }>;
     };
 };
 
@@ -156,6 +177,8 @@ type StudentListProps = {
         status: number | null;
         page: number;
         per_page: number;
+        academic_year_id: number | null;
+        gender: number | null;
     };
     authorization: StudentAuthorization;
     preview: PreviewPayload;
@@ -167,6 +190,8 @@ type VisitParams = {
     page?: number;
     per_page?: number;
     student?: number | null;
+    academic_year_id?: number | null;
+    gender?: number | null;
     quiet?: boolean;
 };
 
@@ -547,8 +572,8 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
 
         return (
             <tr
-                className={selected ? 'sis-admission-periods-table__row--selected' : undefined}
-                aria-selected={selected}
+                className={selected || checked ? 'sis-admission-periods-table__row--selected' : undefined}
+                aria-selected={selected || checked}
                 onClick={() => onSelect(row.id)}
             >
                 {canSelect ? (
@@ -675,16 +700,22 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 </td>
                 <td className="sis-admission-drafts-table__text">
                     {editing ? (
-                        <select
-                            className="sis-students-table__edit-input"
-                            value={String(gender)}
-                            aria-label={i18n.students.gender}
+                        <div
                             onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => setGender(Number(event.target.value))}
+                            onPointerDown={(event) => event.stopPropagation()}
                         >
-                            <option value="1">{i18n.students.male}</option>
-                            <option value="2">{i18n.students.female}</option>
-                        </select>
+                            <SisListSelect
+                                value={String(gender)}
+                                options={[
+                                    { value: '1', label: i18n.students.male },
+                                    { value: '2', label: i18n.students.female },
+                                ]}
+                                onChange={(next) => setGender(Number(next))}
+                                triggerClassName="sis-students-table__edit-input"
+                                dir="rtl"
+                                ariaLabel={i18n.students.gender}
+                            />
+                        </div>
                     ) : (
                         <CellScroll>{genderLabel(row.gender, i18n)}</CellScroll>
                     )}
@@ -768,6 +799,18 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
 
 export function StudentList({ students, filters, authorization }: StudentListProps) {
     const i18n = t();
+    const { academicYears } = usePage().props as {
+        academicYears?: Array<{ id: number; name: string; code: string; is_current: boolean }>;
+    };
+    const selectedAcademicYear =
+        academicYears?.find((year) => year.id === filters.academic_year_id) ?? null;
+    const genderValue = filters.gender === 1 || filters.gender === 2 ? String(filters.gender) : '';
+    const genderLabel =
+        genderValue === '1'
+            ? i18n.students.male
+            : genderValue === '2'
+              ? i18n.students.female
+              : i18n.students.allGenders;
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
@@ -780,6 +823,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
     const filtersRef = useRef(filters);
+    const searchDraftRef = useRef(filters.q);
     const rowRefs = useRef(new Map<number, StudentRowHandle>());
     filtersRef.current = filters;
     const rows = students?.data ?? [];
@@ -796,9 +840,13 @@ export function StudentList({ students, filters, authorization }: StudentListPro
         () => checkedIds.filter((id) => rowIds.includes(id)),
         [checkedIds, rowIds],
     );
+    const actionIds = useMemo(
+        () => tableActionIds(visibleCheckedIds, selectedId),
+        [selectedId, visibleCheckedIds],
+    );
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
-    const canApplyStatus = canSelect && visibleCheckedIds.length > 0 && !applyingStatus;
+    const canApplyStatus = canSelect && actionIds.length > 0 && !applyingStatus;
     const overallPercent = clampPercent(students.status_progress?.overall_percent ?? 0);
 
     useEffect(() => {
@@ -817,6 +865,9 @@ export function StudentList({ students, filters, authorization }: StudentListPro
         const nextStatus = 'status' in params ? params.status : current.status;
         const nextStudent = 'student' in params ? params.student : undefined;
         const nextQuery = ('q' in params ? params.q : current.q) ?? '';
+        const nextYear =
+            'academic_year_id' in params ? params.academic_year_id : current.academic_year_id;
+        const nextGender = 'gender' in params ? params.gender : current.gender;
 
         router.get(
             '/students',
@@ -826,6 +877,8 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                 per_page: STUDENTS_PER_PAGE,
                 status: nextStatus ?? undefined,
                 student: nextStudent ?? undefined,
+                academic_year_id: nextYear ?? undefined,
+                gender: nextGender ?? undefined,
             },
             {
                 preserveState: true,
@@ -842,8 +895,14 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     }, [visitList]);
 
     const selectRow = useCallback((studentId: number) => {
-        setSelectedId(studentId);
-    }, []);
+        const next = selectTableRow(studentId);
+        setSelectedId(next.selectedId);
+        setCheckedIds(next.checkedIds);
+        if (selectedId !== studentId) {
+            setEditing(false);
+            setEditingIds([]);
+        }
+    }, [selectedId]);
 
     const bindRowRef = useCallback(
         (studentId: number) => (handle: StudentRowHandle | null) => {
@@ -925,20 +984,24 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     }, [rows]);
 
     const toggleChecked = useCallback((studentId: number) => {
-        setCheckedIds((current) =>
-            current.includes(studentId)
-                ? current.filter((id) => id !== studentId)
-                : [...current, studentId],
-        );
-    }, []);
+        const next = toggleTableRowChecked(checkedIds, studentId);
+        setCheckedIds(next.checkedIds);
+        setSelectedId(next.selectedId);
+        if (next.selectedId === null) {
+            setEditing(false);
+            setEditingIds([]);
+        }
+    }, [checkedIds]);
 
     const toggleAll = useCallback(() => {
-        setCheckedIds((current) => {
-            const visible = current.filter((id) => rowIds.includes(id));
-
-            return visible.length === rowIds.length ? [] : rowIds;
-        });
-    }, [rowIds]);
+        const next = toggleTableSelectAll(checkedIds, rowIds, selectedId);
+        setCheckedIds(next.checkedIds);
+        setSelectedId(next.selectedId);
+        if (next.selectedId === null) {
+            setEditing(false);
+            setEditingIds([]);
+        }
+    }, [checkedIds, rowIds, selectedId]);
 
     const applyStatus = useCallback(
         (status: number) => {
@@ -950,7 +1013,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
             router.post(
                 '/students/bulk-status',
                 {
-                    student_ids: visibleCheckedIds,
+                    student_ids: actionIds,
                     status,
                 },
                 {
@@ -966,7 +1029,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                 },
             );
         },
-        [canApplyStatus, visibleCheckedIds],
+        [actionIds, canApplyStatus],
     );
 
     const onStatusTabClick = useCallback(
@@ -996,24 +1059,14 @@ export function StudentList({ students, filters, authorization }: StudentListPro
     );
 
     const selectedStudent = rows.find((row) => row.id === selectedId) ?? null;
-    const editTargetIds = useMemo(() => {
-        if (visibleCheckedIds.length > 0) {
-            return visibleCheckedIds;
-        }
-
-        return selectedId !== null ? [selectedId] : [];
-    }, [selectedId, visibleCheckedIds]);
+    const editTargetIds = actionIds;
     const hasEditTargets = editTargetIds.length > 0;
     const hasActiveSelection = hasEditTargets || editing;
     const viewTargets = useMemo(() => {
-        if (visibleCheckedIds.length > 0) {
-            const checked = new Set(visibleCheckedIds);
+        const selected = new Set(actionIds);
 
-            return rows.filter((row) => checked.has(row.id));
-        }
-
-        return selectedStudent === null ? [] : [selectedStudent];
-    }, [rows, selectedStudent, visibleCheckedIds]);
+        return rows.filter((row) => selected.has(row.id));
+    }, [actionIds, rows]);
     const hasViewTargets = viewTargets.length > 0;
     const canDelete =
         canSelect && selectedStudent !== null && selectedStudent.status !== STUDENT_STATUS_WITHDRAWN;
@@ -1055,7 +1108,17 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                 label: i18n.common.view,
                         icon: Eye,
                 disabled: !hasViewTargets,
-                onSelect: () => setViewingStudents(viewTargets),
+                onSelect: () =>
+                    setViewingStudents(
+                        viewTargets.map((row) => ({
+                            ...row,
+                            academic_year_id: row.academic_year_id ?? filters.academic_year_id,
+                            academic_year_name:
+                                row.academic_year_name ?? selectedAcademicYear?.name ?? null,
+                            academic_year_code:
+                                row.academic_year_code ?? selectedAcademicYear?.code ?? null,
+                        })),
+                    ),
             },
         ];
 
@@ -1125,6 +1188,8 @@ export function StudentList({ students, filters, authorization }: StudentListPro
         selectedStudent,
         startEditing,
         viewTargets,
+        filters.academic_year_id,
+        selectedAcademicYear,
     ]);
 
     useRegisterPageRibbon('home', ribbonGroups);
@@ -1177,8 +1242,66 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                             committedQuery={filters.q}
                             label={i18n.students.searchAria}
                             placeholder={i18n.students.search}
+                            onDraftChange={(query) => {
+                                searchDraftRef.current = query;
+                            }}
                             onCommit={commitSearch}
                         />
+                        <OpsYearFilter
+                            action="/students"
+                            academicYearId={filters.academic_year_id}
+                            extraParams={{
+                                get q() {
+                                    const value = searchDraftRef.current.trim();
+
+                                    return value === '' ? undefined : value;
+                                },
+                                status: filters.status ?? undefined,
+                                gender: filters.gender ?? undefined,
+                            }}
+                            label={i18n.students.academicYear}
+                            showLabel
+                            inlineLabel
+                            compact
+                            showCurrentBadge={false}
+                            controlClassName="sis-admission-year-control"
+                        />
+                        <form
+                            className="sis-students-gender-filter flex flex-wrap items-end gap-3"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                            }}
+                            aria-label={i18n.students.filterByGender}
+                        >
+                            <label className="flex flex-row items-center gap-2 text-sm min-w-0" dir="rtl">
+                                <span className="sis-students-filter-label shrink-0 font-medium">
+                                    {i18n.students.gender}
+                                </span>
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {genderLabel}
+                                    </span>
+                                    <SisListSelect
+                                        value={genderValue}
+                                        options={[
+                                            { value: '', label: i18n.students.allGenders },
+                                            { value: '1', label: i18n.students.male },
+                                            { value: '2', label: i18n.students.female },
+                                        ]}
+                                        onChange={(next) => {
+                                            visitList({
+                                                gender: next === '1' || next === '2' ? Number(next) : null,
+                                                page: 1,
+                                                student: undefined,
+                                            });
+                                        }}
+                                        triggerClassName="sis-ops-hub__link px-3 py-2 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.students.filterByGender}
+                                    />
+                                </span>
+                            </label>
+                        </form>
                     </div>
                     <div aria-hidden="true" />
                 </div>
@@ -1194,6 +1317,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                         const isActive = filters.status === tab.status;
                         const label = statusTabLabel(tab.status, i18n);
                         const percent = percentForStatus(tab.status, students.status_progress);
+                        const count = countForStatus(tab.status, students.status_progress);
                         const statusClass =
                             tab.status === null
                                 ? 'sis-admission-progress__segment--status-all'
@@ -1205,7 +1329,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                     type="button"
                                     role="tab"
                                     className={`sis-admission-progress__segment ${statusClass} sis-admission-progress__segment--tone-${tab.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
-                                    aria-label={`${label} ${percent}%`}
+                                    aria-label={`${label} ${count}`}
                                     title={label}
                                     aria-selected={isActive}
                                     aria-pressed={isActive}
@@ -1221,8 +1345,8 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                                     <span className="sis-admission-progress__content">
                                         <Icon className="sis-admission-progress__icon" aria-hidden="true" />
                                         <span className="sis-admission-progress__label">{label}</span>
-                                        <span className="sis-admission-progress__percent" dir="ltr">
-                                            {percent}%
+                                        <span className="sis-admission-progress__count" dir="ltr">
+                                            {count}
                                         </span>
                                     </span>
                                 </button>

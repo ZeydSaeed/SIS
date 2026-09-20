@@ -126,7 +126,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * @return list<array{id: int, name: string, code: string, is_current: bool}>
+     * @return list<array{id: int, name: string, code: string, is_current: bool, start_date: string, end_date: string}>
      */
     private function academicYearsPayload(): array
     {
@@ -142,6 +142,8 @@ class HandleInertiaRequests extends Middleware
                 'name' => $year->name,
                 'code' => $year->code,
                 'is_current' => $year->isCurrent,
+                'start_date' => substr($year->startDate, 0, 10),
+                'end_date' => substr($year->endDate, 0, 10),
             ],
             $years,
         );

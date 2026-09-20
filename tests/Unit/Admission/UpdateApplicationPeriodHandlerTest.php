@@ -4,9 +4,12 @@ namespace Tests\Unit\Admission;
 
 use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
 use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
+use App\Application\Admission\Support\ApplicationPeriodAcademicYearGuard;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
+use App\Domain\Academic\Data\AcademicYearSnapshot;
+use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Events\ApplicationPeriodUpdated;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
@@ -23,6 +26,7 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
         $admission->expects($this->once())
             ->method('updatePeriod')
             ->with($this->callback(fn (UpdateApplicationPeriodData $data): bool => $data->periodId === 4
+                && $data->academicYearId === 9
                 && $data->name === 'فترة محدثة'
                 && $data->startDate === '2026-09-01T08:00'
                 && $data->endDate === '2026-09-30T16:00'
@@ -77,6 +81,22 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
         );
     }
 
+    public function test_rejects_dates_outside_academic_year(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findPeriodForSchool')->willReturn($this->periodRow());
+
+        $this->expectException(DomainException::class);
+        $this->handler($admission)->handle(new UpdateApplicationPeriodCommand(
+            schoolId: 1,
+            academicYearId: 9,
+            periodId: 4,
+            name: 'فترة',
+            startDate: '2025-09-01T08:00',
+            endDate: '2025-09-30T16:00',
+        ));
+    }
+
     /**
      * @return array{
      *     id:int,
@@ -110,11 +130,25 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
         $unitOfWork = $this->createMock(UnitOfWork::class);
         $unitOfWork->method('transaction')->willReturnCallback(fn (callable $callback) => $callback());
 
+        $years = $this->createMock(AcademicYearRepositoryInterface::class);
+        $years->method('findById')->willReturn(new AcademicYearSnapshot(
+            id: 9,
+            code: '2026-2027',
+            name: 'السنة الدراسية 2026-2027',
+            startDate: '2026-09-01',
+            endDate: '2027-06-30',
+            isCurrent: true,
+            status: 1,
+            createdAt: '2026-01-01 00:00:00',
+            updatedAt: '2026-01-01 00:00:00',
+        ));
+
         return new UpdateApplicationPeriodHandler(
             $unitOfWork,
             $admission,
             $outbox ?? $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            new ApplicationPeriodAcademicYearGuard($years),
         );
     }
 }

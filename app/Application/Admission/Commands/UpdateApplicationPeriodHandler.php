@@ -2,12 +2,13 @@
 
 namespace App\Application\Admission\Commands;
 
+use App\Application\Admission\Results\UpdateApplicationPeriodResult;
+use App\Application\Admission\Support\ApplicationPeriodAcademicYearGuard;
 use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
-use App\Application\Admission\Results\UpdateApplicationPeriodResult;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Events\ApplicationPeriodUpdated;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
@@ -23,6 +24,7 @@ final class UpdateApplicationPeriodHandler implements CommandHandler
         private readonly AdmissionRepositoryInterface $admission,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplicationPeriodAcademicYearGuard $academicYearGuard,
     ) {}
 
     public function handle(Command $command): UpdateApplicationPeriodResult
@@ -45,13 +47,20 @@ final class UpdateApplicationPeriodHandler implements CommandHandler
         }
 
         $period = $this->admission->findPeriodForSchool($command->periodId, $command->schoolId);
-        if ($period === null || $period['academic_year_id'] !== $command->academicYearId) {
+        if ($period === null) {
             throw ApplicationPeriodNotFoundException::forId($command->periodId);
         }
+
+        $this->academicYearGuard->assertDatesFit(
+            $command->academicYearId,
+            $command->startDate,
+            $command->endDate,
+        );
 
         $this->unitOfWork->transaction(function () use ($command): void {
             $this->admission->updatePeriod(new UpdateApplicationPeriodData(
                 periodId: $command->periodId,
+                academicYearId: $command->academicYearId,
                 name: $command->name,
                 startDate: $command->startDate,
                 endDate: $command->endDate,

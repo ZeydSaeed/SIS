@@ -2,12 +2,13 @@
 
 namespace App\Application\Admission\Commands;
 
+use App\Application\Admission\Results\OpenApplicationPeriodResult;
+use App\Application\Admission\Support\ApplicationPeriodAcademicYearGuard;
 use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
-use App\Application\Admission\Results\OpenApplicationPeriodResult;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Events\ApplicationPeriodOpened;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
@@ -23,6 +24,7 @@ final class OpenApplicationPeriodHandler implements CommandHandler
         private readonly AdmissionRepositoryInterface $admission,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplicationPeriodAcademicYearGuard $academicYearGuard,
     ) {}
 
     public function handle(Command $command): OpenApplicationPeriodResult
@@ -43,6 +45,12 @@ final class OpenApplicationPeriodHandler implements CommandHandler
         if ($command->maxApplications !== null && $command->maxApplications <= 0) {
             throw new DomainException('max_applications must be null or greater than zero.');
         }
+
+        $this->academicYearGuard->assertDatesFit(
+            $command->academicYearId,
+            $command->startDate,
+            $command->endDate,
+        );
 
         $periodId = $this->unitOfWork->transaction(function () use ($command): int {
             $id = $this->admission->createPeriod(new CreateApplicationPeriodData(
