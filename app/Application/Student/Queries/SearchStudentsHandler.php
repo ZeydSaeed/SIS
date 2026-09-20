@@ -17,7 +17,13 @@ final class SearchStudentsHandler implements QueryHandler
     {
         assert($query instanceof SearchStudentsQuery);
 
-        $page = $this->students->search($query->term, $query->schoolId, $query->page, $query->perPage);
+        $page = $this->students->search(
+            $query->term,
+            $query->schoolId,
+            $query->page,
+            $query->perPage,
+            $query->status,
+        );
 
         return new StudentListPageDTO(
             items: $page['items'],

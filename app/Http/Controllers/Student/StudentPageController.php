@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Application\Student\Commands\ChangeStudentStatusesCommand;
+use App\Application\Student\Commands\ChangeStudentStatusesHandler;
+use App\Application\Student\Commands\UpdateStudentListRowCommand;
+use App\Application\Student\Commands\UpdateStudentListRowHandler;
 use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
 use App\Application\Student\Queries\ListStudentsHandler;
@@ -9,6 +13,8 @@ use App\Application\Student\Queries\ListStudentsQuery;
 use App\Application\Student\Queries\SearchStudentsHandler;
 use App\Application\Student\Queries\SearchStudentsQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Student\ChangeStudentStatusesRequest;
+use App\Http\Requests\Student\UpdateStudentListRowRequest;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -20,6 +26,7 @@ use App\Security\Context\SchoolContext;
 use App\Security\Policies\StudentPolicy;
 use App\Security\Support\StudentResponseSanitizer;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,7 +56,7 @@ final class StudentPageController extends Controller
 
         $q = trim((string) $request->query('q', ''));
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 25)), 100);
+        $perPage = min(max(1, (int) $request->query('per_page', 15)), 100);
         $status = $request->filled('status') ? (int) $request->query('status') : null;
 
         if ($q !== '') {
@@ -58,6 +65,7 @@ final class StudentPageController extends Controller
                 schoolId: $schoolId,
                 page: $page,
                 perPage: $perPage,
+                status: $status,
             ));
         } else {
             $result = $listHandler->handle(new ListStudentsQuery(
@@ -97,6 +105,108 @@ final class StudentPageController extends Controller
         }
 
         return Inertia::render('students/index', $props);
+    }
+
+    public function bulkStatus(
+        ChangeStudentStatusesRequest $request,
+        ChangeStudentStatusesHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        /** @var list<int> $studentIds */
+        $studentIds = array_map('intval', $request->validated('student_ids'));
+
+        $result = $handler->handle(new ChangeStudentStatusesCommand(
+            schoolId: $schoolId,
+            studentIds: $studentIds,
+            status: (int) $request->validated('status'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.web.bulk_status',
+            'updated',
+            $request->user(),
+            'student:bulk',
+            [
+                'student_ids' => $result->studentIds,
+                'status' => $result->status,
+                'count' => $result->count,
+            ],
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Student statuses updated.');
+    }
+
+    public function update(
+        UpdateStudentListRowRequest $request,
+        int $student,
+        UpdateStudentListRowHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $validated = $request->validated();
+        $applyFormFields = array_key_exists('mother_name', $validated)
+            || array_key_exists('governorate', $validated);
+        $applyPii = array_key_exists('national_id', $validated)
+            || array_key_exists('mobile', $validated)
+            || array_key_exists('guardian_mobile', $validated)
+            || array_key_exists('email', $validated);
+
+        $result = $handler->handle(new UpdateStudentListRowCommand(
+            studentId: $student,
+            schoolId: $schoolId,
+            firstName: (string) $validated['first_name'],
+            lastName: (string) $validated['last_name'],
+            birthDate: (string) $validated['birth_date'],
+            fatherName: $this->nullableString($validated, 'father_name'),
+            grandfatherName: $this->nullableString($validated, 'grandfather_name'),
+            greatGrandfatherName: $this->nullableString($validated, 'great_grandfather_name'),
+            departmentName: $this->nullableString($validated, 'department_name'),
+            specializationName: $this->nullableString($validated, 'specialization_name'),
+            admittedClassName: $this->nullableString($validated, 'admitted_class_name'),
+            applyFormFields: $applyFormFields,
+            applyPii: $applyPii,
+            motherName: $this->nullableString($validated, 'mother_name'),
+            maternalFatherName: $this->nullableString($validated, 'maternal_father_name'),
+            maternalGrandfatherName: $this->nullableString($validated, 'maternal_grandfather_name'),
+            guardianTripleName: $this->nullableString($validated, 'guardian_triple_name'),
+            governorate: $this->nullableString($validated, 'governorate'),
+            neighborhood: $this->nullableString($validated, 'neighborhood'),
+            locality: $this->nullableString($validated, 'locality'),
+            houseNumber: $this->nullableString($validated, 'house_number'),
+            birthPlace: $this->nullableString($validated, 'birth_place'),
+            registrationPlace: $this->nullableString($validated, 'registration_place'),
+            gender: $this->nullableInt($validated, 'gender'),
+            nationality: $this->nullableString($validated, 'nationality'),
+            religion: $this->nullableInt($validated, 'religion'),
+            mawalidDate: $this->nullableString($validated, 'mawalid_date'),
+            previousSchoolName: $this->nullableString($validated, 'previous_school_name'),
+            transferDocumentNumber: $this->nullableInt($validated, 'transfer_document_number'),
+            transferDocumentDate: $this->nullableString($validated, 'transfer_document_date'),
+            schoolStartDate: $this->nullableString($validated, 'school_start_date'),
+            notes: $this->nullableString($validated, 'notes'),
+            schoolName: $this->nullableString($validated, 'school_name'),
+            stageName: $this->nullableString($validated, 'stage_name'),
+            sectionName: $this->nullableString($validated, 'section_name'),
+            nationalId: $this->nullableString($validated, 'national_id'),
+            mobile: $this->nullableString($validated, 'mobile'),
+            guardianMobile: $this->nullableString($validated, 'guardian_mobile'),
+            email: $this->nullableString($validated, 'email'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.web.update',
+            'updated',
+            $request->user(),
+            "student:{$result->studentId}",
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Student updated.');
     }
 
     public function show(Request $request, int $student, GetStudentHandler $handler): Response
@@ -160,6 +270,30 @@ final class StudentPageController extends Controller
             'student' => $this->sanitizer->sanitizeDetail($detail, $user),
             'authorization' => $this->recordAuthorization($user, $studentId),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function nullableString(array $validated, string $key): ?string
+    {
+        if (! array_key_exists($key, $validated) || $validated[$key] === null || $validated[$key] === '') {
+            return null;
+        }
+
+        return (string) $validated[$key];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function nullableInt(array $validated, string $key): ?int
+    {
+        if (! array_key_exists($key, $validated) || $validated[$key] === null || $validated[$key] === '') {
+            return null;
+        }
+
+        return (int) $validated[$key];
     }
 
     /**

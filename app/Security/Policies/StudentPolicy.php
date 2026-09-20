@@ -47,6 +47,12 @@ final class StudentPolicy
             && $this->schoolAccess->canAccessStudent($user, $student);
     }
 
+    public function updateAny(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::STUDENTS_UPDATE)
+            && $this->schoolAccess->canAccessStudent($user);
+    }
+
     public function viewPii(User $user): bool
     {
         return $this->authorization->userHasPermission($user, Permission::STUDENTS_VIEW_PII)

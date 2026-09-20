@@ -1,12 +1,15 @@
+import { useRef } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { t } from '@/i18n';
+
+type ConfirmDialogTone = 'default' | 'danger';
 
 type ConfirmDialogProps = {
     open: boolean;
@@ -15,6 +18,7 @@ type ConfirmDialogProps = {
     confirmLabel?: string;
     cancelLabel?: string;
     confirmPending?: boolean;
+    tone?: ConfirmDialogTone;
     onConfirm: () => void;
     onOpenChange: (open: boolean) => void;
 };
@@ -31,24 +35,47 @@ export function ConfirmDialog({
     confirmLabel,
     cancelLabel,
     confirmPending = false,
+    tone = 'default',
     onConfirm,
     onOpenChange,
 }: ConfirmDialogProps) {
     const i18n = t();
     const confirm = confirmLabel ?? i18n.dialog.confirm;
     const cancel = cancelLabel ?? i18n.dialog.cancel;
+    const cancelRef = useRef<HTMLButtonElement>(null);
+    const isDanger = tone === 'danger';
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sis-ops-hub border-[color:var(--sis-powder-blue)] sm:max-w-md" dir="rtl">
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
+            <DialogContent
+                className="sis-confirm-dialog"
+                overlayClassName="sis-confirm-dialog__overlay"
+                dir="rtl"
+                onOpenAutoFocus={(event) => {
+                    if (!isDanger) {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    cancelRef.current?.focus();
+                }}
+            >
+                <DialogHeader className="sis-confirm-dialog__titlebar">
+                    <DialogTitle className="sis-confirm-dialog__title">{title}</DialogTitle>
                 </DialogHeader>
-                <DialogFooter className="gap-2 sm:gap-2 sm:flex-row-reverse">
+                <div className="sis-confirm-dialog__body">
+                    {isDanger ? (
+                        <AlertTriangle className="sis-confirm-dialog__icon" aria-hidden="true" />
+                    ) : null}
+                    <DialogDescription className="sis-confirm-dialog__copy">
+                        {description}
+                    </DialogDescription>
+                </div>
+                <div className="sis-confirm-dialog__actions">
                     <button
+                        ref={cancelRef}
                         type="button"
-                        className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                        className="sis-confirm-dialog__btn sis-confirm-dialog__btn--cancel"
                         onClick={() => onOpenChange(false)}
                         disabled={confirmPending}
                     >
@@ -56,13 +83,17 @@ export function ConfirmDialog({
                     </button>
                     <button
                         type="button"
-                        className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                        className={
+                            isDanger
+                                ? 'sis-confirm-dialog__btn sis-confirm-dialog__btn--danger'
+                                : 'sis-confirm-dialog__btn sis-confirm-dialog__btn--confirm'
+                        }
                         onClick={onConfirm}
                         disabled={confirmPending}
                     >
                         {confirmPending ? i18n.dialog.working : confirm}
                     </button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );

@@ -1,17 +1,4 @@
-import { Badge } from '@/components/ui/badge';
 import { t } from '@/i18n';
-
-function statusVariant(status: number): 'default' | 'secondary' | 'destructive' | 'outline' {
-    if (status === 1) {
-        return 'default';
-    }
-
-    if (status === 2) {
-        return 'destructive';
-    }
-
-    return 'secondary';
-}
 
 type StudentStatusBadgeProps = {
     status: number;
@@ -26,10 +13,14 @@ export function StudentStatusBadge({ status }: StudentStatusBadgeProps) {
         3: i18n.status.graduated,
         4: i18n.status.withdrawn,
     };
+    const toneClass =
+        status >= 0 && status <= 4
+            ? `sis-student-status-badge--${status}`
+            : 'sis-student-status-badge--0';
 
     return (
-        <Badge variant={statusVariant(status)}>
+        <span className={`sis-student-status-badge ${toneClass}`}>
             {labels[status] ?? `${i18n.common.status} ${status}`}
-        </Badge>
+        </span>
     );
 }

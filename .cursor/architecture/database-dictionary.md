@@ -25,6 +25,9 @@
 | grandfather_name | VARCHAR(100) | YES | | **YES** | اسم الجد |
 | great_grandfather_name | VARCHAR(100) | YES | | **YES** | اسم أب الجد |
 | last_name | VARCHAR(100) | NO | | **YES** | اللقب |
+| mother_name | VARCHAR(100) | YES | | **YES** | اسم الأم |
+| maternal_father_name | VARCHAR(100) | YES | | **YES** | اسم أب الأم |
+| maternal_grandfather_name | VARCHAR(100) | YES | | **YES** | اسم جد الأم |
 | full_name | VARCHAR(255) | NO | | **YES** | Display name (computed) |
 | guardian_triple_name | VARCHAR(255) | YES | | **YES** | اسم ولي أمره الثلاثي |
 | gender | SMALLINT | NO | | | 1=ذكر, 2=أنثى |
@@ -49,6 +52,7 @@
 | email | VARCHAR(255) | YES | | **YES** | البريد الإلكتروني |
 | school_name | VARCHAR(255) | YES | | | المدرسة (تسمية سجل) |
 | department_name | VARCHAR(100) | YES | | | القسم |
+| specialization_name | VARCHAR(100) | YES | | | الاختصاص |
 | stage_name | VARCHAR(100) | YES | | | المرحلة |
 | section_name | VARCHAR(100) | YES | | | الشعبة |
 | status | SMALLINT | NO | | | 1=active, 2=inactive, etc. |

@@ -20,6 +20,9 @@ final class StudentProfileRules
             'great_grandfather_name' => ['nullable', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
+            'mother_name' => ['nullable', 'string', 'max:100'],
+            'maternal_father_name' => ['nullable', 'string', 'max:100'],
+            'maternal_grandfather_name' => ['nullable', 'string', 'max:100'],
             'guardian_triple_name' => ['nullable', 'string', 'max:255'],
             'governorate' => ['nullable', 'string', 'max:100'],
             'neighborhood' => ['nullable', 'string', 'max:100'],
@@ -44,6 +47,7 @@ final class StudentProfileRules
             'email' => ['nullable', 'email', 'max:255'],
             'school_name' => ['nullable', 'string', 'max:255'],
             'department_name' => ['nullable', 'string', 'max:100'],
+            'specialization_name' => ['nullable', 'string', 'max:100'],
             'stage_name' => ['nullable', 'string', 'max:100'],
             'section_name' => ['nullable', 'string', 'max:100'],
             'student_code' => $requireStudentCode

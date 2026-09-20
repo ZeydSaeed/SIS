@@ -63,6 +63,9 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
         $fullName = StudentNameFormatter::fullName(
             firstName: $application['first_name'],
             lastName: $application['last_name'],
+            fatherName: $application['father_name'] ?? null,
+            grandfatherName: $application['grandfather_name'] ?? null,
+            greatGrandfatherName: $application['great_grandfather_name'] ?? null,
         );
 
         $studentId = $this->unitOfWork->transaction(function () use ($command, $application, $studentCode, $fullName): int {
@@ -70,14 +73,25 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 studentCode: $studentCode,
                 firstName: $application['first_name'],
                 middleName: null,
-                fatherName: null,
-                grandfatherName: null,
-                greatGrandfatherName: null,
+                fatherName: $application['father_name'] ?? null,
+                grandfatherName: $application['grandfather_name'] ?? null,
+                greatGrandfatherName: $application['great_grandfather_name'] ?? null,
+                motherName: $application['mother_name'] ?? null,
+                maternalFatherName: $application['maternal_father_name'] ?? null,
+                maternalGrandfatherName: $application['maternal_grandfather_name'] ?? null,
                 lastName: $application['last_name'],
                 fullName: $fullName,
                 gender: $application['gender'],
                 birthDate: $application['birth_date'],
                 nationalId: $application['national_id'],
+                birthPlace: $application['birth_place'] ?? null,
+                governorate: $application['governorate'] ?? null,
+                neighborhood: $application['neighborhood'] ?? null,
+                admittedClassName: $application['intended_grade_name'] ?? null,
+                notes: $application['notes'] ?? null,
+                schoolName: $application['school_name'] ?? null,
+                departmentName: $application['department_name'] ?? null,
+                specializationName: $application['specialization_name'] ?? null,
                 schoolId: $command->schoolId,
             ));
 

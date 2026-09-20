@@ -18,14 +18,11 @@ export type PageRibbonTab =
     | 'reports'
     | 'help';
 
-export type PageRibbonTone = 'edit' | 'save' | 'delete';
-
 export type PageRibbonCommand = {
     id: string;
     label: string;
     icon: LucideIcon;
     disabled?: boolean;
-    tone?: PageRibbonTone;
     onSelect: () => void;
 };
 

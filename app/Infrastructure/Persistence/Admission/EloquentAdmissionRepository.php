@@ -171,6 +171,18 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 '=',
                 'apps.application_period_id',
             )
+            ->leftJoin(
+                SchemaHelper::qualified('organization', 'schools').' as target_schools',
+                'target_schools.id',
+                '=',
+                'apps.target_school_id',
+            )
+            ->join(
+                SchemaHelper::qualified('organization', 'schools').' as period_schools',
+                'period_schools.id',
+                '=',
+                'periods.school_id',
+            )
             ->where('apps.id', $applicationId)
             ->where('periods.school_id', $schoolId)
             ->first([
@@ -178,16 +190,30 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'apps.application_period_id',
                 'apps.application_number',
                 'apps.first_name',
+                'apps.father_name',
+                'apps.grandfather_name',
+                'apps.great_grandfather_name',
                 'apps.last_name',
+                'apps.mother_name',
+                'apps.maternal_father_name',
+                'apps.maternal_grandfather_name',
                 'apps.national_id',
                 'apps.birth_date',
+                'apps.birth_place',
                 'apps.gender',
                 'apps.grade_level_id',
+                'apps.intended_grade_name',
+                'apps.department_name',
                 'apps.specialization_id',
+                'apps.specialization_name',
+                'apps.governorate',
+                'apps.neighborhood',
                 'apps.status',
                 'apps.notes',
                 'apps.student_id',
                 'periods.school_id',
+                'target_schools.name as target_school_name',
+                'period_schools.name as period_school_name',
             ]);
 
         if ($row === null) {
@@ -199,14 +225,27 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'application_period_id' => (int) $row->application_period_id,
             'application_number' => (string) $row->application_number,
             'first_name' => (string) $row->first_name,
+            'father_name' => $this->nullableString($row->father_name),
+            'grandfather_name' => $this->nullableString($row->grandfather_name),
+            'great_grandfather_name' => $this->nullableString($row->great_grandfather_name),
             'last_name' => (string) $row->last_name,
-            'national_id' => $row->national_id !== null ? (string) $row->national_id : null,
+            'mother_name' => $this->nullableString($row->mother_name),
+            'maternal_father_name' => $this->nullableString($row->maternal_father_name),
+            'maternal_grandfather_name' => $this->nullableString($row->maternal_grandfather_name),
+            'national_id' => $this->nullableString($row->national_id),
             'birth_date' => (string) $row->birth_date,
+            'birth_place' => $this->nullableString($row->birth_place),
             'gender' => (int) $row->gender,
             'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
+            'intended_grade_name' => $this->nullableString($row->intended_grade_name),
+            'department_name' => $this->nullableString($row->department_name),
             'specialization_id' => $row->specialization_id !== null ? (int) $row->specialization_id : null,
+            'specialization_name' => $this->nullableString($row->specialization_name),
+            'governorate' => $this->nullableString($row->governorate),
+            'neighborhood' => $this->nullableString($row->neighborhood),
+            'school_name' => $this->nullableString($row->target_school_name ?? $row->period_school_name),
             'status' => (int) $row->status,
-            'notes' => $row->notes !== null ? (string) $row->notes : null,
+            'notes' => $this->nullableString($row->notes),
             'student_id' => $row->student_id !== null ? (int) $row->student_id : null,
             'school_id' => (int) $row->school_id,
         ];
@@ -278,5 +317,14 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         $this->workspaceCache->forgetForApplicationId($data->applicationId);
 
         return $id;
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (string) $value;
     }
 }

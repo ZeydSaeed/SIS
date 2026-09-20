@@ -24,12 +24,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'grandfather_name',
         'great_grandfather_name',
         'last_name',
+        'mother_name',
+        'maternal_father_name',
+        'maternal_grandfather_name',
         'guardian_triple_name',
         'governorate',
         'neighborhood',
         'locality',
         'house_number',
         'birth_date',
+        'birth_place',
         'registration_place',
         'gender',
         'nationality',
@@ -47,6 +51,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'email',
         'school_name',
         'department_name',
+        'specialization_name',
         'stage_name',
         'section_name',
         'status',
@@ -66,6 +71,9 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'grandfather_name',
         'great_grandfather_name',
         'last_name',
+        'mother_name',
+        'maternal_father_name',
+        'maternal_grandfather_name',
         'full_name',
         'guardian_triple_name',
         'gender',
@@ -90,6 +98,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'email',
         'school_name',
         'department_name',
+        'specialization_name',
         'stage_name',
         'section_name',
         'status',
@@ -126,13 +135,17 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         return $this->paginateQuery($query, $page, $perPage);
     }
 
-    public function search(string $term, int $schoolId, int $page, int $perPage): array
+    public function search(string $term, int $schoolId, int $page, int $perPage, ?int $status = null): array
     {
         $term = trim($term);
         $query = StudentRecord::query()
             ->select(self::LIST_COLUMNS)
             ->where('school_id', $schoolId)
             ->orderBy('full_name');
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
 
         if ($term !== '') {
             $likeOperator = SchemaHelper::isPostgreSql() ? 'ilike' : 'like';
@@ -144,7 +157,12 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                     ->orWhere('national_id', $likeOperator, $pattern)
                     ->orWhere('first_name', $likeOperator, $pattern)
                     ->orWhere('father_name', $likeOperator, $pattern)
-                    ->orWhere('last_name', $likeOperator, $pattern);
+                    ->orWhere('grandfather_name', $likeOperator, $pattern)
+                    ->orWhere('great_grandfather_name', $likeOperator, $pattern)
+                    ->orWhere('last_name', $likeOperator, $pattern)
+                    ->orWhere('mother_name', $likeOperator, $pattern)
+                    ->orWhere('maternal_father_name', $likeOperator, $pattern)
+                    ->orWhere('maternal_grandfather_name', $likeOperator, $pattern);
             });
         }
 
@@ -188,12 +206,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             grandfatherName: $record->grandfather_name,
             greatGrandfatherName: $record->great_grandfather_name,
             lastName: (string) $record->last_name,
+            motherName: $record->mother_name,
+            maternalFatherName: $record->maternal_father_name,
+            maternalGrandfatherName: $record->maternal_grandfather_name,
             guardianTripleName: $record->guardian_triple_name,
             governorate: $record->governorate,
             neighborhood: $record->neighborhood,
             locality: $record->locality,
             houseNumber: $record->house_number,
             birthDate: $record->birth_date->format('Y-m-d'),
+            birthPlace: $record->birth_place,
             registrationPlace: $record->registration_place,
             gender: (int) $record->gender,
             nationality: $record->nationality,
@@ -213,6 +235,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             email: $record->email,
             schoolName: $record->school_name,
             departmentName: $record->department_name,
+            specializationName: $record->specialization_name,
             stageName: $record->stage_name,
             sectionName: $record->section_name,
             status: (int) $record->status,
@@ -232,6 +255,9 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             grandfatherName: $record->grandfather_name,
             greatGrandfatherName: $record->great_grandfather_name,
             lastName: (string) $record->last_name,
+            motherName: $record->mother_name,
+            maternalFatherName: $record->maternal_father_name,
+            maternalGrandfatherName: $record->maternal_grandfather_name,
             fullName: (string) $record->full_name,
             guardianTripleName: $record->guardian_triple_name,
             gender: (int) $record->gender,
@@ -258,6 +284,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             email: $record->email,
             schoolName: $record->school_name,
             departmentName: $record->department_name,
+            specializationName: $record->specialization_name,
             stageName: $record->stage_name,
             sectionName: $record->section_name,
             status: (int) $record->status,

@@ -54,10 +54,7 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
-import {
-    usePageRibbonRegistration,
-    type PageRibbonTone,
-} from '@/components/sis/page-ribbon-context';
+import { usePageRibbonRegistration } from '@/components/sis/page-ribbon-context';
 import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
 import { preservePageClipboardSelection } from '@/hooks/use-page-clipboard';
 import {
@@ -180,7 +177,6 @@ type RibbonItem = {
     label: string;
     icon: LucideIcon;
     disabled?: boolean;
-    tone?: PageRibbonTone;
     onSelect?: () => void;
 };
 
@@ -626,7 +622,6 @@ export function TitleBarRibbon({
                     label: command.label,
                     icon: command.icon,
                     disabled: command.disabled,
-                    tone: command.tone,
                     onSelect: command.onSelect,
                 })),
             }),
@@ -693,18 +688,10 @@ export function TitleBarRibbon({
                                                       onAction?.(item.id as RibbonActionId);
                                                   }}
                                               >
-                                                  {item.tone ? (
-                                                      <span
-                                                          className={`sis-page-action sis-page-action--${item.tone}`}
-                                                      >
-                                                          <Icon aria-hidden />
-                                                      </span>
-                                                  ) : (
-                                                      <Icon
-                                                          className="sis-ribbon__icon"
-                                                          aria-hidden
-                                                      />
-                                                  )}
+                                                  <Icon
+                                                      className="sis-ribbon__icon"
+                                                      aria-hidden
+                                                  />
                                                   <span className="sis-ribbon__label">
                                                       {item.label}
                                                   </span>

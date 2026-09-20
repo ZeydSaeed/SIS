@@ -863,6 +863,7 @@ export function AdmissionDraftsCard({
                 title={i18n.admission.withdrawDraftTitle}
                 description={i18n.admission.withdrawDraftConfirm}
                 confirmLabel={i18n.admission.withdrawDraft}
+                tone="danger"
                 confirmPending={withdrawing}
                 onConfirm={confirmWithdraw}
                 onOpenChange={(open) => {

@@ -12,6 +12,9 @@ final readonly class UpdateStudentData
         public ?string $fatherName,
         public ?string $grandfatherName,
         public ?string $greatGrandfatherName,
+        public ?string $motherName,
+        public ?string $maternalFatherName,
+        public ?string $maternalGrandfatherName,
         public string $lastName,
         public string $fullName,
         public int $gender,
@@ -38,6 +41,7 @@ final readonly class UpdateStudentData
         public ?string $email = null,
         public ?string $schoolName = null,
         public ?string $departmentName = null,
+        public ?string $specializationName = null,
         public ?string $stageName = null,
         public ?string $sectionName = null,
     ) {}

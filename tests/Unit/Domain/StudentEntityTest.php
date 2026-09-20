@@ -33,4 +33,12 @@ class StudentEntityTest extends TestCase
         $this->expectException(SisDomainException::class);
         $student->activate();
     }
+
+    public function test_change_status_applies_requested_status(): void
+    {
+        $student = Student::reconstitute(1, new StudentCode('STU-001'), 'Ali Hassan', StudentStatus::Active);
+        $student->changeStatus(StudentStatus::Withdrawn);
+
+        $this->assertSame(StudentStatus::Withdrawn, $student->status());
+    }
 }

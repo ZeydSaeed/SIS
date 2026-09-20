@@ -7,8 +7,10 @@ use App\Domain\Student\Data\UpdateStudentData;
 use App\Domain\Student\Entities\Student;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use App\Domain\Student\ValueObjects\StudentCode;
+use App\Domain\Student\ValueObjects\StudentReligion;
 use App\Domain\Student\ValueObjects\StudentStatus;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
+use DateTimeInterface;
 
 final class EloquentStudentRepository implements StudentRepositoryInterface
 {
@@ -28,20 +30,82 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             ->update($this->attributesFromUpdate($data));
     }
 
-    public function findById(int $studentId): ?Student
+    public function findUpdateData(int $studentId, int $schoolId): ?UpdateStudentData
     {
-        $record = StudentRecord::query()->find($studentId);
+        $record = StudentRecord::query()
+            ->whereKey($studentId)
+            ->where('school_id', $schoolId)
+            ->first();
 
         if ($record === null) {
             return null;
         }
 
-        return Student::reconstitute(
-            id: (int) $record->getKey(),
-            code: new StudentCode((string) $record->student_code),
+        return new UpdateStudentData(
+            firstName: (string) $record->first_name,
+            middleName: $record->middle_name,
+            fatherName: $record->father_name,
+            grandfatherName: $record->grandfather_name,
+            greatGrandfatherName: $record->great_grandfather_name,
+            motherName: $record->mother_name,
+            maternalFatherName: $record->maternal_father_name,
+            maternalGrandfatherName: $record->maternal_grandfather_name,
+            lastName: (string) $record->last_name,
             fullName: (string) $record->full_name,
-            status: StudentStatus::from((int) $record->status),
+            gender: (int) $record->gender,
+            birthDate: $this->dateString($record->birth_date) ?? '',
+            nationalId: $record->national_id,
+            birthPlace: $record->birth_place,
+            nationality: $record->nationality,
+            guardianTripleName: $record->guardian_triple_name,
+            governorate: $record->governorate,
+            neighborhood: $record->neighborhood,
+            locality: $record->locality,
+            houseNumber: $record->house_number,
+            registrationPlace: $record->registration_place,
+            religion: (int) ($record->religion ?? StudentReligion::Muslim->value),
+            mawalidDate: $this->dateString($record->mawalid_date),
+            previousSchoolName: $record->previous_school_name,
+            transferDocumentNumber: $record->transfer_document_number !== null
+                ? (int) $record->transfer_document_number
+                : null,
+            transferDocumentDate: $this->dateString($record->transfer_document_date),
+            schoolStartDate: $this->dateString($record->school_start_date),
+            admittedClassName: $record->admitted_class_name,
+            notes: $record->notes,
+            mobile: $record->mobile,
+            guardianMobile: $record->guardian_mobile,
+            email: $record->email,
+            schoolName: $record->school_name,
+            departmentName: $record->department_name,
+            specializationName: $record->specialization_name,
+            stageName: $record->stage_name,
+            sectionName: $record->section_name,
         );
+    }
+
+    public function findById(int $studentId): ?Student
+    {
+        $record = StudentRecord::query()->find($studentId);
+
+        return $this->mapStudent($record);
+    }
+
+    public function findByIdForSchool(int $studentId, int $schoolId): ?Student
+    {
+        $record = StudentRecord::query()
+            ->whereKey($studentId)
+            ->where('school_id', $schoolId)
+            ->first();
+
+        return $this->mapStudent($record);
+    }
+
+    public function updateStatus(int $studentId, int $status): void
+    {
+        StudentRecord::query()
+            ->whereKey($studentId)
+            ->update(['status' => $status]);
     }
 
     public function existsByCode(string $code, ?int $exceptStudentId = null): bool
@@ -73,6 +137,33 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         return sprintf('STU-%06d', $next);
     }
 
+    private function dateString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return (string) $value;
+    }
+
+    private function mapStudent(?StudentRecord $record): ?Student
+    {
+        if ($record === null) {
+            return null;
+        }
+
+        return Student::reconstitute(
+            id: (int) $record->getKey(),
+            code: new StudentCode((string) $record->student_code),
+            fullName: (string) $record->full_name,
+            status: StudentStatus::from((int) $record->status),
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -88,6 +179,9 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'grandfather_name' => $data->grandfatherName,
             'great_grandfather_name' => $data->greatGrandfatherName,
             'last_name' => $data->lastName,
+            'mother_name' => $data->motherName,
+            'maternal_father_name' => $data->maternalFatherName,
+            'maternal_grandfather_name' => $data->maternalGrandfatherName,
             'full_name' => $data->fullName,
             'guardian_triple_name' => $data->guardianTripleName,
             'gender' => $data->gender,
@@ -112,6 +206,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'email' => $data->email,
             'school_name' => $data->schoolName,
             'department_name' => $data->departmentName,
+            'specialization_name' => $data->specializationName,
             'stage_name' => $data->stageName,
             'section_name' => $data->sectionName,
             'status' => $data->status,
@@ -131,6 +226,9 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'grandfather_name' => $data->grandfatherName,
             'great_grandfather_name' => $data->greatGrandfatherName,
             'last_name' => $data->lastName,
+            'mother_name' => $data->motherName,
+            'maternal_father_name' => $data->maternalFatherName,
+            'maternal_grandfather_name' => $data->maternalGrandfatherName,
             'full_name' => $data->fullName,
             'guardian_triple_name' => $data->guardianTripleName,
             'gender' => $data->gender,
@@ -155,6 +253,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'email' => $data->email,
             'school_name' => $data->schoolName,
             'department_name' => $data->departmentName,
+            'specialization_name' => $data->specializationName,
             'stage_name' => $data->stageName,
             'section_name' => $data->sectionName,
         ];

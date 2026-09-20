@@ -29,14 +29,12 @@ export default function StudentsIndex({ students, filters, authorization, previe
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.students.title} />
-            <div className="p-4">
-                <StudentList
-                    students={students}
-                    filters={filters}
-                    authorization={authorization}
-                    preview={preview}
-                />
-            </div>
+            <StudentList
+                students={students}
+                filters={filters}
+                authorization={authorization}
+                preview={preview}
+            />
         </AppLayout>
     );
 }

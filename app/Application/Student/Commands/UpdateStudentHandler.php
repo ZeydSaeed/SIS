@@ -51,6 +51,9 @@ final class UpdateStudentHandler implements CommandHandler
                 fatherName: $command->fatherName,
                 grandfatherName: $command->grandfatherName,
                 greatGrandfatherName: $command->greatGrandfatherName,
+                motherName: $command->motherName,
+                maternalFatherName: $command->maternalFatherName,
+                maternalGrandfatherName: $command->maternalGrandfatherName,
                 lastName: $command->lastName,
                 fullName: $fullName,
                 gender: $command->gender,
@@ -77,6 +80,7 @@ final class UpdateStudentHandler implements CommandHandler
                 email: $command->email,
                 schoolName: $command->schoolName,
                 departmentName: $command->departmentName,
+                specializationName: $command->specializationName,
                 stageName: $command->stageName,
                 sectionName: $command->sectionName,
             ));

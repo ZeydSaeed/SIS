@@ -66,4 +66,9 @@ final class Student
 
         $this->status = StudentStatus::Suspended;
     }
+
+    public function changeStatus(StudentStatus $next): void
+    {
+        $this->status = $next;
+    }
 }

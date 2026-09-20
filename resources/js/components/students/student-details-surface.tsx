@@ -14,6 +14,9 @@ export type StudentDetail = {
     grandfather_name?: string | null;
     great_grandfather_name?: string | null;
     last_name: string;
+    mother_name?: string | null;
+    maternal_father_name?: string | null;
+    maternal_grandfather_name?: string | null;
     guardian_triple_name?: string | null;
     gender: number;
     birth_date: string;
@@ -38,6 +41,7 @@ export type StudentDetail = {
     email?: string | null;
     school_name?: string | null;
     department_name?: string | null;
+    specialization_name?: string | null;
     stage_name?: string | null;
     section_name?: string | null;
     status: number;
@@ -57,6 +61,20 @@ type StudentDetailsSurfaceProps = {
     error?: 'not_found' | 'forbidden' | null;
     showProfileLink?: boolean;
 };
+
+function formatCivilDate(value: string | null | undefined): string | null {
+    if (value === null || value === undefined || value === '') {
+        return null;
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+
+    if (!match) {
+        return value;
+    }
+
+    return `${match[2]}/${match[3]}/${match[1]}`;
+}
 
 function DetailField({ label, value }: { label: string; value: string | null | undefined }) {
     return (
@@ -132,6 +150,15 @@ export function StudentDetailsSurface({
                     value={student.great_grandfather_name}
                 />
                 <DetailField label={i18n.students.familyName} value={student.last_name} />
+                <DetailField label={i18n.students.motherName} value={student.mother_name} />
+                <DetailField
+                    label={i18n.students.maternalFatherName}
+                    value={student.maternal_father_name}
+                />
+                <DetailField
+                    label={i18n.students.maternalGrandfatherName}
+                    value={student.maternal_grandfather_name}
+                />
                 <DetailField
                     label={i18n.students.guardianTripleName}
                     value={student.guardian_triple_name}
@@ -140,7 +167,10 @@ export function StudentDetailsSurface({
                 <DetailField label={i18n.students.neighborhood} value={student.neighborhood} />
                 <DetailField label={i18n.students.locality} value={student.locality} />
                 <DetailField label={i18n.students.houseNumber} value={student.house_number} />
-                <DetailField label={i18n.students.birthDate} value={student.birth_date} />
+                <DetailField
+                    label={i18n.students.birthDate}
+                    value={formatCivilDate(student.birth_date)}
+                />
                 <DetailField
                     label={i18n.students.registrationPlace}
                     value={student.registration_place}
@@ -148,7 +178,10 @@ export function StudentDetailsSurface({
                 <DetailField label={i18n.students.gender} value={genderLabel} />
                 <DetailField label={i18n.students.nationality} value={student.nationality} />
                 <DetailField label={i18n.students.religion} value={religionLabel} />
-                <DetailField label={i18n.students.mawalidDate} value={student.mawalid_date} />
+                <DetailField
+                    label={i18n.students.mawalidDate}
+                    value={formatCivilDate(student.mawalid_date)}
+                />
                 {authorization?.canViewPii ? (
                     <DetailField label={i18n.students.nationalId} value={student.national_id} />
                 ) : null}
@@ -190,6 +223,10 @@ export function StudentDetailsSurface({
                 <DetailField
                     label={i18n.students.departmentName}
                     value={student.department_name}
+                />
+                <DetailField
+                    label={i18n.students.specialization}
+                    value={student.specialization_name}
                 />
                 <DetailField label={i18n.students.stageName} value={student.stage_name} />
                 <DetailField label={i18n.students.sectionName} value={student.section_name} />

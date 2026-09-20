@@ -486,6 +486,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                 title={i18n.admission.archivePeriodTitle}
                 description={i18n.admission.archivePeriodConfirm}
                 confirmLabel={i18n.admission.deletePeriod}
+                tone="danger"
                 confirmPending={archiving}
                 onConfirm={confirmArchive}
                 onOpenChange={(open) => {

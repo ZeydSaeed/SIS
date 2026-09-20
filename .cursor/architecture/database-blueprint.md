@@ -293,6 +293,9 @@
 | grandfather_name | VARCHAR(100) | اسم الجد |
 | great_grandfather_name | VARCHAR(100) | اسم أب الجد |
 | last_name | VARCHAR(100) | NOT NULL — اللقب |
+| mother_name | VARCHAR(100) | اسم الأم |
+| maternal_father_name | VARCHAR(100) | اسم أب الأم |
+| maternal_grandfather_name | VARCHAR(100) | اسم جد الأم |
 | full_name | VARCHAR(255) | NOT NULL — computed display |
 | guardian_triple_name | VARCHAR(255) | اسم ولي أمره الثلاثي |
 | gender | SMALLINT | NOT NULL — 1=ذكر, 2=أنثى |
@@ -317,6 +320,7 @@
 | email | VARCHAR(255) | البريد الإلكتروني (PII) |
 | school_name | VARCHAR(255) | المدرسة (تسمية سجل؛ school_id يبقى سياق المستأجر) |
 | department_name | VARCHAR(100) | القسم |
+| specialization_name | VARCHAR(100) | الاختصاص (نص حتى ضبط القائمة) |
 | stage_name | VARCHAR(100) | المرحلة |
 | section_name | VARCHAR(100) | الشعبة |
 | photo_storage_key | VARCHAR(500) | |

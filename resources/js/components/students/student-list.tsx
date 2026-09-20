@@ -1,28 +1,70 @@
-import { Link, router } from '@inertiajs/react';
-import { GraduationCap } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { router } from '@inertiajs/react';
+import {
+    CheckCircle2,
+    CircleSlash,
+    Eye,
+    GraduationCap,
+    PauseCircle,
+    Pencil,
+    Save,
+    Trash2,
+    UserMinus,
+    Users,
+    XCircle,
+    type LucideIcon,
+} from 'lucide-react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { PageHeader } from '@/components/sis/page-header';
-import { Button } from '@/components/ui/button';
+import { StudentViewDialog } from '@/components/students/student-record-form';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import {
-    StudentDetailsSurface,
-    type StudentAuthorization,
-    type StudentDetail,
+    useRegisterPageRibbon,
+    type PageRibbonGroup,
+} from '@/components/sis/page-ribbon-context';
+import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
+import type {
+    StudentAuthorization,
+    StudentDetail,
 } from '@/components/students/student-details-surface';
-import { StudentStatusBadge } from '@/components/students/student-status-badge';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { t } from '@/i18n';
 
 export type { StudentAuthorization };
+
+const SEARCH_DEBOUNCE_MS = 300;
+const STUDENTS_PER_PAGE = 15;
+const STUDENT_STATUS_WITHDRAWN = 4;
+
+const STUDENT_STATUS_TABS: Array<{
+    status: number | null;
+    icon: LucideIcon;
+    tone: 'light' | 'dark';
+}> = [
+    { status: null, icon: Users, tone: 'dark' },
+    { status: 1, icon: CheckCircle2, tone: 'dark' },
+    { status: 0, icon: CircleSlash, tone: 'light' },
+    { status: 2, icon: PauseCircle, tone: 'dark' },
+    { status: 3, icon: GraduationCap, tone: 'dark' },
+    { status: 4, icon: UserMinus, tone: 'light' },
+];
+
+const STUDENT_STATUS_ACTIONS: Array<{
+    status: number;
+    tone: 'light' | 'dark';
+}> = [
+    { status: 1, tone: 'dark' },
+    { status: 0, tone: 'light' },
+    { status: 2, tone: 'dark' },
+    { status: 3, tone: 'dark' },
+    { status: 4, tone: 'light' },
+];
 
 export type StudentListItem = {
     id: number;
@@ -33,12 +75,16 @@ export type StudentListItem = {
     grandfather_name?: string | null;
     great_grandfather_name?: string | null;
     last_name: string;
+    mother_name?: string | null;
+    maternal_father_name?: string | null;
+    maternal_grandfather_name?: string | null;
     guardian_triple_name?: string | null;
     governorate?: string | null;
     neighborhood?: string | null;
     locality?: string | null;
     house_number?: string | null;
     birth_date: string;
+    birth_place?: string | null;
     registration_place?: string | null;
     gender: number;
     nationality?: string | null;
@@ -58,6 +104,7 @@ export type StudentListItem = {
     department_name?: string | null;
     stage_name?: string | null;
     section_name?: string | null;
+    specialization_name?: string | null;
     status: number;
 };
 
@@ -88,6 +135,14 @@ type StudentListProps = {
     preview: PreviewPayload;
 };
 
+type VisitParams = {
+    q?: string;
+    status?: number | null;
+    page?: number;
+    per_page?: number;
+    student?: number | null;
+};
+
 function textOrDash(value: string | number | null | undefined): string {
     if (value === null || value === undefined || value === '') {
         return '—';
@@ -96,10 +151,38 @@ function textOrDash(value: string | number | null | undefined): string {
     return String(value);
 }
 
+function studentQuadName(row: StudentListItem): string {
+    return [
+        row.first_name,
+        row.father_name,
+        row.grandfather_name,
+        row.great_grandfather_name,
+        row.last_name,
+    ]
+        .map((part) => part?.trim() ?? '')
+        .filter((part) => part !== '')
+        .join(' ');
+}
+
+function formatCivilDate(value: string | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
+        return '—';
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+
+    if (!match) {
+        return value;
+    }
+
+    return `${match[2]}/${match[3]}/${match[1]}`;
+}
+
 function genderLabel(gender: number, i18n: ReturnType<typeof t>): string {
     if (gender === 1) {
         return i18n.students.male;
     }
+
     if (gender === 2) {
         return i18n.students.female;
     }
@@ -107,435 +190,1155 @@ function genderLabel(gender: number, i18n: ReturnType<typeof t>): string {
     return String(gender);
 }
 
-function religionLabel(religion: number, i18n: ReturnType<typeof t>): string {
-    if (religion === 1) {
-        return i18n.students.religionMuslim;
-    }
-    if (religion === 2) {
-        return i18n.students.religionChristian;
-    }
-    if (religion === 3) {
-        return i18n.students.religionOther;
-    }
-
-    return String(religion);
+function HighlightedText({ text, query }: { text: string; query: string }) {
+    return (
+        <>
+            {searchSegments(text, query).map((segment, segmentIndex) =>
+                segment.hit ? (
+                    <mark key={`hit-${segmentIndex}`} className="sis-admission-search-hit">
+                        {segment.text}
+                    </mark>
+                ) : (
+                    <span key={`plain-${segmentIndex}`}>{segment.text}</span>
+                ),
+            )}
+        </>
+    );
 }
 
-export function StudentList({ students, filters, authorization, preview }: StudentListProps) {
+function searchSegments(
+    text: string,
+    query: string,
+): Array<{ text: string; hit: boolean }> {
+    const tokens = query
+        .trim()
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length > 0);
+
+    if (text === '' || tokens.length === 0) {
+        return [{ text, hit: false }];
+    }
+
+    const pattern = tokens
+        .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+    const matcher = new RegExp(`(${pattern})`, 'giu');
+    const parts = text.split(matcher);
+
+    return parts
+        .filter((part) => part !== '')
+        .map((part) => ({
+            text: part,
+            hit: tokens.some((token) =>
+                part.toLocaleLowerCase('ar').includes(token.toLocaleLowerCase('ar')),
+            ),
+        }));
+}
+
+function visiblePages(current: number, totalPages: number): number[] {
+    const windowSize = 5;
+    if (totalPages <= windowSize) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const half = Math.floor(windowSize / 2);
+    let start = Math.max(1, current - half);
+    let end = start + windowSize - 1;
+    if (end > totalPages) {
+        end = totalPages;
+        start = Math.max(1, end - windowSize + 1);
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): string {
+    if (status === null) {
+        return i18n.students.allStatuses;
+    }
+
+    const labels: Record<number, string> = {
+        0: i18n.status.inactive,
+        1: i18n.status.active,
+        2: i18n.status.suspended,
+        3: i18n.status.graduated,
+        4: i18n.status.withdrawn,
+    };
+
+    return labels[status] ?? String(status);
+}
+
+function statusTone(status: number): 'light' | 'dark' {
+    return status === 0 || status === 4 ? 'light' : 'dark';
+}
+
+function emptyToNull(value: string): string | null {
+    const trimmed = value.trim();
+
+    return trimmed === '' ? null : trimmed;
+}
+
+function dateInputValue(value: string | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+
+    return value.slice(0, 10);
+}
+
+function parseOptionalInt(value: string): number | null {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+        return null;
+    }
+
+    const parsed = Number.parseInt(trimmed, 10);
+
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function TableEditInput({
+    value,
+    label,
+    type = 'text',
+    dir,
+    onChange,
+}: {
+    value: string;
+    label: string;
+    type?: string;
+    dir?: 'ltr' | 'rtl';
+    onChange: (value: string) => void;
+}) {
+    return (
+        <input
+            type={type}
+            className="sis-students-table__edit-input"
+            value={value}
+            aria-label={label}
+            dir={dir}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onChange(event.target.value)}
+        />
+    );
+}
+
+type StudentRowHandle = {
+    save: () => Promise<void>;
+};
+
+type StudentEditorRowProps = {
+    row: StudentListItem;
+    rowNumber: number;
+    canSelect: boolean;
+    canViewPii: boolean;
+    selected: boolean;
+    checked: boolean;
+    editing: boolean;
+    applyingStatus: boolean;
+    search: string;
+    onSelect: (studentId: number) => void;
+    onToggleChecked: (studentId: number) => void;
+};
+
+const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
+    function StudentEditorRow(
+        {
+            row,
+            rowNumber,
+            canSelect,
+            canViewPii,
+            selected,
+            checked,
+            editing,
+            applyingStatus,
+            search,
+            onSelect,
+            onToggleChecked,
+        },
+        ref,
+    ) {
     const i18n = t();
-    const isMobile = useIsMobile();
+        const name = studentQuadName(row);
+        const [firstName, setFirstName] = useState(row.first_name);
+        const [fatherName, setFatherName] = useState(row.father_name ?? '');
+        const [grandfatherName, setGrandfatherName] = useState(row.grandfather_name ?? '');
+        const [greatGrandfatherName, setGreatGrandfatherName] = useState(
+            row.great_grandfather_name ?? '',
+        );
+        const [lastName, setLastName] = useState(row.last_name);
+        const [birthDate, setBirthDate] = useState(dateInputValue(row.birth_date));
+        const [departmentName, setDepartmentName] = useState(row.department_name ?? '');
+        const [specializationName, setSpecializationName] = useState(
+            row.specialization_name ?? '',
+        );
+        const [stageName, setStageName] = useState(row.stage_name ?? '');
+        const [governorate, setGovernorate] = useState(row.governorate ?? '');
+        const [neighborhood, setNeighborhood] = useState(row.neighborhood ?? '');
+        const [gender, setGender] = useState(row.gender);
+        const [previousSchoolName, setPreviousSchoolName] = useState(
+            row.previous_school_name ?? '',
+        );
+        const [transferDocumentNumber, setTransferDocumentNumber] = useState(
+            row.transfer_document_number == null ? '' : String(row.transfer_document_number),
+        );
+        const [transferDocumentDate, setTransferDocumentDate] = useState(
+            dateInputValue(row.transfer_document_date),
+        );
+        const [admittedClassName, setAdmittedClassName] = useState(
+            row.admitted_class_name ?? '',
+        );
+        const [mobile, setMobile] = useState(row.mobile ?? '');
+        const [saving, setSaving] = useState(false);
+
+        useEffect(() => {
+            if (editing) {
+                return;
+            }
+
+            setFirstName(row.first_name);
+            setFatherName(row.father_name ?? '');
+            setGrandfatherName(row.grandfather_name ?? '');
+            setGreatGrandfatherName(row.great_grandfather_name ?? '');
+            setLastName(row.last_name);
+            setBirthDate(dateInputValue(row.birth_date));
+            setDepartmentName(row.department_name ?? '');
+            setSpecializationName(row.specialization_name ?? '');
+            setStageName(row.stage_name ?? '');
+            setGovernorate(row.governorate ?? '');
+            setNeighborhood(row.neighborhood ?? '');
+            setGender(row.gender);
+            setPreviousSchoolName(row.previous_school_name ?? '');
+            setTransferDocumentNumber(
+                row.transfer_document_number == null ? '' : String(row.transfer_document_number),
+            );
+            setTransferDocumentDate(dateInputValue(row.transfer_document_date));
+            setAdmittedClassName(row.admitted_class_name ?? '');
+            setMobile(row.mobile ?? '');
+        }, [editing, row]);
+
+        const save = useCallback((): Promise<void> => {
+            if (saving) {
+                return Promise.resolve();
+            }
+
+            setSaving(true);
+
+            const payload: Record<string, string | number | null> = {
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                father_name: emptyToNull(fatherName),
+                grandfather_name: emptyToNull(grandfatherName),
+                great_grandfather_name: emptyToNull(greatGrandfatherName),
+                birth_date: birthDate,
+                department_name: emptyToNull(departmentName),
+                specialization_name: emptyToNull(specializationName),
+                admitted_class_name: emptyToNull(admittedClassName),
+                stage_name: emptyToNull(stageName),
+                governorate: emptyToNull(governorate),
+                neighborhood: emptyToNull(neighborhood),
+                gender,
+                previous_school_name: emptyToNull(previousSchoolName),
+                transfer_document_number: parseOptionalInt(transferDocumentNumber),
+                transfer_document_date: emptyToNull(transferDocumentDate),
+                mother_name: row.mother_name ?? null,
+                maternal_father_name: row.maternal_father_name ?? null,
+                maternal_grandfather_name: row.maternal_grandfather_name ?? null,
+                guardian_triple_name: row.guardian_triple_name ?? null,
+                locality: row.locality ?? null,
+                house_number: row.house_number ?? null,
+                birth_place: row.birth_place ?? null,
+                registration_place: row.registration_place ?? null,
+                nationality: row.nationality ?? null,
+                religion: row.religion,
+                mawalid_date: row.mawalid_date ?? null,
+                school_start_date: row.school_start_date ?? null,
+                notes: row.notes ?? null,
+                school_name: row.school_name ?? null,
+                section_name: row.section_name ?? null,
+            };
+
+            if (canViewPii) {
+                payload.mobile = emptyToNull(mobile);
+                payload.national_id = row.national_id ?? null;
+                payload.guardian_mobile = row.guardian_mobile ?? null;
+                payload.email = row.email ?? null;
+            }
+
+            return new Promise((resolve, reject) => {
+                router.put(`/students/${row.id}`, payload, {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => resolve(),
+                    onError: () => reject(new Error('student-row-save-failed')),
+                    onFinish: () => setSaving(false),
+                });
+            });
+        }, [
+            admittedClassName,
+            birthDate,
+            canViewPii,
+            departmentName,
+            fatherName,
+            firstName,
+            gender,
+            governorate,
+            grandfatherName,
+            greatGrandfatherName,
+            lastName,
+            mobile,
+            neighborhood,
+            previousSchoolName,
+            row,
+            saving,
+            specializationName,
+            stageName,
+            transferDocumentDate,
+            transferDocumentNumber,
+        ]);
+
+        useImperativeHandle(ref, () => ({ save }), [save]);
+
+        return (
+            <tr
+                className={selected ? 'sis-admission-periods-table__row--selected' : undefined}
+                aria-selected={selected}
+                onClick={() => onSelect(row.id)}
+            >
+                {canSelect ? (
+                    <td className="sis-admission-drafts-table__select">
+                        <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={applyingStatus}
+                            aria-label={`${i18n.students.selectStudent}: ${name}`}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => onToggleChecked(row.id)}
+                        />
+                    </td>
+                ) : null}
+                <td className="sis-admission-drafts-table__num">
+                    <span dir="ltr">{rowNumber}</span>
+                </td>
+                <td className="sis-admission-drafts-table__name">
+                    {editing ? (
+                        <div className="sis-students-table__name-edit">
+                            <input
+                                className="sis-students-table__edit-input"
+                                value={firstName}
+                                aria-label={i18n.students.firstName}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => setFirstName(event.target.value)}
+                            />
+                            <input
+                                className="sis-students-table__edit-input"
+                                value={fatherName}
+                                aria-label={i18n.students.fatherName}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => setFatherName(event.target.value)}
+                            />
+                            <input
+                                className="sis-students-table__edit-input"
+                                value={grandfatherName}
+                                aria-label={i18n.students.grandfatherName}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => setGrandfatherName(event.target.value)}
+                            />
+                            <input
+                                className="sis-students-table__edit-input"
+                                value={greatGrandfatherName}
+                                aria-label={i18n.students.greatGrandfatherName}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => setGreatGrandfatherName(event.target.value)}
+                            />
+                            <input
+                                className="sis-students-table__edit-input"
+                                value={lastName}
+                                aria-label={i18n.students.familyName}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => setLastName(event.target.value)}
+                            />
+                        </div>
+                    ) : (
+                        <HighlightedText text={name} query={search} />
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                    {editing ? (
+                        <input
+                            type="date"
+                            className="sis-students-table__edit-input"
+                            value={birthDate}
+                            aria-label={i18n.students.birthDate}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setBirthDate(event.target.value)}
+                        />
+                    ) : (
+                        <span dir="ltr">{formatCivilDate(row.birth_date)}</span>
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                    {editing ? (
+                        <input
+                            className="sis-students-table__edit-input"
+                            value={departmentName}
+                            aria-label={i18n.students.departmentName}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setDepartmentName(event.target.value)}
+                        />
+                    ) : (
+                        textOrDash(row.department_name)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                    {editing ? (
+                        <input
+                            className="sis-students-table__edit-input"
+                            value={specializationName}
+                            aria-label={i18n.students.specialization}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setSpecializationName(event.target.value)}
+                        />
+                    ) : (
+                        textOrDash(row.specialization_name)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                    {editing ? (
+                        <TableEditInput
+                            value={stageName}
+                            label={i18n.students.gradeLevel}
+                            onChange={setStageName}
+                        />
+                    ) : (
+                        textOrDash(row.stage_name)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text">
+                    {editing ? (
+                        <TableEditInput
+                            value={governorate}
+                            label={i18n.students.governorate}
+                            onChange={setGovernorate}
+                        />
+                    ) : (
+                        textOrDash(row.governorate)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text">
+                    {editing ? (
+                        <TableEditInput
+                            value={neighborhood}
+                            label={i18n.students.neighborhood}
+                            onChange={setNeighborhood}
+                        />
+                    ) : (
+                        textOrDash(row.neighborhood)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text">
+                    {editing ? (
+                        <select
+                            className="sis-students-table__edit-input"
+                            value={String(gender)}
+                            aria-label={i18n.students.gender}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => setGender(Number(event.target.value))}
+                        >
+                            <option value="1">{i18n.students.male}</option>
+                            <option value="2">{i18n.students.female}</option>
+                        </select>
+                    ) : (
+                        genderLabel(row.gender, i18n)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                    {editing ? (
+                        <TableEditInput
+                            value={previousSchoolName}
+                            label={i18n.students.previousSchoolName}
+                            onChange={setPreviousSchoolName}
+                        />
+                    ) : (
+                        textOrDash(row.previous_school_name)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                    {editing ? (
+                        <TableEditInput
+                            value={transferDocumentNumber}
+                            label={i18n.students.transferDocumentNumber}
+                            dir="ltr"
+                            onChange={setTransferDocumentNumber}
+                        />
+                    ) : (
+                        <span dir="ltr">{textOrDash(row.transfer_document_number)}</span>
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                    {editing ? (
+                        <TableEditInput
+                            type="date"
+                            value={transferDocumentDate}
+                            label={i18n.students.transferDocumentDate}
+                            onChange={setTransferDocumentDate}
+                        />
+                    ) : (
+                        <span dir="ltr">{formatCivilDate(row.transfer_document_date)}</span>
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                    {editing ? (
+                        <TableEditInput
+                            value={admittedClassName}
+                            label={i18n.students.admittedClassName}
+                            onChange={setAdmittedClassName}
+                        />
+                    ) : (
+                        textOrDash(row.admitted_class_name)
+                    )}
+                </td>
+                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                    {editing && canViewPii ? (
+                        <TableEditInput
+                            value={mobile}
+                            label={i18n.students.mobile}
+                            dir="ltr"
+                            onChange={setMobile}
+                        />
+                    ) : (
+                        <span dir="ltr">{textOrDash(row.mobile)}</span>
+                    )}
+                </td>
+                <td
+                    className={`sis-students-table__status sis-students-table__status--tone-${statusTone(row.status)}`}
+                    data-status={row.status}
+                >
+                    {statusTabLabel(row.status, i18n)}
+                </td>
+            </tr>
+        );
+    },
+);
+
+export function StudentList({ students, filters, authorization }: StudentListProps) {
+    const i18n = t();
     const [search, setSearch] = useState(filters.q);
-    const [dialogOpen, setDialogOpen] = useState(false);
+    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [checkedIds, setCheckedIds] = useState<number[]>([]);
+    const [editing, setEditing] = useState(false);
+    const [editingIds, setEditingIds] = useState<number[]>([]);
+    const [savingRows, setSavingRows] = useState(false);
+    const [viewingStudents, setViewingStudents] = useState<StudentListItem[] | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<StudentListItem | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [applyingStatus, setApplyingStatus] = useState(false);
+    const skipSearchVisit = useRef(true);
+    const selectAllRef = useRef<HTMLInputElement>(null);
+    const rowRefs = useRef(new Map<number, StudentRowHandle>());
+    const rows = students?.data ?? [];
+    const pagination = students?.meta ?? {
+        page: filters.page,
+        per_page: filters.per_page,
+        total: 0,
+        last_page: 1,
+    };
+    const rowOffset = (pagination.page - 1) * pagination.per_page;
+    const canSelect = authorization.canUpdate;
+    const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+    const visibleCheckedIds = useMemo(
+        () => checkedIds.filter((id) => rowIds.includes(id)),
+        [checkedIds, rowIds],
+    );
+    const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
+    const someChecked = visibleCheckedIds.length > 0 && !allChecked;
+    const canApplyStatus = canSelect && visibleCheckedIds.length > 0 && !applyingStatus;
 
     useEffect(() => {
         setSearch(filters.q);
     }, [filters.q]);
 
     useEffect(() => {
-        if (preview && !isMobile) {
-            setDialogOpen(true);
+        if (selectAllRef.current) {
+            selectAllRef.current.indeterminate = someChecked;
         }
-    }, [preview, isMobile]);
+    }, [someChecked]);
 
-    const visitList = (params: Record<string, string | number | null | undefined>) => {
-        router.get(
-            '/students',
-            {
-                q: params.q ?? filters.q,
-                page: params.page ?? filters.page,
-                per_page: params.per_page ?? filters.per_page,
-                status: params.status ?? filters.status ?? undefined,
-                student: params.student ?? undefined,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                replace: params.student === undefined,
-            },
-        );
-    };
+    useRegisterPageTitlebarHome({
+        href: '/students',
+        ariaLabel: i18n.students.backToStudents,
+    });
 
-    const submitSearch = () => {
-        visitList({ q: search, page: 1, student: undefined });
-    };
+    const visitList = useCallback(
+        (params: VisitParams) => {
+            const nextStatus = 'status' in params ? params.status : filters.status;
+            const nextStudent = 'student' in params ? params.student : undefined;
 
-    const openPreview = (studentId: number) => {
-        if (isMobile) {
-            router.visit(`/students/${studentId}`);
+            router.get(
+                '/students',
+                {
+                    q: (params.q ?? filters.q).trim() || undefined,
+                    page: params.page ?? filters.page,
+                    per_page: STUDENTS_PER_PAGE,
+                    status: nextStatus ?? undefined,
+                    student: nextStudent ?? undefined,
+                },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: nextStudent === undefined,
+                    only: ['students', 'filters', 'preview', 'authorization'],
+                },
+            );
+        },
+        [filters.page, filters.q, filters.status],
+    );
+
+    const selectRow = useCallback((studentId: number) => {
+        setSelectedId(studentId);
+    }, []);
+
+    const bindRowRef = useCallback(
+        (studentId: number) => (handle: StudentRowHandle | null) => {
+            if (handle === null) {
+                rowRefs.current.delete(studentId);
+
+                return;
+            }
+
+            rowRefs.current.set(studentId, handle);
+        },
+        [],
+    );
+
+    const clearSelection = useCallback(() => {
+        setSelectedId(null);
+        setCheckedIds([]);
+        setEditing(false);
+        setEditingIds([]);
+        setSavingRows(false);
+    }, []);
+
+    useEffect(() => {
+        if (skipSearchVisit.current) {
+            skipSearchVisit.current = false;
 
             return;
         }
 
-        visitList({ student: studentId });
-    };
+        if (search.trim() === filters.q.trim()) {
+            return;
+        }
 
-    const closePreview = () => {
-        setDialogOpen(false);
-        visitList({ student: undefined });
-    };
+        const timer = window.setTimeout(() => {
+            visitList({ q: search, page: 1, student: undefined });
+        }, SEARCH_DEBOUNCE_MS);
 
-    const columns: DataTableColumn<StudentListItem>[] = [
-        {
-            id: 'first_name',
-            header: i18n.students.firstName,
-            cell: (row) => row.first_name,
-        },
-        {
-            id: 'father_name',
-            header: i18n.students.fatherName,
-            cell: (row) => textOrDash(row.father_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'grandfather_name',
-            header: i18n.students.grandfatherName,
-            cell: (row) => textOrDash(row.grandfather_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'great_grandfather_name',
-            header: i18n.students.greatGrandfatherName,
-            cell: (row) => textOrDash(row.great_grandfather_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'last_name',
-            header: i18n.students.familyName,
-            cell: (row) => row.last_name,
-        },
-        {
-            id: 'guardian_triple_name',
-            header: i18n.students.guardianTripleName,
-            cell: (row) => textOrDash(row.guardian_triple_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'governorate',
-            header: i18n.students.governorate,
-            cell: (row) => textOrDash(row.governorate),
-            hideOnMobile: true,
-        },
-        {
-            id: 'neighborhood',
-            header: i18n.students.neighborhood,
-            cell: (row) => textOrDash(row.neighborhood),
-            hideOnMobile: true,
-        },
-        {
-            id: 'locality',
-            header: i18n.students.locality,
-            cell: (row) => textOrDash(row.locality),
-            hideOnMobile: true,
-        },
-        {
-            id: 'house_number',
-            header: i18n.students.houseNumber,
-            cell: (row) => <span dir="ltr">{textOrDash(row.house_number)}</span>,
-            hideOnMobile: true,
-        },
-        {
-            id: 'birth_date',
-            header: i18n.students.birthDate,
-            cell: (row) => <span dir="ltr">{row.birth_date}</span>,
-        },
-        {
-            id: 'registration_place',
-            header: i18n.students.registrationPlace,
-            cell: (row) => textOrDash(row.registration_place),
-            hideOnMobile: true,
-        },
-        {
-            id: 'gender',
-            header: i18n.students.gender,
-            cell: (row) => genderLabel(row.gender, i18n),
-        },
-        {
-            id: 'nationality',
-            header: i18n.students.nationality,
-            cell: (row) => textOrDash(row.nationality),
-            hideOnMobile: true,
-        },
-        {
-            id: 'religion',
-            header: i18n.students.religion,
-            cell: (row) => religionLabel(row.religion, i18n),
-            hideOnMobile: true,
-        },
-        {
-            id: 'mawalid_date',
-            header: i18n.students.mawalidDate,
-            cell: (row) => <span dir="ltr">{textOrDash(row.mawalid_date)}</span>,
-            hideOnMobile: true,
-        },
-        {
-            id: 'national_id',
-            header: i18n.students.nationalId,
-            cell: (row) =>
-                authorization.canViewPii ? (
-                    <span dir="ltr">{textOrDash(row.national_id)}</span>
-                ) : (
-                    '—'
-                ),
-            hideOnMobile: true,
-        },
-        {
-            id: 'previous_school_name',
-            header: i18n.students.previousSchoolName,
-            cell: (row) => textOrDash(row.previous_school_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'transfer_document_number',
-            header: i18n.students.transferDocumentNumber,
-            cell: (row) => <span dir="ltr">{textOrDash(row.transfer_document_number)}</span>,
-            hideOnMobile: true,
-        },
-        {
-            id: 'transfer_document_date',
-            header: i18n.students.transferDocumentDate,
-            cell: (row) => <span dir="ltr">{textOrDash(row.transfer_document_date)}</span>,
-            hideOnMobile: true,
-        },
-        {
-            id: 'school_start_date',
-            header: i18n.students.schoolStartDate,
-            cell: (row) => <span dir="ltr">{textOrDash(row.school_start_date)}</span>,
-            hideOnMobile: true,
-        },
-        {
-            id: 'admitted_class_name',
-            header: i18n.students.admittedClassName,
-            cell: (row) => textOrDash(row.admitted_class_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'notes',
-            header: i18n.students.notes,
-            cell: (row) => (
-                <span className="line-clamp-2 max-w-[14rem] whitespace-pre-wrap">
-                    {textOrDash(row.notes)}
-                </span>
-            ),
-            hideOnMobile: true,
-        },
-        {
-            id: 'mobile',
-            header: i18n.students.mobile,
-            cell: (row) =>
-                authorization.canViewPii ? (
-                    <span dir="ltr">{textOrDash(row.mobile)}</span>
-                ) : (
-                    '—'
-                ),
-            hideOnMobile: true,
-        },
-        {
-            id: 'guardian_mobile',
-            header: i18n.students.guardianMobile,
-            cell: (row) =>
-                authorization.canViewPii ? (
-                    <span dir="ltr">{textOrDash(row.guardian_mobile)}</span>
-                ) : (
-                    '—'
-                ),
-            hideOnMobile: true,
-        },
-        {
-            id: 'email',
-            header: i18n.students.email,
-            cell: (row) =>
-                authorization.canViewPii ? (
-                    <span dir="ltr">{textOrDash(row.email)}</span>
-                ) : (
-                    '—'
-                ),
-            hideOnMobile: true,
-        },
-        {
-            id: 'school_name',
-            header: i18n.students.schoolName,
-            cell: (row) => textOrDash(row.school_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'department_name',
-            header: i18n.students.departmentName,
-            cell: (row) => textOrDash(row.department_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'stage_name',
-            header: i18n.students.stageName,
-            cell: (row) => textOrDash(row.stage_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'section_name',
-            header: i18n.students.sectionName,
-            cell: (row) => textOrDash(row.section_name),
-            hideOnMobile: true,
-        },
-        {
-            id: 'actions',
-            header: '',
-            cell: (row) => (
-                <Button asChild size="sm" variant="ghost">
-                    <Link
-                        href={`/students/${row.id}`}
-                        aria-label={`${i18n.students.openProfile}: ${row.full_name}`}
-                    >
-                        {i18n.students.view}
-                    </Link>
-                </Button>
-            ),
-        },
-    ];
+        return () => window.clearTimeout(timer);
+    }, [filters.q, search, visitList]);
 
-    const previewError = preview && 'error' in preview ? preview.error : null;
-    const previewStudent = preview && 'student' in preview ? preview.student : null;
-    const previewAuthorization =
-        preview && 'authorization' in preview ? preview.authorization : null;
+    const toggleChecked = useCallback((studentId: number) => {
+        setCheckedIds((current) =>
+            current.includes(studentId)
+                ? current.filter((id) => id !== studentId)
+                : [...current, studentId],
+        );
+    }, []);
+
+    const toggleAll = useCallback(() => {
+        setCheckedIds((current) => {
+            const visible = current.filter((id) => rowIds.includes(id));
+
+            return visible.length === rowIds.length ? [] : rowIds;
+        });
+    }, [rowIds]);
+
+    const applyStatus = useCallback(
+        (status: number) => {
+            if (!canApplyStatus) {
+                return;
+            }
+
+            setApplyingStatus(true);
+            router.post(
+                '/students/bulk-status',
+                {
+                    student_ids: visibleCheckedIds,
+                    status,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        setCheckedIds([]);
+                        setSelectedId(null);
+                        setEditing(false);
+                        setEditingIds([]);
+                    },
+                    onFinish: () => setApplyingStatus(false),
+                },
+            );
+        },
+        [canApplyStatus, visibleCheckedIds],
+    );
+
+    const onStatusTabClick = useCallback(
+        (status: number | null, isActive: boolean) => {
+            if (isActive) {
+                return;
+            }
+
+            visitList({
+                status,
+                page: 1,
+                student: undefined,
+            });
+        },
+        [visitList],
+    );
+
+    const goPage = useCallback(
+        (page: number) => {
+            if (page < 1 || page > pagination.last_page || page === pagination.page) {
+                return;
+            }
+
+            visitList({ page, student: undefined });
+        },
+        [pagination.last_page, pagination.page, visitList],
+    );
+
+    const selectedStudent = rows.find((row) => row.id === selectedId) ?? null;
+    const editTargetIds = useMemo(() => {
+        if (visibleCheckedIds.length > 0) {
+            return visibleCheckedIds;
+        }
+
+        return selectedId !== null ? [selectedId] : [];
+    }, [selectedId, visibleCheckedIds]);
+    const hasEditTargets = editTargetIds.length > 0;
+    const hasActiveSelection = hasEditTargets || editing;
+    const viewTargets = useMemo(() => {
+        if (visibleCheckedIds.length > 0) {
+            const checked = new Set(visibleCheckedIds);
+
+            return rows.filter((row) => checked.has(row.id));
+        }
+
+        return selectedStudent === null ? [] : [selectedStudent];
+    }, [rows, selectedStudent, visibleCheckedIds]);
+    const hasViewTargets = viewTargets.length > 0;
+    const canDelete =
+        canSelect && selectedStudent !== null && selectedStudent.status !== STUDENT_STATUS_WITHDRAWN;
+
+    const startEditing = useCallback(() => {
+        if (!canSelect || editTargetIds.length === 0) {
+            return;
+        }
+
+        setEditingIds(editTargetIds);
+        setEditing(true);
+    }, [canSelect, editTargetIds]);
+
+    const saveEditingRows = useCallback(() => {
+        if (savingRows || editingIds.length === 0) {
+            return;
+        }
+
+        void (async () => {
+            setSavingRows(true);
+            try {
+                for (const id of editingIds) {
+                    await rowRefs.current.get(id)?.save();
+                }
+                setEditing(false);
+                setEditingIds([]);
+            } catch {
+                // Stay in edit mode so the user can correct validation errors.
+            } finally {
+                setSavingRows(false);
+            }
+        })();
+    }, [editingIds, savingRows]);
+
+    const ribbonGroups = useMemo((): PageRibbonGroup[] => {
+        const commands: PageRibbonGroup['commands'] = [
+                    {
+                        id: 'view-student',
+                label: i18n.common.view,
+                        icon: Eye,
+                disabled: !hasViewTargets,
+                onSelect: () => setViewingStudents(viewTargets),
+            },
+        ];
+
+        if (canSelect) {
+            commands.push(
+                {
+                    id: 'edit-student',
+                    label: i18n.common.edit,
+                    icon: Pencil,
+                    tone: 'edit',
+                    disabled: !hasEditTargets || savingRows,
+                    onSelect: startEditing,
+                },
+                {
+                    id: 'save-student',
+                    label: i18n.common.save,
+                    icon: Save,
+                    tone: 'save',
+                    disabled: !editing || savingRows,
+                    onSelect: saveEditingRows,
+                },
+                {
+                    id: 'cancel-student-selection',
+                    label: i18n.common.cancel,
+                    icon: XCircle,
+                    disabled: !hasActiveSelection || savingRows,
+                    onSelect: clearSelection,
+                },
+                {
+                    id: 'delete-student',
+                    label: i18n.common.delete,
+                    icon: Trash2,
+                    tone: 'delete',
+                    disabled: !canDelete || savingRows,
+                        onSelect: () => {
+                        if (selectedStudent !== null) {
+                            setDeleteTarget(selectedStudent);
+                            }
+                        },
+                    },
+            );
+        }
+
+        return [
+            {
+                id: 'student-list-actions',
+                label: i18n.common.actions,
+                commands,
+            },
+        ];
+    }, [
+        canDelete,
+        canSelect,
+        clearSelection,
+        editing,
+        hasActiveSelection,
+        hasEditTargets,
+        hasViewTargets,
+        i18n.common.actions,
+        i18n.common.cancel,
+        i18n.common.delete,
+        i18n.common.edit,
+        i18n.common.save,
+        i18n.common.view,
+        saveEditingRows,
+        savingRows,
+        selectedStudent,
+        startEditing,
+        viewTargets,
+    ]);
+
+    useRegisterPageRibbon('home', ribbonGroups);
+
+    const confirmDelete = useCallback(() => {
+        if (deleteTarget === null) {
+            return;
+        }
+
+        setDeleting(true);
+        router.post(
+            '/students/bulk-status',
+            {
+                student_ids: [deleteTarget.id],
+                status: STUDENT_STATUS_WITHDRAWN,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    if (selectedId === deleteTarget.id) {
+                        setSelectedId(null);
+                    }
+                    setEditing(false);
+                    setEditingIds([]);
+                    setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
+                },
+                onFinish: () => {
+                    setDeleting(false);
+                    setDeleteTarget(null);
+                },
+            },
+        );
+    }, [deleteTarget, selectedId]);
+
+    const emptyMessage = filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc;
 
     return (
-        <div className="sis-ops-hub flex flex-col gap-6" dir="rtl" lang="ar">
-            <div className="grid w-full grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
-                <div className="flex justify-start">
+        <div className="sis-ops-hub sis-admission-page sis-students-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4" dir="rtl" lang="ar">
+            <div className="sis-admission-page-head">
+                <div className="sis-admission-page-head__row">
                     <PageHeader
                         title={i18n.students.title}
                         icon={
-                            <GraduationCap className="text-primary size-8" aria-hidden="true" />
+                            <GraduationCap className="sis-admission-page-head__icon" aria-hidden="true" />
                         }
                     />
+                    <div className="sis-admission-filter-stack">
+                        <label className="sis-admission-search">
+                            <span className="sr-only">{i18n.students.searchAria}</span>
+                            <input
+                                type="search"
+                                value={search}
+                                maxLength={80}
+                                autoComplete="off"
+                                placeholder={i18n.students.search}
+                                aria-label={i18n.students.searchAria}
+                                className="sis-admission-search__input"
+                                onChange={(event) => setSearch(event.target.value)}
+                            />
+                        </label>
+                    </div>
+                    <div aria-hidden="true" />
                 </div>
-
-                <div className="flex w-full items-center justify-center gap-3 sm:w-auto">
-                    <Input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                submitSearch();
-                            }
-                        }}
-                        placeholder={i18n.students.searchPlaceholder}
-                        aria-label={i18n.students.searchAria}
-                        className="w-full max-w-md sm:w-64 md:w-80"
-                        dir="rtl"
-                    />
-                    <Button type="button" className="shrink-0" onClick={submitSearch}>
-                        {i18n.students.search}
-                    </Button>
-                </div>
-
-                <div className="hidden sm:block" aria-hidden="true" />
             </div>
 
-            <section aria-label={i18n.students.title} className="sis-students-table-wrap flex flex-col gap-3">
-                <DataTable
-                    columns={columns}
-                    rows={students?.data ?? []}
-                    rowKey={(row) => row.id}
-                    emptyTitle={i18n.students.emptyTitle}
-                    emptyDescription={
-                        filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc
-                    }
-                    onRowClick={(row) => openPreview(row.id)}
-                    getRowAriaLabel={(row) => `${i18n.students.view}: ${row.full_name}`}
-                    mobileCard={(row) => (
-                        <button
-                            type="button"
-                            className="border-border hover:bg-muted/40 w-full rounded-xl border p-4 text-start"
-                            onClick={() => openPreview(row.id)}
-                            aria-label={`${i18n.students.view}: ${row.full_name}`}
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="font-medium">{row.full_name}</p>
-                                    <p className="text-muted-foreground mt-1 text-xs">
-                                        {row.first_name} {row.last_name}
-                                    </p>
-                                    <p className="text-muted-foreground mt-1 text-xs" dir="ltr">
-                                        {row.birth_date}
-                                    </p>
-                                </div>
-                                <StudentStatusBadge status={row.status} />
-                            </div>
-                        </button>
-                    )}
-                />
+            <section
+                aria-label={i18n.students.statusTabsTitle}
+                className="sis-admission-progress sis-students-tabs flex flex-col"
+            >
+                <ol className="sis-admission-progress__track" dir="rtl" role="tablist">
+                    {STUDENT_STATUS_TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = filters.status === tab.status;
+                        const label = statusTabLabel(tab.status, i18n);
+                        const statusClass =
+                            tab.status === null
+                                ? 'sis-admission-progress__segment--status-all'
+                                : `sis-admission-progress__segment--status-${tab.status}`;
+
+                        return (
+                            <li key={tab.status ?? 'all'} className="sis-admission-progress__item">
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    className={`sis-admission-progress__segment ${statusClass} sis-admission-progress__segment--tone-${tab.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
+                                    aria-label={label}
+                                    title={label}
+                                    aria-selected={isActive}
+                                    aria-pressed={isActive}
+                                    aria-current={isActive ? 'true' : undefined}
+                                    data-active={isActive ? 'true' : undefined}
+                                    onClick={() => onStatusTabClick(tab.status, isActive)}
+                                >
+                                    <span className="sis-admission-progress__content">
+                                        <Icon className="sis-admission-progress__icon" aria-hidden="true" />
+                                        <span className="sis-admission-progress__label">{label}</span>
+                                    </span>
+                                </button>
+                            </li>
+                        );
+                    })}
+                </ol>
             </section>
 
-            {students?.meta && students.meta.last_page > 1 ? (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-muted-foreground text-sm">
-                        {i18n.common.page}{' '}
-                        <span dir="ltr">{students.meta.page}</span> {i18n.common.of}{' '}
-                        <span dir="ltr">{students.meta.last_page}</span> ·{' '}
-                        <span dir="ltr">{students.meta.total}</span> {i18n.common.total}
-                    </p>
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={students.meta.page <= 1}
-                            onClick={() =>
-                                visitList({ page: students.meta.page - 1, student: undefined })
-                            }
-                        >
-                            {i18n.common.previous}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={students.meta.page >= students.meta.last_page}
-                            onClick={() =>
-                                visitList({ page: students.meta.page + 1, student: undefined })
-                            }
-                        >
-                            {i18n.common.next}
-                        </Button>
-                    </div>
-                </div>
-            ) : null}
+            <div className="sis-admission-page-body">
+                <section aria-label={i18n.students.tableCaption} className="flex min-h-0 flex-1 flex-col">
+                    {rows.length === 0 ? (
+                        <p className="text-sm">{emptyMessage}</p>
+                    ) : (
+                        <>
+                            {canSelect ? (
+                                <div
+                                    className="sis-admission-drafts-transitions"
+                                    role="toolbar"
+                                    aria-label={i18n.students.statusActionsTitle}
+                                >
+                                    <span className="sis-admission-drafts-transitions__label">
+                                        {i18n.students.statusActionsTitle}
+                                    </span>
+                                    <div className="sis-admission-drafts-table__transitions">
+                                        {STUDENT_STATUS_ACTIONS.map((action) => (
+                                            <button
+                                                key={action.status}
+                                                type="button"
+                                                className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone}`}
+                                                data-status={action.status}
+                                                disabled={!canApplyStatus}
+                                                title={
+                                                    canApplyStatus
+                                                        ? undefined
+                                                        : i18n.students.statusNeedsSelection
+                                                }
+                                                onClick={() => applyStatus(action.status)}
+                                            >
+                                                {statusTabLabel(action.status, i18n)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
+                            <div className="sis-admission-periods-table sis-admission-drafts-table">
+                                <div className="sis-admission-drafts-table__scroller">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                {canSelect ? (
+                                                    <th className="sis-admission-drafts-table__select">
+                                                        <input
+                                                            ref={selectAllRef}
+                                                            type="checkbox"
+                                                            checked={allChecked}
+                                                            disabled={applyingStatus}
+                                                            aria-label={i18n.students.selectAllStudents}
+                                                            onChange={toggleAll}
+                                                        />
+                                                    </th>
+                                                ) : null}
+                                                <th className="sis-admission-drafts-table__num">
+                                                    {i18n.students.seq}
+                                                </th>
+                                                <th className="sis-admission-drafts-table__name-head">
+                                                    {i18n.students.quadName}
+                                                </th>
+                                                <th>{i18n.students.birthDate}</th>
+                                                <th>{i18n.students.departmentName}</th>
+                                                <th>{i18n.students.specialization}</th>
+                                                <th>{i18n.students.gradeLevel}</th>
+                                                <th>{i18n.students.governorate}</th>
+                                                <th>{i18n.students.neighborhood}</th>
+                                                <th>{i18n.students.gender}</th>
+                                                <th>{i18n.students.previousSchoolName}</th>
+                                                <th>{i18n.students.transferDocumentNumber}</th>
+                                                <th>{i18n.students.transferDocumentDate}</th>
+                                                <th>{i18n.students.admittedClassName}</th>
+                                                <th>{i18n.students.mobile}</th>
+                                                <th>{i18n.students.statusTabsTitle}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rows.map((row, index) => {
+                                                const selected = selectedId === row.id;
+                                                const checked = visibleCheckedIds.includes(row.id);
+
+                                                return (
+                                                    <StudentEditorRow
+                                                        key={row.id}
+                                                        ref={bindRowRef(row.id)}
+                                                        row={row}
+                                                        rowNumber={rowOffset + index + 1}
+                                                        canSelect={canSelect}
+                                                        canViewPii={authorization.canViewPii}
+                                                        selected={selected}
+                                                        checked={checked}
+                                                        editing={editing && editingIds.includes(row.id)}
+                                                        applyingStatus={applyingStatus}
+                                                        search={search}
+                                                        onSelect={selectRow}
+                                                        onToggleChecked={toggleChecked}
+                                                    />
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {pagination.total > 0 ? (
+                                <nav
+                                    className="sis-admission-drafts-pagination"
+                                    aria-label={i18n.common.page}
+                                >
+                                    <ul className="sis-admission-pagination" dir="ltr">
+                                        <li className="sis-admission-pagination__item">
+                                            <button
+                                                type="button"
+                                                className="sis-admission-pagination__link"
+                                                aria-label={i18n.common.previous}
+                                                disabled={pagination.page <= 1}
+                                                onClick={() => goPage(pagination.page - 1)}
+                                            >
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </button>
+                                        </li>
+                                        {visiblePages(pagination.page, pagination.last_page).map(
+                                            (pageNum) => (
+                                                <li
+                                                    key={pageNum}
+                                                    className="sis-admission-pagination__item"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className={
+                                                            pageNum === pagination.page
+                                                                ? 'sis-admission-pagination__link sis-admission-pagination__link--active'
+                                                                : 'sis-admission-pagination__link'
+                                                        }
+                                                        aria-label={`${i18n.common.page} ${pageNum}`}
+                                                        aria-current={
+                                                            pageNum === pagination.page ? 'page' : undefined
+                                                        }
+                                                        onClick={() => goPage(pageNum)}
+                                                    >
+                                                        {pageNum}
+                                                    </button>
+                                                </li>
+                                            ),
+                                        )}
+                                        <li className="sis-admission-pagination__item">
+                                            <button
+                                                type="button"
+                                                className="sis-admission-pagination__link"
+                                                aria-label={i18n.common.next}
+                                                disabled={pagination.page >= pagination.last_page}
+                                                onClick={() => goPage(pagination.page + 1)}
+                                            >
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            ) : null}
+                        </>
+                    )}
+                </section>
+            </div>
 
             {!authorization.canViewPii ? (
                 <p className="text-muted-foreground text-xs">{i18n.students.piiHidden}</p>
             ) : null}
 
-            {!isMobile ? (
-                <Dialog open={dialogOpen} onOpenChange={(open) => !open && closePreview()}>
-                    <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl" dir="rtl">
-                        <DialogHeader>
-                            <DialogTitle>{i18n.students.detailsTitle}</DialogTitle>
-                            <DialogDescription>{i18n.students.detailsDesc}</DialogDescription>
-                        </DialogHeader>
-                        <StudentDetailsSurface
-                            student={previewStudent}
-                            authorization={previewAuthorization}
-                            error={previewError}
-                            showProfileLink
-                        />
-                    </DialogContent>
-                </Dialog>
+            {viewingStudents !== null && viewingStudents.length > 0 ? (
+                <StudentViewDialog
+                    students={viewingStudents}
+                    canViewPii={authorization.canViewPii}
+                    canUpdate={authorization.canUpdate}
+                    onClose={() => setViewingStudents(null)}
+                    onSaved={(updated) => {
+                        setViewingStudents((current) =>
+                            current === null
+                                ? current
+                                : current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
+                        );
+                    }}
+                />
             ) : null}
 
-            {isMobile && previewStudent ? (
-                <Sheet open onOpenChange={(open) => !open && closePreview()}>
-                    <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto" dir="rtl">
-                        <SheetHeader>
-                            <SheetTitle>{i18n.students.detailsTitle}</SheetTitle>
-                        </SheetHeader>
-                        <StudentDetailsSurface
-                            student={previewStudent}
-                            authorization={previewAuthorization}
-                            error={previewError}
-                            showProfileLink
-                        />
-                    </SheetContent>
-                </Sheet>
-            ) : null}
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                title={i18n.students.deleteTitle}
+                description={i18n.students.deleteConfirm}
+                confirmLabel={i18n.common.delete}
+                tone="danger"
+                confirmPending={deleting}
+                onConfirm={confirmDelete}
+                onOpenChange={(open) => {
+                    if (!open && !deleting) {
+                        setDeleteTarget(null);
+                    }
+                }}
+            />
         </div>
     );
 }
