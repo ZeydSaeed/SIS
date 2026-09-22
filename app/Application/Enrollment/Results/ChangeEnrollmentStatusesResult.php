@@ -6,20 +6,23 @@ final readonly class ChangeEnrollmentStatusesResult
 {
     /**
      * @param  list<int>  $enrollmentIds
+     * @param  list<int>  $skippedIds
      */
     public function __construct(
         public array $enrollmentIds,
         public int $status,
         public int $count,
         public bool $fromIdempotency = false,
+        public array $skippedIds = [],
     ) {}
 
     /**
      * @param  list<int>  $enrollmentIds
+     * @param  list<int>  $skippedIds
      */
-    public static function success(array $enrollmentIds, int $status): self
+    public static function success(array $enrollmentIds, int $status, array $skippedIds = []): self
     {
-        return new self($enrollmentIds, $status, count($enrollmentIds));
+        return new self($enrollmentIds, $status, count($enrollmentIds), false, $skippedIds);
     }
 
     /**

@@ -43,6 +43,7 @@ import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
+import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { t } from '@/i18n';
 
 const ADMISSION_STATUS_WITHDRAWN = 8;
@@ -439,6 +440,7 @@ export function AdmissionDraftsCard({
     const searchQuery = useAdmissionSearchQuery();
     const selectedRowRef = useRef<DraftRowHandle>(null);
     const selectAllRef = useRef<HTMLInputElement>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
@@ -454,8 +456,14 @@ export function AdmissionDraftsCard({
     };
     const rowOffset = (pagination.page - 1) * pagination.per_page;
 
-    // Server already filters by stage + Active periods and sorts created_at/id.
+    // Server already filters by stage + Active periods and sorts by applicant name.
     const rows = workspace.applications;
+
+    useResizableTableColumns(tableRef, {
+        storageKey: 'admission.drafts',
+        columnSignature: canManage ? 'manage' : 'readonly',
+        enabled: rows.length > 0,
+    });
 
     const hasSelection = selectedId !== null;
     const selectedDraft = rows.find((app) => app.id === selectedId) ?? null;
@@ -788,7 +796,7 @@ export function AdmissionDraftsCard({
                 ) : null}
                 <div className="sis-admission-periods-table sis-admission-drafts-table">
                     <div className="sis-admission-drafts-table__scroller" data-allow-x-scroll>
-                    <table>
+                    <table ref={tableRef}>
                         <thead>
                             <tr>
                                 {canManage ? (

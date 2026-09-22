@@ -146,7 +146,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         $query = StudentRecord::query()
             ->select(self::LIST_COLUMNS)
             ->where('school_id', $schoolId)
-            ->orderByDesc('id');
+            ->orderBy('full_name')
+            ->orderBy('id');
 
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
@@ -171,7 +172,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         $query = StudentRecord::query()
             ->select(self::LIST_COLUMNS)
             ->where('school_id', $schoolId)
-            ->orderBy('full_name');
+            ->orderBy('full_name')
+            ->orderBy('id');
 
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);

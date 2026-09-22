@@ -1,7 +1,11 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
+import {
+    EnrollmentCreateForm,
+    type EnrollmentCreateStudent,
+    type EnrollmentFormFilterOptions,
+} from '@/components/enrollments/enrollment-record-form';
 import { PageHeader } from '@/components/sis/page-header';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -12,9 +16,11 @@ type PageProps = {
         student_id?: number | null;
         effective_from: string;
     };
+    student: EnrollmentCreateStudent | null;
+    filterOptions: EnrollmentFormFilterOptions;
 };
 
-export default function EnrollmentCreate({ defaults }: PageProps) {
+export default function EnrollmentCreate({ defaults, student, filterOptions }: PageProps) {
     const i18n = t();
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -31,106 +37,22 @@ export default function EnrollmentCreate({ defaults }: PageProps) {
                     description={i18n.enrollments.createDesc}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
-                <Link href="/enrollments" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
-                    {i18n.common.backToList}
-                </Link>
-                <Form
-                    action="/enrollments"
-                    method="post"
-                    className="grid max-w-xl gap-3"
-                    options={{ preserveScroll: true }}
+                <Link
+                    href="/enrollments"
+                    className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
+                    dir="rtl"
+                    lang="ar"
+                    prefetch
                 >
-                    {({ errors, processing }) => (
-                        <>
-                            <OpsFormField
-                                label={i18n.enrollments.studentId}
-                                name="student_id"
-                                error={errors.student_id}
-                            >
-                                <OpsTextInput
-                                    name="student_id"
-                                    type="number"
-                                    min={1}
-                                    required
-                                    defaultValue={defaults.student_id ?? undefined}
-                                    error={errors.student_id}
-                                />
-                            </OpsFormField>
-                            <OpsFormField
-                                label={i18n.enrollments.academicYearId}
-                                name="academic_year_id"
-                                error={errors.academic_year_id}
-                            >
-                                <OpsTextInput
-                                    name="academic_year_id"
-                                    type="number"
-                                    min={1}
-                                    required
-                                    defaultValue={defaults.academic_year_id ?? undefined}
-                                    error={errors.academic_year_id}
-                                />
-                            </OpsFormField>
-                            <OpsFormField
-                                label={i18n.enrollments.classId}
-                                name="class_id"
-                                error={errors.class_id}
-                            >
-                                <OpsTextInput
-                                    name="class_id"
-                                    type="number"
-                                    min={1}
-                                    required
-                                    error={errors.class_id}
-                                />
-                            </OpsFormField>
-                            <OpsFormField
-                                label={i18n.enrollments.sectionId}
-                                name="section_id"
-                                error={errors.section_id}
-                            >
-                                <OpsTextInput
-                                    name="section_id"
-                                    type="number"
-                                    min={1}
-                                    required
-                                    error={errors.section_id}
-                                />
-                            </OpsFormField>
-                            <OpsFormField
-                                label={i18n.enrollments.effectiveFrom}
-                                name="effective_from"
-                                error={errors.effective_from}
-                            >
-                                <OpsTextInput
-                                    name="effective_from"
-                                    type="date"
-                                    required
-                                    defaultValue={defaults.effective_from}
-                                    error={errors.effective_from}
-                                />
-                            </OpsFormField>
-                            <OpsFormField
-                                label={i18n.enrollments.specializationId}
-                                name="specialization_id"
-                                error={errors.specialization_id}
-                            >
-                                <OpsTextInput
-                                    name="specialization_id"
-                                    type="number"
-                                    min={1}
-                                    error={errors.specialization_id}
-                                />
-                            </OpsFormField>
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar"
-                            >
-                                {processing ? i18n.common.saving : i18n.enrollments.createSubmit}
-                            </button>
-                        </>
-                    )}
-                </Form>
+                    {i18n.enrollments.backToEnrollments}
+                </Link>
+                <EnrollmentCreateForm
+                    academicYearId={defaults.academic_year_id}
+                    filterOptions={filterOptions}
+                    initialStudentId={defaults.student_id ?? null}
+                    student={student}
+                    showCancel={false}
+                />
             </div>
         </AppLayout>
     );

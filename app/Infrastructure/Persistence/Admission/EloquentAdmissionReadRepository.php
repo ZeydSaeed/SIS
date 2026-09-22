@@ -254,7 +254,11 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             $applicationPeriodId,
             $search,
         )
-            ->orderBy('apps.created_at')
+            ->orderBy('apps.first_name')
+            ->orderBy('apps.father_name')
+            ->orderBy('apps.grandfather_name')
+            ->orderBy('apps.great_grandfather_name')
+            ->orderBy('apps.last_name')
             ->orderBy('apps.id')
             ->offset($offset)
             ->limit($perPage)

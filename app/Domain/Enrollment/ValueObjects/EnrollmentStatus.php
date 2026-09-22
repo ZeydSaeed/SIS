@@ -32,6 +32,8 @@ final class EnrollmentStatus
 
     public static function isReopenable(int $status): bool
     {
-        return $status === self::CANCELLED || $status === self::INACTIVE;
+        return $status === self::CANCELLED
+            || $status === self::INACTIVE
+            || $status === self::TRANSFERRED;
     }
 }

@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
     CheckCircle2,
@@ -6,11 +6,14 @@ import {
     Eye,
     PauseCircle,
     Pencil,
+    Save,
+    Trash2,
     UserPlus,
     Users,
+    XCircle,
     type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FilterBranchIcon,
     FilterClassIcon,
@@ -20,10 +23,22 @@ import {
     FilterSpecializationIcon,
     FilterYearIcon,
 } from '@/components/enrollments/enrollment-filter-icons';
+import {
+    EnrollmentCreateDialog,
+    EnrollmentViewDialog,
+} from '@/components/enrollments/enrollment-record-form';
+import {
+    EnrollmentEditorRow,
+    type EnrollmentRowHandle,
+} from '@/components/enrollments/enrollment-editor-row';
+import type {
+    EnrollmentFilterOptions,
+    EnrollmentListItem,
+} from '@/components/enrollments/enrollment-types';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
-    selectTableRow,
     tableActionIds,
     toggleTableRowChecked,
     toggleTableSelectAll,
@@ -34,6 +49,7 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
+import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { t } from '@/i18n';
 
 const ENROLLMENTS_PER_PAGE = 17;
@@ -92,41 +108,7 @@ function countForStatus(
     return count < 0 ? 0 : Math.round(count);
 }
 
-export type EnrollmentListItem = {
-    id: number;
-    student_id: number;
-    school_id: number;
-    academic_year_id: number;
-    class_id: number;
-    section_id: number;
-    enrollment_number: string;
-    status: number;
-    effective_from: string;
-    effective_to: string | null;
-    specialization_id?: number | null;
-    branch_id?: number | null;
-    department_id?: number | null;
-    student_code?: string | null;
-    student_full_name?: string | null;
-    student_first_name?: string | null;
-    student_father_name?: string | null;
-    student_grandfather_name?: string | null;
-    student_great_grandfather_name?: string | null;
-    student_last_name?: string | null;
-    student_gender?: number | null;
-    class_code?: string | null;
-    class_name?: string | null;
-    section_code?: string | null;
-    section_name?: string | null;
-    specialization_code?: string | null;
-    specialization_name?: string | null;
-    branch_code?: string | null;
-    branch_name?: string | null;
-    grade_level_code?: string | null;
-    grade_level_name?: string | null;
-    department_name?: string | null;
-    stage_name?: string | null;
-};
+export type { EnrollmentFilterOptions, EnrollmentListItem };
 
 export type EnrollmentsPayload = {
     data: EnrollmentListItem[];
@@ -147,19 +129,6 @@ export type EnrollmentAuthorization = {
     canCreate: boolean;
     canUpdate: boolean;
     canCancel: boolean;
-};
-
-export type EnrollmentFilterOptions = {
-    branches: Array<{ id: number; code: string; name: string }>;
-    classes: Array<{ id: number; code: string; name: string }>;
-    sections: Array<{ id: number; class_id: number; code: string; name: string }>;
-    departments: Array<{ id: number; branch_id: number | null; code: string; name: string }>;
-    specializations: Array<{
-        id: number;
-        department_id: number | null;
-        code: string;
-        name: string;
-    }>;
 };
 
 type EnrollmentListProps = {
@@ -197,108 +166,6 @@ type VisitParams = {
     quiet?: boolean;
 };
 
-function textOrDash(value: string | number | null | undefined): string {
-    if (value === null || value === undefined || value === '') {
-        return '—';
-    }
-
-    return String(value);
-}
-
-function studentQuadName(row: EnrollmentListItem): string {
-    const parts = [
-        row.student_first_name,
-        row.student_father_name,
-        row.student_grandfather_name,
-        row.student_great_grandfather_name,
-        row.student_last_name,
-    ]
-        .map((part) => part?.trim() ?? '')
-        .filter((part) => part !== '');
-
-    if (parts.length > 0) {
-        return parts.join(' ');
-    }
-
-    return row.student_full_name?.trim() || '—';
-}
-
-function formatCivilDate(value: string | null | undefined): string {
-    if (value === null || value === undefined || value === '') {
-        return '—';
-    }
-
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-
-    if (!match) {
-        return value;
-    }
-
-    return `${match[2]}/${match[3]}/${match[1]}`;
-}
-
-function genderLabelFor(gender: number | null | undefined, i18n: ReturnType<typeof t>): string {
-    if (gender === 1) {
-        return i18n.students.male;
-    }
-
-    if (gender === 2) {
-        return i18n.students.female;
-    }
-
-    return '—';
-}
-
-function CellScroll({ children }: { children: ReactNode }) {
-    return <div className="sis-students-table__cell-scroll">{children}</div>;
-}
-
-function HighlightedText({ text, query }: { text: string; query: string }) {
-    return (
-        <>
-            {searchSegments(text, query).map((segment, segmentIndex) =>
-                segment.hit ? (
-                    <mark key={`hit-${segmentIndex}`} className="sis-admission-search-hit">
-                        {segment.text}
-                    </mark>
-                ) : (
-                    <span key={`plain-${segmentIndex}`}>{segment.text}</span>
-                ),
-            )}
-        </>
-    );
-}
-
-function searchSegments(
-    text: string,
-    query: string,
-): Array<{ text: string; hit: boolean }> {
-    const tokens = query
-        .trim()
-        .split(/\s+/)
-        .map((token) => token.trim())
-        .filter((token) => token.length > 0);
-
-    if (text === '' || tokens.length === 0) {
-        return [{ text, hit: false }];
-    }
-
-    const pattern = tokens
-        .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('|');
-    const matcher = new RegExp(`(${pattern})`, 'giu');
-    const parts = text.split(matcher);
-
-    return parts
-        .filter((part) => part !== '')
-        .map((part) => ({
-            text: part,
-            hit: tokens.some((token) =>
-                part.toLocaleLowerCase('ar').includes(token.toLocaleLowerCase('ar')),
-            ),
-        }));
-}
-
 function visiblePages(current: number, totalPages: number): number[] {
     const windowSize = 5;
     if (totalPages <= windowSize) {
@@ -329,10 +196,6 @@ function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): stri
     };
 
     return labels[status] ?? String(status);
-}
-
-function statusTone(status: number): 'light' | 'dark' {
-    return status === 0 || status === 2 ? 'light' : 'dark';
 }
 
 export function EnrollmentList({
@@ -374,11 +237,34 @@ export function EnrollmentList({
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
+    const [editing, setEditing] = useState(false);
+    const [editingIds, setEditingIds] = useState<number[]>([]);
+    const [savingRows, setSavingRows] = useState(false);
     const [applyingStatus, setApplyingStatus] = useState(false);
+    const [applyingPlacement, setApplyingPlacement] = useState(false);
+    const [viewingEnrollments, setViewingEnrollments] = useState<EnrollmentListItem[] | null>(null);
+    const [viewDialogEditing, setViewDialogEditing] = useState(false);
+    const [creatingEnrollment, setCreatingEnrollment] = useState(false);
+    const [createStudentId, setCreateStudentId] = useState<number | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<EnrollmentListItem | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const selectAllRef = useRef<HTMLInputElement>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
     const filtersRef = useRef(filters);
     const searchDraftRef = useRef(filters.q);
+    const checkedIdsRef = useRef(checkedIds);
+    const selectedIdRef = useRef(selectedId);
+    const applyingPlacementRef = useRef(false);
+    const applyingStatusRef = useRef(false);
+    const createIntentHandledRef = useRef(false);
+    const rowRefs = useRef(new Map<number, EnrollmentRowHandle>());
+    const rowSaveFns = useRef(new Map<number, () => Promise<void>>());
+    const editingIdsRef = useRef<number[]>([]);
     filtersRef.current = filters;
+    checkedIdsRef.current = checkedIds;
+    selectedIdRef.current = selectedId;
+    editingIdsRef.current = editingIds;
+    const page = usePage();
     const rows = enrollments?.data ?? [];
     const pagination = enrollments?.meta ?? {
         page: filters.page,
@@ -389,6 +275,49 @@ export function EnrollmentList({
     const rowOffset = (pagination.page - 1) * pagination.per_page;
     const overallPercent = clampPercent(enrollments.status_progress?.overall_percent ?? 0);
     const canSelect = authorization.canUpdate || authorization.canCancel;
+
+    useEffect(() => {
+        const query = page.url.includes('?') ? page.url.slice(page.url.indexOf('?') + 1) : '';
+        const params = new URLSearchParams(query);
+        if (params.get('create') !== '1') {
+            createIntentHandledRef.current = false;
+
+            return;
+        }
+
+        if (createIntentHandledRef.current) {
+            return;
+        }
+
+        createIntentHandledRef.current = true;
+
+        const studentIdRaw = params.get('student_id');
+        const studentId =
+            studentIdRaw !== null && studentIdRaw !== '' && Number(studentIdRaw) > 0
+                ? Number(studentIdRaw)
+                : null;
+
+        if (authorization.canCreate) {
+            setCreateStudentId(studentId);
+            setCreatingEnrollment(true);
+        }
+
+        params.delete('create');
+        params.delete('student_id');
+        const next = params.toString();
+        router.get(next === '' ? '/enrollments' : `/enrollments?${next}`, {}, {
+            replace: true,
+            preserveState: true,
+            preserveScroll: true,
+        });
+    }, [authorization.canCreate, page.url]);
+
+    useResizableTableColumns(tableRef, {
+        storageKey: 'enrollments.list',
+        columnSignature: canSelect ? 'select' : 'readonly',
+        enabled: rows.length > 0,
+    });
+
     const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
     const visibleCheckedIds = useMemo(
         () => checkedIds.filter((id) => rowIds.includes(id)),
@@ -400,21 +329,34 @@ export function EnrollmentList({
     );
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
-    const canApplyStatus = canSelect && actionIds.length > 0 && !applyingStatus;
+    const canApplyStatus = canSelect && actionIds.length > 0 && !applyingStatus && !applyingPlacement && !editing;
+    const isEditMode = authorization.canUpdate && actionIds.length > 0 && !editing;
+    const filtersBusy = applyingPlacement || applyingStatus || savingRows;
     const selectedRow = rows.find((row) => row.id === selectedId) ?? null;
-    const canViewSelected = authorization.canView && selectedRow !== null;
-    const canEditSelected = authorization.canUpdate && selectedRow !== null;
+    const viewTargets = useMemo(() => {
+        const selected = new Set(actionIds);
+
+        return rows.filter((row) => selected.has(row.id));
+    }, [actionIds, rows]);
+    const hasViewTargets = viewTargets.length > 0;
+    const editTargetIds = actionIds;
+    const hasEditTargets = authorization.canUpdate && editTargetIds.length > 0;
+    const canDelete =
+        authorization.canCancel
+        && selectedRow !== null
+        && selectedRow.status !== 2;
+    const hasActiveSelection = actionIds.length > 0 || editing;
 
     const filterSections = useMemo(() => {
-        if (classValue === '') {
+        if (isEditMode || classValue === '') {
             return filterOptions.sections;
         }
 
         return filterOptions.sections.filter((section) => String(section.class_id) === classValue);
-    }, [classValue, filterOptions.sections]);
+    }, [classValue, filterOptions.sections, isEditMode]);
 
     const filterDepartments = useMemo(() => {
-        if (branchValue === '') {
+        if (isEditMode || branchValue === '') {
             return filterOptions.departments;
         }
 
@@ -422,10 +364,10 @@ export function EnrollmentList({
             (department) =>
                 department.branch_id === null || String(department.branch_id) === branchValue,
         );
-    }, [branchValue, filterOptions.departments]);
+    }, [branchValue, filterOptions.departments, isEditMode]);
 
     const filterSpecializations = useMemo(() => {
-        if (departmentIdValue === '') {
+        if (isEditMode || departmentIdValue === '') {
             return filterOptions.specializations;
         }
 
@@ -433,7 +375,7 @@ export function EnrollmentList({
             (item) =>
                 item.department_id === null || String(item.department_id) === departmentIdValue,
         );
-    }, [departmentIdValue, filterOptions.specializations]);
+    }, [departmentIdValue, filterOptions.specializations, isEditMode]);
 
     useEffect(() => {
         if (selectAllRef.current) {
@@ -496,9 +438,14 @@ export function EnrollmentList({
     );
 
     const selectRow = useCallback((enrollmentId: number) => {
-        const next = selectTableRow(enrollmentId);
-        setSelectedId(next.selectedId);
-        setCheckedIds(next.checkedIds);
+        setSelectedId(enrollmentId);
+        setCheckedIds((previous) => {
+            if (previous.length > 1 && previous.includes(enrollmentId)) {
+                return previous;
+            }
+
+            return [enrollmentId];
+        });
     }, []);
 
     const toggleChecked = useCallback(
@@ -516,41 +463,230 @@ export function EnrollmentList({
         setSelectedId(next.selectedId);
     }, [checkedIds, rowIds, selectedId]);
 
+    const resolveActionIds = useCallback((): number[] => {
+        // Prefer the same resolved list the toolbar uses; fall back to refs
+        // so a click in the same tick as select-all still sees the new ids.
+        const fromUi = tableActionIds(checkedIdsRef.current, selectedIdRef.current);
+        if (fromUi.length > 0) {
+            return fromUi;
+        }
+
+        return actionIds;
+    }, [actionIds]);
+
     const applyStatus = useCallback(
         (status: number) => {
-            if (!canApplyStatus) {
+            const enrollmentIds = resolveActionIds();
+            if (enrollmentIds.length === 0 || applyingStatusRef.current) {
                 return;
             }
 
-            if ((status === 0 || status === 2 || status === 3) && !authorization.canCancel) {
+            const targetStatus = Number(status);
+            if ((targetStatus === 0 || targetStatus === 2 || targetStatus === 3) && !authorization.canCancel) {
                 return;
             }
 
-            if (status === 1 && !authorization.canUpdate && !authorization.canCancel) {
+            if (targetStatus === 1 && !authorization.canUpdate && !authorization.canCancel) {
                 return;
             }
 
+            applyingStatusRef.current = true;
             setApplyingStatus(true);
+            const today = (() => {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
+            })();
             router.post(
                 '/enrollments/bulk-status',
                 {
-                    enrollment_ids: actionIds,
-                    status,
-                    effective_to: new Date().toISOString().slice(0, 10),
+                    enrollment_ids: enrollmentIds.map((id) => Number(id)),
+                    // Keep numeric 0 (inactive) — never coerce via || / ?? falsy checks.
+                    status: targetStatus,
+                    effective_to: today,
                 },
                 {
                     preserveScroll: true,
                     preserveState: true,
-                    onSuccess: () => {
-                        setCheckedIds([]);
-                        setSelectedId(null);
+                    only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                    onFinish: () => {
+                        applyingStatusRef.current = false;
+                        setApplyingStatus(false);
                     },
-                    onFinish: () => setApplyingStatus(false),
                 },
             );
         },
-        [actionIds, authorization.canCancel, authorization.canUpdate, canApplyStatus],
+        [authorization.canCancel, authorization.canUpdate, resolveActionIds],
     );
+
+    const applyPlacementPatch = useCallback(
+        (payload: {
+            class_id?: number;
+            section_id?: number;
+            branch_id?: number;
+            department_id?: number;
+            specialization_id?: number;
+            gender?: number;
+        }) => {
+            const enrollmentIds = resolveActionIds();
+            if (!authorization.canUpdate || enrollmentIds.length === 0 || applyingPlacementRef.current) {
+                return;
+            }
+
+            applyingPlacementRef.current = true;
+            setApplyingPlacement(true);
+            router.post(
+                '/enrollments/bulk-placement',
+                {
+                    enrollment_ids: enrollmentIds.map((id) => Number(id)),
+                    ...payload,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                    onFinish: () => {
+                        applyingPlacementRef.current = false;
+                        setApplyingPlacement(false);
+                    },
+                },
+            );
+        },
+        [authorization.canUpdate, resolveActionIds],
+    );
+
+    const clearStructureFilters = useCallback(() => {
+        searchDraftRef.current = '';
+        visitList({
+            q: '',
+            gender: null,
+            class_id: null,
+            section_id: null,
+            branch_id: null,
+            department_id: null,
+            specialization_id: null,
+            page: 1,
+        });
+    }, [visitList]);
+
+    const clearSelection = useCallback(() => {
+        setCheckedIds([]);
+        setSelectedId(null);
+        setEditing(false);
+        setEditingIds([]);
+        editingIdsRef.current = [];
+        setViewDialogEditing(false);
+    }, []);
+
+    const registerRowSave = useCallback(
+        (enrollmentId: number, save: (() => Promise<void>) | null) => {
+            if (save === null) {
+                rowSaveFns.current.delete(enrollmentId);
+
+                return;
+            }
+
+            rowSaveFns.current.set(enrollmentId, save);
+        },
+        [],
+    );
+
+    const startEditing = useCallback(() => {
+        if (!authorization.canUpdate || editTargetIds.length === 0) {
+            return;
+        }
+
+        setEditingIds(editTargetIds);
+        editingIdsRef.current = editTargetIds;
+        setEditing(true);
+    }, [authorization.canUpdate, editTargetIds]);
+
+    const saveEditingRows = useCallback(() => {
+        if (savingRows) {
+            return;
+        }
+
+        const ids =
+            editingIdsRef.current.length > 0 ? [...editingIdsRef.current] : [...editingIds];
+
+        if (ids.length === 0) {
+            return;
+        }
+
+        void (async () => {
+            setSavingRows(true);
+            try {
+                for (const id of ids) {
+                    const saveFn = rowSaveFns.current.get(id) ?? rowRefs.current.get(id)?.save;
+                    if (!saveFn) {
+                        throw new Error(`enrollment-row-missing:${id}`);
+                    }
+                    await saveFn();
+                }
+                setEditing(false);
+                setEditingIds([]);
+                editingIdsRef.current = [];
+            } catch {
+                // Stay in edit mode so the user can correct validation errors.
+            } finally {
+                setSavingRows(false);
+            }
+        })();
+    }, [editingIds, savingRows]);
+
+    const openViewDialog = useCallback(
+        (dialogEditing = false) => {
+            if (viewTargets.length === 0) {
+                return;
+            }
+
+            setViewDialogEditing(dialogEditing);
+            setViewingEnrollments(viewTargets);
+        },
+        [viewTargets],
+    );
+
+    const confirmDelete = useCallback(() => {
+        if (deleteTarget === null) {
+            return;
+        }
+
+        setDeleting(true);
+        const today = (() => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+
+            return `${year}-${month}-${day}`;
+        })();
+        router.post(
+            '/enrollments/bulk-status',
+            {
+                enrollment_ids: [deleteTarget.id],
+                status: 2,
+                effective_to: today,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                onSuccess: () => {
+                    if (selectedId === deleteTarget.id) {
+                        setSelectedId(null);
+                    }
+                    setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
+                },
+                onFinish: () => {
+                    setDeleting(false);
+                    setDeleteTarget(null);
+                },
+            },
+        );
+    }, [deleteTarget, selectedId]);
 
     const onStatusTabClick = useCallback(
         (status: number | null, isActive: boolean) => {
@@ -579,12 +715,8 @@ export function EnrollmentList({
                 id: 'view-enrollment',
                 label: i18n.common.view,
                 icon: Eye,
-                disabled: !canViewSelected,
-                onSelect: () => {
-                    if (selectedRow !== null) {
-                        router.visit(`/enrollments/${selectedRow.id}`);
-                    }
-                },
+                disabled: !hasViewTargets || !authorization.canView,
+                onSelect: () => openViewDialog(false),
             },
         ];
 
@@ -594,27 +726,50 @@ export function EnrollmentList({
                 label: i18n.enrollments.enrollStudent,
                 icon: UserPlus,
                 onSelect: () => {
-                    router.visit('/enrollments/create', {
-                        data: {
-                            academic_year_id: filters.academic_year_id ?? undefined,
-                        },
-                    });
+                    setCreateStudentId(null);
+                    setCreatingEnrollment(true);
                 },
             });
         }
 
-        if (authorization.canUpdate) {
-            commands.push({
-                id: 'edit-enrollment',
-                label: i18n.enrollments.editPlacement,
-                icon: Pencil,
-                disabled: !canEditSelected,
-                onSelect: () => {
-                    if (selectedRow !== null) {
-                        router.visit(`/enrollments/${selectedRow.id}/edit`);
-                    }
+        if (authorization.canUpdate || authorization.canCancel) {
+            commands.push(
+                {
+                    id: 'edit-enrollment',
+                    label: i18n.common.edit,
+                    icon: Pencil,
+                    tone: 'edit',
+                    disabled: !hasEditTargets || applyingPlacement || applyingStatus || savingRows,
+                    onSelect: startEditing,
                 },
-            });
+                {
+                    id: 'save-enrollment',
+                    label: i18n.common.save,
+                    icon: Save,
+                    tone: 'save',
+                    disabled: !editing || savingRows,
+                    onSelect: saveEditingRows,
+                },
+                {
+                    id: 'cancel-enrollment-selection',
+                    label: i18n.common.cancel,
+                    icon: XCircle,
+                    disabled: !hasActiveSelection || applyingPlacement || applyingStatus || savingRows,
+                    onSelect: clearSelection,
+                },
+                {
+                    id: 'delete-enrollment',
+                    label: i18n.common.delete,
+                    icon: Trash2,
+                    tone: 'delete',
+                    disabled: !canDelete || applyingPlacement || applyingStatus || savingRows || editing,
+                    onSelect: () => {
+                        if (selectedRow !== null) {
+                            setDeleteTarget(selectedRow);
+                        }
+                    },
+                },
+            );
         }
 
         return [
@@ -625,16 +780,30 @@ export function EnrollmentList({
             },
         ];
     }, [
+        applyingPlacement,
+        applyingStatus,
+        authorization.canCancel,
         authorization.canCreate,
         authorization.canUpdate,
-        canEditSelected,
-        canViewSelected,
-        filters.academic_year_id,
+        authorization.canView,
+        canDelete,
+        clearSelection,
+        editing,
+        hasActiveSelection,
+        hasEditTargets,
+        hasViewTargets,
         i18n.common.actions,
+        i18n.common.cancel,
+        i18n.common.delete,
+        i18n.common.edit,
+        i18n.common.save,
         i18n.common.view,
-        i18n.enrollments.editPlacement,
         i18n.enrollments.enrollStudent,
+        openViewDialog,
+        saveEditingRows,
+        savingRows,
         selectedRow,
+        startEditing,
     ]);
 
     useRegisterPageRibbon('home', ribbonGroups);
@@ -663,12 +832,17 @@ export function EnrollmentList({
             lang="ar"
         >
             <div className="sis-enrollments-control-strip">
-                <form
-                    className="sis-enrollments-filters-bar"
-                    onSubmit={(event) => event.preventDefault()}
+                <div
+                    className={
+                        isEditMode
+                            ? 'sis-enrollments-filters-bar sis-enrollments-filters-bar--edit'
+                            : 'sis-enrollments-filters-bar sis-enrollments-filters-bar--filter'
+                    }
+                    role="search"
                     aria-label={i18n.enrollments.structureFiltersTitle}
+                    aria-busy={filtersBusy || undefined}
                 >
-                <label className="sis-enrollments-filter-chip sis-enrollments-filter-chip--year" dir="rtl">
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--year" dir="rtl">
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
                         <FilterYearIcon />
                     </span>
@@ -691,17 +865,27 @@ export function EnrollmentList({
                                 department_id: filters.department_id ?? undefined,
                                 specialization_id: filters.specialization_id ?? undefined,
                             }}
+                            onYearChange={(yearId) => {
+                                if (filtersBusy) {
+                                    return;
+                                }
+
+                                visitList({
+                                    academic_year_id: yearId,
+                                    page: 1,
+                                });
+                            }}
                             label={i18n.enrollments.academicYear}
                             showLabel={false}
                             compact
                             showCurrentBadge={false}
+                            disabled={filtersBusy}
                             controlClassName="sis-admission-year-control"
                         />
                     </span>
-                </label>
+                </div>
 
-                <label
-                    className="sis-enrollments-filter-chip sis-enrollments-filter-chip--gender"
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--gender"
                     dir="rtl"
                 >
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
@@ -712,27 +896,38 @@ export function EnrollmentList({
                             {genderFilterLabel}
                         </span>
                         <SisListSelect
-                            value={genderValue}
+                            key={isEditMode ? 'gender-edit' : 'gender-filter'}
+                            value={isEditMode ? '' : genderValue}
                             options={[
                                 { value: '', label: i18n.enrollments.gender },
                                 { value: '1', label: i18n.students.male },
                                 { value: '2', label: i18n.students.female },
                             ]}
                             onChange={(next) => {
+                                if (isEditMode) {
+                                    if (next === '' || filtersBusy) {
+                                        return;
+                                    }
+
+                                    applyPlacementPatch({ gender: Number(next) });
+
+                                    return;
+                                }
+
                                 visitList({
                                     gender: next === '1' || next === '2' ? Number(next) : null,
                                     page: 1,
                                 });
                             }}
+                            disabled={filtersBusy}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterByGender}
                         />
                     </span>
-                </label>
+                </div>
 
-                <label
-                    className="sis-enrollments-filter-chip sis-enrollments-filter-chip--branch"
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--branch"
                     dir="rtl"
                 >
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
@@ -743,7 +938,8 @@ export function EnrollmentList({
                             {selectedBranchLabel}
                         </span>
                         <SisListSelect
-                            value={branchValue}
+                            key={isEditMode ? 'branch-edit' : 'branch-filter'}
+                            value={isEditMode ? '' : branchValue}
                             options={[
                                 { value: '', label: i18n.enrollments.allBranches },
                                 ...filterOptions.branches.map((item) => ({
@@ -752,6 +948,16 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isEditMode) {
+                                    if (next === '' || filtersBusy) {
+                                        return;
+                                    }
+
+                                    applyPlacementPatch({ branch_id: Number(next) });
+
+                                    return;
+                                }
+
                                 visitList({
                                     branch_id: next === '' ? null : Number(next),
                                     department_id: null,
@@ -759,15 +965,15 @@ export function EnrollmentList({
                                     page: 1,
                                 });
                             }}
+                            disabled={filtersBusy}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterByBranch}
                         />
                     </span>
-                </label>
+                </div>
 
-                <label
-                    className="sis-enrollments-filter-chip sis-enrollments-filter-chip--department"
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--department"
                     dir="rtl"
                 >
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
@@ -778,7 +984,8 @@ export function EnrollmentList({
                             {selectedDepartmentLabel}
                         </span>
                         <SisListSelect
-                            value={departmentIdValue}
+                            key={isEditMode ? 'department-edit' : 'department-filter'}
+                            value={isEditMode ? '' : departmentIdValue}
                             options={[
                                 { value: '', label: i18n.enrollments.allDepartments },
                                 ...filterDepartments.map((item) => ({
@@ -787,21 +994,31 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isEditMode) {
+                                    if (next === '' || filtersBusy) {
+                                        return;
+                                    }
+
+                                    applyPlacementPatch({ department_id: Number(next) });
+
+                                    return;
+                                }
+
                                 visitList({
                                     department_id: next === '' ? null : Number(next),
                                     specialization_id: null,
                                     page: 1,
                                 });
                             }}
+                            disabled={filtersBusy}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterByDepartment}
                         />
                     </span>
-                </label>
+                </div>
 
-                <label
-                    className="sis-enrollments-filter-chip sis-enrollments-filter-chip--specialization"
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--specialization"
                     dir="rtl"
                 >
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
@@ -812,7 +1029,8 @@ export function EnrollmentList({
                             {selectedSpecializationLabel}
                         </span>
                         <SisListSelect
-                            value={specializationValue}
+                            key={isEditMode ? 'specialization-edit' : 'specialization-filter'}
+                            value={isEditMode ? '' : specializationValue}
                             options={[
                                 { value: '', label: i18n.enrollments.allSpecializations },
                                 ...filterSpecializations.map((item) => ({
@@ -821,20 +1039,30 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isEditMode) {
+                                    if (next === '' || filtersBusy) {
+                                        return;
+                                    }
+
+                                    applyPlacementPatch({ specialization_id: Number(next) });
+
+                                    return;
+                                }
+
                                 visitList({
                                     specialization_id: next === '' ? null : Number(next),
                                     page: 1,
                                 });
                             }}
+                            disabled={filtersBusy}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterBySpecialization}
                         />
                     </span>
-                </label>
+                </div>
 
-                <label
-                    className="sis-enrollments-filter-chip sis-enrollments-filter-chip--class"
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--class"
                     dir="rtl"
                 >
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
@@ -845,7 +1073,8 @@ export function EnrollmentList({
                             {selectedClassLabel}
                         </span>
                         <SisListSelect
-                            value={classValue}
+                            key={isEditMode ? 'class-edit' : 'class-filter'}
+                            value={isEditMode ? '' : classValue}
                             options={[
                                 { value: '', label: i18n.enrollments.allClasses },
                                 ...filterOptions.classes.map((item) => ({
@@ -854,21 +1083,31 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isEditMode) {
+                                    if (next === '' || filtersBusy) {
+                                        return;
+                                    }
+
+                                    applyPlacementPatch({ class_id: Number(next) });
+
+                                    return;
+                                }
+
                                 visitList({
                                     class_id: next === '' ? null : Number(next),
                                     section_id: null,
                                     page: 1,
                                 });
                             }}
+                            disabled={filtersBusy}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterByClass}
                         />
                     </span>
-                </label>
+                </div>
 
-                <label
-                    className="sis-enrollments-filter-chip sis-enrollments-filter-chip--section"
+                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--section"
                     dir="rtl"
                 >
                     <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
@@ -879,7 +1118,8 @@ export function EnrollmentList({
                             {selectedSectionLabel}
                         </span>
                         <SisListSelect
-                            value={sectionValue}
+                            key={isEditMode ? 'section-edit' : 'section-filter'}
+                            value={isEditMode ? '' : sectionValue}
                             options={[
                                 { value: '', label: i18n.enrollments.allSections },
                                 ...filterSections.map((item) => ({
@@ -888,18 +1128,52 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isEditMode) {
+                                    if (next === '' || filtersBusy) {
+                                        return;
+                                    }
+
+                                    applyPlacementPatch({ section_id: Number(next) });
+
+                                    return;
+                                }
+
                                 visitList({
                                     section_id: next === '' ? null : Number(next),
                                     page: 1,
                                 });
                             }}
+                            disabled={filtersBusy}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterBySection}
                         />
                     </span>
-                </label>
-                </form>
+                </div>
+
+                <button
+                    type="button"
+                    className="sis-enrollments-filter-clear"
+                    onClick={clearStructureFilters}
+                    disabled={filtersBusy}
+                    aria-label={i18n.enrollments.clearFiltersAria}
+                    title={i18n.enrollments.clearFiltersAria}
+                >
+                    {i18n.enrollments.clearFilters}
+                </button>
+                {actionIds.length > 0 ? (
+                    <button
+                        type="button"
+                        className="sis-enrollments-filter-clear"
+                        onClick={clearSelection}
+                        disabled={filtersBusy}
+                        aria-label={i18n.enrollments.clearSelectionAria}
+                        title={i18n.enrollments.clearSelectionAria}
+                    >
+                        {i18n.enrollments.clearSelection}
+                    </button>
+                ) : null}
+                </div>
 
                 {canSelect ? (
                     <div
@@ -1024,7 +1298,7 @@ export function EnrollmentList({
                         <>
                             <div className="sis-admission-periods-table sis-admission-drafts-table">
                                 <div className="sis-admission-drafts-table__scroller">
-                                    <table>
+                                    <table ref={tableRef}>
                                         <thead>
                                             <tr>
                                                 {canSelect ? (
@@ -1033,7 +1307,7 @@ export function EnrollmentList({
                                                             ref={selectAllRef}
                                                             type="checkbox"
                                                             checked={allChecked}
-                                                            disabled={applyingStatus}
+                                                            disabled={applyingStatus || applyingPlacement}
                                                             aria-label={i18n.enrollments.selectAllEnrollments}
                                                             onChange={toggleAll}
                                                         />
@@ -1047,12 +1321,14 @@ export function EnrollmentList({
                                                 </th>
                                                 <th>{i18n.enrollments.studentCode}</th>
                                                 <th>{i18n.enrollments.gender}</th>
+                                                <th>{i18n.enrollments.academicYear}</th>
                                                 <th>{i18n.enrollments.className}</th>
                                                 <th>{i18n.enrollments.sectionName}</th>
                                                 <th>{i18n.enrollments.branchName}</th>
                                                 <th>{i18n.enrollments.departmentName}</th>
                                                 <th>{i18n.enrollments.specialization}</th>
                                                 <th>{i18n.enrollments.gradeLevel}</th>
+                                                <th>{i18n.enrollments.stageName}</th>
                                                 <th>{i18n.enrollments.enrollmentNumber}</th>
                                                 <th>{i18n.enrollments.effectiveFrom}</th>
                                                 <th>{i18n.enrollments.effectiveTo}</th>
@@ -1061,105 +1337,38 @@ export function EnrollmentList({
                                         </thead>
                                         <tbody>
                                             {rows.map((row, index) => {
-                                                const name = studentQuadName(row);
                                                 const selected = selectedId === row.id;
                                                 const checked = checkedIds.includes(row.id);
+                                                const rowEditing =
+                                                    editing && editingIds.includes(row.id);
 
                                                 return (
-                                                    <tr
+                                                    <EnrollmentEditorRow
                                                         key={row.id}
-                                                        className={
-                                                            selected || checked
-                                                                ? 'sis-admission-periods-table__row--selected'
-                                                                : undefined
+                                                        ref={(handle) => {
+                                                            if (handle) {
+                                                                rowRefs.current.set(row.id, handle);
+                                                            } else {
+                                                                rowRefs.current.delete(row.id);
+                                                            }
+                                                        }}
+                                                        row={row}
+                                                        rowNumber={rowOffset + index + 1}
+                                                        canSelect={canSelect}
+                                                        selected={selected}
+                                                        checked={checked}
+                                                        editing={rowEditing}
+                                                        busy={
+                                                            applyingStatus
+                                                            || applyingPlacement
+                                                            || savingRows
                                                         }
-                                                        aria-selected={selected || checked}
-                                                        onClick={() => selectRow(row.id)}
-                                                    >
-                                                        {canSelect ? (
-                                                            <td className="sis-admission-drafts-table__select">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={checked}
-                                                                    disabled={applyingStatus}
-                                                                    aria-label={`${i18n.enrollments.selectEnrollment}: ${name}`}
-                                                                    onClick={(event) =>
-                                                                        event.stopPropagation()
-                                                                    }
-                                                                    onChange={() =>
-                                                                        toggleChecked(row.id)
-                                                                    }
-                                                                />
-                                                            </td>
-                                                        ) : null}
-                                                        <td className="sis-admission-drafts-table__num">
-                                                            <span dir="ltr">{rowOffset + index + 1}</span>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__name">
-                                                            <CellScroll>
-                                                                <HighlightedText text={name} query={filters.q} />
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                            <span dir="ltr">
-                                                                {textOrDash(row.student_code)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            {genderLabelFor(row.student_gender, i18n)}
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            <CellScroll>
-                                                                {textOrDash(row.class_name ?? row.class_code)}
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            <CellScroll>
-                                                                {textOrDash(row.section_name ?? row.section_code)}
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            <CellScroll>
-                                                                {textOrDash(row.branch_name ?? row.branch_code)}
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            <CellScroll>
-                                                                {textOrDash(row.department_name)}
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            <CellScroll>
-                                                                {textOrDash(row.specialization_name)}
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text">
-                                                            <CellScroll>
-                                                                {textOrDash(
-                                                                    row.grade_level_name ?? row.grade_level_code,
-                                                                )}
-                                                            </CellScroll>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                            <span dir="ltr">{row.enrollment_number}</span>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                            <span dir="ltr">
-                                                                {formatCivilDate(row.effective_from)}
-                                                            </span>
-                                                        </td>
-                                                        <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                            <span dir="ltr">
-                                                                {formatCivilDate(row.effective_to)}
-                                                            </span>
-                                                        </td>
-                                                        <td
-                                                            className={`sis-students-table__status sis-students-table__status--tone-${statusTone(row.status)}`}
-                                                            data-status={row.status}
-                                                        >
-                                                            {statusTabLabel(row.status, i18n)}
-                                                        </td>
-                                                    </tr>
+                                                        search={filters.q}
+                                                        filterOptions={filterOptions}
+                                                        onSelect={selectRow}
+                                                        onToggleChecked={toggleChecked}
+                                                        onRegisterSave={registerRowSave}
+                                                    />
                                                 );
                                             })}
                                         </tbody>
@@ -1227,6 +1436,63 @@ export function EnrollmentList({
                     )}
                 </section>
             </div>
+
+            {viewingEnrollments !== null && viewingEnrollments.length > 0 ? (
+                <EnrollmentViewDialog
+                    enrollments={viewingEnrollments}
+                    canUpdate={authorization.canUpdate}
+                    filterOptions={filterOptions}
+                    initialEditing={viewDialogEditing}
+                    onClose={() => {
+                        setViewingEnrollments(null);
+                        setViewDialogEditing(false);
+                    }}
+                    onSaved={(updated) => {
+                        setViewingEnrollments((current) =>
+                            current === null
+                                ? current
+                                : current.map((row) =>
+                                      row.id === updated.id ? { ...row, ...updated } : row,
+                                  ),
+                        );
+                    }}
+                />
+            ) : null}
+
+            {creatingEnrollment ? (
+                <EnrollmentCreateDialog
+                    academicYearId={filters.academic_year_id}
+                    filterOptions={filterOptions}
+                    initialStudentId={createStudentId}
+                    onClose={() => {
+                        setCreatingEnrollment(false);
+                        setCreateStudentId(null);
+                    }}
+                    onCreated={() => {
+                        const studentQuery =
+                            createStudentId !== null && createStudentId > 0
+                                ? String(createStudentId)
+                                : undefined;
+                        setCreateStudentId(null);
+                        visitList({ page: 1, q: studentQuery });
+                    }}
+                />
+            ) : null}
+
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                title={i18n.enrollments.deleteTitle}
+                description={i18n.enrollments.deleteConfirm}
+                confirmLabel={i18n.common.delete}
+                tone="danger"
+                confirmPending={deleting}
+                onConfirm={confirmDelete}
+                onOpenChange={(open) => {
+                    if (!open && !deleting) {
+                        setDeleteTarget(null);
+                    }
+                }}
+            />
         </div>
     );
 }

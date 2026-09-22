@@ -21,10 +21,6 @@ type PageProps = {
     };
     authorization: StudentAuthorization;
     preview: PreviewPayload;
-    placementOptions?: {
-        branches: Array<{ id: number; name: string }>;
-        departments: Array<{ id: number; branch_id: number | null; name: string }>;
-    };
 };
 
 export default function StudentsIndex({
@@ -32,7 +28,6 @@ export default function StudentsIndex({
     filters,
     authorization,
     preview,
-    placementOptions,
 }: PageProps) {
     const i18n = t();
 
@@ -46,7 +41,6 @@ export default function StudentsIndex({
                 filters={filters}
                 authorization={authorization}
                 preview={preview}
-                placementOptions={placementOptions}
             />
         </AppLayout>
     );

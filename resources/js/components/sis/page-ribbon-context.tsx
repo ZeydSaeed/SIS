@@ -25,6 +25,7 @@ export type PageRibbonCommand = {
     label: string;
     icon: LucideIcon;
     disabled?: boolean;
+    tone?: 'edit' | 'save' | 'delete';
     onSelect: () => void;
 };
 

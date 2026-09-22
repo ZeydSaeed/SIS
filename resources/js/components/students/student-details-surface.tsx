@@ -59,6 +59,7 @@ export type StudentAuthorization = {
     canView: boolean;
     canViewPii: boolean;
     canUpdate: boolean;
+    canCreate?: boolean;
 };
 
 type StudentDetailsSurfaceProps = {
@@ -211,10 +212,6 @@ export function StudentDetailsSurface({
                     label={i18n.students.schoolStartDate}
                     value={student.school_start_date}
                 />
-                <DetailField
-                    label={i18n.students.admittedClassName}
-                    value={student.admitted_class_name}
-                />
                 {authorization?.canViewPii ? (
                     <>
                         <DetailField label={i18n.students.mobile} value={student.mobile} />
@@ -226,7 +223,6 @@ export function StudentDetailsSurface({
                     </>
                 ) : null}
                 <DetailField label={i18n.students.schoolName} value={student.school_name} />
-                <DetailField label={i18n.students.branchName} value={student.branch_name} />
                 <DetailField
                     label={i18n.students.academicYear}
                     value={
@@ -236,16 +232,6 @@ export function StudentDetailsSurface({
                         ) || null
                     }
                 />
-                <DetailField
-                    label={i18n.students.departmentName}
-                    value={student.department_name}
-                />
-                <DetailField
-                    label={i18n.students.specialization}
-                    value={student.specialization_name}
-                />
-                <DetailField label={i18n.students.stageName} value={student.stage_name} />
-                <DetailField label={i18n.students.sectionName} value={student.section_name} />
                 <DetailField label={i18n.students.updated} value={student.updated_at} />
                 <div className="sm:col-span-2">
                     <DetailField label={i18n.students.notes} value={student.notes} />

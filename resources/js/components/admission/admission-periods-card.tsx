@@ -16,6 +16,7 @@ import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
+import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
@@ -362,6 +363,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
     const createYear = years.find((year) => year.id === createYearId);
     const createBounds = yearBounds(createYear);
     const selectedRowRef = useRef<PeriodRowHandle>(null);
+    const tableRef = useRef<HTMLTableElement>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [editing, setEditing] = useState(false);
     const [archiveTarget, setArchiveTarget] = useState<AdmissionPeriodRow | null>(null);
@@ -382,6 +384,13 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
             ),
         );
     }, [searchQuery, sorted]);
+
+    useResizableTableColumns(tableRef, {
+        storageKey: 'admission.periods',
+        columnSignature: 'v1',
+        enabled: visible.length > 0,
+    });
+
     const yearReady = academicYearId !== null;
     const hasSelection = selectedId !== null;
 
@@ -596,7 +605,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                 ) : (
                     <div className="sis-admission-periods-table">
                         <div className="sis-admission-periods-table__scroller" data-allow-x-scroll>
-                        <table>
+                        <table ref={tableRef}>
                             <thead>
                                 <tr>
                                     <th className="sis-admission-periods-table__num">#</th>

@@ -9,7 +9,6 @@ use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\UpdateEnrollmentPlacementResult;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
-use App\Domain\Enrollment\Exceptions\EnrollmentNotActiveException;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Domain\Enrollment\Exceptions\InvalidEnrollmentPlacementException;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
@@ -47,28 +46,41 @@ final class UpdateEnrollmentPlacementHandler implements CommandHandler
             throw EnrollmentNotFoundException::forId($command->enrollmentId);
         }
 
-        if (! $enrollment->isActive()) {
-            throw EnrollmentNotActiveException::forId($command->enrollmentId);
-        }
-
-        $this->assertValidPlacement($command, $enrollment->academicYearId);
+        $yearForPlacement = $command->academicYearId ?? $enrollment->academicYearId;
+        $this->assertValidPlacement($command, $yearForPlacement);
 
         $previousClassId = $enrollment->classId;
         $previousSectionId = $enrollment->sectionId;
 
         $this->unitOfWork->transaction(function () use ($command, $enrollment, $previousClassId, $previousSectionId): void {
+            $branchId = $command->updateBranch ? $command->branchId : $enrollment->branchId;
+            $departmentId = $command->updateDepartment ? $command->departmentId : $enrollment->departmentId;
+
             $this->enrollments->updatePlacement(
                 $command->enrollmentId,
                 $command->classId,
                 $command->sectionId,
                 $command->specializationId,
+                $branchId,
+                $departmentId,
+                $command->effectiveFrom,
+                $command->academicYearId,
+                $command->effectiveTo,
+                $command->clearEffectiveTo,
+                $command->stageName,
+                $command->updateStage,
+                syncStudentLabels: true,
             );
+
+            if ($command->gender !== null) {
+                $this->enrollments->updateStudentGender($enrollment->studentId, $command->gender);
+            }
 
             $this->outbox->stage(new EnrollmentPlacementUpdated(
                 enrollmentId: $command->enrollmentId,
                 studentId: $enrollment->studentId,
                 schoolId: $enrollment->schoolId,
-                academicYearId: $enrollment->academicYearId,
+                academicYearId: $command->academicYearId ?? $enrollment->academicYearId,
                 previousClassId: $previousClassId,
                 previousSectionId: $previousSectionId,
                 classId: $command->classId,

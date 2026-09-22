@@ -670,7 +670,8 @@ export function TitleBarRibbon({
                                               item.id === 'paste';
                                           const isSelectionCancel =
                                               item.id === 'cancel-admission-selection' ||
-                                              item.id === 'cancel-student-selection';
+                                              item.id === 'cancel-student-selection' ||
+                                              item.id === 'cancel-enrollment-selection';
 
                                           return (
                                               <button
@@ -685,6 +686,12 @@ export function TitleBarRibbon({
                                                           if (isClipboard) {
                                                               preservePageClipboardSelection();
                                                           }
+                                                      }
+                                                  }}
+                                                  onPointerDown={(event) => {
+                                                      if (isClipboard) {
+                                                          event.preventDefault();
+                                                          preservePageClipboardSelection();
                                                       }
                                                   }}
                                                   onClick={() => {

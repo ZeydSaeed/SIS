@@ -18,6 +18,8 @@ final readonly class EnrollmentSnapshot
         public int $status,
         public string $effectiveFrom,
         public ?string $effectiveTo,
+        public ?int $branchId = null,
+        public ?int $departmentId = null,
     ) {}
 
     public function isActive(): bool

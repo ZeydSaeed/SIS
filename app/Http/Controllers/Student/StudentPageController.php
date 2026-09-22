@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Application\Student\Commands\ChangeStudentStatusesCommand;
 use App\Application\Student\Commands\ChangeStudentStatusesHandler;
+use App\Application\Student\Commands\CreateStudentHandler;
 use App\Application\Student\Commands\UpdateStudentListRowCommand;
 use App\Application\Student\Commands\UpdateStudentListRowHandler;
 use App\Application\Student\Queries\GetStudentHandler;
@@ -12,10 +13,10 @@ use App\Application\Student\Queries\ListStudentsHandler;
 use App\Application\Student\Queries\ListStudentsQuery;
 use App\Application\Student\Queries\SearchStudentsHandler;
 use App\Application\Student\Queries\SearchStudentsQuery;
-use App\Domain\Organization\Repositories\BranchRepositoryInterface;
-use App\Domain\Organization\Repositories\DepartmentRepositoryInterface;
+use App\Http\Controllers\Api\StudentProfileCommandFactory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ChangeStudentStatusesRequest;
+use App\Http\Requests\Student\CreateStudentRequest;
 use App\Http\Requests\Student\UpdateStudentListRowRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
@@ -44,8 +45,6 @@ final class StudentPageController extends Controller
         private readonly StudentSchoolAccessService $schoolAccess,
         private readonly StudentPolicy $studentPolicy,
         private readonly AcademicYearContextResolver $academicYears,
-        private readonly BranchRepositoryInterface $branches,
-        private readonly DepartmentRepositoryInterface $departments,
     ) {}
 
     public function index(
@@ -62,7 +61,7 @@ final class StudentPageController extends Controller
 
         $q = trim((string) $request->query('q', ''));
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 15)), 100);
+        $perPage = min(max(1, (int) $request->query('per_page', 17)), 100);
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
         $academicYearId = $this->academicYears->resolve(
@@ -114,7 +113,6 @@ final class StudentPageController extends Controller
                 'gender' => $gender,
             ],
             'authorization' => $this->listAuthorization($user),
-            'placementOptions' => $this->placementOptions($schoolId),
             'preview' => null,
         ];
 
@@ -128,6 +126,27 @@ final class StudentPageController extends Controller
         }
 
         return Inertia::render('students/index', $props);
+    }
+
+    public function store(
+        CreateStudentRequest $request,
+        CreateStudentHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+
+        $result = $handler->handle(StudentProfileCommandFactory::createFromRequest($request, $schoolId));
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.web.store',
+            'created',
+            $request->user(),
+            "student:{$result->studentId}",
+        );
+
+        return redirect()
+            ->route('enrollments.create', ['student_id' => $result->studentId])
+            ->with('success', 'Student created.');
     }
 
     public function bulkStatus(
@@ -268,7 +287,6 @@ final class StudentPageController extends Controller
         return Inertia::render('students/show', [
             'student' => $this->sanitizer->sanitizeDetail($detail, $user),
             'authorization' => $this->recordAuthorization($user, $student),
-            'placementOptions' => $this->placementOptions($schoolId),
         ]);
     }
 
@@ -341,7 +359,7 @@ final class StudentPageController extends Controller
     }
 
     /**
-     * @return array{canView: bool, canViewPii: bool, canUpdate: bool}
+     * @return array{canView: bool, canViewPii: bool, canUpdate: bool, canCreate: bool}
      */
     private function listAuthorization(User $user): array
     {
@@ -350,11 +368,13 @@ final class StudentPageController extends Controller
             'canViewPii' => $this->studentPolicy->viewPii($user),
             'canUpdate' => $this->authorization->userHasPermission($user, Permission::STUDENTS_UPDATE)
                 && $this->schoolAccess->canAccessStudent($user),
+            'canCreate' => $this->studentPolicy->create($user)
+                && $this->schoolAccess->canAccessStudent($user),
         ];
     }
 
     /**
-     * @return array{canView: bool, canViewPii: bool, canUpdate: bool}
+     * @return array{canView: bool, canViewPii: bool, canUpdate: bool, canCreate: bool}
      */
     private function recordAuthorization(User $user, int $studentId): array
     {
@@ -362,43 +382,7 @@ final class StudentPageController extends Controller
             'canView' => $this->studentPolicy->view($user, $studentId),
             'canViewPii' => $this->studentPolicy->viewPii($user),
             'canUpdate' => $this->studentPolicy->update($user, $studentId),
-        ];
-    }
-
-    /**
-     * @return array{
-     *   branches: list<array{id:int, name:string}>,
-     *   departments: list<array{id:int, branch_id:int|null, name:string}>
-     * }
-     */
-    private function placementOptions(int $schoolId): array
-    {
-        $branches = [];
-        foreach ($this->branches->listForSchool($schoolId) as $branch) {
-            if ($branch->status !== 1) {
-                continue;
-            }
-            $branches[] = [
-                'id' => $branch->id,
-                'name' => $branch->name,
-            ];
-        }
-
-        $departments = [];
-        foreach ($this->departments->listForSchool($schoolId) as $department) {
-            if ($department->status !== 1) {
-                continue;
-            }
-            $departments[] = [
-                'id' => $department->id,
-                'branch_id' => $department->branchId,
-                'name' => $department->name,
-            ];
-        }
-
-        return [
-            'branches' => $branches,
-            'departments' => $departments,
+            'canCreate' => $this->studentPolicy->create($user),
         ];
     }
 }

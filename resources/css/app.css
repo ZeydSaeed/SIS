@@ -471,6 +471,55 @@ html[data-sis-font-size] .sis-page-surface :where(*):not(svg):not(svg *) {
 
 .sis-page-surface {
     border-radius: 0;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.sis-page-surface .sis-admission-drafts-table,
+.sis-page-surface .sis-admission-drafts-table td,
+.sis-page-surface .sis-admission-drafts-table th,
+.sis-page-surface .sis-students-table__cell-scroll {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Resizable table columns (admission / students / enrollments) */
+.sis-table--cols-resizable {
+    table-layout: fixed;
+}
+
+.sis-table--cols-resizable > thead > tr > th {
+    position: relative;
+}
+
+.sis-table--cols-resizable > thead > tr > th::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: -3px;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 3;
+    touch-action: none;
+}
+
+.sis-table--cols-resizable.sis-table--cols-resize-hover,
+.sis-table--cols-resizable.sis-table--cols-resizing {
+    cursor: col-resize;
+}
+
+.sis-table-scroller--resizable {
+    overflow-x: auto !important;
+}
+
+body.sis-table-col-resizing {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+
+body.sis-table-col-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
 }
 
 [data-sidebar='content'] {
@@ -1235,7 +1284,7 @@ input[type='reset']:disabled {
 
 .sis-list-select__menu {
     position: fixed;
-    z-index: 200;
+    z-index: 10050;
     margin: 0;
     padding: 0.15rem 0;
     list-style: none;
@@ -1840,6 +1889,52 @@ input[type='reset']:disabled {
     background: transparent;
 }
 
+.sis-enrollments-page .sis-enrollments-filters-bar--filter .sis-enrollments-filter-chip {
+    background: color-mix(in srgb, var(--sis-pearl) 88%, var(--sis-mist));
+}
+
+.sis-enrollments-page .sis-enrollments-filters-bar--edit .sis-enrollments-filter-chip {
+    background: color-mix(in srgb, var(--sis-oxford) 16%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filters-bar[aria-busy='true'] {
+    pointer-events: none;
+    opacity: 0.72;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-clear {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    height: 1.72rem;
+    min-height: 1.72rem;
+    max-height: 1.72rem;
+    padding-inline: 0.45rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--sis-oxford);
+    font-family: 'Segoe UI', Tahoma, Calibri, Aptos, sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-clear:hover,
+.sis-enrollments-page .sis-enrollments-filter-clear:focus-visible {
+    color: var(--sis-night);
+    background: color-mix(in srgb, var(--sis-mist) 28%, var(--sis-pearl));
+    outline: none;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-clear:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
 .sis-enrollments-page .sis-enrollments-status-actions {
     display: flex;
     flex: 3 1 0;
@@ -2092,6 +2187,18 @@ input[type='reset']:disabled {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Students list: five status actions — slightly tighter label */
+.sis-students-page.sis-enrollments-page .sis-enrollments-status-actions .sis-admission-drafts-table__transition {
+    font-size: 0.66rem;
+    padding-inline: 0.18rem;
+    gap: 0.14rem;
+}
+
+.sis-students-page.sis-enrollments-page .sis-enrollments-status-action__icon {
+    width: 0.78rem;
+    height: 0.78rem;
 }
 
 .sis-enrollments-page .sis-enrollments-filter-chip .sis-list-select__value {
@@ -2433,6 +2540,18 @@ input[type='reset']:disabled {
     appearance: none;
     -webkit-appearance: none;
     cursor: pointer;
+}
+
+.sis-list-select:not(.sis-list-select--overlay)
+    .sis-list-select__trigger.sis-students-table__edit-input::after {
+    content: none;
+    display: none;
+    border: 0;
+}
+
+.sis-students-table__edit-input[type='date']::-webkit-calendar-picker-indicator {
+    display: none;
+    opacity: 0;
 }
 
 .sis-students-table__name-edit {
@@ -4796,14 +4915,16 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     align-items: stretch;
 }
 
-.sis-student-record-form .sis-admission-draft-row > label {
+.sis-student-record-form .sis-admission-draft-row > label,
+.sis-student-record-form .sis-admission-draft-row > div {
     display: flex;
     flex-direction: column;
     min-width: 0;
     height: 100%;
 }
 
-.sis-student-record-form .sis-admission-draft-row > label > span:first-child {
+.sis-student-record-form .sis-admission-draft-row > label > span:first-child,
+.sis-student-record-form .sis-admission-draft-row > div > span:first-child {
     display: flex;
     align-items: flex-end;
     min-height: 2.2em;
@@ -4997,6 +5118,16 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     cursor: not-allowed;
     opacity: 0.45;
     filter: none;
+}
+
+.sis-student-record-form .sis-admission-draft-row > label.sis-enrollment-name-field {
+    grid-column: 1 / -1;
+}
+
+@media (min-width: 40rem) {
+    .sis-student-record-form .sis-admission-draft-row > label.sis-enrollment-name-field {
+        grid-column: span 2;
+    }
 }
 
 .sis-student-view-dialog [data-slot='dialog-header'] {

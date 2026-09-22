@@ -184,6 +184,12 @@ export function SisListSelect({
                               onMouseEnter={() => setActiveIndex(index)}
                               onPointerDown={(event) => {
                                   event.preventDefault();
+                                  event.stopPropagation();
+                                  choose(item.value);
+                              }}
+                              onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
                                   choose(item.value);
                               }}
                           >

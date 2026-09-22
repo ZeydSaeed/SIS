@@ -26,6 +26,14 @@ class UpdateEnrollmentPlacementRequest extends FormRequest
             'class_id' => ['required', 'integer', 'min:1'],
             'section_id' => ['required', 'integer', 'min:1'],
             'specialization_id' => ['nullable', 'integer', 'min:1'],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
+            'department_id' => ['nullable', 'integer', 'min:1'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_to' => ['nullable', 'date'],
+            'clear_effective_to' => ['sometimes', 'boolean'],
+            'academic_year_id' => ['nullable', 'integer', 'min:1'],
+            'stage_name' => ['nullable', 'string', 'max:100'],
+            'gender' => ['nullable', 'integer', 'in:1,2'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());
     }
 }

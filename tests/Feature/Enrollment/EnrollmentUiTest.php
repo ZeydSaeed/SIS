@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Enrollment;
 
+use App\Database\SchemaHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\TestCase;
@@ -174,6 +176,541 @@ final class EnrollmentUiTest extends TestCase
                 ->where('filters.gender', 2)
                 ->has('enrollments.data', 1)
                 ->where('enrollments.data.0.student_code', 'STU-ENR-SEARCH-F'));
+    }
+
+    #[Test]
+    public function enrollment_list_filters_by_class(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-CLASS');
+
+        $firstClass = $this->createClassForSchool($schoolId, $yearId);
+        $firstClass->forceFill(['name' => 'الأول', 'code' => 'CLS-1'])->save();
+        $firstSection = $this->createSectionForClass((int) $firstClass->id);
+
+        $secondClass = $this->createClassForSchool($schoolId, $yearId);
+        $secondClass->forceFill(['name' => 'الثاني', 'code' => 'CLS-2'])->save();
+        $secondSection = $this->createSectionForClass((int) $secondClass->id);
+
+        $firstStudent = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-CLASS-1',
+            'first_name' => 'FirstClass',
+            'last_name' => 'Student',
+            'full_name' => 'FirstClass Student',
+        ]);
+        $secondStudent = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-CLASS-2',
+            'first_name' => 'SecondClass',
+            'last_name' => 'Student',
+            'full_name' => 'SecondClass Student',
+        ]);
+
+        $firstEnrollment = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $firstStudent);
+        $firstEnrollment->forceFill([
+            'class_id' => $firstClass->id,
+            'section_id' => $firstSection->id,
+        ])->save();
+
+        $secondEnrollment = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $secondStudent);
+        $secondEnrollment->forceFill([
+            'class_id' => $secondClass->id,
+            'section_id' => $secondSection->id,
+        ])->save();
+
+        $this->get("/enrollments?academic_year_id={$yearId}&class_id={$firstClass->id}")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.class_id', (int) $firstClass->id)
+                ->has('enrollments.data', 1)
+                ->where('enrollments.data.0.student_code', 'STU-ENR-CLASS-1')
+                ->where('enrollments.data.0.class_name', 'الأول'));
+
+        $this->get("/enrollments?academic_year_id={$yearId}&class_id={$secondClass->id}")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.class_id', (int) $secondClass->id)
+                ->has('enrollments.data', 1)
+                ->where('enrollments.data.0.student_code', 'STU-ENR-CLASS-2')
+                ->where('enrollments.data.0.class_name', 'الثاني'));
+    }
+
+    #[Test]
+    public function enrollment_list_filters_by_specialization_via_student_name(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-SPEC');
+
+        $specId = (int) DB::table(SchemaHelper::qualified('vocational', 'specializations'))->insertGetId([
+            'school_id' => $schoolId,
+            'code' => 'SPEC-ELEC',
+            'name' => 'الكهرباء',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $matched = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-SPEC-1',
+            'first_name' => 'SpecMatch',
+            'last_name' => 'Student',
+            'full_name' => 'SpecMatch Student',
+            'specialization_name' => 'الكهرباء',
+        ]);
+        $other = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-SPEC-2',
+            'first_name' => 'SpecOther',
+            'last_name' => 'Student',
+            'full_name' => 'SpecOther Student',
+            'specialization_name' => 'الميكانيك',
+        ]);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $matched);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $other);
+
+        $this->get("/enrollments?academic_year_id={$yearId}&specialization_id={$specId}")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.specialization_id', $specId)
+                ->has('enrollments.data', 1)
+                ->where('enrollments.data.0.student_code', 'STU-ENR-SPEC-1'));
+    }
+
+    #[Test]
+    public function enrollment_bulk_placement_updates_class_for_selected_rows(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-BULK-PLACE');
+        $student = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-BULK-1',
+            'first_name' => 'BulkPlace',
+            'last_name' => 'Student',
+            'full_name' => 'BulkPlace Student',
+        ]);
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+        $targetClass = $this->createClassForSchool($schoolId, $yearId);
+        $targetSection = $this->createSectionForClass((int) $targetClass->id);
+
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => [(int) $enrollment->id],
+            'class_id' => (int) $targetClass->id,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $enrollment->id,
+            'class_id' => $targetClass->id,
+            'section_id' => $targetSection->id,
+        ]);
+    }
+
+    #[Test]
+    public function enrollment_bulk_placement_updates_gender_for_selected_rows(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-BULK-GENDER');
+        $student = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-BULK-G',
+            'first_name' => 'BulkGender',
+            'last_name' => 'Student',
+            'full_name' => 'BulkGender Student',
+            'gender' => 1,
+        ]);
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => [(int) $enrollment->id],
+            'gender' => 2,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $student->id,
+            'gender' => 2,
+        ]);
+    }
+
+    #[Test]
+    public function enrollment_bulk_placement_updates_section_and_class_for_multiple_rows(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-BULK-SEC');
+
+        $studentA = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-SEC-A',
+            'first_name' => 'SecA',
+            'last_name' => 'Student',
+            'full_name' => 'SecA Student',
+        ]);
+        $studentB = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-SEC-B',
+            'first_name' => 'SecB',
+            'last_name' => 'Student',
+            'full_name' => 'SecB Student',
+        ]);
+
+        $enrollmentA = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $studentA);
+        $enrollmentB = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $studentB);
+
+        $targetClass = $this->createClassForSchool($schoolId, $yearId);
+        $targetSection = $this->createSectionForClass((int) $targetClass->id);
+
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => [(int) $enrollmentA->id, (int) $enrollmentB->id],
+            'section_id' => (int) $targetSection->id,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $enrollmentA->id,
+            'class_id' => $targetClass->id,
+            'section_id' => $targetSection->id,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $enrollmentB->id,
+            'class_id' => $targetClass->id,
+            'section_id' => $targetSection->id,
+        ]);
+    }
+
+    #[Test]
+    public function enrollment_bulk_placement_updates_gender_for_single_multi_and_select_all(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-BULK-SEL');
+
+        $students = [];
+        $enrollments = [];
+        foreach (['S1', 'S2', 'S3', 'S4'] as $index => $code) {
+            $student = $this->createStudentForSchool($schoolId, [
+                'student_code' => 'STU-ENR-SEL-'.$code,
+                'first_name' => 'Sel'.$code,
+                'last_name' => 'Student',
+                'full_name' => 'Sel'.$code.' Student',
+                'gender' => 1,
+            ]);
+            $students[] = $student;
+            $enrollments[] = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+        }
+
+        // Single selection
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => [(int) $enrollments[0]->id],
+            'gender' => 2,
+        ])->assertRedirect();
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $students[0]->id,
+            'gender' => 2,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $students[1]->id,
+            'gender' => 1,
+        ]);
+
+        // Multi selection
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => [(int) $enrollments[1]->id, (int) $enrollments[2]->id],
+            'gender' => 2,
+        ])->assertRedirect();
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $students[1]->id,
+            'gender' => 2,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $students[2]->id,
+            'gender' => 2,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $students[3]->id,
+            'gender' => 1,
+        ]);
+
+        // Select-all style payload (every visible row id)
+        $allIds = array_map(static fn ($enrollment): int => (int) $enrollment->id, $enrollments);
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => $allIds,
+            'gender' => 1,
+        ])->assertRedirect();
+        foreach ($students as $student) {
+            $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+                'id' => $student->id,
+                'gender' => 1,
+            ]);
+        }
+    }
+
+    #[Test]
+    public function enrollment_bulk_placement_select_all_skips_inactive_and_updates_active(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-BULK-MIX');
+
+        $activeStudent = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-MIX-A',
+            'first_name' => 'MixA',
+            'last_name' => 'Student',
+            'full_name' => 'MixA Student',
+            'gender' => 1,
+        ]);
+        $inactiveStudent = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-MIX-I',
+            'first_name' => 'MixI',
+            'last_name' => 'Student',
+            'full_name' => 'MixI Student',
+            'gender' => 1,
+        ]);
+        $active = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $activeStudent);
+        $inactive = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $inactiveStudent);
+        $inactive->forceFill(['status' => 2, 'effective_to' => '2026-09-01'])->save();
+
+        $targetClass = $this->createClassForSchool($schoolId, $yearId);
+        $targetSection = $this->createSectionForClass((int) $targetClass->id);
+
+        $this->post('/enrollments/bulk-placement', [
+            'enrollment_ids' => [(int) $active->id, (int) $inactive->id],
+            'section_id' => (int) $targetSection->id,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $active->id,
+            'class_id' => $targetClass->id,
+            'section_id' => $targetSection->id,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $inactive->id,
+            'class_id' => $inactive->class_id,
+            'section_id' => $inactive->section_id,
+            'status' => 2,
+        ]);
+    }
+
+    #[Test]
+    public function enrollment_bulk_status_matrix_covers_mixed_selections_and_all_targets(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-STATUS-MX');
+        $table = SchemaHelper::qualified('enrollment', 'enrollments');
+
+        $make = function (string $code) use ($schoolId, $yearId) {
+            $student = $this->createStudentForSchool($schoolId, [
+                'student_code' => 'STU-ENR-MX-'.$code,
+                'first_name' => 'Mx'.$code,
+                'last_name' => 'Student',
+                'full_name' => 'Mx'.$code.' Student',
+            ]);
+
+            return $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+        };
+
+        $setStatus = function ($enrollment, int $status) use ($table): void {
+            $enrollment->forceFill([
+                'status' => $status,
+                'effective_to' => $status === 1 ? null : '2026-09-10',
+            ])->save();
+        };
+
+        $assertStatus = function ($enrollment, int $status) use ($table): void {
+            $this->assertDatabaseHas($table, [
+                'id' => $enrollment->id,
+                'status' => $status,
+            ]);
+        };
+
+        $postStatus = function (array $ids, int $status) {
+            return $this->post('/enrollments/bulk-status', [
+                'enrollment_ids' => array_map('intval', $ids),
+                'status' => $status,
+                'effective_to' => '2026-09-22',
+            ])->assertRedirect();
+        };
+
+        // --- Select-all mixed → inactive (0), including already-inactive ---
+        $activeA = $make('A');
+        $activeB = $make('B');
+        $inactive = $make('I');
+        $cancelled = $make('C');
+        $transferred = $make('T');
+        $setStatus($inactive, 0);
+        $setStatus($cancelled, 2);
+        $setStatus($transferred, 3);
+
+        $postStatus([
+            $activeA->id,
+            $activeB->id,
+            $inactive->id,
+            $cancelled->id,
+            $transferred->id,
+        ], 0);
+
+        foreach ([$activeA, $activeB, $inactive, $cancelled, $transferred] as $enrollment) {
+            $assertStatus($enrollment, 0);
+        }
+
+        // --- Mixed inactive + cancelled + one active → cancelled ---
+        $activeC = $make('C1');
+        $cancelledOnly = $make('C2');
+        $setStatus($cancelledOnly, 2);
+        $postStatus([$activeC->id, $inactive->id, $cancelledOnly->id], 2);
+        $assertStatus($activeC, 2);
+        $assertStatus($inactive, 2);
+        $assertStatus($cancelledOnly, 2);
+
+        // --- Single cancelled → active ---
+        $postStatus([$cancelledOnly->id], 1);
+        $this->assertDatabaseHas($table, [
+            'id' => $cancelledOnly->id,
+            'status' => 1,
+            'effective_to' => null,
+        ]);
+
+        // --- Multi inactive group → transferred ---
+        $postStatus([$activeB->id, $activeA->id], 3);
+        $assertStatus($activeB, 3);
+        $assertStatus($activeA, 3);
+
+        // --- Select-all closed mix → inactive again (idempotent + transitions) ---
+        $postStatus([$transferred->id, $cancelled->id, $activeA->id], 0);
+        $assertStatus($transferred, 0);
+        $assertStatus($cancelled, 0);
+        $assertStatus($activeA, 0);
+
+        // --- Transferred → active ---
+        $postStatus([$activeB->id], 1);
+        $this->assertDatabaseHas($table, [
+            'id' => $activeB->id,
+            'status' => 1,
+            'effective_to' => null,
+        ]);
+
+        // --- Full cartesian: each source status → each target (single) ---
+        $targets = [1, 0, 2, 3];
+        $sources = [1, 0, 2, 3];
+        $seq = 0;
+        foreach ($sources as $from) {
+            foreach ($targets as $to) {
+                $seq++;
+                $row = $make('X'.$seq);
+                $setStatus($row, $from);
+                $postStatus([$row->id], $to);
+                $assertStatus($row, $to);
+                if ($to === 1) {
+                    $this->assertDatabaseHas($table, [
+                        'id' => $row->id,
+                        'status' => 1,
+                        'effective_to' => null,
+                    ]);
+                }
+            }
+        }
+
+        // --- Multi: one of each status → each closed target ---
+        foreach ([0, 2, 3] as $to) {
+            $seq++;
+            $mix = [
+                $make('M'.$seq.'A'),
+                $make('M'.$seq.'I'),
+                $make('M'.$seq.'C'),
+                $make('M'.$seq.'T'),
+            ];
+            $setStatus($mix[1], 0);
+            $setStatus($mix[2], 2);
+            $setStatus($mix[3], 3);
+            $postStatus(array_map(static fn ($e) => $e->id, $mix), $to);
+            foreach ($mix as $enrollment) {
+                $assertStatus($enrollment, $to);
+            }
+        }
+
+        // Future effective_from must still allow inactive (effective_to clamped)
+        $future = $make('F');
+        $future->forceFill(['effective_from' => '2026-12-01'])->save();
+        $this->post('/enrollments/bulk-status', [
+            'enrollment_ids' => [(int) $future->id],
+            'status' => 0,
+            'effective_to' => '2026-09-22',
+        ])->assertRedirect();
+        $future->refresh();
+        $this->assertSame(0, (int) $future->status);
+        $this->assertNotNull($future->effective_to);
+        $this->assertSame('2026-12-01', substr((string) $future->effective_to, 0, 10));
+    }
+
+    #[Test]
+    public function enrollment_web_delete_action_cancels_selected_enrollment(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-DEL-UI');
+        $student = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-DEL-UI',
+            'first_name' => 'DelUi',
+            'last_name' => 'Student',
+            'full_name' => 'DelUi Student',
+        ]);
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+
+        $this->post('/enrollments/bulk-status', [
+            'enrollment_ids' => [(int) $enrollment->id],
+            'status' => 2,
+            'effective_to' => '2026-09-22',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $enrollment->id,
+            'status' => 2,
+        ]);
+    }
+
+    #[Test]
+    public function enrollment_web_update_placement_redirects_back(): void
+    {
+        $this->withoutVite();
+        $this->actingAsEnrollmentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        $yearId = $this->createAcademicYear('AY-ENR-PUT-UI');
+        $student = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-PUT-UI',
+            'first_name' => 'PutUi',
+            'last_name' => 'Student',
+            'full_name' => 'PutUi Student',
+        ]);
+        $enrollment = $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
+        $newClass = $this->createClassForSchool($schoolId, $yearId);
+        $newSection = $this->createSectionForClass((int) $newClass->id);
+
+        $this->from('/enrollments')
+            ->put("/enrollments/{$enrollment->id}", [
+                'class_id' => (int) $newClass->id,
+                'section_id' => (int) $newSection->id,
+                'stage_name' => 'مرحلة اختبار',
+                'gender' => 2,
+                'academic_year_id' => $yearId,
+            ])
+            ->assertRedirect('/enrollments');
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
+            'id' => $enrollment->id,
+            'class_id' => $newClass->id,
+            'section_id' => $newSection->id,
+            'academic_year_id' => $yearId,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $student->id,
+            'gender' => 2,
+            'stage_name' => 'مرحلة اختبار',
+        ]);
     }
 
     #[Test]

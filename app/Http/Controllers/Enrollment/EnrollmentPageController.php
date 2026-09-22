@@ -173,14 +173,13 @@ final class EnrollmentPageController extends Controller
             'enrollment:bulk',
             [
                 'enrollment_ids' => $result->enrollmentIds,
+                'skipped_ids' => $result->skippedIds,
                 'status' => $result->status,
                 'count' => $result->count,
             ],
         );
 
-        return redirect()
-            ->back()
-            ->with('success', 'Enrollment statuses updated.');
+        return redirect()->back();
     }
 
     public function bulkPlacement(
@@ -201,11 +200,21 @@ final class EnrollmentPageController extends Controller
         $result = $handler->handle(new BulkUpdateEnrollmentPlacementCommand(
             schoolId: $schoolId,
             enrollmentIds: $enrollmentIds,
-            classId: (int) $request->validated('class_id'),
-            sectionId: (int) $request->validated('section_id'),
-            branchId: $request->validated('branch_id'),
-            departmentId: $request->validated('department_id'),
-            specializationId: $request->validated('specialization_id'),
+            classId: $request->exists('class_id') ? (int) $request->validated('class_id') : null,
+            sectionId: $request->exists('section_id') ? (int) $request->validated('section_id') : null,
+            branchId: $request->exists('branch_id') ? $request->validated('branch_id') : null,
+            departmentId: $request->exists('department_id') ? $request->validated('department_id') : null,
+            specializationId: $request->exists('specialization_id')
+                ? $request->validated('specialization_id')
+                : null,
+            gender: $request->exists('gender') ? (int) $request->validated('gender') : null,
+            updateClass: $request->exists('class_id'),
+            updateSection: $request->exists('section_id'),
+            updateBranch: $request->exists('branch_id'),
+            updateDepartment: $request->exists('department_id'),
+            updateSpecialization: $request->exists('specialization_id'),
+            updateGender: $request->exists('gender'),
+            allowInactive: (bool) ($request->validated('allow_inactive') ?? false),
             updatedBy: $user->id,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
@@ -218,15 +227,14 @@ final class EnrollmentPageController extends Controller
             'enrollment:bulk',
             [
                 'enrollment_ids' => $result->enrollmentIds,
+                'skipped_ids' => $result->skippedIds,
                 'class_id' => $result->classId,
                 'section_id' => $result->sectionId,
                 'count' => $result->count,
             ],
         );
 
-        return redirect()
-            ->back()
-            ->with('success', 'Enrollment placement updated.');
+        return redirect()->back();
     }
 
     public function show(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response
@@ -265,8 +273,11 @@ final class EnrollmentPageController extends Controller
         ]);
     }
 
-    public function create(Request $request, GetStudentHandler $students): Response
-    {
+    public function create(
+        Request $request,
+        GetStudentHandler $students,
+        EnrollmentReadRepositoryInterface $enrollments,
+    ): Response {
         $this->authorize('create', EnrollmentRecord::class);
 
         $schoolId = $this->schoolContext->requireId();
@@ -275,6 +286,7 @@ final class EnrollmentPageController extends Controller
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear);
         $studentId = $request->filled('student_id') ? (int) $request->query('student_id') : null;
+        $studentPayload = null;
 
         if ($studentId !== null) {
             try {
@@ -282,8 +294,20 @@ final class EnrollmentPageController extends Controller
                 if ($student->academicYearId !== null) {
                     $academicYearId = $student->academicYearId;
                 }
+                $studentPayload = [
+                    'id' => $student->id,
+                    'student_code' => $student->studentCode,
+                    'full_name' => $student->fullName,
+                    'first_name' => $student->firstName,
+                    'father_name' => $student->fatherName,
+                    'grandfather_name' => $student->grandfatherName,
+                    'great_grandfather_name' => $student->greatGrandfatherName,
+                    'last_name' => $student->lastName,
+                    'gender' => $student->gender,
+                    'birth_date' => $student->birthDate,
+                ];
             } catch (StudentNotFoundException) {
-                // Keep the resolved year when the student is unknown for this school.
+                $studentId = null;
             }
         }
 
@@ -293,17 +317,21 @@ final class EnrollmentPageController extends Controller
                 'student_id' => $studentId,
                 'effective_from' => now()->toDateString(),
             ],
+            'student' => $studentPayload,
+            'filterOptions' => $enrollments->listFilterOptions($schoolId, $academicYearId),
         ]);
     }
 
     public function store(EnrollStudentRequest $request, EnrollStudentHandler $handler): RedirectResponse
     {
         $schoolId = $this->schoolContext->requireId();
+        $studentId = (int) $request->validated('student_id');
+        $academicYearId = (int) $request->validated('academic_year_id');
 
         $result = $handler->handle(new EnrollStudentCommand(
             schoolId: $schoolId,
-            academicYearId: (int) $request->validated('academic_year_id'),
-            studentId: (int) $request->validated('student_id'),
+            academicYearId: $academicYearId,
+            studentId: $studentId,
             classId: (int) $request->validated('class_id'),
             sectionId: (int) $request->validated('section_id'),
             effectiveFrom: $request->validated('effective_from'),
@@ -321,7 +349,10 @@ final class EnrollmentPageController extends Controller
         );
 
         return redirect()
-            ->route('enrollments.show', ['enrollment' => $result->enrollmentId])
+            ->route('enrollments.index', [
+                'academic_year_id' => $academicYearId,
+                'q' => (string) $studentId,
+            ])
             ->with('success', 'Enrollment created.');
     }
 
@@ -383,6 +414,19 @@ final class EnrollmentPageController extends Controller
             classId: (int) $request->validated('class_id'),
             sectionId: (int) $request->validated('section_id'),
             specializationId: $request->validated('specialization_id'),
+            branchId: $request->exists('branch_id') ? $request->validated('branch_id') : null,
+            updateBranch: $request->exists('branch_id'),
+            departmentId: $request->exists('department_id') ? $request->validated('department_id') : null,
+            updateDepartment: $request->exists('department_id'),
+            effectiveFrom: $request->validated('effective_from'),
+            academicYearId: $request->exists('academic_year_id')
+                ? (int) $request->validated('academic_year_id')
+                : null,
+            effectiveTo: $request->validated('effective_to'),
+            clearEffectiveTo: (bool) ($request->validated('clear_effective_to') ?? false),
+            stageName: $request->exists('stage_name') ? $request->validated('stage_name') : null,
+            updateStage: $request->exists('stage_name'),
+            gender: $request->exists('gender') ? (int) $request->validated('gender') : null,
             updatedBy: $request->user()?->id,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
@@ -399,9 +443,7 @@ final class EnrollmentPageController extends Controller
             ],
         );
 
-        return redirect()
-            ->route('enrollments.show', ['enrollment' => $enrollment])
-            ->with('success', 'Enrollment placement updated.');
+        return redirect()->back();
     }
 
     private function queryGender(Request $request): ?int

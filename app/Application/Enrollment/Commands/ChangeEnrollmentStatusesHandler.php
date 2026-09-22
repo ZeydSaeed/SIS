@@ -33,18 +33,25 @@ final class ChangeEnrollmentStatusesHandler implements CommandHandler
             return $cached;
         }
 
-        $this->unitOfWork->transaction(function () use ($command, $enrollmentIds): void {
-            $this->executor->applyAll($command, $enrollmentIds);
+        $updatedIds = [];
+        $skippedIds = [];
+
+        $this->unitOfWork->transaction(function () use ($command, $enrollmentIds, &$updatedIds, &$skippedIds): void {
+            $result = $this->executor->applyAll($command, $enrollmentIds);
+            $updatedIds = $result['updatedIds'];
+            $skippedIds = $result['skippedIds'];
+            // Empty updates are OK: all rows may already be in the target status
+            // (e.g. select-all on inactive tab then click inactive again).
         });
 
         if ($command->idempotencyKey !== null) {
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [
-                'enrollment_ids' => $enrollmentIds,
+                'enrollment_ids' => $updatedIds,
                 'status' => $command->status,
             ]);
         }
 
-        return ChangeEnrollmentStatusesResult::success($enrollmentIds, $command->status);
+        return ChangeEnrollmentStatusesResult::success($updatedIds, $command->status, $skippedIds);
     }
 
     private function cachedResult(ChangeEnrollmentStatusesCommand $command): ?ChangeEnrollmentStatusesResult

@@ -1,7 +1,7 @@
 /**
- * Page clipboard for the global ribbon — works across all Inertia pages.
- * Tracks selection inside `.sis-page-surface` / dialogs; never mutates React
- * text nodes outside editable controls (security + UI contract).
+ * Page clipboard for the global Home ribbon — works across Inertia page content.
+ * Tracks selection outside chrome (and in chrome text fields); never mutates
+ * React text nodes outside editable controls (security + UI contract).
  */
 
 const CHROME_SELECTOR =
@@ -19,12 +19,14 @@ type FieldTarget = {
 type DomTarget = {
     kind: 'dom';
     range: Range;
+    text: string;
 };
 
 type ClipboardTarget = FieldTarget | DomTarget;
 
 let lastTarget: ClipboardTarget | null = null;
 let lastEditable: HTMLInputElement | HTMLTextAreaElement | HTMLElement | null = null;
+let lastSelectedText = '';
 let sessionClipboard = '';
 let initialized = false;
 
@@ -36,6 +38,22 @@ const closestSurface = (element: Element): HTMLElement | null => {
 
     return surface instanceof HTMLElement ? surface : null;
 };
+
+/** True when the user has a non-empty text selection (for row-click guards). */
+export function hasPageTextSelection(): boolean {
+    const active = document.activeElement;
+
+    if (isTextField(active)) {
+        const start = active.selectionStart ?? 0;
+        const end = active.selectionEnd ?? start;
+
+        return start !== end;
+    }
+
+    const selection = window.getSelection();
+
+    return Boolean(selection && !selection.isCollapsed && selection.toString() !== '');
+}
 
 const isPasswordField = (element: HTMLInputElement | HTMLTextAreaElement): boolean =>
     element instanceof HTMLInputElement && element.type === 'password';
@@ -73,11 +91,18 @@ const isTextField = (
 const isContentEditable = (element: Element | null): element is HTMLElement =>
     element instanceof HTMLElement && element.isContentEditable;
 
-const cloneRange = (range: Range): Range => {
-    const next = range.cloneRange();
+const isAllowedFieldHost = (element: Element): boolean =>
+    Boolean(closestSurface(element) || isChrome(element));
 
-    return next;
+const isAllowedDomHost = (element: Element): boolean => {
+    if (isChrome(element) && !isTextField(element) && !isContentEditable(element)) {
+        return false;
+    }
+
+    return Boolean(closestSurface(element) || element.closest('body'));
 };
+
+const cloneRange = (range: Range): Range => range.cloneRange();
 
 const captureField = (element: HTMLInputElement | HTMLTextAreaElement): FieldTarget => {
     const start = element.selectionStart ?? 0;
@@ -89,22 +114,26 @@ const captureField = (element: HTMLInputElement | HTMLTextAreaElement): FieldTar
 const captureFromDocument = (): ClipboardTarget | null => {
     const active = document.activeElement;
 
-    if (isChrome(active)) {
-        return lastTarget;
-    }
-
-    if (isTextField(active) && closestSurface(active)) {
+    // Chrome text fields (titlebar search) must remain copy/cut/paste targets.
+    if (isTextField(active) && isAllowedFieldHost(active)) {
         lastEditable = active;
 
         return captureField(active);
     }
 
-    if (isContentEditable(active) && closestSurface(active)) {
+    if (isChrome(active) && !isTextField(active) && !isContentEditable(active)) {
+        return lastTarget;
+    }
+
+    if (isContentEditable(active) && isAllowedDomHost(active)) {
         lastEditable = active;
         const selection = window.getSelection();
 
         if (selection && selection.rangeCount > 0 && active.contains(selection.anchorNode)) {
-            return { kind: 'dom', range: cloneRange(selection.getRangeAt(0)) };
+            const range = cloneRange(selection.getRangeAt(0));
+            const text = range.toString();
+
+            return { kind: 'dom', range, text };
         }
     }
 
@@ -121,8 +150,15 @@ const captureFromDocument = (): ClipboardTarget | null => {
                 ? selection.anchorNode
                 : selection.anchorNode.parentElement;
 
-        if (anchor && closestSurface(anchor) && !isChrome(anchor)) {
-            return { kind: 'dom', range: cloneRange(selection.getRangeAt(0)) };
+        if (anchor && isAllowedDomHost(anchor) && !isChrome(anchor)) {
+            const range = cloneRange(selection.getRangeAt(0));
+            const text = range.toString();
+
+            if (text !== '') {
+                lastSelectedText = text;
+            }
+
+            return { kind: 'dom', range, text };
         }
     }
 
@@ -134,6 +170,16 @@ const refreshTarget = (): ClipboardTarget | null => {
 
     if (next) {
         lastTarget = next;
+
+        if (next.kind === 'field') {
+            const text = selectedText(next);
+
+            if (text !== '') {
+                lastSelectedText = text;
+            }
+        } else if (next.text !== '') {
+            lastSelectedText = next.text;
+        }
     }
 
     return lastTarget;
@@ -141,12 +187,12 @@ const refreshTarget = (): ClipboardTarget | null => {
 
 const selectedText = (target: ClipboardTarget | null): string => {
     if (!target) {
-        return '';
+        return lastSelectedText;
     }
 
     if (target.kind === 'field') {
         if (!document.contains(target.element) || isPasswordField(target.element)) {
-            return '';
+            return lastSelectedText;
         }
 
         const { value } = target.element;
@@ -154,16 +200,18 @@ const selectedText = (target: ClipboardTarget | null): string => {
         const end = Math.max(target.start, target.end);
 
         if (start === end) {
-            return '';
+            return lastSelectedText;
         }
 
         return value.slice(start, end);
     }
 
     try {
-        return target.range.toString();
+        const live = target.range.toString();
+
+        return live !== '' ? live : target.text || lastSelectedText;
     } catch {
-        return '';
+        return target.text || lastSelectedText;
     }
 };
 
@@ -173,6 +221,7 @@ const writeClipboard = async (text: string): Promise<boolean> => {
     }
 
     sessionClipboard = text;
+    lastSelectedText = text;
 
     try {
         if (navigator.clipboard?.writeText) {
@@ -185,9 +234,28 @@ const writeClipboard = async (text: string): Promise<boolean> => {
     }
 
     try {
+        const holder = document.createElement('textarea');
+        holder.value = text;
+        holder.setAttribute('readonly', '');
+        holder.style.position = 'fixed';
+        holder.style.top = '0';
+        holder.style.left = '0';
+        holder.style.width = '1px';
+        holder.style.height = '1px';
+        holder.style.padding = '0';
+        holder.style.border = 'none';
+        holder.style.outline = 'none';
+        holder.style.boxShadow = 'none';
+        holder.style.background = 'transparent';
+        holder.style.opacity = '0';
+        document.body.appendChild(holder);
+        holder.focus({ preventScroll: true });
+        holder.select();
+        holder.setSelectionRange(0, text.length);
         const ok = document.execCommand('copy');
+        document.body.removeChild(holder);
 
-        return ok;
+        return ok || sessionClipboard !== '';
     } catch {
         return sessionClipboard !== '';
     }
@@ -208,7 +276,7 @@ const readClipboard = async (): Promise<string> => {
         // Permission may be denied outside a user gesture; use session fallback.
     }
 
-    return sessionClipboard;
+    return sessionClipboard || lastSelectedText;
 };
 
 const dispatchInput = (element: HTMLElement): void => {
@@ -244,8 +312,7 @@ const restoreDomSelection = (target: DomTarget): boolean => {
         selection.addRange(target.range);
 
         const root = target.range.commonAncestorContainer;
-        const element =
-            root instanceof Element ? root : root.parentElement;
+        const element = root instanceof Element ? root : root.parentElement;
 
         if (isContentEditable(element)) {
             element.focus({ preventScroll: true });
@@ -260,7 +327,7 @@ const restoreDomSelection = (target: DomTarget): boolean => {
 const resolvePasteField = (): HTMLInputElement | HTMLTextAreaElement | null => {
     const active = document.activeElement;
 
-    if (isTextField(active) && closestSurface(active) && !active.readOnly) {
+    if (isTextField(active) && isAllowedFieldHost(active) && !active.readOnly) {
         return active;
     }
 
@@ -272,7 +339,7 @@ const resolvePasteField = (): HTMLInputElement | HTMLTextAreaElement | null => {
             document.contains(lastEditable) &&
             !lastEditable.disabled &&
             !lastEditable.readOnly &&
-            closestSurface(lastEditable)
+            isAllowedFieldHost(lastEditable)
         ) {
             return lastEditable;
         }
@@ -378,8 +445,7 @@ export async function pageClipboardCut(): Promise<void> {
     }
 
     const root = target.range.commonAncestorContainer;
-    const host =
-        root instanceof Element ? root : root.parentElement;
+    const host = root instanceof Element ? root : root.parentElement;
 
     if (!isContentEditable(host)) {
         // Read-only page text: cut acts as copy only (no DOM mutation).
@@ -415,8 +481,7 @@ export async function pageClipboardPaste(): Promise<void> {
 
     if (target?.kind === 'dom') {
         const root = target.range.commonAncestorContainer;
-        const host =
-            root instanceof Element ? root : root.parentElement;
+        const host = root instanceof Element ? root : root.parentElement;
 
         if (isContentEditable(host) && restoreDomSelection(target)) {
             insertIntoContentEditable(target.range, text);
@@ -442,7 +507,7 @@ export async function pageClipboardPaste(): Promise<void> {
 const onSelectionChange = (): void => {
     const active = document.activeElement;
 
-    if (isChrome(active)) {
+    if (isChrome(active) && !isTextField(active)) {
         return;
     }
 
@@ -450,7 +515,7 @@ const onSelectionChange = (): void => {
 };
 
 const onSelectionOrFocus = (event: Event): void => {
-    if (isChrome(event.target)) {
+    if (isChrome(event.target) && !isTextField(event.target as Element)) {
         return;
     }
 
@@ -479,4 +544,5 @@ export function teardownPageClipboard(): void {
     initialized = false;
     lastTarget = null;
     lastEditable = null;
+    lastSelectedText = '';
 }

@@ -23,23 +23,27 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import {
+    FilterGenderIcon,
+    FilterYearIcon,
+} from '@/components/enrollments/enrollment-filter-icons';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
-import { PageHeader } from '@/components/sis/page-header';
-import { SisSearchField } from '@/components/sis/sis-search-field';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
-    selectTableRow,
     tableActionIds,
     toggleTableRowChecked,
     toggleTableSelectAll,
 } from '@/components/sis/table-row-selection';
-import { StudentViewDialog } from '@/components/students/student-record-form';
+import { StudentCreateDialog, StudentViewDialog } from '@/components/students/student-record-form';
+import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
+import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
+import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import type {
     StudentAuthorization,
     StudentDetail,
@@ -48,7 +52,7 @@ import { t } from '@/i18n';
 
 export type { StudentAuthorization };
 
-const STUDENTS_PER_PAGE = 15;
+const STUDENTS_PER_PAGE = 17;
 const STUDENT_STATUS_WITHDRAWN = 4;
 
 const STUDENT_STATUS_TABS: Array<{
@@ -66,13 +70,14 @@ const STUDENT_STATUS_TABS: Array<{
 
 const STUDENT_STATUS_ACTIONS: Array<{
     status: number;
+    icon: LucideIcon;
     tone: 'light' | 'dark';
 }> = [
-    { status: 1, tone: 'dark' },
-    { status: 0, tone: 'light' },
-    { status: 2, tone: 'dark' },
-    { status: 3, tone: 'dark' },
-    { status: 4, tone: 'light' },
+    { status: 1, icon: CheckCircle2, tone: 'dark' },
+    { status: 0, icon: CircleSlash, tone: 'light' },
+    { status: 2, icon: PauseCircle, tone: 'dark' },
+    { status: 3, icon: GraduationCap, tone: 'dark' },
+    { status: 4, icon: UserMinus, tone: 'light' },
 ];
 
 function clampPercent(value: number): number {
@@ -181,10 +186,6 @@ type StudentListProps = {
         gender: number | null;
     };
     authorization: StudentAuthorization;
-    placementOptions?: {
-        branches: Array<{ id: number; name: string }>;
-        departments: Array<{ id: number; branch_id: number | null; name: string }>;
-    };
     preview: PreviewPayload;
 };
 
@@ -448,8 +449,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
         );
         const [lastName, setLastName] = useState(row.last_name);
         const [birthDate, setBirthDate] = useState(dateInputValue(row.birth_date));
-        const [departmentName, setDepartmentName] = useState(row.department_name ?? '');
-        const [stageName, setStageName] = useState(row.stage_name ?? '');
         const [governorate, setGovernorate] = useState(row.governorate ?? '');
         const [neighborhood, setNeighborhood] = useState(row.neighborhood ?? '');
         const [gender, setGender] = useState(row.gender);
@@ -461,9 +460,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
         );
         const [transferDocumentDate, setTransferDocumentDate] = useState(
             dateInputValue(row.transfer_document_date),
-        );
-        const [admittedClassName, setAdmittedClassName] = useState(
-            row.admitted_class_name ?? '',
         );
         const [mobile, setMobile] = useState(() => maskMobileDigits(row.mobile ?? ''));
         const [saving, setSaving] = useState(false);
@@ -479,8 +475,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             setGreatGrandfatherName(row.great_grandfather_name ?? '');
             setLastName(row.last_name);
             setBirthDate(dateInputValue(row.birth_date));
-            setDepartmentName(row.department_name ?? '');
-            setStageName(row.stage_name ?? '');
             setGovernorate(row.governorate ?? '');
             setNeighborhood(row.neighborhood ?? '');
             setGender(row.gender);
@@ -489,7 +483,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 row.transfer_document_number == null ? '' : String(row.transfer_document_number),
             );
             setTransferDocumentDate(dateInputValue(row.transfer_document_date));
-            setAdmittedClassName(row.admitted_class_name ?? '');
             setMobile(maskMobileDigits(row.mobile ?? ''));
         }, [editing, row]);
 
@@ -507,10 +500,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 grandfather_name: emptyToNull(grandfatherName),
                 great_grandfather_name: emptyToNull(greatGrandfatherName),
                 birth_date: birthDate,
-                department_name: emptyToNull(departmentName),
-                specialization_name: row.specialization_name ?? null,
-                admitted_class_name: emptyToNull(admittedClassName),
-                stage_name: emptyToNull(stageName),
                 governorate: emptyToNull(governorate),
                 neighborhood: emptyToNull(neighborhood),
                 gender,
@@ -531,7 +520,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 school_start_date: row.school_start_date ?? null,
                 notes: row.notes ?? null,
                 school_name: row.school_name ?? null,
-                section_name: row.section_name ?? null,
             };
 
             if (canViewPii) {
@@ -551,10 +539,8 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 });
             });
         }, [
-            admittedClassName,
             birthDate,
             canViewPii,
-            departmentName,
             fatherName,
             firstName,
             gender,
@@ -567,7 +553,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             previousSchoolName,
             row,
             saving,
-            stageName,
             transferDocumentDate,
             transferDocumentNumber,
         ]);
@@ -578,7 +563,13 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             <tr
                 className={selected || checked ? 'sis-admission-periods-table__row--selected' : undefined}
                 aria-selected={selected || checked}
-                onClick={() => onSelect(row.id)}
+                onClick={() => {
+                    if (hasPageTextSelection()) {
+                        return;
+                    }
+
+                    onSelect(row.id);
+                }}
             >
                 {canSelect ? (
                     <td className="sis-admission-drafts-table__select">
@@ -654,30 +645,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                         <CellScroll>
                             <span dir="ltr">{formatCivilDate(row.birth_date)}</span>
                         </CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {editing ? (
-                        <input
-                            className="sis-students-table__edit-input"
-                            value={departmentName}
-                            aria-label={i18n.students.departmentName}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => setDepartmentName(event.target.value)}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.department_name)}</CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {editing ? (
-                        <TableEditInput
-                            value={stageName}
-                            label={i18n.students.gradeLevel}
-                            onChange={setStageName}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.stage_name)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text">
@@ -763,17 +730,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                         </CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {editing ? (
-                        <TableEditInput
-                            value={admittedClassName}
-                            label={i18n.students.admittedClassName}
-                            onChange={setAdmittedClassName}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.admitted_class_name)}</CellScroll>
-                    )}
-                </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap sis-students-table__mobile">
                     {editing && canViewPii ? (
                         <TableEditInput
@@ -805,28 +761,29 @@ export function StudentList({
     students,
     filters,
     authorization,
-    placementOptions = { branches: [], departments: [] },
     preview,
 }: StudentListProps) {
     const i18n = t();
-    const { academicYears } = usePage().props as {
+    const page = usePage();
+    const { academicYears } = page.props as {
         academicYears?: Array<{ id: number; name: string; code: string; is_current: boolean }>;
     };
     const selectedAcademicYear =
         academicYears?.find((year) => year.id === filters.academic_year_id) ?? null;
     const genderValue = filters.gender === 1 || filters.gender === 2 ? String(filters.gender) : '';
-    const genderLabel =
+    const genderFilterLabel =
         genderValue === '1'
             ? i18n.students.male
             : genderValue === '2'
               ? i18n.students.female
-              : i18n.students.allGenders;
+              : i18n.students.gender;
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
     const [editingIds, setEditingIds] = useState<number[]>([]);
     const [savingRows, setSavingRows] = useState(false);
     const [viewingStudents, setViewingStudents] = useState<StudentListItem[] | null>(null);
+    const [creatingStudent, setCreatingStudent] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<StudentListItem | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [applyingStatus, setApplyingStatus] = useState(false);
@@ -834,8 +791,14 @@ export function StudentList({
     const tableRef = useRef<HTMLTableElement>(null);
     const filtersRef = useRef(filters);
     const searchDraftRef = useRef(filters.q);
+    const checkedIdsRef = useRef(checkedIds);
+    const selectedIdRef = useRef(selectedId);
+    const applyingStatusRef = useRef(false);
+    const createIntentHandledRef = useRef(false);
     const rowRefs = useRef(new Map<number, StudentRowHandle>());
     filtersRef.current = filters;
+    checkedIdsRef.current = checkedIds;
+    selectedIdRef.current = selectedId;
     const rows = students?.data ?? [];
     const pagination = students?.meta ?? {
         page: filters.page,
@@ -845,6 +808,41 @@ export function StudentList({
     };
     const rowOffset = (pagination.page - 1) * pagination.per_page;
     const canSelect = authorization.canUpdate;
+
+    useEffect(() => {
+        const query = page.url.includes('?') ? page.url.slice(page.url.indexOf('?') + 1) : '';
+        const params = new URLSearchParams(query);
+        if (params.get('create') !== '1') {
+            createIntentHandledRef.current = false;
+
+            return;
+        }
+
+        if (createIntentHandledRef.current) {
+            return;
+        }
+
+        createIntentHandledRef.current = true;
+
+        if (authorization.canCreate !== false) {
+            setCreatingStudent(true);
+        }
+
+        params.delete('create');
+        const next = params.toString();
+        router.get(next === '' ? '/students' : `/students?${next}`, {}, {
+            replace: true,
+            preserveState: true,
+            preserveScroll: true,
+        });
+    }, [authorization.canCreate, page.url]);
+
+    useResizableTableColumns(tableRef, {
+        storageKey: 'students.list',
+        columnSignature: canSelect ? 'select' : 'readonly',
+        enabled: rows.length > 0,
+    });
+
     const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
     const visibleCheckedIds = useMemo(
         () => checkedIds.filter((id) => rowIds.includes(id)),
@@ -857,6 +855,7 @@ export function StudentList({
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
     const canApplyStatus = canSelect && actionIds.length > 0 && !applyingStatus;
+    const filtersBusy = applyingStatus;
     const overallPercent = clampPercent(students.status_progress?.overall_percent ?? 0);
 
     useEffect(() => {
@@ -900,19 +899,25 @@ export function StudentList({
         );
     }, []);
 
-    const commitSearch = useCallback((query: string) => {
-        visitList({ q: query, page: 1, student: undefined, quiet: true });
-    }, [visitList]);
+    const commitSearch = useCallback(
+        (query: string) => {
+            visitList({ q: query, page: 1, student: undefined, quiet: true });
+        },
+        [visitList],
+    );
 
     const selectRow = useCallback((studentId: number) => {
-        const next = selectTableRow(studentId);
-        setSelectedId(next.selectedId);
-        setCheckedIds(next.checkedIds);
-        if (selectedId !== studentId) {
-            setEditing(false);
-            setEditingIds([]);
-        }
-    }, [selectedId]);
+        setSelectedId(studentId);
+        setCheckedIds((previous) => {
+            if (previous.length > 1 && previous.includes(studentId)) {
+                return previous;
+            }
+
+            return [studentId];
+        });
+        setEditing(false);
+        setEditingIds([]);
+    }, []);
 
     const bindRowRef = useCallback(
         (studentId: number) => (handle: StudentRowHandle | null) => {
@@ -934,6 +939,16 @@ export function StudentList({
         setEditingIds([]);
         setSavingRows(false);
     }, []);
+
+    const clearStructureFilters = useCallback(() => {
+        searchDraftRef.current = '';
+        visitList({
+            q: '',
+            gender: null,
+            page: 1,
+            student: undefined,
+        });
+    }, [visitList]);
 
     useEffect(() => {
         const table = tableRef.current;
@@ -1013,33 +1028,42 @@ export function StudentList({
         }
     }, [checkedIds, rowIds, selectedId]);
 
+    const resolveActionIds = useCallback((): number[] => {
+        const fromUi = tableActionIds(checkedIdsRef.current, selectedIdRef.current);
+        if (fromUi.length > 0) {
+            return fromUi;
+        }
+
+        return actionIds;
+    }, [actionIds]);
+
     const applyStatus = useCallback(
         (status: number) => {
-            if (!canApplyStatus) {
+            const studentIds = resolveActionIds();
+            if (!canSelect || studentIds.length === 0 || applyingStatusRef.current) {
                 return;
             }
 
+            applyingStatusRef.current = true;
             setApplyingStatus(true);
             router.post(
                 '/students/bulk-status',
                 {
-                    student_ids: actionIds,
-                    status,
+                    student_ids: studentIds.map((id) => Number(id)),
+                    status: Number(status),
                 },
                 {
                     preserveScroll: true,
                     preserveState: true,
-                    onSuccess: () => {
-                        setCheckedIds([]);
-                        setSelectedId(null);
-                        setEditing(false);
-                        setEditingIds([]);
+                    only: ['students', 'filters', 'preview', 'authorization'],
+                    onFinish: () => {
+                        applyingStatusRef.current = false;
+                        setApplyingStatus(false);
                     },
-                    onFinish: () => setApplyingStatus(false),
                 },
             );
         },
-        [actionIds, canApplyStatus],
+        [canSelect, resolveActionIds],
     );
 
     const onStatusTabClick = useCallback(
@@ -1204,6 +1228,21 @@ export function StudentList({
 
     useRegisterPageRibbon('home', ribbonGroups);
 
+    const titlebarSearch = useMemo(
+        () => ({
+            committedQuery: filters.q,
+            label: i18n.students.searchAria,
+            placeholder: i18n.students.search,
+            onDraftChange: (query: string) => {
+                searchDraftRef.current = query;
+            },
+            onCommit: commitSearch,
+        }),
+        [commitSearch, filters.q, i18n.students.search, i18n.students.searchAria],
+    );
+
+    useRegisterPageTitlebarSearch(titlebarSearch);
+
     const confirmDelete = useCallback(() => {
         if (deleteTarget === null) {
             return;
@@ -1238,88 +1277,159 @@ export function StudentList({
     const emptyMessage = filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc;
 
     return (
-        <div className="sis-ops-hub sis-admission-page sis-students-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4" dir="rtl" lang="ar">
-            <div className="sis-admission-page-head">
-                <div className="sis-admission-page-head__row">
-                    <PageHeader
-                        title={i18n.students.title}
-                        icon={
-                            <GraduationCap className="sis-admission-page-head__icon" aria-hidden="true" />
-                        }
-                    />
-                    <div className="sis-admission-filter-stack">
-                        <SisSearchField
-                            committedQuery={filters.q}
-                            label={i18n.students.searchAria}
-                            placeholder={i18n.students.search}
-                            onDraftChange={(query) => {
-                                searchDraftRef.current = query;
-                            }}
-                            onCommit={commitSearch}
-                        />
-                        <OpsYearFilter
-                            action="/students"
-                            academicYearId={filters.academic_year_id}
-                            extraParams={{
-                                get q() {
-                                    const value = searchDraftRef.current.trim();
+        <div
+            className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
+            dir="rtl"
+            lang="ar"
+        >
+            <div className="sis-enrollments-control-strip">
+                <div
+                    className="sis-enrollments-filters-bar sis-enrollments-filters-bar--filter"
+                    role="search"
+                    aria-label={i18n.students.structureFiltersTitle}
+                    aria-busy={filtersBusy || undefined}
+                >
+                    <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--year" dir="rtl">
+                        <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
+                            <FilterYearIcon />
+                        </span>
+                        <span className="sis-enrollments-filter-chip__control">
+                            <OpsYearFilter
+                                action="/students"
+                                academicYearId={filters.academic_year_id}
+                                extraParams={{
+                                    get q() {
+                                        const value = searchDraftRef.current.trim();
 
-                                    return value === '' ? undefined : value;
-                                },
-                                status: filters.status ?? undefined,
-                                gender: filters.gender ?? undefined,
-                            }}
-                            label={i18n.students.academicYear}
-                            showLabel
-                            inlineLabel
-                            compact
-                            showCurrentBadge={false}
-                            controlClassName="sis-admission-year-control"
-                        />
-                        <form
-                            className="sis-students-gender-filter flex flex-wrap items-end gap-3"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                            }}
-                            aria-label={i18n.students.filterByGender}
-                        >
-                            <label className="flex flex-row items-center gap-2 text-sm min-w-0" dir="rtl">
-                                <span className="sis-students-filter-label shrink-0 font-medium">
-                                    {i18n.students.gender}
-                                </span>
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {genderLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={genderValue}
-                                        options={[
-                                            { value: '', label: i18n.students.allGenders },
-                                            { value: '1', label: i18n.students.male },
-                                            { value: '2', label: i18n.students.female },
-                                        ]}
-                                        onChange={(next) => {
-                                            visitList({
-                                                gender: next === '1' || next === '2' ? Number(next) : null,
-                                                page: 1,
-                                                student: undefined,
-                                            });
-                                        }}
-                                        triggerClassName="sis-ops-hub__link px-3 py-2 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={i18n.students.filterByGender}
-                                    />
-                                </span>
-                            </label>
-                        </form>
+                                        return value === '' ? undefined : value;
+                                    },
+                                    per_page: STUDENTS_PER_PAGE,
+                                    status: filters.status ?? undefined,
+                                    gender: filters.gender ?? undefined,
+                                }}
+                                onYearChange={(yearId) => {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    visitList({
+                                        academic_year_id: yearId,
+                                        page: 1,
+                                        student: undefined,
+                                    });
+                                }}
+                                label={i18n.students.academicYear}
+                                showLabel={false}
+                                compact
+                                showCurrentBadge={false}
+                                disabled={filtersBusy}
+                                controlClassName="sis-admission-year-control"
+                            />
+                        </span>
                     </div>
-                    <div aria-hidden="true" />
+
+                    <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--gender" dir="rtl">
+                        <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
+                            <FilterGenderIcon />
+                        </span>
+                        <span className="sis-admission-select-fit">
+                            <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                {genderFilterLabel}
+                            </span>
+                            <SisListSelect
+                                value={genderValue}
+                                options={[
+                                    { value: '', label: i18n.students.gender },
+                                    { value: '1', label: i18n.students.male },
+                                    { value: '2', label: i18n.students.female },
+                                ]}
+                                onChange={(next) => {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    visitList({
+                                        gender: next === '1' || next === '2' ? Number(next) : null,
+                                        page: 1,
+                                        student: undefined,
+                                    });
+                                }}
+                                disabled={filtersBusy}
+                                triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                dir="rtl"
+                                ariaLabel={i18n.students.filterByGender}
+                            />
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="sis-enrollments-filter-clear"
+                        onClick={clearStructureFilters}
+                        disabled={filtersBusy}
+                        aria-label={i18n.students.clearFiltersAria}
+                        title={i18n.students.clearFiltersAria}
+                    >
+                        {i18n.students.clearFilters}
+                    </button>
+                    {actionIds.length > 0 ? (
+                        <button
+                            type="button"
+                            className="sis-enrollments-filter-clear"
+                            onClick={clearSelection}
+                            disabled={filtersBusy || savingRows}
+                            aria-label={i18n.students.clearSelectionAria}
+                            title={i18n.students.clearSelectionAria}
+                        >
+                            {i18n.students.clearSelection}
+                        </button>
+                    ) : null}
                 </div>
+
+                {canSelect ? (
+                    <div
+                        className="sis-admission-drafts-transitions sis-enrollments-status-actions"
+                        role="toolbar"
+                        aria-label={i18n.students.statusActionsTitle}
+                    >
+                        <div className="sis-admission-drafts-table__transitions">
+                            {STUDENT_STATUS_ACTIONS.map((action) => {
+                                const Icon = action.icon;
+                                const actionLabel = statusTabLabel(action.status, i18n);
+
+                                return (
+                                    <button
+                                        key={action.status}
+                                        type="button"
+                                        className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
+                                        data-status={action.status}
+                                        disabled={!canApplyStatus}
+                                        aria-label={actionLabel}
+                                        title={
+                                            canApplyStatus
+                                                ? actionLabel
+                                                : i18n.students.statusNeedsSelection
+                                        }
+                                        onClick={() => applyStatus(action.status)}
+                                    >
+                                        <Icon
+                                            className="sis-enrollments-status-action__icon"
+                                            aria-hidden="true"
+                                        />
+                                        <span className="sis-enrollments-status-action__label">
+                                            {actionLabel}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ) : null}
             </div>
 
             <section
                 aria-label={i18n.students.statusTabsTitle}
-                className="sis-admission-progress sis-students-tabs flex flex-col"
+                className="sis-admission-progress sis-students-tabs sis-enrollments-status-tabs"
             >
                 <ol className="sis-admission-progress__track" dir="rtl" role="tablist">
                     {STUDENT_STATUS_TABS.map((tab) => {
@@ -1364,26 +1474,31 @@ export function StudentList({
                         );
                     })}
                 </ol>
-                <div className="sis-admission-progress__overall-block">
-                    <div
-                        className="sis-admission-progress__overall-track"
-                        role="progressbar"
-                        aria-label={i18n.students.overallProgress}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={overallPercent}
-                        data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
-                    >
-                        <span
-                            className="sis-admission-progress__overall-fill"
-                            style={{ width: `${overallPercent}%` }}
-                        />
-                        <span className="sis-admission-progress__overall-value" dir="ltr">
-                            {overallPercent}%
-                        </span>
-                    </div>
-                </div>
             </section>
+
+            <div
+                className="sis-admission-progress__overall-block sis-enrollments-progress"
+                role="group"
+                aria-label={i18n.students.overallProgress}
+            >
+                <div
+                    className="sis-admission-progress__overall-track"
+                    role="progressbar"
+                    aria-label={i18n.students.overallProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={overallPercent}
+                    data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
+                >
+                    <span
+                        className="sis-admission-progress__overall-fill"
+                        style={{ width: `${overallPercent}%` }}
+                    />
+                    <span className="sis-admission-progress__overall-value" dir="ltr">
+                        {overallPercent}%
+                    </span>
+                </div>
+            </div>
 
             <div className="sis-admission-page-body">
                 <section aria-label={i18n.students.tableCaption} className="flex min-h-0 flex-1 flex-col">
@@ -1391,36 +1506,6 @@ export function StudentList({
                         <p className="text-sm">{emptyMessage}</p>
                     ) : (
                         <>
-                            {canSelect ? (
-                                <div
-                                    className="sis-admission-drafts-transitions"
-                                    role="toolbar"
-                                    aria-label={i18n.students.statusActionsTitle}
-                                >
-                                    <span className="sis-admission-drafts-transitions__label">
-                                        {i18n.students.statusActionsTitle}
-                                    </span>
-                                    <div className="sis-admission-drafts-table__transitions">
-                                        {STUDENT_STATUS_ACTIONS.map((action) => (
-                                            <button
-                                                key={action.status}
-                                                type="button"
-                                                className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone}`}
-                                                data-status={action.status}
-                                                disabled={!canApplyStatus}
-                                                title={
-                                                    canApplyStatus
-                                                        ? undefined
-                                                        : i18n.students.statusNeedsSelection
-                                                }
-                                                onClick={() => applyStatus(action.status)}
-                                            >
-                                                {statusTabLabel(action.status, i18n)}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : null}
                             <div className="sis-admission-periods-table sis-admission-drafts-table">
                                 <div className="sis-admission-drafts-table__scroller">
                                     <table ref={tableRef}>
@@ -1432,7 +1517,7 @@ export function StudentList({
                                                             ref={selectAllRef}
                                                             type="checkbox"
                                                             checked={allChecked}
-                                                            disabled={applyingStatus}
+                                                            disabled={applyingStatus || savingRows}
                                                             aria-label={i18n.students.selectAllStudents}
                                                             onChange={toggleAll}
                                                         />
@@ -1445,15 +1530,12 @@ export function StudentList({
                                                     {i18n.students.quadName}
                                                 </th>
                                                 <th className="sis-students-table__birth">{i18n.students.birthDate}</th>
-                                                <th>{i18n.students.departmentName}</th>
-                                                <th>{i18n.students.gradeLevel}</th>
                                                 <th>{i18n.students.governorate}</th>
                                                 <th>{i18n.students.neighborhood}</th>
                                                 <th>{i18n.students.gender}</th>
                                                 <th>{i18n.students.previousSchoolName}</th>
                                                 <th>{i18n.students.transferDocumentNumber}</th>
                                                 <th>{i18n.students.transferDocumentDate}</th>
-                                                <th>{i18n.students.admittedClassName}</th>
                                                 <th className="sis-students-table__mobile">{i18n.students.mobile}</th>
                                                 <th>{i18n.students.statusTabsTitle}</th>
                                             </tr>
@@ -1554,7 +1636,6 @@ export function StudentList({
                     students={viewingStudents}
                     canViewPii={authorization.canViewPii}
                     canUpdate={authorization.canUpdate}
-                    placementOptions={placementOptions}
                     onClose={() => setViewingStudents(null)}
                     onSaved={(updated) => {
                         setViewingStudents((current) =>
@@ -1563,6 +1644,13 @@ export function StudentList({
                                 : current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
                         );
                     }}
+                />
+            ) : null}
+
+            {creatingStudent ? (
+                <StudentCreateDialog
+                    canViewPii={authorization.canViewPii}
+                    onClose={() => setCreatingStudent(false)}
                 />
             ) : null}
 

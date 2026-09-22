@@ -34,6 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('students')->name('students.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [StudentPageController::class, 'index'])->name('index');
+        Route::post('/', [StudentPageController::class, 'store'])->name('store');
         Route::post('/bulk-status', [StudentPageController::class, 'bulkStatus'])->name('bulk-status');
         Route::put('/{student}', [StudentPageController::class, 'update'])->whereNumber('student')->name('update');
         Route::get('/{student}', [StudentPageController::class, 'show'])->name('show');

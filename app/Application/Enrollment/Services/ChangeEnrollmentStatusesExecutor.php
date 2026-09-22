@@ -25,35 +25,70 @@ final class ChangeEnrollmentStatusesExecutor
 
     /**
      * @param  list<int>  $enrollmentIds
+     * @return array{updatedIds: list<int>, skippedIds: list<int>}
      */
-    public function applyAll(ChangeEnrollmentStatusesCommand $command, array $enrollmentIds): void
+    public function applyAll(ChangeEnrollmentStatusesCommand $command, array $enrollmentIds): array
     {
+        $updatedIds = [];
+        $skippedIds = [];
+
         foreach ($enrollmentIds as $enrollmentId) {
-            $this->applyOne($command, $enrollmentId);
+            if ($this->applyOne($command, $enrollmentId)) {
+                $updatedIds[] = $enrollmentId;
+            } else {
+                $skippedIds[] = $enrollmentId;
+            }
+        }
+
+        return [
+            'updatedIds' => array_values(array_unique($updatedIds)),
+            'skippedIds' => array_values(array_unique($skippedIds)),
+        ];
+    }
+
+    private function applyOne(ChangeEnrollmentStatusesCommand $command, int $enrollmentId): bool
+    {
+        try {
+            $enrollment = $this->guard->requireForSchool($enrollmentId, $command->schoolId);
+
+            return match ($command->status) {
+                EnrollmentStatus::ACTIVE => $this->activate($command, $enrollment),
+                EnrollmentStatus::INACTIVE => $this->moveToClosed(
+                    $command,
+                    $enrollment,
+                    EnrollmentStatus::INACTIVE,
+                ),
+                EnrollmentStatus::CANCELLED => $this->moveToClosed(
+                    $command,
+                    $enrollment,
+                    EnrollmentStatus::CANCELLED,
+                ),
+                EnrollmentStatus::TRANSFERRED => $this->moveToClosed(
+                    $command,
+                    $enrollment,
+                    EnrollmentStatus::TRANSFERRED,
+                ),
+                default => throw SisDomainException::withCode('enrollment.invalid_status'),
+            };
+        } catch (\Throwable) {
+            // One invalid row must not abort single / multi / select-all batches
+            // (inactive / cancelled / transferred mixes included).
+            return false;
         }
     }
 
-    private function applyOne(ChangeEnrollmentStatusesCommand $command, int $enrollmentId): void
+    private function activate(ChangeEnrollmentStatusesCommand $command, EnrollmentSnapshot $enrollment): bool
     {
-        $enrollment = $this->guard->requireForSchool($enrollmentId, $command->schoolId);
+        if ($enrollment->isActive()) {
+            return true;
+        }
 
-        match ($command->status) {
-            EnrollmentStatus::ACTIVE => $this->activate($command, $enrollment),
-            EnrollmentStatus::INACTIVE => $this->deactivate($command, $enrollment),
-            EnrollmentStatus::CANCELLED => $this->cancel($command, $enrollment),
-            EnrollmentStatus::TRANSFERRED => $this->transfer($command, $enrollment->id),
-            default => throw SisDomainException::withCode('enrollment.invalid_status'),
-        };
-    }
-
-    private function activate(ChangeEnrollmentStatusesCommand $command, EnrollmentSnapshot $enrollment): void
-    {
         if (! $this->guard->assertCanActivate($enrollment)) {
-            return;
+            return false;
         }
 
         if (! $this->enrollments->reopen($enrollment->id)) {
-            throw SisDomainException::withCode('enrollment.reopen_failed');
+            return false;
         }
 
         $this->outbox->stage(new EnrollmentReopened(
@@ -63,33 +98,75 @@ final class ChangeEnrollmentStatusesExecutor
             academicYearId: $enrollment->academicYearId,
             occurredAt: new \DateTimeImmutable,
         ));
+
+        return true;
     }
 
-    private function deactivate(ChangeEnrollmentStatusesCommand $command, EnrollmentSnapshot $enrollment): void
-    {
-        $this->guard->assertCanCloseActive($enrollment, $command->effectiveTo);
-        $this->enrollments->deactivate($enrollment->id, $command->effectiveTo);
-    }
-
-    private function cancel(ChangeEnrollmentStatusesCommand $command, EnrollmentSnapshot $enrollment): void
-    {
-        $this->guard->assertCanCloseActive($enrollment, $command->effectiveTo);
-        $this->enrollments->cancel($enrollment->id, $command->effectiveTo);
-        $this->outbox->stage(new EnrollmentCancelled(
-            enrollmentId: $enrollment->id,
-            studentId: $enrollment->studentId,
-            schoolId: $enrollment->schoolId,
-            academicYearId: $enrollment->academicYearId,
-            effectiveTo: $command->effectiveTo,
-            cancelledBy: $command->actedBy,
-            occurredAt: new \DateTimeImmutable,
-        ));
-    }
-
-    private function transfer(ChangeEnrollmentStatusesCommand $command, int $enrollmentId): void
-    {
-        if (! $this->enrollments->closeAsTransferred($enrollmentId, $command->schoolId, $command->effectiveTo)) {
-            throw SisDomainException::withCode('enrollment.transfer_failed');
+    private function moveToClosed(
+        ChangeEnrollmentStatusesCommand $command,
+        EnrollmentSnapshot $enrollment,
+        int $targetStatus,
+    ): bool {
+        if ($enrollment->status === $targetStatus) {
+            // Already in the requested closed state — treat as success so
+            // mixed select-all batches are not reported as total failure.
+            return true;
         }
+
+        $effectiveTo = $this->resolveEffectiveTo($command->effectiveTo, $enrollment->effectiveFrom);
+
+        if ($enrollment->isActive()) {
+            if ($targetStatus === EnrollmentStatus::INACTIVE) {
+                $this->enrollments->deactivate($enrollment->id, $effectiveTo);
+
+                return true;
+            }
+
+            if ($targetStatus === EnrollmentStatus::CANCELLED) {
+                $this->enrollments->cancel($enrollment->id, $effectiveTo);
+                $this->outbox->stage(new EnrollmentCancelled(
+                    enrollmentId: $enrollment->id,
+                    studentId: $enrollment->studentId,
+                    schoolId: $enrollment->schoolId,
+                    academicYearId: $enrollment->academicYearId,
+                    effectiveTo: $effectiveTo,
+                    cancelledBy: $command->actedBy,
+                    occurredAt: new \DateTimeImmutable,
+                ));
+
+                return true;
+            }
+
+            // Active → transferred (force path; closeAsTransferred is optimistic).
+            $this->enrollments->setClosedStatus(
+                $enrollment->id,
+                EnrollmentStatus::TRANSFERRED,
+                $effectiveTo,
+            );
+
+            return true;
+        }
+
+        // Closed → closed (inactive / cancelled / transferred).
+        $this->enrollments->setClosedStatus($enrollment->id, $targetStatus, $effectiveTo);
+
+        if ($targetStatus === EnrollmentStatus::CANCELLED) {
+            $this->outbox->stage(new EnrollmentCancelled(
+                enrollmentId: $enrollment->id,
+                studentId: $enrollment->studentId,
+                schoolId: $enrollment->schoolId,
+                academicYearId: $enrollment->academicYearId,
+                effectiveTo: $effectiveTo,
+                cancelledBy: $command->actedBy,
+                occurredAt: new \DateTimeImmutable,
+            ));
+        }
+
+        return true;
+    }
+
+    private function resolveEffectiveTo(string $requested, string $effectiveFrom): string
+    {
+        return $requested < $effectiveFrom ? $effectiveFrom : $requested;
     }
 }

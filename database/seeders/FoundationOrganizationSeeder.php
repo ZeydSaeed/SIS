@@ -62,8 +62,50 @@ class FoundationOrganizationSeeder extends Seeder
             'branches',
             ['school_id' => $schoolId, 'code' => FoundationReference::BRANCH_CODE],
             [
-                'name' => 'Main Branch',
+                'branch_id' => $branchId,
+                'name' => 'الصناعي',
                 'address' => 'Main Campus',
+                'status' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        );
+
+        $this->upsertReturningId(
+            'organization',
+            'branches',
+            ['school_id' => $schoolId, 'code' => 'BR-AGR'],
+            [
+                'name' => 'الزراعي',
+                'address' => 'Agricultural Campus',
+                'status' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        );
+
+        $this->upsertReturningId(
+            'organization',
+            'departments',
+            ['school_id' => $schoolId, 'code' => 'DEP-ELEC'],
+            [
+                'branch_id' => $branchId,
+                'name' => 'الكهرباء',
+                'department_type' => 1,
+                'status' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        );
+
+        $this->upsertReturningId(
+            'organization',
+            'departments',
+            ['school_id' => $schoolId, 'code' => 'DEP-MECH'],
+            [
+                'branch_id' => $branchId,
+                'name' => 'الميكانيك',
+                'department_type' => 1,
                 'status' => 1,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -76,7 +118,7 @@ class FoundationOrganizationSeeder extends Seeder
             ['school_id' => $schoolId, 'code' => FoundationReference::DEPARTMENT_CODE],
             [
                 'branch_id' => $branchId,
-                'name' => 'Vocational Department',
+                'name' => 'الحاسوب',
                 'department_type' => 1,
                 'status' => 1,
                 'created_at' => $now,

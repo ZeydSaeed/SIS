@@ -58,7 +58,8 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         );
         $total = (clone $query)->count('e.id');
         $rows = $query
-            ->orderByDesc('e.id')
+            ->orderBy('s.full_name')
+            ->orderBy('e.id')
             ->forPage($page, $perPage)
             ->get();
 
@@ -127,8 +128,8 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         $classesQuery = DB::table($classesTable)
             ->where('school_id', $schoolId)
             ->where('status', 1)
-            ->orderBy('name')
-            ->select(['id', 'code', 'name']);
+            ->orderBy('id')
+            ->select(['id', 'code', 'name', 'grade_level_id']);
         if ($academicYearId !== null) {
             $classesQuery->where('academic_year_id', $academicYearId);
         }
@@ -137,6 +138,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                 'id' => (int) $row->id,
                 'code' => (string) $row->code,
                 'name' => (string) $row->name,
+                'grade_level_id' => (int) $row->grade_level_id,
             ])
             ->values()
             ->all();
@@ -209,12 +211,28 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             ->values()
             ->all();
 
+        $gradeLevelsTable = SchemaHelper::qualified('academic', 'grade_levels');
+        $gradeLevels = DB::table($gradeLevelsTable)
+            ->where('status', 1)
+            ->orderBy('level_order')
+            ->select(['id', 'code', 'name', 'education_stage'])
+            ->get()
+            ->map(static fn (object $row): array => [
+                'id' => (int) $row->id,
+                'code' => (string) $row->code,
+                'name' => (string) $row->name,
+                'education_stage' => (int) $row->education_stage,
+            ])
+            ->values()
+            ->all();
+
         return [
             'branches' => $branches,
             'classes' => $classes,
             'sections' => $sections,
             'departments' => $departments,
             'specializations' => $specializations,
+            'grade_levels' => $gradeLevels,
         ];
     }
 
@@ -261,7 +279,20 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         }
 
         if ($departmentId !== null && $departmentId > 0) {
-            $query->where('e.department_id', $departmentId);
+            $departmentsTable = SchemaHelper::qualified('organization', 'departments');
+            $departmentNameFromId = DB::table($departmentsTable)
+                ->where('id', $departmentId)
+                ->value('name');
+            $departmentNameFromId = is_string($departmentNameFromId)
+                ? trim($departmentNameFromId)
+                : '';
+
+            $query->where(function (Builder $builder) use ($departmentId, $departmentNameFromId): void {
+                $builder->where('e.department_id', $departmentId);
+                if ($departmentNameFromId !== '') {
+                    $builder->orWhere('s.department_name', $departmentNameFromId);
+                }
+            });
         } else {
             $department = trim((string) ($departmentName ?? ''));
             if ($department !== '') {
@@ -270,7 +301,23 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         }
 
         if ($specializationId !== null && $specializationId > 0) {
-            $query->where('e.specialization_id', $specializationId);
+            $specializationsTable = SchemaHelper::qualified('vocational', 'specializations');
+            $spec = DB::table($specializationsTable)
+                ->where('id', $specializationId)
+                ->select(['id', 'name'])
+                ->first();
+
+            if ($spec === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $specName = trim((string) $spec->name);
+                $query->where(function (Builder $builder) use ($specializationId, $specName): void {
+                    $builder->where('e.specialization_id', $specializationId);
+                    if ($specName !== '') {
+                        $builder->orWhere('s.specialization_name', $specName);
+                    }
+                });
+            }
         }
 
         $term = trim($q);
@@ -278,7 +325,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             $likeOperator = SchemaHelper::isPostgreSql() ? 'ilike' : 'like';
             $pattern = '%'.$term.'%';
 
-            $query->where(function (Builder $builder) use ($likeOperator, $pattern): void {
+            $query->where(function (Builder $builder) use ($likeOperator, $pattern, $term): void {
                 $builder->where('e.enrollment_number', $likeOperator, $pattern)
                     ->orWhere('s.full_name', $likeOperator, $pattern)
                     ->orWhere('s.student_code', $likeOperator, $pattern)
@@ -298,6 +345,12 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                     ->orWhere('y.code', $likeOperator, $pattern)
                     ->orWhere('br.name', $likeOperator, $pattern)
                     ->orWhere('dep.name', $likeOperator, $pattern);
+
+                if (ctype_digit($term)) {
+                    $studentId = (int) $term;
+                    $builder->orWhere('s.id', $studentId)
+                        ->orWhere('e.student_id', $studentId);
+                }
             });
         }
 

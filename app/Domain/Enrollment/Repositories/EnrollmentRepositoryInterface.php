@@ -22,13 +22,24 @@ interface EnrollmentRepositoryInterface
         ?int $specializationId,
         ?int $branchId = null,
         ?int $departmentId = null,
+        ?string $effectiveFrom = null,
+        ?int $academicYearId = null,
+        ?string $effectiveTo = null,
+        bool $clearEffectiveTo = false,
+        ?string $stageName = null,
+        bool $updateStage = false,
+        bool $syncStudentLabels = false,
     ): void;
+
+    public function updateStudentGender(int $studentId, int $gender): void;
 
     public function cancel(int $enrollmentId, string $effectiveTo): void;
 
     public function deactivate(int $enrollmentId, string $effectiveTo): void;
 
     public function reopen(int $enrollmentId): bool;
+
+    public function setClosedStatus(int $enrollmentId, int $status, string $effectiveTo): void;
 
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool;
 

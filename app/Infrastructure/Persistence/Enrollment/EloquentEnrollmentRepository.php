@@ -79,36 +79,94 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         ?int $specializationId,
         ?int $branchId = null,
         ?int $departmentId = null,
+        ?string $effectiveFrom = null,
+        ?int $academicYearId = null,
+        ?string $effectiveTo = null,
+        bool $clearEffectiveTo = false,
+        ?string $stageName = null,
+        bool $updateStage = false,
+        bool $syncStudentLabels = false,
     ): void {
         $record = EnrollmentRecord::query()->findOrFail($enrollmentId);
-        $record->forceFill([
+        $fill = [
             'class_id' => $classId,
             'section_id' => $sectionId,
             'specialization_id' => $specializationId,
             'branch_id' => $branchId,
             'department_id' => $departmentId,
-        ]);
+        ];
+        if ($effectiveFrom !== null && $effectiveFrom !== '') {
+            $fill['effective_from'] = $effectiveFrom;
+        }
+        if ($academicYearId !== null && $academicYearId > 0) {
+            $fill['academic_year_id'] = $academicYearId;
+        }
+        if ($clearEffectiveTo) {
+            $fill['effective_to'] = null;
+        } elseif ($effectiveTo !== null && $effectiveTo !== '') {
+            $fill['effective_to'] = $effectiveTo;
+        }
+        $record->forceFill($fill);
         $record->save();
 
-        if ($branchId !== null || $departmentId !== null) {
-            $studentFill = [];
-            if ($branchId !== null) {
-                $studentFill['branch_id'] = $branchId;
-            }
+        $studentFill = [];
+        if ($syncStudentLabels || $branchId !== null) {
+            $studentFill['branch_id'] = $branchId;
+        }
+        if ($syncStudentLabels || $departmentId !== null) {
             if ($departmentId !== null) {
                 $departmentName = DB::table(SchemaHelper::qualified('organization', 'departments'))
                     ->where('id', $departmentId)
                     ->value('name');
-                if (is_string($departmentName) && $departmentName !== '') {
-                    $studentFill['department_name'] = $departmentName;
-                }
-            }
-            if ($studentFill !== []) {
-                DB::table(SchemaHelper::qualified('students', 'students'))
-                    ->where('id', (int) $record->student_id)
-                    ->update(array_merge($studentFill, ['updated_at' => now()]));
+                $studentFill['department_name'] = is_string($departmentName) && $departmentName !== ''
+                    ? $departmentName
+                    : null;
+            } else {
+                $studentFill['department_name'] = null;
             }
         }
+        if ($syncStudentLabels || $specializationId !== null) {
+            if ($specializationId !== null) {
+                $specializationName = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
+                    ->where('id', $specializationId)
+                    ->value('name');
+                $studentFill['specialization_name'] = is_string($specializationName) && $specializationName !== ''
+                    ? $specializationName
+                    : null;
+            } else {
+                $studentFill['specialization_name'] = null;
+            }
+        }
+        if ($updateStage) {
+            $studentFill['stage_name'] = $stageName !== null && trim($stageName) !== ''
+                ? trim($stageName)
+                : null;
+        }
+
+        if ($syncStudentLabels) {
+            $sectionName = DB::table(SchemaHelper::qualified('enrollment', 'sections'))
+                ->where('id', $sectionId)
+                ->value('name');
+            $studentFill['section_name'] = is_string($sectionName) && $sectionName !== ''
+                ? $sectionName
+                : null;
+        }
+
+        if ($studentFill !== []) {
+            DB::table(SchemaHelper::qualified('students', 'students'))
+                ->where('id', (int) $record->student_id)
+                ->update(array_merge($studentFill, ['updated_at' => now()]));
+        }
+    }
+
+    public function updateStudentGender(int $studentId, int $gender): void
+    {
+        DB::table(SchemaHelper::qualified('students', 'students'))
+            ->where('id', $studentId)
+            ->update([
+                'gender' => $gender,
+                'updated_at' => now(),
+            ]);
     }
 
     public function cancel(int $enrollmentId, string $effectiveTo): void
@@ -135,12 +193,34 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
     {
         return EnrollmentRecord::query()
             ->whereKey($enrollmentId)
-            ->whereIn('status', [EnrollmentStatus::CANCELLED, EnrollmentStatus::INACTIVE])
+            ->whereIn('status', [
+                EnrollmentStatus::CANCELLED,
+                EnrollmentStatus::INACTIVE,
+                EnrollmentStatus::TRANSFERRED,
+            ])
             ->update([
                 'status' => EnrollmentStatus::ACTIVE,
                 'effective_to' => null,
                 'updated_at' => now(),
             ]) === 1;
+    }
+
+    public function setClosedStatus(int $enrollmentId, int $status, string $effectiveTo): void
+    {
+        if (! in_array($status, [
+            EnrollmentStatus::INACTIVE,
+            EnrollmentStatus::CANCELLED,
+            EnrollmentStatus::TRANSFERRED,
+        ], true)) {
+            throw new \InvalidArgumentException('setClosedStatus requires a closed enrollment status.');
+        }
+
+        $record = EnrollmentRecord::query()->findOrFail($enrollmentId);
+        $record->forceFill([
+            'status' => $status,
+            'effective_to' => $effectiveTo,
+        ]);
+        $record->save();
     }
 
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool
@@ -186,6 +266,8 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             status: (int) $record->status,
             effectiveFrom: $record->effective_from->format('Y-m-d'),
             effectiveTo: $record->effective_to?->format('Y-m-d'),
+            branchId: $record->branch_id !== null ? (int) $record->branch_id : null,
+            departmentId: $record->department_id !== null ? (int) $record->department_id : null,
         );
     }
 }

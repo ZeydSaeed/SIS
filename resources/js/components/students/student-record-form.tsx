@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
 import {
@@ -61,16 +61,11 @@ export type StudentRecordFormValues = {
     status: number;
 };
 
-type PlacementOptions = {
-    branches: Array<{ id: number; name: string }>;
-    departments: Array<{ id: number; branch_id: number | null; name: string }>;
-};
-
 type StudentRecordFormProps = {
     student: StudentRecordFormValues;
     canViewPii: boolean;
     canUpdate: boolean;
-    placementOptions?: PlacementOptions;
+    mode?: 'edit' | 'create';
     onSaved?: (student: StudentRecordFormValues) => void;
 };
 
@@ -78,9 +73,13 @@ type StudentViewDialogProps = {
     students: StudentRecordFormValues[];
     canViewPii: boolean;
     canUpdate?: boolean;
-    placementOptions?: PlacementOptions;
     onClose: () => void;
     onSaved?: (student: StudentRecordFormValues) => void;
+};
+
+type StudentCreateDialogProps = {
+    canViewPii: boolean;
+    onClose: () => void;
 };
 
 type DraftState = {
@@ -109,17 +108,11 @@ type DraftState = {
     transfer_document_number: string;
     transfer_document_date: string;
     school_start_date: string;
-    admitted_class_name: string;
     notes: string;
     mobile: string;
     guardian_mobile: string;
     email: string;
     school_name: string;
-    branch_id: string;
-    department_name: string;
-    specialization_name: string;
-    stage_name: string;
-    section_name: string;
 };
 
 function emptyToNull(value: string): string | null {
@@ -215,17 +208,24 @@ function draftFromStudent(student: StudentRecordFormValues): DraftState {
                 : String(student.transfer_document_number),
         transfer_document_date: isoDate(student.transfer_document_date),
         school_start_date: isoDate(student.school_start_date),
-        admitted_class_name: student.admitted_class_name ?? '',
         notes: student.notes ?? '',
         mobile: student.mobile ?? '',
         guardian_mobile: student.guardian_mobile ?? '',
         email: student.email ?? '',
         school_name: student.school_name ?? '',
-        branch_id: student.branch_id ? String(student.branch_id) : '',
-        department_name: student.department_name ?? '',
-        specialization_name: student.specialization_name ?? '',
-        stage_name: student.stage_name ?? '',
-        section_name: student.section_name ?? '',
+    };
+}
+
+export function emptyStudentRecordValues(): StudentRecordFormValues {
+    return {
+        id: 0,
+        student_code: '',
+        first_name: '',
+        last_name: '',
+        birth_date: '',
+        gender: 0,
+        religion: 0,
+        status: 1,
     };
 }
 
@@ -387,60 +387,40 @@ function DraftSelect({
     onChange: (value: number) => void;
     options: Array<{ value: number; label: string }>;
 }) {
-    return (
-        <label className="flex flex-col gap-1 text-sm">
-            <span>{label}</span>
-            <div
-                className={`${controlClass(isFilled(editing ? value : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
-            >
-                {editing ? (
-                    <SisListSelect
-                        value={String(value)}
-                        options={options.map((option) => ({
-                            value: String(option.value),
-                            label: option.label,
-                        }))}
-                        onChange={(next) => onChange(Number(next))}
-                        triggerClassName="sis-student-record-form__value"
-                        dir="rtl"
-                        ariaLabel={label}
-                    />
-                ) : (
-                    display
-                )}
-            </div>
-        </label>
-    );
-}
+    const selected = options.some((option) => option.value === value)
+        ? String(value)
+        : '';
+    const selectOptions =
+        selected === ''
+            ? [
+                  { value: '', label },
+                  ...options.map((option) => ({
+                      value: String(option.value),
+                      label: option.label,
+                  })),
+              ]
+            : options.map((option) => ({
+                  value: String(option.value),
+                  label: option.label,
+              }));
 
-function DraftOptionalSelect({
-    label,
-    editing,
-    value,
-    display,
-    onChange,
-    options,
-    emptyLabel,
-}: {
-    label: string;
-    editing: boolean;
-    value: string;
-    display: string;
-    onChange: (value: string) => void;
-    options: Array<{ value: string; label: string }>;
-    emptyLabel: string;
-}) {
     return (
-        <label className="flex flex-col gap-1 text-sm">
+        <div className="flex flex-col gap-1 text-sm">
             <span>{label}</span>
             <div
-                className={`${controlClass(isFilled(editing ? value : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
+                className={`${controlClass(isFilled(editing ? selected || display : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
             >
                 {editing ? (
                     <SisListSelect
-                        value={value}
-                        options={[{ value: '', label: emptyLabel }, ...options]}
-                        onChange={onChange}
+                        value={selected}
+                        options={selectOptions}
+                        onChange={(next) => {
+                            if (next === '') {
+                                return;
+                            }
+
+                            onChange(Number(next));
+                        }}
                         triggerClassName="sis-student-record-form__value"
                         dir="rtl"
                         ariaLabel={label}
@@ -449,7 +429,7 @@ function DraftOptionalSelect({
                     display
                 )}
             </div>
-        </label>
+        </div>
     );
 }
 
@@ -512,46 +492,32 @@ export function StudentRecordForm({
     student,
     canViewPii,
     canUpdate,
-    placementOptions = { branches: [], departments: [] },
+    mode = 'edit',
     onSaved,
 }: StudentRecordFormProps) {
     const i18n = t();
-    const [editing, setEditing] = useState(false);
+    const isCreate = mode === 'create';
+    const [editing, setEditing] = useState(isCreate);
     const [saving, setSaving] = useState(false);
     const [draft, setDraft] = useState<DraftState>(() => draftFromStudent(student));
 
     useEffect(() => {
-        if (editing) {
+        if (isCreate || editing) {
             return;
         }
 
         setDraft(draftFromStudent(student));
-    }, [editing, student]);
+    }, [editing, isCreate, student]);
 
-    const filteredDepartments = useMemo(() => {
-        if (draft.branch_id === '') {
-            return placementOptions.departments;
-        }
-
-        return placementOptions.departments.filter(
-            (department) =>
-                department.branch_id === null
-                || String(department.branch_id) === draft.branch_id,
-        );
-    }, [draft.branch_id, placementOptions.departments]);
-
-    const branchDisplay =
-        student.branch_name
-        ?? placementOptions.branches.find((item) => item.id === student.branch_id)?.name
-        ?? displayValue(student.branch_id);
-    const name = studentQuadName(editing ? draft : student);
+    const name = studentQuadName(editing || isCreate ? draft : student);
+    const activeGender = editing || isCreate ? draft.gender : student.gender;
     const genderLabel =
-        (editing ? draft.gender : student.gender) === 1
+        activeGender === 1
             ? i18n.students.male
-            : (editing ? draft.gender : student.gender) === 2
+            : activeGender === 2
               ? i18n.students.female
-              : String(editing ? draft.gender : student.gender);
-    const religionValue = editing ? draft.religion : student.religion;
+              : i18n.students.gender;
+    const religionValue = editing || isCreate ? draft.religion : student.religion;
     const religionLabel =
         religionValue === 1
             ? i18n.students.religionMuslim
@@ -559,18 +525,14 @@ export function StudentRecordForm({
               ? i18n.students.religionChristian
               : religionValue === 3
                 ? i18n.students.religionOther
-                : String(religionValue);
+                : i18n.students.religion;
+    const fieldsEditable = isCreate || editing;
 
     const setField = <K extends keyof DraftState>(key: K, value: DraftState[K]) => {
         setDraft((current) => ({ ...current, [key]: value }));
     };
 
-    const save = () => {
-        if (saving) {
-            return;
-        }
-
-        setSaving(true);
+    const buildPayload = (): Record<string, string | number | null> => {
         const payload: Record<string, string | number | null> = {
             first_name: draft.first_name.trim(),
             last_name: draft.last_name.trim(),
@@ -590,7 +552,10 @@ export function StudentRecordForm({
             registration_place: emptyToNull(draft.registration_place),
             gender: draft.gender,
             nationality: emptyToNull(draft.nationality),
-            religion: draft.religion,
+            religion:
+                draft.religion === 1 || draft.religion === 2 || draft.religion === 3
+                    ? draft.religion
+                    : 1,
             mawalid_date: emptyToNull(draft.mawalid_date),
             previous_school_name: emptyToNull(draft.previous_school_name),
             transfer_document_number: emptyToNull(draft.transfer_document_number)
@@ -598,14 +563,8 @@ export function StudentRecordForm({
                 : null,
             transfer_document_date: emptyToNull(draft.transfer_document_date),
             school_start_date: emptyToNull(draft.school_start_date),
-            admitted_class_name: emptyToNull(draft.admitted_class_name),
             notes: emptyToNull(draft.notes),
             school_name: emptyToNull(draft.school_name),
-            branch_id: draft.branch_id === '' ? null : Number(draft.branch_id),
-            department_name: emptyToNull(draft.department_name),
-            specialization_name: emptyToNull(draft.specialization_name),
-            stage_name: emptyToNull(draft.stage_name),
-            section_name: emptyToNull(draft.section_name),
         };
 
         if (canViewPii) {
@@ -613,6 +572,33 @@ export function StudentRecordForm({
             payload.mobile = emptyToNull(draft.mobile);
             payload.guardian_mobile = emptyToNull(draft.guardian_mobile);
             payload.email = emptyToNull(draft.email);
+        }
+
+        return payload;
+    };
+
+    const save = () => {
+        if (saving) {
+            return;
+        }
+
+        setSaving(true);
+        const payload = buildPayload();
+
+        if (isCreate) {
+            const idempotencyKey =
+                typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                    ? crypto.randomUUID()
+                    : `student-create-${Date.now()}`;
+
+            router.post('/students', payload, {
+                headers: { 'X-Idempotency-Key': idempotencyKey },
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setSaving(false),
+            });
+
+            return;
         }
 
         router.put(`/students/${student.id}`, payload, {
@@ -647,18 +633,8 @@ export function StudentRecordForm({
                         : null,
                     transfer_document_date: emptyToNull(draft.transfer_document_date),
                     school_start_date: emptyToNull(draft.school_start_date),
-                    admitted_class_name: emptyToNull(draft.admitted_class_name),
                     notes: emptyToNull(draft.notes),
                     school_name: emptyToNull(draft.school_name),
-                    branch_id: draft.branch_id === '' ? null : Number(draft.branch_id),
-                    branch_name:
-                        placementOptions.branches.find(
-                            (item) => String(item.id) === draft.branch_id,
-                        )?.name ?? null,
-                    department_name: emptyToNull(draft.department_name),
-                    specialization_name: emptyToNull(draft.specialization_name),
-                    stage_name: emptyToNull(draft.stage_name),
-                    section_name: emptyToNull(draft.section_name),
                     national_id: canViewPii ? emptyToNull(draft.national_id) : student.national_id,
                     mobile: canViewPii ? emptyToNull(draft.mobile) : student.mobile,
                     guardian_mobile: canViewPii
@@ -676,13 +652,19 @@ export function StudentRecordForm({
     return (
         <article className="sis-admission-draft-form sis-student-record-form" dir="rtl" lang="ar">
             <header className="sis-student-record-form__head">
-                <h3 className="sis-student-record-form__title">{name}</h3>
+                <h3 className="sis-student-record-form__title">
+                    {name.trim() !== '' ? name : isCreate ? i18n.students.createTitle : '—'}
+                </h3>
                 <div className="sis-student-record-form__head-meta">
-                    <StudentStatusBadge status={student.status} />
-                    {canUpdate ? (
-                        editing ? (
+                    {isCreate ? null : <StudentStatusBadge status={student.status} />}
+                    {canUpdate || isCreate ? (
+                        isCreate || editing ? (
                             <StatusLikeButton tone="edit" disabled={saving} onClick={save}>
-                                {saving ? i18n.common.saving : i18n.common.save}
+                                {saving
+                                    ? i18n.common.saving
+                                    : isCreate
+                                      ? i18n.students.createSubmit
+                                      : i18n.common.save}
                             </StatusLikeButton>
                         ) : (
                             <StatusLikeButton tone="edit" onClick={() => setEditing(true)}>
@@ -702,28 +684,28 @@ export function StudentRecordForm({
                         <div className="sis-admission-draft-row">
                             <DraftField
                                 label={i18n.students.firstName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.first_name}
                                 display={displayValue(student.first_name)}
                                 onChange={(value) => setField('first_name', value)}
                             />
                             <DraftField
                                 label={i18n.students.fatherName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.father_name}
                                 display={displayValue(student.father_name)}
                                 onChange={(value) => setField('father_name', value)}
                             />
                             <DraftField
                                 label={i18n.students.grandfatherName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.grandfather_name}
                                 display={displayValue(student.grandfather_name)}
                                 onChange={(value) => setField('grandfather_name', value)}
                             />
                             <DraftField
                                 label={i18n.students.greatGrandfatherName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.great_grandfather_name}
                                 display={displayValue(student.great_grandfather_name)}
                                 onChange={(value) => setField('great_grandfather_name', value)}
@@ -732,28 +714,28 @@ export function StudentRecordForm({
                         <div className="sis-admission-draft-row">
                             <DraftField
                                 label={i18n.students.familyName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.last_name}
                                 display={displayValue(student.last_name)}
                                 onChange={(value) => setField('last_name', value)}
                             />
                             <DraftField
                                 label={i18n.students.motherName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.mother_name}
                                 display={displayValue(student.mother_name)}
                                 onChange={(value) => setField('mother_name', value)}
                             />
                             <DraftField
                                 label={i18n.students.maternalFatherName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.maternal_father_name}
                                 display={displayValue(student.maternal_father_name)}
                                 onChange={(value) => setField('maternal_father_name', value)}
                             />
                             <DraftField
                                 label={i18n.students.maternalGrandfatherName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.maternal_grandfather_name}
                                 display={displayValue(student.maternal_grandfather_name)}
                                 onChange={(value) => setField('maternal_grandfather_name', value)}
@@ -762,7 +744,7 @@ export function StudentRecordForm({
                         <div className="sis-admission-draft-row">
                             <DraftField
                                 label={i18n.students.birthDate}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 type="date"
                                 value={draft.birth_date}
                                 display={formatCivilDate(student.birth_date)}
@@ -770,14 +752,14 @@ export function StudentRecordForm({
                             />
                             <DraftField
                                 label={i18n.students.birthPlace}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.birth_place}
                                 display={displayValue(student.birth_place)}
                                 onChange={(value) => setField('birth_place', value)}
                             />
                             <DraftSelect
                                 label={i18n.students.gender}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.gender}
                                 display={genderLabel}
                                 onChange={(value) => setField('gender', value)}
@@ -788,7 +770,7 @@ export function StudentRecordForm({
                             />
                             <DraftField
                                 label={i18n.students.nationality}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.nationality}
                                 display={displayValue(student.nationality)}
                                 onChange={(value) => setField('nationality', value)}
@@ -797,7 +779,7 @@ export function StudentRecordForm({
                         <div className="sis-admission-draft-row">
                             <DraftSelect
                                 label={i18n.students.religion}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.religion}
                                 display={religionLabel}
                                 onChange={(value) => setField('religion', value)}
@@ -810,7 +792,7 @@ export function StudentRecordForm({
                             {canViewPii ? (
                                 <DraftField
                                     label={i18n.students.nationalId}
-                                    editing={editing}
+                                    editing={fieldsEditable}
                                     value={draft.national_id}
                                     display={displayValue(student.national_id)}
                                     dir="ltr"
@@ -819,7 +801,7 @@ export function StudentRecordForm({
                             ) : null}
                             <DraftField
                                 label={i18n.students.mawalidDate}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 type="date"
                                 value={draft.mawalid_date}
                                 display={formatCivilDate(student.mawalid_date)}
@@ -827,7 +809,7 @@ export function StudentRecordForm({
                             />
                             <DraftField
                                 label={i18n.students.registrationPlace}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.registration_place}
                                 display={displayValue(student.registration_place)}
                                 onChange={(value) => setField('registration_place', value)}
@@ -844,28 +826,28 @@ export function StudentRecordForm({
                         <div className="sis-admission-draft-row">
                             <DraftField
                                 label={i18n.students.governorate}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.governorate}
                                 display={displayValue(student.governorate)}
                                 onChange={(value) => setField('governorate', value)}
                             />
                             <DraftField
                                 label={i18n.students.neighborhood}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.neighborhood}
                                 display={displayValue(student.neighborhood)}
                                 onChange={(value) => setField('neighborhood', value)}
                             />
                             <DraftField
                                 label={i18n.students.locality}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.locality}
                                 display={displayValue(student.locality)}
                                 onChange={(value) => setField('locality', value)}
                             />
                             <DraftField
                                 label={i18n.students.houseNumber}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.house_number}
                                 display={displayValue(student.house_number)}
                                 onChange={(value) => setField('house_number', value)}
@@ -881,80 +863,20 @@ export function StudentRecordForm({
                             <div className="sis-admission-draft-row">
                                 <DraftField
                                     label={i18n.students.schoolName}
-                                    editing={editing}
+                                    editing={fieldsEditable}
                                     value={draft.school_name}
                                     display={displayValue(student.school_name)}
                                     onChange={(value) => setField('school_name', value)}
                                 />
-                                <DraftOptionalSelect
-                                    label={i18n.students.branchName}
-                                    editing={editing}
-                                    value={draft.branch_id}
-                                    display={branchDisplay}
-                                    emptyLabel={i18n.admission.selectOption}
-                                    options={placementOptions.branches.map((item) => ({
-                                        value: String(item.id),
-                                        label: item.name,
-                                    }))}
-                                    onChange={(next) => {
-                                        setDraft((current) => ({
-                                            ...current,
-                                            branch_id: next,
-                                            department_name: '',
-                                        }));
-                                    }}
-                                />
-                                <AcademicYearListField
-                                    label={i18n.students.academicYear}
-                                    student={student}
-                                />
-                                <DraftField
-                                    label={i18n.students.stageName}
-                                    editing={editing}
-                                    value={draft.stage_name}
-                                    display={displayValue(student.stage_name)}
-                                    onChange={(value) => setField('stage_name', value)}
-                                />
-                            </div>
-                            <div className="sis-admission-draft-row">
-                                <DraftOptionalSelect
-                                    label={i18n.students.departmentName}
-                                    editing={editing}
-                                    value={draft.department_name}
-                                    display={displayValue(student.department_name)}
-                                    emptyLabel={i18n.admission.selectOption}
-                                    options={filteredDepartments.map((item) => ({
-                                        value: item.name,
-                                        label: item.name,
-                                    }))}
-                                    onChange={(next) => setField('department_name', next)}
-                                />
-                                <DraftField
-                                    label={i18n.students.sectionName}
-                                    editing={editing}
-                                    value={draft.section_name}
-                                    display={displayValue(student.section_name)}
-                                    onChange={(value) => setField('section_name', value)}
-                                />
-                                <DraftField
-                                    label={i18n.students.admittedClassName}
-                                    editing={editing}
-                                    value={draft.admitted_class_name}
-                                    display={displayValue(student.admitted_class_name)}
-                                    onChange={(value) => setField('admitted_class_name', value)}
-                                />
-                                <DraftField
-                                    label={i18n.students.specialization}
-                                    editing={editing}
-                                    value={draft.specialization_name}
-                                    display={displayValue(student.specialization_name)}
-                                    onChange={(value) => setField('specialization_name', value)}
-                                />
-                            </div>
-                            <div className="sis-admission-draft-row">
+                                {isCreate ? null : (
+                                    <AcademicYearListField
+                                        label={i18n.students.academicYear}
+                                        student={student}
+                                    />
+                                )}
                                 <DraftField
                                     label={i18n.students.schoolStartDate}
-                                    editing={editing}
+                                    editing={fieldsEditable}
                                     type="date"
                                     value={draft.school_start_date}
                                     display={formatCivilDate(student.school_start_date)}
@@ -962,21 +884,23 @@ export function StudentRecordForm({
                                 />
                                 <DraftField
                                     label={i18n.students.previousSchoolName}
-                                    editing={editing}
+                                    editing={fieldsEditable}
                                     value={draft.previous_school_name}
                                     display={displayValue(student.previous_school_name)}
                                     onChange={(value) => setField('previous_school_name', value)}
                                 />
+                            </div>
+                            <div className="sis-admission-draft-row">
                                 <DraftField
                                     label={i18n.students.transferDocumentNumber}
-                                    editing={editing}
+                                    editing={fieldsEditable}
                                     value={draft.transfer_document_number}
                                     display={displayValue(student.transfer_document_number)}
                                     onChange={(value) => setField('transfer_document_number', value)}
                                 />
                                 <DraftField
                                     label={i18n.students.transferDocumentDate}
-                                    editing={editing}
+                                    editing={fieldsEditable}
                                     type="date"
                                     value={draft.transfer_document_date}
                                     display={formatCivilDate(student.transfer_document_date)}
@@ -993,7 +917,7 @@ export function StudentRecordForm({
                         <div className="sis-admission-draft-row">
                             <DraftField
                                 label={i18n.students.guardianTripleName}
-                                editing={editing}
+                                editing={fieldsEditable}
                                 value={draft.guardian_triple_name}
                                 display={displayValue(student.guardian_triple_name)}
                                 onChange={(value) => setField('guardian_triple_name', value)}
@@ -1002,7 +926,7 @@ export function StudentRecordForm({
                                 <>
                                     <DraftField
                                         label={i18n.students.mobile}
-                                        editing={editing}
+                                        editing={fieldsEditable}
                                         value={draft.mobile}
                                         display={displayValue(student.mobile)}
                                         dir="ltr"
@@ -1010,7 +934,7 @@ export function StudentRecordForm({
                                     />
                                     <DraftField
                                         label={i18n.students.guardianMobile}
-                                        editing={editing}
+                                        editing={fieldsEditable}
                                         value={draft.guardian_mobile}
                                         display={displayValue(student.guardian_mobile)}
                                         dir="ltr"
@@ -1018,7 +942,7 @@ export function StudentRecordForm({
                                     />
                                     <DraftField
                                         label={i18n.students.email}
-                                        editing={editing}
+                                        editing={fieldsEditable}
                                         type="email"
                                         value={draft.email}
                                         display={displayValue(student.email)}
@@ -1038,7 +962,7 @@ export function StudentRecordForm({
                 >
                     <DraftNotes
                         label={i18n.students.notes}
-                        editing={editing}
+                        editing={fieldsEditable}
                         value={draft.notes}
                         display={displayValue(student.notes)}
                         onChange={(value) => setField('notes', value)}
@@ -1053,7 +977,6 @@ export function StudentViewDialog({
     students,
     canViewPii,
     canUpdate = false,
-    placementOptions,
     onClose,
     onSaved,
 }: StudentViewDialogProps) {
@@ -1078,12 +1001,8 @@ export function StudentViewDialog({
                 aria-describedby="student-view-dialog-desc"
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
-                onPointerDownOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
+                onPointerDownOutside={(event) => event.preventDefault()}
+                onInteractOutside={(event) => event.preventDefault()}
                 onFocusOutside={(event) => {
                     const target = event.target as HTMLElement | null;
                     if (target?.closest('[data-sis-list-select]')) {
@@ -1104,10 +1023,62 @@ export function StudentViewDialog({
                             student={student}
                             canViewPii={canViewPii}
                             canUpdate={canUpdate}
-                            placementOptions={placementOptions}
                             onSaved={onSaved}
                         />
                     ))}
+                </div>
+                <div className="sis-admission-draft-actions">
+                    <StatusLikeButton tone="close" onClick={onClose}>
+                        {i18n.window.close}
+                    </StatusLikeButton>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialogProps) {
+    const i18n = t();
+
+    return (
+        <Dialog
+            open
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
+            <DialogContent
+                className="sis-admission-draft-dialog sis-student-view-dialog gap-1.5 p-3 sm:max-w-[min(96vw,92rem)]"
+                dir="rtl"
+                lang="ar"
+                data-sis-align-exempt=""
+                aria-describedby="student-create-dialog-desc"
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => event.preventDefault()}
+                onInteractOutside={(event) => event.preventDefault()}
+                onFocusOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
+            >
+                <DialogHeader>
+                    <DialogTitle>{i18n.students.createTitle}</DialogTitle>
+                    <DialogDescription id="student-create-dialog-desc" className="sr-only">
+                        {i18n.students.createDialogDesc}
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="sis-student-view-dialog__body">
+                    <StudentRecordForm
+                        student={emptyStudentRecordValues()}
+                        canViewPii={canViewPii}
+                        canUpdate
+                        mode="create"
+                    />
                 </div>
                 <div className="sis-admission-draft-actions">
                     <StatusLikeButton tone="close" onClick={onClose}>

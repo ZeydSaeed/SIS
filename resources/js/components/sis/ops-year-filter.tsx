@@ -28,6 +28,9 @@ type OpsYearFilterProps = {
     inlineLabel?: boolean;
     /** Shrink the control to the selected text instead of a fixed min-width. */
     compact?: boolean;
+    /** When set, parent handles year changes (e.g. dual filter/update). */
+    onYearChange?: (yearId: number) => void;
+    disabled?: boolean;
 };
 
 export function formatAcademicYearOptionLabel(name: string, code: string): string {
@@ -79,6 +82,8 @@ export function OpsYearFilter({
     controlClassName,
     inlineLabel = false,
     compact = false,
+    onYearChange,
+    disabled = false,
 }: OpsYearFilterProps) {
     const i18n = t();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
@@ -97,6 +102,14 @@ export function OpsYearFilter({
         : year;
 
     const apply = (nextYear: string) => {
+        if (onYearChange) {
+            if (nextYear !== '') {
+                onYearChange(Number(nextYear));
+            }
+
+            return;
+        }
+
         const cleaned: Record<string, string | number> = {};
         for (const [key, value] of Object.entries(extraParams)) {
             if (value !== undefined && value !== null && value !== '') {
@@ -156,6 +169,7 @@ export function OpsYearFilter({
                                     setYear(next);
                                     apply(next);
                                 }}
+                                disabled={disabled}
                                 triggerClassName={`sis-ops-hub__link px-3 py-2 min-h-0 min-w-0 ${controlClassName ?? ''}`}
                                 dir="rtl"
                                 ariaLabel={label ?? i18n.enrollments.academicYear}
@@ -176,6 +190,7 @@ export function OpsYearFilter({
                                 setYear(next);
                                 apply(next);
                             }}
+                            disabled={disabled}
                             triggerClassName={`sis-ops-hub__link min-h-11 min-w-[10rem] px-3 py-2 ${controlClassName ?? ''}`}
                             dir="rtl"
                             ariaLabel={label ?? i18n.enrollments.academicYear}

@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 import { TitleBarControls } from '@/components/title-bar-controls';
 import { TitleBarHome } from '@/components/title-bar-home';
@@ -69,7 +69,6 @@ function findAndReplace(): void {
 
 const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     addSchool: '/admission',
-    addStudent: '/students',
     addTeacher: '/teachers',
     addHoliday: '/holidays',
     addCurriculum: '/curriculum',
@@ -138,8 +137,28 @@ export function AppSidebarHeader({
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     const [activeRibbon, setActiveRibbon] = useState<RibbonTab | null>(null);
+    const page = usePage();
 
     const onRibbonAction = useCallback((id: RibbonActionId) => {
+        if (id === 'addStudent') {
+            setActiveRibbon(null);
+            const [path, query = ''] = page.url.split('?');
+            if (path === '/students') {
+                const params = new URLSearchParams(query);
+                params.set('create', '1');
+                const next = params.toString();
+                router.get(
+                    next === '' ? '/students' : `/students?${next}`,
+                    {},
+                    { preserveState: true, preserveScroll: true },
+                );
+            } else {
+                router.visit('/students?create=1');
+            }
+
+            return;
+        }
+
         const addHref = ADD_ROUTES[id];
         if (addHref) {
             setActiveRibbon(null);
@@ -231,7 +250,7 @@ export function AppSidebarHeader({
             default:
                 break;
         }
-    }, []);
+    }, [page.url]);
 
     const titlebarSearch = usePageTitlebarSearch();
 

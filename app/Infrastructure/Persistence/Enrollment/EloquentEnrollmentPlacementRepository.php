@@ -35,4 +35,25 @@ final class EloquentEnrollmentPlacementRepository implements EnrollmentPlacement
             ->where('class_id', $classId)
             ->exists();
     }
+
+    public function classIdForSection(int $sectionId): ?int
+    {
+        $classId = EnrollmentSectionRecord::query()
+            ->whereKey($sectionId)
+            ->where('status', 1)
+            ->value('class_id');
+
+        return $classId !== null ? (int) $classId : null;
+    }
+
+    public function firstSectionIdForClass(int $classId): ?int
+    {
+        $id = EnrollmentSectionRecord::query()
+            ->where('class_id', $classId)
+            ->where('status', 1)
+            ->orderBy('id')
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
+    }
 }
