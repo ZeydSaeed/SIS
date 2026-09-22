@@ -2214,7 +2214,7 @@ button.sis-admission-enroll-status-text:active {
     gap: 0.28rem;
     width: 100%;
     margin: 0;
-    padding: 0.1rem 0.45rem;
+    padding: 0.1rem 0;
     border: 0;
     box-sizing: border-box;
     background: color-mix(in srgb, var(--sis-pearl) 90%, var(--sis-mist));
@@ -2407,7 +2407,10 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-enrollments-page .sis-enrollments-status-tabs {
-    margin: 0.35rem 1rem 0;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 0.35rem 0 0;
 }
 
 .sis-enrollments-page .sis-enrollments-status-tabs .sis-admission-progress__segment {
@@ -2417,8 +2420,10 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-enrollments-page .sis-enrollments-progress {
-    width: auto;
-    margin: 0.35rem 1rem 0.45rem;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 0.35rem 0 0.45rem;
 }
 
 .sis-enrollments-page .sis-admission-page-body {
@@ -2544,6 +2549,33 @@ button.sis-admission-enroll-status-text:active {
 .sis-students-page.sis-enrollments-page .sis-enrollments-status-action__icon {
     width: 0.78rem;
     height: 0.78rem;
+}
+
+.sis-students-page .sis-students-enroll-action {
+    flex: 1.15 1 0 !important;
+    background: color-mix(in srgb, var(--sis-admission-status-6) 34%, var(--sis-pearl));
+    color: var(--sis-oxford);
+}
+
+.sis-students-page .sis-students-table__enrollment--yes {
+    background: color-mix(in srgb, var(--sis-admission-status-6) 38%, var(--sis-pearl));
+    color: var(--sis-oxford);
+    font-weight: 600;
+    text-align: center;
+}
+
+.sis-students-page .sis-students-table__enrollment--no {
+    background: color-mix(in srgb, var(--sis-admission-status-2) 55%, var(--sis-pearl));
+    color: var(--sis-oxford);
+    font-weight: 600;
+    text-align: center;
+}
+
+.sis-students-page.sis-enrollments-page .sis-enrollments-status-tabs,
+.sis-students-page.sis-enrollments-page .sis-enrollments-progress {
+    margin-inline: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .sis-enrollments-page .sis-enrollments-filter-chip .sis-list-select__value {
@@ -3834,6 +3866,13 @@ button.sis-admission-enroll-status-text:active {
     z-index: 0;
     pointer-events: none;
     transition: width 180ms ease;
+}
+
+/* Students + enrollments: fill from physical left so chrome left edges stay flush */
+.sis-enrollments-page .sis-admission-progress__overall-fill {
+    inset-inline-start: auto;
+    left: 0;
+    right: auto;
 }
 
 .sis-admission-progress__overall-value {

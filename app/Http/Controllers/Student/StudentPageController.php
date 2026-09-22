@@ -65,6 +65,7 @@ final class StudentPageController extends Controller
         $perPage = min(max(1, (int) $request->query('per_page', 17)), 100);
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
+        $enrolled = $this->queryEnrolled($request);
         $academicYearId = $this->academicYears->resolve(
             $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null,
             $request,
@@ -79,6 +80,7 @@ final class StudentPageController extends Controller
                 status: $status,
                 academicYearId: $academicYearId,
                 gender: $gender,
+                enrolled: $enrolled,
             ));
         } else {
             $result = $listHandler->handle(new ListStudentsQuery(
@@ -88,6 +90,7 @@ final class StudentPageController extends Controller
                 perPage: $perPage,
                 academicYearId: $academicYearId,
                 gender: $gender,
+                enrolled: $enrolled,
             ));
         }
 
@@ -112,6 +115,7 @@ final class StudentPageController extends Controller
                 'per_page' => $perPage,
                 'academic_year_id' => $academicYearId,
                 'gender' => $gender,
+                'enrolled' => $enrolled === null ? null : ($enrolled ? 1 : 0),
             ],
             'authorization' => $this->listAuthorization($user),
             'preview' => null,
@@ -344,6 +348,25 @@ final class StudentPageController extends Controller
         return $gender === 1 || $gender === 2 ? $gender : null;
     }
 
+    private function queryEnrolled(Request $request): ?bool
+    {
+        if (! $request->filled('enrolled')) {
+            return null;
+        }
+
+        $value = $request->query('enrolled');
+
+        if ($value === '1' || $value === 1 || $value === true || $value === 'true') {
+            return true;
+        }
+
+        if ($value === '0' || $value === 0 || $value === false || $value === 'false') {
+            return false;
+        }
+
+        return null;
+    }
+
     /**
      * @param  array<string, mixed>  $validated
      */
@@ -369,7 +392,7 @@ final class StudentPageController extends Controller
     }
 
     /**
-     * @return array{canView: bool, canViewPii: bool, canUpdate: bool, canCreate: bool}
+     * @return array{canView: bool, canViewPii: bool, canUpdate: bool, canCreate: bool, canEnroll: bool}
      */
     private function listAuthorization(User $user): array
     {
@@ -380,11 +403,13 @@ final class StudentPageController extends Controller
                 && $this->schoolAccess->canAccessStudent($user),
             'canCreate' => $this->studentPolicy->create($user)
                 && $this->schoolAccess->canAccessStudent($user),
+            'canEnroll' => $this->authorization->userHasPermission($user, Permission::ENROLLMENT_CREATE)
+                && $this->schoolAccess->canAccessStudent($user),
         ];
     }
 
     /**
-     * @return array{canView: bool, canViewPii: bool, canUpdate: bool, canCreate: bool}
+     * @return array{canView: bool, canViewPii: bool, canUpdate: bool, canCreate: bool, canEnroll: bool}
      */
     private function recordAuthorization(User $user, int $studentId): array
     {
@@ -393,6 +418,8 @@ final class StudentPageController extends Controller
             'canViewPii' => $this->studentPolicy->viewPii($user),
             'canUpdate' => $this->studentPolicy->update($user, $studentId),
             'canCreate' => $this->studentPolicy->create($user),
+            'canEnroll' => $this->authorization->userHasPermission($user, Permission::ENROLLMENT_CREATE)
+                && $this->schoolAccess->canAccessStudent($user),
         ];
     }
 }

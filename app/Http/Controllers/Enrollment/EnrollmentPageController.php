@@ -25,7 +25,6 @@ use App\Http\Requests\Enrollment\ChangeEnrollmentStatusesRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Http\Support\AcademicYearContextResolver;
-use App\Http\Support\WorkflowFlash;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -397,23 +396,9 @@ final class EnrollmentPageController extends Controller
             "enrollment:{$result->enrollmentId}",
         );
 
-        return WorkflowFlash::with(
-            redirect()->route('enrollments.index', [
-                'academic_year_id' => $academicYearId,
-                'q' => (string) $studentId,
-            ]),
-            [
-                'tone' => 'success',
-                'title' => 'اكتمل التسجيل',
-                'message' => 'أُنشئ التوزيع السنوي بنجاح. الطالب يظهر الآن في جدول التسجيلات ويمكن متابعة الحضور والدرجات عليه.',
-                'action_href' => route('enrollments.index', [
-                    'academic_year_id' => $academicYearId,
-                    'q' => (string) $studentId,
-                ], absolute: false),
-                'action_label' => 'فتح قائمة التسجيل',
-                'step' => 'enrollment.created',
-            ],
-        );
+        return redirect()->route('enrollments.index', [
+            'academic_year_id' => $academicYearId,
+        ]);
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

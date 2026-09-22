@@ -19,6 +19,7 @@ interface StudentReadRepositoryInterface
         int $perPage,
         ?int $academicYearId = null,
         ?int $gender = null,
+        ?bool $enrolled = null,
     ): array;
 
     /**
@@ -32,10 +33,16 @@ interface StudentReadRepositoryInterface
         ?int $status = null,
         ?int $academicYearId = null,
         ?int $gender = null,
+        ?bool $enrolled = null,
     ): array;
 
     /**
-     * @return array<int, int> status => count for the school, optionally scoped to an academic year and gender
+     * @return array<int, int> status => count for the school, optionally scoped to an academic year, gender, and enrollment flag
      */
-    public function countByStatus(int $schoolId, ?int $academicYearId = null, ?int $gender = null): array;
+    public function countByStatus(
+        int $schoolId,
+        ?int $academicYearId = null,
+        ?int $gender = null,
+        ?bool $enrolled = null,
+    ): array;
 }

@@ -60,6 +60,7 @@ export type StudentAuthorization = {
     canViewPii: boolean;
     canUpdate: boolean;
     canCreate?: boolean;
+    canEnroll?: boolean;
 };
 
 type StudentDetailsSurfaceProps = {

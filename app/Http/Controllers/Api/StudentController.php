@@ -70,6 +70,7 @@ class StudentController extends Controller
         $schoolId = $this->schoolContext->requireId();
         $academicYearId = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
         $gender = $this->queryGender($request);
+        $enrolled = $this->queryEnrolled($request);
 
         $result = $handler->handle(new ListStudentsQuery(
             status: $status,
@@ -78,6 +79,7 @@ class StudentController extends Controller
             perPage: $perPage,
             academicYearId: $academicYearId,
             gender: $gender,
+            enrolled: $enrolled,
         ));
 
         $payload = $result->toArray();
@@ -106,6 +108,7 @@ class StudentController extends Controller
         $academicYearId = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
+        $enrolled = $this->queryEnrolled($request);
 
         $result = $handler->handle(new SearchStudentsQuery(
             term: $term,
@@ -115,6 +118,7 @@ class StudentController extends Controller
             status: $status,
             academicYearId: $academicYearId,
             gender: $gender,
+            enrolled: $enrolled,
         ));
 
         $payload = $result->toArray();
@@ -600,5 +604,24 @@ class StudentController extends Controller
         $gender = (int) $request->query('gender');
 
         return $gender === 1 || $gender === 2 ? $gender : null;
+    }
+
+    private function queryEnrolled(Request $request): ?bool
+    {
+        if (! $request->filled('enrolled')) {
+            return null;
+        }
+
+        $value = $request->query('enrolled');
+
+        if ($value === '1' || $value === 1 || $value === true || $value === 'true') {
+            return true;
+        }
+
+        if ($value === '0' || $value === 0 || $value === false || $value === 'false') {
+            return false;
+        }
+
+        return null;
     }
 }

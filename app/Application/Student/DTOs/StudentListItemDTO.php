@@ -45,6 +45,7 @@ final readonly class StudentListItemDTO
         public ?string $sectionName,
         public ?int $academicYearId,
         public int $status,
+        public bool $isEnrolled = false,
     ) {}
 
     /**
@@ -93,6 +94,7 @@ final readonly class StudentListItemDTO
             'section_name' => $this->sectionName,
             'academic_year_id' => $this->academicYearId,
             'status' => $this->status,
+            'is_enrolled' => $this->isEnrolled,
         ];
     }
 }

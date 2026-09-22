@@ -97,7 +97,7 @@ type EnrollmentCreateDialogProps = {
     student?: EnrollmentCreateStudent | null;
     initialDefaults?: EnrollmentCreateFormProps['initialDefaults'];
     onClose: () => void;
-    onCreated?: () => void;
+    onCreated?: (studentId: number) => void;
 };
 
 export type EnrollmentCreateStudent = {
@@ -1586,9 +1586,7 @@ export function EnrollmentCreateDialog({
                         showCancel
                         onCancel={onClose}
                         onCreated={(studentId) => {
-                            onCreated?.();
-                            onClose();
-                            void studentId;
+                            onCreated?.(studentId);
                         }}
                     />
                 </div>

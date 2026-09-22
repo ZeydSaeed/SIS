@@ -2,6 +2,7 @@ import { router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     CircleSlash,
+    ClipboardList,
     Eye,
     GraduationCap,
     PauseCircle,
@@ -47,6 +48,7 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
+import { appendEnrollmentHandoff } from '@/lib/enrollment-handoff';
 import type {
     StudentAuthorization,
     StudentDetail,
@@ -56,6 +58,7 @@ import { t } from '@/i18n';
 export type { StudentAuthorization };
 
 const STUDENTS_PER_PAGE = 17;
+const STUDENT_STATUS_ACTIVE = 1;
 const STUDENT_STATUS_WITHDRAWN = 4;
 
 const STUDENT_STATUS_TABS: Array<{
@@ -157,6 +160,7 @@ export type StudentListItem = {
     academic_year_name?: string | null;
     academic_year_code?: string | null;
     status: number;
+    is_enrolled?: boolean;
 };
 
 export type StudentsPayload = {
@@ -187,6 +191,7 @@ type StudentListProps = {
         per_page: number;
         academic_year_id: number | null;
         gender: number | null;
+        enrolled: number | null;
     };
     authorization: StudentAuthorization;
     preview: PreviewPayload;
@@ -200,6 +205,7 @@ type VisitParams = {
     student?: number | null;
     academic_year_id?: number | null;
     gender?: number | null;
+    enrolled?: number | null;
     quiet?: boolean;
 };
 
@@ -459,17 +465,12 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
         );
         const [lastName, setLastName] = useState(row.last_name);
         const [birthDate, setBirthDate] = useState(dateInputValue(row.birth_date));
-        const [governorate, setGovernorate] = useState(row.governorate ?? '');
-        const [neighborhood, setNeighborhood] = useState(row.neighborhood ?? '');
         const [gender, setGender] = useState(row.gender);
-        const [previousSchoolName, setPreviousSchoolName] = useState(
-            row.previous_school_name ?? '',
-        );
         const [transferDocumentNumber, setTransferDocumentNumber] = useState(
             row.transfer_document_number == null ? '' : String(row.transfer_document_number),
         );
-        const [transferDocumentDate, setTransferDocumentDate] = useState(
-            dateInputValue(row.transfer_document_date),
+        const [previousSchoolName, setPreviousSchoolName] = useState(
+            row.previous_school_name ?? '',
         );
         const [mobile, setMobile] = useState(() => maskMobileDigits(row.mobile ?? ''));
         const [saving, setSaving] = useState(false);
@@ -485,14 +486,11 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             setGreatGrandfatherName(row.great_grandfather_name ?? '');
             setLastName(row.last_name);
             setBirthDate(dateInputValue(row.birth_date));
-            setGovernorate(row.governorate ?? '');
-            setNeighborhood(row.neighborhood ?? '');
             setGender(row.gender);
-            setPreviousSchoolName(row.previous_school_name ?? '');
             setTransferDocumentNumber(
                 row.transfer_document_number == null ? '' : String(row.transfer_document_number),
             );
-            setTransferDocumentDate(dateInputValue(row.transfer_document_date));
+            setPreviousSchoolName(row.previous_school_name ?? '');
             setMobile(maskMobileDigits(row.mobile ?? ''));
         }, [editing, row]);
 
@@ -510,12 +508,12 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 grandfather_name: emptyToNull(grandfatherName),
                 great_grandfather_name: emptyToNull(greatGrandfatherName),
                 birth_date: birthDate,
-                governorate: emptyToNull(governorate),
-                neighborhood: emptyToNull(neighborhood),
+                governorate: row.governorate ?? null,
+                neighborhood: row.neighborhood ?? null,
                 gender,
                 previous_school_name: emptyToNull(previousSchoolName),
                 transfer_document_number: parseOptionalInt(transferDocumentNumber),
-                transfer_document_date: emptyToNull(transferDocumentDate),
+                transfer_document_date: row.transfer_document_date ?? null,
                 mother_name: row.mother_name ?? null,
                 maternal_father_name: row.maternal_father_name ?? null,
                 maternal_grandfather_name: row.maternal_grandfather_name ?? null,
@@ -557,18 +555,15 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             fatherName,
             firstName,
             gender,
-            governorate,
             grandfatherName,
             greatGrandfatherName,
             i18n.errors.saveFailed,
             lastName,
             mobile,
-            neighborhood,
             previousSchoolName,
             row,
             saving,
             showInertiaErrors,
-            transferDocumentDate,
             transferDocumentNumber,
         ]);
 
@@ -679,28 +674,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 </td>
                 <td className="sis-admission-drafts-table__text">
                     {editing ? (
-                        <TableEditInput
-                            value={governorate}
-                            label={i18n.students.governorate}
-                            onChange={setGovernorate}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.governorate)}</CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
-                        <TableEditInput
-                            value={neighborhood}
-                            label={i18n.students.neighborhood}
-                            onChange={setNeighborhood}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.neighborhood)}</CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
                         <div
                             onClick={(event) => event.stopPropagation()}
                             onPointerDown={(event) => event.stopPropagation()}
@@ -721,17 +694,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                         <CellScroll>{genderLabel(row.gender, i18n)}</CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {editing ? (
-                        <TableEditInput
-                            value={previousSchoolName}
-                            label={i18n.students.previousSchoolName}
-                            onChange={setPreviousSchoolName}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.previous_school_name)}</CellScroll>
-                    )}
-                </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
                     {editing ? (
                         <TableEditInput
@@ -746,19 +708,27 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                         </CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
                     {editing ? (
                         <TableEditInput
-                            type="date"
-                            value={transferDocumentDate}
-                            label={i18n.students.transferDocumentDate}
-                            onChange={setTransferDocumentDate}
+                            value={previousSchoolName}
+                            label={i18n.students.previousSchoolName}
+                            onChange={setPreviousSchoolName}
                         />
                     ) : (
-                        <CellScroll>
-                            <span dir="ltr">{formatCivilDate(row.transfer_document_date)}</span>
-                        </CellScroll>
+                        <CellScroll>{textOrDash(row.previous_school_name)}</CellScroll>
                     )}
+                </td>
+                <td
+                    className={
+                        row.is_enrolled
+                            ? 'sis-students-table__enrollment sis-students-table__enrollment--yes'
+                            : 'sis-students-table__enrollment sis-students-table__enrollment--no'
+                    }
+                >
+                    <CellScroll>
+                        {row.is_enrolled ? i18n.students.enrollmentYes : i18n.students.enrollmentNo}
+                    </CellScroll>
                 </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap sis-students-table__mobile">
                     {editing && canViewPii ? (
@@ -794,7 +764,7 @@ export function StudentList({
     preview,
 }: StudentListProps) {
     const i18n = t();
-    const { showInertiaErrors } = usePageError();
+    const { showInertiaErrors, showError } = usePageError();
     const page = usePage();
     const { academicYears } = page.props as {
         academicYears?: Array<{ id: number; name: string; code: string; is_current: boolean }>;
@@ -808,12 +778,21 @@ export function StudentList({
             : genderValue === '2'
               ? i18n.students.female
               : i18n.students.gender;
+    const enrolledValue =
+        filters.enrolled === 1 || filters.enrolled === 0 ? String(filters.enrolled) : '';
+    const enrolledFilterLabel =
+        enrolledValue === '1'
+            ? i18n.students.enrolledStudents
+            : enrolledValue === '0'
+              ? i18n.students.notEnrolledStudents
+              : i18n.students.enrollmentFilter;
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
     const [editingIds, setEditingIds] = useState<number[]>([]);
     const [savingRows, setSavingRows] = useState(false);
     const [viewingStudents, setViewingStudents] = useState<StudentListItem[] | null>(null);
+    const [viewingAsFileContinue, setViewingAsFileContinue] = useState(false);
     const [creatingStudent, setCreatingStudent] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<StudentListItem | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -870,7 +849,7 @@ export function StudentList({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'students.list',
-        columnSignature: `${canSelect ? 'select' : 'readonly'}:file`,
+        columnSignature: `${canSelect ? 'select' : 'readonly'}:file:enrolled`,
         enabled: rows.length > 0,
     });
 
@@ -908,6 +887,7 @@ export function StudentList({
         const nextYear =
             'academic_year_id' in params ? params.academic_year_id : current.academic_year_id;
         const nextGender = 'gender' in params ? params.gender : current.gender;
+        const nextEnrolled = 'enrolled' in params ? params.enrolled : current.enrolled;
 
         router.get(
             '/students',
@@ -919,6 +899,7 @@ export function StudentList({
                 student: nextStudent ?? undefined,
                 academic_year_id: nextYear ?? undefined,
                 gender: nextGender ?? undefined,
+                enrolled: nextEnrolled === 0 || nextEnrolled === 1 ? nextEnrolled : undefined,
             },
             {
                 preserveState: true,
@@ -976,6 +957,7 @@ export function StudentList({
         visitList({
             q: '',
             gender: null,
+            enrolled: null,
             page: 1,
             student: undefined,
         });
@@ -1098,6 +1080,55 @@ export function StudentList({
         [canSelect, i18n.errors.statusFailed, resolveActionIds, showInertiaErrors],
     );
 
+    const enrollSelected = useCallback(() => {
+        if (!authorization.canEnroll || filtersBusy || savingRows) {
+            return;
+        }
+
+        const selected = actionIds
+            .map((id) => rows.find((row) => row.id === id) ?? null)
+            .filter((row): row is StudentListItem => row !== null);
+
+        if (selected.length === 0) {
+            showError(i18n.students.enrollNeedsSelection);
+
+            return;
+        }
+
+        const eligible = selected.filter(
+            (row) => !row.is_enrolled && row.status === STUDENT_STATUS_ACTIVE,
+        );
+
+        if (eligible.length === 0) {
+            showError(i18n.students.enrollNeedsEligible);
+
+            return;
+        }
+
+        const handoffStudents = eligible.map((row) => ({
+            id: row.id,
+            full_name: studentQuadName(row) || row.full_name,
+        }));
+
+        appendEnrollmentHandoff({
+            academic_year_id: filters.academic_year_id,
+            students: handoffStudents,
+        });
+
+        clearSelection();
+    }, [
+        actionIds,
+        authorization.canEnroll,
+        clearSelection,
+        filters.academic_year_id,
+        filtersBusy,
+        i18n.students.enrollNeedsEligible,
+        i18n.students.enrollNeedsSelection,
+        rows,
+        savingRows,
+        showError,
+    ]);
+
     const onStatusTabClick = useCallback(
         (status: number | null, isActive: boolean) => {
             if (isActive) {
@@ -1139,6 +1170,7 @@ export function StudentList({
 
     const openStudentFile = useCallback(
         (row: StudentListItem) => {
+            setViewingAsFileContinue(true);
             setViewingStudents([
                 {
                     ...row,
@@ -1189,7 +1221,8 @@ export function StudentList({
                 label: i18n.common.view,
                         icon: Eye,
                 disabled: !hasViewTargets,
-                onSelect: () =>
+                onSelect: () => {
+                    setViewingAsFileContinue(false);
                     setViewingStudents(
                         viewTargets.map((row) => ({
                             ...row,
@@ -1199,7 +1232,8 @@ export function StudentList({
                             academic_year_code:
                                 row.academic_year_code ?? selectedAcademicYear?.code ?? null,
                         })),
-                    ),
+                    );
+                },
             },
         ];
 
@@ -1354,6 +1388,10 @@ export function StudentList({
                                     per_page: STUDENTS_PER_PAGE,
                                     status: filters.status ?? undefined,
                                     gender: filters.gender ?? undefined,
+                                    enrolled:
+                                        filters.enrolled === 0 || filters.enrolled === 1
+                                            ? filters.enrolled
+                                            : undefined,
                                 }}
                                 onYearChange={(yearId) => {
                                     if (filtersBusy) {
@@ -1410,6 +1448,40 @@ export function StudentList({
                         </span>
                     </div>
 
+                    <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--enrollment" dir="rtl">
+                        <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
+                            <ClipboardList className="sis-enrollments-filter-chip__lucide" />
+                        </span>
+                        <span className="sis-admission-select-fit">
+                            <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                {enrolledFilterLabel}
+                            </span>
+                            <SisListSelect
+                                value={enrolledValue}
+                                options={[
+                                    { value: '', label: i18n.students.enrollmentFilter },
+                                    { value: '1', label: i18n.students.enrolledStudents },
+                                    { value: '0', label: i18n.students.notEnrolledStudents },
+                                ]}
+                                onChange={(next) => {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    visitList({
+                                        enrolled: next === '1' || next === '0' ? Number(next) : null,
+                                        page: 1,
+                                        student: undefined,
+                                    });
+                                }}
+                                disabled={filtersBusy}
+                                triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                dir="rtl"
+                                ariaLabel={i18n.students.filterByEnrollment}
+                            />
+                        </span>
+                    </div>
+
                     <button
                         type="button"
                         className="sis-enrollments-filter-clear"
@@ -1434,42 +1506,66 @@ export function StudentList({
                     ) : null}
                 </div>
 
-                {canSelect ? (
+                {canSelect || authorization.canEnroll ? (
                     <div
                         className="sis-admission-drafts-transitions sis-enrollments-status-actions"
                         role="toolbar"
                         aria-label={i18n.students.statusActionsTitle}
                     >
                         <div className="sis-admission-drafts-table__transitions">
-                            {STUDENT_STATUS_ACTIONS.map((action) => {
-                                const Icon = action.icon;
-                                const actionLabel = statusTabLabel(action.status, i18n);
+                            {authorization.canEnroll ? (
+                                <button
+                                    type="button"
+                                    className="sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-dark sis-enrollments-status-action sis-students-enroll-action"
+                                    disabled={actionIds.length === 0 || filtersBusy || savingRows}
+                                    aria-label={i18n.students.enrollAction}
+                                    title={
+                                        actionIds.length > 0
+                                            ? i18n.students.enrollAction
+                                            : i18n.students.enrollNeedsSelection
+                                    }
+                                    onClick={enrollSelected}
+                                >
+                                    <ClipboardList
+                                        className="sis-enrollments-status-action__icon"
+                                        aria-hidden="true"
+                                    />
+                                    <span className="sis-enrollments-status-action__label">
+                                        {i18n.students.enrollAction}
+                                    </span>
+                                </button>
+                            ) : null}
+                            {canSelect
+                                ? STUDENT_STATUS_ACTIONS.map((action) => {
+                                      const Icon = action.icon;
+                                      const actionLabel = statusTabLabel(action.status, i18n);
 
-                                return (
-                                    <button
-                                        key={action.status}
-                                        type="button"
-                                        className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
-                                        data-status={action.status}
-                                        disabled={!canApplyStatus}
-                                        aria-label={actionLabel}
-                                        title={
-                                            canApplyStatus
-                                                ? actionLabel
-                                                : i18n.students.statusNeedsSelection
-                                        }
-                                        onClick={() => applyStatus(action.status)}
-                                    >
-                                        <Icon
-                                            className="sis-enrollments-status-action__icon"
-                                            aria-hidden="true"
-                                        />
-                                        <span className="sis-enrollments-status-action__label">
-                                            {actionLabel}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                                      return (
+                                          <button
+                                              key={action.status}
+                                              type="button"
+                                              className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
+                                              data-status={action.status}
+                                              disabled={!canApplyStatus}
+                                              aria-label={actionLabel}
+                                              title={
+                                                  canApplyStatus
+                                                      ? actionLabel
+                                                      : i18n.students.statusNeedsSelection
+                                              }
+                                              onClick={() => applyStatus(action.status)}
+                                          >
+                                              <Icon
+                                                  className="sis-enrollments-status-action__icon"
+                                                  aria-hidden="true"
+                                              />
+                                              <span className="sis-enrollments-status-action__label">
+                                                  {actionLabel}
+                                              </span>
+                                          </button>
+                                      );
+                                  })
+                                : null}
                         </div>
                     </div>
                 ) : null}
@@ -1581,12 +1677,12 @@ export function StudentList({
                                                     {i18n.workflow.studentFileColumn}
                                                 </th>
                                                 <th className="sis-students-table__birth">{i18n.students.birthDate}</th>
-                                                <th>{i18n.students.governorate}</th>
-                                                <th>{i18n.students.neighborhood}</th>
                                                 <th>{i18n.students.gender}</th>
-                                                <th>{i18n.students.previousSchoolName}</th>
                                                 <th>{i18n.students.transferDocumentNumber}</th>
-                                                <th>{i18n.students.transferDocumentDate}</th>
+                                                <th>{i18n.students.previousSchoolName}</th>
+                                                <th className="sis-students-table__enrollment-head">
+                                                    {i18n.students.enrollmentColumn}
+                                                </th>
                                                 <th className="sis-students-table__mobile">{i18n.students.mobile}</th>
                                                 <th>{i18n.students.statusTabsTitle}</th>
                                             </tr>
@@ -1688,9 +1784,17 @@ export function StudentList({
                     students={viewingStudents}
                     canViewPii={authorization.canViewPii}
                     canUpdate={authorization.canUpdate}
+                    title={
+                        viewingAsFileContinue
+                            ? i18n.workflow.studentFileDialogTitle
+                            : undefined
+                    }
                     proceedLabel={i18n.common.save}
-                    initialEditing
-                    onClose={() => setViewingStudents(null)}
+                    initialEditing={viewingAsFileContinue}
+                    onClose={() => {
+                        setViewingStudents(null);
+                        setViewingAsFileContinue(false);
+                    }}
                     onSaved={(updated) => {
                         setViewingStudents((current) =>
                             current === null
@@ -1700,6 +1804,7 @@ export function StudentList({
                     }}
                     onProceed={() => {
                         setViewingStudents(null);
+                        setViewingAsFileContinue(false);
                         router.reload({ only: ['students', 'filters', 'authorization'] });
                     }}
                 />

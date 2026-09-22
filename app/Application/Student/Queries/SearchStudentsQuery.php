@@ -14,5 +14,6 @@ final readonly class SearchStudentsQuery implements Query
         public ?int $status = null,
         public ?int $academicYearId = null,
         public ?int $gender = null,
+        public ?bool $enrolled = null,
     ) {}
 }

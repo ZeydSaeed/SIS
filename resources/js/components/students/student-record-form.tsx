@@ -76,6 +76,7 @@ type StudentViewDialogProps = {
     students: StudentRecordFormValues[];
     canViewPii: boolean;
     canUpdate?: boolean;
+    title?: string;
     proceedLabel?: string;
     initialEditing?: boolean;
     onClose: () => void;
@@ -1031,6 +1032,7 @@ export function StudentViewDialog({
     students,
     canViewPii,
     canUpdate = false,
+    title: titleOverride,
     proceedLabel,
     initialEditing = false,
     onClose,
@@ -1040,16 +1042,21 @@ export function StudentViewDialog({
     const i18n = t();
     const count = students.length;
     const title =
-        count > 1
+        titleOverride ??
+        (count > 1
             ? `${i18n.students.viewManyTitle} (${count})`
-            : i18n.students.viewTitle;
+            : i18n.students.viewTitle);
 
     return (
-        <Dialog open onOpenChange={(open) => {
-            if (!open) {
-                onClose();
-            }
-        }}>
+        <Dialog
+            open
+            modal={false}
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
             <DialogContent
                 className={`sis-admission-draft-dialog sis-student-view-dialog gap-1.5 p-3 sm:max-w-[min(96vw,92rem)]${count > 1 ? ' sis-student-view-dialog--many' : ''}`}
                 dir="rtl"

@@ -25,11 +25,17 @@ final class SearchStudentsHandler implements QueryHandler
             $query->status,
             $query->academicYearId,
             $query->gender,
+            $query->enrolled,
         );
 
         return StudentListPageDTO::fromPage(
             $page,
-            $this->students->countByStatus($query->schoolId, $query->academicYearId, $query->gender),
+            $this->students->countByStatus(
+                $query->schoolId,
+                $query->academicYearId,
+                $query->gender,
+                $query->enrolled,
+            ),
         );
     }
 }

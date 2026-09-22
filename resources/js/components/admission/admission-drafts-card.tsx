@@ -38,11 +38,6 @@ import {
     type AdmissionApplication,
     type AdmissionWorkspace,
 } from '@/components/admission/admission-workspace';
-import {
-    isStudentProfileComplete,
-    studentNeedsRegistrationContinuation,
-    studentProfileCompletenessGaps,
-} from '@/components/admission/student-profile-gaps';
 import { formatAdmissionDateTime } from '@/components/admission/format-admission-datetime';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { usePageError } from '@/components/sis/page-error-context';
@@ -88,37 +83,12 @@ const TRANSITION_TONE: Record<number, 'light' | 'dark'> = {
 type Props = {
     workspace: AdmissionWorkspace;
     canManage: boolean;
-    canUpdateStudent?: boolean;
     canViewStudentPii?: boolean;
     status?: number;
     yearFilterAction?: string;
     academicYearId?: number | null;
     homeHref?: string | null;
-    enrollmentStatus?: string | null;
 };
-
-function studentsBridgeQuery(app: AdmissionApplication): string {
-    const record =
-        app.student_record && typeof app.student_record === 'object'
-            ? (app.student_record as Record<string, unknown>)
-            : null;
-    const nationalId = String(record?.national_id ?? app.national_id ?? '').trim();
-    if (nationalId !== '') {
-        return nationalId;
-    }
-
-    const code = String(record?.student_code ?? '').trim();
-    if (code !== '') {
-        return code;
-    }
-
-    return admissionApplicationFullName(app).trim();
-}
-
-/** Completeness gaps — see student-profile-gaps.ts */
-function profileGapsForApplication(app: AdmissionApplication): string[] {
-    return studentProfileCompletenessGaps(app);
-}
 
 function applicationStatusLabel(status: number): string {
     const i18n = t().admission;
@@ -182,41 +152,6 @@ function CellAccordion({
             </summary>
             <div className="sis-admission-collapse__body">{children}</div>
         </details>
-    );
-}
-
-/** جسر خفيف من المحوّلين → صفحة الطلاب لإكمال الملف. */
-function StudentFileBridgeCell({
-    gaps,
-    completeLabel,
-    continueLabel,
-    title,
-    onContinue,
-}: {
-    gaps: string[];
-    completeLabel: string;
-    continueLabel: string;
-    title: string;
-    onContinue: () => void;
-}) {
-    if (gaps.length === 0) {
-        return (
-            <span className="sis-admission-enroll-status-text">{completeLabel}</span>
-        );
-    }
-
-    return (
-        <button
-            type="button"
-            className="sis-admission-enroll-status-text"
-            title={title}
-            onClick={(event) => {
-                event.stopPropagation();
-                onContinue();
-            }}
-        >
-            {continueLabel} ({gaps.length})
-        </button>
     );
 }
 
@@ -292,11 +227,9 @@ type DraftEditorRowProps = {
     checked: boolean;
     editing: boolean;
     searchQuery: string;
-    showEnrollmentColumns: boolean;
     onSelect: (applicationId: number) => void;
     onToggleChecked: (applicationId: number) => void;
     onSaved: () => void;
-    onContinueEnrollment: (app: AdmissionApplication) => void;
 };
 
 const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function DraftEditorRow(
@@ -310,16 +243,13 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
         checked,
         editing,
         searchQuery,
-        showEnrollmentColumns,
         onSelect,
         onToggleChecked,
         onSaved,
-        onContinueEnrollment,
     },
     ref,
 ) {
     const i18n = t().admission;
-    const workflowI18n = t().workflow;
     const { showInertiaErrors } = usePageError();
     const errorsI18n = t().errors;
     const [notes, setNotes] = useState(app.notes ?? '');
@@ -329,10 +259,6 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
     const documentsLabel = documentLabels.join('، ');
     const hasNotes = (app.notes?.trim() ?? '') !== '' || (editing && notes.trim() !== '');
     const hasDocuments = documentLabels.length > 0;
-    const profileGaps = showEnrollmentColumns ? profileGapsForApplication(app) : [];
-    // Same completeness source: gaps empty → مستوفى + تم التسجيل.
-    const continueRegistration = showEnrollmentColumns && studentNeedsRegistrationContinuation(app);
-    const registrationComplete = showEnrollmentColumns && isStudentProfileComplete(app);
 
     useEffect(() => {
         if (editing) {
@@ -402,54 +328,27 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                         ),
                 )}
             </td>
-            {showEnrollmentColumns ? (
-                <td
-                    className={
-                        continueRegistration
-                            ? 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-incomplete'
-                            : registrationComplete
-                              ? 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-complete'
-                              : 'sis-admission-drafts-table__enroll-action'
-                    }
-                >
-                    {continueRegistration || registrationComplete ? (
-                        <StudentFileBridgeCell
-                            gaps={profileGaps}
-                            completeLabel={workflowI18n.studentFileComplete}
-                            continueLabel={workflowI18n.completeFileInStudents}
-                            title={workflowI18n.completeFileInStudentsHint}
-                            onContinue={() => onContinueEnrollment(app)}
-                        />
-                    ) : (
-                        <span className="sis-admission-collapse__empty">—</span>
-                    )}
-                </td>
-            ) : null}
-            {showEnrollmentColumns ? null : (
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {displayText(
-                        lookupName(
-                            workspace.grade_levels,
-                            app.grade_level_id,
-                            app.intended_grade_name,
-                        ),
-                    )}
-                </td>
-            )}
+            <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                {displayText(
+                    lookupName(
+                        workspace.grade_levels,
+                        app.grade_level_id,
+                        app.intended_grade_name,
+                    ),
+                )}
+            </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
                 {displayText(app.department_name)}
             </td>
-            {showEnrollmentColumns ? null : (
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {displayText(
-                        lookupName(
-                            workspace.specializations,
-                            app.specialization_id,
-                            app.specialization_name,
-                        ),
-                    )}
-                </td>
-            )}
+            <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
+                {displayText(
+                    lookupName(
+                        workspace.specializations,
+                        app.specialization_id,
+                        app.specialization_name,
+                    ),
+                )}
+            </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
                 {displayText(lookupName(workspace.periods, app.application_period_id))}
             </td>
@@ -469,75 +368,69 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                     formatWhen(app.reviewed_at)
                 )}
             </td>
-            {showEnrollmentColumns ? null : (
-                <td
-                    className="sis-admission-drafts-table__reviewer-cell"
-                    onClick={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                >
-                    <SisListSelect
-                        value="future"
-                        options={[{ value: 'future', label: i18n.reviewerListSoon }]}
-                        onChange={() => undefined}
-                        disabled={!editing}
-                        triggerClassName="sis-admission-drafts-table__reviewer"
+            <td
+                className="sis-admission-drafts-table__reviewer-cell"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+            >
+                <SisListSelect
+                    value="future"
+                    options={[{ value: 'future', label: i18n.reviewerListSoon }]}
+                    onChange={() => undefined}
+                    disabled={!editing}
+                    triggerClassName="sis-admission-drafts-table__reviewer"
+                    dir="rtl"
+                    ariaLabel={i18n.reviewedBy}
+                />
+            </td>
+            <td
+                className={
+                    hasNotes
+                        ? 'sis-admission-drafts-table__content-cell sis-admission-drafts-table__content-cell--filled'
+                        : 'sis-admission-drafts-table__content-cell'
+                }
+            >
+                {editing ? (
+                    <input
+                        className={
+                            notes.trim() !== ''
+                                ? 'sis-ops-hub__link sis-admission-drafts-table__notes-input sis-admission-drafts-table__notes-input--filled'
+                                : 'sis-ops-hub__link sis-admission-drafts-table__notes-input'
+                        }
+                        name={`notes-${app.id}`}
+                        value={notes}
                         dir="rtl"
-                        ariaLabel={i18n.reviewedBy}
+                        aria-label={i18n.notes}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => setNotes(event.target.value)}
                     />
-                </td>
-            )}
-            {showEnrollmentColumns ? null : (
-                <td
-                    className={
-                        hasNotes
-                            ? 'sis-admission-drafts-table__content-cell sis-admission-drafts-table__content-cell--filled'
-                            : 'sis-admission-drafts-table__content-cell'
-                    }
-                >
-                    {editing ? (
-                        <input
-                            className={
-                                notes.trim() !== ''
-                                    ? 'sis-ops-hub__link sis-admission-drafts-table__notes-input sis-admission-drafts-table__notes-input--filled'
-                                    : 'sis-ops-hub__link sis-admission-drafts-table__notes-input'
-                            }
-                            name={`notes-${app.id}`}
-                            value={notes}
-                            dir="rtl"
-                            aria-label={i18n.notes}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => setNotes(event.target.value)}
-                        />
-                    ) : (app.notes?.trim() ?? '') !== '' ? (
-                        <CellAccordion summary={app.notes?.trim() ?? ''}>
-                            {app.notes?.trim()}
-                        </CellAccordion>
-                    ) : (
-                        <span className="sis-admission-collapse__empty">—</span>
-                    )}
-                </td>
-            )}
-            {showEnrollmentColumns ? null : (
-                <td
-                    className={
-                        hasDocuments
-                            ? 'sis-admission-drafts-table__content-cell sis-admission-drafts-table__content-cell--filled'
-                            : 'sis-admission-drafts-table__content-cell'
-                    }
-                >
-                    {hasDocuments ? (
-                        <CellAccordion summary={documentsLabel}>
-                            <ul className="sis-admission-collapse__list">
-                                {documentLabels.map((docLabel, index) => (
-                                    <li key={`${app.id}-doc-${index}`}>{docLabel}</li>
-                                ))}
-                            </ul>
-                        </CellAccordion>
-                    ) : (
-                        <span className="sis-admission-collapse__empty">—</span>
-                    )}
-                </td>
-            )}
+                ) : (app.notes?.trim() ?? '') !== '' ? (
+                    <CellAccordion summary={app.notes?.trim() ?? ''}>
+                        {app.notes?.trim()}
+                    </CellAccordion>
+                ) : (
+                    <span className="sis-admission-collapse__empty">—</span>
+                )}
+            </td>
+            <td
+                className={
+                    hasDocuments
+                        ? 'sis-admission-drafts-table__content-cell sis-admission-drafts-table__content-cell--filled'
+                        : 'sis-admission-drafts-table__content-cell'
+                }
+            >
+                {hasDocuments ? (
+                    <CellAccordion summary={documentsLabel}>
+                        <ul className="sis-admission-collapse__list">
+                            {documentLabels.map((docLabel, index) => (
+                                <li key={`${app.id}-doc-${index}`}>{docLabel}</li>
+                            ))}
+                        </ul>
+                    </CellAccordion>
+                ) : (
+                    <span className="sis-admission-collapse__empty">—</span>
+                )}
+            </td>
         </tr>
     );
 });
@@ -546,13 +439,11 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
 export function AdmissionDraftsCard({
     workspace,
     canManage,
-    canUpdateStudent = false,
     canViewStudentPii = false,
     status = ADMISSION_STATUS_DRAFT,
     yearFilterAction,
     academicYearId = null,
     homeHref = null,
-    enrollmentStatus = null,
 }: Props) {
     const i18n = t();
     const { showInertiaErrors } = usePageError();
@@ -566,7 +457,6 @@ export function AdmissionDraftsCard({
     const [withdrawTarget, setWithdrawTarget] = useState<AdmissionApplication | null>(null);
     const [withdrawing, setWithdrawing] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
-    const showEnrollmentColumns = status === ADMISSION_STATUS_CONVERTED;
 
     const pagination = workspace.pagination ?? {
         page: 1,
@@ -581,25 +471,9 @@ export function AdmissionDraftsCard({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'admission.drafts',
-        columnSignature: `${canManage ? 'manage' : 'readonly'}${showEnrollmentColumns ? ':enroll' : ''}`,
+        columnSignature: canManage ? 'manage' : 'readonly',
         enabled: rows.length > 0,
     });
-
-    const openStudentFileInStudents = useCallback((app: AdmissionApplication) => {
-        const q = studentsBridgeQuery(app);
-        router.get(
-            '/students',
-            {
-                q: q !== '' ? q : undefined,
-                page: 1,
-                per_page: 17,
-            },
-            {
-                preserveState: false,
-                preserveScroll: false,
-            },
-        );
-    }, []);
 
     const hasSelection = selectedId !== null;
     const selectedDraft = rows.find((app) => app.id === selectedId) ?? null;
@@ -791,7 +665,6 @@ export function AdmissionDraftsCard({
                     workspace.selected_period_id,
                     page,
                     searchQuery,
-                    showEnrollmentColumns ? enrollmentStatus : null,
                 )}`,
                 {
                     preserveScroll: true,
@@ -802,11 +675,9 @@ export function AdmissionDraftsCard({
         },
         [
             academicYearId,
-            enrollmentStatus,
             pagination.page,
             pagination.total_pages,
             searchQuery,
-            showEnrollmentColumns,
             workspace.selected_period_id,
             yearFilterAction,
         ],
@@ -988,32 +859,17 @@ export function AdmissionDraftsCard({
                                 ) : null}
                                 <th className="sis-admission-drafts-table__num">#</th>
                                 <th className="sis-admission-drafts-table__name-head">{i18n.admission.quadName}</th>
-                                {showEnrollmentColumns ? (
-                                    <th className="sis-admission-drafts-table__enroll-head">
-                                        {i18n.workflow.studentFileColumn}
-                                    </th>
-                                ) : null}
-                                {showEnrollmentColumns ? null : (
-                                    <th title={i18n.admission.gradeLevel}>{i18n.admission.gradeLevelAbbr}</th>
-                                )}
+                                <th title={i18n.admission.gradeLevel}>{i18n.admission.gradeLevelAbbr}</th>
                                 <th title={i18n.admission.department}>{i18n.admission.departmentAbbr}</th>
-                                {showEnrollmentColumns ? null : (
-                                    <th title={i18n.admission.specialization}>{i18n.admission.specializationAbbr}</th>
-                                )}
+                                <th title={i18n.admission.specialization}>{i18n.admission.specializationAbbr}</th>
                                 <th title={i18n.admission.periodName}>{i18n.admission.periodNameAbbr}</th>
                                 <th className="sis-admission-drafts-table__when--submitted">{i18n.admission.submittedAt}</th>
                                 <th className="sis-admission-drafts-table__when--reviewed">{i18n.admission.reviewedAt}</th>
-                                {showEnrollmentColumns ? null : (
-                                    <th className="sis-admission-drafts-table__reviewer-cell" title={i18n.admission.reviewedBy}>
-                                        {i18n.admission.reviewedByAbbr}
-                                    </th>
-                                )}
-                                {showEnrollmentColumns ? null : (
-                                    <th>{i18n.admission.notes}</th>
-                                )}
-                                {showEnrollmentColumns ? null : (
-                                    <th>{i18n.admission.documentType}</th>
-                                )}
+                                <th className="sis-admission-drafts-table__reviewer-cell" title={i18n.admission.reviewedBy}>
+                                    {i18n.admission.reviewedByAbbr}
+                                </th>
+                                <th>{i18n.admission.notes}</th>
+                                <th>{i18n.admission.documentType}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1030,11 +886,9 @@ export function AdmissionDraftsCard({
                                     checked={visibleCheckedIds.includes(app.id)}
                                     editing={editing && selectedId === app.id}
                                     searchQuery={searchQuery}
-                                    showEnrollmentColumns={showEnrollmentColumns}
                                     onSelect={selectRow}
                                     onToggleChecked={toggleChecked}
                                     onSaved={exitEditing}
-                                    onContinueEnrollment={openStudentFileInStudents}
                                 />
                             ))}
                         </tbody>

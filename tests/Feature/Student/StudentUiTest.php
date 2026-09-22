@@ -772,6 +772,62 @@ final class StudentUiTest extends TestCase
     }
 
     #[Test]
+    public function student_list_exposes_enrollment_flag_and_filter(): void
+    {
+        $this->withoutVite();
+        $user = $this->actingAsStudentManagerWeb();
+        $schoolId = (int) session('current_school_id');
+        app(SecurityPermissionSeeder::class)->grantEnrollmentManager($user, $schoolId);
+        $yearId = $this->createAcademicYear('AY-ENROLL-FLAG-2026');
+
+        $enrolled = $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-YES',
+            'first_name' => 'Enrolled',
+            'last_name' => 'Student',
+            'full_name' => 'Enrolled Student',
+            'admitted_academic_year_id' => $yearId,
+            'status' => 1,
+        ]);
+        $this->createStudentForSchool($schoolId, [
+            'student_code' => 'STU-ENR-NO',
+            'first_name' => 'Pending',
+            'last_name' => 'Student',
+            'full_name' => 'Pending Student',
+            'admitted_academic_year_id' => $yearId,
+            'status' => 1,
+        ]);
+        $this->createActiveEnrollmentForSchool($schoolId, $yearId, $enrolled);
+
+        $this->get("/students?academic_year_id={$yearId}")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.enrolled', null)
+                ->where('authorization.canEnroll', true)
+                ->has('students.data', 2)
+                ->where('students.data', fn ($rows) => collect($rows)->contains(
+                    fn ($row) => $row['full_name'] === 'Enrolled Student' && $row['is_enrolled'] === true,
+                ) && collect($rows)->contains(
+                    fn ($row) => $row['full_name'] === 'Pending Student' && $row['is_enrolled'] === false,
+                )));
+
+        $this->get("/students?academic_year_id={$yearId}&enrolled=1")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.enrolled', 1)
+                ->has('students.data', 1)
+                ->where('students.data.0.full_name', 'Enrolled Student')
+                ->where('students.data.0.is_enrolled', true));
+
+        $this->get("/students?academic_year_id={$yearId}&enrolled=0")
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.enrolled', 0)
+                ->has('students.data', 1)
+                ->where('students.data.0.full_name', 'Pending Student')
+                ->where('students.data.0.is_enrolled', false));
+    }
+
+    #[Test]
     public function student_preview_includes_selected_academic_year(): void
     {
         $this->withoutVite();

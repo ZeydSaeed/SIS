@@ -6,6 +6,7 @@ use App\Application\Student\Contracts\StudentReadRepositoryInterface;
 use App\Application\Student\DTOs\StudentDetailDTO;
 use App\Application\Student\DTOs\StudentListItemDTO;
 use App\Database\SchemaHelper;
+use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Domain\Student\ValueObjects\StudentReligion;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use Illuminate\Database\Eloquent\Builder;
@@ -143,6 +144,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         int $perPage,
         ?int $academicYearId = null,
         ?int $gender = null,
+        ?bool $enrolled = null,
     ): array {
         $query = StudentRecord::query()
             ->select(self::LIST_COLUMNS)
@@ -152,12 +154,13 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
 
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
+        $this->applyEnrollmentScope($query, $schoolId, $academicYearId, $enrolled);
 
         if ($status !== null) {
             $query->where('status', $status);
         }
 
-        return $this->paginateQuery($query, $page, $perPage);
+        return $this->paginateQuery($query, $page, $perPage, $schoolId, $academicYearId);
     }
 
     public function search(
@@ -168,6 +171,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         ?int $status = null,
         ?int $academicYearId = null,
         ?int $gender = null,
+        ?bool $enrolled = null,
     ): array {
         $term = trim($term);
         $query = StudentRecord::query()
@@ -178,6 +182,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
 
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
+        $this->applyEnrollmentScope($query, $schoolId, $academicYearId, $enrolled);
 
         if ($status !== null) {
             $query->where('status', $status);
@@ -202,17 +207,22 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             });
         }
 
-        return $this->paginateQuery($query, $page, $perPage);
+        return $this->paginateQuery($query, $page, $perPage, $schoolId, $academicYearId);
     }
 
     /**
      * @return array<int, int>
      */
-    public function countByStatus(int $schoolId, ?int $academicYearId = null, ?int $gender = null): array
-    {
+    public function countByStatus(
+        int $schoolId,
+        ?int $academicYearId = null,
+        ?int $gender = null,
+        ?bool $enrolled = null,
+    ): array {
         $query = StudentRecord::query()->where('school_id', $schoolId);
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
+        $this->applyEnrollmentScope($query, $schoolId, $academicYearId, $enrolled);
 
         $rows = $query
             ->toBase()
@@ -232,17 +242,33 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
     /**
      * @return array{items: list<StudentListItemDTO>, pagination: array{page: int, per_page: int, total: int, last_page: int}}
      */
-    private function paginateQuery(Builder $query, int $page, int $perPage): array
-    {
+    private function paginateQuery(
+        Builder $query,
+        int $page,
+        int $perPage,
+        int $schoolId,
+        ?int $academicYearId,
+    ): array {
         $page = max(1, $page);
         $perPage = min(max(1, $perPage), 100);
 
         $paginator = $query->paginate($perPage, self::LIST_COLUMNS, 'page', $page);
+        /** @var list<StudentRecord> $records */
+        $records = array_values($paginator->items());
+        $enrolledIds = $this->activeEnrollmentStudentIds(
+            array_map(static fn (StudentRecord $record): int => (int) $record->getKey(), $records),
+            $schoolId,
+            $academicYearId,
+        );
 
         /** @var list<StudentListItemDTO> $items */
-        $items = collect($paginator->items())
-            ->map(fn (StudentRecord $record): StudentListItemDTO => $this->mapListItem($record))
-            ->all();
+        $items = array_map(
+            fn (StudentRecord $record): StudentListItemDTO => $this->mapListItem(
+                $record,
+                isset($enrolledIds[(int) $record->getKey()]),
+            ),
+            $records,
+        );
 
         return [
             'items' => $items,
@@ -255,7 +281,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         ];
     }
 
-    private function mapListItem(StudentRecord $record): StudentListItemDTO
+    private function mapListItem(StudentRecord $record, bool $isEnrolled = false): StudentListItemDTO
     {
         return new StudentListItemDTO(
             id: (int) $record->getKey(),
@@ -302,6 +328,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 ? (int) $record->admitted_academic_year_id
                 : null,
             status: (int) $record->status,
+            isEnrolled: $isEnrolled,
         );
     }
 
@@ -419,6 +446,64 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         }
 
         $query->where('gender', $gender);
+    }
+
+    private function applyEnrollmentScope(
+        Builder $query,
+        int $schoolId,
+        ?int $academicYearId,
+        ?bool $enrolled,
+    ): void {
+        if ($enrolled === null || $academicYearId === null) {
+            return;
+        }
+
+        $studentsTable = $query->getModel()->getTable();
+        $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
+
+        $exists = function ($existsQuery) use ($studentsTable, $enrollmentsTable, $schoolId, $academicYearId): void {
+            $existsQuery->selectRaw('1')
+                ->from($enrollmentsTable)
+                ->whereColumn($enrollmentsTable.'.student_id', $studentsTable.'.id')
+                ->where($enrollmentsTable.'.school_id', $schoolId)
+                ->where($enrollmentsTable.'.academic_year_id', $academicYearId)
+                ->where($enrollmentsTable.'.status', EnrollmentStatus::ACTIVE)
+                ->whereNull($enrollmentsTable.'.effective_to');
+        };
+
+        if ($enrolled) {
+            $query->whereExists($exists);
+        } else {
+            $query->whereNotExists($exists);
+        }
+    }
+
+    /**
+     * @param  list<int>  $studentIds
+     * @return array<int, true>
+     */
+    private function activeEnrollmentStudentIds(array $studentIds, int $schoolId, ?int $academicYearId): array
+    {
+        if ($studentIds === [] || $academicYearId === null) {
+            return [];
+        }
+
+        $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
+        $rows = DB::table($enrollmentsTable)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('status', EnrollmentStatus::ACTIVE)
+            ->whereNull('effective_to')
+            ->whereIn('student_id', $studentIds)
+            ->distinct()
+            ->pluck('student_id');
+
+        $set = [];
+        foreach ($rows as $studentId) {
+            $set[(int) $studentId] = true;
+        }
+
+        return $set;
     }
 
     /**

@@ -5,12 +5,10 @@ import AppLayout from '@/layouts/app-layout';
 import { AdmissionActivePeriodsTable } from '@/components/admission/admission-active-periods-table';
 import { AdmissionApplicationDraftDialog } from '@/components/admission/admission-application-draft-dialog';
 import { AdmissionPeriodFilter } from '@/components/admission/admission-period-filter';
-import { AdmissionEnrollmentStatusFilter } from '@/components/admission/admission-enrollment-status-filter';
 import { useAdmissionSelection } from '@/components/admission/admission-selection';
 import {
     ADMISSION_PERIOD_FILTER_ALL,
     ADMISSION_STAGE_PATHS,
-    ADMISSION_STATUS_CONVERTED,
     ADMISSION_STATUS_REQUEST,
     admissionWorkspaceQuery,
     type AdmissionPageAuthorization,
@@ -54,17 +52,6 @@ function searchFromPageFilters(filters: unknown): string {
     }
 
     return '';
-}
-
-function enrollmentStatusFromPageFilters(filters: unknown): string | null {
-    if (filters && typeof filters === 'object' && 'enrollment_status' in filters) {
-        const value = (filters as { enrollment_status?: string | null }).enrollment_status;
-        if (value === 'awaiting' || value === 'completed') {
-            return value;
-        }
-    }
-
-    return null;
 }
 
 function AdmissionCancelRibbon() {
@@ -120,22 +107,17 @@ function AdmissionPageShellInner({
     const [draftOpen, setDraftOpen] = useState(false);
     const [draftMode, setDraftMode] = useState<DraftDialogMode>('draft');
     const filtersQ = searchFromPageFilters(page.props.filters);
-    const enrollmentStatusFilter = enrollmentStatusFromPageFilters(page.props.filters);
     const searchDraftRef = useRef(filtersQ);
     const academicYearIdRef = useRef(academicYearId);
     const periodQueryIdRef = useRef(0);
     const yearFilterActionRef = useRef(yearFilterAction);
-    const enrollmentStatusRef = useRef(enrollmentStatusFilter);
 
     const selectedPeriodId = workspace.selected_period_id ?? null;
     const periodQueryId = selectedPeriodId ?? ADMISSION_PERIOD_FILTER_ALL;
-    const enrollmentStatusForQuery =
-        activeStatus === ADMISSION_STATUS_CONVERTED ? enrollmentStatusFilter : null;
 
     academicYearIdRef.current = academicYearId;
     periodQueryIdRef.current = periodQueryId;
     yearFilterActionRef.current = yearFilterAction;
-    enrollmentStatusRef.current = enrollmentStatusForQuery;
 
     useEffect(() => {
         const [path, query = ''] = page.url.split('?');
@@ -203,7 +185,6 @@ function AdmissionPageShellInner({
                 periodQueryIdRef.current,
                 1,
                 query,
-                enrollmentStatusRef.current,
             )}`,
             {
                 preserveState: true,
@@ -242,29 +223,7 @@ function AdmissionPageShellInner({
                 next,
                 1,
                 searchDraftRef.current,
-                enrollmentStatusForQuery,
             )}`,
-        );
-    };
-
-    const handleEnrollmentStatusSelect = (next: string | null) => {
-        if ((next ?? null) === (enrollmentStatusForQuery ?? null)) {
-            return;
-        }
-
-        router.visit(
-            `${yearFilterAction}${admissionWorkspaceQuery(
-                academicYearId,
-                periodQueryId,
-                1,
-                searchDraftRef.current,
-                next,
-            )}`,
-            {
-                preserveState: true,
-                preserveScroll: true,
-                only: ['workspace', 'filters'],
-            },
         );
     };
 
@@ -276,14 +235,11 @@ function AdmissionPageShellInner({
         }
 
         const stagePath = ADMISSION_STAGE_PATHS[status];
-        const keepEnrollmentStatus =
-            status === ADMISSION_STATUS_CONVERTED ? enrollmentStatusForQuery : null;
         const liveQuery = admissionWorkspaceQuery(
             academicYearId,
             periodQueryId,
             null,
             searchDraftRef.current,
-            keepEnrollmentStatus,
         );
 
         if (stagePath) {
@@ -318,13 +274,7 @@ function AdmissionPageShellInner({
                             />
                         </div>
                         <div className="sis-admission-filter-stack">
-                            <div
-                                className={
-                                    activeStatus === ADMISSION_STATUS_CONVERTED
-                                        ? 'sis-admission-filters sis-admission-filters--with-enrollment'
-                                        : 'sis-admission-filters'
-                                }
-                            >
+                            <div className="sis-admission-filters">
                                 <OpsYearFilter
                                     action={yearFilterAction}
                                     academicYearId={academicYearId}
@@ -333,9 +283,6 @@ function AdmissionPageShellInner({
                                             const value = searchDraftRef.current.trim();
 
                                             return value === '' ? undefined : value;
-                                        },
-                                        get enrollment_status() {
-                                            return enrollmentStatusRef.current ?? undefined;
                                         },
                                     }}
                                     label={t().enrollments.academicYear}
@@ -350,12 +297,6 @@ function AdmissionPageShellInner({
                                     selectedPeriodId={selectedPeriodId}
                                     onPeriodSelect={handlePeriodSelect}
                                 />
-                                {activeStatus === ADMISSION_STATUS_CONVERTED ? (
-                                    <AdmissionEnrollmentStatusFilter
-                                        value={enrollmentStatusForQuery}
-                                        onChange={handleEnrollmentStatusSelect}
-                                    />
-                                ) : null}
                             </div>
                         </div>
                     </div>

@@ -13,5 +13,6 @@ final readonly class ListStudentsQuery implements Query
         public int $perPage = 15,
         public ?int $academicYearId = null,
         public ?int $gender = null,
+        public ?bool $enrolled = null,
     ) {}
 }

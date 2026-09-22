@@ -15,7 +15,6 @@ type PageProps = {
         academic_year_id: number | null;
         application_period_id?: number | null;
         q?: string | null;
-        enrollment_status?: string | null;
     };
     authorization: AdmissionPageAuthorization;
     stage: {
@@ -58,7 +57,6 @@ export default function AdmissionStage({
         filters.application_period_id ?? workspace.selected_period_id,
         null,
         filters.q,
-        filters.enrollment_status,
     )}`;
 
     return (
@@ -75,13 +73,11 @@ export default function AdmissionStage({
             <AdmissionDraftsCard
                 workspace={workspace}
                 canManage={authorization.can_manage}
-                canUpdateStudent={authorization.can_update_student ?? false}
                 canViewStudentPii={authorization.can_view_student_pii ?? false}
                 status={stage.status}
                 yearFilterAction={path}
                 academicYearId={filters.academic_year_id}
                 homeHref={admissionHref}
-                enrollmentStatus={filters.enrollment_status ?? null}
             />
         </AdmissionPageShell>
     );

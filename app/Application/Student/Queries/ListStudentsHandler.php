@@ -24,11 +24,17 @@ final class ListStudentsHandler implements QueryHandler
             $query->perPage,
             $query->academicYearId,
             $query->gender,
+            $query->enrolled,
         );
 
         return StudentListPageDTO::fromPage(
             $page,
-            $this->students->countByStatus($query->schoolId, $query->academicYearId, $query->gender),
+            $this->students->countByStatus(
+                $query->schoolId,
+                $query->academicYearId,
+                $query->gender,
+                $query->enrolled,
+            ),
         );
     }
 }

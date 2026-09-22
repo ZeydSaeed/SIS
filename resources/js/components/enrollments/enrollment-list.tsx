@@ -51,9 +51,41 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import {
+    clearEnrollmentHandoff,
+    readEnrollmentHandoff,
+    type EnrollmentHandoffStudent,
+} from '@/lib/enrollment-handoff';
 import { t } from '@/i18n';
 
 const ENROLLMENTS_PER_PAGE = 17;
+
+type HandoffPlacementDraft = {
+    branch_id: string;
+    department_id: string;
+    specialization_id: string;
+    class_id: string;
+    section_id: string;
+};
+
+function emptyHandoffDraft(): HandoffPlacementDraft {
+    return {
+        branch_id: '',
+        department_id: '',
+        specialization_id: '',
+        class_id: '',
+        section_id: '',
+    };
+}
+
+function todayIsoDate(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
 
 const ENROLLMENT_STATUS_TABS: Array<{
     status: number | null;
@@ -248,6 +280,9 @@ export function EnrollmentList({
     const [viewDialogEditing, setViewDialogEditing] = useState(false);
     const [creatingEnrollment, setCreatingEnrollment] = useState(false);
     const [createStudentId, setCreateStudentId] = useState<number | null>(null);
+    const [handoffStudents, setHandoffStudents] = useState<EnrollmentHandoffStudent[]>([]);
+    const [handoffDraft, setHandoffDraft] = useState<HandoffPlacementDraft>(emptyHandoffDraft);
+    const [enrollingHandoff, setEnrollingHandoff] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<EnrollmentListItem | null>(null);
     const [deleting, setDeleting] = useState(false);
     const selectAllRef = useRef<HTMLInputElement>(null);
@@ -279,9 +314,20 @@ export function EnrollmentList({
     const canSelect = authorization.canUpdate || authorization.canCancel;
 
     useEffect(() => {
+        const handoff = readEnrollmentHandoff();
+        if (handoff !== null && handoff.students.length > 0) {
+            setHandoffStudents(handoff.students);
+            setHandoffDraft(emptyHandoffDraft());
+        }
+    }, []);
+
+    useEffect(() => {
         const query = page.url.includes('?') ? page.url.slice(page.url.indexOf('?') + 1) : '';
         const params = new URLSearchParams(query);
-        if (params.get('create') !== '1') {
+        const wantsHandoff = params.get('handoff') === '1';
+        const wantsCreate = params.get('create') === '1';
+
+        if (!wantsHandoff && !wantsCreate) {
             createIntentHandledRef.current = false;
 
             return;
@@ -293,17 +339,25 @@ export function EnrollmentList({
 
         createIntentHandledRef.current = true;
 
-        const studentIdRaw = params.get('student_id');
-        const studentId =
-            studentIdRaw !== null && studentIdRaw !== '' && Number(studentIdRaw) > 0
-                ? Number(studentIdRaw)
-                : null;
+        const handoff = readEnrollmentHandoff();
+        if (handoff !== null && handoff.students.length > 0) {
+            setHandoffStudents(handoff.students);
+            setHandoffDraft(emptyHandoffDraft());
+        }
 
-        if (authorization.canCreate) {
+        // Handoff from students uses the structure bar — never open create dialog.
+        // Legacy ?create=1 without handoff still opens the dialog for ribbon/deep links.
+        if (wantsCreate && authorization.canCreate && (handoff === null || handoff.students.length === 0)) {
+            const studentIdRaw = params.get('student_id');
+            const studentId =
+                studentIdRaw !== null && studentIdRaw !== '' && Number(studentIdRaw) > 0
+                    ? Number(studentIdRaw)
+                    : null;
             setCreateStudentId(studentId);
             setCreatingEnrollment(true);
         }
 
+        params.delete('handoff');
         params.delete('create');
         params.delete('student_id');
         const next = params.toString();
@@ -316,7 +370,7 @@ export function EnrollmentList({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'enrollments.list',
-        columnSignature: canSelect ? 'select' : 'readonly',
+        columnSignature: canSelect ? 'select-v2' : 'readonly-v2',
         enabled: rows.length > 0,
     });
 
@@ -331,9 +385,13 @@ export function EnrollmentList({
     );
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
-    const canApplyStatus = canSelect && actionIds.length > 0 && !applyingStatus && !applyingPlacement && !editing;
-    const isEditMode = authorization.canUpdate && actionIds.length > 0 && !editing;
-    const filtersBusy = applyingPlacement || applyingStatus || savingRows;
+    const isHandoffMode = handoffStudents.length > 0 && authorization.canCreate;
+    const canApplyStatus =
+        canSelect && actionIds.length > 0 && !applyingStatus && !applyingPlacement && !editing && !isHandoffMode;
+    const isEditMode =
+        !isHandoffMode && authorization.canUpdate && actionIds.length > 0 && !editing;
+    const isStructureEditMode = isEditMode || isHandoffMode;
+    const filtersBusy = applyingPlacement || applyingStatus || savingRows || enrollingHandoff;
     const selectedRow = rows.find((row) => row.id === selectedId) ?? null;
     const viewTargets = useMemo(() => {
         const selected = new Set(actionIds);
@@ -350,34 +408,70 @@ export function EnrollmentList({
     const hasActiveSelection = actionIds.length > 0 || editing;
 
     const filterSections = useMemo(() => {
-        if (isEditMode || classValue === '') {
+        const activeClass = isHandoffMode ? handoffDraft.class_id : classValue;
+        if (isEditMode || activeClass === '') {
             return filterOptions.sections;
         }
 
-        return filterOptions.sections.filter((section) => String(section.class_id) === classValue);
-    }, [classValue, filterOptions.sections, isEditMode]);
+        return filterOptions.sections.filter((section) => String(section.class_id) === activeClass);
+    }, [classValue, filterOptions.sections, handoffDraft.class_id, isEditMode, isHandoffMode]);
 
     const filterDepartments = useMemo(() => {
-        if (isEditMode || branchValue === '') {
+        const activeBranch = isHandoffMode ? handoffDraft.branch_id : branchValue;
+        if (isEditMode || activeBranch === '') {
             return filterOptions.departments;
         }
 
         return filterOptions.departments.filter(
             (department) =>
-                department.branch_id === null || String(department.branch_id) === branchValue,
+                department.branch_id === null || String(department.branch_id) === activeBranch,
         );
-    }, [branchValue, filterOptions.departments, isEditMode]);
+    }, [branchValue, filterOptions.departments, handoffDraft.branch_id, isEditMode, isHandoffMode]);
 
     const filterSpecializations = useMemo(() => {
-        if (isEditMode || departmentIdValue === '') {
+        const activeDepartment = isHandoffMode ? handoffDraft.department_id : departmentIdValue;
+        if (isEditMode || activeDepartment === '') {
             return filterOptions.specializations;
         }
 
         return filterOptions.specializations.filter(
             (item) =>
-                item.department_id === null || String(item.department_id) === departmentIdValue,
+                item.department_id === null || String(item.department_id) === activeDepartment,
         );
-    }, [departmentIdValue, filterOptions.specializations, isEditMode]);
+    }, [
+        departmentIdValue,
+        filterOptions.specializations,
+        handoffDraft.department_id,
+        isEditMode,
+        isHandoffMode,
+    ]);
+
+    const handoffClassLabel =
+        filterOptions.classes.find((item) => String(item.id) === handoffDraft.class_id)?.name
+        ?? i18n.enrollments.allClasses;
+    const handoffSectionLabel =
+        filterOptions.sections.find((item) => String(item.id) === handoffDraft.section_id)?.name
+        ?? i18n.enrollments.allSections;
+    const handoffBranchLabel =
+        filterOptions.branches.find((item) => String(item.id) === handoffDraft.branch_id)?.name
+        ?? i18n.enrollments.allBranches;
+    const handoffDepartmentLabel =
+        filterOptions.departments.find((item) => String(item.id) === handoffDraft.department_id)
+            ?.name ?? i18n.enrollments.allDepartments;
+    const handoffSpecializationLabel =
+        filterOptions.specializations.find(
+            (item) => String(item.id) === handoffDraft.specialization_id,
+        )?.name ?? i18n.enrollments.allSpecializations;
+
+    const structureClassLabel = isHandoffMode ? handoffClassLabel : selectedClassLabel;
+    const structureSectionLabel = isHandoffMode ? handoffSectionLabel : selectedSectionLabel;
+    const structureBranchLabel = isHandoffMode ? handoffBranchLabel : selectedBranchLabel;
+    const structureDepartmentLabel = isHandoffMode
+        ? handoffDepartmentLabel
+        : selectedDepartmentLabel;
+    const structureSpecializationLabel = isHandoffMode
+        ? handoffSpecializationLabel
+        : selectedSpecializationLabel;
 
     useEffect(() => {
         if (selectAllRef.current) {
@@ -573,7 +667,139 @@ export function EnrollmentList({
         ],
     );
 
+    const clearHandoff = useCallback(() => {
+        clearEnrollmentHandoff();
+        setHandoffStudents([]);
+        setHandoffDraft(emptyHandoffDraft());
+        setEnrollingHandoff(false);
+    }, []);
+
+    const commitHandoffEnrollments = useCallback(
+        async (draft: HandoffPlacementDraft) => {
+            if (
+                !authorization.canCreate
+                || handoffStudents.length === 0
+                || enrollingHandoff
+                || draft.class_id === ''
+                || draft.section_id === ''
+            ) {
+                return;
+            }
+
+            if (filters.academic_year_id === null || filters.academic_year_id < 1) {
+                showError(i18n.enrollments.handoffNeedsYear);
+
+                return;
+            }
+
+            setEnrollingHandoff(true);
+            const academicYearId = filters.academic_year_id;
+            const effectiveFrom = todayIsoDate();
+
+            try {
+                for (const student of handoffStudents) {
+                    const idempotencyKey =
+                        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                            ? crypto.randomUUID()
+                            : `enroll-handoff-${student.id}-${Date.now()}`;
+
+                    await new Promise<void>((resolve, reject) => {
+                        router.post(
+                            '/enrollments',
+                            {
+                                student_id: student.id,
+                                academic_year_id: academicYearId,
+                                class_id: Number(draft.class_id),
+                                section_id: Number(draft.section_id),
+                                effective_from: effectiveFrom,
+                                ...(draft.branch_id === ''
+                                    ? {}
+                                    : { branch_id: Number(draft.branch_id) }),
+                                ...(draft.department_id === ''
+                                    ? {}
+                                    : { department_id: Number(draft.department_id) }),
+                                ...(draft.specialization_id === ''
+                                    ? {}
+                                    : { specialization_id: Number(draft.specialization_id) }),
+                            },
+                            {
+                                headers: { 'X-Idempotency-Key': idempotencyKey },
+                                preserveScroll: true,
+                                preserveState: true,
+                                onSuccess: () => resolve(),
+                                onError: (errors) => {
+                                    showInertiaErrors(errors, i18n.errors.createFailed);
+                                    reject(errors);
+                                },
+                            },
+                        );
+                    });
+                }
+
+                clearHandoff();
+                visitList({
+                    page: 1,
+                    class_id: Number(draft.class_id),
+                    section_id: Number(draft.section_id),
+                });
+            } catch {
+                // Errors already surfaced via showInertiaErrors.
+            } finally {
+                setEnrollingHandoff(false);
+            }
+        },
+        [
+            authorization.canCreate,
+            clearHandoff,
+            enrollingHandoff,
+            filters.academic_year_id,
+            handoffStudents,
+            i18n.enrollments.handoffNeedsYear,
+            i18n.errors.createFailed,
+            showError,
+            showInertiaErrors,
+            visitList,
+        ],
+    );
+
+    const patchHandoffDraft = useCallback(
+        (patch: Partial<HandoffPlacementDraft>) => {
+            setHandoffDraft((current) => {
+                const next: HandoffPlacementDraft = {
+                    ...current,
+                    ...patch,
+                };
+
+                if ('class_id' in patch && patch.class_id !== current.class_id) {
+                    next.section_id = '';
+                }
+
+                if ('branch_id' in patch && patch.branch_id !== current.branch_id) {
+                    next.department_id = '';
+                    next.specialization_id = '';
+                }
+
+                if ('department_id' in patch && patch.department_id !== current.department_id) {
+                    next.specialization_id = '';
+                }
+
+                if (next.class_id !== '' && next.section_id !== '') {
+                    queueMicrotask(() => {
+                        void commitHandoffEnrollments(next);
+                    });
+                }
+
+                return next;
+            });
+        },
+        [commitHandoffEnrollments],
+    );
+
     const clearStructureFilters = useCallback(() => {
+        if (isHandoffMode) {
+            clearHandoff();
+        }
+
         searchDraftRef.current = '';
         visitList({
             q: '',
@@ -585,7 +811,7 @@ export function EnrollmentList({
             specialization_id: null,
             page: 1,
         });
-    }, [visitList]);
+    }, [clearHandoff, isHandoffMode, visitList]);
 
     const clearSelection = useCallback(() => {
         setCheckedIds([]);
@@ -853,7 +1079,7 @@ export function EnrollmentList({
             <div className="sis-enrollments-control-strip">
                 <div
                     className={
-                        isEditMode
+                        isStructureEditMode
                             ? 'sis-enrollments-filters-bar sis-enrollments-filters-bar--edit'
                             : 'sis-enrollments-filters-bar sis-enrollments-filters-bar--filter'
                     }
@@ -915,14 +1141,18 @@ export function EnrollmentList({
                             {genderFilterLabel}
                         </span>
                         <SisListSelect
-                            key={isEditMode ? 'gender-edit' : 'gender-filter'}
-                            value={isEditMode ? '' : genderValue}
+                            key={isStructureEditMode ? 'gender-edit' : 'gender-filter'}
+                            value={isStructureEditMode ? '' : genderValue}
                             options={[
                                 { value: '', label: i18n.enrollments.gender },
                                 { value: '1', label: i18n.students.male },
                                 { value: '2', label: i18n.students.female },
                             ]}
                             onChange={(next) => {
+                                if (isHandoffMode) {
+                                    return;
+                                }
+
                                 if (isEditMode) {
                                     if (next === '' || filtersBusy) {
                                         return;
@@ -938,7 +1168,7 @@ export function EnrollmentList({
                                     page: 1,
                                 });
                             }}
-                            disabled={filtersBusy}
+                            disabled={filtersBusy || isHandoffMode}
                             triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                             dir="rtl"
                             ariaLabel={i18n.enrollments.filterByGender}
@@ -954,11 +1184,17 @@ export function EnrollmentList({
                     </span>
                     <span className="sis-admission-select-fit">
                         <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {selectedBranchLabel}
+                            {structureBranchLabel}
                         </span>
                         <SisListSelect
-                            key={isEditMode ? 'branch-edit' : 'branch-filter'}
-                            value={isEditMode ? '' : branchValue}
+                            key={isStructureEditMode ? 'branch-edit' : 'branch-filter'}
+                            value={
+                                isHandoffMode
+                                    ? handoffDraft.branch_id
+                                    : isEditMode
+                                      ? ''
+                                      : branchValue
+                            }
                             options={[
                                 { value: '', label: i18n.enrollments.allBranches },
                                 ...filterOptions.branches.map((item) => ({
@@ -967,6 +1203,16 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isHandoffMode) {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    patchHandoffDraft({ branch_id: next });
+
+                                    return;
+                                }
+
                                 if (isEditMode) {
                                     if (next === '' || filtersBusy) {
                                         return;
@@ -1000,11 +1246,17 @@ export function EnrollmentList({
                     </span>
                     <span className="sis-admission-select-fit">
                         <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {selectedDepartmentLabel}
+                            {structureDepartmentLabel}
                         </span>
                         <SisListSelect
-                            key={isEditMode ? 'department-edit' : 'department-filter'}
-                            value={isEditMode ? '' : departmentIdValue}
+                            key={isStructureEditMode ? 'department-edit' : 'department-filter'}
+                            value={
+                                isHandoffMode
+                                    ? handoffDraft.department_id
+                                    : isEditMode
+                                      ? ''
+                                      : departmentIdValue
+                            }
                             options={[
                                 { value: '', label: i18n.enrollments.allDepartments },
                                 ...filterDepartments.map((item) => ({
@@ -1013,6 +1265,16 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isHandoffMode) {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    patchHandoffDraft({ department_id: next });
+
+                                    return;
+                                }
+
                                 if (isEditMode) {
                                     if (next === '' || filtersBusy) {
                                         return;
@@ -1045,11 +1307,21 @@ export function EnrollmentList({
                     </span>
                     <span className="sis-admission-select-fit">
                         <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {selectedSpecializationLabel}
+                            {structureSpecializationLabel}
                         </span>
                         <SisListSelect
-                            key={isEditMode ? 'specialization-edit' : 'specialization-filter'}
-                            value={isEditMode ? '' : specializationValue}
+                            key={
+                                isStructureEditMode
+                                    ? 'specialization-edit'
+                                    : 'specialization-filter'
+                            }
+                            value={
+                                isHandoffMode
+                                    ? handoffDraft.specialization_id
+                                    : isEditMode
+                                      ? ''
+                                      : specializationValue
+                            }
                             options={[
                                 { value: '', label: i18n.enrollments.allSpecializations },
                                 ...filterSpecializations.map((item) => ({
@@ -1058,6 +1330,16 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isHandoffMode) {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    patchHandoffDraft({ specialization_id: next });
+
+                                    return;
+                                }
+
                                 if (isEditMode) {
                                     if (next === '' || filtersBusy) {
                                         return;
@@ -1089,11 +1371,17 @@ export function EnrollmentList({
                     </span>
                     <span className="sis-admission-select-fit">
                         <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {selectedClassLabel}
+                            {structureClassLabel}
                         </span>
                         <SisListSelect
-                            key={isEditMode ? 'class-edit' : 'class-filter'}
-                            value={isEditMode ? '' : classValue}
+                            key={isStructureEditMode ? 'class-edit' : 'class-filter'}
+                            value={
+                                isHandoffMode
+                                    ? handoffDraft.class_id
+                                    : isEditMode
+                                      ? ''
+                                      : classValue
+                            }
                             options={[
                                 { value: '', label: i18n.enrollments.allClasses },
                                 ...filterOptions.classes.map((item) => ({
@@ -1102,6 +1390,16 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isHandoffMode) {
+                                    if (filtersBusy) {
+                                        return;
+                                    }
+
+                                    patchHandoffDraft({ class_id: next });
+
+                                    return;
+                                }
+
                                 if (isEditMode) {
                                     if (next === '' || filtersBusy) {
                                         return;
@@ -1134,11 +1432,17 @@ export function EnrollmentList({
                     </span>
                     <span className="sis-admission-select-fit">
                         <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {selectedSectionLabel}
+                            {structureSectionLabel}
                         </span>
                         <SisListSelect
-                            key={isEditMode ? 'section-edit' : 'section-filter'}
-                            value={isEditMode ? '' : sectionValue}
+                            key={isStructureEditMode ? 'section-edit' : 'section-filter'}
+                            value={
+                                isHandoffMode
+                                    ? handoffDraft.section_id
+                                    : isEditMode
+                                      ? ''
+                                      : sectionValue
+                            }
                             options={[
                                 { value: '', label: i18n.enrollments.allSections },
                                 ...filterSections.map((item) => ({
@@ -1147,6 +1451,22 @@ export function EnrollmentList({
                                 })),
                             ]}
                             onChange={(next) => {
+                                if (isHandoffMode) {
+                                    if (filtersBusy || next === '') {
+                                        return;
+                                    }
+
+                                    if (handoffDraft.class_id === '') {
+                                        showError(i18n.enrollments.handoffNeedsPlacement);
+
+                                        return;
+                                    }
+
+                                    patchHandoffDraft({ section_id: next });
+
+                                    return;
+                                }
+
                                 if (isEditMode) {
                                     if (next === '' || filtersBusy) {
                                         return;
@@ -1200,38 +1520,38 @@ export function EnrollmentList({
                         role="toolbar"
                         aria-label={i18n.enrollments.statusActionsTitle}
                     >
-                    <div className="sis-admission-drafts-table__transitions">
-                        {ENROLLMENT_STATUS_ACTIONS.map((action) => {
-                            const Icon = action.icon;
-                            const actionLabel = statusTabLabel(action.status, i18n);
+                        <div className="sis-admission-drafts-table__transitions">
+                            {ENROLLMENT_STATUS_ACTIONS.map((action) => {
+                                const Icon = action.icon;
+                                const actionLabel = statusTabLabel(action.status, i18n);
 
-                            return (
-                                <button
-                                    key={action.status}
-                                    type="button"
-                                    className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
-                                    data-status={action.status}
-                                    disabled={
-                                        !canApplyStatus
-                                        || ((action.status === 0
-                                            || action.status === 2
-                                            || action.status === 3)
-                                            && !authorization.canCancel)
-                                    }
-                                    aria-label={actionLabel}
-                                    title={
-                                        canApplyStatus
-                                            ? actionLabel
-                                            : i18n.enrollments.statusNeedsSelection
-                                    }
-                                    onClick={() => applyStatus(action.status)}
-                                >
-                                    <Icon className="sis-enrollments-status-action__icon" aria-hidden="true" />
-                                    <span className="sis-enrollments-status-action__label">{actionLabel}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                                return (
+                                    <button
+                                        key={action.status}
+                                        type="button"
+                                        className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
+                                        data-status={action.status}
+                                        disabled={
+                                            !canApplyStatus
+                                            || ((action.status === 0
+                                                || action.status === 2
+                                                || action.status === 3)
+                                                && !authorization.canCancel)
+                                        }
+                                        aria-label={actionLabel}
+                                        title={
+                                            canApplyStatus
+                                                ? actionLabel
+                                                : i18n.enrollments.statusNeedsSelection
+                                        }
+                                        onClick={() => applyStatus(action.status)}
+                                    >
+                                        <Icon className="sis-enrollments-status-action__icon" aria-hidden="true" />
+                                        <span className="sis-enrollments-status-action__label">{actionLabel}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 ) : null}
             </div>
@@ -1346,12 +1666,12 @@ export function EnrollmentList({
                                                 <th>{i18n.enrollments.branchName}</th>
                                                 <th>{i18n.enrollments.departmentName}</th>
                                                 <th>{i18n.enrollments.specialization}</th>
-                                                <th>{i18n.enrollments.gradeLevel}</th>
                                                 <th>{i18n.enrollments.stageName}</th>
-                                                <th>{i18n.enrollments.enrollmentNumber}</th>
                                                 <th>{i18n.enrollments.effectiveFrom}</th>
                                                 <th>{i18n.enrollments.effectiveTo}</th>
-                                                <th>{i18n.enrollments.statusTabsTitle}</th>
+                                                <th className="sis-admission-drafts-table__enroll-head">
+                                                    {i18n.enrollments.studentRegistrationColumn}
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1480,6 +1800,7 @@ export function EnrollmentList({
 
             {creatingEnrollment ? (
                 <EnrollmentCreateDialog
+                    key={createStudentId ?? 'new-enrollment'}
                     academicYearId={filters.academic_year_id}
                     filterOptions={filterOptions}
                     initialStudentId={createStudentId}
@@ -1487,13 +1808,13 @@ export function EnrollmentList({
                         setCreatingEnrollment(false);
                         setCreateStudentId(null);
                     }}
-                    onCreated={() => {
-                        const studentQuery =
-                            createStudentId !== null && createStudentId > 0
-                                ? String(createStudentId)
-                                : undefined;
+                    onCreated={(completedId) => {
+                        setCreatingEnrollment(false);
                         setCreateStudentId(null);
-                        visitList({ page: 1, q: studentQuery });
+                        visitList({
+                            page: 1,
+                            q: completedId > 0 ? String(completedId) : undefined,
+                        });
                     }}
                 />
             ) : null}

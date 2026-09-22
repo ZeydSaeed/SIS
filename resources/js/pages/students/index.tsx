@@ -18,6 +18,7 @@ type PageProps = {
         per_page: number;
         academic_year_id: number | null;
         gender: number | null;
+        enrolled: number | null;
     };
     authorization: StudentAuthorization;
     preview: PreviewPayload;

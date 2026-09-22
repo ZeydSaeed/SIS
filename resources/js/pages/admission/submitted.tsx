@@ -47,7 +47,6 @@ export default function AdmissionSubmitted({ workspace, filters, authorization }
             <AdmissionDraftsCard
                 workspace={workspace}
                 canManage={authorization.can_manage}
-                canUpdateStudent={authorization.can_update_student ?? false}
                 canViewStudentPii={authorization.can_view_student_pii ?? false}
                 status={ADMISSION_STATUS_SUBMITTED}
                 yearFilterAction="/admission/submitted"

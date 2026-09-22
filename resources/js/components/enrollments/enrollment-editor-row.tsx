@@ -16,6 +16,7 @@ import { SisListSelect } from '@/components/sis/sis-list-select';
 import { usePageError } from '@/components/sis/page-error-context';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { t } from '@/i18n';
+import { isEnrollmentRegistrationComplete } from '@/lib/enrollment-registration-state';
 import type {
     EnrollmentFilterOptions,
     EnrollmentListItem,
@@ -102,37 +103,6 @@ function genderLabelFor(gender: number | null | undefined, i18n: ReturnType<type
     return '—';
 }
 
-function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
-    const labels: Record<number, string> = {
-        0: i18n.status.inactive,
-        1: i18n.status.active,
-        2: i18n.status.cancelled,
-        3: i18n.status.transferred,
-    };
-
-    return labels[status] ?? String(status);
-}
-
-function statusTone(status: number): string {
-    if (status === 1) {
-        return 'active';
-    }
-
-    if (status === 0) {
-        return 'inactive';
-    }
-
-    if (status === 2) {
-        return 'cancelled';
-    }
-
-    if (status === 3) {
-        return 'transferred';
-    }
-
-    return 'default';
-}
-
 function CellScroll({ children }: { children: ReactNode }) {
     return <div className="sis-students-table__cell-scroll">{children}</div>;
 }
@@ -173,15 +143,6 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
                 })}
         </>
     );
-}
-
-function todayIso(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
 }
 
 function resolveGradeLevelId(
@@ -258,7 +219,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
         const { academicYears } = usePage().props as { academicYears?: YearOption[] };
         const years = academicYears ?? [];
         const name = studentQuadName(row);
-        const gradeLevels = filterOptions.grade_levels ?? [];
 
         const [gender, setGender] = useState(
             row.student_gender === 1 || row.student_gender === 2 ? String(row.student_gender) : '',
@@ -281,10 +241,25 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
         const [academicYearId, setAcademicYearId] = useState(
             row.academic_year_id > 0 ? String(row.academic_year_id) : '',
         );
-        const [status, setStatus] = useState(String(row.status));
         const [effectiveFrom, setEffectiveFrom] = useState(isoDate(row.effective_from));
         const [effectiveTo, setEffectiveTo] = useState(isoDate(row.effective_to));
         const [saving, setSaving] = useState(false);
+
+        const registrationComplete = isEnrollmentRegistrationComplete(
+            editing
+                ? {
+                      academic_year_id: academicYearId,
+                      class_id: classId,
+                      section_id: sectionId,
+                      effective_from: effectiveFrom,
+                  }
+                : {
+                      academic_year_id: row.academic_year_id,
+                      class_id: row.class_id,
+                      section_id: row.section_id,
+                      effective_from: row.effective_from,
+                  },
+        );
 
         useEffect(() => {
             if (editing) {
@@ -304,7 +279,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             setGradeLevelId(resolveGradeLevelId(row, filterOptions));
             setStageName(row.stage_name ?? '');
             setAcademicYearId(row.academic_year_id > 0 ? String(row.academic_year_id) : '');
-            setStatus(String(row.status));
             setEffectiveFrom(isoDate(row.effective_from));
             setEffectiveTo(isoDate(row.effective_to));
         }, [editing, filterOptions, row]);
@@ -416,7 +390,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             }
 
             setSaving(true);
-            const nextStatus = Number(status);
             const payload = {
                 class_id: Number(resolvedClassId),
                 section_id: Number(resolvedSectionId),
@@ -433,52 +406,18 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     : { effective_to: effectiveTo }),
             };
 
-            const putPlacement = () =>
-                new Promise<void>((resolve, reject) => {
-                    router.put(`/enrollments/${row.id}`, payload, {
-                        preserveScroll: true,
-                        preserveState: true,
-                        onSuccess: () => resolve(),
-                        onError: (errors) => {
-                            showInertiaErrors(errors, i18n.errors.placementFailed);
-                            reject(new Error('enrollment-row-save-failed'));
-                        },
-                        onFinish: () => setSaving(false),
-                    });
+            return new Promise<void>((resolve, reject) => {
+                router.put(`/enrollments/${row.id}`, payload, {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => resolve(),
+                    onError: (errors) => {
+                        showInertiaErrors(errors, i18n.errors.placementFailed);
+                        reject(new Error('enrollment-row-save-failed'));
+                    },
+                    onFinish: () => setSaving(false),
                 });
-
-            if (nextStatus !== row.status) {
-                return new Promise((resolve, reject) => {
-                    router.post(
-                        '/enrollments/bulk-status',
-                        {
-                            enrollment_ids: [row.id],
-                            status: nextStatus,
-                            effective_to:
-                                nextStatus === 1
-                                    ? undefined
-                                    : effectiveTo || effectiveFrom || todayIso(),
-                        },
-                        {
-                            preserveScroll: true,
-                            preserveState: true,
-                            onSuccess: () => {
-                                void putPlacement().then(resolve).catch((error) => {
-                                    setSaving(false);
-                                    reject(error);
-                                });
-                            },
-                            onError: (errors) => {
-                                setSaving(false);
-                                showInertiaErrors(errors, i18n.errors.statusFailed);
-                                reject(new Error('enrollment-row-status-failed'));
-                            },
-                        },
-                    );
-                });
-            }
-
-            return putPlacement();
+            });
         }, [
             academicYearId,
             branchId,
@@ -490,19 +429,16 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             gender,
             i18n.errors.missingClassSection,
             i18n.errors.placementFailed,
-            i18n.errors.statusFailed,
             row.academic_year_id,
             row.class_id,
             row.effective_from,
             row.id,
             row.section_id,
-            row.status,
             sectionId,
             showError,
             showInertiaErrors,
             specializationId,
             stageName,
-            status,
         ]);
 
         useImperativeHandle(ref, () => ({ save }), [save]);
@@ -695,40 +631,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                 </td>
                 <td className="sis-admission-drafts-table__text">
                     {editing ? (
-                        <SelectCell
-                            value={gradeLevelId}
-                            label={i18n.enrollments.gradeLevel}
-                            options={[
-                                { value: '', label: i18n.enrollments.gradeLevel },
-                                ...gradeLevels.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={(next) => {
-                                const classStillValid =
-                                    next === ''
-                                    || filterOptions.classes.some(
-                                        (item) =>
-                                            String(item.id) === classId
-                                            && (item.grade_level_id === undefined
-                                                || String(item.grade_level_id) === next),
-                                    );
-                                setGradeLevelId(next);
-                                if (!classStillValid) {
-                                    setClassId('');
-                                    setSectionId('');
-                                }
-                            }}
-                        />
-                    ) : (
-                        <CellScroll>
-                            {textOrDash(row.grade_level_name ?? row.grade_level_code)}
-                        </CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
                         <input
                             className="sis-students-table__edit-input"
                             value={stageName}
@@ -739,9 +641,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     ) : (
                         <CellScroll>{textOrDash(row.stage_name)}</CellScroll>
                     )}
-                </td>
-                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                    <span dir="ltr">{row.enrollment_number}</span>
                 </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
                     {editing ? (
@@ -774,24 +673,17 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     )}
                 </td>
                 <td
-                    className={`sis-students-table__status sis-students-table__status--tone-${statusTone(editing ? Number(status) : row.status)}`}
-                    data-status={editing ? Number(status) : row.status}
+                    className={
+                        registrationComplete
+                            ? 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-complete'
+                            : 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-incomplete'
+                    }
                 >
-                    {editing ? (
-                        <SelectCell
-                            value={status}
-                            label={i18n.common.status}
-                            options={[
-                                { value: '1', label: i18n.status.active },
-                                { value: '0', label: i18n.status.inactive },
-                                { value: '2', label: i18n.status.cancelled },
-                                { value: '3', label: i18n.status.transferred },
-                            ]}
-                            onChange={setStatus}
-                        />
-                    ) : (
-                        statusLabel(row.status, i18n)
-                    )}
+                    <span className="sis-admission-enroll-status-text">
+                        {registrationComplete
+                            ? i18n.enrollments.registrationComplete
+                            : i18n.enrollments.registrationIncomplete}
+                    </span>
                 </td>
             </tr>
         );
