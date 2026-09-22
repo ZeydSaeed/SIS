@@ -10,6 +10,7 @@ use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\ReopenEnrollmentResult;
 use App\Domain\Enrollment\Events\EnrollmentReopened;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
+use App\Domain\Enrollment\Services\ReopenEnrollmentGuard;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 
 final class ReopenEnrollmentHandler implements CommandHandler
@@ -19,6 +20,7 @@ final class ReopenEnrollmentHandler implements CommandHandler
     public function __construct(
         private readonly UnitOfWork $unitOfWork,
         private readonly EnrollmentRepositoryInterface $enrollments,
+        private readonly ReopenEnrollmentGuard $guard,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
     ) {}
@@ -38,18 +40,12 @@ final class ReopenEnrollmentHandler implements CommandHandler
         }
 
         $enrollment = $this->enrollments->findByIdAndSchool($command->enrollmentId, $command->schoolId);
-        if ($enrollment === null) {
-            return ReopenEnrollmentResult::failure(['enrollment.not_found']);
+        $failure = $this->guard->failureCodes($enrollment);
+        if ($failure !== null) {
+            return ReopenEnrollmentResult::failure($failure);
         }
-        if ($enrollment->isActive()) {
-            return ReopenEnrollmentResult::failure(['enrollment.already_open']);
-        }
-        if ($enrollment->status !== EnrollmentStatus::CANCELLED) {
-            return ReopenEnrollmentResult::failure(['enrollment.not_reopenable']);
-        }
-        if ($this->enrollments->hasActiveEnrollment($enrollment->studentId, $enrollment->academicYearId)) {
-            return ReopenEnrollmentResult::failure(['enrollment.student_has_active_enrollment']);
-        }
+
+        assert($enrollment !== null);
 
         $ok = $this->unitOfWork->transaction(function () use ($command, $enrollment): bool {
             if (! $this->enrollments->reopen($command->enrollmentId)) {

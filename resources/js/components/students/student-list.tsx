@@ -181,6 +181,10 @@ type StudentListProps = {
         gender: number | null;
     };
     authorization: StudentAuthorization;
+    placementOptions?: {
+        branches: Array<{ id: number; name: string }>;
+        departments: Array<{ id: number; branch_id: number | null; name: string }>;
+    };
     preview: PreviewPayload;
 };
 
@@ -797,7 +801,13 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
     },
 );
 
-export function StudentList({ students, filters, authorization }: StudentListProps) {
+export function StudentList({
+    students,
+    filters,
+    authorization,
+    placementOptions = { branches: [], departments: [] },
+    preview,
+}: StudentListProps) {
     const i18n = t();
     const { academicYears } = usePage().props as {
         academicYears?: Array<{ id: number; name: string; code: string; is_current: boolean }>;
@@ -1544,6 +1554,7 @@ export function StudentList({ students, filters, authorization }: StudentListPro
                     students={viewingStudents}
                     canViewPii={authorization.canViewPii}
                     canUpdate={authorization.canUpdate}
+                    placementOptions={placementOptions}
                     onClose={() => setViewingStudents(null)}
                     onSaved={(updated) => {
                         setViewingStudents((current) =>

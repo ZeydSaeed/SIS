@@ -32,6 +32,7 @@ export type PageRibbonGroup = {
     id: string;
     label: string;
     commands: PageRibbonCommand[];
+    custom?: ReactNode;
 };
 
 export type PageRibbonRegistration = {
@@ -68,6 +69,7 @@ function mergeGroups(groups: PageRibbonGroup[]): PageRibbonGroup[] {
             merged.push({
                 ...group,
                 commands: [...group.commands],
+                custom: group.custom,
             });
             continue;
         }
@@ -88,7 +90,11 @@ function mergeGroups(groups: PageRibbonGroup[]): PageRibbonGroup[] {
         commands.sort(
             (left, right) => commandPriority(left.id) - commandPriority(right.id),
         );
-        merged[existingIndex] = { ...existing, commands };
+        merged[existingIndex] = {
+            ...existing,
+            commands,
+            custom: group.custom ?? existing.custom,
+        };
     }
 
     return merged;

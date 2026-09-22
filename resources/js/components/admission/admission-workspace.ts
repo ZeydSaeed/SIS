@@ -27,6 +27,7 @@ export type AdmissionApplication = {
     birth_place: string | null;
     gender: number;
     target_school_id: number | null;
+    branch_id: number | null;
     grade_level_id: number | null;
     intended_grade_name: string | null;
     department_name: string | null;
@@ -56,7 +57,12 @@ export type AdmissionDocumentRow = {
     created_at?: string;
 };
 
-export type AdmissionNamedOption = { id: number; name: string };
+export type AdmissionNamedOption = {
+    id: number;
+    name: string;
+    branch_id?: number | null;
+    department_id?: number | null;
+};
 
 export type AdmissionWorkflowStep = { status: number; key: string };
 
@@ -90,6 +96,7 @@ export type AdmissionWorkspace = {
     documents: AdmissionDocumentRow[];
     grade_levels: AdmissionNamedOption[];
     schools: AdmissionNamedOption[];
+    branches: AdmissionNamedOption[];
     departments: AdmissionNamedOption[];
     specializations: AdmissionNamedOption[];
     workflow_steps: AdmissionWorkflowStep[];

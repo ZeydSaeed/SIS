@@ -62,12 +62,19 @@ class EnrollmentController extends Controller
             : null;
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(max(1, (int) $request->query('per_page', 25)), 100);
+        $status = $request->filled('status') ? (int) $request->query('status') : null;
+        $q = trim((string) $request->query('q', ''));
+        $gender = $request->filled('gender') ? (int) $request->query('gender') : null;
+        $gender = $gender === 1 || $gender === 2 ? $gender : null;
 
         $result = $handler->handle(new ListEnrollmentsQuery(
             schoolId: $schoolId,
             academicYearId: $academicYearId,
             page: $page,
             perPage: $perPage,
+            status: $status,
+            q: $q,
+            gender: $gender,
         ));
 
         $this->securityAudit->record(

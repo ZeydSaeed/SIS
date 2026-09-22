@@ -21,9 +21,19 @@ type PageProps = {
     };
     authorization: StudentAuthorization;
     preview: PreviewPayload;
+    placementOptions?: {
+        branches: Array<{ id: number; name: string }>;
+        departments: Array<{ id: number; branch_id: number | null; name: string }>;
+    };
 };
 
-export default function StudentsIndex({ students, filters, authorization, preview }: PageProps) {
+export default function StudentsIndex({
+    students,
+    filters,
+    authorization,
+    preview,
+    placementOptions,
+}: PageProps) {
     const i18n = t();
 
     const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.students.title, href: '/students' }];
@@ -36,6 +46,7 @@ export default function StudentsIndex({ students, filters, authorization, previe
                 filters={filters}
                 authorization={authorization}
                 preview={preview}
+                placementOptions={placementOptions}
             />
         </AppLayout>
     );

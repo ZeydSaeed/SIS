@@ -24,9 +24,13 @@ const STUDENT_STATUS_WITHDRAWN = 4;
 type PageProps = {
     student: StudentDetail;
     authorization: StudentAuthorization;
+    placementOptions?: {
+        branches: Array<{ id: number; name: string }>;
+        departments: Array<{ id: number; branch_id: number | null; name: string }>;
+    };
 };
 
-export default function StudentsShow({ student, authorization }: PageProps) {
+export default function StudentsShow({ student, authorization, placementOptions }: PageProps) {
     const i18n = t();
     const [editing, setEditing] = useState(false);
     const [viewing, setViewing] = useState(false);
@@ -151,6 +155,7 @@ export default function StudentsShow({ student, authorization }: PageProps) {
                     ]}
                     canViewPii={authorization.canViewPii}
                     canUpdate={canUpdate}
+                    placementOptions={placementOptions}
                     onClose={() => setViewing(false)}
                 />
             ) : null}

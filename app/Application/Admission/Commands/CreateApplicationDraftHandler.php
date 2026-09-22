@@ -69,6 +69,7 @@ final class CreateApplicationDraftHandler implements CommandHandler
                 intendedGradeName: $command->intendedGradeName,
                 nationalId: $command->nationalId,
                 gradeLevelId: $command->gradeLevelId,
+                branchId: $command->branchId,
                 departmentName: $command->departmentName,
                 specializationId: $command->specializationId,
                 specializationName: $command->specializationName,

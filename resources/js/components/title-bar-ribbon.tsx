@@ -618,13 +618,16 @@ export function TitleBarRibbon({
             (group): RibbonGroup => ({
                 id: group.id,
                 label: group.label,
-                items: group.commands.map((command) => ({
-                    id: command.id,
-                    label: command.label,
-                    icon: command.icon,
-                    disabled: command.disabled,
-                    onSelect: command.onSelect,
-                })),
+                custom: group.custom,
+                items: group.custom
+                    ? undefined
+                    : group.commands.map((command) => ({
+                          id: command.id,
+                          label: command.label,
+                          icon: command.icon,
+                          disabled: command.disabled,
+                          onSelect: command.onSelect,
+                      })),
             }),
         ),
         ...staticGroups,

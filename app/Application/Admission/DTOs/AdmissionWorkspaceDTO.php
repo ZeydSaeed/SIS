@@ -12,8 +12,9 @@ final readonly class AdmissionWorkspaceDTO
      * @param  list<array<string, mixed>>  $documents
      * @param  list<array{id:int, name:string}>  $gradeLevels
      * @param  list<array{id:int, name:string}>  $schools
-     * @param  list<array{id:int, name:string}>  $departments
-     * @param  list<array{id:int, name:string}>  $specializations
+     * @param  list<array{id:int, name:string}>  $branches
+     * @param  list<array{id:int, branch_id:int|null, name:string}>  $departments
+     * @param  list<array{id:int, department_id:int|null, name:string}>  $specializations
      * @param  list<array{status:int, key:string}>  $workflowSteps
      * @param  array{overall_percent:int, stages:list<array{status:int, percent:int, count:int}>}  $workflowProgress
      * @param  list<array{id:int, name:string, start_date:string, max_applications:?int, total_count:int, submitted_count:int, remaining:?int}>  $activePeriods
@@ -26,6 +27,7 @@ final readonly class AdmissionWorkspaceDTO
         public array $documents,
         public array $gradeLevels,
         public array $schools,
+        public array $branches,
         public array $departments,
         public array $specializations,
         public array $workflowSteps,
@@ -52,6 +54,7 @@ final readonly class AdmissionWorkspaceDTO
             'documents' => $this->documents,
             'grade_levels' => $this->gradeLevels,
             'schools' => $this->schools,
+            'branches' => $this->branches,
             'departments' => $this->departments,
             'specializations' => $this->specializations,
             'workflow_steps' => $this->workflowSteps !== []

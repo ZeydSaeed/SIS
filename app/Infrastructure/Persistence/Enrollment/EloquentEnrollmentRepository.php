@@ -2,11 +2,13 @@
 
 namespace App\Infrastructure\Persistence\Enrollment;
 
+use App\Database\SchemaHelper;
 use App\Domain\Enrollment\Data\CreateEnrollmentData;
 use App\Domain\Enrollment\Data\EnrollmentSnapshot;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterface
 {
@@ -75,14 +77,38 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         int $classId,
         int $sectionId,
         ?int $specializationId,
+        ?int $branchId = null,
+        ?int $departmentId = null,
     ): void {
         $record = EnrollmentRecord::query()->findOrFail($enrollmentId);
         $record->forceFill([
             'class_id' => $classId,
             'section_id' => $sectionId,
             'specialization_id' => $specializationId,
+            'branch_id' => $branchId,
+            'department_id' => $departmentId,
         ]);
         $record->save();
+
+        if ($branchId !== null || $departmentId !== null) {
+            $studentFill = [];
+            if ($branchId !== null) {
+                $studentFill['branch_id'] = $branchId;
+            }
+            if ($departmentId !== null) {
+                $departmentName = DB::table(SchemaHelper::qualified('organization', 'departments'))
+                    ->where('id', $departmentId)
+                    ->value('name');
+                if (is_string($departmentName) && $departmentName !== '') {
+                    $studentFill['department_name'] = $departmentName;
+                }
+            }
+            if ($studentFill !== []) {
+                DB::table(SchemaHelper::qualified('students', 'students'))
+                    ->where('id', (int) $record->student_id)
+                    ->update(array_merge($studentFill, ['updated_at' => now()]));
+            }
+        }
     }
 
     public function cancel(int $enrollmentId, string $effectiveTo): void
@@ -95,11 +121,21 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         $record->save();
     }
 
+    public function deactivate(int $enrollmentId, string $effectiveTo): void
+    {
+        $record = EnrollmentRecord::query()->findOrFail($enrollmentId);
+        $record->forceFill([
+            'status' => EnrollmentStatus::INACTIVE,
+            'effective_to' => $effectiveTo,
+        ]);
+        $record->save();
+    }
+
     public function reopen(int $enrollmentId): bool
     {
         return EnrollmentRecord::query()
             ->whereKey($enrollmentId)
-            ->where('status', EnrollmentStatus::CANCELLED)
+            ->whereIn('status', [EnrollmentStatus::CANCELLED, EnrollmentStatus::INACTIVE])
             ->update([
                 'status' => EnrollmentStatus::ACTIVE,
                 'effective_to' => null,

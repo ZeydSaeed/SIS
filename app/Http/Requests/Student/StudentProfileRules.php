@@ -46,6 +46,7 @@ final class StudentProfileRules
             'guardian_mobile' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'school_name' => ['nullable', 'string', 'max:255'],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
             'department_name' => ['nullable', 'string', 'max:100'],
             'specialization_name' => ['nullable', 'string', 'max:100'],
             'stage_name' => ['nullable', 'string', 'max:100'],

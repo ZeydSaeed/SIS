@@ -32,6 +32,7 @@ final class CreateApplicationDraftRequest extends FormRequest
             'target_school_id' => ['required', 'integer', 'min:1'],
             'intended_grade_name' => ['required', 'string', 'max:100'],
             'grade_level_id' => ['required', 'integer', 'min:1'],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
             'department_name' => ['nullable', 'string', 'max:100'],
             'specialization_id' => ['nullable', 'integer', 'min:1'],
             'specialization_name' => ['nullable', 'string', 'max:100'],

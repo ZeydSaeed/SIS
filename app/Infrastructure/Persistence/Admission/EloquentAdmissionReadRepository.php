@@ -75,6 +75,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             $schoolId,
             fn (): array => [
                 'schools' => $this->loadSchools($schoolId),
+                'branches' => $this->loadBranches($schoolId),
                 'departments' => $this->loadDepartments($schoolId),
                 'specializations' => $this->loadSpecializations($schoolId),
             ],
@@ -121,6 +122,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             'documents' => $documents,
             'grade_levels' => $gradeLevels,
             'schools' => $refs['schools'],
+            'branches' => $refs['branches'],
             'departments' => $refs['departments'],
             'specializations' => $refs['specializations'],
             'workflow_steps' => $this->workflowSteps(),
@@ -267,6 +269,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.last_name',
                 'apps.mother_name',
                 'apps.target_school_id',
+                'apps.branch_id',
                 'apps.grade_level_id',
                 'apps.intended_grade_name',
                 'apps.department_name',
@@ -296,6 +299,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'last_name' => (string) $row->last_name,
                 'mother_name' => $row->mother_name !== null ? (string) $row->mother_name : null,
                 'target_school_id' => $row->target_school_id !== null ? (int) $row->target_school_id : null,
+                'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
                 'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
                 'intended_grade_name' => $row->intended_grade_name !== null ? (string) $row->intended_grade_name : null,
                 'department_name' => $row->department_name !== null ? (string) $row->department_name : null,
@@ -443,9 +447,9 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
     /**
      * @return list<array{id:int, name:string}>
      */
-    private function loadDepartments(int $schoolId): array
+    private function loadBranches(int $schoolId): array
     {
-        return DB::table(SchemaHelper::qualified('organization', 'departments'))
+        return DB::table(SchemaHelper::qualified('organization', 'branches'))
             ->where('school_id', $schoolId)
             ->where('status', 1)
             ->orderBy('name')
@@ -458,7 +462,25 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
     }
 
     /**
-     * @return list<array{id:int, name:string}>
+     * @return list<array{id:int, branch_id:int|null, name:string}>
+     */
+    private function loadDepartments(int $schoolId): array
+    {
+        return DB::table(SchemaHelper::qualified('organization', 'departments'))
+            ->where('school_id', $schoolId)
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'branch_id', 'name'])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
+                'name' => (string) $row->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id:int, department_id:int|null, name:string}>
      */
     private function loadSpecializations(int $schoolId): array
     {
@@ -466,9 +488,10 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             ->where('school_id', $schoolId)
             ->where('status', 1)
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'department_id', 'name'])
             ->map(static fn ($row): array => [
                 'id' => (int) $row->id,
+                'department_id' => $row->department_id !== null ? (int) $row->department_id : null,
                 'name' => (string) $row->name,
             ])
             ->all();

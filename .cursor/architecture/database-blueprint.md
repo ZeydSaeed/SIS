@@ -196,6 +196,7 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | school_id | BIGINT | FK → schools |
+| department_id | BIGINT | FK → organization.departments, nullable — القسم الأب (فرع ← قسم ← اختصاص) |
 | code | VARCHAR(20) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
 | description | TEXT | |
@@ -203,7 +204,7 @@
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`  
+**Indexes:** `BTREE(school_id)`, `BTREE(department_id)`, `UNIQUE(school_id, code)`  
 **RLS:** ENABLE + FORCE  
 **Triggers:** reject hard DELETE
 
@@ -284,6 +285,7 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | school_id | BIGINT | FK → organization.schools, nullable |
+| branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
 | public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
 | student_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
@@ -331,6 +333,7 @@
 
 **Indexes:**
 - `BTREE(school_id)`
+- `BTREE(branch_id)`
 - `BTREE(admitted_academic_year_id)` — student list year filter
 - `UNIQUE(student_code)`
 - `UNIQUE(national_id)` (partial: WHERE national_id IS NOT NULL)
@@ -481,6 +484,7 @@
 | birth_place | VARCHAR(255) | nullable — محل الولادة |
 | gender | SMALLINT | NOT NULL; CHECK IN (1, 2) |
 | target_school_id | BIGINT | FK → organization.schools, nullable — المدرسة المراد التقديم عليها |
+| branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
 | grade_level_id | SMALLINT | FK → grade_levels, **nullable** (قائمة المراحل لاحقاً) |
 | intended_grade_name | VARCHAR(100) | nullable — نص المرحلة المطلوبة حتى ضبط القائمة |
 | department_name | VARCHAR(100) | nullable — القسم (قائمة لاحقاً) |
@@ -566,11 +570,13 @@
 | student_id | BIGINT | FK → students.students |
 | academic_year_id | BIGINT | FK → academic_years |
 | school_id | BIGINT | FK → schools |
+| branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
+| department_id | BIGINT | FK → organization.departments, nullable — القسم |
 | class_id | BIGINT | FK → classes |
 | section_id | BIGINT | FK → sections |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | enrollment_number | VARCHAR(50) | UNIQUE NOT NULL |
-| status | SMALLINT | NOT NULL DEFAULT 1 — 1=Active, 2=Cancelled, 3=Transferred (Phase TR-U03) |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 0=Inactive, 1=Active, 2=Cancelled, 3=Transferred |
 | effective_from | DATE | NOT NULL |
 | effective_to | DATE | |
 | enrolled_by | BIGINT | FK → security.users |
@@ -579,6 +585,8 @@
 
 **Indexes:**
 - `BTREE(student_id)`
+- `BTREE(branch_id)`
+- `BTREE(department_id)`
 - `COMPOSITE(school_id, academic_year_id)`
 - `COMPOSITE(student_id, academic_year_id)`
 - `PARTIAL UNIQUE(student_id, academic_year_id) WHERE status = 1`

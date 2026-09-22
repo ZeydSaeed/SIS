@@ -9,6 +9,8 @@ import {
     type RibbonTab,
 } from '@/components/title-bar-ribbon';
 import { TitleBarUtilities } from '@/components/title-bar-utilities';
+import { SisSearchField } from '@/components/sis/sis-search-field';
+import { usePageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { applyPageAlignment } from '@/hooks/use-page-alignment';
 import {
@@ -231,19 +233,32 @@ export function AppSidebarHeader({
         }
     }, []);
 
+    const titlebarSearch = usePageTitlebarSearch();
+
     return (
         <div className="sis-chrome shrink-0">
             <header
-                className="sis-titlebar flex h-9 shrink-0 items-center gap-2 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-9 md:px-3"
+                className={`sis-titlebar flex min-h-10 shrink-0 items-center gap-2 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3${titlebarSearch ? ' sis-titlebar--with-search' : ''}`}
                 dir="rtl"
             >
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <SidebarTrigger className="sis-titlebar__trigger size-7" />
-                    <TitleBarMenu
-                        activeRibbon={activeRibbon}
-                        onRibbonChange={setActiveRibbon}
-                    />
-                </div>
+                <SidebarTrigger className="sis-titlebar__trigger size-7 shrink-0" />
+                <TitleBarMenu
+                    activeRibbon={activeRibbon}
+                    onRibbonChange={setActiveRibbon}
+                />
+                {titlebarSearch ? (
+                    <div className="sis-titlebar__search-slot">
+                        <div className="sis-titlebar__search">
+                            <SisSearchField
+                                committedQuery={titlebarSearch.committedQuery}
+                                label={titlebarSearch.label}
+                                placeholder={titlebarSearch.placeholder}
+                                onDraftChange={titlebarSearch.onDraftChange}
+                                onCommit={titlebarSearch.onCommit}
+                            />
+                        </div>
+                    </div>
+                ) : null}
                 <div className="sis-titlebar__leading flex shrink-0 items-center gap-1" dir="ltr">
                     <TitleBarControls />
                     <TitleBarHome />
@@ -251,11 +266,13 @@ export function AppSidebarHeader({
                 </div>
             </header>
             {activeRibbon ? (
-                <TitleBarRibbon
-                    tab={activeRibbon}
-                    onAction={onRibbonAction}
-                    onCollapse={() => setActiveRibbon(null)}
-                />
+                <div className="sis-ribbon-overlay" role="presentation">
+                    <TitleBarRibbon
+                        tab={activeRibbon}
+                        onAction={onRibbonAction}
+                        onCollapse={() => setActiveRibbon(null)}
+                    />
+                </div>
             ) : null}
         </div>
     );

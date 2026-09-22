@@ -22,6 +22,7 @@ final readonly class CreateApplicationDraftData
         public string $intendedGradeName,
         public ?string $nationalId = null,
         public ?int $gradeLevelId = null,
+        public ?int $branchId = null,
         public ?string $departmentName = null,
         public ?int $specializationId = null,
         public ?string $specializationName = null,

@@ -12,6 +12,8 @@ use App\Application\Student\Queries\ListStudentsHandler;
 use App\Application\Student\Queries\ListStudentsQuery;
 use App\Application\Student\Queries\SearchStudentsHandler;
 use App\Application\Student\Queries\SearchStudentsQuery;
+use App\Domain\Organization\Repositories\BranchRepositoryInterface;
+use App\Domain\Organization\Repositories\DepartmentRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ChangeStudentStatusesRequest;
 use App\Http\Requests\Student\UpdateStudentListRowRequest;
@@ -42,6 +44,8 @@ final class StudentPageController extends Controller
         private readonly StudentSchoolAccessService $schoolAccess,
         private readonly StudentPolicy $studentPolicy,
         private readonly AcademicYearContextResolver $academicYears,
+        private readonly BranchRepositoryInterface $branches,
+        private readonly DepartmentRepositoryInterface $departments,
     ) {}
 
     public function index(
@@ -110,6 +114,7 @@ final class StudentPageController extends Controller
                 'gender' => $gender,
             ],
             'authorization' => $this->listAuthorization($user),
+            'placementOptions' => $this->placementOptions($schoolId),
             'preview' => null,
         ];
 
@@ -206,6 +211,7 @@ final class StudentPageController extends Controller
             schoolStartDate: $this->nullableString($validated, 'school_start_date'),
             notes: $this->nullableString($validated, 'notes'),
             schoolName: $this->nullableString($validated, 'school_name'),
+            branchId: $this->nullableInt($validated, 'branch_id'),
             stageName: $this->nullableString($validated, 'stage_name'),
             sectionName: $this->nullableString($validated, 'section_name'),
             nationalId: $this->nullableString($validated, 'national_id'),
@@ -262,6 +268,7 @@ final class StudentPageController extends Controller
         return Inertia::render('students/show', [
             'student' => $this->sanitizer->sanitizeDetail($detail, $user),
             'authorization' => $this->recordAuthorization($user, $student),
+            'placementOptions' => $this->placementOptions($schoolId),
         ]);
     }
 
@@ -355,6 +362,43 @@ final class StudentPageController extends Controller
             'canView' => $this->studentPolicy->view($user, $studentId),
             'canViewPii' => $this->studentPolicy->viewPii($user),
             'canUpdate' => $this->studentPolicy->update($user, $studentId),
+        ];
+    }
+
+    /**
+     * @return array{
+     *   branches: list<array{id:int, name:string}>,
+     *   departments: list<array{id:int, branch_id:int|null, name:string}>
+     * }
+     */
+    private function placementOptions(int $schoolId): array
+    {
+        $branches = [];
+        foreach ($this->branches->listForSchool($schoolId) as $branch) {
+            if ($branch->status !== 1) {
+                continue;
+            }
+            $branches[] = [
+                'id' => $branch->id,
+                'name' => $branch->name,
+            ];
+        }
+
+        $departments = [];
+        foreach ($this->departments->listForSchool($schoolId) as $department) {
+            if ($department->status !== 1) {
+                continue;
+            }
+            $departments[] = [
+                'id' => $department->id,
+                'branch_id' => $department->branchId,
+                'name' => $department->name,
+            ];
+        }
+
+        return [
+            'branches' => $branches,
+            'departments' => $departments,
         ];
     }
 }

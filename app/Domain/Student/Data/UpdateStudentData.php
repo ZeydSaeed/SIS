@@ -40,6 +40,7 @@ final readonly class UpdateStudentData
         public ?string $guardianMobile = null,
         public ?string $email = null,
         public ?string $schoolName = null,
+        public ?int $branchId = null,
         public ?string $departmentName = null,
         public ?string $specializationName = null,
         public ?string $stageName = null,

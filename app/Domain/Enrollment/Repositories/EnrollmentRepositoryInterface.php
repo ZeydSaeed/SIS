@@ -20,9 +20,13 @@ interface EnrollmentRepositoryInterface
         int $classId,
         int $sectionId,
         ?int $specializationId,
+        ?int $branchId = null,
+        ?int $departmentId = null,
     ): void;
 
     public function cancel(int $enrollmentId, string $effectiveTo): void;
+
+    public function deactivate(int $enrollmentId, string $effectiveTo): void;
 
     public function reopen(int $enrollmentId): bool;
 

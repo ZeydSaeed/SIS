@@ -321,6 +321,7 @@ export function AdmissionPageShell({
                     periods={workspace.periods}
                     schools={workspace.schools}
                     gradeLevels={workspace.grade_levels}
+                    branches={workspace.branches ?? []}
                     departments={workspace.departments}
                     specializations={workspace.specializations}
                     canManage={authorization.can_manage}

@@ -41,9 +41,10 @@ function labelFor(kind: StatusChipProps['kind'], status: number): string {
     }
     if (kind === 'enrollment') {
         const map: Record<number, string> = {
+            0: i18n.status.inactive,
             1: i18n.status.active,
             2: i18n.status.cancelled,
-            3: i18n.status.completed,
+            3: i18n.status.transferred,
         };
         return map[status] ?? `${i18n.common.status} ${status}`;
     }

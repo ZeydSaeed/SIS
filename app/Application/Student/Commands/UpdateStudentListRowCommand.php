@@ -40,6 +40,7 @@ final readonly class UpdateStudentListRowCommand implements Command
         public ?string $schoolStartDate = null,
         public ?string $notes = null,
         public ?string $schoolName = null,
+        public ?int $branchId = null,
         public ?string $stageName = null,
         public ?string $sectionName = null,
         public ?string $nationalId = null,

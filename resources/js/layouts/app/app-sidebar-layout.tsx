@@ -6,6 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { PageRibbonProvider } from '@/components/sis/page-ribbon-context';
 import { PageTitlebarHomeProvider } from '@/components/sis/page-titlebar-home-context';
+import { PageTitlebarSearchProvider } from '@/components/sis/page-titlebar-search-context';
 import { restorePageAlignments } from '@/hooks/use-page-alignment';
 import { restorePageTextStyle } from '@/hooks/use-page-text-style';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,7 @@ export default function AppSidebarLayout({
         <AppShell variant="sidebar">
             <PageRibbonProvider>
             <PageTitlebarHomeProvider>
+            <PageTitlebarSearchProvider>
             <AppSidebar />
             <AppContent
                 variant="sidebar"
@@ -44,6 +46,7 @@ export default function AppSidebarLayout({
                     {children}
                 </div>
             </AppContent>
+            </PageTitlebarSearchProvider>
             </PageTitlebarHomeProvider>
             </PageRibbonProvider>
         </AppShell>

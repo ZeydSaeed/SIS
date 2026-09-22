@@ -79,6 +79,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [EnrollmentPageController::class, 'index'])->name('index');
         Route::get('/create', [EnrollmentPageController::class, 'create'])->name('create');
         Route::post('/', [EnrollmentPageController::class, 'store'])->name('store');
+        Route::post('/bulk-status', [EnrollmentPageController::class, 'bulkStatus'])->name('bulk-status');
+        Route::post('/bulk-placement', [EnrollmentPageController::class, 'bulkPlacement'])->name('bulk-placement');
         Route::get('/{enrollment}', [EnrollmentPageController::class, 'show'])->name('show');
         Route::get('/{enrollment}/edit', [EnrollmentPageController::class, 'edit'])->name('edit');
         Route::put('/{enrollment}', [EnrollmentPageController::class, 'update'])->name('update');

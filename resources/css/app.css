@@ -488,15 +488,29 @@ html[data-sis-font-size] .sis-page-surface :where(*):not(svg):not(svg *) {
     font-family: var(--sis-chrome-font);
     font-size: var(--sis-chrome-text-size);
     font-weight: var(--sis-chrome-text-weight);
-    min-height: 2.25rem;
+    min-height: 2.5rem;
 }
 
 .sis-chrome {
+    position: relative;
+    z-index: 40;
     background: var(--sis-night);
     color: var(--sis-pearl);
     border: 0;
     border-radius: 0;
     box-shadow: none;
+}
+
+.sis-ribbon-overlay {
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    z-index: 50;
+    pointer-events: auto;
+}
+
+.sis-ribbon-overlay .sis-ribbon {
+    box-shadow: 0 0.45rem 1.1rem color-mix(in srgb, var(--sis-night) 35%, transparent);
 }
 
 .sis-titlebar a,
@@ -559,6 +573,61 @@ html[data-sis-font-size] .sis-page-surface :where(*):not(svg):not(svg *) {
     overscroll-behavior-x: contain;
 }
 
+.sis-titlebar--with-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.35rem;
+}
+
+.sis-titlebar--with-search .sis-titlebar__menu {
+    flex: 0 1 auto;
+    max-width: max-content;
+}
+
+.sis-titlebar__search-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+    padding-inline: 0.25rem;
+    margin-inline-end: 0.75rem;
+}
+
+.sis-titlebar__search {
+    display: flex;
+    align-items: center;
+    width: min(22rem, 100%);
+    max-width: 24rem;
+    margin: 0;
+}
+
+.sis-titlebar__search .sis-admission-search {
+    width: 100%;
+    margin: 0;
+}
+
+.sis-titlebar__search .sis-admission-search__input {
+    width: 100%;
+    min-height: 1.85rem;
+    height: 1.85rem;
+    border: 1px solid color-mix(in srgb, var(--sis-pearl) 55%, var(--sis-steel));
+    background: color-mix(in srgb, var(--sis-night) 70%, var(--sis-pearl));
+    color: var(--sis-pearl);
+    font-family: var(--sis-chrome-font);
+    font-size: 0.88rem;
+    padding-inline: 0.55rem;
+}
+
+.sis-titlebar__search .sis-admission-search__input::placeholder {
+    color: color-mix(in srgb, var(--sis-pearl) 72%, var(--sis-mist));
+}
+
+.sis-titlebar__search .sis-admission-search__input:focus-visible {
+    outline: 1px solid var(--sis-pearl);
+    outline-offset: 0;
+}
+
 .sis-titlebar__menu-item {
     appearance: none;
     border: 0;
@@ -575,11 +644,6 @@ html[data-sis-font-size] .sis-page-surface :where(*):not(svg):not(svg *) {
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
-}
-
-.sis-titlebar__menu-item--active {
-    border-bottom-color: var(--sis-pearl);
 }
 
 .sis-titlebar__controls {
@@ -1741,6 +1805,303 @@ input[type='reset']:disabled {
 
 .sis-students-page .sis-admission-filter-stack > form.sis-students-gender-filter {
     margin-inline-start: 1.25rem;
+}
+
+.sis-enrollments-page.sis-admission-page {
+    gap: 0;
+    padding-block-start: 0;
+}
+
+.sis-enrollments-page .sis-enrollments-control-strip {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.28rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.1rem 0.45rem;
+    border: 0;
+    box-sizing: border-box;
+    background: color-mix(in srgb, var(--sis-pearl) 90%, var(--sis-mist));
+}
+
+.sis-enrollments-page .sis-enrollments-filters-bar {
+    display: flex;
+    flex: 8 1 0;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.28rem;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.sis-enrollments-page .sis-enrollments-status-actions {
+    display: flex;
+    flex: 3 1 0;
+    align-items: stretch;
+    height: 1.72rem;
+    min-height: 1.72rem;
+    max-height: 1.72rem;
+    margin: 0;
+    border: 1px solid var(--sis-oxford);
+    border-radius: 0;
+    width: auto;
+    min-width: 0;
+    background: color-mix(in srgb, var(--sis-pearl) 82%, var(--sis-mist));
+}
+
+.sis-enrollments-page .sis-enrollments-status-actions .sis-admission-drafts-table__transitions {
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+}
+
+.sis-enrollments-page .sis-enrollments-status-actions .sis-admission-drafts-table__transition {
+    display: inline-flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    min-width: 0;
+    height: 100%;
+    padding-inline: 0.28rem;
+    overflow: hidden;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.sis-enrollments-page .sis-admission-year-control {
+    min-height: 1.58rem !important;
+    height: 1.58rem !important;
+    padding-block: 0 !important;
+    padding-block-end: 0.12rem !important;
+    font-size: 0.68rem !important;
+    line-height: 1.2 !important;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip .sis-admission-year-control {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--year .sis-admission-year-control {
+    justify-content: center !important;
+    text-align: center !important;
+    text-align-last: center !important;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--year .sis-list-select__value {
+    width: 100%;
+    padding-inline: 0.85rem;
+    text-align: center;
+    text-align-last: center;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--branch .sis-admission-year-control,
+.sis-enrollments-page .sis-enrollments-filter-chip--department .sis-admission-year-control,
+.sis-enrollments-page .sis-enrollments-filter-chip--specialization .sis-admission-year-control {
+    font-size: 0.58rem !important;
+}
+
+.sis-enrollments-page .sis-enrollments-filters-bar .sis-admission-year-control,
+.sis-enrollments-page .sis-enrollments-filters-bar .sis-admission-year-control:hover,
+.sis-enrollments-page .sis-enrollments-filters-bar .sis-admission-year-control:focus,
+.sis-enrollments-page .sis-enrollments-filters-bar .sis-admission-year-control:focus-visible,
+.sis-enrollments-page .sis-enrollments-filters-bar .sis-admission-year-control:active {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip > .sis-admission-select-fit,
+.sis-enrollments-page .sis-enrollments-filter-chip > .sis-enrollments-filter-chip__control {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.sis-enrollments-page .sis-enrollments-status-tabs {
+    margin: 0.35rem 1rem 0;
+}
+
+.sis-enrollments-page .sis-enrollments-status-tabs .sis-admission-progress__segment {
+    min-height: 2.05rem !important;
+    height: 2.05rem !important;
+    max-height: 2.05rem !important;
+}
+
+.sis-enrollments-page .sis-enrollments-progress {
+    width: auto;
+    margin: 0.35rem 1rem 0.45rem;
+}
+
+.sis-enrollments-page .sis-admission-page-body {
+    padding-inline: 1rem;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip {
+    display: inline-flex;
+    flex: 1 1 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    min-width: 0;
+    height: 1.72rem;
+    min-height: 1.72rem;
+    max-height: 1.72rem;
+    border: 0;
+    overflow: hidden;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.72rem;
+    min-width: 1.72rem;
+    height: 100%;
+    background: var(--sis-pearl);
+    color: inherit;
+    border-inline-end: 0;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip__icon svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    display: block;
+    flex: 0 0 auto;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip__control,
+.sis-enrollments-page .sis-enrollments-filter-chip > .sis-admission-select-fit {
+    display: inline-flex;
+    flex: 1 1 auto;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding-inline: 0.1rem;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip .sis-list-select,
+.sis-enrollments-page .sis-enrollments-filter-chip .sis-list-select__trigger {
+    width: 100%;
+    min-width: 0;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--year {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--year .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-oxford) 14%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--gender {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--gender .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-mist) 18%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--branch {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--branch .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-steel) 16%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--department {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--department .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-night) 12%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--specialization {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--specialization .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-oxford) 14%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--class {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--class .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-steel) 14%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--section {
+    background: var(--sis-pearl);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip--section .sis-enrollments-filter-chip__icon {
+    background: color-mix(in srgb, var(--sis-mist) 16%, var(--sis-pearl));
+}
+
+.sis-enrollments-page .sis-enrollments-status-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    min-width: 0;
+    height: 100%;
+}
+
+.sis-enrollments-page .sis-enrollments-status-action__icon {
+    width: 0.78rem;
+    height: 0.78rem;
+    flex: 0 0 auto;
+    stroke-width: 2.2;
+}
+
+.sis-enrollments-page .sis-enrollments-status-action__label {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sis-enrollments-page .sis-enrollments-filter-chip .sis-list-select__value {
+    padding-inline: 0.35rem 1rem;
+    transform: translateY(-1px);
+}
+
+.sis-enrollments-page .sis-enrollments-structure-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem 0.85rem;
+    width: 100%;
+    margin: 0 0 0.55rem;
+    padding: 0.35rem 0.15rem;
+}
+
+.sis-enrollments-page .sis-enrollments-structure-filters > label {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: max-content;
 }
 
 .sis-students-page .sis-admission-search__input {

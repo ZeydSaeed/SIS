@@ -54,6 +54,7 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             documents: $workspace['documents'],
             gradeLevels: $workspace['grade_levels'],
             schools: $workspace['schools'],
+            branches: $workspace['branches'] ?? [],
             departments: $workspace['departments'],
             specializations: $workspace['specializations'],
             workflowSteps: $workspace['workflow_steps'],

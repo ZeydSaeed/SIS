@@ -388,6 +388,9 @@ final class AdmissionPageController extends Controller
             intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
             nationalId: $request->validated('national_id'),
             gradeLevelId: (int) $request->validated('grade_level_id'),
+            branchId: $request->validated('branch_id') !== null
+                ? (int) $request->validated('branch_id')
+                : null,
             departmentName: $request->validated('department_name') !== null && $request->validated('department_name') !== ''
                 ? (string) $request->validated('department_name')
                 : null,

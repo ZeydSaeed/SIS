@@ -29,6 +29,8 @@ export type DraftSchoolOption = {
 export type DraftNamedOption = {
     id: number;
     name: string;
+    branch_id?: number | null;
+    department_id?: number | null;
 };
 
 type Props = {
@@ -37,6 +39,7 @@ type Props = {
     periods: DraftPeriodOption[];
     schools: DraftSchoolOption[];
     gradeLevels: DraftNamedOption[];
+    branches: DraftNamedOption[];
     departments: DraftNamedOption[];
     specializations: DraftNamedOption[];
     canManage: boolean;
@@ -96,6 +99,7 @@ export function AdmissionApplicationDraftDialog({
     periods,
     schools,
     gradeLevels,
+    branches,
     departments,
     specializations,
     canManage,
@@ -111,6 +115,7 @@ export function AdmissionApplicationDraftDialog({
     const [periodId, setPeriodId] = useState<string>(String(defaultPeriodId));
     const [gradeLevelId, setGradeLevelId] = useState('');
     const [gradeName, setGradeName] = useState('');
+    const [branchId, setBranchId] = useState('');
     const [specializationId, setSpecializationId] = useState('');
     const [specializationName, setSpecializationName] = useState('');
     const [gender, setGender] = useState('1');
@@ -118,11 +123,38 @@ export function AdmissionApplicationDraftDialog({
     const [departmentName, setDepartmentName] = useState('');
     const [applicationAt, setApplicationAt] = useState(admissionDateTimeNow);
 
+    const filteredDepartments = useMemo(() => {
+        if (branchId === '') {
+            return departments;
+        }
+
+        return departments.filter(
+            (department) =>
+                department.branch_id == null || String(department.branch_id) === branchId,
+        );
+    }, [branchId, departments]);
+
+    const filteredSpecializations = useMemo(() => {
+        const selectedDepartment = filteredDepartments.find(
+            (department) => department.name === departmentName,
+        );
+        if (!selectedDepartment) {
+            return specializations;
+        }
+
+        return specializations.filter(
+            (item) =>
+                item.department_id == null
+                || item.department_id === selectedDepartment.id,
+        );
+    }, [departmentName, filteredDepartments, specializations]);
+
     useEffect(() => {
         if (open) {
             setPeriodId(String(activePeriods[0]?.id ?? ''));
             setGradeLevelId('');
             setGradeName('');
+            setBranchId('');
             setSpecializationId('');
             setSpecializationName('');
             setGender('1');
@@ -493,6 +525,32 @@ export function AdmissionApplicationDraftDialog({
                                             <input type="hidden" name="intended_grade_name" value={gradeName} />
                                         </OpsFormField>
                                         <OpsFormField
+                                            label={i18n.admission.branch}
+                                            name="branch_id"
+                                            error={errors.branch_id}
+                                        >
+                                            <SisListSelect
+                                                name="branch_id"
+                                                value={branchId}
+                                                options={[
+                                                    { value: '', label: i18n.admission.selectOption },
+                                                    ...branches.map((branch) => ({
+                                                        value: String(branch.id),
+                                                        label: branch.name,
+                                                    })),
+                                                ]}
+                                                onChange={(next) => {
+                                                    setBranchId(next);
+                                                    setDepartmentName('');
+                                                    setSpecializationId('');
+                                                    setSpecializationName('');
+                                                }}
+                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(branchId)}`}
+                                                dir="rtl"
+                                                ariaLabel={i18n.admission.branch}
+                                            />
+                                        </OpsFormField>
+                                        <OpsFormField
                                             label={i18n.admission.department}
                                             name="department_name"
                                             error={errors.department_name}
@@ -502,12 +560,16 @@ export function AdmissionApplicationDraftDialog({
                                                 value={departmentName}
                                                 options={[
                                                     { value: '', label: i18n.admission.selectOption },
-                                                    ...departments.map((department) => ({
+                                                    ...filteredDepartments.map((department) => ({
                                                         value: department.name,
                                                         label: department.name,
                                                     })),
                                                 ]}
-                                                onChange={setDepartmentName}
+                                                onChange={(next) => {
+                                                    setDepartmentName(next);
+                                                    setSpecializationId('');
+                                                    setSpecializationName('');
+                                                }}
                                                 triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(departmentName)}`}
                                                 dir="rtl"
                                                 ariaLabel={i18n.admission.department}
@@ -523,13 +585,13 @@ export function AdmissionApplicationDraftDialog({
                                                 value={specializationId}
                                                 options={[
                                                     { value: '', label: i18n.admission.selectOption },
-                                                    ...specializations.map((item) => ({
+                                                    ...filteredSpecializations.map((item) => ({
                                                         value: String(item.id),
                                                         label: item.name,
                                                     })),
                                                 ]}
                                                 onChange={(next) => {
-                                                    const option = specializations.find(
+                                                    const option = filteredSpecializations.find(
                                                         (item) => String(item.id) === next,
                                                     );
                                                     setSpecializationId(next);

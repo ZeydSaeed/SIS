@@ -90,6 +90,7 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 admittedClassName: $application['intended_grade_name'] ?? null,
                 notes: $application['notes'] ?? null,
                 schoolName: $application['school_name'] ?? null,
+                branchId: isset($application['branch_id']) ? (int) $application['branch_id'] : null,
                 departmentName: $application['department_name'] ?? null,
                 specializationName: $application['specialization_name'] ?? null,
                 schoolId: $command->schoolId,

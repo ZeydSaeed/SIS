@@ -24,6 +24,7 @@ final readonly class CreateApplicationDraftCommand implements Command
         public string $intendedGradeName,
         public ?string $nationalId = null,
         public ?int $gradeLevelId = null,
+        public ?int $branchId = null,
         public ?string $departmentName = null,
         public ?int $specializationId = null,
         public ?string $specializationName = null,

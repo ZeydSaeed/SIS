@@ -98,6 +98,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'guardian_mobile',
         'email',
         'school_name',
+        'branch_id',
         'department_name',
         'specialization_name',
         'stage_name',
@@ -109,10 +110,19 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
 
     public function findDetail(int $studentId, int $schoolId, ?int $academicYearId = null): ?StudentDetailDTO
     {
+        $studentsTable = SchemaHelper::qualified('students', 'students');
+        $branchesTable = SchemaHelper::qualified('organization', 'branches');
+
         $record = StudentRecord::query()
-            ->select(self::DETAIL_COLUMNS)
-            ->whereKey($studentId)
-            ->where('school_id', $schoolId)
+            ->from($studentsTable.' as s')
+            ->leftJoin($branchesTable.' as br', 'br.id', '=', 's.branch_id')
+            ->select(array_map(
+                static fn (string $column): string => 's.'.$column,
+                self::DETAIL_COLUMNS,
+            ))
+            ->addSelect('br.name as branch_name')
+            ->where('s.id', $studentId)
+            ->where('s.school_id', $schoolId)
             ->first();
 
         if ($record === null) {
@@ -333,6 +343,10 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             guardianMobile: $record->guardian_mobile,
             email: $record->email,
             schoolName: $record->school_name,
+            branchId: $record->branch_id !== null ? (int) $record->branch_id : null,
+            branchName: isset($record->branch_name) && is_string($record->branch_name) && $record->branch_name !== ''
+                ? $record->branch_name
+                : null,
             departmentName: $record->department_name,
             specializationName: $record->specialization_name,
             stageName: $record->stage_name,

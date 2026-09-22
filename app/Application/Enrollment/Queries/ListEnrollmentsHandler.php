@@ -22,11 +22,30 @@ final class ListEnrollmentsHandler implements QueryHandler
             $query->academicYearId,
             $query->page,
             $query->perPage,
+            $query->status,
+            $query->q,
+            $query->gender,
+            $query->classId,
+            $query->sectionId,
+            $query->departmentName,
+            $query->specializationId,
+            $query->branchId,
+            $query->departmentId,
         );
 
-        return new EnrollmentListPageDTO(
-            items: $page['items'],
-            pagination: $page['pagination'],
+        return EnrollmentListPageDTO::fromPage(
+            $page,
+            $this->enrollments->countByStatus(
+                $query->schoolId,
+                $query->academicYearId,
+                $query->gender,
+                $query->classId,
+                $query->sectionId,
+                $query->departmentName,
+                $query->specializationId,
+                $query->branchId,
+                $query->departmentId,
+            ),
         );
     }
 }

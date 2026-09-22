@@ -41,6 +41,8 @@ export type StudentDetail = {
     guardian_mobile?: string | null;
     email?: string | null;
     school_name?: string | null;
+    branch_id?: number | null;
+    branch_name?: string | null;
     department_name?: string | null;
     specialization_name?: string | null;
     stage_name?: string | null;
@@ -224,6 +226,7 @@ export function StudentDetailsSurface({
                     </>
                 ) : null}
                 <DetailField label={i18n.students.schoolName} value={student.school_name} />
+                <DetailField label={i18n.students.branchName} value={student.branch_name} />
                 <DetailField
                     label={i18n.students.academicYear}
                     value={

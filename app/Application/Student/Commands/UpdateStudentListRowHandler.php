@@ -98,6 +98,7 @@ final class UpdateStudentListRowHandler implements CommandHandler
             guardianMobile: $pii ? $command->guardianMobile : $current->guardianMobile,
             email: $pii ? $command->email : $current->email,
             schoolName: $overlay ? $command->schoolName : $current->schoolName,
+            branchId: $overlay ? $command->branchId : $current->branchId,
             departmentName: $command->departmentName,
             specializationName: $command->specializationName,
             stageName: $overlay ? $command->stageName : $current->stageName,
