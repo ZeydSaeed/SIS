@@ -48,12 +48,7 @@ final readonly class EnrollmentListPageDTO
         $stages = [
             ['status' => null, 'percent' => $total === 0 ? 0 : 100, 'count' => $total],
         ];
-        foreach ([
-            EnrollmentStatus::ACTIVE,
-            EnrollmentStatus::INACTIVE,
-            EnrollmentStatus::CANCELLED,
-            EnrollmentStatus::TRANSFERRED,
-        ] as $status) {
+        foreach (EnrollmentStatus::progressOrder() as $status) {
             $count = (int) ($countsByStatus[$status] ?? 0);
             $stages[] = [
                 'status' => $status,

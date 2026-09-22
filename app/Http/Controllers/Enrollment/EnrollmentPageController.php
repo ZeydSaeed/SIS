@@ -147,7 +147,7 @@ final class EnrollmentPageController extends Controller
             throw new AuthorizationException('This action is unauthorized.');
         }
 
-        if (in_array($status, [0, 2, 3], true) && ! $auth['canCancel']) {
+        if (in_array($status, [0, 2, 3, 4], true) && ! $auth['canCancel']) {
             throw new AuthorizationException('This action is unauthorized.');
         }
 

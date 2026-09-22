@@ -63,6 +63,11 @@ final class ChangeEnrollmentStatusesExecutor
                     $enrollment,
                     EnrollmentStatus::CANCELLED,
                 ),
+                EnrollmentStatus::DISMISSED => $this->moveToClosed(
+                    $command,
+                    $enrollment,
+                    EnrollmentStatus::DISMISSED,
+                ),
                 EnrollmentStatus::TRANSFERRED => $this->moveToClosed(
                     $command,
                     $enrollment,
@@ -72,7 +77,7 @@ final class ChangeEnrollmentStatusesExecutor
             };
         } catch (\Throwable) {
             // One invalid row must not abort single / multi / select-all batches
-            // (inactive / cancelled / transferred mixes included).
+            // (inactive / cancelled / dismissed / transferred mixes included).
             return false;
         }
     }
@@ -137,17 +142,17 @@ final class ChangeEnrollmentStatusesExecutor
                 return true;
             }
 
-            // Active → transferred (force path; closeAsTransferred is optimistic).
+            // Active → transferred / dismissed (force path; closeAsTransferred is optimistic).
             $this->enrollments->setClosedStatus(
                 $enrollment->id,
-                EnrollmentStatus::TRANSFERRED,
+                $targetStatus,
                 $effectiveTo,
             );
 
             return true;
         }
 
-        // Closed → closed (inactive / cancelled / transferred).
+        // Closed → closed (inactive / cancelled / dismissed / transferred).
         $this->enrollments->setClosedStatus($enrollment->id, $targetStatus, $effectiveTo);
 
         if ($targetStatus === EnrollmentStatus::CANCELLED) {

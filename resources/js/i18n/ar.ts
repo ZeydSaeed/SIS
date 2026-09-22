@@ -254,6 +254,7 @@ export const ar = {
         suspended: 'موقوف',
         graduated: 'متخرج',
         withdrawn: 'منسحب',
+        dismissed: 'مفصول',
         cancelled: 'ملغى',
         transferred: 'منقول',
         completed: 'مكتمل',

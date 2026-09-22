@@ -199,6 +199,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
                 EnrollmentStatus::CANCELLED,
                 EnrollmentStatus::INACTIVE,
                 EnrollmentStatus::TRANSFERRED,
+                EnrollmentStatus::DISMISSED,
             ])
             ->update([
                 'status' => EnrollmentStatus::ACTIVE,
@@ -213,6 +214,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             EnrollmentStatus::INACTIVE,
             EnrollmentStatus::CANCELLED,
             EnrollmentStatus::TRANSFERRED,
+            EnrollmentStatus::DISMISSED,
         ], true)) {
             throw new \InvalidArgumentException('setClosedStatus requires a closed enrollment status.');
         }

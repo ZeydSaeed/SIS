@@ -1573,7 +1573,7 @@ export function StudentList({
 
             <section
                 aria-label={i18n.students.statusTabsTitle}
-                className="sis-admission-progress sis-students-tabs sis-enrollments-status-tabs"
+                className="sis-admission-progress sis-students-tabs sis-enrollments-status-tabs sis-students-status-tabs"
             >
                 <ol className="sis-admission-progress__track" dir="rtl" role="tablist">
                     {STUDENT_STATUS_TABS.map((tab) => {
@@ -1633,6 +1633,7 @@ export function StudentList({
                     aria-valuemax={100}
                     aria-valuenow={overallPercent}
                     data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
+                    dir="rtl"
                 >
                     <span
                         className="sis-admission-progress__overall-fill"

@@ -2288,6 +2288,7 @@ button.sis-admission-enroll-status-text:active {
     min-height: 1.72rem;
     max-height: 1.72rem;
     margin: 0;
+    margin-inline: 1rem;
     border: 1px solid var(--sis-oxford);
     border-radius: 0;
     width: auto;
@@ -2408,9 +2409,9 @@ button.sis-admission-enroll-status-text:active {
 
 .sis-enrollments-page .sis-enrollments-status-tabs {
     box-sizing: border-box;
-    width: 100%;
+    width: auto;
     max-width: 100%;
-    margin: 0.35rem 0 0;
+    margin: 0.35rem 1rem 0;
 }
 
 .sis-enrollments-page .sis-enrollments-status-tabs .sis-admission-progress__segment {
@@ -2421,9 +2422,9 @@ button.sis-admission-enroll-status-text:active {
 
 .sis-enrollments-page .sis-enrollments-progress {
     box-sizing: border-box;
-    width: 100%;
+    width: auto;
     max-width: 100%;
-    margin: 0.35rem 0 0.45rem;
+    margin: 0.35rem 1rem 0.45rem;
 }
 
 .sis-enrollments-page .sis-admission-page-body {
@@ -2573,9 +2574,23 @@ button.sis-admission-enroll-status-text:active {
 
 .sis-students-page.sis-enrollments-page .sis-enrollments-status-tabs,
 .sis-students-page.sis-enrollments-page .sis-enrollments-progress {
-    margin-inline: 0;
-    width: 100%;
+    margin-inline: 1rem;
+    width: auto;
     max-width: 100%;
+}
+
+/* شريط التقدم: التعبئة من اليمين إلى اليسار */
+.sis-enrollments-page .sis-admission-progress__overall-track,
+.sis-students-page .sis-admission-progress__overall-track {
+    direction: rtl;
+}
+
+.sis-enrollments-page .sis-admission-progress__overall-fill,
+.sis-students-page .sis-admission-progress__overall-fill {
+    inset-inline-start: auto;
+    inset-inline-end: auto;
+    left: auto;
+    right: 0;
 }
 
 .sis-enrollments-page .sis-enrollments-filter-chip .sis-list-select__value {
@@ -3866,13 +3881,6 @@ button.sis-admission-enroll-status-text:active {
     z-index: 0;
     pointer-events: none;
     transition: width 180ms ease;
-}
-
-/* Students + enrollments: fill from physical left so chrome left edges stay flush */
-.sis-enrollments-page .sis-admission-progress__overall-fill {
-    inset-inline-start: auto;
-    left: 0;
-    right: auto;
 }
 
 .sis-admission-progress__overall-value {

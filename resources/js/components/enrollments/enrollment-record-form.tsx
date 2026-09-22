@@ -285,6 +285,7 @@ function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
         1: i18n.status.active,
         2: i18n.status.cancelled,
         3: i18n.status.transferred,
+        4: i18n.status.dismissed,
     };
 
     return labels[status] ?? String(status);
@@ -945,6 +946,7 @@ export function EnrollmentRecordForm({
                                         { value: '1', label: i18n.status.active },
                                         { value: '0', label: i18n.status.inactive },
                                         { value: '2', label: i18n.status.cancelled },
+                                        { value: '4', label: i18n.status.dismissed },
                                         { value: '3', label: i18n.status.transferred },
                                     ]}
                                     onChange={(next) => setField('status', next)}

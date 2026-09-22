@@ -576,7 +576,7 @@
 | section_id | BIGINT | FK → sections |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | enrollment_number | VARCHAR(50) | UNIQUE NOT NULL |
-| status | SMALLINT | NOT NULL DEFAULT 1 — 0=Inactive, 1=Active, 2=Cancelled, 3=Transferred |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 0=Inactive, 1=Active, 2=Cancelled, 4=Dismissed, 3=Transferred |
 | effective_from | DATE | NOT NULL |
 | effective_to | DATE | |
 | enrolled_by | BIGINT | FK → security.users |

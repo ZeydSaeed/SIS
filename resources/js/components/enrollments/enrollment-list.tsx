@@ -8,6 +8,7 @@ import {
     Pencil,
     Save,
     Trash2,
+    UserMinus,
     UserPlus,
     Users,
     XCircle,
@@ -96,6 +97,7 @@ const ENROLLMENT_STATUS_TABS: Array<{
     { status: 1, icon: CheckCircle2, tone: 'dark' },
     { status: 0, icon: PauseCircle, tone: 'light' },
     { status: 2, icon: CircleSlash, tone: 'light' },
+    { status: 4, icon: UserMinus, tone: 'light' },
     { status: 3, icon: ArrowRightLeft, tone: 'dark' },
 ];
 
@@ -107,6 +109,7 @@ const ENROLLMENT_STATUS_ACTIONS: Array<{
     { status: 1, icon: CheckCircle2, tone: 'dark' },
     { status: 0, icon: PauseCircle, tone: 'light' },
     { status: 2, icon: CircleSlash, tone: 'light' },
+    { status: 4, icon: UserMinus, tone: 'light' },
     { status: 3, icon: ArrowRightLeft, tone: 'dark' },
 ];
 
@@ -226,6 +229,7 @@ function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): stri
         1: i18n.status.active,
         2: i18n.status.cancelled,
         3: i18n.status.transferred,
+        4: i18n.status.dismissed,
     };
 
     return labels[status] ?? String(status);
@@ -370,7 +374,7 @@ export function EnrollmentList({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'enrollments.list',
-        columnSignature: canSelect ? 'select-v2' : 'readonly-v2',
+        columnSignature: canSelect ? 'select-v3' : 'readonly-v3',
         enabled: rows.length > 0,
     });
 
@@ -1531,13 +1535,14 @@ export function EnrollmentList({
                                         type="button"
                                         className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
                                         data-status={action.status}
-                                        disabled={
-                                            !canApplyStatus
-                                            || ((action.status === 0
-                                                || action.status === 2
-                                                || action.status === 3)
-                                                && !authorization.canCancel)
-                                        }
+                                    disabled={
+                                        !canApplyStatus
+                                        || ((action.status === 0
+                                            || action.status === 2
+                                            || action.status === 3
+                                            || action.status === 4)
+                                            && !authorization.canCancel)
+                                    }
                                         aria-label={actionLabel}
                                         title={
                                             canApplyStatus
@@ -1558,7 +1563,7 @@ export function EnrollmentList({
 
             <section
                 aria-label={i18n.enrollments.statusTabsTitle}
-                className="sis-admission-progress sis-students-tabs sis-enrollments-status-tabs"
+                className="sis-admission-progress sis-students-tabs sis-enrollments-status-tabs sis-enrollment-status-tabs"
             >
                 <ol className="sis-admission-progress__track" dir="rtl" role="tablist">
                     {ENROLLMENT_STATUS_TABS.map((tab) => {
@@ -1618,6 +1623,7 @@ export function EnrollmentList({
                     aria-valuemax={100}
                     aria-valuenow={overallPercent}
                     data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
+                    dir="rtl"
                 >
                     <span
                         className="sis-admission-progress__overall-fill"
@@ -1669,9 +1675,7 @@ export function EnrollmentList({
                                                 <th>{i18n.enrollments.stageName}</th>
                                                 <th>{i18n.enrollments.effectiveFrom}</th>
                                                 <th>{i18n.enrollments.effectiveTo}</th>
-                                                <th className="sis-admission-drafts-table__enroll-head">
-                                                    {i18n.enrollments.studentRegistrationColumn}
-                                                </th>
+                                                <th>{i18n.enrollments.statusTabsTitle}</th>
                                             </tr>
                                         </thead>
                                         <tbody>

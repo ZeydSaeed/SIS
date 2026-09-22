@@ -64,7 +64,8 @@ final class EnrollmentUiTest extends TestCase
                 ->where('enrollments.status_progress.stages.1.status', 1)
                 ->where('enrollments.status_progress.stages.2.status', 0)
                 ->where('enrollments.status_progress.stages.3.status', 2)
-                ->where('enrollments.status_progress.stages.4.status', 3)
+                ->where('enrollments.status_progress.stages.4.status', 4)
+                ->where('enrollments.status_progress.stages.5.status', 3)
                 ->where('authorization.canView', true)
                 ->where('authorization.canCreate', true)
                 ->where('authorization.canCancel', true));
@@ -141,7 +142,8 @@ final class EnrollmentUiTest extends TestCase
                 ->where('enrollments.status_progress.stages.1.count', 1)
                 ->where('enrollments.status_progress.stages.2.count', 0)
                 ->where('enrollments.status_progress.stages.3.count', 1)
-                ->where('enrollments.status_progress.stages.4.count', 0));
+                ->where('enrollments.status_progress.stages.4.count', 0)
+                ->where('enrollments.status_progress.stages.5.count', 0));
     }
 
     #[Test]

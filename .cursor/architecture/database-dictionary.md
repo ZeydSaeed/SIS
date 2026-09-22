@@ -83,7 +83,7 @@
 | section_id | BIGINT | NO | sections | 50 students max typical |
 | specialization_id | BIGINT | YES | specializations | Vocational track |
 | enrollment_number | VARCHAR(50) | NO | UNIQUE | Official enrollment # |
-| status | SMALLINT | NO | | 1=active, transferred, etc. |
+| status | SMALLINT | NO | | 1=active, 0=inactive, 2=cancelled, 4=dismissed, 3=transferred |
 | effective_from | DATE | NO | | Start date |
 | effective_to | DATE | YES | | End on transfer/withdraw |
 
