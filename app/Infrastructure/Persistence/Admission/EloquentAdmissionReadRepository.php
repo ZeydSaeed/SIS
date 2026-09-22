@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryInterface
 {
-    private const DEFAULT_PER_PAGE = 15;
+    private const DEFAULT_PER_PAGE = 17;
 
     private const MAX_PER_PAGE = 100;
 
@@ -47,6 +47,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         int $perPage = self::DEFAULT_PER_PAGE,
         ?int $applicationPeriodId = null,
         ?string $search = null,
+        ?string $enrollmentStatus = null,
     ): array {
         $page = max(1, $page);
         $perPage = max(1, min(self::MAX_PER_PAGE, $perPage));
@@ -98,6 +99,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 $perPage,
                 $applicationPeriodId,
                 $search,
+                $enrollmentStatus,
             );
             $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 1;
             if ($page > $totalPages) {
@@ -110,6 +112,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                     $perPage,
                     $applicationPeriodId,
                     $search,
+                    $enrollmentStatus,
                 );
             }
             $applicationIds = array_map(static fn (array $app): int => $app['id'], $applications);
@@ -191,6 +194,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         ?int $statusFilter,
         ?int $applicationPeriodId = null,
         ?string $search = null,
+        ?string $enrollmentStatus = null,
     ) {
         $query = DB::table(SchemaHelper::qualified('admission', 'applications').' as apps')
             ->join(
@@ -228,7 +232,90 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             });
         }
 
+        $this->applyEnrollmentStatusFilter($query, $schoolId, $academicYearId, $statusFilter, $enrollmentStatus);
+
         return $query;
+    }
+
+    /**
+     * Filter converted applicants by student-profile completeness
+     * (same checklist as resources/js/.../student-profile-gaps.ts).
+     * awaiting = has gaps → UI «متابعة التسجيل»
+     * completed = no gaps → UI «تم التسجيل»
+     *
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyEnrollmentStatusFilter(
+        $query,
+        int $schoolId,
+        int $academicYearId,
+        ?int $statusFilter,
+        ?string $enrollmentStatus,
+    ): void {
+        if ($statusFilter !== ApplicationStatus::Converted->value) {
+            return;
+        }
+
+        if ($enrollmentStatus !== 'awaiting' && $enrollmentStatus !== 'completed') {
+            return;
+        }
+
+        $students = SchemaHelper::qualified('students', 'students');
+        $profileComplete = function ($sub) use ($students): void {
+            $textFilled = static fn (string $column): string => "nullif(btrim(stu.{$column}::text), '') is not null";
+
+            $sub->select(DB::raw('1'))
+                ->from($students.' as stu')
+                ->whereColumn('stu.id', 'apps.student_id')
+                ->whereRaw($textFilled('first_name'))
+                ->whereRaw($textFilled('father_name'))
+                ->whereRaw($textFilled('grandfather_name'))
+                ->whereRaw($textFilled('great_grandfather_name'))
+                ->whereRaw($textFilled('last_name'))
+                ->whereRaw($textFilled('mother_name'))
+                ->whereRaw($textFilled('maternal_father_name'))
+                ->whereRaw($textFilled('maternal_grandfather_name'))
+                ->whereNotNull('stu.birth_date')
+                ->whereRaw($textFilled('birth_place'))
+                ->whereIn('stu.gender', [1, 2])
+                ->whereRaw($textFilled('nationality'))
+                ->whereIn('stu.religion', [1, 2, 3])
+                ->whereRaw($textFilled('national_id'))
+                ->whereNotNull('stu.mawalid_date')
+                ->whereRaw($textFilled('registration_place'))
+                ->whereRaw($textFilled('governorate'))
+                ->whereRaw($textFilled('neighborhood'))
+                ->whereRaw($textFilled('locality'))
+                ->whereRaw($textFilled('house_number'))
+                ->whereRaw($textFilled('school_name'))
+                ->whereNotNull('stu.admitted_academic_year_id')
+                ->whereNotNull('stu.school_start_date')
+                ->whereRaw($textFilled('guardian_triple_name'))
+                ->whereRaw($textFilled('mobile'))
+                ->whereRaw($textFilled('guardian_mobile'))
+                ->where(function ($transfer) use ($textFilled): void {
+                    // Transfer fields optional unless any transfer value is present.
+                    $transfer->where(function ($empty): void {
+                        $empty->where(function ($q): void {
+                            $q->whereNull('stu.previous_school_name')
+                                ->orWhereRaw("btrim(stu.previous_school_name::text) = ''");
+                        })
+                            ->whereNull('stu.transfer_document_number')
+                            ->whereNull('stu.transfer_document_date');
+                    })->orWhere(function ($filled) use ($textFilled): void {
+                        $filled->whereRaw($textFilled('previous_school_name'))
+                            ->whereNotNull('stu.transfer_document_number')
+                            ->whereNotNull('stu.transfer_document_date');
+                    });
+                });
+        };
+
+        $query->whereNotNull('apps.student_id');
+        if ($enrollmentStatus === 'awaiting') {
+            $query->whereNotExists($profileComplete);
+        } else {
+            $query->whereExists($profileComplete);
+        }
     }
 
     /**
@@ -244,6 +331,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         int $perPage,
         ?int $applicationPeriodId = null,
         ?string $search = null,
+        ?string $enrollmentStatus = null,
     ): array {
         $offset = ($page - 1) * $perPage;
 
@@ -253,6 +341,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             $statusFilter,
             $applicationPeriodId,
             $search,
+            $enrollmentStatus,
         )
             ->orderBy('apps.first_name')
             ->orderBy('apps.father_name')
@@ -272,6 +361,14 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.great_grandfather_name',
                 'apps.last_name',
                 'apps.mother_name',
+                'apps.maternal_father_name',
+                'apps.maternal_grandfather_name',
+                'apps.national_id',
+                'apps.birth_date',
+                'apps.birth_place',
+                'apps.gender',
+                'apps.governorate',
+                'apps.neighborhood',
                 'apps.target_school_id',
                 'apps.branch_id',
                 'apps.grade_level_id',
@@ -284,6 +381,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.reviewed_by',
                 'apps.reviewed_at',
                 'apps.notes',
+                'apps.student_id',
                 'apps.created_at',
                 'apps.updated_at',
                 DB::raw('COUNT(*) OVER() as full_count'),
@@ -291,7 +389,21 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
 
         $total = $rows->isEmpty() ? 0 : (int) $rows->first()->full_count;
 
-        $applications = $rows->map(static function ($row): array {
+        $studentIds = $rows
+            ->map(static fn ($row): ?int => $row->student_id !== null ? (int) $row->student_id : null)
+            ->filter(static fn (?int $id): bool => $id !== null)
+            ->values()
+            ->all();
+        $enrolledStudentIds = $this->activeEnrollmentStudentIds($schoolId, $academicYearId, $studentIds);
+        $studentRecords = $this->studentRecordsById($studentIds);
+
+        $applications = $rows->map(static function ($row) use ($enrolledStudentIds, $studentRecords): array {
+            $studentId = $row->student_id !== null ? (int) $row->student_id : null;
+            $status = (int) $row->status;
+            $needsEnrollment = $status === 9
+                && $studentId !== null
+                && ! isset($enrolledStudentIds[$studentId]);
+
             return [
                 'id' => (int) $row->id,
                 'application_period_id' => (int) $row->application_period_id,
@@ -302,6 +414,14 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'great_grandfather_name' => $row->great_grandfather_name !== null ? (string) $row->great_grandfather_name : null,
                 'last_name' => (string) $row->last_name,
                 'mother_name' => $row->mother_name !== null ? (string) $row->mother_name : null,
+                'maternal_father_name' => $row->maternal_father_name !== null ? (string) $row->maternal_father_name : null,
+                'maternal_grandfather_name' => $row->maternal_grandfather_name !== null ? (string) $row->maternal_grandfather_name : null,
+                'national_id' => $row->national_id !== null ? (string) $row->national_id : null,
+                'birth_date' => substr((string) $row->birth_date, 0, 10),
+                'birth_place' => $row->birth_place !== null ? (string) $row->birth_place : null,
+                'gender' => (int) $row->gender,
+                'governorate' => $row->governorate !== null ? (string) $row->governorate : null,
+                'neighborhood' => $row->neighborhood !== null ? (string) $row->neighborhood : null,
                 'target_school_id' => $row->target_school_id !== null ? (int) $row->target_school_id : null,
                 'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
                 'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
@@ -309,11 +429,14 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'department_name' => $row->department_name !== null ? (string) $row->department_name : null,
                 'specialization_id' => $row->specialization_id !== null ? (int) $row->specialization_id : null,
                 'specialization_name' => $row->specialization_name !== null ? (string) $row->specialization_name : null,
-                'status' => (int) $row->status,
+                'status' => $status,
                 'submitted_at' => $row->submitted_at !== null ? (string) $row->submitted_at : null,
                 'reviewed_by' => $row->reviewed_by !== null ? (int) $row->reviewed_by : null,
                 'reviewed_at' => $row->reviewed_at !== null ? (string) $row->reviewed_at : null,
                 'notes' => $row->notes !== null ? (string) $row->notes : null,
+                'student_id' => $studentId,
+                'needs_enrollment' => $needsEnrollment,
+                'student_record' => $studentId !== null ? ($studentRecords[$studentId] ?? null) : null,
                 'created_at' => (string) $row->created_at,
                 'updated_at' => (string) $row->updated_at,
             ];
@@ -499,5 +622,139 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'name' => (string) $row->name,
             ])
             ->all();
+    }
+
+    /**
+     * @param  list<int>  $studentIds
+     * @return array<int, true>
+     */
+    private function activeEnrollmentStudentIds(int $schoolId, int $academicYearId, array $studentIds): array
+    {
+        if ($studentIds === []) {
+            return [];
+        }
+
+        $enrollments = SchemaHelper::qualified('enrollment', 'enrollments');
+        $rows = DB::table($enrollments)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('status', 1)
+            ->whereNull('effective_to')
+            ->whereIn('student_id', $studentIds)
+            ->distinct()
+            ->pluck('student_id');
+
+        $map = [];
+        foreach ($rows as $studentId) {
+            $map[(int) $studentId] = true;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  list<int>  $studentIds
+     * @return array<int, array<string, mixed>>
+     */
+    private function studentRecordsById(array $studentIds): array
+    {
+        if ($studentIds === []) {
+            return [];
+        }
+
+        $students = SchemaHelper::qualified('students', 'students');
+        $rows = DB::table($students)
+            ->whereIn('id', $studentIds)
+            ->get([
+                'id',
+                'student_code',
+                'first_name',
+                'father_name',
+                'grandfather_name',
+                'great_grandfather_name',
+                'last_name',
+                'mother_name',
+                'maternal_father_name',
+                'maternal_grandfather_name',
+                'guardian_triple_name',
+                'governorate',
+                'neighborhood',
+                'locality',
+                'house_number',
+                'birth_date',
+                'birth_place',
+                'registration_place',
+                'gender',
+                'nationality',
+                'religion',
+                'mawalid_date',
+                'national_id',
+                'previous_school_name',
+                'transfer_document_number',
+                'transfer_document_date',
+                'school_start_date',
+                'admitted_class_name',
+                'notes',
+                'mobile',
+                'guardian_mobile',
+                'email',
+                'school_name',
+                'branch_id',
+                'department_name',
+                'specialization_name',
+                'stage_name',
+                'section_name',
+                'admitted_academic_year_id',
+                'status',
+            ]);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+            $map[$id] = [
+                'id' => $id,
+                'student_code' => (string) $row->student_code,
+                'first_name' => (string) $row->first_name,
+                'father_name' => $row->father_name !== null ? (string) $row->father_name : null,
+                'grandfather_name' => $row->grandfather_name !== null ? (string) $row->grandfather_name : null,
+                'great_grandfather_name' => $row->great_grandfather_name !== null ? (string) $row->great_grandfather_name : null,
+                'last_name' => (string) $row->last_name,
+                'mother_name' => $row->mother_name !== null ? (string) $row->mother_name : null,
+                'maternal_father_name' => $row->maternal_father_name !== null ? (string) $row->maternal_father_name : null,
+                'maternal_grandfather_name' => $row->maternal_grandfather_name !== null ? (string) $row->maternal_grandfather_name : null,
+                'guardian_triple_name' => $row->guardian_triple_name !== null ? (string) $row->guardian_triple_name : null,
+                'governorate' => $row->governorate !== null ? (string) $row->governorate : null,
+                'neighborhood' => $row->neighborhood !== null ? (string) $row->neighborhood : null,
+                'locality' => $row->locality !== null ? (string) $row->locality : null,
+                'house_number' => $row->house_number !== null ? (string) $row->house_number : null,
+                'birth_date' => substr((string) $row->birth_date, 0, 10),
+                'birth_place' => $row->birth_place !== null ? (string) $row->birth_place : null,
+                'registration_place' => $row->registration_place !== null ? (string) $row->registration_place : null,
+                'gender' => (int) $row->gender,
+                'nationality' => $row->nationality !== null ? (string) $row->nationality : null,
+                'religion' => (int) $row->religion,
+                'mawalid_date' => $row->mawalid_date !== null ? substr((string) $row->mawalid_date, 0, 10) : null,
+                'national_id' => $row->national_id !== null ? (string) $row->national_id : null,
+                'previous_school_name' => $row->previous_school_name !== null ? (string) $row->previous_school_name : null,
+                'transfer_document_number' => $row->transfer_document_number !== null ? (int) $row->transfer_document_number : null,
+                'transfer_document_date' => $row->transfer_document_date !== null ? substr((string) $row->transfer_document_date, 0, 10) : null,
+                'school_start_date' => $row->school_start_date !== null ? substr((string) $row->school_start_date, 0, 10) : null,
+                'admitted_class_name' => $row->admitted_class_name !== null ? (string) $row->admitted_class_name : null,
+                'notes' => $row->notes !== null ? (string) $row->notes : null,
+                'mobile' => $row->mobile !== null ? (string) $row->mobile : null,
+                'guardian_mobile' => $row->guardian_mobile !== null ? (string) $row->guardian_mobile : null,
+                'email' => $row->email !== null ? (string) $row->email : null,
+                'school_name' => $row->school_name !== null ? (string) $row->school_name : null,
+                'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
+                'department_name' => $row->department_name !== null ? (string) $row->department_name : null,
+                'specialization_name' => $row->specialization_name !== null ? (string) $row->specialization_name : null,
+                'stage_name' => $row->stage_name !== null ? (string) $row->stage_name : null,
+                'section_name' => $row->section_name !== null ? (string) $row->section_name : null,
+                'academic_year_id' => $row->admitted_academic_year_id !== null ? (int) $row->admitted_academic_year_id : null,
+                'status' => (int) $row->status,
+            ];
+        }
+
+        return $map;
     }
 }

@@ -14,6 +14,8 @@ final readonly class EnrollStudentCommand implements Command
         public int $sectionId,
         public string $effectiveFrom,
         public ?int $specializationId = null,
+        public ?int $branchId = null,
+        public ?int $departmentId = null,
         public ?int $enrolledBy = null,
         public ?string $idempotencyKey = null,
     ) {}

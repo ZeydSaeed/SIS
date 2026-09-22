@@ -93,5 +93,10 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
 
         $this->assertTrue($result->success);
         $this->assertSame(81, $result->studentId);
+        $this->assertSame(12, $result->academicYearId);
+        $this->assertSame('صناعي', $result->departmentName);
+        $this->assertNull($result->specializationId);
+        $this->assertNull($result->gradeLevelId);
+        $this->assertNull($result->branchId);
     }
 }

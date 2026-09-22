@@ -16,6 +16,17 @@ final class ConvertApplicationRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'stay' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('stay')) {
+            $this->merge([
+                'stay' => filter_var($this->input('stay'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+            ]);
+        }
     }
 }

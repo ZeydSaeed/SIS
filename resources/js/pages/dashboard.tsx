@@ -1,6 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
-import { getSisModuleNavItems } from '@/nav/sis-module-nav';
+import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
+import { getSisModuleNavItems, type SisModuleNavItem } from '@/nav/sis-module-nav';
+import { t } from '@/i18n';
 
 /** One icon fill color per dashboard row (5 columns). */
 const ROW_ICON_COLORS = [
@@ -22,13 +25,61 @@ function cardBackgroundForRow(row: number): string {
     return ROW_ICON_COLORS[(row - 1 + n) % n];
 }
 
-export default function Dashboard() {
-    const tiles = getSisModuleNavItems().filter((item) => !item.sidebarOnly);
+function normalizeSearch(value: string): string {
+    return value.trim().toLocaleLowerCase('ar');
+}
+
+function tileMatchesQuery(item: SisModuleNavItem, query: string): boolean {
+    if (query === '') {
+        return true;
+    }
+
+    const needle = normalizeSearch(query);
 
     return (
-        <AppLayout breadcrumbs={[]}>
-            <Head title="Student Information System" />
-            <div className="sis-dashboard sis-dashboard-launch" lang="ar" dir="rtl">
+        normalizeSearch(item.title).includes(needle) ||
+        normalizeSearch(item.href).includes(needle)
+    );
+}
+
+/** Must render inside AppLayout so titlebar search context is an ancestor. */
+function DashboardWorkspace() {
+    const i18n = t();
+    const [searchQuery, setSearchQuery] = useState('');
+    const allTiles = useMemo(
+        () => getSisModuleNavItems().filter((item) => !item.sidebarOnly),
+        [],
+    );
+
+    const titlebarSearch = useMemo(
+        () => ({
+            committedQuery: searchQuery,
+            label: i18n.dashboard.searchAria,
+            placeholder: i18n.dashboard.search,
+            onDraftChange: (query: string) => {
+                setSearchQuery(query);
+            },
+            onCommit: (query: string) => {
+                setSearchQuery(query);
+            },
+        }),
+        [i18n.dashboard.search, i18n.dashboard.searchAria, searchQuery],
+    );
+
+    useRegisterPageTitlebarSearch(titlebarSearch);
+
+    const tiles = useMemo(
+        () => allTiles.filter((item) => tileMatchesQuery(item, searchQuery)),
+        [allTiles, searchQuery],
+    );
+
+    return (
+        <div className="sis-dashboard sis-dashboard-launch" lang="ar" dir="rtl">
+            {tiles.length === 0 ? (
+                <p className="sis-dashboard-launch__empty" role="status">
+                    {i18n.dashboard.emptySearch}
+                </p>
+            ) : (
                 <ul className="sis-dashboard-launch__grid" aria-label="وحدات النظام">
                     {tiles.map((item, index) => {
                         const Icon = item.icon;
@@ -60,7 +111,16 @@ export default function Dashboard() {
                         );
                     })}
                 </ul>
-            </div>
+            )}
+        </div>
+    );
+}
+
+export default function Dashboard() {
+    return (
+        <AppLayout breadcrumbs={[]}>
+            <Head title="Student Information System" />
+            <DashboardWorkspace />
         </AppLayout>
     );
 }

@@ -36,7 +36,7 @@ final readonly class AdmissionWorkspaceDTO
         public ?int $selectedPeriodId = null,
         public array $pagination = [
             'page' => 1,
-            'per_page' => 15,
+            'per_page' => 17,
             'total' => 0,
             'total_pages' => 1,
         ],

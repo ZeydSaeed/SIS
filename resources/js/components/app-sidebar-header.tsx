@@ -142,19 +142,7 @@ export function AppSidebarHeader({
     const onRibbonAction = useCallback((id: RibbonActionId) => {
         if (id === 'addStudent') {
             setActiveRibbon(null);
-            const [path, query = ''] = page.url.split('?');
-            if (path === '/students') {
-                const params = new URLSearchParams(query);
-                params.set('create', '1');
-                const next = params.toString();
-                router.get(
-                    next === '' ? '/students' : `/students?${next}`,
-                    {},
-                    { preserveState: true, preserveScroll: true },
-                );
-            } else {
-                router.visit('/students?create=1');
-            }
+            router.visit('/admission/converted?create_student=1');
 
             return;
         }
@@ -257,14 +245,20 @@ export function AppSidebarHeader({
     return (
         <div className="sis-chrome shrink-0">
             <header
-                className={`sis-titlebar flex min-h-10 shrink-0 items-center gap-2 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3${titlebarSearch ? ' sis-titlebar--with-search' : ''}`}
+                className={
+                    titlebarSearch
+                        ? 'sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3'
+                        : 'sis-titlebar flex min-h-10 shrink-0 items-center gap-2 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3'
+                }
                 dir="rtl"
             >
-                <SidebarTrigger className="sis-titlebar__trigger size-7 shrink-0" />
-                <TitleBarMenu
-                    activeRibbon={activeRibbon}
-                    onRibbonChange={setActiveRibbon}
-                />
+                <div className="sis-titlebar__start">
+                    <SidebarTrigger className="sis-titlebar__trigger size-7 shrink-0" />
+                    <TitleBarMenu
+                        activeRibbon={activeRibbon}
+                        onRibbonChange={setActiveRibbon}
+                    />
+                </div>
                 {titlebarSearch ? (
                     <div className="sis-titlebar__search-slot">
                         <div className="sis-titlebar__search">

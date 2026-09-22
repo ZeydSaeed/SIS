@@ -1,3 +1,4 @@
+import { PageErrorProvider } from '@/components/sis/page-error-context';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -13,6 +14,8 @@ export default function AppLayout({
     children: React.ReactNode;
 }) {
     return (
-        <AppSidebarLayout breadcrumbs={breadcrumbs}>{children}</AppSidebarLayout>
+        <PageErrorProvider>
+            <AppSidebarLayout breadcrumbs={breadcrumbs}>{children}</AppSidebarLayout>
+        </PageErrorProvider>
     );
 }

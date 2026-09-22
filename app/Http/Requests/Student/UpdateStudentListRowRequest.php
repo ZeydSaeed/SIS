@@ -29,6 +29,7 @@ final class UpdateStudentListRowRequest extends FormRequest
         unset($rules['student_code']);
         $rules['gender'] = ['nullable', 'integer', 'in:1,2'];
         $rules['religion'] = ['nullable', 'integer', 'in:1,2,3'];
+        $rules['academic_year_id'] = ['nullable', 'integer', 'min:1'];
 
         return array_merge($rules, SecuritySensitiveFieldGuard::prohibitedRules());
     }

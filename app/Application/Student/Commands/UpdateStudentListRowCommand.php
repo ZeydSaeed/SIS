@@ -47,5 +47,6 @@ final readonly class UpdateStudentListRowCommand implements Command
         public ?string $mobile = null,
         public ?string $guardianMobile = null,
         public ?string $email = null,
+        public ?int $admittedAcademicYearId = null,
     ) {}
 }

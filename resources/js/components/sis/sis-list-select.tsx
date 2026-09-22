@@ -39,7 +39,7 @@ function placeMenu(trigger: HTMLElement, menu: HTMLElement): void {
     menu.style.minWidth = `${Math.ceil(rect.width)}px`;
     menu.style.maxHeight = `${Math.min(MENU_MAX_PX, available)}px`;
 
-    const width = Math.max(rect.width, menu.offsetWidth);
+    const width = Math.max(rect.width, menu.offsetWidth || rect.width);
     let left = rect.right - width;
     if (left < gutter) {
         left = gutter;
@@ -58,6 +58,30 @@ function placeMenu(trigger: HTMLElement, menu: HTMLElement): void {
         menu.style.top = 'auto';
         menu.style.bottom = `${Math.round(window.innerHeight - rect.top + 2)}px`;
     }
+}
+
+function scrollOptionIntoMenu(menu: HTMLElement, option: HTMLElement): void {
+    const top = option.offsetTop;
+    const bottom = top + option.offsetHeight;
+    if (top < menu.scrollTop) {
+        menu.scrollTop = top;
+    } else if (bottom > menu.scrollTop + menu.clientHeight) {
+        menu.scrollTop = bottom - menu.clientHeight;
+    }
+}
+
+function getPortalRoot(): HTMLElement {
+    const existing = document.getElementById('sis-list-select-portal');
+    if (existing) {
+        return existing;
+    }
+
+    const root = document.createElement('div');
+    root.id = 'sis-list-select-portal';
+    root.setAttribute('data-sis-list-select-portal', '');
+    document.body.appendChild(root);
+
+    return root;
 }
 
 /** Custom list control: hidden vertical scrollbar, keyboard + wheel browsing. */
@@ -100,9 +124,10 @@ export function SisListSelect({
         }
 
         placeMenu(triggerRef.current, menuRef.current);
-        menuRef.current
-            .querySelector<HTMLElement>('[aria-selected="true"]')
-            ?.scrollIntoView({ block: 'nearest' });
+        const active = menuRef.current.querySelector<HTMLElement>('[aria-selected="true"]');
+        if (active !== null) {
+            scrollOptionIntoMenu(menuRef.current, active);
+        }
     }, [open, items.length, value]);
 
     useEffect(() => {
@@ -118,20 +143,21 @@ export function SisListSelect({
 
             setOpen(false);
         };
-        const onReposition = (event: Event) => {
-            if (menuRef.current?.contains(event.target as Node)) {
-                return;
-            }
 
-            setOpen(false);
+        const onReposition = () => {
+            if (triggerRef.current !== null && menuRef.current !== null) {
+                placeMenu(triggerRef.current, menuRef.current);
+            }
         };
 
-        document.addEventListener('pointerdown', onPointerDown);
+        // Capture-phase outside close — but NOT while the pointer is on our menu/trigger.
+        document.addEventListener('pointerdown', onPointerDown, true);
         window.addEventListener('resize', onReposition);
+        // Reposition on scroll instead of closing (dialog overflow scroll used to kill the menu).
         document.addEventListener('scroll', onReposition, true);
 
         return () => {
-            document.removeEventListener('pointerdown', onPointerDown);
+            document.removeEventListener('pointerdown', onPointerDown, true);
             window.removeEventListener('resize', onReposition);
             document.removeEventListener('scroll', onReposition, true);
         };
@@ -151,9 +177,11 @@ export function SisListSelect({
         setActiveIndex((current) => {
             const next = (current + delta + items.length) % items.length;
             requestAnimationFrame(() => {
-                menuRef.current
-                    ?.querySelector<HTMLElement>(`[data-index="${next}"]`)
-                    ?.scrollIntoView({ block: 'nearest' });
+                const menu = menuRef.current;
+                const option = menu?.querySelector<HTMLElement>(`[data-index="${next}"]`);
+                if (menu && option) {
+                    scrollOptionIntoMenu(menu, option);
+                }
             });
 
             return next;
@@ -173,31 +201,38 @@ export function SisListSelect({
                       className="sis-list-select__menu sis-scroll-hidden"
                       aria-label={ariaLabel}
                   >
-                      {items.map((item, index) => (
+                      {items.length === 0 ? (
                           <li
-                              key={item.value === '' ? 'blank' : item.value}
-                              id={optionId(listId, item.value)}
                               role="option"
-                              data-index={index}
-                              aria-selected={item.value === value}
-                              className={`sis-list-select__option${item.value === value ? ' is-selected' : ''}${index === activeIndex ? ' is-active' : ''}`}
-                              onMouseEnter={() => setActiveIndex(index)}
-                              onPointerDown={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  choose(item.value);
-                              }}
-                              onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  choose(item.value);
-                              }}
+                              aria-selected={false}
+                              aria-disabled="true"
+                              className="sis-list-select__option sis-list-select__option--empty"
                           >
-                              {item.label === '' ? '\u00a0' : item.label}
+                              —
                           </li>
-                      ))}
+                      ) : (
+                          items.map((item, index) => (
+                              <li
+                                  key={item.value === '' ? `blank-${index}` : item.value}
+                                  id={optionId(listId, item.value)}
+                                  role="option"
+                                  data-index={index}
+                                  aria-selected={item.value === value}
+                                  className={`sis-list-select__option${item.value === value ? ' is-selected' : ''}${index === activeIndex ? ' is-active' : ''}`}
+                                  onMouseEnter={() => setActiveIndex(index)}
+                                  onPointerDown={(event) => {
+                                      // Prevent Radix dialog dismiss + document outside-close racing.
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      choose(item.value);
+                                  }}
+                              >
+                                  {item.label === '' ? '\u00a0' : item.label}
+                              </li>
+                          ))
+                      )}
                   </ul>,
-                  document.body,
+                  getPortalRoot(),
               )
             : null;
 
@@ -223,7 +258,13 @@ export function SisListSelect({
                     open ? optionId(listId, items[activeIndex]?.value ?? '') : undefined
                 }
                 aria-required={required || undefined}
-                onClick={() => {
+                onPointerDown={(event) => {
+                    // Keep focus/pointer inside the control so dialog focus-trap does not steal the gesture.
+                    event.stopPropagation();
+                }}
+                onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                     if (!disabled) {
                         setOpen((current) => !current);
                     }
@@ -274,7 +315,7 @@ export function SisListSelect({
 
                     if (event.key === 'End') {
                         event.preventDefault();
-                        setActiveIndex(items.length - 1);
+                        setActiveIndex(Math.max(0, items.length - 1));
 
                         return;
                     }
@@ -287,7 +328,7 @@ export function SisListSelect({
             >
                 {variant === 'overlay' ? null : (
                     <span className="sis-list-select__value">
-                        {selected?.label === '' ? '\u00a0' : selected?.label}
+                        {selected?.label === '' ? '\u00a0' : (selected?.label ?? '—')}
                     </span>
                 )}
             </button>

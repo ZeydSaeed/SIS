@@ -5,6 +5,7 @@ import {
     type YearOption,
 } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { usePageError } from '@/components/sis/page-error-context';
 import {
     Dialog,
     DialogContent,
@@ -94,6 +95,7 @@ type EnrollmentCreateDialogProps = {
     filterOptions: EnrollmentFormFilterOptions;
     initialStudentId?: number | null;
     student?: EnrollmentCreateStudent | null;
+    initialDefaults?: EnrollmentCreateFormProps['initialDefaults'];
     onClose: () => void;
     onCreated?: () => void;
 };
@@ -116,6 +118,13 @@ type EnrollmentCreateFormProps = {
     filterOptions: EnrollmentFormFilterOptions;
     initialStudentId?: number | null;
     student?: EnrollmentCreateStudent | null;
+    initialDefaults?: {
+        class_id?: number | null;
+        branch_id?: number | null;
+        department_id?: number | null;
+        specialization_id?: number | null;
+        effective_from?: string | null;
+    };
     onCancel?: () => void;
     onCreated?: (studentId: number) => void;
     showCancel?: boolean;
@@ -142,6 +151,8 @@ type CreateDraft = {
     academic_year_id: string;
     class_id: string;
     section_id: string;
+    branch_id: string;
+    department_id: string;
     specialization_id: string;
     effective_from: string;
 };
@@ -492,6 +503,7 @@ export function EnrollmentRecordForm({
     initialEditing = false,
 }: EnrollmentRecordFormProps) {
     const i18n = t();
+    const { showError, showInertiaErrors } = usePageError();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
     const [editing, setEditing] = useState(initialEditing && canUpdate);
@@ -640,7 +652,10 @@ export function EnrollmentRecordForm({
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => finishSave(nextBase),
-                onError: () => setSaving(false),
+                onError: (errors) => {
+                    setSaving(false);
+                    showInertiaErrors(errors, i18n.errors.placementFailed);
+                },
             },
         );
     };
@@ -668,6 +683,7 @@ export function EnrollmentRecordForm({
 
         if (resolvedClassId === '' || resolvedSectionId === '') {
             setSaving(false);
+            showError(i18n.errors.missingClassSection);
 
             return;
         }
@@ -783,8 +799,9 @@ export function EnrollmentRecordForm({
                 preserveState: true,
                 only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
                 onSuccess: continueWithPlacement,
-                onError: () => {
+                onError: (errors) => {
                     // Placement/year/status must still persist even if student name update fails.
+                    showInertiaErrors(errors, i18n.errors.saveFailed);
                     continueWithPlacement();
                 },
             },
@@ -797,6 +814,7 @@ export function EnrollmentRecordForm({
         }
 
         if (draft.class_id === '' || draft.section_id === '') {
+            showError(i18n.errors.missingClassSection);
             return;
         }
 
@@ -820,7 +838,10 @@ export function EnrollmentRecordForm({
                     preserveState: true,
                     only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
                     onSuccess: () => savePlacementAndMeta(nextStatus),
-                    onError: () => setSaving(false),
+                    onError: (errors) => {
+                        setSaving(false);
+                        showInertiaErrors(errors, i18n.errors.statusFailed);
+                    },
                 },
             );
 
@@ -1183,11 +1204,13 @@ export function EnrollmentCreateForm({
     filterOptions,
     initialStudentId = null,
     student = null,
+    initialDefaults,
     onCancel,
     onCreated,
     showCancel = true,
 }: EnrollmentCreateFormProps) {
     const i18n = t();
+    const { showError, showInertiaErrors } = usePageError();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
     const [saving, setSaving] = useState(false);
@@ -1200,11 +1223,26 @@ export function EnrollmentCreateForm({
     const [draft, setDraft] = useState<CreateDraft>(() => ({
         student_id: lockedStudentId ? String(lockedStudentId) : '',
         academic_year_id: academicYearId ? String(academicYearId) : '',
-        class_id: '',
+        class_id: initialDefaults?.class_id ? String(initialDefaults.class_id) : '',
         section_id: '',
-        specialization_id: '',
-        effective_from: todayIso(),
+        branch_id: initialDefaults?.branch_id ? String(initialDefaults.branch_id) : '',
+        department_id: initialDefaults?.department_id ? String(initialDefaults.department_id) : '',
+        specialization_id: initialDefaults?.specialization_id
+            ? String(initialDefaults.specialization_id)
+            : '',
+        effective_from: initialDefaults?.effective_from?.trim() || todayIso(),
     }));
+
+    const filteredDepartments = useMemo(() => {
+        if (draft.branch_id === '') {
+            return filterOptions.departments;
+        }
+
+        return filterOptions.departments.filter(
+            (department) =>
+                department.branch_id === null || String(department.branch_id) === draft.branch_id,
+        );
+    }, [draft.branch_id, filterOptions.departments]);
 
     const filteredSections = useMemo(() => {
         if (draft.class_id === '') {
@@ -1252,6 +1290,7 @@ export function EnrollmentCreateForm({
             || draft.section_id === ''
             || draft.effective_from === ''
         ) {
+            showError(i18n.errors.requiredFields);
             return;
         }
 
@@ -1273,11 +1312,16 @@ export function EnrollmentCreateForm({
                 ...(draft.specialization_id === ''
                     ? {}
                     : { specialization_id: Number(draft.specialization_id) }),
+                ...(draft.branch_id === '' ? {} : { branch_id: Number(draft.branch_id) }),
+                ...(draft.department_id === ''
+                    ? {}
+                    : { department_id: Number(draft.department_id) }),
             },
             {
                 headers: { 'X-Idempotency-Key': idempotencyKey },
                 preserveScroll: true,
                 onSuccess: () => onCreated?.(studentId),
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.createFailed),
                 onFinish: () => setSaving(false),
             },
         );
@@ -1380,6 +1424,47 @@ export function EnrollmentCreateForm({
                                 }
                             />
                             <DraftOptionalSelect
+                                label={i18n.enrollments.branchName}
+                                editing
+                                value={draft.branch_id}
+                                display={draft.branch_id}
+                                options={[
+                                    { value: '', label: i18n.enrollments.allBranches },
+                                    ...filterOptions.branches.map((item) => ({
+                                        value: String(item.id),
+                                        label: item.name,
+                                    })),
+                                ]}
+                                onChange={(next) =>
+                                    setDraft((current) => ({
+                                        ...current,
+                                        branch_id: next,
+                                        department_id: '',
+                                    }))
+                                }
+                            />
+                            <DraftOptionalSelect
+                                label={i18n.enrollments.departmentName}
+                                editing
+                                value={draft.department_id}
+                                display={draft.department_id}
+                                options={[
+                                    { value: '', label: i18n.enrollments.allDepartments },
+                                    ...filteredDepartments.map((item) => ({
+                                        value: String(item.id),
+                                        label: item.name,
+                                    })),
+                                ]}
+                                onChange={(next) =>
+                                    setDraft((current) => ({
+                                        ...current,
+                                        department_id: next,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="sis-admission-draft-row">
+                            <DraftOptionalSelect
                                 label={i18n.enrollments.className}
                                 editing
                                 value={draft.class_id}
@@ -1418,8 +1503,6 @@ export function EnrollmentCreateForm({
                                     }))
                                 }
                             />
-                        </div>
-                        <div className="sis-admission-draft-row">
                             <DraftOptionalSelect
                                 label={i18n.enrollments.specialization}
                                 editing
@@ -1455,6 +1538,7 @@ export function EnrollmentCreateDialog({
     filterOptions,
     initialStudentId = null,
     student = null,
+    initialDefaults,
     onClose,
     onCreated,
 }: EnrollmentCreateDialogProps) {
@@ -1486,10 +1570,10 @@ export function EnrollmentCreateDialog({
                     }
                 }}
             >
-                <DialogHeader>
+                <DialogHeader className="sr-only">
                     <DialogTitle>{i18n.enrollments.createTitle}</DialogTitle>
-                    <DialogDescription id="enrollment-create-dialog-desc" className="sr-only">
-                        {i18n.enrollments.createDesc}
+                    <DialogDescription id="enrollment-create-dialog-desc">
+                        {i18n.enrollments.createTitle}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="sis-student-view-dialog__body">
@@ -1498,6 +1582,7 @@ export function EnrollmentCreateDialog({
                         filterOptions={filterOptions}
                         initialStudentId={initialStudentId}
                         student={student}
+                        initialDefaults={initialDefaults}
                         showCancel
                         onCancel={onClose}
                         onCreated={(studentId) => {

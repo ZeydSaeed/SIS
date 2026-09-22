@@ -7,6 +7,7 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { PageRibbonProvider } from '@/components/sis/page-ribbon-context';
 import { PageTitlebarHomeProvider } from '@/components/sis/page-titlebar-home-context';
 import { PageTitlebarSearchProvider } from '@/components/sis/page-titlebar-search-context';
+import { WorkflowFlashHost } from '@/components/sis/workflow-flash-host';
 import { restorePageAlignments } from '@/hooks/use-page-alignment';
 import { restorePageTextStyle } from '@/hooks/use-page-text-style';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ export default function AppSidebarLayout({
                             : 'sis-scroll-hidden overflow-x-hidden overflow-y-auto',
                     )}
                 >
+                    <WorkflowFlashHost />
                     {children}
                 </div>
             </AppContent>

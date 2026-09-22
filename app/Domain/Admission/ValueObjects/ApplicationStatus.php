@@ -32,7 +32,8 @@ enum ApplicationStatus: int
     }
 
     /**
-     * Allowed manual transitions (Converted only via ConvertApplicationToStudent).
+     * Allowed manual transitions.
+     * Converted only via ConvertApplicationToStudent or RegisterStudentViaAdmission.
      *
      * @return list<self>
      */

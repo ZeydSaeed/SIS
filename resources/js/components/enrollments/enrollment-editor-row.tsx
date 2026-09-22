@@ -13,6 +13,7 @@ import {
     type YearOption,
 } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { usePageError } from '@/components/sis/page-error-context';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { t } from '@/i18n';
 import type {
@@ -253,6 +254,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
         ref,
     ) {
         const i18n = t();
+        const { showError, showInertiaErrors } = usePageError();
         const { academicYears } = usePage().props as { academicYears?: YearOption[] };
         const years = academicYears ?? [];
         const name = studentQuadName(row);
@@ -409,6 +411,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             }
 
             if (resolvedClassId === '' || resolvedSectionId === '') {
+                showError(i18n.errors.missingClassSection);
                 return Promise.reject(new Error('enrollment-row-invalid'));
             }
 
@@ -436,7 +439,10 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                         preserveScroll: true,
                         preserveState: true,
                         onSuccess: () => resolve(),
-                        onError: () => reject(new Error('enrollment-row-save-failed')),
+                        onError: (errors) => {
+                            showInertiaErrors(errors, i18n.errors.placementFailed);
+                            reject(new Error('enrollment-row-save-failed'));
+                        },
                         onFinish: () => setSaving(false),
                     });
                 });
@@ -462,8 +468,9 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                                     reject(error);
                                 });
                             },
-                            onError: () => {
+                            onError: (errors) => {
                                 setSaving(false);
+                                showInertiaErrors(errors, i18n.errors.statusFailed);
                                 reject(new Error('enrollment-row-status-failed'));
                             },
                         },
@@ -481,6 +488,9 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             effectiveTo,
             filterOptions.sections,
             gender,
+            i18n.errors.missingClassSection,
+            i18n.errors.placementFailed,
+            i18n.errors.statusFailed,
             row.academic_year_id,
             row.class_id,
             row.effective_from,
@@ -488,6 +498,8 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             row.section_id,
             row.status,
             sectionId,
+            showError,
+            showInertiaErrors,
             specializationId,
             stageName,
             status,

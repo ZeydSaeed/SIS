@@ -1,11 +1,11 @@
 import { Form } from '@inertiajs/react';
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
     admissionDateTimeNow,
     parseAdmissionDateTime,
 } from '@/components/admission/format-admission-datetime';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
-import { SisListSelect } from '@/components/sis/sis-list-select';
+import { usePageError } from '@/components/sis/page-error-context';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -44,6 +44,13 @@ type Props = {
     specializations: DraftNamedOption[];
     canManage: boolean;
     academicYearId?: number | null;
+    /** draft = طلب قبول مسودة; createStudent = إضافة طالب → محوّل */
+    mode?: 'draft' | 'createStudent';
+};
+
+type DraftSelectOption = {
+    value: string;
+    label: string;
 };
 
 function filledClass(value: string): string {
@@ -53,6 +60,51 @@ function filledClass(value: string): string {
 function markFilled(event: ChangeEvent<HTMLInputElement>): void {
     const el = event.currentTarget;
     el.classList.toggle('sis-admission-draft-field--filled', el.value.trim() !== '');
+}
+
+/** Native select — reliable inside Radix dialogs (custom portal menus fail under modal layers). */
+function DraftNativeSelect({
+    name,
+    value,
+    options,
+    onChange,
+    required = false,
+    ariaLabel,
+    dir = 'rtl',
+    allowEmpty = false,
+    emptyLabel,
+}: {
+    name: string;
+    value: string;
+    options: DraftSelectOption[];
+    onChange: (value: string) => void;
+    required?: boolean;
+    ariaLabel: string;
+    dir?: 'rtl' | 'ltr';
+    allowEmpty?: boolean;
+    emptyLabel?: string;
+}) {
+    return (
+        <select
+            id={name}
+            name={name}
+            value={value}
+            required={required}
+            aria-label={ariaLabel}
+            dir={dir}
+            className={`sis-ops-hub__link sis-admission-draft-control sis-admission-draft-select${filledClass(value)}`}
+            onChange={(event) => onChange(event.target.value)}
+        >
+            {allowEmpty ? (
+                <option value="">{emptyLabel ?? '—'}</option>
+            ) : null}
+            {options.map((option) => (
+                <option key={option.value === '' ? `empty-${option.label}` : option.value} value={option.value}>
+                    {option.label}
+                </option>
+            ))}
+        </select>
+    );
 }
 
 function DraftApplicationWhen({ value }: { value: string }) {
@@ -104,8 +156,20 @@ export function AdmissionApplicationDraftDialog({
     specializations,
     canManage,
     academicYearId = null,
+    mode = 'draft',
 }: Props) {
     const i18n = t();
+    const { showInertiaErrors } = usePageError();
+    const isCreateStudent = mode === 'createStudent';
+    const formAction = isCreateStudent
+        ? '/admission/applications/register-student'
+        : '/admission/applications';
+    const dialogTitle = isCreateStudent
+        ? i18n.admission.createStudentDialogTitle
+        : i18n.admission.draftDialogTitle;
+    const submitLabel = isCreateStudent
+        ? i18n.admission.createStudentSubmit
+        : i18n.admission.createDraft;
     const activePeriods = useMemo(
         () => periods.filter((period) => period.status === 1),
         [periods],
@@ -122,6 +186,7 @@ export function AdmissionApplicationDraftDialog({
     const [schoolId, setSchoolId] = useState(String(defaultSchoolId));
     const [departmentName, setDepartmentName] = useState('');
     const [applicationAt, setApplicationAt] = useState(admissionDateTimeNow);
+    const wasOpenRef = useRef(false);
 
     const filteredDepartments = useMemo(() => {
         if (branchId === '') {
@@ -150,18 +215,22 @@ export function AdmissionApplicationDraftDialog({
     }, [departmentName, filteredDepartments, specializations]);
 
     useEffect(() => {
-        if (open) {
-            setPeriodId(String(activePeriods[0]?.id ?? ''));
-            setGradeLevelId('');
-            setGradeName('');
-            setBranchId('');
-            setSpecializationId('');
-            setSpecializationName('');
-            setGender('1');
-            setSchoolId(String(schools[0]?.id ?? ''));
-            setDepartmentName('');
-            setApplicationAt(admissionDateTimeNow());
+        const justOpened = open && !wasOpenRef.current;
+        wasOpenRef.current = open;
+        if (!justOpened) {
+            return;
         }
+
+        setPeriodId(String(activePeriods[0]?.id ?? ''));
+        setGradeLevelId('');
+        setGradeName('');
+        setBranchId('');
+        setSpecializationId('');
+        setSpecializationName('');
+        setGender('1');
+        setSchoolId(String(schools[0]?.id ?? ''));
+        setDepartmentName('');
+        setApplicationAt(admissionDateTimeNow());
     }, [open, activePeriods, schools]);
 
     const selectedPeriod = activePeriods.find((period) => String(period.id) === periodId);
@@ -171,37 +240,28 @@ export function AdmissionApplicationDraftDialog({
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 className="sis-admission-draft-dialog max-h-[90vh] overflow-y-auto sm:max-w-5xl"
                 dir="rtl"
                 lang="ar"
-                onPointerDownOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
-                onFocusOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
             >
                 <DialogHeader>
-                    <DialogTitle>{i18n.admission.draftDialogTitle}</DialogTitle>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
                 </DialogHeader>
 
                 {activePeriods.length === 0 ? (
                     <p className="text-muted-foreground text-sm">{i18n.admission.noOpenPeriod}</p>
                 ) : (
                     <Form
-                        action="/admission/applications"
+                        action={formAction}
                         method="post"
                         className="sis-admission-draft-form"
                         options={{ preserveScroll: true }}
                         onSuccess={() => onOpenChange(false)}
+                        onError={(errors) => showInertiaErrors(errors, i18n.errors.createFailed)}
                     >
                         {({ errors, processing }) => (
                             <>
@@ -215,7 +275,7 @@ export function AdmissionApplicationDraftDialog({
                                             name="application_period_id"
                                             error={errors.application_period_id}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="application_period_id"
                                                 required
                                                 value={periodId}
@@ -224,8 +284,6 @@ export function AdmissionApplicationDraftDialog({
                                                     label: period.name,
                                                 }))}
                                                 onChange={setPeriodId}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(periodId)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.periodName}
                                             />
                                         </OpsFormField>
@@ -414,7 +472,7 @@ export function AdmissionApplicationDraftDialog({
                                             name="gender"
                                             error={errors.gender}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="gender"
                                                 required
                                                 value={gender}
@@ -423,8 +481,6 @@ export function AdmissionApplicationDraftDialog({
                                                     { value: '2', label: i18n.admission.genderFemale },
                                                 ]}
                                                 onChange={setGender}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(gender)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.gender}
                                             />
                                         </OpsFormField>
@@ -481,7 +537,7 @@ export function AdmissionApplicationDraftDialog({
                                             name="target_school_id"
                                             error={errors.target_school_id}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="target_school_id"
                                                 required
                                                 value={schoolId}
@@ -490,8 +546,6 @@ export function AdmissionApplicationDraftDialog({
                                                     label: school.name,
                                                 }))}
                                                 onChange={setSchoolId}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(schoolId)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.school}
                                             />
                                         </OpsFormField>
@@ -500,17 +554,16 @@ export function AdmissionApplicationDraftDialog({
                                             name="grade_level_id"
                                             error={errors.grade_level_id ?? errors.intended_grade_name}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="grade_level_id"
                                                 required
                                                 value={gradeLevelId}
-                                                options={[
-                                                    { value: '', label: i18n.admission.selectOption },
-                                                    ...gradeLevels.map((level) => ({
-                                                        value: String(level.id),
-                                                        label: level.name,
-                                                    })),
-                                                ]}
+                                                allowEmpty
+                                                emptyLabel={i18n.admission.selectOption}
+                                                options={gradeLevels.map((level) => ({
+                                                    value: String(level.id),
+                                                    label: level.name,
+                                                }))}
                                                 onChange={(next) => {
                                                     const option = gradeLevels.find(
                                                         (level) => String(level.id) === next,
@@ -518,8 +571,6 @@ export function AdmissionApplicationDraftDialog({
                                                     setGradeLevelId(next);
                                                     setGradeName(option?.name ?? '');
                                                 }}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(gradeLevelId)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.gradeLevel}
                                             />
                                             <input type="hidden" name="intended_grade_name" value={gradeName} />
@@ -529,24 +580,21 @@ export function AdmissionApplicationDraftDialog({
                                             name="branch_id"
                                             error={errors.branch_id}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="branch_id"
                                                 value={branchId}
-                                                options={[
-                                                    { value: '', label: i18n.admission.selectOption },
-                                                    ...branches.map((branch) => ({
-                                                        value: String(branch.id),
-                                                        label: branch.name,
-                                                    })),
-                                                ]}
+                                                allowEmpty
+                                                emptyLabel={i18n.admission.selectOption}
+                                                options={branches.map((branch) => ({
+                                                    value: String(branch.id),
+                                                    label: branch.name,
+                                                }))}
                                                 onChange={(next) => {
                                                     setBranchId(next);
                                                     setDepartmentName('');
                                                     setSpecializationId('');
                                                     setSpecializationName('');
                                                 }}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(branchId)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.branch}
                                             />
                                         </OpsFormField>
@@ -555,23 +603,20 @@ export function AdmissionApplicationDraftDialog({
                                             name="department_name"
                                             error={errors.department_name}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="department_name"
                                                 value={departmentName}
-                                                options={[
-                                                    { value: '', label: i18n.admission.selectOption },
-                                                    ...filteredDepartments.map((department) => ({
-                                                        value: department.name,
-                                                        label: department.name,
-                                                    })),
-                                                ]}
+                                                allowEmpty
+                                                emptyLabel={i18n.admission.selectOption}
+                                                options={filteredDepartments.map((department) => ({
+                                                    value: department.name,
+                                                    label: department.name,
+                                                }))}
                                                 onChange={(next) => {
                                                     setDepartmentName(next);
                                                     setSpecializationId('');
                                                     setSpecializationName('');
                                                 }}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(departmentName)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.department}
                                             />
                                         </OpsFormField>
@@ -580,16 +625,15 @@ export function AdmissionApplicationDraftDialog({
                                             name="specialization_id"
                                             error={errors.specialization_id}
                                         >
-                                            <SisListSelect
+                                            <DraftNativeSelect
                                                 name="specialization_id"
                                                 value={specializationId}
-                                                options={[
-                                                    { value: '', label: i18n.admission.selectOption },
-                                                    ...filteredSpecializations.map((item) => ({
-                                                        value: String(item.id),
-                                                        label: item.name,
-                                                    })),
-                                                ]}
+                                                allowEmpty
+                                                emptyLabel={i18n.admission.selectOption}
+                                                options={filteredSpecializations.map((item) => ({
+                                                    value: String(item.id),
+                                                    label: item.name,
+                                                }))}
                                                 onChange={(next) => {
                                                     const option = filteredSpecializations.find(
                                                         (item) => String(item.id) === next,
@@ -597,8 +641,6 @@ export function AdmissionApplicationDraftDialog({
                                                     setSpecializationId(next);
                                                     setSpecializationName(option?.name ?? '');
                                                 }}
-                                                triggerClassName={`sis-ops-hub__link sis-admission-draft-control${filledClass(specializationId)}`}
-                                                dir="rtl"
                                                 ariaLabel={i18n.admission.specialization}
                                             />
                                             <input
@@ -619,7 +661,7 @@ export function AdmissionApplicationDraftDialog({
                                         {i18n.dialog.cancel}
                                     </Button>
                                     <Button type="submit" disabled={processing || schools.length === 0}>
-                                        {i18n.admission.createDraft}
+                                        {submitLabel}
                                     </Button>
                                 </div>
                             </>

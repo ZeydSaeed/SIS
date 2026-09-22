@@ -12,6 +12,7 @@ import {
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
 import { parseAdmissionDateTime } from '@/components/admission/format-admission-datetime';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { usePageError } from '@/components/sis/page-error-context';
 import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
@@ -138,6 +139,8 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
     ref,
 ) {
     const i18n = t().admission;
+    const { showError, showInertiaErrors } = usePageError();
+    const errorsI18n = t().errors;
     const [name, setName] = useState(period.name);
     const [academicYearId, setAcademicYearId] = useState(period.academic_year_id);
     const [startDate, setStartDate] = useState(period.start_date);
@@ -166,7 +169,12 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
     }, [editing, period]);
 
     const save = useCallback(() => {
-        if (!yearReady || saving || startDate === '' || endDate === '') {
+        if (!yearReady || saving) {
+            return;
+        }
+
+        if (startDate === '' || endDate === '') {
+            showError(errorsI18n.requiredFields);
             return;
         }
 
@@ -184,17 +192,22 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => onSaved(),
+                onError: (errors) => showInertiaErrors(errors, errorsI18n.saveFailed),
                 onFinish: () => setSaving(false),
             },
         );
     }, [
         academicYearId,
         endDate,
+        errorsI18n.requiredFields,
+        errorsI18n.saveFailed,
         maxApplications,
         name,
         onSaved,
         period.id,
         saving,
+        showError,
+        showInertiaErrors,
         startDate,
         yearReady,
     ]);
@@ -212,7 +225,11 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                 academic_year_id: academicYearId,
                 status: Number(status),
             },
-            { preserveScroll: true, preserveState: true },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onError: (errors) => showInertiaErrors(errors, errorsI18n.statusFailed),
+            },
         );
     };
 
@@ -339,6 +356,7 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
 
 export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Props) {
     const i18n = t();
+    const { showInertiaErrors } = usePageError();
     const searchQuery = useAdmissionSearchQuery();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = useMemo(() => {
@@ -492,6 +510,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                         setEditing(false);
                     }
                 },
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.deleteFailed),
                 onFinish: () => {
                     setArchiving(false);
                     setArchiveTarget(null);
@@ -512,6 +531,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                         method="post"
                         className="sis-admission-period-create"
                         options={{ preserveScroll: true }}
+                        onError={(errors) => showInertiaErrors(errors, i18n.errors.createFailed)}
                     >
                         {({ errors, processing }) => (
                             <>

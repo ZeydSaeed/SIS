@@ -10,6 +10,11 @@ final readonly class ConvertApplicationToStudentResult extends ApplicationResult
         bool $success,
         public ?int $applicationId = null,
         public ?int $studentId = null,
+        public ?int $academicYearId = null,
+        public ?int $branchId = null,
+        public ?int $specializationId = null,
+        public ?int $gradeLevelId = null,
+        public ?string $departmentName = null,
         array $errors = [],
         array $warnings = [],
         bool $fromIdempotencyCache = false,
@@ -17,14 +22,47 @@ final readonly class ConvertApplicationToStudentResult extends ApplicationResult
         parent::__construct($success, $errors, $warnings, $fromIdempotencyCache);
     }
 
-    public static function success(int $applicationId, int $studentId): self
-    {
-        return new self(true, $applicationId, $studentId);
+    public static function success(
+        int $applicationId,
+        int $studentId,
+        ?int $academicYearId = null,
+        ?int $branchId = null,
+        ?int $specializationId = null,
+        ?int $gradeLevelId = null,
+        ?string $departmentName = null,
+    ): self {
+        return new self(
+            true,
+            $applicationId,
+            $studentId,
+            $academicYearId,
+            $branchId,
+            $specializationId,
+            $gradeLevelId,
+            $departmentName,
+        );
     }
 
-    public static function fromIdempotency(int $applicationId, int $studentId): self
-    {
-        return new self(true, $applicationId, $studentId, fromIdempotencyCache: true);
+    public static function fromIdempotency(
+        int $applicationId,
+        int $studentId,
+        ?int $academicYearId = null,
+        ?int $branchId = null,
+        ?int $specializationId = null,
+        ?int $gradeLevelId = null,
+        ?string $departmentName = null,
+    ): self {
+        return new self(
+            true,
+            $applicationId,
+            $studentId,
+            $academicYearId,
+            $branchId,
+            $specializationId,
+            $gradeLevelId,
+            $departmentName,
+            fromIdempotencyCache: true,
+        );
     }
 
     /**

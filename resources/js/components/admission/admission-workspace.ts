@@ -41,6 +41,8 @@ export type AdmissionApplication = {
     reviewed_at: string | null;
     notes: string | null;
     student_id: number | null;
+    needs_enrollment?: boolean;
+    student_record?: Record<string, unknown> | null;
     created_at: string;
     updated_at: string;
     allowed_transitions?: number[];
@@ -110,6 +112,8 @@ export type AdmissionWorkspace = {
 
 export type AdmissionPageAuthorization = {
     can_manage: boolean;
+    can_update_student?: boolean;
+    can_view_student_pii?: boolean;
 };
 
 export const ADMISSION_STATUS_DRAFT = 1;
@@ -139,6 +143,7 @@ export function admissionWorkspaceQuery(
     periodId?: number | null,
     page?: number | null,
     search?: string | null,
+    enrollmentStatus?: string | null,
 ): string {
     const params = new URLSearchParams();
     if (academicYearId != null) {
@@ -155,6 +160,9 @@ export function admissionWorkspaceQuery(
     const queryText = search?.trim() ?? '';
     if (queryText !== '') {
         params.set('q', queryText);
+    }
+    if (enrollmentStatus === 'awaiting' || enrollmentStatus === 'completed') {
+        params.set('enrollment_status', enrollmentStatus);
     }
     const query = params.toString();
 

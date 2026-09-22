@@ -103,6 +103,9 @@ final class UpdateStudentListRowHandler implements CommandHandler
             specializationName: $command->specializationName ?? $current->specializationName,
             stageName: $command->stageName ?? $current->stageName,
             sectionName: $command->sectionName ?? $current->sectionName,
+            admittedAcademicYearId: $command->admittedAcademicYearId !== null
+                ? $command->admittedAcademicYearId
+                : $current->admittedAcademicYearId,
         );
     }
 }

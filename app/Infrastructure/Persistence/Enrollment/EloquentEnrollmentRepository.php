@@ -62,6 +62,8 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             'class_id' => $data->classId,
             'section_id' => $data->sectionId,
             'specialization_id' => $data->specializationId,
+            'branch_id' => $data->branchId,
+            'department_id' => $data->departmentId,
             'enrollment_number' => $data->enrollmentNumber,
             'status' => EnrollmentStatus::ACTIVE,
             'effective_from' => $data->effectiveFrom,

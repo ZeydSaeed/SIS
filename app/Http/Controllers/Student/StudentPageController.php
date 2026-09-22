@@ -19,6 +19,7 @@ use App\Http\Requests\Student\ChangeStudentStatusesRequest;
 use App\Http\Requests\Student\CreateStudentRequest;
 use App\Http\Requests\Student\UpdateStudentListRowRequest;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Http\Support\WorkflowFlash;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -144,9 +145,17 @@ final class StudentPageController extends Controller
             "student:{$result->studentId}",
         );
 
-        return redirect()
-            ->route('enrollments.create', ['student_id' => $result->studentId])
-            ->with('success', 'Student created.');
+        return WorkflowFlash::with(
+            redirect()->route('enrollments.create', ['student_id' => $result->studentId]),
+            [
+                'tone' => 'warning',
+                'title' => 'تم إنشاء سجل الطالب',
+                'message' => 'سجل الطالب محفوظ كهوية مدنية فقط. لن يظهر في جدول التسجيلات قبل اختيار السنة والصف والشعبة وإنشاء التوزيع.',
+                'action_href' => route('enrollments.create', ['student_id' => $result->studentId], absolute: false),
+                'action_label' => 'إكمال التوزيع الآن',
+                'step' => 'student.created',
+            ],
+        );
     }
 
     public function bulkStatus(
@@ -237,6 +246,7 @@ final class StudentPageController extends Controller
             mobile: $this->nullableString($validated, 'mobile'),
             guardianMobile: $this->nullableString($validated, 'guardian_mobile'),
             email: $this->nullableString($validated, 'email'),
+            admittedAcademicYearId: $this->nullableInt($validated, 'academic_year_id'),
         ));
 
         $this->securityAudit->record(

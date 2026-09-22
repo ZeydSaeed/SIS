@@ -622,59 +622,95 @@ body.sis-table-col-resizing * {
     overscroll-behavior-x: contain;
 }
 
+/* Menu | search fills gap to utilities | window utilities (Monitor next to search) */
 .sis-titlebar--with-search {
-    display: grid;
-    grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr) auto;
+    display: grid !important;
+    grid-template-columns: auto minmax(12rem, 1fr) auto;
     align-items: center;
-    column-gap: 0.35rem;
+    column-gap: 0.55rem;
+    width: 100%;
+}
+
+.sis-titlebar__start {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: 100%;
+    justify-self: start;
+}
+
+.sis-titlebar:not(.sis-titlebar--with-search) .sis-titlebar__leading {
+    margin-inline-start: auto;
 }
 
 .sis-titlebar--with-search .sis-titlebar__menu {
     flex: 0 1 auto;
-    max-width: max-content;
+    max-width: 100%;
 }
 
 .sis-titlebar__search-slot {
-    display: flex;
-    justify-content: center;
+    display: flex !important;
     align-items: center;
-    min-width: 0;
-    padding-inline: 0.25rem;
-    margin-inline-end: 0.75rem;
+    justify-self: stretch;
+    align-self: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 12rem;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+}
+
+.sis-titlebar--with-search .sis-titlebar__leading {
+    justify-self: end;
 }
 
 .sis-titlebar__search {
-    display: flex;
-    align-items: center;
-    width: min(22rem, 100%);
-    max-width: 24rem;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 12rem;
+    max-width: none;
     margin: 0;
 }
 
 .sis-titlebar__search .sis-admission-search {
+    display: block;
+    box-sizing: border-box;
     width: 100%;
     margin: 0;
 }
 
 .sis-titlebar__search .sis-admission-search__input {
+    display: block;
+    box-sizing: border-box;
     width: 100%;
+    min-width: 0;
     min-height: 1.85rem;
     height: 1.85rem;
-    border: 1px solid color-mix(in srgb, var(--sis-pearl) 55%, var(--sis-steel));
-    background: color-mix(in srgb, var(--sis-night) 70%, var(--sis-pearl));
-    color: var(--sis-pearl);
+    border: 1px solid color-mix(in srgb, var(--sis-pearl) 40%, var(--sis-steel));
+    background: var(--sis-pearl) !important;
+    color: var(--sis-night) !important;
     font-family: var(--sis-chrome-font);
     font-size: 0.88rem;
-    padding-inline: 0.55rem;
+    font-weight: 600;
+    padding-inline: 0.65rem;
+    text-align: start;
+    opacity: 1;
+    visibility: visible;
 }
 
 .sis-titlebar__search .sis-admission-search__input::placeholder {
-    color: color-mix(in srgb, var(--sis-pearl) 72%, var(--sis-mist));
+    color: color-mix(in srgb, var(--sis-steel) 70%, var(--sis-night));
+    opacity: 1;
 }
 
 .sis-titlebar__search .sis-admission-search__input:focus-visible {
     outline: 1px solid var(--sis-pearl);
-    outline-offset: 0;
+    outline-offset: 1px;
 }
 
 .sis-titlebar__menu-item {
@@ -1107,6 +1143,16 @@ input[type='reset']:disabled {
     justify-content: center;
 }
 
+.sis-dashboard-launch__empty {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    color: var(--sis-oxford);
+    font-family: var(--sis-font-stack);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: center;
+}
+
 .sis-dashboard-launch__grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1284,7 +1330,7 @@ input[type='reset']:disabled {
 
 .sis-list-select__menu {
     position: fixed;
-    z-index: 10050;
+    z-index: 20000;
     margin: 0;
     padding: 0.15rem 0;
     list-style: none;
@@ -1292,12 +1338,29 @@ input[type='reset']:disabled {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+    pointer-events: auto !important;
     background: var(--sis-pearl);
     color: var(--sis-oxford);
     border: 1px solid var(--sis-oxford);
     font-family: var(--sis-font-stack);
     font-size: 0.78rem;
     line-height: 1.35;
+}
+
+#sis-list-select-portal {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    pointer-events: none;
+}
+
+#sis-list-select-portal .sis-list-select__menu {
+    pointer-events: auto !important;
+}
+
+.sis-list-select__option--empty {
+    cursor: default;
+    opacity: 0.65;
 }
 
 .sis-list-select__option {
@@ -1339,6 +1402,288 @@ input[type='reset']:disabled {
 .sis-ops-hub__notice p + p {
     margin-top: 0.35rem;
     color: var(--sis-color-text-secondary);
+}
+
+/* Unified workflow guidance (admission → student → enrollment) */
+.sis-workflow-flash-host {
+    max-width: 100%;
+}
+
+.sis-workflow-notice {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.85rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--sis-oxford);
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-family: var(--sis-font-stack);
+}
+
+.sis-workflow-notice__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.1rem;
+    color: var(--sis-steel);
+}
+
+.sis-workflow-notice__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-workflow-notice__message {
+    margin: 0.35rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--sis-steel);
+}
+
+.sis-workflow-notice__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.sis-workflow-notice__action {
+    min-height: 2.25rem;
+}
+
+.sis-workflow-notice__dismiss {
+    min-height: 2.25rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid var(--sis-mist);
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--sis-steel);
+    font: inherit;
+    cursor: pointer;
+}
+
+.sis-workflow-notice__dismiss:hover,
+.sis-workflow-notice__dismiss:focus-visible {
+    border-color: var(--sis-oxford);
+    color: var(--sis-oxford);
+    outline: none;
+}
+
+.sis-workflow-notice--info {
+    border-color: var(--sis-mist);
+    background: color-mix(in srgb, var(--sis-pearl) 88%, var(--sis-mist));
+}
+
+.sis-workflow-notice--success {
+    border-color: var(--sis-oxford);
+    background: color-mix(in srgb, var(--sis-pearl) 90%, var(--sis-steel));
+}
+
+.sis-workflow-notice--warning {
+    border-color: var(--sis-steel);
+    background: color-mix(in srgb, var(--sis-pearl) 82%, var(--sis-mist));
+}
+
+.sis-workflow-notice--error {
+    border-color: var(--sis-night);
+    background: color-mix(in srgb, var(--sis-pearl) 85%, var(--sis-oxford));
+}
+
+.sis-workflow-notice--error .sis-workflow-notice__icon {
+    color: var(--sis-night);
+}
+
+.sis-admission-awaiting-enrollment {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--sis-steel);
+    background: color-mix(in srgb, var(--sis-pearl) 80%, var(--sis-mist));
+    color: var(--sis-oxford);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sis-admission-enrollment-completed {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--sis-oxford);
+    background: color-mix(in srgb, var(--sis-pearl) 70%, var(--sis-oxford));
+    color: var(--sis-night);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sis-admission-drafts-table__enroll-action {
+    min-width: 8rem;
+    max-width: 16rem;
+    white-space: nowrap;
+    vertical-align: middle;
+    text-align: center;
+    text-align-last: center;
+}
+
+/* ملف الطالب:
+   مستوفي = طلب قبول (0) أخف
+   متابعة الملف = قيد المراجعة (3) أخف */
+.sis-admission-drafts-table__enroll-action--file-complete {
+    background: color-mix(in srgb, var(--sis-admission-status-0) 38%, var(--sis-pearl));
+    color: var(--sis-oxford);
+}
+
+.sis-admission-drafts-table__enroll-action--file-incomplete {
+    background: color-mix(in srgb, var(--sis-admission-status-3) 42%, var(--sis-pearl));
+    color: var(--sis-oxford);
+}
+
+.sis-admission-drafts-table__enroll-action:has(.sis-admission-file-cell--open),
+.sis-admission-drafts-table__enroll-action:has(.sis-admission-gaps-accordion[open]) {
+    white-space: normal;
+}
+
+.sis-admission-file-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+    min-width: 0;
+    width: 100%;
+}
+
+.sis-admission-file-cell__row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    width: 100%;
+    direction: rtl;
+}
+
+.sis-admission-file-cell__toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0.1rem;
+    border: 0;
+    border-radius: 0.2rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.sis-admission-file-cell__toggle:hover,
+.sis-admission-file-cell__toggle:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--sis-oxford) 35%, transparent);
+    outline-offset: 1px;
+}
+
+.sis-admission-file-cell__chevron {
+    display: block;
+    transition: transform 0.15s ease;
+}
+
+.sis-admission-file-cell__toggle--open .sis-admission-file-cell__chevron {
+    transform: rotate(180deg);
+}
+
+.sis-admission-file-cell .sis-admission-gaps-accordion__list {
+    margin-top: 0.2rem;
+}
+
+.sis-admission-enroll-status-text {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: default;
+    text-decoration: none;
+}
+
+button.sis-admission-enroll-status-text {
+    cursor: pointer;
+}
+
+button.sis-admission-enroll-status-text:hover,
+button.sis-admission-enroll-status-text:focus,
+button.sis-admission-enroll-status-text:focus-visible,
+button.sis-admission-enroll-status-text:active {
+    text-decoration: none;
+    outline: none;
+    box-shadow: none;
+}
+
+.sis-admission-drafts-table__enroll-head {
+    white-space: nowrap;
+    text-align: center;
+    text-align-last: center;
+}
+
+.sis-admission-gaps-accordion {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+
+.sis-admission-gaps-accordion__summary {
+    display: inline;
+    cursor: pointer;
+    list-style: none;
+    color: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    user-select: none;
+    text-decoration: none;
+}
+
+.sis-admission-gaps-accordion__summary::-webkit-details-marker,
+.sis-admission-gaps-accordion__summary::marker {
+    display: none;
+    content: none;
+}
+
+.sis-admission-gaps-accordion__summary::before {
+    content: none;
+    display: none;
+}
+
+.sis-admission-gaps-accordion__list {
+    margin: 0.35rem 0 0;
+    padding-inline-start: 1rem;
+    color: var(--sis-oxford);
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: start;
+    white-space: normal;
+    list-style: disc;
+}
+
+.sis-admission-gaps-accordion__list li {
+    margin-block: 0.1rem;
 }
 
 
@@ -3020,44 +3365,14 @@ input[type='reset']:disabled {
 
 .sis-admission-page-head__row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     width: 100%;
     column-gap: 0.75rem;
 }
 
-.sis-admission-page-head__row > :first-child {
-    min-width: 0;
-    justify-self: start;
-    align-self: start;
-    margin: 0;
-}
-
-.sis-admission-page-head__row > :first-child .mt-0\.5 {
-    margin-top: 0 !important;
-}
-
-.sis-admission-page-head__row > :first-child.flex,
-.sis-admission-page-head__row > :first-child .flex {
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.sis-admission-page-head h1 {
-    margin: 0;
-    font-size: 1.25rem;
-    line-height: 1.2;
-}
-
-.sis-admission-page-head__icon {
-    width: 1.35rem;
-    height: 1.35rem;
-    color: var(--sis-oxford);
-}
-
 .sis-admission-active-periods {
-    justify-self: center;
+    justify-self: start;
     align-self: start;
     display: flex;
     flex-direction: column;
@@ -3066,61 +3381,6 @@ input[type='reset']:disabled {
     min-width: 0;
     max-width: 100%;
     margin: 0;
-}
-
-.sis-admission-workflow-title-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.28rem;
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100%;
-    margin: 0.2rem 0 0;
-}
-
-.sis-admission-workflow-title {
-    display: block;
-    box-sizing: border-box;
-    width: auto;
-    margin: 0;
-    padding: 0;
-    color: var(--sis-admission-surface-text);
-    font-size: 0.92rem;
-    font-weight: 650;
-    line-height: 1.15;
-    white-space: nowrap;
-}
-
-.sis-admission-workflow-title__exit {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin: 0;
-    margin-inline-start: auto;
-    padding: 0;
-    color: var(--sis-oxford);
-    background: transparent;
-    border: 0;
-    line-height: 0;
-    text-decoration: none;
-}
-
-.sis-admission-workflow-title__exit:hover,
-.sis-admission-workflow-title__exit:focus,
-.sis-admission-workflow-title__exit:focus-visible,
-.sis-admission-workflow-title__exit:active {
-    color: var(--sis-oxford);
-    background: transparent;
-    outline: none;
-    box-shadow: none;
-}
-
-.sis-admission-workflow-title__exit-icon {
-    width: 1.05rem;
-    height: 1.05rem;
 }
 
 .sis-admission-progress {
@@ -3213,6 +3473,10 @@ input[type='reset']:disabled {
     padding: 0.18rem 0.5rem;
     background: var(--sis-admission-period-card);
     border: 1px solid #000000;
+}
+
+.sis-admission-filters--with-enrollment {
+    grid-template-columns: 1fr 1fr 1fr;
 }
 
 .sis-admission-search {
@@ -3751,6 +4015,26 @@ input[type='reset']:disabled {
     background: var(--sis-admission-period-input);
     border: 1px solid #000000;
     border-radius: 0;
+    color: var(--sis-oxford);
+}
+
+.sis-admission-draft-form select.sis-admission-draft-select {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    appearance: auto;
+    -webkit-appearance: menulist;
+    background-image: none;
+    text-overflow: ellipsis;
+}
+
+.sis-admission-draft-form select.sis-admission-draft-select.sis-admission-draft-field--filled {
+    background: #5e6472;
+    color: #ffffff;
+}
+
+.sis-admission-draft-form select.sis-admission-draft-select option {
+    background: var(--sis-pearl);
     color: var(--sis-oxford);
 }
 
@@ -4730,6 +5014,23 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     line-height: 1.55;
 }
 
+.sis-confirm-dialog__copy-stack {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.sis-confirm-dialog__details {
+    margin: 0;
+    padding-inline-start: 1.15rem;
+    color: var(--sis-oxford);
+    font-size: 0.84rem;
+    line-height: 1.5;
+    list-style: disc;
+}
+
 .sis-confirm-dialog__actions {
     display: flex;
     flex-direction: row;
@@ -5045,6 +5346,9 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 
 .sis-student-record-form select.sis-student-record-form__value {
     cursor: pointer;
+    pointer-events: auto;
+    appearance: auto;
+    -webkit-appearance: menulist;
 }
 
 .sis-student-record-form select.sis-student-record-form__value option {

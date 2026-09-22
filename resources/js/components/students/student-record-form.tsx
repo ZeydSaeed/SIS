@@ -5,7 +5,7 @@ import {
     formatAcademicYearOptionLabel,
     type YearOption,
 } from '@/components/sis/ops-year-filter';
-import { SisListSelect } from '@/components/sis/sis-list-select';
+import { usePageError } from '@/components/sis/page-error-context';
 import {
     Dialog,
     DialogContent,
@@ -66,15 +66,21 @@ type StudentRecordFormProps = {
     canViewPii: boolean;
     canUpdate: boolean;
     mode?: 'edit' | 'create';
+    proceedLabel?: string;
+    initialEditing?: boolean;
     onSaved?: (student: StudentRecordFormValues) => void;
+    onProceed?: (student: StudentRecordFormValues) => void;
 };
 
 type StudentViewDialogProps = {
     students: StudentRecordFormValues[];
     canViewPii: boolean;
     canUpdate?: boolean;
+    proceedLabel?: string;
+    initialEditing?: boolean;
     onClose: () => void;
     onSaved?: (student: StudentRecordFormValues) => void;
+    onProceed?: (student: StudentRecordFormValues) => void;
 };
 
 type StudentCreateDialogProps = {
@@ -113,6 +119,7 @@ type DraftState = {
     guardian_mobile: string;
     email: string;
     school_name: string;
+    academic_year_id: number | null;
 };
 
 function emptyToNull(value: string): string | null {
@@ -213,6 +220,7 @@ function draftFromStudent(student: StudentRecordFormValues): DraftState {
         guardian_mobile: student.guardian_mobile ?? '',
         email: student.email ?? '',
         school_name: student.school_name ?? '',
+        academic_year_id: student.academic_year_id ?? null,
     };
 }
 
@@ -280,15 +288,21 @@ function isFilled(value: string | number | null | undefined): boolean {
 
 function AcademicYearListField({
     label,
+    editing,
+    value,
     student,
+    onChange,
 }: {
     label: string;
+    editing: boolean;
+    value: number | null;
     student: StudentRecordFormValues;
+    onChange: (value: number | null) => void;
 }) {
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
-    const selectedId = student.academic_year_id ?? null;
-    const value = selectedId === null ? '' : String(selectedId);
+    const selectedId = value;
+    const selectValue = selectedId === null ? '' : String(selectedId);
     const options = years.map((year) => ({
         value: String(year.id),
         label: formatAcademicYearOptionLabel(year.name, year.code),
@@ -300,31 +314,50 @@ function AcademicYearListField({
     ) {
         options.unshift({
             value: String(selectedId),
-            label: displayAcademicYear(student),
+            label: displayAcademicYear({ ...student, academic_year_id: selectedId }),
         });
     }
 
-    if (options.length === 0) {
-        options.push({
-            value: value || 'none',
-            label: displayAcademicYear(student),
-        });
-    }
-
-    const filled = isFilled(displayAcademicYear(student));
+    const displayLabel =
+        selectedId === null
+            ? '—'
+            : options.find((option) => option.value === String(selectedId))?.label
+              ?? displayAcademicYear({ ...student, academic_year_id: selectedId });
+    const filled = isFilled(displayLabel === '—' ? '' : displayLabel);
 
     return (
         <label className="flex flex-col gap-1 text-sm">
             <span>{label}</span>
-            <div className={`${controlClass(filled)} sis-student-record-form__year-list`}>
-                <SisListSelect
-                    value={value}
-                    options={options}
-                    onChange={() => undefined}
-                    triggerClassName="sis-student-record-form__value"
-                    dir="ltr"
-                    ariaLabel={label}
-                />
+            <div
+                className={`${controlClass(filled)} sis-student-record-form__year-list${editing ? '' : ' sis-admission-draft-readonly'}`}
+            >
+                {editing ? (
+                    <select
+                        className="sis-student-record-form__value"
+                        dir="ltr"
+                        aria-label={label}
+                        value={selectValue}
+                        onChange={(event) => {
+                            const next = event.target.value;
+                            if (next === '') {
+                                onChange(null);
+                                return;
+                            }
+
+                            const parsed = Number(next);
+                            onChange(Number.isFinite(parsed) ? parsed : null);
+                        }}
+                    >
+                        <option value="">{label}</option>
+                        {options.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    displayLabel
+                )}
             </div>
         </label>
     );
@@ -390,46 +423,40 @@ function DraftSelect({
     const selected = options.some((option) => option.value === value)
         ? String(value)
         : '';
-    const selectOptions =
-        selected === ''
-            ? [
-                  { value: '', label },
-                  ...options.map((option) => ({
-                      value: String(option.value),
-                      label: option.label,
-                  })),
-              ]
-            : options.map((option) => ({
-                  value: String(option.value),
-                  label: option.label,
-              }));
 
     return (
-        <div className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm">
             <span>{label}</span>
             <div
                 className={`${controlClass(isFilled(editing ? selected || display : display))}${editing ? '' : ' sis-admission-draft-readonly'}`}
             >
                 {editing ? (
-                    <SisListSelect
+                    <select
+                        className="sis-student-record-form__value"
+                        dir="rtl"
+                        aria-label={label}
                         value={selected}
-                        options={selectOptions}
-                        onChange={(next) => {
+                        onChange={(event) => {
+                            const next = event.target.value;
                             if (next === '') {
                                 return;
                             }
 
                             onChange(Number(next));
                         }}
-                        triggerClassName="sis-student-record-form__value"
-                        dir="rtl"
-                        ariaLabel={label}
-                    />
+                    >
+                        {selected === '' ? <option value="">{label}</option> : null}
+                        {options.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
                 ) : (
                     display
                 )}
             </div>
-        </div>
+        </label>
     );
 }
 
@@ -493,11 +520,15 @@ export function StudentRecordForm({
     canViewPii,
     canUpdate,
     mode = 'edit',
+    proceedLabel,
+    initialEditing = false,
     onSaved,
+    onProceed,
 }: StudentRecordFormProps) {
     const i18n = t();
+    const { showError, showInertiaErrors } = usePageError();
     const isCreate = mode === 'create';
-    const [editing, setEditing] = useState(isCreate);
+    const [editing, setEditing] = useState(isCreate || initialEditing);
     const [saving, setSaving] = useState(false);
     const [draft, setDraft] = useState<DraftState>(() => draftFromStudent(student));
 
@@ -567,6 +598,10 @@ export function StudentRecordForm({
             school_name: emptyToNull(draft.school_name),
         };
 
+        if (draft.academic_year_id !== null) {
+            payload.academic_year_id = draft.academic_year_id;
+        }
+
         if (canViewPii) {
             payload.national_id = emptyToNull(draft.national_id);
             payload.mobile = emptyToNull(draft.mobile);
@@ -582,6 +617,16 @@ export function StudentRecordForm({
             return;
         }
 
+        if (draft.first_name.trim() === '' || draft.last_name.trim() === '' || draft.birth_date === '') {
+            showError(i18n.errors.requiredFields);
+            return;
+        }
+
+        if (draft.gender !== 1 && draft.gender !== 2) {
+            showError(i18n.errors.requiredFields);
+            return;
+        }
+
         setSaving(true);
         const payload = buildPayload();
 
@@ -593,8 +638,7 @@ export function StudentRecordForm({
 
             router.post('/students', payload, {
                 headers: { 'X-Idempotency-Key': idempotencyKey },
-                preserveScroll: true,
-                preserveState: true,
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.createFailed),
                 onFinish: () => setSaving(false),
             });
 
@@ -635,6 +679,7 @@ export function StudentRecordForm({
                     school_start_date: emptyToNull(draft.school_start_date),
                     notes: emptyToNull(draft.notes),
                     school_name: emptyToNull(draft.school_name),
+                    academic_year_id: draft.academic_year_id,
                     national_id: canViewPii ? emptyToNull(draft.national_id) : student.national_id,
                     mobile: canViewPii ? emptyToNull(draft.mobile) : student.mobile,
                     guardian_mobile: canViewPii
@@ -644,7 +689,9 @@ export function StudentRecordForm({
                 };
                 setEditing(false);
                 onSaved?.(next);
+                onProceed?.(next);
             },
+            onError: (errors) => showInertiaErrors(errors, i18n.errors.saveFailed),
             onFinish: () => setSaving(false),
         });
     };
@@ -664,13 +711,17 @@ export function StudentRecordForm({
                                     ? i18n.common.saving
                                     : isCreate
                                       ? i18n.students.createSubmit
-                                      : i18n.common.save}
+                                      : (proceedLabel ?? i18n.common.save)}
                             </StatusLikeButton>
                         ) : (
                             <StatusLikeButton tone="edit" onClick={() => setEditing(true)}>
                                 {i18n.common.edit}
                             </StatusLikeButton>
                         )
+                    ) : onProceed ? (
+                        <StatusLikeButton tone="edit" onClick={() => onProceed(student)}>
+                            {proceedLabel ?? i18n.workflow.continueEnrollment}
+                        </StatusLikeButton>
                     ) : null}
                 </div>
             </header>
@@ -871,7 +922,10 @@ export function StudentRecordForm({
                                 {isCreate ? null : (
                                     <AcademicYearListField
                                         label={i18n.students.academicYear}
+                                        editing={fieldsEditable}
+                                        value={draft.academic_year_id}
                                         student={student}
+                                        onChange={(value) => setField('academic_year_id', value)}
                                     />
                                 )}
                                 <DraftField
@@ -977,8 +1031,11 @@ export function StudentViewDialog({
     students,
     canViewPii,
     canUpdate = false,
+    proceedLabel,
+    initialEditing = false,
     onClose,
     onSaved,
+    onProceed,
 }: StudentViewDialogProps) {
     const i18n = t();
     const count = students.length;
@@ -1001,8 +1058,18 @@ export function StudentViewDialog({
                 aria-describedby="student-view-dialog-desc"
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
-                onPointerDownOutside={(event) => event.preventDefault()}
-                onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
+                onInteractOutside={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-sis-list-select]')) {
+                        event.preventDefault();
+                    }
+                }}
                 onFocusOutside={(event) => {
                     const target = event.target as HTMLElement | null;
                     if (target?.closest('[data-sis-list-select]')) {
@@ -1023,7 +1090,10 @@ export function StudentViewDialog({
                             student={student}
                             canViewPii={canViewPii}
                             canUpdate={canUpdate}
+                            proceedLabel={proceedLabel}
+                            initialEditing={initialEditing}
                             onSaved={onSaved}
+                            onProceed={onProceed}
                         />
                     ))}
                 </div>

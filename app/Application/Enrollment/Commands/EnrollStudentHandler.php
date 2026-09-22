@@ -78,6 +78,8 @@ final class EnrollStudentHandler implements CommandHandler
                 enrollmentNumber: $enrollmentNumber,
                 effectiveFrom: $command->effectiveFrom,
                 specializationId: $command->specializationId,
+                branchId: $command->branchId,
+                departmentId: $command->departmentId,
                 enrolledBy: $command->enrolledBy,
             ));
 

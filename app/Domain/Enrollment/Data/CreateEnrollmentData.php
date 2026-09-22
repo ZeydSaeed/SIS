@@ -13,6 +13,8 @@ final readonly class CreateEnrollmentData
         public string $enrollmentNumber,
         public string $effectiveFrom,
         public ?int $specializationId = null,
+        public ?int $branchId = null,
+        public ?int $departmentId = null,
         public ?int $enrolledBy = null,
     ) {}
 }

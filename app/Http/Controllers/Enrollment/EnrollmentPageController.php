@@ -25,6 +25,7 @@ use App\Http\Requests\Enrollment\ChangeEnrollmentStatusesRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Http\Support\WorkflowFlash;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -287,6 +288,22 @@ final class EnrollmentPageController extends Controller
         $academicYearId = $this->academicYears->resolve($requestedYear);
         $studentId = $request->filled('student_id') ? (int) $request->query('student_id') : null;
         $studentPayload = null;
+        $intent = [
+            'branch_id' => $request->filled('branch_id') ? (int) $request->query('branch_id') : null,
+            'department_id' => $request->filled('department_id') ? (int) $request->query('department_id') : null,
+            'department_name' => $request->filled('department_name')
+                ? trim((string) $request->query('department_name'))
+                : null,
+            'specialization_id' => $request->filled('specialization_id')
+                ? (int) $request->query('specialization_id')
+                : null,
+            'grade_level_id' => $request->filled('grade_level_id')
+                ? (int) $request->query('grade_level_id')
+                : null,
+        ];
+        if ($intent['department_name'] === '') {
+            $intent['department_name'] = null;
+        }
 
         if ($studentId !== null) {
             try {
@@ -311,14 +328,44 @@ final class EnrollmentPageController extends Controller
             }
         }
 
+        $filterOptions = $enrollments->listFilterOptions($schoolId, $academicYearId);
+
+        if ($intent['department_id'] === null && $intent['department_name'] !== null) {
+            foreach ($filterOptions['departments'] as $department) {
+                if (strcasecmp((string) $department['name'], $intent['department_name']) === 0) {
+                    $intent['department_id'] = (int) $department['id'];
+                    if ($intent['branch_id'] === null && $department['branch_id'] !== null) {
+                        $intent['branch_id'] = (int) $department['branch_id'];
+                    }
+                    break;
+                }
+            }
+        }
+
+        $suggestedClassId = null;
+        if ($intent['grade_level_id'] !== null) {
+            $matches = array_values(array_filter(
+                $filterOptions['classes'],
+                static fn (array $class): bool => (int) ($class['grade_level_id'] ?? 0) === $intent['grade_level_id'],
+            ));
+            if (count($matches) === 1) {
+                $suggestedClassId = (int) $matches[0]['id'];
+            }
+        }
+
         return Inertia::render('enrollments/create', [
             'defaults' => [
                 'academic_year_id' => $academicYearId,
                 'student_id' => $studentId,
                 'effective_from' => now()->toDateString(),
+                'branch_id' => $intent['branch_id'],
+                'department_id' => $intent['department_id'],
+                'specialization_id' => $intent['specialization_id'],
+                'class_id' => $suggestedClassId,
             ],
             'student' => $studentPayload,
-            'filterOptions' => $enrollments->listFilterOptions($schoolId, $academicYearId),
+            'filterOptions' => $filterOptions,
+            'needsEnrollment' => $studentId !== null,
         ]);
     }
 
@@ -336,6 +383,8 @@ final class EnrollmentPageController extends Controller
             sectionId: (int) $request->validated('section_id'),
             effectiveFrom: $request->validated('effective_from'),
             specializationId: $request->validated('specialization_id'),
+            branchId: $request->validated('branch_id'),
+            departmentId: $request->validated('department_id'),
             enrolledBy: $request->user()?->id,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
@@ -348,12 +397,23 @@ final class EnrollmentPageController extends Controller
             "enrollment:{$result->enrollmentId}",
         );
 
-        return redirect()
-            ->route('enrollments.index', [
+        return WorkflowFlash::with(
+            redirect()->route('enrollments.index', [
                 'academic_year_id' => $academicYearId,
                 'q' => (string) $studentId,
-            ])
-            ->with('success', 'Enrollment created.');
+            ]),
+            [
+                'tone' => 'success',
+                'title' => 'اكتمل التسجيل',
+                'message' => 'أُنشئ التوزيع السنوي بنجاح. الطالب يظهر الآن في جدول التسجيلات ويمكن متابعة الحضور والدرجات عليه.',
+                'action_href' => route('enrollments.index', [
+                    'academic_year_id' => $academicYearId,
+                    'q' => (string) $studentId,
+                ], absolute: false),
+                'action_label' => 'فتح قائمة التسجيل',
+                'step' => 'enrollment.created',
+            ],
+        );
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

@@ -46,6 +46,7 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             $query->perPage,
             $statusScopePeriodId,
             $query->search,
+            $query->enrollmentStatus,
         );
 
         return new AdmissionWorkspaceDTO(

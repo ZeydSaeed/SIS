@@ -41,6 +41,13 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 return ConvertApplicationToStudentResult::fromIdempotency(
                     (int) $cached['application_id'],
                     (int) $cached['student_id'],
+                    isset($cached['academic_year_id']) ? (int) $cached['academic_year_id'] : null,
+                    isset($cached['branch_id']) ? (int) $cached['branch_id'] : null,
+                    isset($cached['specialization_id']) ? (int) $cached['specialization_id'] : null,
+                    isset($cached['grade_level_id']) ? (int) $cached['grade_level_id'] : null,
+                    isset($cached['department_name']) && is_string($cached['department_name'])
+                        ? $cached['department_name']
+                        : null,
                 );
             }
         }
@@ -121,9 +128,24 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [
                 'application_id' => $command->applicationId,
                 'student_id' => $studentId,
+                'academic_year_id' => $application['academic_year_id'] ?? null,
+                'branch_id' => $application['branch_id'] ?? null,
+                'specialization_id' => $application['specialization_id'] ?? null,
+                'grade_level_id' => $application['grade_level_id'] ?? null,
+                'department_name' => $application['department_name'] ?? null,
             ]);
         }
 
-        return ConvertApplicationToStudentResult::success($command->applicationId, $studentId);
+        return ConvertApplicationToStudentResult::success(
+            $command->applicationId,
+            $studentId,
+            isset($application['academic_year_id']) ? (int) $application['academic_year_id'] : null,
+            isset($application['branch_id']) ? (int) $application['branch_id'] : null,
+            isset($application['specialization_id']) ? (int) $application['specialization_id'] : null,
+            isset($application['grade_level_id']) ? (int) $application['grade_level_id'] : null,
+            isset($application['department_name']) && is_string($application['department_name'])
+                ? $application['department_name']
+                : null,
+        );
     }
 }

@@ -28,6 +28,7 @@ import {
     FilterYearIcon,
 } from '@/components/enrollments/enrollment-filter-icons';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
@@ -36,6 +37,8 @@ import {
     toggleTableSelectAll,
 } from '@/components/sis/table-row-selection';
 import { StudentCreateDialog, StudentViewDialog } from '@/components/students/student-record-form';
+import { StudentFileCell } from '@/components/students/student-file-cell';
+import { studentRecordCompletenessGaps } from '@/components/students/student-record-gaps';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import {
@@ -420,6 +423,7 @@ type StudentEditorRowProps = {
     search: string;
     onSelect: (studentId: number) => void;
     onToggleChecked: (studentId: number) => void;
+    onOpenStudentFile: (row: StudentListItem) => void;
 };
 
 const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
@@ -436,11 +440,17 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             search,
             onSelect,
             onToggleChecked,
+            onOpenStudentFile,
         },
         ref,
     ) {
-    const i18n = t();
+        const i18n = t();
+        const workflowI18n = i18n.workflow;
+        const { showInertiaErrors } = usePageError();
         const name = studentQuadName(row);
+        const profileGaps = studentRecordCompletenessGaps(
+            row as unknown as Record<string, unknown>,
+        );
         const [firstName, setFirstName] = useState(row.first_name);
         const [fatherName, setFatherName] = useState(row.father_name ?? '');
         const [grandfatherName, setGrandfatherName] = useState(row.grandfather_name ?? '');
@@ -534,7 +544,10 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                     preserveScroll: true,
                     preserveState: true,
                     onSuccess: () => resolve(),
-                    onError: () => reject(new Error('student-row-save-failed')),
+                    onError: (errors) => {
+                        showInertiaErrors(errors, i18n.errors.saveFailed);
+                        reject(new Error('student-row-save-failed'));
+                    },
                     onFinish: () => setSaving(false),
                 });
             });
@@ -547,12 +560,14 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
             governorate,
             grandfatherName,
             greatGrandfatherName,
+            i18n.errors.saveFailed,
             lastName,
             mobile,
             neighborhood,
             previousSchoolName,
             row,
             saving,
+            showInertiaErrors,
             transferDocumentDate,
             transferDocumentNumber,
         ]);
@@ -630,6 +645,21 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                             <HighlightedText text={name} query={search} />
                         </CellScroll>
                     )}
+                </td>
+                <td
+                    className={
+                        profileGaps.length > 0
+                            ? 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-incomplete'
+                            : 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-complete'
+                    }
+                >
+                    <StudentFileCell
+                        gaps={profileGaps}
+                        completeLabel={workflowI18n.studentFileComplete}
+                        continueLabel={workflowI18n.studentFileContinue}
+                        expandLabel={workflowI18n.profileCompletenessGaps}
+                        onContinue={() => onOpenStudentFile(row)}
+                    />
                 </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap sis-students-table__birth">
                     {editing ? (
@@ -764,6 +794,7 @@ export function StudentList({
     preview,
 }: StudentListProps) {
     const i18n = t();
+    const { showInertiaErrors } = usePageError();
     const page = usePage();
     const { academicYears } = page.props as {
         academicYears?: Array<{ id: number; name: string; code: string; is_current: boolean }>;
@@ -839,7 +870,7 @@ export function StudentList({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'students.list',
-        columnSignature: canSelect ? 'select' : 'readonly',
+        columnSignature: `${canSelect ? 'select' : 'readonly'}:file`,
         enabled: rows.length > 0,
     });
 
@@ -1056,6 +1087,7 @@ export function StudentList({
                     preserveScroll: true,
                     preserveState: true,
                     only: ['students', 'filters', 'preview', 'authorization'],
+                    onError: (errors) => showInertiaErrors(errors, i18n.errors.statusFailed),
                     onFinish: () => {
                         applyingStatusRef.current = false;
                         setApplyingStatus(false);
@@ -1063,7 +1095,7 @@ export function StudentList({
                 },
             );
         },
-        [canSelect, resolveActionIds],
+        [canSelect, i18n.errors.statusFailed, resolveActionIds, showInertiaErrors],
     );
 
     const onStatusTabClick = useCallback(
@@ -1105,6 +1137,20 @@ export function StudentList({
     const canDelete =
         canSelect && selectedStudent !== null && selectedStudent.status !== STUDENT_STATUS_WITHDRAWN;
 
+    const openStudentFile = useCallback(
+        (row: StudentListItem) => {
+            setViewingStudents([
+                {
+                    ...row,
+                    academic_year_id: row.academic_year_id ?? filters.academic_year_id,
+                    academic_year_name: row.academic_year_name ?? selectedAcademicYear?.name ?? null,
+                    academic_year_code: row.academic_year_code ?? selectedAcademicYear?.code ?? null,
+                },
+            ]);
+        },
+        [filters.academic_year_id, selectedAcademicYear?.code, selectedAcademicYear?.name],
+    );
+
     const startEditing = useCallback(() => {
         if (!canSelect || editTargetIds.length === 0) {
             return;
@@ -1129,6 +1175,7 @@ export function StudentList({
                 setEditingIds([]);
             } catch {
                 // Stay in edit mode so the user can correct validation errors.
+                // Row save already opened the shared error dialog.
             } finally {
                 setSavingRows(false);
             }
@@ -1266,13 +1313,14 @@ export function StudentList({
                     setEditingIds([]);
                     setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
                 },
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.deleteFailed),
                 onFinish: () => {
                     setDeleting(false);
                     setDeleteTarget(null);
                 },
             },
         );
-    }, [deleteTarget, selectedId]);
+    }, [deleteTarget, i18n.errors.deleteFailed, selectedId, showInertiaErrors]);
 
     const emptyMessage = filters.q ? i18n.students.emptySearch : i18n.students.emptyDesc;
 
@@ -1529,6 +1577,9 @@ export function StudentList({
                                                 <th className="sis-admission-drafts-table__name-head">
                                                     {i18n.students.quadName}
                                                 </th>
+                                                <th className="sis-admission-drafts-table__enroll-head">
+                                                    {i18n.workflow.studentFileColumn}
+                                                </th>
                                                 <th className="sis-students-table__birth">{i18n.students.birthDate}</th>
                                                 <th>{i18n.students.governorate}</th>
                                                 <th>{i18n.students.neighborhood}</th>
@@ -1560,6 +1611,7 @@ export function StudentList({
                                                         search={filters.q}
                                                         onSelect={selectRow}
                                                         onToggleChecked={toggleChecked}
+                                                        onOpenStudentFile={openStudentFile}
                                                     />
                                                 );
                                             })}
@@ -1636,6 +1688,8 @@ export function StudentList({
                     students={viewingStudents}
                     canViewPii={authorization.canViewPii}
                     canUpdate={authorization.canUpdate}
+                    proceedLabel={i18n.common.save}
+                    initialEditing
                     onClose={() => setViewingStudents(null)}
                     onSaved={(updated) => {
                         setViewingStudents((current) =>
@@ -1643,6 +1697,10 @@ export function StudentList({
                                 ? current
                                 : current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
                         );
+                    }}
+                    onProceed={() => {
+                        setViewingStudents(null);
+                        router.reload({ only: ['students', 'filters', 'authorization'] });
                     }}
                 />
             ) : null}

@@ -45,5 +45,6 @@ final readonly class UpdateStudentData
         public ?string $specializationName = null,
         public ?string $stageName = null,
         public ?string $sectionName = null,
+        public ?int $admittedAcademicYearId = null,
     ) {}
 }

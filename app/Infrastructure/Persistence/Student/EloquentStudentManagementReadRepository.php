@@ -55,6 +55,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'specialization_name',
         'stage_name',
         'section_name',
+        'admitted_academic_year_id',
         'status',
     ];
 
@@ -297,6 +298,9 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             specializationName: $record->specialization_name,
             stageName: $record->stage_name,
             sectionName: $record->section_name,
+            academicYearId: $record->admitted_academic_year_id !== null
+                ? (int) $record->admitted_academic_year_id
+                : null,
             status: (int) $record->status,
         );
     }

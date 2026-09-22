@@ -25,6 +25,8 @@ class EnrollStudentRequest extends FormRequest
             'section_id' => ['required', 'integer', 'min:1'],
             'effective_from' => ['required', 'date'],
             'specialization_id' => ['nullable', 'integer', 'min:1'],
+            'branch_id' => ['nullable', 'integer', 'min:1'],
+            'department_id' => ['nullable', 'integer', 'min:1'],
             'effective_to' => ['prohibited'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());
     }

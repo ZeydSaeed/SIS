@@ -36,8 +36,9 @@ interface AdmissionReadRepositoryInterface
         ?int $statusFilter = null,
         bool $includeApplications = true,
         int $page = 1,
-        int $perPage = 15,
+        int $perPage = 17,
         ?int $applicationPeriodId = null,
         ?string $search = null,
+        ?string $enrollmentStatus = null,
     ): array;
 }

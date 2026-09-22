@@ -53,23 +53,45 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $exceptions->render(function (SisDomainException $exception, Request $request) {
-            if (! $request->is('api/*') && ! $request->expectsJson()) {
-                if (str_contains($exception->errorCode(), 'not_found')) {
-                    abort(404, $exception->getMessage());
-                }
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $status = match (true) {
+                    str_contains($exception->errorCode(), 'not_found') => 404,
+                    str_contains($exception->errorCode(), 'conflict') => 409,
+                    default => 422,
+                };
 
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'error_code' => $exception->errorCode(),
+                ], $status);
+            }
+
+            if (str_contains($exception->errorCode(), 'not_found')) {
+                abort(404, $exception->getMessage());
+            }
+
+            // Inertia ops pages: flash a single error for the shared error dialog.
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $exception->getMessage());
+        });
+
+        $exceptions->render(function (\DomainException $exception, Request $request) {
+            if ($exception instanceof SisDomainException) {
                 return null;
             }
 
-            $status = match (true) {
-                str_contains($exception->errorCode(), 'not_found') => 404,
-                str_contains($exception->errorCode(), 'conflict') => 409,
-                default => 422,
-            };
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'error_code' => 'domain.error',
+                ], 422);
+            }
 
-            return response()->json([
-                'message' => $exception->getMessage(),
-                'error_code' => $exception->errorCode(),
-            ], $status);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $exception->getMessage());
         });
     })->create();

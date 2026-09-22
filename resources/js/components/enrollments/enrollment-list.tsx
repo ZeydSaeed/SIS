@@ -36,6 +36,7 @@ import type {
     EnrollmentListItem,
 } from '@/components/enrollments/enrollment-types';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
@@ -205,6 +206,7 @@ export function EnrollmentList({
     authorization,
 }: EnrollmentListProps) {
     const i18n = t();
+    const { showError, showInertiaErrors } = usePageError();
     const genderValue = filters.gender === 1 || filters.gender === 2 ? String(filters.gender) : '';
     const genderFilterLabel =
         genderValue === '1'
@@ -512,6 +514,7 @@ export function EnrollmentList({
                     preserveScroll: true,
                     preserveState: true,
                     only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                    onError: (errors) => showInertiaErrors(errors, i18n.errors.statusFailed),
                     onFinish: () => {
                         applyingStatusRef.current = false;
                         setApplyingStatus(false);
@@ -519,7 +522,13 @@ export function EnrollmentList({
                 },
             );
         },
-        [authorization.canCancel, authorization.canUpdate, resolveActionIds],
+        [
+            authorization.canCancel,
+            authorization.canUpdate,
+            i18n.errors.statusFailed,
+            resolveActionIds,
+            showInertiaErrors,
+        ],
     );
 
     const applyPlacementPatch = useCallback(
@@ -548,6 +557,7 @@ export function EnrollmentList({
                     preserveScroll: true,
                     preserveState: true,
                     only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                    onError: (errors) => showInertiaErrors(errors, i18n.errors.placementFailed),
                     onFinish: () => {
                         applyingPlacementRef.current = false;
                         setApplyingPlacement(false);
@@ -555,7 +565,12 @@ export function EnrollmentList({
                 },
             );
         },
-        [authorization.canUpdate, resolveActionIds],
+        [
+            authorization.canUpdate,
+            i18n.errors.placementFailed,
+            resolveActionIds,
+            showInertiaErrors,
+        ],
     );
 
     const clearStructureFilters = useCallback(() => {
@@ -629,13 +644,16 @@ export function EnrollmentList({
                 setEditing(false);
                 setEditingIds([]);
                 editingIdsRef.current = [];
-            } catch {
-                // Stay in edit mode so the user can correct validation errors.
+            } catch (error) {
+                // Stay in edit mode; row save or local guard already reported when possible.
+                if (error instanceof Error && error.message.startsWith('enrollment-row-missing:')) {
+                    showError(i18n.errors.saveFailed);
+                }
             } finally {
                 setSavingRows(false);
             }
         })();
-    }, [editingIds, savingRows]);
+    }, [editingIds, i18n.errors.saveFailed, savingRows, showError]);
 
     const openViewDialog = useCallback(
         (dialogEditing = false) => {
@@ -680,13 +698,14 @@ export function EnrollmentList({
                     }
                     setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
                 },
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.deleteFailed),
                 onFinish: () => {
                     setDeleting(false);
                     setDeleteTarget(null);
                 },
             },
         );
-    }, [deleteTarget, selectedId]);
+    }, [deleteTarget, i18n.errors.deleteFailed, selectedId, showInertiaErrors]);
 
     const onStatusTabClick = useCallback(
         (status: number | null, isActive: boolean) => {

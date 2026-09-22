@@ -126,7 +126,7 @@ export function AdmissionWorkflowProgress({
     const overallPercent = clampPercent(progress?.overall_percent ?? 0);
 
     return (
-        <section aria-labelledby="sis-admission-workflow-title" className="sis-admission-progress flex flex-col">
+        <section aria-label={i18n.admission.workflowTitle} className="sis-admission-progress flex flex-col">
             <ol className="sis-admission-progress__track" dir="rtl">
                 {stages.map((stage) => {
                     const Icon = stage.icon;

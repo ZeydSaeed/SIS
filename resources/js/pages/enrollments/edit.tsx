@@ -3,6 +3,7 @@ import { ClipboardList } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { PageHeader } from '@/components/sis/page-header';
+import { usePageError } from '@/components/sis/page-error-context';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -20,6 +21,7 @@ type PageProps = {
 
 export default function EnrollmentEdit({ enrollment }: PageProps) {
     const i18n = t();
+    const { showInertiaErrors } = usePageError();
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.enrollments.title, href: '/enrollments' },
@@ -48,6 +50,7 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
                     method="put"
                     className="grid max-w-xl gap-3"
                     options={{ preserveScroll: true }}
+                    onError={(errors) => showInertiaErrors(errors, i18n.errors.saveFailed)}
                 >
                     {({ errors, processing }) => (
                         <>

@@ -82,9 +82,6 @@ export default function StudentsShow({ student, authorization }: PageProps) {
                                     grandfather_name: student.grandfather_name,
                                     great_grandfather_name: student.great_grandfather_name,
                                     birth_date: student.birth_date,
-                                    department_name: student.department_name,
-                                    specialization_name: student.specialization_name,
-                                    admitted_class_name: student.admitted_class_name,
                                 },
                                 {
                                     preserveScroll: true,

@@ -14,6 +14,8 @@ use App\Application\Admission\Commands\OpenApplicationPeriodCommand;
 use App\Application\Admission\Commands\OpenApplicationPeriodHandler;
 use App\Application\Admission\Commands\RegisterApplicationDocumentCommand;
 use App\Application\Admission\Commands\RegisterApplicationDocumentHandler;
+use App\Application\Admission\Commands\RegisterStudentViaAdmissionCommand;
+use App\Application\Admission\Commands\RegisterStudentViaAdmissionHandler;
 use App\Application\Admission\Commands\TransitionApplicationStatusCommand;
 use App\Application\Admission\Commands\TransitionApplicationStatusHandler;
 use App\Application\Admission\Commands\UpdateApplicationDraftCommand;
@@ -23,6 +25,7 @@ use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
+use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admission\ArchiveApplicationPeriodRequest;
 use App\Http\Requests\Admission\BulkTransitionApplicationStatusRequest;
@@ -31,13 +34,17 @@ use App\Http\Requests\Admission\ConvertApplicationRequest;
 use App\Http\Requests\Admission\CreateApplicationDraftRequest;
 use App\Http\Requests\Admission\OpenApplicationPeriodRequest;
 use App\Http\Requests\Admission\RegisterApplicationDocumentRequest;
+use App\Http\Requests\Admission\RegisterStudentViaAdmissionRequest;
 use App\Http\Requests\Admission\TransitionApplicationStatusRequest;
 use App\Http\Requests\Admission\UpdateApplicationDraftRequest;
 use App\Http\Requests\Admission\UpdateApplicationPeriodRequest;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Http\Support\WorkflowFlash;
+use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Context\SchoolContext;
+use App\Security\Policies\StudentPolicy;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +57,7 @@ final class AdmissionPageController extends Controller
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
         private readonly AcademicYearContextResolver $academicYears,
+        private readonly StudentPolicy $studentPolicy,
     ) {}
 
     public function index(Request $request, GetAdmissionWorkspaceHandler $handler): Response
@@ -194,12 +202,20 @@ final class AdmissionPageController extends Controller
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear);
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = max(1, min(100, (int) $request->query('per_page', 15)));
+        $perPage = max(1, min(100, (int) $request->query('per_page', 17)));
 
         $search = $request->filled('q')
             ? mb_substr(trim((string) $request->query('q')), 0, 80)
             : null;
         $search = $search === '' ? null : $search;
+
+        $enrollmentStatus = null;
+        if ($statusFilter === ApplicationStatus::Converted->value && $request->filled('enrollment_status')) {
+            $rawEnrollmentStatus = trim((string) $request->query('enrollment_status'));
+            if ($rawEnrollmentStatus === 'awaiting' || $rawEnrollmentStatus === 'completed') {
+                $enrollmentStatus = $rawEnrollmentStatus;
+            }
+        }
 
         $workspace = $handler->handle(new GetAdmissionWorkspaceQuery(
             schoolId: $schoolId,
@@ -212,6 +228,7 @@ final class AdmissionPageController extends Controller
             page: $page,
             perPage: $perPage,
             search: $search,
+            enrollmentStatus: $enrollmentStatus,
         ));
 
         $this->securityAudit->record(
@@ -233,12 +250,26 @@ final class AdmissionPageController extends Controller
                 'academic_year_id' => $academicYearId,
                 'application_period_id' => $workspace->selectedPeriodId ?? 0,
                 'q' => $search,
+                'enrollment_status' => $enrollmentStatus,
                 'page' => $workspace->pagination['page'] ?? $page,
                 'per_page' => $workspace->pagination['per_page'] ?? $perPage,
             ],
             'authorization' => [
                 'can_manage' => $user->can('manageAdmission'),
+                'can_update_student' => $this->studentPolicy->updateAny($user),
+                'can_view_student_pii' => $this->studentPolicy->viewPii($user),
             ],
+            'enrollmentFilterOptions' => $statusFilter === ApplicationStatus::Converted->value
+                || $statusFilter === null
+                ? app(EnrollmentReadRepositoryInterface::class)->listFilterOptions($schoolId, $academicYearId)
+                : [
+                    'branches' => [],
+                    'classes' => [],
+                    'sections' => [],
+                    'departments' => [],
+                    'specializations' => [],
+                    'grade_levels' => [],
+                ],
         ], $extra));
     }
 
@@ -424,6 +455,62 @@ final class AdmissionPageController extends Controller
             ->with('success', "Draft application {$result->applicationNumber} created.");
     }
 
+    public function registerStudent(
+        RegisterStudentViaAdmissionRequest $request,
+        RegisterStudentViaAdmissionHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $result = $handler->handle(new RegisterStudentViaAdmissionCommand(
+            schoolId: $schoolId,
+            applicationPeriodId: (int) $request->validated('application_period_id'),
+            firstName: (string) $request->validated('first_name'),
+            fatherName: (string) $request->validated('father_name'),
+            grandfatherName: (string) $request->validated('grandfather_name'),
+            greatGrandfatherName: (string) $request->validated('great_grandfather_name'),
+            lastName: (string) $request->validated('last_name'),
+            motherName: (string) $request->validated('mother_name'),
+            maternalFatherName: (string) $request->validated('maternal_father_name'),
+            maternalGrandfatherName: (string) $request->validated('maternal_grandfather_name'),
+            birthDate: (string) $request->validated('birth_date'),
+            birthPlace: (string) $request->validated('birth_place'),
+            gender: (int) $request->validated('gender'),
+            targetSchoolId: (int) $request->validated('target_school_id'),
+            intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
+            nationalId: $request->validated('national_id'),
+            gradeLevelId: (int) $request->validated('grade_level_id'),
+            branchId: $request->validated('branch_id') !== null
+                ? (int) $request->validated('branch_id')
+                : null,
+            departmentName: $request->validated('department_name') !== null && $request->validated('department_name') !== ''
+                ? (string) $request->validated('department_name')
+                : null,
+            specializationId: $request->validated('specialization_id') !== null
+                ? (int) $request->validated('specialization_id')
+                : null,
+            specializationName: $request->validated('specialization_name') !== null && $request->validated('specialization_name') !== ''
+                ? (string) $request->validated('specialization_name')
+                : null,
+            governorate: $request->validated('governorate'),
+            neighborhood: $request->validated('neighborhood'),
+            notes: $request->validated('notes'),
+            reviewedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.application.register_student',
+            'created',
+            $request->user(),
+            "admission_application:{$result->applicationId}",
+            ['student_id' => $result->studentId],
+        );
+
+        return redirect()->route('admission.converted', array_filter([
+            'academic_year_id' => $result->academicYearId,
+        ]));
+    }
+
     public function updateApplication(
         UpdateApplicationDraftRequest $request,
         int $application,
@@ -539,9 +626,18 @@ final class AdmissionPageController extends Controller
             ['student_id' => $result->studentId],
         );
 
-        return redirect()
-            ->back()
-            ->with('success', "Converted to student #{$result->studentId}.");
+        // Return to converted list — enrollment continues via dialog «متابعة التسجيل».
+        return WorkflowFlash::with(
+            redirect()->route('admission.converted', array_filter([
+                'academic_year_id' => $result->academicYearId,
+            ])),
+            [
+                'tone' => 'warning',
+                'title' => 'تم التحويل إلى طالب',
+                'message' => 'سِجِل الطالب جاهز. أكمل التوزيع من عمود «متابعة التسجيل» باختيار الصف والشعبة.',
+                'step' => 'admission.convert',
+            ],
+        );
     }
 
     public function storeDocument(

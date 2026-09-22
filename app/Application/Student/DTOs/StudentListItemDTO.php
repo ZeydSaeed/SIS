@@ -43,6 +43,7 @@ final readonly class StudentListItemDTO
         public ?string $specializationName,
         public ?string $stageName,
         public ?string $sectionName,
+        public ?int $academicYearId,
         public int $status,
     ) {}
 
@@ -90,6 +91,7 @@ final readonly class StudentListItemDTO
             'specialization_name' => $this->specializationName,
             'stage_name' => $this->stageName,
             'section_name' => $this->sectionName,
+            'academic_year_id' => $this->academicYearId,
             'status' => $this->status,
         ];
     }

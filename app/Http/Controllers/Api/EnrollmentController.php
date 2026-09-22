@@ -139,6 +139,8 @@ class EnrollmentController extends Controller
             sectionId: (int) $request->validated('section_id'),
             effectiveFrom: $request->validated('effective_from'),
             specializationId: $request->validated('specialization_id'),
+            branchId: $request->validated('branch_id'),
+            departmentId: $request->validated('department_id'),
             enrolledBy: $request->user()?->id,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));

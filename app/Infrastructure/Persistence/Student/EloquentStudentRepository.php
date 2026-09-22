@@ -82,6 +82,9 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             specializationName: $record->specialization_name,
             stageName: $record->stage_name,
             sectionName: $record->section_name,
+            admittedAcademicYearId: $record->admitted_academic_year_id !== null
+                ? (int) $record->admitted_academic_year_id
+                : null,
         );
     }
 
@@ -261,5 +264,11 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'stage_name' => $data->stageName,
             'section_name' => $data->sectionName,
         ];
+
+        if ($data->admittedAcademicYearId !== null) {
+            $attributes['admitted_academic_year_id'] = $data->admittedAcademicYearId;
+        }
+
+        return $attributes;
     }
 }
