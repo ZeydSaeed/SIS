@@ -348,7 +348,7 @@ export function EnrollmentList({
             ? i18n.students.male
             : genderValue === '2'
               ? i18n.students.female
-              : i18n.students.allGenders;
+              : i18n.enrollments.gender;
     const classValue = filters.class_id ? String(filters.class_id) : '';
     const sectionValue = filters.section_id ? String(filters.section_id) : '';
     const branchValue = filters.branch_id ? String(filters.branch_id) : '';
@@ -714,7 +714,7 @@ export function EnrollmentList({
                         <SisListSelect
                             value={genderValue}
                             options={[
-                                { value: '', label: i18n.students.allGenders },
+                                { value: '', label: i18n.enrollments.gender },
                                 { value: '1', label: i18n.students.male },
                                 { value: '2', label: i18n.students.female },
                             ]}
