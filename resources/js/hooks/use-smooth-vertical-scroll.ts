@@ -1,12 +1,17 @@
 import { useEffect, type RefObject } from 'react';
 
-/** Lower = silkier glide; ~0.08–0.12 feels premium on discrete mouse wheels. */
-const LERP = 0.09;
-const STOP_EPS = 0.25;
+/** Wheel travel multiplier — higher = much faster table browsing. */
+const SPEED = 3.1;
+/** Catch-up rate — high so the view keeps up with fast wheel bursts. */
+const LERP = 0.45;
+const STOP_EPS = 0.6;
+/** Pixels per wheel “line” (deltaMode === 1). */
+const LINE_PX = 44;
 
 /**
- * High-smooth vertical wheel scrolling for table scrollers (students / enrollments).
- * Lerps scrollTop toward a wheel target so Windows notch jumps feel continuous.
+ * Fast vertical wheel browsing for table scrollers (students / enrollments).
+ * Amplifies wheel deltas and lerps scrollTop so Windows notch jumps still
+ * feel continuous without feeling sluggish.
  * Skips when another handler already called preventDefault (e.g. cell horizontal scroll)
  * or when the user prefers reduced motion.
  */
@@ -85,15 +90,20 @@ export function useSmoothVerticalScroll(
             let delta = event.deltaY;
 
             if (event.deltaMode === 1) {
-                delta *= 14;
+                delta *= LINE_PX;
             } else if (event.deltaMode === 2) {
-                delta *= el.clientHeight * 0.85;
+                delta *= el.clientHeight * 0.95;
             }
+
+            delta *= SPEED;
 
             const next = Math.max(0, Math.min(max, target + delta));
 
             // Already at edge in this direction — allow native overscroll handling to stop.
-            if (next === target && ((delta < 0 && el.scrollTop <= 0) || (delta > 0 && el.scrollTop >= max - 0.5))) {
+            if (
+                next === target
+                && ((delta < 0 && el.scrollTop <= 0) || (delta > 0 && el.scrollTop >= max - 0.5))
+            ) {
                 return;
             }
 

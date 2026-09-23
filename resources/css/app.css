@@ -111,6 +111,32 @@
     --sis-student-status-text-light: var(--sis-admission-status-text-light);
     --sis-student-status-text-dark: var(--sis-admission-status-text-dark);
 
+    /* Ribbon icon accents (ops pages) — derived from existing status palette */
+    --sis-ribbon-accent-view: var(--sis-admission-status-0); /* inspect blue */
+    --sis-ribbon-accent-edit: var(--sis-admission-status-5); /* draft/edit ochre */
+    --sis-ribbon-accent-save: var(--sis-admission-status-6); /* confirm green */
+    --sis-ribbon-accent-delete: var(--sis-admission-status-7); /* danger red */
+    --sis-ribbon-accent-cancel: var(--sis-steel);
+    --sis-ribbon-accent-enroll: var(--sis-admission-status-4); /* place/enroll green */
+    --sis-ribbon-accent-home: var(--sis-oxford);
+    --sis-ribbon-accent-copy: var(--sis-admission-status-0);
+    --sis-ribbon-accent-cut: var(--sis-admission-status-1);
+    --sis-ribbon-accent-paste: var(--sis-admission-status-6);
+    --sis-ribbon-accent-filter: var(--sis-mist);
+    --sis-ribbon-accent-new: var(--sis-admission-status-4);
+    --sis-ribbon-accent-open: var(--sis-admission-status-5);
+    --sis-ribbon-accent-print: var(--sis-steel);
+    --sis-ribbon-accent-info: var(--sis-admission-status-0);
+    --sis-ribbon-accent-account: var(--sis-oxford);
+    --sis-ribbon-accent-settings: var(--sis-steel);
+    --sis-ribbon-accent-close: var(--sis-admission-status-7);
+    --sis-ribbon-accent-people: var(--sis-admission-status-0);
+    --sis-ribbon-accent-school: var(--sis-oxford);
+    --sis-ribbon-accent-academic: var(--sis-admission-status-6);
+    --sis-ribbon-accent-ops: var(--sis-admission-status-5);
+    --sis-ribbon-accent-transfer: var(--sis-admission-status-0);
+    --sis-ribbon-accent-history: var(--sis-student-status-5);
+
     /* Canonical aliases used across ops CSS */
     --sis-twilight-indigo: var(--sis-night);
     --sis-ash-brown: var(--sis-oxford);
@@ -956,10 +982,143 @@ body.sis-table-col-resizing * {
 }
 
 .sis-ribbon--enrollments-edit .sis-ribbon__group--filters {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
-    max-width: 22.5rem;
+    max-width: none;
+    width: auto;
     padding-inline: 0.3rem;
+    padding-block: 0.08rem 0;
+    overflow: visible;
+    gap: 0.12rem;
+    justify-content: flex-start;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters {
+    gap: 0.35rem;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: auto;
+    max-width: none;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    overflow: visible;
+    /* Top breathing room so year / gender / branch are not clipped */
+    padding-block: 0.22rem 0.1rem;
+    padding-inline: 0.05rem;
+    box-sizing: border-box;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments {
+    flex: 0 0 auto;
+    width: max-content;
+    max-width: none;
+    /* Compact fit: smaller cells so all 7 filters stay fully inside the ribbon */
+    grid-template-columns: repeat(3, minmax(5.5rem, 6.15rem));
+    column-gap: 0.38rem;
+    row-gap: 0.26rem;
+    justify-content: start;
+    align-content: start;
+    padding: 0;
+    margin: 0;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-ribbon__filter-field {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    min-height: 1.2rem;
+    overflow: visible;
+    isolation: isolate;
+}
+
+/* First row (year, gender, branch): extra top margin for full visibility */
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-ribbon__filter-field:nth-child(-n + 3) {
+    margin-top: 0.12rem;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-admission-select-fit,
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-admission-year-control,
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-list-select,
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-list-select__trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+/* Year filter: stretch OpsYearFilter form/label to full column (= department width below) */
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-ribbon__filter-field:first-child form,
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-ribbon__filter-field:first-child label {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    box-sizing: border-box;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-ribbon__filter-field:first-child .sis-admission-select-fit {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-admission-year-control,
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-list-select__trigger {
+    min-height: 1.18rem !important;
+    height: 1.18rem !important;
+    max-height: 1.18rem !important;
+    font-size: 0.62rem !important;
+    line-height: 1.35 !important;
+    padding-block: 0 !important;
+    padding-inline: 0.2rem !important;
+    overflow: visible !important;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__filters-stack--enrollments .sis-list-select__value {
+    display: block;
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    line-height: 1.35;
+    padding-block: 0.05rem 0.08rem;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__item--filter-clear {
+    flex: 0 0 auto;
+    align-self: center;
+    min-width: 2.6rem;
+    max-width: 3rem;
+    margin-inline-start: 0.08rem;
+    padding-block: 0.1rem;
+    overflow: visible;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__item--filter-clear .sis-ribbon__icon {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__item--filter-clear .sis-ribbon__label {
+    font-size: 0.62rem;
+    line-height: 1.35;
+    overflow: visible;
+    padding-block-end: 0.06rem;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__group--filters > .sis-ribbon__group-label {
+    flex-shrink: 0;
+    line-height: 1.3;
+    padding-block: 0.06rem 0.1rem;
 }
 
 .sis-ribbon--enrollments-edit .sis-ribbon__group--commands {
@@ -1075,6 +1234,241 @@ body.sis-table-col-resizing * {
     white-space: nowrap;
     line-height: 1.45;
     padding-block-end: 0.12rem;
+}
+
+/* Students / Admission / Enrollments: colored outline icons + matching labels (no fill) */
+.sis-ribbon--ops-accent .sis-ribbon__item {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item:hover,
+.sis-ribbon--ops-accent .sis-ribbon__item:focus-visible {
+    background: color-mix(in srgb, currentColor 10%, transparent) !important;
+    box-shadow: none !important;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[aria-pressed='true'] {
+    background: color-mix(in srgb, currentColor 14%, transparent) !important;
+    box-shadow: inset 0 0 0 1px currentColor !important;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__count,
+.sis-ribbon--ops-accent .sis-ribbon__label {
+    color: inherit;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__icon {
+    color: inherit;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.85;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item:disabled {
+    opacity: 0.4;
+    color: var(--sis-steel) !important;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='view-student'] {
+    color: var(--sis-ribbon-accent-view);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-student'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-draft'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-period'] {
+    color: var(--sis-ribbon-accent-edit);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-student'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-draft'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-period'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='saveAs'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='savePdf'] {
+    color: var(--sis-ribbon-accent-save);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-student'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-draft'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-period'] {
+    color: var(--sis-ribbon-accent-delete);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='cancel-student-selection'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='cancel-admission-selection'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='cancel-enrollment-selection'] {
+    color: var(--sis-ribbon-accent-cancel);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='action-enroll'] {
+    color: var(--sis-ribbon-accent-enroll);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='admission-home'] {
+    color: var(--sis-ribbon-accent-home);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item.sis-ribbon__item--filter-clear {
+    color: var(--sis-ribbon-accent-filter);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-tab-all'] {
+    color: var(--sis-student-status-all);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-tab-1'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='action-status-1'] {
+    color: var(--sis-student-status-1);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-tab-0'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='action-status-0'] {
+    color: color-mix(in srgb, var(--sis-student-status-0) 42%, var(--sis-oxford));
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-tab-2'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='action-status-2'] {
+    color: var(--sis-student-status-2);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-tab-4'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='action-status-4'] {
+    color: var(--sis-student-status-4);
+}
+
+.sis-ribbon--students-edit .sis-ribbon__item[data-item-id='status-tab-3'],
+.sis-ribbon--students-edit .sis-ribbon__item[data-item-id='action-status-3'] {
+    color: var(--sis-student-status-3);
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__item[data-item-id='status-tab-3'],
+.sis-ribbon--enrollments-edit .sis-ribbon__item[data-item-id='action-status-3'] {
+    color: var(--sis-ribbon-accent-transfer);
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__item[data-item-id='status-tab-5'] {
+    color: var(--sis-ribbon-accent-history);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='new'] {
+    color: var(--sis-ribbon-accent-new);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='open'] {
+    color: var(--sis-ribbon-accent-open);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='info'] {
+    color: var(--sis-ribbon-accent-info);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='print'] {
+    color: var(--sis-ribbon-accent-print);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='account'] {
+    color: var(--sis-ribbon-accent-account);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='options'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsAppearance'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsAccount'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsTimetable'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsScheduling'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsNotes'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsDefinitions'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsDocuments'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsPractical'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsLabs'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsTasks'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsReports'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='settingsStats'] {
+    color: var(--sis-ribbon-accent-settings);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='close'] {
+    color: var(--sis-ribbon-accent-close);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='copy'] {
+    color: var(--sis-ribbon-accent-copy);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='cut'] {
+    color: var(--sis-ribbon-accent-cut);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='paste'] {
+    color: var(--sis-ribbon-accent-paste);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='alignStart'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='alignCenter'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='alignEnd'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='bold'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='italic'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='underline'] {
+    color: var(--sis-oxford);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addStudent'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listStudents'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsStudentRequirements'] {
+    color: var(--sis-student-status-3);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addTeacher'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listTeachers'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsTeacherRequirements'] {
+    color: var(--sis-ribbon-accent-people);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addGuardian'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listGuardians'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listEmployees'] {
+    color: var(--sis-mist);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addSchool'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listSchools'] {
+    color: var(--sis-ribbon-accent-school);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addSection'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listDepartments'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listSections'] {
+    color: var(--sis-steel);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addSubject'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addCurriculum'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addExam'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addGrades'] {
+    color: var(--sis-ribbon-accent-academic);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addTimetable'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addAttendance'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addHoliday'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='addDocument'] {
+    color: var(--sis-ribbon-accent-ops);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listWorkshops'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listEquipment'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='listCommunications'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsCertificates'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsDbMaintenance'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsMobileSync'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsInstallWizard'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='toolsEvaluations'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='reportsStandard'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='reportsCharts'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='helpLiveSupport'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='helpDocsSupport'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='helpUpdate'] {
+    color: var(--sis-steel);
 }
 
 .sis-ribbon--students-edit .sis-ribbon__group--progress {
@@ -3336,7 +3730,7 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-students-page .sis-admission-drafts-table__scroller {
-    /* سكرول أفقي بدون شريط ظاهر + تصفح عمودي سلس (JS lerp) */
+    /* سكرول أفقي بدون شريط ظاهر + تصفح عمودي سريع (JS amplify + lerp) */
     overflow-x: auto;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -3344,6 +3738,11 @@ button.sis-admission-enroll-status-text:active {
     scroll-behavior: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sis-enrollments-page .sis-admission-drafts-table__scroller {
+    scroll-behavior: auto;
     -webkit-overflow-scrolling: touch;
 }
 

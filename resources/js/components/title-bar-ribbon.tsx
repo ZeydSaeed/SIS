@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { Fragment, useId, type ReactNode } from 'react';
 import {
     AlignCenter,
@@ -493,6 +494,7 @@ function AlignControls() {
                     <button
                         key={item.action}
                         type="button"
+                        data-item-id={item.action}
                         className="sis-ribbon__item"
                         aria-label={item.label}
                         aria-pressed={pressed}
@@ -535,6 +537,7 @@ function StyleControls() {
                     <button
                         key={item.id}
                         type="button"
+                        data-item-id={item.id}
                         className="sis-ribbon__item"
                         aria-label={item.label}
                         aria-pressed={pressed[item.id]}
@@ -602,6 +605,15 @@ export function TitleBarRibbon({
     const homeGroups = usePageRibbonGroups('home');
     const pinned = usePageRibbonPinned();
     const setPinned = useSetPageRibbonPinned();
+    const { url } = usePage();
+    const path = url.split('?')[0] ?? url;
+    const isOpsAccentPage =
+        path === '/students'
+        || path.startsWith('/students/')
+        || path === '/enrollments'
+        || path.startsWith('/enrollments/')
+        || path === '/admission'
+        || path.startsWith('/admission/');
     const pageGroups =
         tab === 'home'
             ? homeGroups
@@ -653,6 +665,10 @@ export function TitleBarRibbon({
         tab === 'edit' && groups.some((group) => group.id.startsWith('enrollment-'));
     const isStudentsEdit =
         tab === 'edit' && groups.some((group) => group.id.startsWith('student-'));
+    const isAdmissionRibbon = groups.some(
+        (group) =>
+            group.id.startsWith('admission-') || group.id === 'page-actions',
+    );
 
     const ariaLabel =
         tab === 'file'
@@ -675,15 +691,16 @@ export function TitleBarRibbon({
 
     return (
         <div
-            className={
-                tab === 'edit'
-                    ? isEnrollmentsEdit
-                        ? 'sis-ribbon sis-ribbon--fit sis-ribbon--enrollments-edit'
-                        : isStudentsEdit
-                          ? 'sis-ribbon sis-ribbon--fit sis-ribbon--students-edit'
-                          : 'sis-ribbon sis-ribbon--fit'
-                    : 'sis-ribbon'
-            }
+            className={[
+                'sis-ribbon',
+                tab === 'edit' ? 'sis-ribbon--fit' : '',
+                isEnrollmentsEdit ? 'sis-ribbon--enrollments-edit' : '',
+                isStudentsEdit ? 'sis-ribbon--students-edit' : '',
+                isAdmissionRibbon ? 'sis-ribbon--admission' : '',
+                isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
+            ]
+                .filter(Boolean)
+                .join(' ')}
             role="region"
             aria-label={ariaLabel}
             dir="rtl"
@@ -722,6 +739,7 @@ export function TitleBarRibbon({
                                               <button
                                                   key={item.id}
                                                   type="button"
+                                                  data-item-id={item.id}
                                                   className={
                                                       item.tone
                                                           ? `sis-ribbon__item sis-ribbon__item--${item.tone}`
