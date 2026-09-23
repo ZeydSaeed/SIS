@@ -40,7 +40,7 @@ final class BulkEnrollmentStatusGuard
 
     public function assertTargetStatus(int $status): void
     {
-        if (! in_array($status, EnrollmentStatus::all(), true)) {
+        if (! in_array($status, EnrollmentStatus::operatorAssignable(), true)) {
             throw SisDomainException::withCode('enrollment.invalid_status');
         }
     }

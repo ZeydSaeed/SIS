@@ -3,6 +3,7 @@ import type { RibbonTab } from '@/components/title-bar-ribbon';
 const TITLE_BAR_ITEMS = [
     'ملف',
     'الصفحة الرئيسية',
+    'تحرير',
     'اضافة',
     'اعدادات',
     'قوائم',
@@ -15,6 +16,7 @@ const LABEL_TO_TAB: Partial<Record<(typeof TITLE_BAR_ITEMS)[number], RibbonTab>>
     {
         ملف: 'file',
         'الصفحة الرئيسية': 'home',
+        تحرير: 'edit',
         اضافة: 'add',
         اعدادات: 'settings',
         قوائم: 'lists',
@@ -26,6 +28,7 @@ const LABEL_TO_TAB: Partial<Record<(typeof TITLE_BAR_ITEMS)[number], RibbonTab>>
 type TitleBarMenuProps = {
     activeRibbon?: RibbonTab | null;
     onRibbonChange?: (tab: RibbonTab | null) => void;
+    ribbonPinned?: boolean;
 };
 
 export type { RibbonTab };
@@ -33,6 +36,7 @@ export type { RibbonTab };
 export function TitleBarMenu({
     activeRibbon = null,
     onRibbonChange,
+    ribbonPinned = false,
 }: TitleBarMenuProps) {
     return (
         <nav className="sis-titlebar__menu" aria-label="شريط القوائم" dir="rtl">
@@ -54,7 +58,15 @@ export function TitleBarMenu({
                             if (!tab) {
                                 return;
                             }
-                            onRibbonChange?.(activeRibbon === tab ? null : tab);
+                            if (activeRibbon === tab) {
+                                if (ribbonPinned) {
+                                    return;
+                                }
+                                onRibbonChange?.(null);
+
+                                return;
+                            }
+                            onRibbonChange?.(tab);
                         }}
                     >
                         {label}

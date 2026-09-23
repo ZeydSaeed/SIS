@@ -69,6 +69,23 @@ final class EnrollmentStatus
 
     public static function isReopenable(int $status): bool
     {
-        return self::isClosed($status);
+        // Superseded segments are history only — reopen would risk a second active row.
+        return self::isClosed($status) && $status !== self::SUPERSEDED;
+    }
+
+    /**
+     * Statuses operators may set via bulk/status actions (not system history).
+     *
+     * @return list<int>
+     */
+    public static function operatorAssignable(): array
+    {
+        return [
+            self::INACTIVE,
+            self::ACTIVE,
+            self::CANCELLED,
+            self::TRANSFERRED,
+            self::DISMISSED,
+        ];
     }
 }

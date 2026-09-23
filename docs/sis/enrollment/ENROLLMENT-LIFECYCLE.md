@@ -64,18 +64,24 @@ Student (students.students)
 
 ### Enrollment record status
 
-**Source:** `EloquentEnrollmentRepository::ACTIVE_STATUS = 1`
+**Source:** `App\Domain\Enrollment\ValueObjects\EnrollmentStatus`
 
-| Value | Meaning in code | Evidence |
-|-------|-----------------|----------|
-| **1** | Active enrollment | Default on create; `hasActiveEnrollment` checks status=1 AND effective_to IS NULL |
-| Other | **Not implemented** | No enum, no commands to transition |
+| Value | Name | Notes |
+|-------|------|-------|
+| 0 | Inactive | Closed; reopenable if no other active row |
+| **1** | Active | Default on create; unique per student+year while `effective_to IS NULL` |
+| 2 | Cancelled | Closed |
+| 3 | Transferred | Closed |
+| 4 | Dismissed | Closed |
+| 5 | Superseded | Prior mid-year placement segment (system-only; not operator-assignable) |
 
-**Repository active check** (`EloquentEnrollmentRepository.php:13-20`):
+**Active uniqueness (PostgreSQL):**
 
 ```text
-status = 1 AND effective_to IS NULL
+PARTIAL UNIQUE (student_id, academic_year_id) WHERE status = 1 AND effective_to IS NULL
 ```
+
+**Mid-year placement change:** material class/section/branch/department change closes the current active row as `SUPERSEDED` + `effective_to`, then inserts a **new** active enrollment row (does not overwrite in place).
 
 ### Classes / Sections / Enrollment subjects
 

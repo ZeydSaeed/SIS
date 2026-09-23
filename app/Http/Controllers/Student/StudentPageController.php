@@ -62,7 +62,7 @@ final class StudentPageController extends Controller
 
         $q = trim((string) $request->query('q', ''));
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 15)), 100);
+        $perPage = min(max(1, (int) $request->query('per_page', 17)), 100);
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
         $enrolled = $this->queryEnrolled($request);

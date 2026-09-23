@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { TitleBarControls } from '@/components/title-bar-controls';
 import { TitleBarHome } from '@/components/title-bar-home';
 import { TitleBarMenu } from '@/components/title-bar-menu';
@@ -11,6 +11,11 @@ import {
 import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SisSearchField } from '@/components/sis/sis-search-field';
 import { usePageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
+import {
+    useActivePageRibbonTab,
+    usePageRibbonPinned,
+    useSetActivePageRibbonTab,
+} from '@/components/sis/page-ribbon-context';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { applyPageAlignment } from '@/hooks/use-page-alignment';
 import {
@@ -136,12 +141,18 @@ export function AppSidebarHeader({
 }: {
     breadcrumbs?: BreadcrumbItemType[];
 }) {
-    const [activeRibbon, setActiveRibbon] = useState<RibbonTab | null>(null);
+    const activeRibbon = useActivePageRibbonTab() as RibbonTab | null;
+    const setActiveRibbon = useSetActivePageRibbonTab();
+    const ribbonPinned = usePageRibbonPinned();
     const page = usePage();
+
+    const closeRibbon = useCallback(() => {
+        setActiveRibbon(null, { force: true });
+    }, [setActiveRibbon]);
 
     const onRibbonAction = useCallback((id: RibbonActionId) => {
         if (id === 'addStudent') {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit('/admission/converted?create_student=1');
 
             return;
@@ -149,42 +160,42 @@ export function AppSidebarHeader({
 
         const addHref = ADD_ROUTES[id];
         if (addHref) {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit(addHref);
             return;
         }
 
         const settingsHref = SETTINGS_ROUTES[id];
         if (settingsHref) {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit(settingsHref);
             return;
         }
 
         const listsHref = LISTS_ROUTES[id];
         if (listsHref) {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit(listsHref);
             return;
         }
 
         const toolsHref = TOOLS_ROUTES[id];
         if (toolsHref) {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit(toolsHref);
             return;
         }
 
         const reportsHref = REPORTS_ROUTES[id];
         if (reportsHref) {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit(reportsHref);
             return;
         }
 
         const helpHref = HELP_ROUTES[id];
         if (helpHref) {
-            setActiveRibbon(null);
+            closeRibbon();
             router.visit(helpHref);
             return;
         }
@@ -194,15 +205,15 @@ export function AppSidebarHeader({
                 window.print();
                 break;
             case 'account':
-                setActiveRibbon(null);
+                closeRibbon();
                 router.visit(profileEdit.url());
                 break;
             case 'options':
-                setActiveRibbon(null);
+                closeRibbon();
                 router.visit(appearance.edit.url());
                 break;
             case 'close':
-                setActiveRibbon(null);
+                closeRibbon();
                 router.visit(dashboard());
                 break;
             case 'copy':
@@ -238,12 +249,18 @@ export function AppSidebarHeader({
             default:
                 break;
         }
-    }, [page.url]);
+    }, [closeRibbon, page.url]);
 
     const titlebarSearch = usePageTitlebarSearch();
 
     return (
-        <div className="sis-chrome shrink-0">
+        <div
+            className={
+                activeRibbon
+                    ? 'sis-chrome sis-chrome--ribbon-open shrink-0'
+                    : 'sis-chrome shrink-0'
+            }
+        >
             <header
                 className={
                     titlebarSearch
@@ -257,6 +274,7 @@ export function AppSidebarHeader({
                     <TitleBarMenu
                         activeRibbon={activeRibbon}
                         onRibbonChange={setActiveRibbon}
+                        ribbonPinned={ribbonPinned}
                     />
                 </div>
                 {titlebarSearch ? (
@@ -279,11 +297,11 @@ export function AppSidebarHeader({
                 </div>
             </header>
             {activeRibbon ? (
-                <div className="sis-ribbon-overlay" role="presentation">
+                <div className="sis-ribbon-slot" role="presentation">
                     <TitleBarRibbon
                         tab={activeRibbon}
                         onAction={onRibbonAction}
-                        onCollapse={() => setActiveRibbon(null)}
+                        onCollapse={closeRibbon}
                     />
                 </div>
             ) : null}

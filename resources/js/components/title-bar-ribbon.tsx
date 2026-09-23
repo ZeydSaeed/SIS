@@ -37,6 +37,8 @@ import {
     Package,
     Palette,
     PieChart,
+    Pin,
+    PinOff,
     Printer,
     RefreshCw,
     Replace,
@@ -54,7 +56,7 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
-import { usePageRibbonGroups } from '@/components/sis/page-ribbon-context';
+import { usePageRibbonGroups, usePageRibbonPinned, useSetPageRibbonPinned } from '@/components/sis/page-ribbon-context';
 import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
 import { preservePageClipboardSelection } from '@/hooks/use-page-clipboard';
 import {
@@ -165,6 +167,7 @@ export type RibbonActionId =
 export type RibbonTab =
     | 'file'
     | 'home'
+    | 'edit'
     | 'add'
     | 'settings'
     | 'lists'
@@ -177,6 +180,10 @@ type RibbonItem = {
     label: string;
     icon: LucideIcon;
     disabled?: boolean;
+    pressed?: boolean;
+    title?: string;
+    count?: number;
+    tone?: 'edit' | 'save' | 'delete';
     onSelect?: () => void;
 };
 
@@ -575,13 +582,10 @@ function buildHomeGroups(): RibbonGroup[] {
             label: 'النمط',
             custom: <StyleControls />,
         },
-        {
-            id: 'edit',
-            label: 'تحرير',
-            items: [{ id: 'findReplace', label: 'بحث واستبدال', icon: Replace }],
-        },
     ];
 }
+
+const EDIT_RIBBON_GROUPS: RibbonGroup[] = [];
 
 type TitleBarRibbonProps = {
     tab: RibbonTab;
@@ -596,23 +600,32 @@ export function TitleBarRibbon({
 }: TitleBarRibbonProps) {
     const tabGroups = usePageRibbonGroups(tab);
     const homeGroups = usePageRibbonGroups('home');
-    const pageGroups = tab === 'home' ? homeGroups : [...tabGroups, ...homeGroups];
+    const pinned = usePageRibbonPinned();
+    const setPinned = useSetPageRibbonPinned();
+    const pageGroups =
+        tab === 'home'
+            ? homeGroups
+            : tab === 'edit'
+              ? tabGroups
+              : [...tabGroups, ...homeGroups];
     const staticGroups =
         tab === 'file'
             ? FILE_RIBBON_GROUPS
-            : tab === 'add'
-              ? ADD_RIBBON_GROUPS
-              : tab === 'settings'
-                ? SETTINGS_RIBBON_GROUPS
-                : tab === 'lists'
-                  ? LISTS_RIBBON_GROUPS
-                  : tab === 'tools'
-                    ? TOOLS_RIBBON_GROUPS
-                    : tab === 'reports'
-                      ? REPORTS_RIBBON_GROUPS
-                      : tab === 'help'
-                        ? HELP_RIBBON_GROUPS
-                        : buildHomeGroups();
+            : tab === 'edit'
+              ? EDIT_RIBBON_GROUPS
+              : tab === 'add'
+                ? ADD_RIBBON_GROUPS
+                : tab === 'settings'
+                  ? SETTINGS_RIBBON_GROUPS
+                  : tab === 'lists'
+                    ? LISTS_RIBBON_GROUPS
+                    : tab === 'tools'
+                      ? TOOLS_RIBBON_GROUPS
+                      : tab === 'reports'
+                        ? REPORTS_RIBBON_GROUPS
+                        : tab === 'help'
+                          ? HELP_RIBBON_GROUPS
+                          : buildHomeGroups();
     const groups: RibbonGroup[] = [
         ...pageGroups.map(
             (group): RibbonGroup => ({
@@ -626,39 +639,67 @@ export function TitleBarRibbon({
                           label: command.label,
                           icon: command.icon,
                           disabled: command.disabled,
+                          pressed: command.pressed,
+                          title: command.title,
+                          count: command.count,
+                          tone: command.tone,
                           onSelect: command.onSelect,
                       })),
             }),
         ),
         ...staticGroups,
     ];
+    const isEnrollmentsEdit =
+        tab === 'edit' && groups.some((group) => group.id.startsWith('enrollment-'));
 
     const ariaLabel =
         tab === 'file'
             ? 'شريط ملف'
-            : tab === 'add'
-              ? 'شريط اضافة'
-              : tab === 'settings'
-                ? 'شريط اعدادات'
-                : tab === 'lists'
-                  ? 'شريط قوائم'
-                  : tab === 'tools'
-                    ? 'شريط ادوات'
-                    : tab === 'reports'
-                      ? 'شريط تقارير'
-                      : tab === 'help'
-                        ? 'شريط مساعدة'
-                        : 'شريط الصفحة الرئيسية';
+            : tab === 'edit'
+              ? 'شريط تحرير'
+              : tab === 'add'
+                ? 'شريط اضافة'
+                : tab === 'settings'
+                  ? 'شريط اعدادات'
+                  : tab === 'lists'
+                    ? 'شريط قوائم'
+                    : tab === 'tools'
+                      ? 'شريط ادوات'
+                      : tab === 'reports'
+                        ? 'شريط تقارير'
+                        : tab === 'help'
+                          ? 'شريط مساعدة'
+                          : 'شريط الصفحة الرئيسية';
 
     return (
-        <div className="sis-ribbon" role="region" aria-label={ariaLabel} dir="rtl">
+        <div
+            className={
+                tab === 'edit'
+                    ? isEnrollmentsEdit
+                        ? 'sis-ribbon sis-ribbon--fit sis-ribbon--enrollments-edit'
+                        : 'sis-ribbon sis-ribbon--fit'
+                    : 'sis-ribbon'
+            }
+            role="region"
+            aria-label={ariaLabel}
+            dir="rtl"
+        >
             <div className="sis-ribbon__body">
                 {groups.map((group, index) => (
                     <Fragment key={group.id}>
                         {index > 0 ? (
                             <div className="sis-ribbon__separator" aria-hidden />
                         ) : null}
-                        <div className="sis-ribbon__group">
+                        <div
+                            className={
+                                group.id.includes('filter')
+                                    ? 'sis-ribbon__group sis-ribbon__group--filters'
+                                    : group.id.includes('progress')
+                                      ? 'sis-ribbon__group sis-ribbon__group--progress'
+                                      : 'sis-ribbon__group sis-ribbon__group--commands'
+                            }
+                            data-group-id={group.id}
+                        >
                             <div className="sis-ribbon__items">
                                 {group.custom
                                     ? group.custom
@@ -677,9 +718,19 @@ export function TitleBarRibbon({
                                               <button
                                                   key={item.id}
                                                   type="button"
-                                                  className="sis-ribbon__item"
+                                                  className={
+                                                      item.tone
+                                                          ? `sis-ribbon__item sis-ribbon__item--${item.tone}`
+                                                          : 'sis-ribbon__item'
+                                                  }
                                                   disabled={item.disabled}
-                                                  aria-label={item.label}
+                                                  aria-label={item.title ?? item.label}
+                                                  title={item.title ?? item.label}
+                                                  aria-pressed={
+                                                      item.pressed === undefined
+                                                          ? undefined
+                                                          : item.pressed
+                                                  }
                                                   onMouseDown={(event) => {
                                                       if (isClipboard || isSelectionCancel) {
                                                           event.preventDefault();
@@ -704,6 +755,14 @@ export function TitleBarRibbon({
                                                       onAction?.(item.id as RibbonActionId);
                                                   }}
                                               >
+                                                  {item.count !== undefined ? (
+                                                      <span
+                                                          className="sis-ribbon__count"
+                                                          dir="ltr"
+                                                      >
+                                                          {item.count}
+                                                      </span>
+                                                  ) : null}
                                                   <Icon
                                                       className="sis-ribbon__icon"
                                                       aria-hidden
@@ -720,14 +779,38 @@ export function TitleBarRibbon({
                     </Fragment>
                 ))}
             </div>
-            <button
-                type="button"
-                className="sis-ribbon__collapse"
-                aria-label="طي الشريط"
-                onClick={onCollapse}
-            >
-                <span aria-hidden>⌃</span>
-            </button>
+            <div className="sis-ribbon__chrome-actions">
+                <button
+                    type="button"
+                    className={
+                        pinned
+                            ? 'sis-ribbon__pin sis-ribbon__pin--active'
+                            : 'sis-ribbon__pin'
+                    }
+                    aria-label={pinned ? 'إلغاء تثبيت الشريط' : 'تثبيت الشريط'}
+                    aria-pressed={pinned}
+                    title={pinned ? 'إلغاء التثبيت' : 'تثبيت'}
+                    onClick={() => {
+                        setPinned(!pinned);
+                    }}
+                >
+                    {pinned ? (
+                        <PinOff className="sis-ribbon__pin-icon" aria-hidden />
+                    ) : (
+                        <Pin className="sis-ribbon__pin-icon" aria-hidden />
+                    )}
+                </button>
+                <button
+                    type="button"
+                    className="sis-ribbon__collapse"
+                    aria-label="طي الشريط"
+                    disabled={pinned}
+                    title={pinned ? 'ألغِ التثبيت أولاً لطي الشريط' : 'طي الشريط'}
+                    onClick={onCollapse}
+                >
+                    <span aria-hidden>⌃</span>
+                </button>
+            </div>
         </div>
     );
 }

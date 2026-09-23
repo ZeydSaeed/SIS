@@ -119,11 +119,16 @@ class EnrollmentMutationHandlerTest extends TestCase
         $unitOfWork = $this->createMock(UnitOfWork::class);
         $unitOfWork->method('transaction')->willReturnCallback(fn (callable $callback) => $callback());
 
+        $applyPlacement = new \App\Application\Enrollment\Services\ApplyEnrollmentPlacementChange(
+            $enrollments,
+            $outbox,
+        );
+
         $handler = new UpdateEnrollmentPlacementHandler(
             $unitOfWork,
             $enrollments,
             $placement,
-            $outbox,
+            $applyPlacement,
             $this->createMock(IdempotencyStore::class),
         );
 
@@ -157,7 +162,10 @@ class EnrollmentMutationHandlerTest extends TestCase
             $this->createMock(UnitOfWork::class),
             $enrollments,
             $this->createMock(EnrollmentPlacementRepositoryInterface::class),
-            $this->createMock(OutboxRepository::class),
+            new \App\Application\Enrollment\Services\ApplyEnrollmentPlacementChange(
+                $enrollments,
+                $this->createMock(OutboxRepository::class),
+            ),
             $this->createMock(IdempotencyStore::class),
         );
 

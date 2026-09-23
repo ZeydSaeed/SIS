@@ -81,7 +81,7 @@ final class EnrollmentPageController extends Controller
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear, $request);
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 15)), 100);
+        $perPage = min(max(1, (int) $request->query('per_page', 17)), 100);
 
         $result = $handler->handle(new ListEnrollmentsQuery(
             schoolId: $schoolId,

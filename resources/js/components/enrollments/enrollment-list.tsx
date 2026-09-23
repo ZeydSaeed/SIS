@@ -1,30 +1,16 @@
-import { router, usePage } from '@inertiajs/react';
+﻿import { router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
     CheckCircle2,
     CircleSlash,
-    Eye,
+    FilterX,
     History,
     PauseCircle,
-    Pencil,
-    Save,
-    Trash2,
     UserMinus,
-    UserPlus,
     Users,
-    XCircle,
     type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-    FilterBranchIcon,
-    FilterClassIcon,
-    FilterDepartmentIcon,
-    FilterGenderIcon,
-    FilterSectionIcon,
-    FilterSpecializationIcon,
-    FilterYearIcon,
-} from '@/components/enrollments/enrollment-filter-icons';
 import {
     EnrollmentCreateDialog,
     EnrollmentViewDialog,
@@ -48,6 +34,8 @@ import {
 } from '@/components/sis/table-row-selection';
 import {
     useRegisterPageRibbon,
+    useSetActivePageRibbonTab,
+    type PageRibbonCommand,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
@@ -60,7 +48,7 @@ import {
 } from '@/lib/enrollment-handoff';
 import { t } from '@/i18n';
 
-const ENROLLMENTS_PER_PAGE = 15;
+const ENROLLMENTS_PER_PAGE = 17;
 
 type HandoffPlacementDraft = {
     branch_id: string;
@@ -100,8 +88,13 @@ const ENROLLMENT_STATUS_TABS: Array<{
     { status: 2, icon: CircleSlash, tone: 'light' },
     { status: 4, icon: UserMinus, tone: 'light' },
     { status: 3, icon: ArrowRightLeft, tone: 'dark' },
-    { status: 5, icon: History, tone: 'light' },
 ];
+
+const ENROLLMENT_SUPERSEDED_TAB: {
+    status: number;
+    icon: LucideIcon;
+    tone: 'light' | 'dark';
+} = { status: 5, icon: History, tone: 'light' };
 
 const ENROLLMENT_STATUS_ACTIONS: Array<{
     status: number;
@@ -125,15 +118,6 @@ function clampPercent(value: number): number {
     }
 
     return Math.round(value);
-}
-
-function percentForStatus(
-    status: number | null,
-    progress: EnrollmentsPayload['status_progress'],
-): number {
-    const match = progress?.stages.find((stage) => stage.status === status);
-
-    return clampPercent(match?.percent ?? 0);
 }
 
 function countForStatus(
@@ -424,11 +408,19 @@ export function EnrollmentList({
     const allChecked = rowIds.length > 0 && visibleCheckedIds.length === rowIds.length;
     const someChecked = visibleCheckedIds.length > 0 && !allChecked;
     const isHandoffMode = handoffStudents.length > 0 && authorization.canCreate;
+    const setActiveRibbonTab = useSetActivePageRibbonTab();
     const canApplyStatus =
         canSelect && actionIds.length > 0 && !applyingStatus && !applyingPlacement && !editing && !isHandoffMode;
     const isEditMode =
         !isHandoffMode && authorization.canUpdate && actionIds.length > 0 && !editing;
     const isStructureEditMode = isEditMode || isHandoffMode;
+
+    useEffect(() => {
+        if (isHandoffMode) {
+            setActiveRibbonTab('edit');
+        }
+    }, [isHandoffMode, setActiveRibbonTab]);
+
     const filtersBusy = applyingPlacement || applyingStatus || savingRows || enrollingHandoff;
     const selectedRow = rows.find((row) => row.id === selectedId) ?? null;
     const viewTargets = useMemo(() => {
@@ -1000,103 +992,557 @@ export function EnrollmentList({
     );
 
     const ribbonGroups = useMemo((): PageRibbonGroup[] => {
-        const commands: PageRibbonGroup['commands'] = [
+        const statusCommands: PageRibbonCommand[] = ENROLLMENT_STATUS_TABS.map((tab) => {
+            const full = statusTabLabel(tab.status, i18n);
+            const count = countForStatus(tab.status, enrollments.status_progress);
+
+            return {
+                id: tab.status === null ? 'status-tab-all' : `status-tab-${tab.status}`,
+                label: full,
+                title: `${full} (${count})`,
+                icon: tab.icon,
+                count,
+                pressed: filters.status === tab.status,
+                onSelect: () => onStatusTabClick(tab.status, filters.status === tab.status),
+            };
+        });
+
+        const supersededLabel = statusTabLabel(ENROLLMENT_SUPERSEDED_TAB.status, i18n);
+        const supersededCount = countForStatus(
+            ENROLLMENT_SUPERSEDED_TAB.status,
+            enrollments.status_progress,
+        );
+        const supersededCommand: PageRibbonCommand = {
+            id: `status-tab-${ENROLLMENT_SUPERSEDED_TAB.status}`,
+            label: supersededLabel,
+            title: `${supersededLabel} (${supersededCount})`,
+            icon: ENROLLMENT_SUPERSEDED_TAB.icon,
+            count: supersededCount,
+            pressed: filters.status === ENROLLMENT_SUPERSEDED_TAB.status,
+            onSelect: () =>
+                onStatusTabClick(
+                    ENROLLMENT_SUPERSEDED_TAB.status,
+                    filters.status === ENROLLMENT_SUPERSEDED_TAB.status,
+                ),
+        };
+
+        const distributionCommands: PageRibbonCommand[] = [];
+        if (canSelect) {
+            for (const action of ENROLLMENT_STATUS_ACTIONS) {
+                const full = statusTabLabel(action.status, i18n);
+                const needsCancel =
+                    action.status === 0
+                    || action.status === 2
+                    || action.status === 3
+                    || action.status === 4;
+
+                distributionCommands.push({
+                    id: `action-status-${action.status}`,
+                    label: full,
+                    title: canApplyStatus ? full : i18n.enrollments.statusNeedsSelection,
+                    icon: action.icon,
+                    disabled: !canApplyStatus || (needsCancel && !authorization.canCancel),
+                    onSelect: () => applyStatus(action.status),
+                });
+            }
+        }
+
+        const groups: PageRibbonGroup[] = [
             {
-                id: 'view-enrollment',
-                label: i18n.common.view,
-                icon: Eye,
-                disabled: !hasViewTargets || !authorization.canView,
-                onSelect: () => openViewDialog(false),
+                id: 'enrollment-filters',
+                label: i18n.enrollments.ribbonFilters,
+                commands: [],
+                custom: (
+                    <div
+                        className="sis-ribbon__filters"
+                        aria-label={i18n.enrollments.structureFiltersTitle}
+                        aria-busy={filtersBusy || undefined}
+                    >
+                        <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--enrollments">
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <OpsYearFilter
+                                    action="/enrollments"
+                                    academicYearId={filters.academic_year_id}
+                                    extraParams={{
+                                        get q() {
+                                            const value = searchDraftRef.current.trim();
+
+                                            return value === '' ? undefined : value;
+                                        },
+                                        per_page: ENROLLMENTS_PER_PAGE,
+                                        status: filters.status ?? undefined,
+                                        gender: filters.gender ?? undefined,
+                                        class_id: filters.class_id ?? undefined,
+                                        section_id: filters.section_id ?? undefined,
+                                        branch_id: filters.branch_id ?? undefined,
+                                        department_id: filters.department_id ?? undefined,
+                                        specialization_id: filters.specialization_id ?? undefined,
+                                    }}
+                                    onYearChange={(yearId) => {
+                                        if (filtersBusy) {
+                                            return;
+                                        }
+
+                                        visitList({
+                                            academic_year_id: yearId,
+                                            page: 1,
+                                        });
+                                    }}
+                                    label={i18n.enrollments.academicYear}
+                                    showLabel={false}
+                                    compact
+                                    showCurrentBadge={false}
+                                    disabled={filtersBusy}
+                                    controlClassName="sis-admission-year-control"
+                                />
+                            </div>
+
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {genderFilterLabel}
+                                    </span>
+                                    <SisListSelect
+                                        key={isStructureEditMode ? 'gender-edit' : 'gender-filter'}
+                                        value={isStructureEditMode ? '' : genderValue}
+                                        options={[
+                                            { value: '', label: i18n.enrollments.gender },
+                                            { value: '1', label: i18n.students.male },
+                                            { value: '2', label: i18n.students.female },
+                                        ]}
+                                        onChange={(next) => {
+                                            if (isHandoffMode) {
+                                                return;
+                                            }
+
+                                            if (isEditMode) {
+                                                if (next === '' || filtersBusy) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ gender: Number(next) });
+
+                                                return;
+                                            }
+
+                                            visitList({
+                                                gender: next === '1' || next === '2' ? Number(next) : null,
+                                                page: 1,
+                                            });
+                                        }}
+                                        disabled={filtersBusy || isHandoffMode}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.enrollments.filterByGender}
+                                    />
+                                </span>
+                            </div>
+
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {structureBranchLabel}
+                                    </span>
+                                    <SisListSelect
+                                        key={isStructureEditMode ? 'branch-edit' : 'branch-filter'}
+                                        value={
+                                            isHandoffMode
+                                                ? handoffDraft.branch_id
+                                                : isEditMode
+                                                  ? ''
+                                                  : branchValue
+                                        }
+                                        options={[
+                                            { value: '', label: i18n.enrollments.allBranches },
+                                            ...filterOptions.branches.map((item) => ({
+                                                value: String(item.id),
+                                                label: item.name,
+                                            })),
+                                        ]}
+                                        onChange={(next) => {
+                                            if (isHandoffMode) {
+                                                if (filtersBusy) {
+                                                    return;
+                                                }
+
+                                                patchHandoffDraft({ branch_id: next });
+
+                                                return;
+                                            }
+
+                                            if (isEditMode) {
+                                                if (next === '' || filtersBusy) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ branch_id: Number(next) });
+
+                                                return;
+                                            }
+
+                                            visitList({
+                                                branch_id: next === '' ? null : Number(next),
+                                                department_id: null,
+                                                specialization_id: null,
+                                                page: 1,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.enrollments.filterByBranch}
+                                    />
+                                </span>
+                            </div>
+
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {structureDepartmentLabel}
+                                    </span>
+                                    <SisListSelect
+                                        key={isStructureEditMode ? 'department-edit' : 'department-filter'}
+                                        value={
+                                            isHandoffMode
+                                                ? handoffDraft.department_id
+                                                : isEditMode
+                                                  ? ''
+                                                  : departmentIdValue
+                                        }
+                                        options={[
+                                            { value: '', label: i18n.enrollments.allDepartments },
+                                            ...filterDepartments.map((item) => ({
+                                                value: String(item.id),
+                                                label: item.name,
+                                            })),
+                                        ]}
+                                        onChange={(next) => {
+                                            if (isHandoffMode) {
+                                                if (filtersBusy) {
+                                                    return;
+                                                }
+
+                                                patchHandoffDraft({ department_id: next });
+
+                                                return;
+                                            }
+
+                                            if (isEditMode) {
+                                                if (next === '' || filtersBusy) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ department_id: Number(next) });
+
+                                                return;
+                                            }
+
+                                            visitList({
+                                                department_id: next === '' ? null : Number(next),
+                                                specialization_id: null,
+                                                page: 1,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.enrollments.filterByDepartment}
+                                    />
+                                </span>
+                            </div>
+
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {structureSpecializationLabel}
+                                    </span>
+                                    <SisListSelect
+                                        key={
+                                            isStructureEditMode
+                                                ? 'specialization-edit'
+                                                : 'specialization-filter'
+                                        }
+                                        value={
+                                            isHandoffMode
+                                                ? handoffDraft.specialization_id
+                                                : isEditMode
+                                                  ? ''
+                                                  : specializationValue
+                                        }
+                                        options={[
+                                            { value: '', label: i18n.enrollments.allSpecializations },
+                                            ...filterSpecializations.map((item) => ({
+                                                value: String(item.id),
+                                                label: item.name,
+                                            })),
+                                        ]}
+                                        onChange={(next) => {
+                                            if (isHandoffMode) {
+                                                if (filtersBusy) {
+                                                    return;
+                                                }
+
+                                                patchHandoffDraft({ specialization_id: next });
+
+                                                return;
+                                            }
+
+                                            if (isEditMode) {
+                                                if (next === '' || filtersBusy) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({
+                                                    specialization_id: Number(next),
+                                                });
+
+                                                return;
+                                            }
+
+                                            visitList({
+                                                specialization_id: next === '' ? null : Number(next),
+                                                page: 1,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.enrollments.filterBySpecialization}
+                                    />
+                                </span>
+                            </div>
+
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {structureClassLabel}
+                                    </span>
+                                    <SisListSelect
+                                        key={isStructureEditMode ? 'class-edit' : 'class-filter'}
+                                        value={
+                                            isHandoffMode
+                                                ? handoffDraft.class_id
+                                                : isEditMode
+                                                  ? ''
+                                                  : classValue
+                                        }
+                                        options={[
+                                            { value: '', label: i18n.enrollments.allClasses },
+                                            ...filterOptions.classes.map((item) => ({
+                                                value: String(item.id),
+                                                label: item.name,
+                                            })),
+                                        ]}
+                                        onChange={(next) => {
+                                            if (isHandoffMode) {
+                                                if (filtersBusy) {
+                                                    return;
+                                                }
+
+                                                patchHandoffDraft({ class_id: next });
+
+                                                return;
+                                            }
+
+                                            if (isEditMode) {
+                                                if (next === '' || filtersBusy) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ class_id: Number(next) });
+
+                                                return;
+                                            }
+
+                                            visitList({
+                                                class_id: next === '' ? null : Number(next),
+                                                section_id: null,
+                                                page: 1,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.enrollments.filterByClass}
+                                    />
+                                </span>
+                            </div>
+
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {structureSectionLabel}
+                                    </span>
+                                    <SisListSelect
+                                        key={isStructureEditMode ? 'section-edit' : 'section-filter'}
+                                        value={
+                                            isHandoffMode
+                                                ? handoffDraft.section_id
+                                                : isEditMode
+                                                  ? ''
+                                                  : sectionValue
+                                        }
+                                        options={[
+                                            { value: '', label: i18n.enrollments.allSections },
+                                            ...filterSections.map((item) => ({
+                                                value: String(item.id),
+                                                label: item.name,
+                                            })),
+                                        ]}
+                                        onChange={(next) => {
+                                            if (isHandoffMode) {
+                                                if (filtersBusy || next === '') {
+                                                    return;
+                                                }
+
+                                                if (handoffDraft.class_id === '') {
+                                                    showError(i18n.enrollments.handoffNeedsPlacement);
+
+                                                    return;
+                                                }
+
+                                                patchHandoffDraft({ section_id: next });
+
+                                                return;
+                                            }
+
+                                            if (isEditMode) {
+                                                if (next === '' || filtersBusy) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ section_id: Number(next) });
+
+                                                return;
+                                            }
+
+                                            visitList({
+                                                section_id: next === '' ? null : Number(next),
+                                                page: 1,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.enrollments.filterBySection}
+                                    />
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="sis-ribbon__item sis-ribbon__item--filter-clear"
+                            disabled={filtersBusy}
+                            aria-label={i18n.enrollments.clearFiltersAria}
+                            title={i18n.enrollments.clearFiltersAria}
+                            onClick={clearStructureFilters}
+                        >
+                            <FilterX className="sis-ribbon__icon" aria-hidden />
+                            <span className="sis-ribbon__label">{i18n.enrollments.clearFilters}</span>
+                        </button>
+                    </div>
+                ),
+            },
+            {
+                id: 'enrollment-status-tabs',
+                label: i18n.enrollments.ribbonStatus,
+                commands: statusCommands,
             },
         ];
 
-        if (authorization.canCreate) {
-            commands.push({
-                id: 'create-enrollment',
-                label: i18n.enrollments.enrollStudent,
-                icon: UserPlus,
-                onSelect: () => {
-                    setCreateStudentId(null);
-                    setCreatingEnrollment(true);
-                },
+        if (distributionCommands.length > 0) {
+            groups.push({
+                id: 'enrollment-distribution',
+                label: i18n.enrollments.ribbonDistribution,
+                commands: distributionCommands,
             });
         }
 
-        if (authorization.canUpdate || authorization.canCancel) {
-            commands.push(
-                {
-                    id: 'edit-enrollment',
-                    label: i18n.common.edit,
-                    icon: Pencil,
-                    tone: 'edit',
-                    disabled: !hasEditTargets || applyingPlacement || applyingStatus || savingRows,
-                    onSelect: startEditing,
-                },
-                {
-                    id: 'save-enrollment',
-                    label: i18n.common.save,
-                    icon: Save,
-                    tone: 'save',
-                    disabled: !editing || savingRows,
-                    onSelect: saveEditingRows,
-                },
-                {
-                    id: 'cancel-enrollment-selection',
-                    label: i18n.common.cancel,
-                    icon: XCircle,
-                    disabled: !hasActiveSelection || applyingPlacement || applyingStatus || savingRows,
-                    onSelect: clearSelection,
-                },
-                {
-                    id: 'delete-enrollment',
-                    label: i18n.common.delete,
-                    icon: Trash2,
-                    tone: 'delete',
-                    disabled: !canDelete || applyingPlacement || applyingStatus || savingRows || editing,
-                    onSelect: () => {
-                        if (selectedRow !== null) {
-                            setDeleteTarget(selectedRow);
-                        }
-                    },
-                },
-            );
-        }
+        groups.push({
+            id: 'enrollment-superseded',
+            label: i18n.enrollments.ribbonSuperseded,
+            commands: [supersededCommand],
+        });
 
-        return [
-            {
-                id: 'enrollment-list-actions',
-                label: i18n.common.actions,
-                commands,
-            },
-        ];
+        groups.push({
+            id: 'enrollment-progress',
+            label: i18n.enrollments.ribbonProgress,
+            commands: [],
+            custom: (
+                <div
+                    className="sis-ribbon__progress-track"
+                    role="progressbar"
+                    aria-label={i18n.enrollments.overallProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={overallPercent}
+                    data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
+                    dir="rtl"
+                    title={`${i18n.enrollments.overallProgress}: ${overallPercent}%`}
+                >
+                    <span
+                        className="sis-ribbon__progress-fill"
+                        style={{ width: `${overallPercent}%` }}
+                    />
+                    <span className="sis-ribbon__progress-value" dir="ltr">
+                        {overallPercent}%
+                    </span>
+                </div>
+            ),
+        });
+
+        return groups;
     }, [
-        applyingPlacement,
-        applyingStatus,
+        applyPlacementPatch,
+        applyStatus,
         authorization.canCancel,
-        authorization.canCreate,
-        authorization.canUpdate,
-        authorization.canView,
-        canDelete,
-        clearSelection,
-        editing,
-        hasActiveSelection,
-        hasEditTargets,
-        hasViewTargets,
-        i18n.common.actions,
-        i18n.common.cancel,
-        i18n.common.delete,
-        i18n.common.edit,
-        i18n.common.save,
-        i18n.common.view,
-        i18n.enrollments.enrollStudent,
-        openViewDialog,
-        saveEditingRows,
-        savingRows,
-        selectedRow,
-        startEditing,
+        branchValue,
+        canApplyStatus,
+        canSelect,
+        classValue,
+        clearStructureFilters,
+        departmentIdValue,
+        enrollments.status_progress,
+        filterDepartments,
+        filterOptions.branches,
+        filterOptions.classes,
+        filterSections,
+        filterSpecializations,
+        filters.academic_year_id,
+        filters.branch_id,
+        filters.class_id,
+        filters.department_id,
+        filters.gender,
+        filters.section_id,
+        filters.specialization_id,
+        filters.status,
+        filtersBusy,
+        genderFilterLabel,
+        genderValue,
+        handoffDraft.branch_id,
+        handoffDraft.class_id,
+        handoffDraft.department_id,
+        handoffDraft.section_id,
+        handoffDraft.specialization_id,
+        i18n,
+        isEditMode,
+        isHandoffMode,
+        isStructureEditMode,
+        onStatusTabClick,
+        overallPercent,
+        patchHandoffDraft,
+        sectionValue,
+        showError,
+        specializationValue,
+        structureBranchLabel,
+        structureClassLabel,
+        structureDepartmentLabel,
+        structureSectionLabel,
+        structureSpecializationLabel,
+        visitList,
     ]);
 
-    useRegisterPageRibbon('home', ribbonGroups);
+    useRegisterPageRibbon('edit', ribbonGroups);
 
     const titlebarSearch = useMemo(
         () => ({
@@ -1121,563 +1567,6 @@ export function EnrollmentList({
             dir="rtl"
             lang="ar"
         >
-            <div
-                className={`sis-enrollments-control-strip${isHandoffMode ? ' sis-enrollments-control-strip--handoff' : ''}`}
-            >
-                <div
-                    className={
-                        isStructureEditMode
-                            ? 'sis-enrollments-filters-bar sis-enrollments-filters-bar--edit'
-                            : 'sis-enrollments-filters-bar sis-enrollments-filters-bar--filter'
-                    }
-                    role="search"
-                    aria-label={i18n.enrollments.structureFiltersTitle}
-                    aria-busy={filtersBusy || undefined}
-                >
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--year" dir="rtl">
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterYearIcon />
-                    </span>
-                    <span className="sis-enrollments-filter-chip__control">
-                        <OpsYearFilter
-                            action="/enrollments"
-                            academicYearId={filters.academic_year_id}
-                            extraParams={{
-                                get q() {
-                                    const value = searchDraftRef.current.trim();
-
-                                    return value === '' ? undefined : value;
-                                },
-                                per_page: ENROLLMENTS_PER_PAGE,
-                                status: filters.status ?? undefined,
-                                gender: filters.gender ?? undefined,
-                                class_id: filters.class_id ?? undefined,
-                                section_id: filters.section_id ?? undefined,
-                                branch_id: filters.branch_id ?? undefined,
-                                department_id: filters.department_id ?? undefined,
-                                specialization_id: filters.specialization_id ?? undefined,
-                            }}
-                            onYearChange={(yearId) => {
-                                if (filtersBusy) {
-                                    return;
-                                }
-
-                                visitList({
-                                    academic_year_id: yearId,
-                                    page: 1,
-                                });
-                            }}
-                            label={i18n.enrollments.academicYear}
-                            showLabel={false}
-                            compact
-                            showCurrentBadge={false}
-                            disabled={filtersBusy}
-                            controlClassName="sis-admission-year-control"
-                        />
-                    </span>
-                </div>
-
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--gender"
-                    dir="rtl"
-                >
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterGenderIcon />
-                    </span>
-                    <span className="sis-admission-select-fit">
-                        <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {genderFilterLabel}
-                        </span>
-                        <SisListSelect
-                            key={isStructureEditMode ? 'gender-edit' : 'gender-filter'}
-                            value={isStructureEditMode ? '' : genderValue}
-                            options={[
-                                { value: '', label: i18n.enrollments.gender },
-                                { value: '1', label: i18n.students.male },
-                                { value: '2', label: i18n.students.female },
-                            ]}
-                            onChange={(next) => {
-                                if (isHandoffMode) {
-                                    return;
-                                }
-
-                                if (isEditMode) {
-                                    if (next === '' || filtersBusy) {
-                                        return;
-                                    }
-
-                                    applyPlacementPatch({ gender: Number(next) });
-
-                                    return;
-                                }
-
-                                visitList({
-                                    gender: next === '1' || next === '2' ? Number(next) : null,
-                                    page: 1,
-                                });
-                            }}
-                            disabled={filtersBusy || isHandoffMode}
-                            triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                            dir="rtl"
-                            ariaLabel={i18n.enrollments.filterByGender}
-                        />
-                    </span>
-                </div>
-
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--branch"
-                    dir="rtl"
-                >
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterBranchIcon />
-                    </span>
-                    <span className="sis-admission-select-fit">
-                        <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {structureBranchLabel}
-                        </span>
-                        <SisListSelect
-                            key={isStructureEditMode ? 'branch-edit' : 'branch-filter'}
-                            value={
-                                isHandoffMode
-                                    ? handoffDraft.branch_id
-                                    : isEditMode
-                                      ? ''
-                                      : branchValue
-                            }
-                            options={[
-                                { value: '', label: i18n.enrollments.allBranches },
-                                ...filterOptions.branches.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={(next) => {
-                                if (isHandoffMode) {
-                                    if (filtersBusy) {
-                                        return;
-                                    }
-
-                                    patchHandoffDraft({ branch_id: next });
-
-                                    return;
-                                }
-
-                                if (isEditMode) {
-                                    if (next === '' || filtersBusy) {
-                                        return;
-                                    }
-
-                                    applyPlacementPatch({ branch_id: Number(next) });
-
-                                    return;
-                                }
-
-                                visitList({
-                                    branch_id: next === '' ? null : Number(next),
-                                    department_id: null,
-                                    specialization_id: null,
-                                    page: 1,
-                                });
-                            }}
-                            disabled={filtersBusy}
-                            triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                            dir="rtl"
-                            ariaLabel={i18n.enrollments.filterByBranch}
-                        />
-                    </span>
-                </div>
-
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--department"
-                    dir="rtl"
-                >
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterDepartmentIcon />
-                    </span>
-                    <span className="sis-admission-select-fit">
-                        <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {structureDepartmentLabel}
-                        </span>
-                        <SisListSelect
-                            key={isStructureEditMode ? 'department-edit' : 'department-filter'}
-                            value={
-                                isHandoffMode
-                                    ? handoffDraft.department_id
-                                    : isEditMode
-                                      ? ''
-                                      : departmentIdValue
-                            }
-                            options={[
-                                { value: '', label: i18n.enrollments.allDepartments },
-                                ...filterDepartments.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={(next) => {
-                                if (isHandoffMode) {
-                                    if (filtersBusy) {
-                                        return;
-                                    }
-
-                                    patchHandoffDraft({ department_id: next });
-
-                                    return;
-                                }
-
-                                if (isEditMode) {
-                                    if (next === '' || filtersBusy) {
-                                        return;
-                                    }
-
-                                    applyPlacementPatch({ department_id: Number(next) });
-
-                                    return;
-                                }
-
-                                visitList({
-                                    department_id: next === '' ? null : Number(next),
-                                    specialization_id: null,
-                                    page: 1,
-                                });
-                            }}
-                            disabled={filtersBusy}
-                            triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                            dir="rtl"
-                            ariaLabel={i18n.enrollments.filterByDepartment}
-                        />
-                    </span>
-                </div>
-
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--specialization"
-                    dir="rtl"
-                >
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterSpecializationIcon />
-                    </span>
-                    <span className="sis-admission-select-fit">
-                        <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {structureSpecializationLabel}
-                        </span>
-                        <SisListSelect
-                            key={
-                                isStructureEditMode
-                                    ? 'specialization-edit'
-                                    : 'specialization-filter'
-                            }
-                            value={
-                                isHandoffMode
-                                    ? handoffDraft.specialization_id
-                                    : isEditMode
-                                      ? ''
-                                      : specializationValue
-                            }
-                            options={[
-                                { value: '', label: i18n.enrollments.allSpecializations },
-                                ...filterSpecializations.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={(next) => {
-                                if (isHandoffMode) {
-                                    if (filtersBusy) {
-                                        return;
-                                    }
-
-                                    patchHandoffDraft({ specialization_id: next });
-
-                                    return;
-                                }
-
-                                if (isEditMode) {
-                                    if (next === '' || filtersBusy) {
-                                        return;
-                                    }
-
-                                    applyPlacementPatch({ specialization_id: Number(next) });
-
-                                    return;
-                                }
-
-                                visitList({
-                                    specialization_id: next === '' ? null : Number(next),
-                                    page: 1,
-                                });
-                            }}
-                            disabled={filtersBusy}
-                            triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                            dir="rtl"
-                            ariaLabel={i18n.enrollments.filterBySpecialization}
-                        />
-                    </span>
-                </div>
-
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--class"
-                    dir="rtl"
-                >
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterClassIcon />
-                    </span>
-                    <span className="sis-admission-select-fit">
-                        <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {structureClassLabel}
-                        </span>
-                        <SisListSelect
-                            key={isStructureEditMode ? 'class-edit' : 'class-filter'}
-                            value={
-                                isHandoffMode
-                                    ? handoffDraft.class_id
-                                    : isEditMode
-                                      ? ''
-                                      : classValue
-                            }
-                            options={[
-                                { value: '', label: i18n.enrollments.allClasses },
-                                ...filterOptions.classes.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={(next) => {
-                                if (isHandoffMode) {
-                                    if (filtersBusy) {
-                                        return;
-                                    }
-
-                                    patchHandoffDraft({ class_id: next });
-
-                                    return;
-                                }
-
-                                if (isEditMode) {
-                                    if (next === '' || filtersBusy) {
-                                        return;
-                                    }
-
-                                    applyPlacementPatch({ class_id: Number(next) });
-
-                                    return;
-                                }
-
-                                visitList({
-                                    class_id: next === '' ? null : Number(next),
-                                    section_id: null,
-                                    page: 1,
-                                });
-                            }}
-                            disabled={filtersBusy}
-                            triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                            dir="rtl"
-                            ariaLabel={i18n.enrollments.filterByClass}
-                        />
-                    </span>
-                </div>
-
-                <div className="sis-enrollments-filter-chip sis-enrollments-filter-chip--section"
-                    dir="rtl"
-                >
-                    <span className="sis-enrollments-filter-chip__icon" aria-hidden="true">
-                        <FilterSectionIcon />
-                    </span>
-                    <span className="sis-admission-select-fit">
-                        <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                            {structureSectionLabel}
-                        </span>
-                        <SisListSelect
-                            key={isStructureEditMode ? 'section-edit' : 'section-filter'}
-                            value={
-                                isHandoffMode
-                                    ? handoffDraft.section_id
-                                    : isEditMode
-                                      ? ''
-                                      : sectionValue
-                            }
-                            options={[
-                                { value: '', label: i18n.enrollments.allSections },
-                                ...filterSections.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={(next) => {
-                                if (isHandoffMode) {
-                                    if (filtersBusy || next === '') {
-                                        return;
-                                    }
-
-                                    if (handoffDraft.class_id === '') {
-                                        showError(i18n.enrollments.handoffNeedsPlacement);
-
-                                        return;
-                                    }
-
-                                    patchHandoffDraft({ section_id: next });
-
-                                    return;
-                                }
-
-                                if (isEditMode) {
-                                    if (next === '' || filtersBusy) {
-                                        return;
-                                    }
-
-                                    applyPlacementPatch({ section_id: Number(next) });
-
-                                    return;
-                                }
-
-                                visitList({
-                                    section_id: next === '' ? null : Number(next),
-                                    page: 1,
-                                });
-                            }}
-                            disabled={filtersBusy}
-                            triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                            dir="rtl"
-                            ariaLabel={i18n.enrollments.filterBySection}
-                        />
-                    </span>
-                </div>
-
-                <button
-                    type="button"
-                    className="sis-enrollments-filter-clear"
-                    onClick={clearStructureFilters}
-                    disabled={filtersBusy}
-                    aria-label={i18n.enrollments.clearFiltersAria}
-                    title={i18n.enrollments.clearFiltersAria}
-                >
-                    {i18n.enrollments.clearFilters}
-                </button>
-                {actionIds.length > 0 ? (
-                    <button
-                        type="button"
-                        className="sis-enrollments-filter-clear"
-                        onClick={clearSelection}
-                        disabled={filtersBusy}
-                        aria-label={i18n.enrollments.clearSelectionAria}
-                        title={i18n.enrollments.clearSelectionAria}
-                    >
-                        {i18n.enrollments.clearSelection}
-                    </button>
-                ) : null}
-                </div>
-
-                {canSelect ? (
-                    <div
-                        className="sis-admission-drafts-transitions sis-enrollments-status-actions"
-                        role="toolbar"
-                        aria-label={i18n.enrollments.statusActionsTitle}
-                    >
-                        <div className="sis-admission-drafts-table__transitions">
-                            {ENROLLMENT_STATUS_ACTIONS.map((action) => {
-                                const Icon = action.icon;
-                                const actionLabel = statusTabLabel(action.status, i18n);
-
-                                return (
-                                    <button
-                                        key={action.status}
-                                        type="button"
-                                        className={`sis-admission-drafts-table__transition sis-admission-drafts-table__transition--tone-${action.tone} sis-enrollments-status-action`}
-                                        data-status={action.status}
-                                    disabled={
-                                        !canApplyStatus
-                                        || ((action.status === 0
-                                            || action.status === 2
-                                            || action.status === 3
-                                            || action.status === 4)
-                                            && !authorization.canCancel)
-                                    }
-                                        aria-label={actionLabel}
-                                        title={
-                                            canApplyStatus
-                                                ? actionLabel
-                                                : i18n.enrollments.statusNeedsSelection
-                                        }
-                                        onClick={() => applyStatus(action.status)}
-                                    >
-                                        <Icon className="sis-enrollments-status-action__icon" aria-hidden="true" />
-                                        <span className="sis-enrollments-status-action__label">{actionLabel}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ) : null}
-            </div>
-
-            <section
-                aria-label={i18n.enrollments.statusTabsTitle}
-                className="sis-admission-progress sis-students-tabs sis-enrollments-status-tabs sis-enrollment-status-tabs"
-            >
-                <ol className="sis-admission-progress__track" dir="rtl" role="tablist">
-                    {ENROLLMENT_STATUS_TABS.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = filters.status === tab.status;
-                        const label = statusTabLabel(tab.status, i18n);
-                        const percent = percentForStatus(tab.status, enrollments.status_progress);
-                        const count = countForStatus(tab.status, enrollments.status_progress);
-                        const statusClass =
-                            tab.status === null
-                                ? 'sis-admission-progress__segment--status-all'
-                                : `sis-admission-progress__segment--status-${tab.status}`;
-
-                        return (
-                            <li key={tab.status ?? 'all'} className="sis-admission-progress__item">
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    className={`sis-admission-progress__segment ${statusClass} sis-admission-progress__segment--tone-${tab.tone}${isActive ? ' sis-admission-progress__segment--active' : ''}`}
-                                    aria-label={`${label} ${count}`}
-                                    title={label}
-                                    aria-selected={isActive}
-                                    aria-pressed={isActive}
-                                    aria-current={isActive ? 'true' : undefined}
-                                    data-active={isActive ? 'true' : undefined}
-                                    onClick={() => onStatusTabClick(tab.status, isActive)}
-                                >
-                                    <span
-                                        className="sis-admission-progress__fill"
-                                        style={{ width: `${percent}%` }}
-                                        aria-hidden="true"
-                                    />
-                                    <span className="sis-admission-progress__content">
-                                        <Icon className="sis-admission-progress__icon" aria-hidden="true" />
-                                        <span className="sis-admission-progress__label">{label}</span>
-                                        <span className="sis-admission-progress__count" dir="ltr">
-                                            {count}
-                                        </span>
-                                    </span>
-                                </button>
-                            </li>
-                        );
-                    })}
-                </ol>
-            </section>
-
-            <div
-                className="sis-admission-progress__overall-block sis-enrollments-progress"
-                role="group"
-                aria-label={i18n.enrollments.overallProgress}
-            >
-                <div
-                    className="sis-admission-progress__overall-track"
-                    role="progressbar"
-                    aria-label={i18n.enrollments.overallProgress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={overallPercent}
-                    data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
-                    dir="rtl"
-                >
-                    <span
-                        className="sis-admission-progress__overall-fill"
-                        style={{ width: `${overallPercent}%` }}
-                    />
-                    <span className="sis-admission-progress__overall-value" dir="ltr">
-                        {overallPercent}%
-                    </span>
-                </div>
-            </div>
-
             <div className="sis-admission-page-body">
                 <section aria-label={i18n.enrollments.tableCaption} className="flex min-h-0 flex-1 flex-col">
                     {rows.length === 0 ? (
