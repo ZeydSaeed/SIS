@@ -8,6 +8,7 @@ use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\BulkUpdateEnrollmentPlacementResult;
+use App\Application\Enrollment\Support\EnrollmentPlacementChange;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotActiveException;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
@@ -176,8 +177,8 @@ final class BulkUpdateEnrollmentPlacementHandler implements CommandHandler
                         ? $command->departmentId
                         : $enrollment->departmentId;
 
-                    $this->enrollments->updatePlacement(
-                        $enrollmentId,
+                    $materialChange = EnrollmentPlacementChange::isMaterialChange(
+                        $enrollment,
                         $classId,
                         $sectionId,
                         $specializationId,
@@ -185,12 +186,38 @@ final class BulkUpdateEnrollmentPlacementHandler implements CommandHandler
                         $departmentId,
                     );
 
+                    $activeEnrollmentId = $enrollmentId;
+
+                    if ($materialChange && $enrollment->isActive()) {
+                        $asOf = EnrollmentPlacementChange::todayIsoDate();
+                        $activeEnrollmentId = $this->enrollments->supersedeWithNewPlacement(
+                            current: $enrollment,
+                            classId: $classId,
+                            sectionId: $sectionId,
+                            specializationId: $specializationId,
+                            branchId: $branchId,
+                            departmentId: $departmentId,
+                            effectiveTo: $asOf,
+                            effectiveFrom: $asOf,
+                            enrolledBy: $command->updatedBy,
+                        );
+                    } else {
+                        $this->enrollments->updatePlacement(
+                            $enrollmentId,
+                            $classId,
+                            $sectionId,
+                            $specializationId,
+                            $branchId,
+                            $departmentId,
+                        );
+                    }
+
                     $resolvedClassId = $classId;
                     $resolvedSectionId = $sectionId;
-                    $updatedIds[] = $enrollmentId;
+                    $updatedIds[] = $activeEnrollmentId;
 
                     $this->outbox->stage(new EnrollmentPlacementUpdated(
-                        enrollmentId: $enrollmentId,
+                        enrollmentId: $activeEnrollmentId,
                         studentId: $enrollment->studentId,
                         schoolId: $enrollment->schoolId,
                         academicYearId: $enrollment->academicYearId,
@@ -201,6 +228,12 @@ final class BulkUpdateEnrollmentPlacementHandler implements CommandHandler
                         specializationId: $specializationId,
                         updatedBy: $command->updatedBy,
                         occurredAt: new \DateTimeImmutable,
+                        previousEnrollmentId: $materialChange && $enrollment->isActive()
+                            ? $enrollmentId
+                            : null,
+                        newEnrollmentId: $materialChange && $enrollment->isActive()
+                            ? $activeEnrollmentId
+                            : null,
                     ));
                 } catch (InvalidEnrollmentPlacementException $exception) {
                     $skippedIds[] = $enrollmentId;

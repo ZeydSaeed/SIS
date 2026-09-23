@@ -240,8 +240,8 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
     /**
      * Filter converted applicants by student-profile completeness
      * (same checklist as resources/js/.../student-profile-gaps.ts).
-     * awaiting = has gaps → UI «متابعة التسجيل»
-     * completed = no gaps → UI «تم التسجيل»
+     * awaiting = has gaps → UI «متابعة الملف»
+     * completed = no gaps → UI «مستوفي»
      *
      * @param  \Illuminate\Database\Query\Builder  $query
      */

@@ -18,6 +18,8 @@ final readonly class EnrollmentPlacementUpdated implements DomainEvent
         private ?int $specializationId,
         private ?int $updatedBy,
         private \DateTimeImmutable $occurredAt,
+        private ?int $previousEnrollmentId = null,
+        private ?int $newEnrollmentId = null,
     ) {}
 
     public function occurredAt(): \DateTimeImmutable
@@ -32,6 +34,8 @@ final readonly class EnrollmentPlacementUpdated implements DomainEvent
     {
         return [
             'enrollment_id' => $this->enrollmentId,
+            'previous_enrollment_id' => $this->previousEnrollmentId,
+            'new_enrollment_id' => $this->newEnrollmentId,
             'student_id' => $this->studentId,
             'school_id' => $this->schoolId,
             'academic_year_id' => $this->academicYearId,

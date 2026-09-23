@@ -81,13 +81,22 @@ Official academic records are **never hard-deleted**.
 
 ## Enrollment Uniqueness
 
-A student may have only one active enrollment per academic year:
+A student may have only one **active** enrollment per academic year:
 
 ```
-UNIQUE (student_id, academic_year_id) WHERE status = 'ACTIVE'
+UNIQUE (student_id, academic_year_id) WHERE status = 1 AND effective_to IS NULL
 ```
 
 (PostgreSQL partial unique index)
+
+Mid-year placement changes (class/section/branch/department) **do not overwrite** the active row. The prior row is closed as `status = SUPERSEDED (5)` with `effective_to`, and a **new** active enrollment row is inserted for the same year.
+
+```
+student
+    └── academic year 2025-2026
+          ├── enrollment A — صف 1 / شعبة أ — superseded (effective_to set)
+          └── enrollment B — صف 2 / شعبة ب — active (effective_to NULL)
+```
 
 ## Key Lifecycle Events
 

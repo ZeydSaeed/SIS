@@ -576,7 +576,7 @@
 | section_id | BIGINT | FK → sections |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | enrollment_number | VARCHAR(50) | UNIQUE NOT NULL |
-| status | SMALLINT | NOT NULL DEFAULT 1 — 0=Inactive, 1=Active, 2=Cancelled, 4=Dismissed, 3=Transferred |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 0=Inactive, 1=Active, 2=Cancelled, 4=Dismissed, 3=Transferred, 5=Superseded (prior mid-year placement) |
 | effective_from | DATE | NOT NULL |
 | effective_to | DATE | |
 | enrolled_by | BIGINT | FK → security.users |
@@ -589,7 +589,9 @@
 - `BTREE(department_id)`
 - `COMPOSITE(school_id, academic_year_id)`
 - `COMPOSITE(student_id, academic_year_id)`
-- `PARTIAL UNIQUE(student_id, academic_year_id) WHERE status = 1`
+- `PARTIAL UNIQUE(student_id, academic_year_id) WHERE status = 1 AND effective_to IS NULL`
+
+**Placement history:** Mid-year class/section/branch/department change closes the current active row (`status=5` + `effective_to`) and inserts a new active row — does not overwrite placement columns in place.
 
 **Security (ENR-U01):** FORCE RLS school isolation on `school_id` (fail-closed GUC). Hard DELETE rejected by trigger — cancel via `status` + `effective_to`.  
 **Note:** Legacy ENABLE-only fail-open policy replaced.

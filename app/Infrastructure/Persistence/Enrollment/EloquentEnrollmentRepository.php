@@ -215,6 +215,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             EnrollmentStatus::CANCELLED,
             EnrollmentStatus::TRANSFERRED,
             EnrollmentStatus::DISMISSED,
+            EnrollmentStatus::SUPERSEDED,
         ], true)) {
             throw new \InvalidArgumentException('setClosedStatus requires a closed enrollment status.');
         }
@@ -244,6 +245,48 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
                 'effective_to' => $effectiveTo,
                 'updated_at' => now(),
             ]) === 1;
+    }
+
+    public function supersedeWithNewPlacement(
+        EnrollmentSnapshot $current,
+        int $classId,
+        int $sectionId,
+        ?int $specializationId,
+        ?int $branchId,
+        ?int $departmentId,
+        string $effectiveTo,
+        string $effectiveFrom,
+        ?int $enrolledBy,
+    ): int {
+        $this->setClosedStatus($current->id, EnrollmentStatus::SUPERSEDED, $effectiveTo);
+
+        $enrollmentNumber = $this->generateEnrollmentNumber($current->schoolId, $current->academicYearId);
+        $newId = $this->save(new CreateEnrollmentData(
+            studentId: $current->studentId,
+            academicYearId: $current->academicYearId,
+            schoolId: $current->schoolId,
+            classId: $classId,
+            sectionId: $sectionId,
+            enrollmentNumber: $enrollmentNumber,
+            effectiveFrom: $effectiveFrom,
+            specializationId: $specializationId,
+            branchId: $branchId,
+            departmentId: $departmentId,
+            enrolledBy: $enrolledBy,
+        ));
+
+        // Sync denormalized student placement labels to the new active segment.
+        $this->updatePlacement(
+            $newId,
+            $classId,
+            $sectionId,
+            $specializationId,
+            $branchId,
+            $departmentId,
+            syncStudentLabels: true,
+        );
+
+        return $newId;
     }
 
     public function generateEnrollmentNumber(int $schoolId, int $academicYearId): string

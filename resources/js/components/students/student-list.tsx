@@ -54,10 +54,11 @@ import type {
     StudentDetail,
 } from '@/components/students/student-details-surface';
 import { t } from '@/i18n';
+import { toast } from 'sonner';
 
 export type { StudentAuthorization };
 
-const STUDENTS_PER_PAGE = 17;
+const STUDENTS_PER_PAGE = 15;
 const STUDENT_STATUS_ACTIVE = 1;
 const STUDENT_STATUS_WITHDRAWN = 4;
 
@@ -1110,12 +1111,34 @@ export function StudentList({
             full_name: studentQuadName(row) || row.full_name,
         }));
 
-        appendEnrollmentHandoff({
+        const queuedCount = appendEnrollmentHandoff({
             academic_year_id: filters.academic_year_id,
             students: handoffStudents,
         });
 
         clearSelection();
+
+        const skippedEnrolled = selected.filter((row) => row.is_enrolled).length;
+        const skippedInactive = selected.filter(
+            (row) => !row.is_enrolled && row.status !== STUDENT_STATUS_ACTIVE,
+        ).length;
+        if (skippedEnrolled > 0) {
+            toast.message(i18n.students.enrollSkippedEnrolled);
+        }
+        if (skippedInactive > 0) {
+            toast.message(i18n.students.enrollSkippedInactive);
+        }
+
+        const params = new URLSearchParams({ handoff: '1' });
+        if (filters.academic_year_id !== null && filters.academic_year_id > 0) {
+            params.set('academic_year_id', String(filters.academic_year_id));
+        }
+
+        toast.success(
+            i18n.students.enrollQueuedCount.replace('{count}', String(queuedCount)),
+        );
+
+        router.visit(`/enrollments?${params.toString()}`);
     }, [
         actionIds,
         authorization.canEnroll,
@@ -1124,6 +1147,9 @@ export function StudentList({
         filtersBusy,
         i18n.students.enrollNeedsEligible,
         i18n.students.enrollNeedsSelection,
+        i18n.students.enrollQueuedCount,
+        i18n.students.enrollSkippedEnrolled,
+        i18n.students.enrollSkippedInactive,
         rows,
         savingRows,
         showError,

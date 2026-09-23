@@ -16,6 +16,12 @@ final class EnrollmentStatus
     public const DISMISSED = 4;
 
     /**
+     * Prior placement segment closed because a newer active placement
+     * was created for the same student + academic year (mid-year move).
+     */
+    public const SUPERSEDED = 5;
+
+    /**
      * @return list<int>
      */
     public static function all(): array
@@ -26,11 +32,12 @@ final class EnrollmentStatus
             self::CANCELLED,
             self::TRANSFERRED,
             self::DISMISSED,
+            self::SUPERSEDED,
         ];
     }
 
     /**
-     * Display / progress order: active → inactive → cancelled → dismissed → transferred.
+     * Display / progress order: active → inactive → cancelled → dismissed → transferred → superseded.
      *
      * @return list<int>
      */
@@ -42,6 +49,7 @@ final class EnrollmentStatus
             self::CANCELLED,
             self::DISMISSED,
             self::TRANSFERRED,
+            self::SUPERSEDED,
         ];
     }
 
@@ -55,7 +63,8 @@ final class EnrollmentStatus
         return $status === self::INACTIVE
             || $status === self::CANCELLED
             || $status === self::TRANSFERRED
-            || $status === self::DISMISSED;
+            || $status === self::DISMISSED
+            || $status === self::SUPERSEDED;
     }
 
     public static function isReopenable(int $status): bool

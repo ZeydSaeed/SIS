@@ -107,21 +107,7 @@ class EnrollmentMutationHandlerTest extends TestCase
 
         $enrollments = $this->createMock(EnrollmentRepositoryInterface::class);
         $enrollments->method('findById')->willReturn($snapshot);
-        $enrollments->expects($this->once())->method('updatePlacement')->with(
-            5,
-            8,
-            9,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            false,
-            null,
-            false,
-            true,
-        );
+        $enrollments->expects($this->once())->method('supersedeWithNewPlacement')->willReturn(88);
 
         $placement = $this->createMock(EnrollmentPlacementRepositoryInterface::class);
         $placement->method('classBelongsToSchool')->willReturn(true);
@@ -143,6 +129,7 @@ class EnrollmentMutationHandlerTest extends TestCase
 
         $result = $handler->handle(new UpdateEnrollmentPlacementCommand(5, 1, 8, 9));
 
+        $this->assertSame(88, $result->enrollmentId);
         $this->assertSame(8, $result->classId);
         $this->assertSame(9, $result->sectionId);
     }

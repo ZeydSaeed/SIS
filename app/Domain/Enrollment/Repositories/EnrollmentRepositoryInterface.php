@@ -43,5 +43,23 @@ interface EnrollmentRepositoryInterface
 
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool;
 
+    /**
+     * Close the current active placement (status=superseded + effective_to)
+     * and insert a new active enrollment row for the same student/year.
+     *
+     * @return int New enrollment id
+     */
+    public function supersedeWithNewPlacement(
+        EnrollmentSnapshot $current,
+        int $classId,
+        int $sectionId,
+        ?int $specializationId,
+        ?int $branchId,
+        ?int $departmentId,
+        string $effectiveTo,
+        string $effectiveFrom,
+        ?int $enrolledBy,
+    ): int;
+
     public function generateEnrollmentNumber(int $schoolId, int $academicYearId): string;
 }

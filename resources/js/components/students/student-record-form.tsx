@@ -1050,7 +1050,6 @@ export function StudentViewDialog({
     return (
         <Dialog
             open
-            modal={false}
             onOpenChange={(open) => {
                 if (!open) {
                     onClose();
@@ -1059,30 +1058,13 @@ export function StudentViewDialog({
         >
             <DialogContent
                 className={`sis-admission-draft-dialog sis-student-view-dialog gap-1.5 p-3 sm:max-w-[min(96vw,92rem)]${count > 1 ? ' sis-student-view-dialog--many' : ''}`}
+                overlayClassName="sis-student-view-dialog__overlay"
                 dir="rtl"
                 lang="ar"
                 data-sis-align-exempt=""
                 aria-describedby="student-view-dialog-desc"
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
-                onPointerDownOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
-                onInteractOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
-                onFocusOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
             >
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
@@ -1128,6 +1110,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
         >
             <DialogContent
                 className="sis-admission-draft-dialog sis-student-view-dialog gap-1.5 p-3 sm:max-w-[min(96vw,92rem)]"
+                overlayClassName="sis-student-view-dialog__overlay"
                 dir="rtl"
                 lang="ar"
                 data-sis-align-exempt=""

@@ -4,6 +4,7 @@ import {
     CheckCircle2,
     CircleSlash,
     Eye,
+    History,
     PauseCircle,
     Pencil,
     Save,
@@ -59,7 +60,7 @@ import {
 } from '@/lib/enrollment-handoff';
 import { t } from '@/i18n';
 
-const ENROLLMENTS_PER_PAGE = 17;
+const ENROLLMENTS_PER_PAGE = 15;
 
 type HandoffPlacementDraft = {
     branch_id: string;
@@ -99,6 +100,7 @@ const ENROLLMENT_STATUS_TABS: Array<{
     { status: 2, icon: CircleSlash, tone: 'light' },
     { status: 4, icon: UserMinus, tone: 'light' },
     { status: 3, icon: ArrowRightLeft, tone: 'dark' },
+    { status: 5, icon: History, tone: 'light' },
 ];
 
 const ENROLLMENT_STATUS_ACTIONS: Array<{
@@ -230,6 +232,7 @@ function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): stri
         2: i18n.status.cancelled,
         3: i18n.status.transferred,
         4: i18n.status.dismissed,
+        5: i18n.status.superseded,
     };
 
     return labels[status] ?? String(status);
@@ -286,6 +289,7 @@ export function EnrollmentList({
     const [createStudentId, setCreateStudentId] = useState<number | null>(null);
     const [handoffStudents, setHandoffStudents] = useState<EnrollmentHandoffStudent[]>([]);
     const [handoffDraft, setHandoffDraft] = useState<HandoffPlacementDraft>(emptyHandoffDraft);
+    const [handoffAcademicYearId, setHandoffAcademicYearId] = useState<number | null>(null);
     const [enrollingHandoff, setEnrollingHandoff] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<EnrollmentListItem | null>(null);
     const [deleting, setDeleting] = useState(false);
@@ -319,9 +323,31 @@ export function EnrollmentList({
 
     useEffect(() => {
         const handoff = readEnrollmentHandoff();
-        if (handoff !== null && handoff.students.length > 0) {
-            setHandoffStudents(handoff.students);
-            setHandoffDraft(emptyHandoffDraft());
+        if (handoff === null || handoff.students.length === 0) {
+            return;
+        }
+
+        setHandoffStudents(handoff.students);
+        setHandoffDraft(emptyHandoffDraft());
+        setHandoffAcademicYearId(handoff.academic_year_id);
+
+        if (
+            handoff.academic_year_id !== null
+            && handoff.academic_year_id > 0
+            && handoff.academic_year_id !== filtersRef.current.academic_year_id
+        ) {
+            router.get(
+                '/enrollments',
+                {
+                    academic_year_id: handoff.academic_year_id,
+                    handoff: 1,
+                },
+                {
+                    replace: true,
+                    preserveState: true,
+                    preserveScroll: true,
+                },
+            );
         }
     }, []);
 
@@ -347,6 +373,14 @@ export function EnrollmentList({
         if (handoff !== null && handoff.students.length > 0) {
             setHandoffStudents(handoff.students);
             setHandoffDraft(emptyHandoffDraft());
+            setHandoffAcademicYearId(handoff.academic_year_id);
+
+            if (
+                handoff.academic_year_id !== null
+                && handoff.academic_year_id > 0
+            ) {
+                params.set('academic_year_id', String(handoff.academic_year_id));
+            }
         }
 
         // Handoff from students uses the structure bar — never open create dialog.
@@ -675,6 +709,7 @@ export function EnrollmentList({
         clearEnrollmentHandoff();
         setHandoffStudents([]);
         setHandoffDraft(emptyHandoffDraft());
+        setHandoffAcademicYearId(null);
         setEnrollingHandoff(false);
     }, []);
 
@@ -690,14 +725,18 @@ export function EnrollmentList({
                 return;
             }
 
-            if (filters.academic_year_id === null || filters.academic_year_id < 1) {
+            const academicYearId =
+                handoffAcademicYearId !== null && handoffAcademicYearId > 0
+                    ? handoffAcademicYearId
+                    : filters.academic_year_id;
+
+            if (academicYearId === null || academicYearId < 1) {
                 showError(i18n.enrollments.handoffNeedsYear);
 
                 return;
             }
 
             setEnrollingHandoff(true);
-            const academicYearId = filters.academic_year_id;
             const effectiveFrom = todayIsoDate();
 
             try {
@@ -743,6 +782,7 @@ export function EnrollmentList({
                 clearHandoff();
                 visitList({
                     page: 1,
+                    academic_year_id: academicYearId,
                     class_id: Number(draft.class_id),
                     section_id: Number(draft.section_id),
                 });
@@ -757,6 +797,7 @@ export function EnrollmentList({
             clearHandoff,
             enrollingHandoff,
             filters.academic_year_id,
+            handoffAcademicYearId,
             handoffStudents,
             i18n.enrollments.handoffNeedsYear,
             i18n.errors.createFailed,
@@ -1080,7 +1121,9 @@ export function EnrollmentList({
             dir="rtl"
             lang="ar"
         >
-            <div className="sis-enrollments-control-strip">
+            <div
+                className={`sis-enrollments-control-strip${isHandoffMode ? ' sis-enrollments-control-strip--handoff' : ''}`}
+            >
                 <div
                     className={
                         isStructureEditMode

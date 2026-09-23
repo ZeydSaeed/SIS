@@ -109,6 +109,7 @@ function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
         2: i18n.status.cancelled,
         3: i18n.status.transferred,
         4: i18n.status.dismissed,
+        5: i18n.status.superseded,
     };
 
     return labels[status] ?? String(status);
@@ -133,6 +134,10 @@ function statusTone(status: number): string {
 
     if (status === 4) {
         return 'dismissed';
+    }
+
+    if (status === 5) {
+        return 'superseded';
     }
 
     return 'default';

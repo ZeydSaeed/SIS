@@ -63,6 +63,11 @@ export function WorkflowFlashHost() {
             return;
         }
 
+        // Admission pages: no workflow banner notices.
+        if (page.url.startsWith('/admission')) {
+            return;
+        }
+
         const key = `workflow:${workflow.step ?? ''}:${workflow.title}:${workflow.message}:${page.url}`;
         if (lastWorkflowKeyRef.current === key) {
             return;

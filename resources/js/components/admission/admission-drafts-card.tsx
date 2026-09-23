@@ -12,7 +12,6 @@ import {
 } from 'react';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
 import { SisListSelect } from '@/components/sis/sis-list-select';
-import { SisWorkflowNotice } from '@/components/sis/sis-workflow-notice';
 import {
     selectTableRow,
     tableActionIds,
@@ -787,26 +786,6 @@ export function AdmissionDraftsCard({
 
     return (
         <section aria-label={stageLabel} className="flex min-h-0 flex-1 flex-col gap-3">
-            {status === ADMISSION_STATUS_DRAFT ? (
-                <SisWorkflowNotice
-                    notice={{
-                        tone: 'info',
-                        title: i18n.workflow.draftHintTitle,
-                        message: i18n.workflow.draftHintMessage,
-                        step: 'admission.draft',
-                    }}
-                />
-            ) : null}
-            {status === ADMISSION_STATUS_ACCEPTED ? (
-                <SisWorkflowNotice
-                    notice={{
-                        tone: 'warning',
-                        title: i18n.workflow.acceptedHintTitle,
-                        message: i18n.workflow.acceptedHintMessage,
-                        step: 'admission.accepted',
-                    }}
-                />
-            ) : null}
             {rows.length === 0 ? (
                 <p className="text-sm">{emptyMessage}</p>
             ) : (

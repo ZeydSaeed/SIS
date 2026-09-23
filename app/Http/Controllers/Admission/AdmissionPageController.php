@@ -506,9 +506,22 @@ final class AdmissionPageController extends Controller
             ['student_id' => $result->studentId],
         );
 
-        return redirect()->route('admission.converted', array_filter([
-            'academic_year_id' => $result->academicYearId,
-        ]));
+        return WorkflowFlash::with(
+            redirect()->route('admission.converted', array_filter([
+                'academic_year_id' => $result->academicYearId,
+            ], static fn ($value): bool => $value !== null)),
+            [
+                'tone' => 'warning',
+                'title' => 'تم إنشاء الطالب من القبول',
+                'message' => 'أكمل نواقص الملف من صفحة الطلاب إن لزم، ثم اختر الطلاب واضغط «تسجيل» لإنشاء التوزيع (السنة والصف والشعبة).',
+                'action_href' => route('students.index', array_filter([
+                    'academic_year_id' => $result->academicYearId,
+                    'enrolled' => 0,
+                ], static fn ($value): bool => $value !== null), absolute: false),
+                'action_label' => 'فتح الطلاب غير المسجّلين',
+                'step' => 'admission.register_student',
+            ],
+        );
     }
 
     public function updateApplication(
@@ -626,15 +639,20 @@ final class AdmissionPageController extends Controller
             ['student_id' => $result->studentId],
         );
 
-        // Return to converted list — enrollment continues via dialog «متابعة التسجيل».
+        // Convert creates the student only — placement continues from Students → Enroll.
         return WorkflowFlash::with(
             redirect()->route('admission.converted', array_filter([
                 'academic_year_id' => $result->academicYearId,
-            ])),
+            ], static fn ($value): bool => $value !== null)),
             [
                 'tone' => 'warning',
                 'title' => 'تم التحويل إلى طالب',
-                'message' => 'سِجِل الطالب جاهز. أكمل التوزيع من عمود «متابعة التسجيل» باختيار الصف والشعبة.',
+                'message' => 'أكمل نواقص الملف من صفحة الطلاب إن لزم، ثم اختر الطلاب واضغط «تسجيل» لإنشاء التوزيع (السنة والصف والشعبة).',
+                'action_href' => route('students.index', array_filter([
+                    'academic_year_id' => $result->academicYearId,
+                    'enrolled' => 0,
+                ], static fn ($value): bool => $value !== null), absolute: false),
+                'action_label' => 'فتح الطلاب غير المسجّلين',
                 'step' => 'admission.convert',
             ],
         );

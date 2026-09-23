@@ -240,9 +240,10 @@ export function AdmissionApplicationDraftDialog({
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 className="sis-admission-draft-dialog max-h-[90vh] overflow-y-auto sm:max-w-5xl"
+                overlayClassName="sis-student-view-dialog__overlay"
                 dir="rtl"
                 lang="ar"
                 onOpenAutoFocus={(event) => event.preventDefault()}

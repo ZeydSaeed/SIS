@@ -6,7 +6,7 @@ use App\Application\Contracts\Command;
 
 /**
  * Fast-track: create admission application + student record in one step,
- * landing as Converted so enrollment can continue via «متابعة التسجيل».
+ * landing as Converted so placement continues from Students → Enroll.
  */
 final readonly class RegisterStudentViaAdmissionCommand implements Command
 {
