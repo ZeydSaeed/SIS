@@ -39,6 +39,7 @@ import { StudentFileCell } from '@/components/students/student-file-cell';
 import { studentRecordCompletenessGaps } from '@/components/students/student-record-gaps';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import {
     useRegisterPageRibbon,
     type PageRibbonCommand,
@@ -786,6 +787,7 @@ export function StudentList({
     const [applyingStatus, setApplyingStatus] = useState(false);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
+    const scrollerRef = useRef<HTMLDivElement>(null);
     const filtersRef = useRef(filters);
     const searchDraftRef = useRef(filters.q);
     const checkedIdsRef = useRef(checkedIds);
@@ -839,6 +841,7 @@ export function StudentList({
         columnSignature: `${canSelect ? 'select' : 'readonly'}:file:enrolled`,
         enabled: rows.length > 0,
     });
+    useSmoothVerticalScroll(scrollerRef, rows.length > 0);
 
     const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
     const visibleCheckedIds = useMemo(
@@ -1357,7 +1360,7 @@ export function StudentList({
                 commands: [],
                 custom: (
                     <div className="sis-ribbon__filters" aria-label={i18n.students.structureFiltersTitle}>
-                        <div className="sis-ribbon__filters-stack">
+                        <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--students">
                             <div className="sis-ribbon__filter-field" dir="rtl">
                                 <OpsYearFilter
                                     action="/students"
@@ -1611,7 +1614,7 @@ export function StudentList({
                     ) : (
                         <>
                             <div className="sis-admission-periods-table sis-admission-drafts-table">
-                                <div className="sis-admission-drafts-table__scroller">
+                                <div className="sis-admission-drafts-table__scroller" ref={scrollerRef}>
                                     <table ref={tableRef}>
                                         <thead>
                                             <tr>

@@ -651,6 +651,8 @@ export function TitleBarRibbon({
     ];
     const isEnrollmentsEdit =
         tab === 'edit' && groups.some((group) => group.id.startsWith('enrollment-'));
+    const isStudentsEdit =
+        tab === 'edit' && groups.some((group) => group.id.startsWith('student-'));
 
     const ariaLabel =
         tab === 'file'
@@ -677,7 +679,9 @@ export function TitleBarRibbon({
                 tab === 'edit'
                     ? isEnrollmentsEdit
                         ? 'sis-ribbon sis-ribbon--fit sis-ribbon--enrollments-edit'
-                        : 'sis-ribbon sis-ribbon--fit'
+                        : isStudentsEdit
+                          ? 'sis-ribbon sis-ribbon--fit sis-ribbon--students-edit'
+                          : 'sis-ribbon sis-ribbon--fit'
                     : 'sis-ribbon'
             }
             role="region"

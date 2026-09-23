@@ -930,9 +930,10 @@ body.sis-table-col-resizing * {
 }
 
 .sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__item:has(.sis-ribbon__count) {
-    gap: 0.08rem;
+    gap: 0.1rem;
     justify-content: flex-start;
-    padding-block: 0.12rem;
+    padding-block: 0.1rem 0.18rem;
+    overflow: visible;
 }
 
 .sis-ribbon--fit .sis-ribbon__group--filters {
@@ -996,6 +997,90 @@ body.sis-table-col-resizing * {
 .sis-ribbon--enrollments-edit .sis-ribbon__group[data-group-id='enrollment-distribution'] .sis-ribbon__item {
     min-width: 3.1rem;
     max-width: 4.6rem;
+    overflow: visible;
+    line-height: 1.4;
+}
+
+.sis-ribbon--enrollments-edit .sis-ribbon__group[data-group-id='enrollment-status-tabs'] .sis-ribbon__label,
+.sis-ribbon--enrollments-edit .sis-ribbon__group[data-group-id='enrollment-distribution'] .sis-ribbon__label {
+    display: block;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.45;
+    padding-block-end: 0.12rem;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__body {
+    justify-content: flex-start;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group--filters {
+    flex: 0 0 12rem;
+    width: 12rem;
+    min-width: 12rem;
+    max-width: 12rem;
+    padding-inline: 0.4rem;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group--commands {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: none;
+    padding-inline: 0.4rem;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group--commands .sis-ribbon__items {
+    flex-wrap: nowrap;
+    max-width: none;
+    width: 100%;
+    gap: 0.18rem;
+    justify-content: space-evenly;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-record'] {
+    flex: 0 0 auto;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-record'] .sis-ribbon__items {
+    width: auto;
+    justify-content: center;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-status-tabs'],
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-distribution'] {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-status-tabs'] .sis-ribbon__item,
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-distribution'] .sis-ribbon__item {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+    line-height: 1.4;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-status-tabs'] .sis-ribbon__label,
+.sis-ribbon--students-edit .sis-ribbon__group[data-group-id='student-distribution'] .sis-ribbon__label {
+    display: block;
+    max-width: 100%;
+    /* Clip horizontally only — overflow-y:hidden cuts Arabic descenders (ي، ج، ق…) */
+    overflow-x: hidden;
+    overflow-y: visible;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.45;
+    padding-block-end: 0.12rem;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group--progress {
+    flex: 0 0 auto;
+    min-width: 6.25rem;
+    max-width: 8rem;
 }
 
 .sis-ribbon--fit .sis-ribbon__group-label {
@@ -1019,20 +1104,57 @@ body.sis-table-col-resizing * {
 
 .sis-ribbon__filters-stack {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 6.75rem));
-    gap: 0.28rem 0.4rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.22rem 0.35rem;
     align-content: center;
-    justify-content: start;
     justify-items: stretch;
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
-    width: auto;
+    width: 100%;
     max-width: 100%;
 }
 
+/* Students Edit ribbon only: vertical filters filling the group width */
+.sis-ribbon__filters-stack--students {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.sis-ribbon__filters-stack--students .sis-ribbon__filter-field {
+    width: 100%;
+    max-width: none;
+    margin-bottom: 0.1rem;
+}
+
+.sis-ribbon__filters-stack--students .sis-ribbon__filter-field:last-child {
+    margin-bottom: 0;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__filters {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.3rem;
+    padding-inline: 0;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__item--filter-clear {
+    min-width: 2.8rem;
+    max-width: 3.2rem;
+}
+
 .sis-ribbon__filters-stack--enrollments {
+    flex: 0 1 auto;
+    width: auto;
     grid-template-columns: repeat(3, minmax(0, 6.4rem));
     gap: 0.28rem 0.42rem;
+    justify-content: start;
 }
 
 .sis-ribbon__filters-stack--enrollments .sis-admission-year-control,
@@ -1050,11 +1172,14 @@ body.sis-table-col-resizing * {
     justify-content: stretch;
     gap: 0.15rem;
     width: 100%;
-    max-width: 6.75rem;
     min-width: 0;
     margin: 0;
     box-sizing: border-box;
     overflow: hidden;
+}
+
+.sis-ribbon__filters-stack--enrollments .sis-ribbon__filter-field {
+    max-width: 6.4rem;
 }
 
 .sis-ribbon__filter-icon {
@@ -1223,9 +1348,10 @@ body.sis-table-col-resizing * {
     font-family: var(--sis-chrome-font);
     font-size: 0.7rem;
     font-weight: 400;
-    line-height: 1.15;
+    line-height: 1.35;
     text-align: center;
     cursor: pointer;
+    overflow: visible;
 }
 
 .sis-ribbon__item:hover,
@@ -1303,13 +1429,16 @@ body.sis-table-col-resizing * {
     display: block;
     white-space: normal;
     word-break: break-word;
+    line-height: 1.4;
+    padding-block-end: 0.08rem;
 }
 
 .sis-ribbon__group-label {
     font-size: 0.68rem;
     color: var(--sis-steel);
-    line-height: 1;
-    padding-block: 0.15rem;
+    line-height: 1.35;
+    padding-block: 0.12rem 0.2rem;
+    flex-shrink: 0;
 }
 
 .sis-ribbon__font-controls {
@@ -3207,12 +3336,15 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-students-page .sis-admission-drafts-table__scroller {
-    /* سكرول أفقي بدون شريط ظاهر + تصفح عمودي أعلى/أسفل */
+    /* سكرول أفقي بدون شريط ظاهر + تصفح عمودي سلس (JS lerp) */
     overflow-x: auto;
     overflow-y: auto;
     overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
+    scroll-behavior: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 .sis-students-page .sis-admission-drafts-table__scroller::-webkit-scrollbar {

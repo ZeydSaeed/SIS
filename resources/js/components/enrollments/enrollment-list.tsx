@@ -41,6 +41,7 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import {
     clearEnrollmentHandoff,
     readEnrollmentHandoff,
@@ -279,6 +280,7 @@ export function EnrollmentList({
     const [deleting, setDeleting] = useState(false);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
+    const scrollerRef = useRef<HTMLDivElement>(null);
     const filtersRef = useRef(filters);
     const searchDraftRef = useRef(filters.q);
     const checkedIdsRef = useRef(checkedIds);
@@ -395,6 +397,7 @@ export function EnrollmentList({
         columnSignature: canSelect ? 'select-v3' : 'readonly-v3',
         enabled: rows.length > 0,
     });
+    useSmoothVerticalScroll(scrollerRef, rows.length > 0);
 
     const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
     const visibleCheckedIds = useMemo(
@@ -1574,7 +1577,7 @@ export function EnrollmentList({
                     ) : (
                         <>
                             <div className="sis-admission-periods-table sis-admission-drafts-table">
-                                <div className="sis-admission-drafts-table__scroller">
+                                <div className="sis-admission-drafts-table__scroller" ref={scrollerRef}>
                                     <table ref={tableRef}>
                                         <thead>
                                             <tr>
