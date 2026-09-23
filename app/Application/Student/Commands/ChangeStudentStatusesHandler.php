@@ -8,6 +8,7 @@ use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Student\Results\ChangeStudentStatusesResult;
+use App\Application\Enrollment\Services\ApplyStudentEnrollmentStatusSync;
 use App\Domain\Shared\Exceptions\SisDomainException;
 use App\Domain\Student\Events\StudentStatusChanged;
 use App\Domain\Student\Exceptions\StudentNotFoundException;
@@ -23,6 +24,7 @@ final class ChangeStudentStatusesHandler implements CommandHandler
         private readonly StudentRepositoryInterface $students,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplyStudentEnrollmentStatusSync $statusSync,
     ) {}
 
     public function handle(Command $command): ChangeStudentStatusesResult
@@ -80,6 +82,13 @@ final class ChangeStudentStatusesHandler implements CommandHandler
                     occurredAt: new \DateTimeImmutable,
                 ));
             }
+
+            $this->statusSync->syncEnrollmentsFromStudent(
+                schoolId: $command->schoolId,
+                studentIds: array_map(static fn (array $item): int => $item['id'], $prepared),
+                studentStatus: $status,
+                effectiveTo: (new \DateTimeImmutable)->format('Y-m-d'),
+            );
         });
 
         if ($command->idempotencyKey !== null) {

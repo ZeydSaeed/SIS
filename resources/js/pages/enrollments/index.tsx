@@ -6,6 +6,7 @@ import {
     type EnrollmentFilterOptions,
     type EnrollmentsPayload,
 } from '@/components/enrollments/enrollment-list';
+import type { PlacementHistoryPayload } from '@/components/enrollments/enrollment-placement-history-dialog';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -27,6 +28,7 @@ type PageProps = {
     };
     filterOptions: EnrollmentFilterOptions;
     authorization: EnrollmentAuthorization;
+    placementHistory?: PlacementHistoryPayload[] | null;
 };
 
 export default function EnrollmentsIndex({
@@ -34,6 +36,7 @@ export default function EnrollmentsIndex({
     filters,
     filterOptions,
     authorization,
+    placementHistory = null,
 }: PageProps) {
     const i18n = t();
 
@@ -47,6 +50,7 @@ export default function EnrollmentsIndex({
                 filters={filters}
                 filterOptions={filterOptions}
                 authorization={authorization}
+                placementHistory={placementHistory}
             />
         </AppLayout>
     );

@@ -7,6 +7,7 @@ use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Domain\Shared\Exceptions\SisDomainException;
+use App\Domain\Student\Repositories\StudentRepositoryInterface;
 
 /**
  * Bulk enrollment status preconditions — keeps Application handler within ARCH-103.
@@ -15,6 +16,7 @@ final class BulkEnrollmentStatusGuard
 {
     public function __construct(
         private readonly EnrollmentRepositoryInterface $enrollments,
+        private readonly StudentRepositoryInterface $students,
     ) {}
 
     /**
@@ -40,7 +42,7 @@ final class BulkEnrollmentStatusGuard
 
     public function assertTargetStatus(int $status): void
     {
-        if (! in_array($status, EnrollmentStatus::operatorAssignable(), true)) {
+        if (\App\Domain\Student\ValueObjects\StudentStatus::tryFrom($status) === null) {
             throw SisDomainException::withCode('enrollment.invalid_status');
         }
     }
@@ -59,6 +61,11 @@ final class BulkEnrollmentStatusGuard
     {
         if ($enrollment->isActive()) {
             return false;
+        }
+
+        $student = $this->students->findByIdForSchool($enrollment->studentId, $enrollment->schoolId);
+        if ($student === null || ! $student->canEnroll()) {
+            throw SisDomainException::withCode('enrollment.student_not_eligible');
         }
 
         if ($this->enrollments->hasActiveEnrollment($enrollment->studentId, $enrollment->academicYearId)) {

@@ -1,4 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { Search } from 'lucide-react';
+import { t } from '@/i18n';
 
 export const SIS_SEARCH_DEBOUNCE_MS = 300;
 
@@ -10,6 +12,9 @@ type SisSearchFieldProps = {
     onDraftChange?: (query: string) => void;
 };
 
+/**
+ * App titlebar search — Google-style pill chrome with SIS mark (not Google mic).
+ */
 export const SisSearchField = memo(function SisSearchField({
     committedQuery,
     label,
@@ -17,6 +22,7 @@ export const SisSearchField = memo(function SisSearchField({
     onCommit,
     onDraftChange,
 }: SisSearchFieldProps) {
+    const i18n = t();
     const [draft, setDraft] = useState(committedQuery);
     const draftRef = useRef(draft);
     const committedRef = useRef(committedQuery);
@@ -29,6 +35,8 @@ export const SisSearchField = memo(function SisSearchField({
     committedRef.current = committedQuery;
     onCommitRef.current = onCommit;
     onDraftChangeRef.current = onDraftChange;
+
+    const hasQuery = draft.trim() !== '';
 
     useEffect(() => {
         onDraftChangeRef.current?.(draft);
@@ -58,9 +66,20 @@ export const SisSearchField = memo(function SisSearchField({
         return () => window.clearTimeout(timer);
     }, [committedQuery, draft]);
 
+    const clearSearch = () => {
+        composingRef.current = false;
+        setDraft('');
+        onCommitRef.current('');
+    };
+
     return (
-        <label className="sis-admission-search">
+        <label
+            className={`sis-admission-search sis-admission-search--pill${hasQuery ? ' sis-admission-search--has-clear' : ''}`}
+        >
             <span className="sr-only">{label}</span>
+            <span className="sis-admission-search__icon" aria-hidden="true">
+                <Search className="sis-admission-search__icon-svg" strokeWidth={2} />
+            </span>
             <input
                 type="search"
                 value={draft}
@@ -90,7 +109,30 @@ export const SisSearchField = memo(function SisSearchField({
                     setDraft(event.currentTarget.value);
                 }}
                 onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape' && draftRef.current.trim() !== '') {
+                        event.preventDefault();
+                        clearSearch();
+                    }
+                }}
             />
+            {hasQuery ? (
+                <button
+                    type="button"
+                    className="sis-admission-search__clear"
+                    aria-label={i18n.common.clearSearch}
+                    title={i18n.common.clearSearch}
+                    onMouseDown={(event) => {
+                        event.preventDefault();
+                    }}
+                    onClick={clearSearch}
+                >
+                    ×
+                </button>
+            ) : null}
+            <span className="sis-admission-search__brand" aria-hidden="true" title={i18n.brand}>
+                <span className="sis-admission-search__brand-mark" />
+            </span>
         </label>
     );
 });

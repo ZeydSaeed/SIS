@@ -9,18 +9,25 @@ use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentReopened;
 use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
 use App\Domain\Enrollment\Services\BulkEnrollmentStatusGuard;
+use App\Domain\Enrollment\Services\StudentEnrollmentStatusSyncPolicy;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Domain\Shared\Exceptions\SisDomainException;
+use App\Domain\Student\Repositories\StudentRepositoryInterface;
+use App\Domain\Student\ValueObjects\StudentStatus;
 
 /**
- * Applies bulk enrollment status transitions (extracted from handler for ARCH-103).
+ * Applies bulk unified student-status changes from the enrollments roster
+ * and syncs placement (enrollment) rows in the same unit of work.
  */
 final class ChangeEnrollmentStatusesExecutor
 {
     public function __construct(
         private readonly EnrollmentRepositoryInterface $enrollments,
+        private readonly StudentRepositoryInterface $students,
         private readonly BulkEnrollmentStatusGuard $guard,
         private readonly OutboxRepository $outbox,
+        private readonly StudentEnrollmentStatusSyncPolicy $policy,
+        private readonly ApplyStudentEnrollmentStatusSync $statusSync,
     ) {}
 
     /**
@@ -49,9 +56,24 @@ final class ChangeEnrollmentStatusesExecutor
     private function applyOne(ChangeEnrollmentStatusesCommand $command, int $enrollmentId): bool
     {
         try {
-            $enrollment = $this->guard->requireForSchool($enrollmentId, $command->schoolId);
+            $studentStatus = StudentStatus::tryFrom($command->status);
+            if ($studentStatus === null) {
+                throw SisDomainException::withCode('enrollment.invalid_status');
+            }
 
-            return match ($command->status) {
+            $enrollment = $this->guard->requireForSchool($enrollmentId, $command->schoolId);
+            $targetEnrollmentStatus = $this->policy->enrollmentStatusFor($studentStatus);
+
+            $student = $this->students->findByIdForSchool($enrollment->studentId, $command->schoolId);
+            if ($student === null) {
+                return false;
+            }
+
+            if ($student->status() !== $studentStatus) {
+                $this->students->updateStatus($enrollment->studentId, $studentStatus->value);
+            }
+
+            $updated = match ($targetEnrollmentStatus) {
                 EnrollmentStatus::ACTIVE => $this->activate($command, $enrollment),
                 EnrollmentStatus::INACTIVE => $this->moveToClosed(
                     $command,
@@ -63,21 +85,24 @@ final class ChangeEnrollmentStatusesExecutor
                     $enrollment,
                     EnrollmentStatus::CANCELLED,
                 ),
-                EnrollmentStatus::DISMISSED => $this->moveToClosed(
-                    $command,
-                    $enrollment,
-                    EnrollmentStatus::DISMISSED,
-                ),
-                EnrollmentStatus::TRANSFERRED => $this->moveToClosed(
-                    $command,
-                    $enrollment,
-                    EnrollmentStatus::TRANSFERRED,
-                ),
                 default => throw SisDomainException::withCode('enrollment.invalid_status'),
             };
+
+            if ($updated) {
+                // Keep other operable rows for the same student aligned.
+                $this->statusSync->syncEnrollmentsFromStudent(
+                    schoolId: $command->schoolId,
+                    studentIds: [$enrollment->studentId],
+                    studentStatus: $studentStatus,
+                    effectiveTo: $this->resolveEffectiveTo(
+                        $command->effectiveTo,
+                        $enrollment->effectiveFrom,
+                    ),
+                );
+            }
+
+            return $updated;
         } catch (\Throwable) {
-            // One invalid row must not abort single / multi / select-all batches
-            // (inactive / cancelled / dismissed / transferred mixes included).
             return false;
         }
     }
@@ -113,8 +138,6 @@ final class ChangeEnrollmentStatusesExecutor
         int $targetStatus,
     ): bool {
         if ($enrollment->status === $targetStatus) {
-            // Already in the requested closed state — treat as success so
-            // mixed select-all batches are not reported as total failure.
             return true;
         }
 
@@ -141,18 +164,8 @@ final class ChangeEnrollmentStatusesExecutor
 
                 return true;
             }
-
-            // Active → transferred / dismissed (force path; closeAsTransferred is optimistic).
-            $this->enrollments->setClosedStatus(
-                $enrollment->id,
-                $targetStatus,
-                $effectiveTo,
-            );
-
-            return true;
         }
 
-        // Closed → closed (inactive / cancelled / dismissed / transferred).
         $this->enrollments->setClosedStatus($enrollment->id, $targetStatus, $effectiveTo);
 
         if ($targetStatus === EnrollmentStatus::CANCELLED) {

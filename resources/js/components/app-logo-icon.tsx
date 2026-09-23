@@ -7,11 +7,12 @@ const SIS_MARK_SRC = '/sis-mark.png?v=sis8';
 export default function AppLogoIcon({
     className,
     alt = '',
+    src = SIS_MARK_SRC,
     ...props
 }: ImgHTMLAttributes<HTMLImageElement>) {
     return (
         <img
-            src={SIS_MARK_SRC}
+            src={src}
             alt={alt}
             decoding="async"
             draggable={false}

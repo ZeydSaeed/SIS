@@ -23,6 +23,7 @@ export type EnrollmentListItem = {
     student_last_name?: string | null;
     student_gender?: number | null;
     student_birth_date?: string | null;
+    student_status?: number | null;
     class_code?: string | null;
     class_name?: string | null;
     section_code?: string | null;

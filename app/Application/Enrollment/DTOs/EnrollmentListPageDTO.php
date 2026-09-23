@@ -2,7 +2,7 @@
 
 namespace App\Application\Enrollment\DTOs;
 
-use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
+use App\Domain\Student\ValueObjects\StudentStatus;
 
 final readonly class EnrollmentListPageDTO
 {
@@ -31,7 +31,7 @@ final readonly class EnrollmentListPageDTO
     }
 
     /**
-     * @param  array<int, int>  $countsByStatus
+     * @param  array<int, int>  $countsByStatus  keyed by student status
      * @return array{overall_percent: int, stages: list<array{status: int|null, percent: int, count: int}>}
      */
     public static function progressFromCounts(array $countsByStatus): array
@@ -45,10 +45,18 @@ final readonly class EnrollmentListPageDTO
             return $total === 0 ? 0 : (int) round(($count / $total) * 100);
         };
 
+        $order = [
+            StudentStatus::Active->value,
+            StudentStatus::Inactive->value,
+            StudentStatus::Suspended->value,
+            StudentStatus::Graduated->value,
+            StudentStatus::Withdrawn->value,
+        ];
+
         $stages = [
             ['status' => null, 'percent' => $total === 0 ? 0 : 100, 'count' => $total],
         ];
-        foreach (EnrollmentStatus::progressOrder() as $status) {
+        foreach ($order as $status) {
             $count = (int) ($countsByStatus[$status] ?? 0);
             $stages[] = [
                 'status' => $status,
@@ -58,7 +66,7 @@ final readonly class EnrollmentListPageDTO
         }
 
         return [
-            'overall_percent' => $percentOf((int) ($countsByStatus[EnrollmentStatus::ACTIVE] ?? 0)),
+            'overall_percent' => $percentOf((int) ($countsByStatus[StudentStatus::Active->value] ?? 0)),
             'stages' => $stages,
         ];
     }

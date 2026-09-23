@@ -1,20 +1,20 @@
 ﻿import { router, usePage } from '@inertiajs/react';
 import {
-    ArrowRightLeft,
     CheckCircle2,
     CircleSlash,
     FilterX,
+    GraduationCap,
     History,
     PauseCircle,
     UserMinus,
     Users,
     type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
-    EnrollmentCreateDialog,
-    EnrollmentViewDialog,
-} from '@/components/enrollments/enrollment-record-form';
+    EnrollmentPlacementHistoryDialog,
+    type PlacementHistoryPayload,
+} from '@/components/enrollments/enrollment-placement-history-dialog';
 import {
     EnrollmentEditorRow,
     type EnrollmentRowHandle,
@@ -47,9 +47,24 @@ import {
     readEnrollmentHandoff,
     type EnrollmentHandoffStudent,
 } from '@/lib/enrollment-handoff';
+import {
+    publishStudentStatusSync,
+    subscribeStudentStatusSync,
+} from '@/lib/student-status-sync';
 import { t } from '@/i18n';
 
 const ENROLLMENTS_PER_PAGE = 17;
+
+const EnrollmentViewDialog = lazy(async () => {
+    const mod = await import('@/components/enrollments/enrollment-record-form');
+
+    return { default: mod.EnrollmentViewDialog };
+});
+const EnrollmentCreateDialog = lazy(async () => {
+    const mod = await import('@/components/enrollments/enrollment-record-form');
+
+    return { default: mod.EnrollmentCreateDialog };
+});
 
 type HandoffPlacementDraft = {
     branch_id: string;
@@ -85,10 +100,10 @@ const ENROLLMENT_STATUS_TABS: Array<{
 }> = [
     { status: null, icon: Users, tone: 'dark' },
     { status: 1, icon: CheckCircle2, tone: 'dark' },
-    { status: 0, icon: PauseCircle, tone: 'light' },
-    { status: 2, icon: CircleSlash, tone: 'light' },
+    { status: 0, icon: CircleSlash, tone: 'light' },
+    { status: 2, icon: PauseCircle, tone: 'dark' },
+    { status: 3, icon: GraduationCap, tone: 'dark' },
     { status: 4, icon: UserMinus, tone: 'light' },
-    { status: 3, icon: ArrowRightLeft, tone: 'dark' },
 ];
 
 const ENROLLMENT_SUPERSEDED_TAB: {
@@ -103,10 +118,10 @@ const ENROLLMENT_STATUS_ACTIONS: Array<{
     tone: 'light' | 'dark';
 }> = [
     { status: 1, icon: CheckCircle2, tone: 'dark' },
-    { status: 0, icon: PauseCircle, tone: 'light' },
-    { status: 2, icon: CircleSlash, tone: 'light' },
+    { status: 0, icon: CircleSlash, tone: 'light' },
+    { status: 2, icon: PauseCircle, tone: 'dark' },
+    { status: 3, icon: GraduationCap, tone: 'dark' },
     { status: 4, icon: UserMinus, tone: 'light' },
-    { status: 3, icon: ArrowRightLeft, tone: 'dark' },
 ];
 
 function clampPercent(value: number): number {
@@ -172,6 +187,7 @@ type EnrollmentListProps = {
     };
     filterOptions: EnrollmentFilterOptions;
     authorization: EnrollmentAuthorization;
+    placementHistory?: PlacementHistoryPayload[] | null;
 };
 
 type VisitParams = {
@@ -214,10 +230,9 @@ function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): stri
     const labels: Record<number, string> = {
         0: i18n.status.inactive,
         1: i18n.status.active,
-        2: i18n.status.cancelled,
-        3: i18n.status.transferred,
-        4: i18n.status.dismissed,
-        5: i18n.status.superseded,
+        2: i18n.status.suspended,
+        3: i18n.status.graduated,
+        4: i18n.status.withdrawn,
     };
 
     return labels[status] ?? String(status);
@@ -228,9 +243,10 @@ export function EnrollmentList({
     filters,
     filterOptions,
     authorization,
+    placementHistory = null,
 }: EnrollmentListProps) {
     const i18n = t();
-    const { showError, showInertiaErrors } = usePageError();
+    const { showError, showWarning, showInertiaErrors } = usePageError();
     const genderValue = filters.gender === 1 || filters.gender === 2 ? String(filters.gender) : '';
     const genderFilterLabel =
         genderValue === '1'
@@ -296,7 +312,24 @@ export function EnrollmentList({
     selectedIdRef.current = selectedId;
     editingIdsRef.current = editingIds;
     const page = usePage();
-    const rows = enrollments?.data ?? [];
+    const [statusOverrides, setStatusOverrides] = useState<Record<number, number>>({});
+    const serverRows = enrollments?.data ?? [];
+    const rows = useMemo(() => {
+        const mapped = serverRows.map((row) => {
+            const override = statusOverrides[row.student_id];
+            if (override === undefined) {
+                return row;
+            }
+
+            return { ...row, student_status: override };
+        });
+
+        if (filters.status === null) {
+            return mapped;
+        }
+
+        return mapped.filter((row) => (row.student_status ?? null) === filters.status);
+    }, [filters.status, serverRows, statusOverrides]);
     const pagination = enrollments?.meta ?? {
         page: filters.page,
         per_page: filters.per_page,
@@ -306,6 +339,42 @@ export function EnrollmentList({
     const rowOffset = (pagination.page - 1) * pagination.per_page;
     const overallPercent = clampPercent(enrollments.status_progress?.overall_percent ?? 0);
     const canSelect = authorization.canUpdate || authorization.canCancel;
+
+    const serverRowsRef = useRef(serverRows);
+    serverRowsRef.current = serverRows;
+
+    useEffect(() => {
+        return subscribeStudentStatusSync((payload) => {
+            setStatusOverrides((current) => {
+                const next = { ...current };
+                for (const studentId of payload.studentIds) {
+                    next[studentId] = payload.status;
+                }
+
+                return next;
+            });
+        });
+    }, []);
+
+    useEffect(() => {
+        setStatusOverrides((current) => {
+            if (Object.keys(current).length === 0) {
+                return current;
+            }
+
+            let changed = false;
+            const next = { ...current };
+            for (const row of serverRows) {
+                const override = next[row.student_id];
+                if (override !== undefined && row.student_status === override) {
+                    delete next[row.student_id];
+                    changed = true;
+                }
+            }
+
+            return changed ? next : current;
+        });
+    }, [serverRows]);
 
     useEffect(() => {
         const handoff = readEnrollmentHandoff();
@@ -437,8 +506,69 @@ export function EnrollmentList({
     const canDelete =
         authorization.canCancel
         && selectedRow !== null
-        && selectedRow.status !== 2;
+        && selectedRow.student_status !== 4;
     const hasActiveSelection = actionIds.length > 0 || editing;
+
+    const openPlacementHistory = useCallback(() => {
+        const targets = viewTargets;
+        if (targets.length === 0) {
+            showWarning(i18n.enrollments.historyNeedsSelection);
+
+            return;
+        }
+
+        const studentIds = [...new Set(targets.map((row) => row.student_id))];
+        const current = filtersRef.current;
+        router.get(
+            '/enrollments',
+            {
+                q: current.q.trim() || undefined,
+                page: current.page,
+                per_page: ENROLLMENTS_PER_PAGE,
+                status: current.status ?? undefined,
+                academic_year_id: current.academic_year_id ?? undefined,
+                gender: current.gender ?? undefined,
+                class_id: current.class_id ?? undefined,
+                section_id: current.section_id ?? undefined,
+                branch_id: current.branch_id ?? undefined,
+                department_id: current.department_id ?? undefined,
+                specialization_id: current.specialization_id ?? undefined,
+                history_student_ids: studentIds,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ['placementHistory'],
+            },
+        );
+    }, [i18n.enrollments.historyNeedsSelection, showWarning, viewTargets]);
+
+    const closePlacementHistory = useCallback(() => {
+        const current = filtersRef.current;
+        router.get(
+            '/enrollments',
+            {
+                q: current.q.trim() || undefined,
+                page: current.page,
+                per_page: ENROLLMENTS_PER_PAGE,
+                status: current.status ?? undefined,
+                academic_year_id: current.academic_year_id ?? undefined,
+                gender: current.gender ?? undefined,
+                class_id: current.class_id ?? undefined,
+                section_id: current.section_id ?? undefined,
+                branch_id: current.branch_id ?? undefined,
+                department_id: current.department_id ?? undefined,
+                specialization_id: current.specialization_id ?? undefined,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                only: ['placementHistory'],
+            },
+        );
+    }, []);
 
     const filterSections = useMemo(() => {
         const activeClass = isHandoffMode ? handoffDraft.class_id : classValue;
@@ -534,13 +664,28 @@ export function EnrollmentList({
                 ? params.specialization_id
                 : current.specialization_id;
 
+        const structureChanged =
+            ('academic_year_id' in params && params.academic_year_id !== current.academic_year_id)
+            || ('class_id' in params && params.class_id !== current.class_id)
+            || ('branch_id' in params && params.branch_id !== current.branch_id)
+            || ('department_id' in params && params.department_id !== current.department_id)
+            || ('specialization_id' in params
+                && params.specialization_id !== current.specialization_id);
+
+        const onlyProps = structureChanged
+            ? (['enrollments', 'filters', 'filterOptions', 'authorization'] as const)
+            : (['enrollments', 'filters', 'authorization'] as const);
+
         router.get(
             '/enrollments',
             {
                 q: nextQuery.trim() || undefined,
                 page: params.page ?? current.page,
                 per_page: ENROLLMENTS_PER_PAGE,
-                status: nextStatus ?? undefined,
+                status:
+                    nextStatus === 5 || nextStatus === null || nextStatus === undefined
+                        ? undefined
+                        : nextStatus,
                 academic_year_id: nextYear ?? undefined,
                 gender: nextGender ?? undefined,
                 class_id: nextClassId ?? undefined,
@@ -553,7 +698,7 @@ export function EnrollmentList({
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
-                only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                only: [...onlyProps],
                 showProgress: params.quiet !== true,
             },
         );
@@ -611,7 +756,7 @@ export function EnrollmentList({
             }
 
             const targetStatus = Number(status);
-            if ((targetStatus === 0 || targetStatus === 2 || targetStatus === 3) && !authorization.canCancel) {
+            if ((targetStatus === 0 || targetStatus === 2 || targetStatus === 3 || targetStatus === 4) && !authorization.canCancel) {
                 return;
             }
 
@@ -621,6 +766,30 @@ export function EnrollmentList({
 
             applyingStatusRef.current = true;
             setApplyingStatus(true);
+
+            const studentIds = [
+                ...new Set(
+                    enrollmentIds
+                        .map((id) => serverRowsRef.current.find((row) => row.id === id)?.student_id ?? 0)
+                        .filter((id) => id > 0),
+                ),
+            ];
+            if (studentIds.length === 0) {
+                applyingStatusRef.current = false;
+                setApplyingStatus(false);
+
+                return;
+            }
+            setStatusOverrides((current) => {
+                const next = { ...current };
+                for (const studentId of studentIds) {
+                    next[studentId] = targetStatus;
+                }
+
+                return next;
+            });
+            publishStudentStatusSync(studentIds, targetStatus, 'enrollments');
+
             const today = (() => {
                 const now = new Date();
                 const year = now.getFullYear();
@@ -640,8 +809,21 @@ export function EnrollmentList({
                 {
                     preserveScroll: true,
                     preserveState: true,
-                    only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
-                    onError: (errors) => showInertiaErrors(errors, i18n.errors.statusFailed),
+                    only: ['enrollments', 'filters', 'authorization'],
+                    onSuccess: () => {
+                        publishStudentStatusSync(studentIds, targetStatus, 'enrollments');
+                    },
+                    onError: (errors) => {
+                        setStatusOverrides((current) => {
+                            const next = { ...current };
+                            for (const studentId of studentIds) {
+                                delete next[studentId];
+                            }
+
+                            return next;
+                        });
+                        showInertiaErrors(errors, i18n.errors.statusFailed);
+                    },
                     onFinish: () => {
                         applyingStatusRef.current = false;
                         setApplyingStatus(false);
@@ -726,7 +908,7 @@ export function EnrollmentList({
                     : filters.academic_year_id;
 
             if (academicYearId === null || academicYearId < 1) {
-                showError(i18n.enrollments.handoffNeedsYear);
+                showWarning(i18n.enrollments.handoffNeedsYear);
 
                 return;
             }
@@ -797,6 +979,7 @@ export function EnrollmentList({
             i18n.enrollments.handoffNeedsYear,
             i18n.errors.createFailed,
             showError,
+            showWarning,
             showInertiaErrors,
             visitList,
         ],
@@ -947,11 +1130,16 @@ export function EnrollmentList({
 
             return `${year}-${month}-${day}`;
         })();
+        setStatusOverrides((current) => ({
+            ...current,
+            [deleteTarget.student_id]: 4,
+        }));
+        publishStudentStatusSync([deleteTarget.student_id], 4, 'enrollments');
         router.post(
             '/enrollments/bulk-status',
             {
                 enrollment_ids: [deleteTarget.id],
-                status: 2,
+                status: 4,
                 effective_to: today,
             },
             {
@@ -964,7 +1152,15 @@ export function EnrollmentList({
                     }
                     setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
                 },
-                onError: (errors) => showInertiaErrors(errors, i18n.errors.deleteFailed),
+                onError: (errors) => {
+                    setStatusOverrides((current) => {
+                        const next = { ...current };
+                        delete next[deleteTarget.student_id];
+
+                        return next;
+                    });
+                    showInertiaErrors(errors, i18n.errors.deleteFailed);
+                },
                 onFinish: () => {
                     setDeleting(false);
                     setDeleteTarget(null);
@@ -1010,23 +1206,16 @@ export function EnrollmentList({
             };
         });
 
-        const supersededLabel = statusTabLabel(ENROLLMENT_SUPERSEDED_TAB.status, i18n);
-        const supersededCount = countForStatus(
-            ENROLLMENT_SUPERSEDED_TAB.status,
-            enrollments.status_progress,
-        );
+        const supersededLabel = i18n.enrollments.ribbonSuperseded;
         const supersededCommand: PageRibbonCommand = {
-            id: `status-tab-${ENROLLMENT_SUPERSEDED_TAB.status}`,
+            id: 'placement-history',
             label: supersededLabel,
-            title: `${supersededLabel} (${supersededCount})`,
+            title: hasViewTargets
+                ? supersededLabel
+                : i18n.enrollments.historyNeedsSelection,
             icon: ENROLLMENT_SUPERSEDED_TAB.icon,
-            count: supersededCount,
-            pressed: filters.status === ENROLLMENT_SUPERSEDED_TAB.status,
-            onSelect: () =>
-                onStatusTabClick(
-                    ENROLLMENT_SUPERSEDED_TAB.status,
-                    filters.status === ENROLLMENT_SUPERSEDED_TAB.status,
-                ),
+            disabled: !hasViewTargets,
+            onSelect: openPlacementHistory,
         };
 
         const distributionCommands: PageRibbonCommand[] = [];
@@ -1399,7 +1588,7 @@ export function EnrollmentList({
                                                 }
 
                                                 if (handoffDraft.class_id === '') {
-                                                    showError(i18n.enrollments.handoffNeedsPlacement);
+                                                    showWarning(i18n.enrollments.handoffNeedsPlacement);
 
                                                     return;
                                                 }
@@ -1527,15 +1716,18 @@ export function EnrollmentList({
         handoffDraft.department_id,
         handoffDraft.section_id,
         handoffDraft.specialization_id,
+        hasViewTargets,
         i18n,
         isEditMode,
         isHandoffMode,
         isStructureEditMode,
         onStatusTabClick,
+        openPlacementHistory,
         overallPercent,
         patchHandoffDraft,
         sectionValue,
         showError,
+        showWarning,
         specializationValue,
         structureBranchLabel,
         structureClassLabel,
@@ -1716,34 +1908,44 @@ export function EnrollmentList({
             </div>
 
             {viewingEnrollments !== null && viewingEnrollments.length > 0 ? (
-                <EnrollmentViewDialog
-                    enrollments={viewingEnrollments}
-                    canUpdate={authorization.canUpdate}
-                    filterOptions={filterOptions}
-                    initialEditing={viewDialogEditing}
-                    onClose={() => {
-                        setViewingEnrollments(null);
-                        setViewDialogEditing(false);
-                    }}
-                    onSaved={(updated) => {
-                        setViewingEnrollments((current) =>
-                            current === null
-                                ? current
-                                : current.map((row) =>
-                                      row.id === updated.id ? { ...row, ...updated } : row,
-                                  ),
-                        );
-                    }}
+                <Suspense fallback={null}>
+                    <EnrollmentViewDialog
+                        enrollments={viewingEnrollments}
+                        canUpdate={authorization.canUpdate}
+                        filterOptions={filterOptions}
+                        initialEditing={viewDialogEditing}
+                        onClose={() => {
+                            setViewingEnrollments(null);
+                            setViewDialogEditing(false);
+                        }}
+                        onSaved={(updated) => {
+                            setViewingEnrollments((current) =>
+                                current === null
+                                    ? current
+                                    : current.map((row) =>
+                                          row.id === updated.id ? { ...row, ...updated } : row,
+                                      ),
+                            );
+                        }}
+                    />
+                </Suspense>
+            ) : null}
+
+            {placementHistory !== null && placementHistory.length > 0 ? (
+                <EnrollmentPlacementHistoryDialog
+                    histories={placementHistory}
+                    onClose={closePlacementHistory}
                 />
             ) : null}
 
             {creatingEnrollment ? (
-                <EnrollmentCreateDialog
-                    key={createStudentId ?? 'new-enrollment'}
-                    academicYearId={filters.academic_year_id}
-                    filterOptions={filterOptions}
-                    initialStudentId={createStudentId}
-                    onClose={() => {
+                <Suspense fallback={null}>
+                    <EnrollmentCreateDialog
+                        key={createStudentId ?? 'new-enrollment'}
+                        academicYearId={filters.academic_year_id}
+                        filterOptions={filterOptions}
+                        initialStudentId={createStudentId}
+                        onClose={() => {
                         setCreatingEnrollment(false);
                         setCreateStudentId(null);
                     }}
@@ -1756,6 +1958,7 @@ export function EnrollmentList({
                         });
                     }}
                 />
+                </Suspense>
             ) : null}
 
             <ConfirmDialog

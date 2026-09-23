@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import {
     forwardRef,
+    lazy,
+    Suspense,
     useCallback,
     useEffect,
     useImperativeHandle,
@@ -34,7 +36,6 @@ import {
     toggleTableRowChecked,
     toggleTableSelectAll,
 } from '@/components/sis/table-row-selection';
-import { StudentCreateDialog, StudentViewDialog } from '@/components/students/student-record-form';
 import { StudentFileCell } from '@/components/students/student-file-cell';
 import { studentRecordCompletenessGaps } from '@/components/students/student-record-gaps';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
@@ -48,14 +49,26 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { appendEnrollmentHandoff } from '@/lib/enrollment-handoff';
-import type {
-    StudentAuthorization,
-    StudentDetail,
-} from '@/components/students/student-details-surface';
+import {
+    publishStudentStatusSync,
+    subscribeStudentStatusSync,
+} from '@/lib/student-status-sync';
+import type { StudentAuthorization } from '@/components/students/student-details-surface';
 import { t } from '@/i18n';
 import { toast } from 'sonner';
 
 export type { StudentAuthorization };
+
+const StudentViewDialog = lazy(async () => {
+    const mod = await import('@/components/students/student-record-form');
+
+    return { default: mod.StudentViewDialog };
+});
+const StudentCreateDialog = lazy(async () => {
+    const mod = await import('@/components/students/student-record-form');
+
+    return { default: mod.StudentCreateDialog };
+});
 
 const STUDENTS_PER_PAGE = 17;
 const STUDENT_STATUS_ACTIVE = 1;
@@ -171,16 +184,12 @@ export type StudentsPayload = {
         total: number;
         last_page: number;
     };
+    status_counts?: Record<number, number>;
     status_progress?: {
         overall_percent: number;
         stages: Array<{ status: number | null; percent: number; count: number }>;
     };
 };
-
-export type PreviewPayload =
-    | null
-    | { error: 'not_found' | 'forbidden' }
-    | { student: StudentDetail; authorization: StudentAuthorization };
 
 type StudentListProps = {
     students: StudentsPayload;
@@ -194,7 +203,6 @@ type StudentListProps = {
         enrolled: number | null;
     };
     authorization: StudentAuthorization;
-    preview: PreviewPayload;
 };
 
 type VisitParams = {
@@ -761,10 +769,9 @@ export function StudentList({
     students,
     filters,
     authorization,
-    preview,
 }: StudentListProps) {
     const i18n = t();
-    const { showInertiaErrors, showError } = usePageError();
+    const { showInertiaErrors, showWarning } = usePageError();
     const page = usePage();
     const { academicYears } = page.props as {
         academicYears?: Array<{ id: number; name: string; code: string; is_current: boolean }>;
@@ -798,7 +805,24 @@ export function StudentList({
     filtersRef.current = filters;
     checkedIdsRef.current = checkedIds;
     selectedIdRef.current = selectedId;
-    const rows = students?.data ?? [];
+    const [statusOverrides, setStatusOverrides] = useState<Record<number, number>>({});
+    const serverRows = students?.data ?? [];
+    const rows = useMemo(() => {
+        const mapped = serverRows.map((row) => {
+            const override = statusOverrides[row.id];
+            if (override === undefined) {
+                return row;
+            }
+
+            return { ...row, status: override };
+        });
+
+        if (filters.status === null || filters.status === undefined) {
+            return mapped;
+        }
+
+        return mapped.filter((row) => row.status === filters.status);
+    }, [filters.status, serverRows, statusOverrides]);
     const pagination = students?.meta ?? {
         page: filters.page,
         per_page: filters.per_page,
@@ -807,6 +831,39 @@ export function StudentList({
     };
     const rowOffset = (pagination.page - 1) * pagination.per_page;
     const canSelect = authorization.canUpdate;
+
+    useEffect(() => {
+        return subscribeStudentStatusSync((payload) => {
+            setStatusOverrides((current) => {
+                const next = { ...current };
+                for (const studentId of payload.studentIds) {
+                    next[studentId] = payload.status;
+                }
+
+                return next;
+            });
+        });
+    }, []);
+
+    useEffect(() => {
+        setStatusOverrides((current) => {
+            if (Object.keys(current).length === 0) {
+                return current;
+            }
+
+            let changed = false;
+            const next = { ...current };
+            for (const row of serverRows) {
+                const override = next[row.id];
+                if (override !== undefined && row.status === override) {
+                    delete next[row.id];
+                    changed = true;
+                }
+            }
+
+            return changed ? next : current;
+        });
+    }, [serverRows]);
 
     useEffect(() => {
         const query = page.url.includes('?') ? page.url.slice(page.url.indexOf('?') + 1) : '';
@@ -895,7 +952,7 @@ export function StudentList({
                 preserveState: true,
                 preserveScroll: true,
                 replace: nextStudent === undefined,
-                only: ['students', 'filters', 'preview', 'authorization'],
+                only: ['students', 'filters', 'authorization'],
                 showProgress: params.quiet !== true,
             },
         );
@@ -1049,17 +1106,41 @@ export function StudentList({
 
             applyingStatusRef.current = true;
             setApplyingStatus(true);
+            const targetStatus = Number(status);
+            setStatusOverrides((current) => {
+                const next = { ...current };
+                for (const studentId of studentIds) {
+                    next[studentId] = targetStatus;
+                }
+
+                return next;
+            });
+            publishStudentStatusSync(studentIds, targetStatus, 'students');
+
             router.post(
                 '/students/bulk-status',
                 {
                     student_ids: studentIds.map((id) => Number(id)),
-                    status: Number(status),
+                    status: targetStatus,
                 },
                 {
                     preserveScroll: true,
                     preserveState: true,
-                    only: ['students', 'filters', 'preview', 'authorization'],
-                    onError: (errors) => showInertiaErrors(errors, i18n.errors.statusFailed),
+                    only: ['students', 'filters', 'authorization'],
+                    onSuccess: () => {
+                        publishStudentStatusSync(studentIds, targetStatus, 'students');
+                    },
+                    onError: (errors) => {
+                        setStatusOverrides((current) => {
+                            const next = { ...current };
+                            for (const studentId of studentIds) {
+                                delete next[studentId];
+                            }
+
+                            return next;
+                        });
+                        showInertiaErrors(errors, i18n.errors.statusFailed);
+                    },
                     onFinish: () => {
                         applyingStatusRef.current = false;
                         setApplyingStatus(false);
@@ -1080,7 +1161,7 @@ export function StudentList({
             .filter((row): row is StudentListItem => row !== null);
 
         if (selected.length === 0) {
-            showError(i18n.students.enrollNeedsSelection);
+            showWarning(i18n.students.enrollNeedsSelection);
 
             return;
         }
@@ -1090,7 +1171,7 @@ export function StudentList({
         );
 
         if (eligible.length === 0) {
-            showError(i18n.students.enrollNeedsEligible);
+            showWarning(i18n.students.enrollNeedsEligible);
 
             return;
         }
@@ -1141,7 +1222,7 @@ export function StudentList({
         i18n.students.enrollSkippedInactive,
         rows,
         savingRows,
-        showError,
+        showWarning,
     ]);
 
     const onStatusTabClick = useCallback(
@@ -1572,6 +1653,11 @@ export function StudentList({
         }
 
         setDeleting(true);
+        setStatusOverrides((current) => ({
+            ...current,
+            [deleteTarget.id]: STUDENT_STATUS_WITHDRAWN,
+        }));
+        publishStudentStatusSync([deleteTarget.id], STUDENT_STATUS_WITHDRAWN, 'students');
         router.post(
             '/students/bulk-status',
             {
@@ -1581,6 +1667,7 @@ export function StudentList({
             {
                 preserveScroll: true,
                 preserveState: true,
+                only: ['students', 'filters', 'authorization'],
                 onSuccess: () => {
                     if (selectedId === deleteTarget.id) {
                         setSelectedId(null);
@@ -1589,7 +1676,15 @@ export function StudentList({
                     setEditingIds([]);
                     setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
                 },
-                onError: (errors) => showInertiaErrors(errors, i18n.errors.deleteFailed),
+                onError: (errors) => {
+                    setStatusOverrides((current) => {
+                        const next = { ...current };
+                        delete next[deleteTarget.id];
+
+                        return next;
+                    });
+                    showInertiaErrors(errors, i18n.errors.deleteFailed);
+                },
                 onFinish: () => {
                     setDeleting(false);
                     setDeleteTarget(null);
@@ -1743,41 +1838,47 @@ export function StudentList({
             ) : null}
 
             {viewingStudents !== null && viewingStudents.length > 0 ? (
-                <StudentViewDialog
-                    students={viewingStudents}
-                    canViewPii={authorization.canViewPii}
-                    canUpdate={authorization.canUpdate}
-                    title={
-                        viewingAsFileContinue
-                            ? i18n.workflow.studentFileDialogTitle
-                            : undefined
-                    }
-                    proceedLabel={i18n.common.save}
-                    initialEditing={viewingAsFileContinue}
-                    onClose={() => {
-                        setViewingStudents(null);
-                        setViewingAsFileContinue(false);
-                    }}
-                    onSaved={(updated) => {
-                        setViewingStudents((current) =>
-                            current === null
-                                ? current
-                                : current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)),
-                        );
-                    }}
-                    onProceed={() => {
-                        setViewingStudents(null);
-                        setViewingAsFileContinue(false);
-                        router.reload({ only: ['students', 'filters', 'authorization'] });
-                    }}
-                />
+                <Suspense fallback={null}>
+                    <StudentViewDialog
+                        students={viewingStudents}
+                        canViewPii={authorization.canViewPii}
+                        canUpdate={authorization.canUpdate}
+                        title={
+                            viewingAsFileContinue
+                                ? i18n.workflow.studentFileDialogTitle
+                                : undefined
+                        }
+                        proceedLabel={i18n.common.save}
+                        initialEditing={viewingAsFileContinue}
+                        onClose={() => {
+                            setViewingStudents(null);
+                            setViewingAsFileContinue(false);
+                        }}
+                        onSaved={(updated) => {
+                            setViewingStudents((current) =>
+                                current === null
+                                    ? current
+                                    : current.map((row) =>
+                                          row.id === updated.id ? { ...row, ...updated } : row,
+                                      ),
+                            );
+                        }}
+                        onProceed={() => {
+                            setViewingStudents(null);
+                            setViewingAsFileContinue(false);
+                            router.reload({ only: ['students', 'filters', 'authorization'] });
+                        }}
+                    />
+                </Suspense>
             ) : null}
 
             {creatingStudent ? (
-                <StudentCreateDialog
-                    canViewPii={authorization.canViewPii}
-                    onClose={() => setCreatingStudent(false)}
-                />
+                <Suspense fallback={null}>
+                    <StudentCreateDialog
+                        canViewPii={authorization.canViewPii}
+                        onClose={() => setCreatingStudent(false)}
+                    />
+                </Suspense>
             ) : null}
 
             <ConfirmDialog

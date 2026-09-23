@@ -55,7 +55,9 @@ final class EnrollmentSchoolAccessService
         }
 
         if (is_int($enrollment) || (is_string($enrollment) && ctype_digit($enrollment))) {
-            return EnrollmentRecord::query()->find((int) $enrollment);
+            return EnrollmentRecord::query()
+                ->select(['id', 'school_id'])
+                ->find((int) $enrollment);
         }
 
         return null;

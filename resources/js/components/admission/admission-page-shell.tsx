@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { XCircle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { AdmissionActivePeriodsTable } from '@/components/admission/admission-active-periods-table';
-import { AdmissionApplicationDraftDialog } from '@/components/admission/admission-application-draft-dialog';
 import { AdmissionPeriodFilter } from '@/components/admission/admission-period-filter';
 import { useAdmissionSelection } from '@/components/admission/admission-selection';
 import {
@@ -26,6 +25,12 @@ import { usePageAlignment } from '@/hooks/use-page-alignment';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
+
+const AdmissionApplicationDraftDialog = lazy(async () => {
+    const mod = await import('@/components/admission/admission-application-draft-dialog');
+
+    return { default: mod.AdmissionApplicationDraftDialog };
+});
 
 type DraftDialogMode = 'draft' | 'createStudent';
 
@@ -224,6 +229,11 @@ function AdmissionPageShellInner({
                 1,
                 searchDraftRef.current,
             )}`,
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['workspace', 'filters', 'authorization', 'enrollmentFilterOptions'],
+            },
         );
     };
 
@@ -309,20 +319,23 @@ function AdmissionPageShellInner({
                     onStageSelect={handleStageSelect}
                 />
 
-                <AdmissionApplicationDraftDialog
-                    open={draftOpen}
-                    onOpenChange={handleDraftOpenChange}
-                    periods={workspace.periods}
-                    schools={workspace.schools}
-                    gradeLevels={workspace.grade_levels}
-                    branches={workspace.branches ?? []}
-                    departments={workspace.departments}
-                    specializations={workspace.specializations}
-                    canManage={authorization.can_manage}
-                    academicYearId={academicYearId}
-                    mode={draftMode}
-                />
-
+                {draftOpen ? (
+                    <Suspense fallback={null}>
+                        <AdmissionApplicationDraftDialog
+                            open={draftOpen}
+                            onOpenChange={handleDraftOpenChange}
+                            periods={workspace.periods}
+                            schools={workspace.schools}
+                            gradeLevels={workspace.grade_levels}
+                            branches={workspace.branches ?? []}
+                            departments={workspace.departments}
+                            specializations={workspace.specializations}
+                            canManage={authorization.can_manage}
+                            academicYearId={academicYearId}
+                            mode={draftMode}
+                        />
+                    </Suspense>
+                ) : null}
                 <div className="sis-admission-page-body">
                     <AdmissionSearchProvider value={filtersQ}>{children}</AdmissionSearchProvider>
                 </div>

@@ -190,21 +190,33 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
 
         if ($term !== '') {
             $likeOperator = SchemaHelper::isPostgreSql() ? 'ilike' : 'like';
-            $pattern = '%'.$term.'%';
 
-            $query->where(function (Builder $builder) use ($likeOperator, $pattern): void {
-                $builder->where('full_name', $likeOperator, $pattern)
-                    ->orWhere('student_code', $likeOperator, $pattern)
-                    ->orWhere('national_id', $likeOperator, $pattern)
-                    ->orWhere('first_name', $likeOperator, $pattern)
-                    ->orWhere('father_name', $likeOperator, $pattern)
-                    ->orWhere('grandfather_name', $likeOperator, $pattern)
-                    ->orWhere('great_grandfather_name', $likeOperator, $pattern)
-                    ->orWhere('last_name', $likeOperator, $pattern)
-                    ->orWhere('mother_name', $likeOperator, $pattern)
-                    ->orWhere('maternal_father_name', $likeOperator, $pattern)
-                    ->orWhere('maternal_grandfather_name', $likeOperator, $pattern);
-            });
+            // Exact code / id path avoids leading-wildcard ILIKE when the term is numeric.
+            if (ctype_digit($term)) {
+                $id = (int) $term;
+                $query->where(function (Builder $builder) use ($term, $id): void {
+                    $builder->where('student_code', $term);
+                    if ($id > 0) {
+                        $builder->orWhere('id', $id);
+                    }
+                });
+            } else {
+                $pattern = '%'.$term.'%';
+
+                $query->where(function (Builder $builder) use ($likeOperator, $pattern): void {
+                    $builder->where('full_name', $likeOperator, $pattern)
+                        ->orWhere('student_code', $likeOperator, $pattern)
+                        ->orWhere('national_id', $likeOperator, $pattern)
+                        ->orWhere('first_name', $likeOperator, $pattern)
+                        ->orWhere('father_name', $likeOperator, $pattern)
+                        ->orWhere('grandfather_name', $likeOperator, $pattern)
+                        ->orWhere('great_grandfather_name', $likeOperator, $pattern)
+                        ->orWhere('last_name', $likeOperator, $pattern)
+                        ->orWhere('mother_name', $likeOperator, $pattern)
+                        ->orWhere('maternal_father_name', $likeOperator, $pattern)
+                        ->orWhere('maternal_grandfather_name', $likeOperator, $pattern);
+                });
+            }
         }
 
         return $this->paginateQuery($query, $page, $perPage, $schoolId, $academicYearId);

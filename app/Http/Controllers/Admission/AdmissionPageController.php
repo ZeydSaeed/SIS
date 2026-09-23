@@ -260,7 +260,6 @@ final class AdmissionPageController extends Controller
                 'can_view_student_pii' => $this->studentPolicy->viewPii($user),
             ],
             'enrollmentFilterOptions' => $statusFilter === ApplicationStatus::Converted->value
-                || $statusFilter === null
                 ? app(EnrollmentReadRepositoryInterface::class)->listFilterOptions($schoolId, $academicYearId)
                 : [
                     'branches' => [],

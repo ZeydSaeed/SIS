@@ -220,7 +220,7 @@ final class StudentUiTest extends TestCase
     }
 
     #[Test]
-    public function preview_query_returns_student_payload_for_authorized_user(): void
+    public function index_ignores_legacy_student_preview_query(): void
     {
         $this->withoutVite();
         $this->actingAsStudentManagerWeb();
@@ -236,12 +236,12 @@ final class StudentUiTest extends TestCase
         $this->get("/students?student={$student->id}")
             ->assertSuccessful()
             ->assertInertia(fn ($page) => $page
-                ->has('preview.student')
-                ->where('preview.student.full_name', 'Preview Student'));
+                ->missing('preview')
+                ->has('students.data'));
     }
 
     #[Test]
-    public function preview_query_returns_forbidden_for_cross_school_student(): void
+    public function show_denies_cross_school_student(): void
     {
         $this->withoutVite();
 
@@ -259,9 +259,8 @@ final class StudentUiTest extends TestCase
 
         $this->actingAs($user)
             ->withSession(['current_school_id' => $schoolA])
-            ->get("/students?student={$student->id}")
-            ->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->where('preview.error', 'forbidden'));
+            ->get("/students/{$student->id}")
+            ->assertForbidden();
     }
 
     #[Test]
@@ -828,7 +827,7 @@ final class StudentUiTest extends TestCase
     }
 
     #[Test]
-    public function student_preview_includes_selected_academic_year(): void
+    public function student_list_includes_selected_academic_year_on_enrolled_row(): void
     {
         $this->withoutVite();
         $this->actingAsStudentManagerWeb();
@@ -843,10 +842,12 @@ final class StudentUiTest extends TestCase
         ]);
         $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
 
-        $this->get("/students?academic_year_id={$yearId}&student={$student->id}")
+        $this->get("/students?academic_year_id={$yearId}")
             ->assertSuccessful()
             ->assertInertia(fn ($page) => $page
-                ->where('preview.student.academic_year_id', $yearId)
-                ->where('preview.student.academic_year_code', 'AY-FORM-2026'));
+                ->missing('preview')
+                ->where('filters.academic_year_id', $yearId)
+                ->has('students.data', 1)
+                ->where('students.data.0.full_name', 'Form Year'));
     }
 }

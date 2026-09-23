@@ -52,7 +52,6 @@ final class StudentPageController extends Controller
         Request $request,
         ListStudentsHandler $listHandler,
         SearchStudentsHandler $searchHandler,
-        GetStudentHandler $getHandler,
     ): Response {
         $this->authorize('viewAny', StudentRecord::class);
 
@@ -106,7 +105,7 @@ final class StudentPageController extends Controller
             ['page' => $page, 'per_page' => $perPage, 'search' => $q !== ''],
         );
 
-        $props = [
+        return Inertia::render('students/index', [
             'students' => $payload,
             'filters' => [
                 'q' => $q,
@@ -118,19 +117,7 @@ final class StudentPageController extends Controller
                 'enrolled' => $enrolled === null ? null : ($enrolled ? 1 : 0),
             ],
             'authorization' => $this->listAuthorization($user),
-            'preview' => null,
-        ];
-
-        if ($request->filled('student')) {
-            $props['preview'] = $this->resolvePreview(
-                $request,
-                (int) $request->query('student'),
-                $getHandler,
-                $academicYearId,
-            );
-        }
-
-        return Inertia::render('students/index', $props);
+        ]);
     }
 
     public function store(
@@ -302,39 +289,6 @@ final class StudentPageController extends Controller
             'student' => $this->sanitizer->sanitizeDetail($detail, $user),
             'authorization' => $this->recordAuthorization($user, $student),
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function resolvePreview(
-        Request $request,
-        int $studentId,
-        GetStudentHandler $handler,
-        ?int $academicYearId,
-    ): ?array {
-        $user = $request->user();
-        assert($user !== null);
-
-        if (! $this->studentPolicy->view($user, $studentId)) {
-            $this->securityAudit->record(
-                SecurityEventType::IdorBlocked,
-                'students.web.preview',
-                'denied',
-                $user,
-                "student:{$studentId}",
-            );
-
-            return ['error' => 'forbidden'];
-        }
-
-        $schoolId = $this->schoolContext->requireId();
-        $detail = $handler->handle(new GetStudentQuery($studentId, $schoolId, $academicYearId));
-
-        return [
-            'student' => $this->sanitizer->sanitizeDetail($detail, $user),
-            'authorization' => $this->recordAuthorization($user, $studentId),
-        ];
     }
 
     private function queryGender(Request $request): ?int

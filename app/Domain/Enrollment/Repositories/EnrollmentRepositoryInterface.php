@@ -44,6 +44,13 @@ interface EnrollmentRepositoryInterface
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool;
 
     /**
+     * Non-superseded placement rows for a student in a school (all years).
+     *
+     * @return list<EnrollmentSnapshot>
+     */
+    public function listOperableForStudent(int $schoolId, int $studentId): array;
+
+    /**
      * Close the current active placement (status=superseded + effective_to)
      * and insert a new active enrollment row for the same student/year.
      *

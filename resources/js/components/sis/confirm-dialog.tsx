@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -24,9 +24,8 @@ type ConfirmDialogProps = {
 };
 
 /**
- * Shared confirmation dialog — WINDOW-CONTRACT Dialog presentation.
- * Desktop: centered modal. Large workflows must remain full pages/windows.
- * Defaults Arabic (COLOR / UI / WINDOW contracts).
+ * Shared confirmation dialog — same classic chrome as MessageDialog (SSOT visual).
+ * Use for yes/no decisions only; notices go through usePageError / MessageDialog.
  */
 export function ConfirmDialog({
     open,
@@ -44,11 +43,12 @@ export function ConfirmDialog({
     const cancel = cancelLabel ?? i18n.dialog.cancel;
     const cancelRef = useRef<HTMLButtonElement>(null);
     const isDanger = tone === 'danger';
+    const Icon = isDanger ? AlertTriangle : Info;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
-                className="sis-confirm-dialog"
+                className={`sis-confirm-dialog sis-confirm-dialog--${tone}`}
                 overlayClassName="sis-confirm-dialog__overlay"
                 dir="rtl"
                 onOpenAutoFocus={(event) => {
@@ -64,9 +64,9 @@ export function ConfirmDialog({
                     <DialogTitle className="sis-confirm-dialog__title">{title}</DialogTitle>
                 </DialogHeader>
                 <div className="sis-confirm-dialog__body">
-                    {isDanger ? (
-                        <AlertTriangle className="sis-confirm-dialog__icon" aria-hidden="true" />
-                    ) : null}
+                    <span className="sis-confirm-dialog__icon-wrap" aria-hidden="true">
+                        <Icon className="sis-confirm-dialog__icon" />
+                    </span>
                     <DialogDescription className="sis-confirm-dialog__copy">
                         {description}
                     </DialogDescription>

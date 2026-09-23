@@ -1,9 +1,25 @@
-import AppLogoIcon from '@/components/app-logo-icon';
+import { cn } from '@/lib/utils';
 
-export default function AppLogo() {
+type AppLogoProps = {
+    className?: string;
+    /** on-dark = Pearl mark (sidebar). on-light = Night mark (pearl surfaces). */
+    tone?: 'on-dark' | 'on-light';
+};
+
+/**
+ * SIS mark without yellow plate — mask-colored to chrome tokens.
+ */
+export default function AppLogo({ className, tone = 'on-dark' }: AppLogoProps) {
     return (
-        <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-md bg-[#ffff00]">
-            <AppLogoIcon className="size-8" />
+        <div
+            className={cn(
+                'sis-app-logo',
+                tone === 'on-light' ? 'sis-app-logo--on-light' : 'sis-app-logo--on-dark',
+                className,
+            )}
+            aria-hidden="true"
+        >
+            <span className="sis-app-logo__mark" />
         </div>
     );
 }

@@ -52,4 +52,16 @@ interface EnrollmentReadRepositoryInterface
      * }
      */
     public function listFilterOptions(int $schoolId, ?int $academicYearId, ?int $classId = null): array;
+
+    /**
+     * Full placement timeline for one or more students (active + superseded segments).
+     *
+     * @param list<int> $studentIds
+     * @return list<EnrollmentDTO>
+     */
+    public function listPlacementHistory(
+        int $schoolId,
+        array $studentIds,
+        ?int $academicYearId = null,
+    ): array;
 }

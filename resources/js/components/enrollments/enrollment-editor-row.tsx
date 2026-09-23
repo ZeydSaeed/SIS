@@ -16,6 +16,7 @@ import { SisListSelect } from '@/components/sis/sis-list-select';
 import { usePageError } from '@/components/sis/page-error-context';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { t } from '@/i18n';
+import { publishStudentStatusSync } from '@/lib/student-status-sync';
 import type {
     EnrollmentFilterOptions,
     EnrollmentListItem,
@@ -106,10 +107,9 @@ function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
     const labels: Record<number, string> = {
         0: i18n.status.inactive,
         1: i18n.status.active,
-        2: i18n.status.cancelled,
-        3: i18n.status.transferred,
-        4: i18n.status.dismissed,
-        5: i18n.status.superseded,
+        2: i18n.status.suspended,
+        3: i18n.status.graduated,
+        4: i18n.status.withdrawn,
     };
 
     return labels[status] ?? String(status);
@@ -125,19 +125,15 @@ function statusTone(status: number): string {
     }
 
     if (status === 2) {
-        return 'cancelled';
+        return 'suspended';
     }
 
     if (status === 3) {
-        return 'transferred';
+        return 'graduated';
     }
 
     if (status === 4) {
-        return 'dismissed';
-    }
-
-    if (status === 5) {
-        return 'superseded';
+        return 'withdrawn';
     }
 
     return 'default';
@@ -291,7 +287,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
         const [academicYearId, setAcademicYearId] = useState(
             row.academic_year_id > 0 ? String(row.academic_year_id) : '',
         );
-        const [status, setStatus] = useState(String(row.status));
+        const [status, setStatus] = useState(String(row.student_status ?? 1));
         const [effectiveFrom, setEffectiveFrom] = useState(isoDate(row.effective_from));
         const [effectiveTo, setEffectiveTo] = useState(isoDate(row.effective_to));
         const [saving, setSaving] = useState(false);
@@ -314,7 +310,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             setGradeLevelId(resolveGradeLevelId(row, filterOptions));
             setStageName(row.stage_name ?? '');
             setAcademicYearId(row.academic_year_id > 0 ? String(row.academic_year_id) : '');
-            setStatus(String(row.status));
+            setStatus(String(row.student_status ?? 1));
             setEffectiveFrom(isoDate(row.effective_from));
             setEffectiveTo(isoDate(row.effective_to));
         }, [editing, filterOptions, row]);
@@ -457,7 +453,9 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     });
                 });
 
-            if (nextStatus !== row.status) {
+            const currentStudentStatus = row.student_status ?? 1;
+            if (nextStatus !== currentStudentStatus) {
+                publishStudentStatusSync([row.student_id], nextStatus, 'enrollments');
                 return new Promise((resolve, reject) => {
                     router.post(
                         '/enrollments/bulk-status',
@@ -506,7 +504,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             row.effective_from,
             row.id,
             row.section_id,
-            row.status,
+            row.student_status,
             sectionId,
             showError,
             showInertiaErrors,
@@ -747,24 +745,24 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     )}
                 </td>
                 <td
-                    className={`sis-students-table__status sis-students-table__status--tone-${statusTone(editing ? Number(status) : row.status)}`}
-                    data-status={editing ? Number(status) : row.status}
+                    className={`sis-students-table__status sis-students-table__status--tone-${statusTone(editing ? Number(status) : (row.student_status ?? 1))}`}
+                    data-status={editing ? Number(status) : (row.student_status ?? 1)}
                 >
                     {editing ? (
                         <SelectCell
                             value={status}
-                            label={i18n.common.status}
+                            label={i18n.enrollments.statusTabsTitle}
                             options={[
                                 { value: '1', label: i18n.status.active },
                                 { value: '0', label: i18n.status.inactive },
-                                { value: '2', label: i18n.status.cancelled },
-                                { value: '4', label: i18n.status.dismissed },
-                                { value: '3', label: i18n.status.transferred },
+                                { value: '2', label: i18n.status.suspended },
+                                { value: '3', label: i18n.status.graduated },
+                                { value: '4', label: i18n.status.withdrawn },
                             ]}
                             onChange={setStatus}
                         />
                     ) : (
-                        statusLabel(row.status, i18n)
+                        statusLabel(row.student_status ?? 1, i18n)
                     )}
                 </td>
             </tr>

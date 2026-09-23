@@ -502,7 +502,8 @@ final class EnrollmentUiTest extends TestCase
         $this->actingAsEnrollmentManagerWeb();
         $schoolId = (int) session('current_school_id');
         $yearId = $this->createAcademicYear('AY-ENR-STATUS-MX');
-        $table = SchemaHelper::qualified('enrollment', 'enrollments');
+        $enrollmentTable = SchemaHelper::qualified('enrollment', 'enrollments');
+        $studentTable = SchemaHelper::qualified('students', 'students');
 
         $make = function (string $code) use ($schoolId, $yearId) {
             $student = $this->createStudentForSchool($schoolId, [
@@ -515,17 +516,15 @@ final class EnrollmentUiTest extends TestCase
             return $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
         };
 
-        $setStatus = function ($enrollment, int $status) use ($table): void {
-            $enrollment->forceFill([
-                'status' => $status,
-                'effective_to' => $status === 1 ? null : '2026-09-10',
-            ])->save();
-        };
-
-        $assertStatus = function ($enrollment, int $status) use ($table): void {
-            $this->assertDatabaseHas($table, [
+        $assertPair = function ($enrollment, int $studentStatus, int $enrollmentStatus) use ($enrollmentTable, $studentTable): void {
+            $enrollment->refresh();
+            $this->assertDatabaseHas($enrollmentTable, [
                 'id' => $enrollment->id,
-                'status' => $status,
+                'status' => $enrollmentStatus,
+            ]);
+            $this->assertDatabaseHas($studentTable, [
+                'id' => $enrollment->student_id,
+                'status' => $studentStatus,
             ]);
         };
 
@@ -537,100 +536,51 @@ final class EnrollmentUiTest extends TestCase
             ])->assertRedirect();
         };
 
-        // --- Select-all mixed → inactive (0), including already-inactive ---
+        // Student Active (1) → enrollment Active (1)
+        // Student Inactive/Suspended/Graduated (0/2/3) → enrollment Inactive (0)
+        // Student Withdrawn (4) → enrollment Cancelled (2)
+        $mapEnrollment = static fn (int $studentStatus): int => match ($studentStatus) {
+            1 => 1,
+            4 => 2,
+            default => 0,
+        };
+
         $activeA = $make('A');
         $activeB = $make('B');
-        $inactive = $make('I');
-        $cancelled = $make('C');
-        $transferred = $make('T');
-        $setStatus($inactive, 0);
-        $setStatus($cancelled, 2);
-        $setStatus($transferred, 3);
+        $postStatus([$activeA->id, $activeB->id], 0);
+        $assertPair($activeA, 0, 0);
+        $assertPair($activeB, 0, 0);
 
-        $postStatus([
-            $activeA->id,
-            $activeB->id,
-            $inactive->id,
-            $cancelled->id,
-            $transferred->id,
-        ], 0);
+        $postStatus([$activeA->id], 2); // suspended
+        $assertPair($activeA, 2, 0);
 
-        foreach ([$activeA, $activeB, $inactive, $cancelled, $transferred] as $enrollment) {
-            $assertStatus($enrollment, 0);
-        }
+        $postStatus([$activeA->id], 1); // reactivate
+        $assertPair($activeA, 1, 1);
 
-        // --- Mixed inactive + cancelled + one active → cancelled ---
-        $activeC = $make('C1');
-        $cancelledOnly = $make('C2');
-        $setStatus($cancelledOnly, 2);
-        $postStatus([$activeC->id, $inactive->id, $cancelledOnly->id], 2);
-        $assertStatus($activeC, 2);
-        $assertStatus($inactive, 2);
-        $assertStatus($cancelledOnly, 2);
+        $postStatus([$activeB->id], 4); // withdrawn
+        $assertPair($activeB, 4, 2);
 
-        // --- Single cancelled → active ---
-        $postStatus([$cancelledOnly->id], 1);
-        $this->assertDatabaseHas($table, [
-            'id' => $cancelledOnly->id,
-            'status' => 1,
-            'effective_to' => null,
-        ]);
+        $postStatus([$activeB->id], 3); // graduated
+        $assertPair($activeB, 3, 0);
 
-        // --- Multi inactive group → transferred ---
-        $postStatus([$activeB->id, $activeA->id], 3);
-        $assertStatus($activeB, 3);
-        $assertStatus($activeA, 3);
-
-        // --- Select-all closed mix → inactive again (idempotent + transitions) ---
-        $postStatus([$transferred->id, $cancelled->id, $activeA->id], 0);
-        $assertStatus($transferred, 0);
-        $assertStatus($cancelled, 0);
-        $assertStatus($activeA, 0);
-
-        // --- Transferred → active ---
-        $postStatus([$activeB->id], 1);
-        $this->assertDatabaseHas($table, [
-            'id' => $activeB->id,
-            'status' => 1,
-            'effective_to' => null,
-        ]);
-
-        // --- Full cartesian: each source status → each target (single) ---
-        $targets = [1, 0, 2, 3];
-        $sources = [1, 0, 2, 3];
+        // Cartesian student statuses
+        $targets = [1, 0, 2, 3, 4];
         $seq = 0;
-        foreach ($sources as $from) {
+        foreach ($targets as $from) {
             foreach ($targets as $to) {
                 $seq++;
                 $row = $make('X'.$seq);
-                $setStatus($row, $from);
+                $postStatus([$row->id], $from);
+                $assertPair($row, $from, $mapEnrollment($from));
                 $postStatus([$row->id], $to);
-                $assertStatus($row, $to);
+                $assertPair($row, $to, $mapEnrollment($to));
                 if ($to === 1) {
-                    $this->assertDatabaseHas($table, [
+                    $this->assertDatabaseHas($enrollmentTable, [
                         'id' => $row->id,
                         'status' => 1,
                         'effective_to' => null,
                     ]);
                 }
-            }
-        }
-
-        // --- Multi: one of each status → each closed target ---
-        foreach ([0, 2, 3] as $to) {
-            $seq++;
-            $mix = [
-                $make('M'.$seq.'A'),
-                $make('M'.$seq.'I'),
-                $make('M'.$seq.'C'),
-                $make('M'.$seq.'T'),
-            ];
-            $setStatus($mix[1], 0);
-            $setStatus($mix[2], 2);
-            $setStatus($mix[3], 3);
-            $postStatus(array_map(static fn ($e) => $e->id, $mix), $to);
-            foreach ($mix as $enrollment) {
-                $assertStatus($enrollment, $to);
             }
         }
 
@@ -665,13 +615,17 @@ final class EnrollmentUiTest extends TestCase
 
         $this->post('/enrollments/bulk-status', [
             'enrollment_ids' => [(int) $enrollment->id],
-            'status' => 2,
+            'status' => 4,
             'effective_to' => '2026-09-22',
         ])->assertRedirect();
 
         $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollments'), [
             'id' => $enrollment->id,
             'status' => 2,
+        ]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $student->id,
+            'status' => 4,
         ]);
     }
 

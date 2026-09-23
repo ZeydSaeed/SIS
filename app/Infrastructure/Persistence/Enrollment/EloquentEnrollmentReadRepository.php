@@ -6,6 +6,7 @@ use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Enrollment\DTOs\EnrollmentDTO;
 use App\Database\SchemaHelper;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
+use App\Domain\Student\ValueObjects\StudentStatus;
 use DateTimeInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -56,12 +57,14 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             $branchId,
             $departmentId,
         );
-        $total = (clone $query)->count('e.id');
+        // One round-trip: page rows + total via COUNT(*) OVER() (PostgreSQL).
         $rows = $query
+            ->addSelect(DB::raw('COUNT(*) OVER() as full_count'))
             ->orderBy('s.full_name')
             ->orderBy('e.id')
             ->forPage($page, $perPage)
             ->get();
+        $total = $rows->isEmpty() ? 0 : (int) $rows->first()->full_count;
 
         /** @var list<EnrollmentDTO> $items */
         $items = $rows
@@ -104,9 +107,9 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             $branchId,
             $departmentId,
         )
-            ->select('e.status')
+            ->select('s.status')
             ->selectRaw('COUNT(*) as total')
-            ->groupBy('e.status')
+            ->groupBy('s.status')
             ->get();
 
         $counts = [];
@@ -236,6 +239,42 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         ];
     }
 
+    public function listPlacementHistory(
+        int $schoolId,
+        array $studentIds,
+        ?int $academicYearId = null,
+    ): array {
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $id): int => (int) $id, $studentIds),
+            static fn (int $id): bool => $id > 0,
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $query = $this->baseQuery($schoolId)
+            ->whereIn('e.student_id', $ids);
+
+        if ($academicYearId !== null) {
+            $query->where('e.academic_year_id', $academicYearId);
+        }
+
+        $rows = $query
+            ->orderBy('e.student_id')
+            ->orderBy('e.effective_from')
+            ->orderBy('e.id')
+            ->get();
+
+        /** @var list<EnrollmentDTO> $items */
+        $items = $rows
+            ->map(fn (object $row): EnrollmentDTO => $this->toDto($row))
+            ->values()
+            ->all();
+
+        return $items;
+    }
+
     private function filteredQuery(
         int $schoolId,
         ?int $academicYearId,
@@ -255,8 +294,12 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             $query->where('e.academic_year_id', $academicYearId);
         }
 
-        if ($status !== null && in_array($status, EnrollmentStatus::all(), true)) {
-            $query->where('e.status', $status);
+        if ($status !== null && StudentStatus::tryFrom($status) !== null) {
+            $query->where('s.status', $status)
+                ->where('e.status', '!=', EnrollmentStatus::SUPERSEDED);
+        } else {
+            // Default roster hides historical superseded segments (shown via placement history).
+            $query->where('e.status', '!=', EnrollmentStatus::SUPERSEDED);
         }
 
         if ($gender === 1 || $gender === 2) {
@@ -322,36 +365,43 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
 
         $term = trim($q);
         if ($term !== '') {
-            $likeOperator = SchemaHelper::isPostgreSql() ? 'ilike' : 'like';
-            $pattern = '%'.$term.'%';
+            if (ctype_digit($term)) {
+                $studentId = (int) $term;
+                $query->where(function (Builder $builder) use ($term, $studentId): void {
+                    $builder->where('e.enrollment_number', $term)
+                        ->orWhere('s.student_code', $term);
+                    if ($studentId > 0) {
+                        $builder->orWhere('s.id', $studentId)
+                            ->orWhere('e.student_id', $studentId)
+                            ->orWhere('e.id', $studentId);
+                    }
+                });
+            } else {
+                $likeOperator = SchemaHelper::isPostgreSql() ? 'ilike' : 'like';
+                $pattern = '%'.$term.'%';
 
-            $query->where(function (Builder $builder) use ($likeOperator, $pattern, $term): void {
-                $builder->where('e.enrollment_number', $likeOperator, $pattern)
-                    ->orWhere('s.full_name', $likeOperator, $pattern)
-                    ->orWhere('s.student_code', $likeOperator, $pattern)
-                    ->orWhere('s.first_name', $likeOperator, $pattern)
-                    ->orWhere('s.father_name', $likeOperator, $pattern)
-                    ->orWhere('s.grandfather_name', $likeOperator, $pattern)
-                    ->orWhere('s.great_grandfather_name', $likeOperator, $pattern)
-                    ->orWhere('s.last_name', $likeOperator, $pattern)
-                    ->orWhere('c.code', $likeOperator, $pattern)
-                    ->orWhere('c.name', $likeOperator, $pattern)
-                    ->orWhere('sec.code', $likeOperator, $pattern)
-                    ->orWhere('sec.name', $likeOperator, $pattern)
-                    ->orWhere('sp.code', $likeOperator, $pattern)
-                    ->orWhere('sp.name', $likeOperator, $pattern)
-                    ->orWhere('g.name', $likeOperator, $pattern)
-                    ->orWhere('y.name', $likeOperator, $pattern)
-                    ->orWhere('y.code', $likeOperator, $pattern)
-                    ->orWhere('br.name', $likeOperator, $pattern)
-                    ->orWhere('dep.name', $likeOperator, $pattern);
-
-                if (ctype_digit($term)) {
-                    $studentId = (int) $term;
-                    $builder->orWhere('s.id', $studentId)
-                        ->orWhere('e.student_id', $studentId);
-                }
-            });
+                $query->where(function (Builder $builder) use ($likeOperator, $pattern): void {
+                    $builder->where('e.enrollment_number', $likeOperator, $pattern)
+                        ->orWhere('s.full_name', $likeOperator, $pattern)
+                        ->orWhere('s.student_code', $likeOperator, $pattern)
+                        ->orWhere('s.first_name', $likeOperator, $pattern)
+                        ->orWhere('s.father_name', $likeOperator, $pattern)
+                        ->orWhere('s.grandfather_name', $likeOperator, $pattern)
+                        ->orWhere('s.great_grandfather_name', $likeOperator, $pattern)
+                        ->orWhere('s.last_name', $likeOperator, $pattern)
+                        ->orWhere('c.code', $likeOperator, $pattern)
+                        ->orWhere('c.name', $likeOperator, $pattern)
+                        ->orWhere('sec.code', $likeOperator, $pattern)
+                        ->orWhere('sec.name', $likeOperator, $pattern)
+                        ->orWhere('sp.code', $likeOperator, $pattern)
+                        ->orWhere('sp.name', $likeOperator, $pattern)
+                        ->orWhere('g.name', $likeOperator, $pattern)
+                        ->orWhere('y.name', $likeOperator, $pattern)
+                        ->orWhere('y.code', $likeOperator, $pattern)
+                        ->orWhere('br.name', $likeOperator, $pattern)
+                        ->orWhere('dep.name', $likeOperator, $pattern);
+                });
+            }
         }
 
         return $query;

@@ -3,7 +3,6 @@ import AppLayout from '@/layouts/app-layout';
 import {
     StudentList,
     type StudentAuthorization,
-    type PreviewPayload,
     type StudentsPayload,
 } from '@/components/students/student-list';
 import { t } from '@/i18n';
@@ -21,15 +20,9 @@ type PageProps = {
         enrolled: number | null;
     };
     authorization: StudentAuthorization;
-    preview: PreviewPayload;
 };
 
-export default function StudentsIndex({
-    students,
-    filters,
-    authorization,
-    preview,
-}: PageProps) {
+export default function StudentsIndex({ students, filters, authorization }: PageProps) {
     const i18n = t();
 
     const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.students.title, href: '/students' }];
@@ -37,12 +30,7 @@ export default function StudentsIndex({
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.students.title} />
-            <StudentList
-                students={students}
-                filters={filters}
-                authorization={authorization}
-                preview={preview}
-            />
+            <StudentList students={students} filters={filters} authorization={authorization} />
         </AppLayout>
     );
 }

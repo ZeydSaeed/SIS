@@ -13,6 +13,8 @@ use App\Application\Enrollment\Commands\UpdateEnrollmentPlacementHandler;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Enrollment\Queries\GetEnrollmentHandler;
 use App\Application\Enrollment\Queries\GetEnrollmentQuery;
+use App\Application\Enrollment\Queries\ListEnrollmentPlacementHistoryHandler;
+use App\Application\Enrollment\Queries\ListEnrollmentPlacementHistoryQuery;
 use App\Application\Enrollment\Queries\ListEnrollmentsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentsQuery;
 use App\Application\Student\Queries\GetStudentHandler;
@@ -52,6 +54,7 @@ final class EnrollmentPageController extends Controller
     public function index(
         Request $request,
         ListEnrollmentsHandler $handler,
+        ListEnrollmentPlacementHistoryHandler $placementHistoryHandler,
         EnrollmentReadRepositoryInterface $enrollments,
     ): Response {
         $this->authorize('viewAny', EnrollmentRecord::class);
@@ -113,6 +116,16 @@ final class EnrollmentPageController extends Controller
             ],
         );
 
+        $placementHistory = null;
+        $historyStudentIds = $this->parseHistoryStudentIds($request);
+        if ($historyStudentIds !== []) {
+            $placementHistory = $placementHistoryHandler->handle(new ListEnrollmentPlacementHistoryQuery(
+                schoolId: $schoolId,
+                studentIds: $historyStudentIds,
+                academicYearId: $academicYearId,
+            ));
+        }
+
         return Inertia::render('enrollments/index', [
             'enrollments' => $result->toArray(),
             'filters' => [
@@ -131,6 +144,7 @@ final class EnrollmentPageController extends Controller
             ],
             'filterOptions' => $enrollments->listFilterOptions($schoolId, $academicYearId, $classId),
             'authorization' => $this->listAuthorization($user),
+            'placementHistory' => $placementHistory,
         ]);
     }
 
@@ -178,6 +192,22 @@ final class EnrollmentPageController extends Controller
                 'count' => $result->count,
             ],
         );
+
+        $updated = count($result->enrollmentIds);
+        $skipped = count($result->skippedIds);
+        if ($updated > 0 && $skipped > 0) {
+            return redirect()->back()->with(
+                'success',
+                "تم تحديث {$updated} تسجيل وتخطي {$skipped} (تعارض أو طالب غير مؤهل).",
+            );
+        }
+
+        if ($updated === 0 && $skipped > 0) {
+            return redirect()->back()->with(
+                'error',
+                'لم يُحدَّث أي تسجيل — تحقق من أهلية الطالب أو وجود تسجيل نشط آخر لنفس السنة.',
+            );
+        }
 
         return redirect()->back();
     }
@@ -239,7 +269,9 @@ final class EnrollmentPageController extends Controller
 
     public function show(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response
     {
-        $record = EnrollmentRecord::query()->find($enrollment);
+        $record = EnrollmentRecord::query()
+            ->select(['id', 'school_id'])
+            ->find($enrollment);
         if ($record === null) {
             throw EnrollmentNotFoundException::forId($enrollment);
         }
@@ -403,7 +435,9 @@ final class EnrollmentPageController extends Controller
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response
     {
-        $record = EnrollmentRecord::query()->find($enrollment);
+        $record = EnrollmentRecord::query()
+            ->select(['id', 'school_id'])
+            ->find($enrollment);
         if ($record === null) {
             throw EnrollmentNotFoundException::forId($enrollment);
         }
@@ -434,7 +468,9 @@ final class EnrollmentPageController extends Controller
         int $enrollment,
         UpdateEnrollmentPlacementHandler $handler,
     ): RedirectResponse {
-        $record = EnrollmentRecord::query()->find($enrollment);
+        $record = EnrollmentRecord::query()
+            ->select(['id', 'school_id'])
+            ->find($enrollment);
         if ($record === null) {
             throw EnrollmentNotFoundException::forId($enrollment);
         }
@@ -489,6 +525,42 @@ final class EnrollmentPageController extends Controller
         );
 
         return redirect()->back();
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function parseHistoryStudentIds(Request $request): array
+    {
+        $raw = $request->query('history_student_ids');
+        $ids = [];
+
+        if (is_array($raw)) {
+            foreach ($raw as $value) {
+                $id = (int) $value;
+                if ($id > 0) {
+                    $ids[] = $id;
+                }
+            }
+        } elseif (is_string($raw) && trim($raw) !== '') {
+            foreach (explode(',', $raw) as $part) {
+                $id = (int) trim($part);
+                if ($id > 0) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        if ($ids === [] && $request->filled('history_student_id')) {
+            $legacy = (int) $request->query('history_student_id');
+            if ($legacy > 0) {
+                $ids[] = $legacy;
+            }
+        }
+
+        $ids = array_values(array_unique($ids));
+
+        return array_slice($ids, 0, 100);
     }
 
     private function queryGender(Request $request): ?int

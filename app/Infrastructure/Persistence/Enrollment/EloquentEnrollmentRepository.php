@@ -228,6 +228,25 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         $record->save();
     }
 
+    public function listOperableForStudent(int $schoolId, int $studentId): array
+    {
+        $rows = EnrollmentRecord::query()
+            ->where('school_id', $schoolId)
+            ->where('student_id', $studentId)
+            ->where('status', '!=', EnrollmentStatus::SUPERSEDED)
+            ->orderBy('academic_year_id')
+            ->orderBy('id')
+            ->get();
+
+        /** @var list<EnrollmentSnapshot> $items */
+        $items = [];
+        foreach ($rows as $row) {
+            $items[] = $this->toSnapshot($row);
+        }
+
+        return $items;
+    }
+
     public function closeAsTransferred(int $enrollmentId, int $schoolId, string $effectiveTo): bool
     {
         \Illuminate\Support\Facades\DB::statement(

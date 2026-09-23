@@ -33,13 +33,13 @@ export function AppSidebar() {
         <Sidebar collapsible="icon" variant="inset" side="right">
             <SidebarHeader>
                 <SidebarMenu>
-                    <SidebarMenuItem>
+                    <SidebarMenuItem className="sis-sidebar-logo-item">
                         <SidebarMenuButton
                             size="lg"
                             asChild
-                            className="hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent data-[active=true]:bg-transparent data-[state=open]:hover:bg-transparent"
+                            className="sis-sidebar-logo-button hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent data-[active=true]:bg-transparent data-[state=open]:hover:bg-transparent"
                         >
-                            <Link href={dashboard()} prefetch className="pointer-events-auto">
+                            <Link href={dashboard()} prefetch className="sis-sidebar-logo-link pointer-events-auto">
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
