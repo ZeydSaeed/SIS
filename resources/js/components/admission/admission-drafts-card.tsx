@@ -11,6 +11,7 @@ import {
     type ReactNode,
 } from 'react';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
+import { AdmissionStatusReasonDialog } from '@/components/admission/admission-status-reason-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
     selectTableRow,
@@ -40,7 +41,6 @@ import {
     type AdmissionWorkspace,
 } from '@/components/admission/admission-workspace';
 import { formatAdmissionDateTime } from '@/components/admission/format-admission-datetime';
-import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { usePageError } from '@/components/sis/page-error-context';
 import {
     useRegisterPageRibbon,
@@ -464,9 +464,14 @@ export function AdmissionDraftsCard({
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
-    const [withdrawTarget, setWithdrawTarget] = useState<AdmissionApplication | null>(null);
     const [withdrawing, setWithdrawing] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
+    const [reasonPrompt, setReasonPrompt] = useState<{
+        kind: 'reject' | 'withdraw';
+        toStatus: number;
+        applicationIds: number[];
+        mode: 'bulk' | 'single';
+    } | null>(null);
 
     const pagination = workspace.pagination ?? {
         page: 1,
@@ -599,6 +604,16 @@ export function AdmissionDraftsCard({
             return;
         }
 
+        if (toStatus === ADMISSION_STATUS_REJECTED || toStatus === ADMISSION_STATUS_WITHDRAWN) {
+            setReasonPrompt({
+                kind: toStatus === ADMISSION_STATUS_REJECTED ? 'reject' : 'withdraw',
+                toStatus,
+                applicationIds: [...actionIds],
+                mode: 'bulk',
+            });
+            return;
+        }
+
         setTransitioning(true);
 
         const clearSelection = () => {
@@ -667,6 +682,76 @@ export function AdmissionDraftsCard({
             },
         );
     }, [academicYearId, actionIds, canApplyTransition, i18n.errors.convertFailed, i18n.errors.transitionFailed, showInertiaErrors]);
+
+    const confirmReasonTransition = useCallback((reason: string) => {
+        if (reasonPrompt === null) {
+            return;
+        }
+
+        const prompt = reasonPrompt;
+        setTransitioning(true);
+        setWithdrawing(true);
+
+        if (prompt.mode === 'single') {
+            const applicationId = prompt.applicationIds[0];
+            router.post(
+                `/admission/applications/${applicationId}/transition`,
+                {
+                    to_status: prompt.toStatus,
+                    notes: reason,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        if (selectedId === applicationId) {
+                            setSelectedId(null);
+                            setEditing(false);
+                        }
+                        setCheckedIds((current) => current.filter((id) => id !== applicationId));
+                        setReasonPrompt(null);
+                    },
+                    onError: (errors) => showInertiaErrors(errors, i18n.errors.transitionFailed),
+                    onFinish: () => {
+                        setTransitioning(false);
+                        setWithdrawing(false);
+                    },
+                },
+            );
+            return;
+        }
+
+        router.post(
+            '/admission/applications/bulk-transition',
+            {
+                application_ids: prompt.applicationIds,
+                to_status: prompt.toStatus,
+                notes: reason,
+                academic_year_id: academicYearId,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    setCheckedIds([]);
+                    setSelectedId(null);
+                    setEditing(false);
+                    setReasonPrompt(null);
+                },
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.transitionFailed),
+                onFinish: () => {
+                    setTransitioning(false);
+                    setWithdrawing(false);
+                },
+            },
+        );
+    }, [
+        academicYearId,
+        i18n.errors.transitionFailed,
+        reasonPrompt,
+        selectedId,
+        showInertiaErrors,
+    ]);
 
     const goPage = useCallback(
         (page: number) => {
@@ -747,7 +832,12 @@ export function AdmissionDraftsCard({
                     disabled: !hasSelection || !canWithdraw,
                     onSelect: () => {
                         if (selectedDraft) {
-                            setWithdrawTarget(selectedDraft);
+                            setReasonPrompt({
+                                kind: 'withdraw',
+                                toStatus: ADMISSION_STATUS_WITHDRAWN,
+                                applicationIds: [selectedDraft.id],
+                                mode: 'single',
+                            });
                         }
                     },
                 },
@@ -771,34 +861,6 @@ export function AdmissionDraftsCard({
     ]);
 
     useRegisterPageRibbon('home', ribbonGroups);
-
-    const confirmWithdraw = () => {
-        if (withdrawTarget === null) {
-            return;
-        }
-
-        setWithdrawing(true);
-        router.post(
-            `/admission/applications/${withdrawTarget.id}/transition`,
-            { to_status: ADMISSION_STATUS_WITHDRAWN },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => {
-                    if (selectedId === withdrawTarget.id) {
-                        setSelectedId(null);
-                        setEditing(false);
-                    }
-                    setCheckedIds((current) => current.filter((id) => id !== withdrawTarget.id));
-                },
-                onError: (errors) => showInertiaErrors(errors, i18n.errors.deleteFailed),
-                onFinish: () => {
-                    setWithdrawing(false);
-                    setWithdrawTarget(null);
-                },
-            },
-        );
-    };
 
     return (
         <section aria-label={stageLabel} className="flex min-h-0 flex-1 flex-col gap-3">
@@ -959,19 +1021,16 @@ export function AdmissionDraftsCard({
                 </>
             )}
 
-            <ConfirmDialog
-                open={withdrawTarget !== null}
-                title={i18n.admission.withdrawDraftTitle}
-                description={i18n.admission.withdrawDraftConfirm}
-                confirmLabel={i18n.admission.withdrawDraft}
-                tone="danger"
-                confirmPending={withdrawing}
-                onConfirm={confirmWithdraw}
+            <AdmissionStatusReasonDialog
+                open={reasonPrompt !== null}
+                kind={reasonPrompt?.kind ?? 'reject'}
+                busy={transitioning || withdrawing}
                 onOpenChange={(open) => {
-                    if (!open && !withdrawing) {
-                        setWithdrawTarget(null);
+                    if (!open && !transitioning && !withdrawing) {
+                        setReasonPrompt(null);
                     }
                 }}
+                onConfirm={confirmReasonTransition}
             />
         </section>
     );

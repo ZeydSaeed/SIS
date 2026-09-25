@@ -341,7 +341,10 @@ export function AdmissionApplicationDraftDialog({
         }
     }, [open, activePeriods, schools]);
 
-    const { contentRef, heroDragProps, bringToFront } = useSmoothDialogDrag(open);
+    const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(open, {
+        resizable: true,
+        minSize: { width: 520, height: 360 },
+    });
 
     const openNativeDocumentPicker = (type: number) => {
         pendingDocumentTypeRef.current = type;
@@ -391,6 +394,7 @@ export function AdmissionApplicationDraftDialog({
                 onPointerDownCapture={bringToFront}
             >
                 <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
+                {resizeHandles}
 
                 {activePeriods.length === 0 ? (
                     <p className="sis-admission-sheet__empty">{i18n.admission.noOpenPeriod}</p>

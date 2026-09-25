@@ -35,7 +35,11 @@ interface AdmissionReadRepositoryInterface
      *         academic_year_name:string,
      *         period_id:int,
      *         period_name:string,
-     *         request_kind:int
+     *         request_kind:int,
+     *         status:int,
+     *         notes:?string,
+     *         rejection_reason:?string,
+     *         withdrawal_reason:?string
      *     }>
      * }
      */

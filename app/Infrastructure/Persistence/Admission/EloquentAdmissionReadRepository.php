@@ -146,9 +146,9 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
     }
 
     /**
-     * Converted applicants linked to a student row (ribbon «الطلبة المقبولين»).
+     * Admission outcomes roster for the accepted-students dialog.
      *
-     * @return list<array{id:int, full_name:string, academic_year_id:int, academic_year_name:string, period_id:int, period_name:string, request_kind:int}>
+     * @return list<array{id:int, full_name:string, academic_year_id:int, academic_year_name:string, period_id:int, period_name:string, request_kind:int, status:int, notes:?string, rejection_reason:?string, withdrawal_reason:?string}>
      */
     private function loadAcceptedStudents(
         int $schoolId,
@@ -160,13 +160,22 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         $periods = SchemaHelper::qualified('admission', 'application_periods');
         $years = SchemaHelper::qualified('academic', 'academic_years');
 
-        // School-wide roster for the dialog filters (year + period + admission channel).
+        $rosterStatuses = [
+            ApplicationStatus::Submitted->value,
+            ApplicationStatus::UnderReview->value,
+            ApplicationStatus::Interview->value,
+            ApplicationStatus::Waitlisted->value,
+            ApplicationStatus::Rejected->value,
+            ApplicationStatus::Withdrawn->value,
+            ApplicationStatus::Converted->value,
+        ];
+
+        // School-wide roster for the dialog filters (year + period + outcome category).
         $query = DB::table($apps.' as apps')
             ->join($periods.' as periods', 'periods.id', '=', 'apps.application_period_id')
             ->join($years.' as years', 'years.id', '=', 'periods.academic_year_id')
             ->where('periods.school_id', $schoolId)
-            ->where('apps.status', ApplicationStatus::Converted->value)
-            ->whereNotNull('apps.student_id')
+            ->whereIn('apps.status', $rosterStatuses)
             ->select([
                 'apps.id',
                 'apps.first_name',
@@ -175,6 +184,10 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.great_grandfather_name',
                 'apps.last_name',
                 'apps.request_kind',
+                'apps.status',
+                'apps.notes',
+                'apps.rejection_reason',
+                'apps.withdrawal_reason',
                 'periods.id as period_id',
                 'periods.name as period_name',
                 'years.id as academic_year_id',
@@ -187,7 +200,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
 
         return $query
             ->orderByDesc('apps.id')
-            ->limit(500)
+            ->limit(1000)
             ->get()
             ->map(static function ($row): array {
             $parts = array_filter([
@@ -198,6 +211,10 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 (string) $row->last_name,
             ], static fn (?string $part): bool => $part !== null && trim($part) !== '');
 
+            $notes = $row->notes !== null ? trim((string) $row->notes) : '';
+            $rejectionReason = $row->rejection_reason !== null ? trim((string) $row->rejection_reason) : '';
+            $withdrawalReason = $row->withdrawal_reason !== null ? trim((string) $row->withdrawal_reason) : '';
+
             return [
                 'id' => (int) $row->id,
                 'full_name' => implode(' ', $parts),
@@ -206,6 +223,10 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'period_id' => (int) $row->period_id,
                 'period_name' => (string) $row->period_name,
                 'request_kind' => (int) ($row->request_kind ?? 2),
+                'status' => (int) $row->status,
+                'notes' => $notes !== '' ? $notes : null,
+                'rejection_reason' => $rejectionReason !== '' ? $rejectionReason : null,
+                'withdrawal_reason' => $withdrawalReason !== '' ? $withdrawalReason : null,
             ];
         })->all();
     }

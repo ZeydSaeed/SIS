@@ -238,6 +238,30 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-09-26 admission rejection_reason
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Table | `admission.applications` |
+| Change | Add nullable `rejection_reason` TEXT; backfill from `notes` where status=Rejected |
+| Risk | Additive only; no index (displayed in ≤800-row roster dialog) |
+| Blueprint | Updated |
+
+---
+
+## Change log — 2026-09-26 admission withdrawal_reason
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Table | `admission.applications` |
+| Change | Add nullable `withdrawal_reason` TEXT; backfill from `notes` where status=Withdrawn |
+| Risk | Additive only; roster/dialog display only |
+| Blueprint | Updated |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

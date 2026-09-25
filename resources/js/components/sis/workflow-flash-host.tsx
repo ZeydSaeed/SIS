@@ -52,7 +52,11 @@ export function WorkflowFlashHost() {
             if (lastToastKeyRef.current !== toastKey) {
                 lastToastKeyRef.current = toastKey;
                 const type = toastData.type;
-                if (type === 'success' || type === 'info' || type === 'warning' || type === 'error') {
+                const onAdmission = page.url.startsWith('/admission');
+                // Admission: only error toasts.
+                if (onAdmission && type !== 'error') {
+                    /* skip */
+                } else if (type === 'success' || type === 'info' || type === 'warning' || type === 'error') {
                     toast[type](toastData.message);
                 }
             }

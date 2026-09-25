@@ -510,6 +510,8 @@
 | reviewed_by | BIGINT | FK → public.users, nullable |
 | reviewed_at | TIMESTAMPTZ | |
 | notes | TEXT | |
+| rejection_reason | TEXT | nullable — سبب الرفض (عند status=مرفوض) |
+| withdrawal_reason | TEXT | nullable — سبب الانسحاب (عند status=منسحب) |
 | student_id | BIGINT | FK → students.students, nullable — **conversion link only** (Phase 2) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |

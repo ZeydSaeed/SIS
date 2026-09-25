@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admission;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 final class TransitionApplicationStatusRequest extends FormRequest
 {
@@ -16,9 +17,16 @@ final class TransitionApplicationStatusRequest extends FormRequest
      */
     public function rules(): array
     {
+        $requiresReason = in_array((int) $this->input('to_status'), [7, 8], true);
+
         return [
             'to_status' => ['required', 'integer', 'between:1,8'],
-            'notes' => ['nullable', 'string'],
+            'notes' => [
+                Rule::requiredIf($requiresReason),
+                'nullable',
+                'string',
+                'max:2000',
+            ],
         ];
     }
 }

@@ -2408,7 +2408,7 @@ input[type='reset']:disabled {
 
 .sis-list-select__menu {
     position: fixed;
-    z-index: 40000;
+    z-index: 210000;
     margin: 0;
     padding: 0.15rem 0;
     list-style: none;
@@ -2428,7 +2428,7 @@ input[type='reset']:disabled {
 #sis-list-select-portal {
     position: fixed;
     inset: 0;
-    z-index: 40000;
+    z-index: 210000;
     pointer-events: none;
 }
 
@@ -4504,8 +4504,10 @@ button.sis-admission-enroll-status-text:active {
     min-width: 0;
     margin-inline: 0;
     overflow: hidden;
-    border: 0;
-    background: transparent;
+    /* Card frame matches periods/drafts cell border. */
+    border: 1px solid #000000;
+    border-radius: 0;
+    background: var(--sis-admission-page);
     --sis-admission-drafts-row-h: 1.85rem;
 }
 
@@ -4545,6 +4547,8 @@ button.sis-admission-enroll-status-text:active {
     height: var(--sis-admission-drafts-row-h);
     min-height: var(--sis-admission-drafts-row-h);
     white-space: nowrap;
+    text-align: center;
+    text-align-last: center;
     vertical-align: middle;
     position: sticky;
     top: 0;
@@ -5639,7 +5643,8 @@ ion-icon.sis-admission-drafts-home__ion {
 }
 
 .sis-admission-draft-dialog {
-    z-index: 25000 !important;
+    /* Above chrome/titlebar/ribbon/taskbar/windows/list-select (≤110000). */
+    z-index: 200000 !important;
     background: var(--sis-admission-page) !important;
     color: var(--sis-oxford);
     border: 1px solid #000000;
@@ -5658,15 +5663,48 @@ ion-icon.sis-admission-drafts-home__ion {
     z-index: auto !important;
 }
 
+/*
+ * Sidebar rail width for content-area centering (AppSidebar side=right).
+ * Leaves a small gap between the open sheet and the sidebar.
+ */
+:root {
+    --sis-admission-sidebar-gap: 0.75rem;
+    --sis-admission-sidebar-rail: 0px;
+}
+
+body:has([data-slot='sidebar'][data-side='right'][data-state='expanded']) {
+    --sis-admission-sidebar-rail: 12rem;
+}
+
+body:has([data-slot='sidebar'][data-side='right'][data-state='collapsed'][data-collapsible='icon']) {
+    --sis-admission-sidebar-rail: calc(3rem + 1rem);
+}
+
+body:has([data-slot='sidebar'][data-side='left'][data-state='expanded']) {
+    --sis-admission-sidebar-rail: 12rem;
+}
+
+body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-collapsible='icon']) {
+    --sis-admission-sidebar-rail: calc(3rem + 1rem);
+}
+
 .sis-admission-sheet-dialog {
+    position: fixed !important;
+    inset: auto !important;
     top: 50% !important;
-    left: 50% !important;
-    z-index: 25000 !important;
-    width: min(98vw, 64rem) !important;
-    max-width: min(98vw, 64rem) !important;
-    max-height: calc(100vh - 0.35rem) !important;
+    /* Center in content area (viewport minus sidebar rail + small gap). */
+    left: calc((100vw - var(--sis-admission-sidebar-rail) - var(--sis-admission-sidebar-gap)) / 2) !important;
+    right: auto !important;
+    bottom: auto !important;
+    z-index: 200000 !important;
+    width: var(--sis-sheet-w, min(98vw, 64rem)) !important;
+    max-width: min(
+        var(--sis-sheet-w, 64rem),
+        calc(100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap)))
+    ) !important;
+    max-height: var(--sis-sheet-h, calc(100vh - 0.35rem)) !important;
     min-height: 0 !important;
-    height: auto !important;
+    height: var(--sis-sheet-h, auto) !important;
     margin: 0 !important;
     padding: 0 !important;
     gap: 0 !important;
@@ -5678,6 +5716,73 @@ ion-icon.sis-admission-drafts-home__ion {
     will-change: transform;
     animation: none !important;
     transition: none !important;
+    /* Kill Tailwind/Radix translate tokens — center with a single transform only. */
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    --tw-translate-z: 0 !important;
+    translate: none !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* Left sidebar: shift center into the content pane. */
+body:has([data-slot='sidebar'][data-side='left'][data-state='expanded']) .sis-admission-sheet-dialog:not([data-placed='true']),
+body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-collapsible='icon']) .sis-admission-sheet-dialog:not([data-placed='true']) {
+    left: calc(
+        var(--sis-admission-sidebar-rail) + var(--sis-admission-sidebar-gap)
+        + (100vw - var(--sis-admission-sidebar-rail) - var(--sis-admission-sidebar-gap)) / 2
+    ) !important;
+}
+
+.sis-admission-sheet-dialog[data-resized='true'] {
+    min-height: 0 !important;
+}
+
+.sis-admission-sheet-dialog[data-resized='true'] .sis-admission-sheet,
+.sis-admission-sheet-dialog[data-resized='true'] .sis-admission-draft-form.sis-admission-sheet {
+    height: 100%;
+    min-height: 0 !important;
+    max-height: none;
+}
+
+/* Physical edges (not logical) so RTL sheets resize left/right correctly. */
+.sis-admission-sheet-dialog .sis-admission-sheet-dialog__edge.sis-window__edge--e {
+    inset-inline: auto;
+    right: -0.2rem;
+    left: auto;
+}
+
+.sis-admission-sheet-dialog .sis-admission-sheet-dialog__edge.sis-window__edge--w {
+    inset-inline: auto;
+    left: -0.2rem;
+    right: auto;
+}
+
+.sis-admission-sheet-dialog .sis-admission-sheet-dialog__edge.sis-window__edge--ne {
+    inset-inline: auto;
+    top: -0.2rem;
+    right: -0.2rem;
+    left: auto;
+}
+
+.sis-admission-sheet-dialog .sis-admission-sheet-dialog__edge.sis-window__edge--nw {
+    inset-inline: auto;
+    top: -0.2rem;
+    left: -0.2rem;
+    right: auto;
+}
+
+.sis-admission-sheet-dialog .sis-admission-sheet-dialog__edge.sis-window__edge--se {
+    inset-inline: auto;
+    bottom: -0.2rem;
+    right: -0.2rem;
+    left: auto;
+}
+
+.sis-admission-sheet-dialog .sis-admission-sheet-dialog__edge.sis-window__edge--sw {
+    inset-inline: auto;
+    bottom: -0.2rem;
+    left: -0.2rem;
+    right: auto;
 }
 
 .sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog):not(.sis-admission-accepted-dialog) {
@@ -5808,9 +5913,11 @@ ion-icon.sis-admission-drafts-home__ion {
     color: var(--sis-pearl);
 }
 
+/* No hover / focus flash on close (X). */
 .sis-admission-sheet__window-controls .sis-window__control--close:hover,
-.sis-admission-sheet__window-controls .sis-window__control--close:focus-visible {
-    background: color-mix(in srgb, var(--sis-oxford) 75%, #ffffff);
+.sis-admission-sheet__window-controls .sis-window__control--close:focus-visible,
+.sis-admission-sheet__window-controls .sis-window__control--close:active {
+    background: transparent;
     color: var(--sis-pearl);
 }
 
@@ -6015,7 +6122,9 @@ ion-icon.sis-admission-drafts-home__ion {
 }
 
 .sis-admission-sheet-list-select .sis-list-select__trigger::after {
-    inset-inline-end: 0.35rem;
+    left: 0.35rem;
+    right: auto;
+    inset-inline-end: auto;
     color: #000000;
 }
 
@@ -6386,22 +6495,43 @@ ion-icon.sis-admission-drafts-home__ion {
 }
 
 .sis-admission-accepted-dialog {
-    /* Fixed sheet size — table scrolls inside with hidden scrollbar. */
-    width: min(92vw, 56rem) !important;
-    max-width: min(96vw, 56rem) !important;
-    height: min(72vh, 38rem) !important;
-    max-height: min(72vh, 38rem) !important;
-    min-height: min(72vh, 38rem) !important;
-    min-width: min(92vw, 56rem) !important;
+    /* Default sheet size — edge-resize pins absolute left/top (stable enlarge). */
+    width: var(--sis-sheet-w, min(96vw, 72rem)) !important;
+    max-width: min(
+        var(--sis-sheet-w, 72rem),
+        calc(100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap)))
+    ) !important;
+    height: var(--sis-sheet-h, min(78vh, 42rem)) !important;
+    max-height: var(--sis-sheet-h, min(78vh, 42rem)) !important;
+    min-height: var(--sis-sheet-h, min(78vh, 42rem)) !important;
+    min-width: 0 !important;
     padding: 0 !important;
     resize: none !important;
     overflow: hidden !important;
 }
 
+.sis-admission-accepted-dialog[data-resized='true'],
+.sis-admission-accepted-dialog[data-placed='true'] {
+    min-height: 0 !important;
+}
+
+.sis-admission-sheet-dialog[data-placed='true'] {
+    /* Absolute viewport box — left/top from JS; no centering transform. */
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    translate: none !important;
+    transform: none !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+}
+
 .sis-admission-accepted-dialog .sis-admission-accepted-sheet {
+    min-width: 0;
     min-height: 100%;
     max-height: 100%;
     height: 100%;
+    overflow: hidden;
 }
 
 .sis-admission-accepted-sheet > .sis-admission-sheet__section {
@@ -6410,9 +6540,11 @@ ion-icon.sis-admission-drafts-home__ion {
 
 .sis-admission-accepted-sheet__list-body {
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     background: var(--sheet-surface, var(--sis-admission-page));
 }
 
@@ -6439,34 +6571,19 @@ ion-icon.sis-admission-drafts-home__ion {
     font-size: 0.76rem;
 }
 
-.sis-admission-accepted-sheet__stats {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.35rem 0.55rem;
-    padding: 0.25rem 0.55rem 0.4rem;
-    border-block-start: 1px solid var(--sis-mist);
+.sis-admission-accepted-sheet__col-label {
+    display: block;
+    line-height: 1.25;
 }
 
-.sis-admission-accepted-sheet__stat {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    min-height: 1.55rem;
-    padding-inline: 0.4rem;
-    background: color-mix(in srgb, var(--sis-mist) 22%, var(--sis-pearl));
-    color: var(--sis-night);
+.sis-admission-accepted-sheet__col-count {
+    display: block;
+    margin-block-start: 0.2rem;
+    font-size: 0.92rem;
     font-weight: 700;
-}
-
-.sis-admission-accepted-sheet__stat-label {
-    font-size: 0.72rem;
-    line-height: 1.2;
-}
-
-.sis-admission-accepted-sheet__stat-value {
-    font-size: 0.9rem;
     font-variant-numeric: tabular-nums;
+    color: var(--sis-pearl);
+    line-height: 1.1;
 }
 
 .sis-admission-accepted-sheet__empty {
@@ -6476,25 +6593,48 @@ ion-icon.sis-admission-drafts-home__ion {
 
 .sis-admission-accepted-sheet__scroller {
     flex: 1 1 auto;
+    min-width: 0;
     min-height: 8rem;
+    max-width: 100%;
     margin: 0.4rem 0.55rem 0.45rem;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: auto;
     overscroll-behavior: contain;
-    border: 1px solid var(--sis-night);
-    background: var(--sheet-surface, var(--sis-admission-page));
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    border: 1px solid #000000;
+    background: var(--sis-admission-page);
+    /* Visible horizontal scrollbar (approved palette). */
+    scrollbar-width: thin;
+    scrollbar-color: var(--sis-steel) var(--sis-mist);
 }
 
 .sis-admission-accepted-sheet__scroller::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
+    width: 0.55rem;
+    height: 0.55rem;
+}
+
+.sis-admission-accepted-sheet__scroller::-webkit-scrollbar-track {
+    background: var(--sis-mist);
+}
+
+.sis-admission-accepted-sheet__scroller::-webkit-scrollbar-thumb {
+    background: var(--sis-steel);
+    border: 1px solid var(--sis-oxford);
+}
+
+.sis-admission-accepted-sheet__scroller::-webkit-scrollbar-thumb:hover {
+    background: var(--sis-oxford);
+}
+
+.sis-admission-accepted-sheet__scroller::-webkit-scrollbar-corner {
+    background: var(--sis-mist);
 }
 
 .sis-admission-accepted-sheet__table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
     border-spacing: 0;
     font-family: var(--sis-font-stack);
@@ -6520,25 +6660,92 @@ ion-icon.sis-admission-drafts-home__ion {
     font-weight: 700;
     color: var(--sis-admission-status-text-dark);
     background: var(--sheet-accent, var(--sis-steel));
+    white-space: normal;
+    text-align: center;
+    text-align-last: center;
+    vertical-align: middle;
 }
 
 .sis-admission-accepted-sheet__table tbody tr:hover {
     background: color-mix(in srgb, var(--sis-mist) 28%, var(--sis-pearl));
 }
 
+.sis-admission-accepted-sheet__table th.sis-admission-accepted-sheet__channel,
+.sis-admission-accepted-sheet__table th.sis-admission-accepted-sheet__notes {
+    text-align: center;
+    text-align-last: center;
+    vertical-align: middle;
+    white-space: normal;
+}
+
+.sis-admission-accepted-sheet__col-label,
+.sis-admission-accepted-sheet__col-count {
+    text-align: center;
+}
+
 .sis-admission-accepted-sheet__num {
     width: 2.6rem;
+    min-width: 2.6rem;
     white-space: nowrap;
 }
 
 .sis-admission-accepted-sheet__name,
-.sis-admission-accepted-sheet__channel {
+.sis-admission-accepted-sheet__channel,
+.sis-admission-accepted-sheet__notes {
     text-align: start;
     white-space: nowrap;
 }
 
+.sis-admission-accepted-sheet__table td.sis-admission-accepted-sheet__channel,
+.sis-admission-accepted-sheet__table td.sis-admission-accepted-sheet__notes {
+    text-align: start;
+    max-width: 12rem;
+    overflow: hidden;
+}
+
 .sis-admission-accepted-sheet__channel {
-    width: 50%;
+    width: auto;
+    min-width: 9.5rem;
+    max-width: 12rem;
+}
+
+.sis-admission-accepted-sheet__notes {
+    min-width: 10rem;
+    max-width: 14rem;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.sis-admission-accepted-sheet__cell-scroll {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    text-overflow: clip;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    text-align: start;
+    cursor: grab;
+    outline: none;
+    touch-action: pan-x;
+}
+
+.sis-admission-accepted-sheet__cell-scroll:focus-visible {
+    outline: 1px solid var(--sis-steel);
+    outline-offset: 1px;
+}
+
+.sis-admission-accepted-sheet__cell-scroll[data-dragging='true'] {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.sis-admission-accepted-sheet__cell-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .sis-admission-accepted-sheet .sis-admission-sheet__actions {
@@ -7009,12 +7216,51 @@ ion-icon.sis-admission-drafts-home__ion {
     overflow: auto;
 }
 
+/*
+ * Admission filters / list-selects — dropdown caret on the physical left
+ * (works for both RTL filters and LTR year controls).
+ */
+.sis-admission-page .sis-list-select:not(.sis-list-select--overlay) .sis-list-select__trigger::after,
+.sis-admission-draft-dialog .sis-list-select:not(.sis-list-select--overlay) .sis-list-select__trigger::after,
+.sis-admission-sheet-dialog .sis-list-select:not(.sis-list-select--overlay) .sis-list-select__trigger::after,
+.sis-admission-sheet-list-select .sis-list-select__trigger::after,
+.sis-ribbon__filters .sis-admission-filters .sis-list-select:not(.sis-list-select--overlay) .sis-list-select__trigger::after,
+.sis-ribbon .sis-admission-filters .sis-list-select:not(.sis-list-select--overlay) .sis-list-select__trigger::after {
+    inset-inline-end: auto;
+    inset-inline-start: auto;
+    right: auto;
+    left: 0.38rem;
+}
+
+.sis-admission-page .sis-list-select__value,
+.sis-admission-draft-dialog .sis-list-select__value,
+.sis-admission-sheet-dialog .sis-list-select__value,
+.sis-admission-sheet-list-select .sis-list-select__value,
+.sis-ribbon__filters .sis-admission-filters .sis-list-select__value,
+.sis-ribbon .sis-admission-filters .sis-list-select__value {
+    padding-inline: 0.72rem;
+    padding-left: 1.15rem;
+    padding-right: 0.55rem;
+}
+
+.sis-admission-page .sis-admission-year-control.sis-list-select__trigger,
+.sis-admission-page .sis-list-select__trigger.sis-admission-year-control,
+.sis-ribbon__filters .sis-admission-filters .sis-list-select__trigger,
+.sis-ribbon .sis-admission-filters .sis-list-select__trigger {
+    padding-left: 1.05rem !important;
+}
+
 .sis-admission-period-create {
     flex-shrink: 0;
 }
 
-.sis-admission-periods .sis-admission-periods-table {
-    flex: 1 1 auto;
+/* Admission page — column headers centered H+V on every table. */
+.sis-admission-page .sis-admission-periods-table th,
+.sis-admission-page .sis-admission-drafts-table th,
+.sis-admission-accepted-sheet__table th {
+    text-align: center !important;
+    text-align-last: center !important;
+    vertical-align: middle !important;
 }
 
 .sis-admission-periods-table {
@@ -7024,14 +7270,15 @@ ion-icon.sis-admission-drafts-home__ion {
     min-width: 0;
     overflow: hidden;
     overscroll-behavior: none;
+    /* Card frame — same stroke as table cell borders. */
     border: 1px solid #000000;
     border-radius: 0;
     background: var(--sis-admission-page);
 }
 
 .sis-admission-drafts-table.sis-admission-periods-table {
-    border: 0;
-    background: transparent;
+    border: 1px solid #000000;
+    background: var(--sis-admission-page);
 }
 
 .sis-admission-periods-table__scroller {
@@ -7081,6 +7328,8 @@ ion-icon.sis-admission-drafts-home__ion {
 
 .sis-admission-periods-table th {
     text-align: center;
+    text-align-last: center;
+    vertical-align: middle;
     font-weight: 700;
     color: var(--sis-oxford);
     background: color-mix(in srgb, var(--sis-mist) 42%, var(--sis-pearl));
@@ -7420,6 +7669,9 @@ ion-icon.sis-admission-drafts-home__ion {
 .sis-admission-drafts-table__name-head {
     min-width: 14rem;
     max-width: 18rem;
+    text-align: center;
+    text-align-last: center;
+    vertical-align: middle;
 }
 
 .sis-admission-drafts-table__when {
@@ -7600,7 +7852,63 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
  */
 .sis-message-dialog__overlay,
 .sis-confirm-dialog__overlay {
+    z-index: 200500 !important;
     background: color-mix(in srgb, var(--sis-night) 38%, transparent);
+}
+
+.sis-admission-status-reason-dialog__overlay {
+    z-index: 200500 !important;
+    background: color-mix(in srgb, var(--sis-night) 42%, transparent) !important;
+}
+
+.sis-admission-status-reason-dialog {
+    z-index: 200501 !important;
+    border: 1px solid var(--sis-oxford);
+    border-radius: 0;
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+    box-shadow: 0 0.55rem 1.4rem color-mix(in srgb, var(--sis-night) 28%, transparent);
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+}
+
+.sis-admission-status-reason-dialog__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.sis-admission-status-reason-dialog__label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--sis-oxford);
+}
+
+.sis-admission-status-reason-dialog__input {
+    width: 100%;
+    min-height: 6rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: 0;
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-family: var(--sis-chrome-font);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    resize: vertical;
+}
+
+.sis-admission-status-reason-dialog__input:focus {
+    outline: 2px solid var(--sis-steel);
+    outline-offset: 1px;
+}
+
+.sis-admission-status-reason-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
 }
 
 .sis-message-dialog,
@@ -8234,12 +8542,12 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-placement-history-dialog__overlay {
     pointer-events: none !important;
     background: transparent !important;
-    /* Above chrome (40), taskbar (10000), list-select (20000) */
-    z-index: 30050 !important;
+    /* Above chrome; admission sheets (100000) stay higher when open. */
+    z-index: 90000 !important;
 }
 
 .sis-admission-draft-dialog.sis-placement-history-dialog {
-    z-index: 30051 !important;
+    z-index: 90001 !important;
     pointer-events: auto;
     width: min(96vw, 42rem);
     max-width: min(96vw, 42rem);

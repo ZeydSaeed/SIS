@@ -20,7 +20,7 @@ final readonly class AdmissionWorkspaceDTO
      * @param  list<array{id:int, name:string, start_date:string, max_applications:?int, total_count:int, submitted_count:int, remaining:?int}>  $activePeriods
      * @param  array{page:int, per_page:int, total:int, total_pages:int}  $pagination
      * @param  array<int, list<int>>  $statusTransitions
-     * @param  list<array{id:int, full_name:string, academic_year_name:string, period_name:string, academic_year_id:int, period_id:int, request_kind:int}>  $acceptedStudents
+     * @param  list<array{id:int, full_name:string, academic_year_name:string, period_name:string, academic_year_id:int, period_id:int, request_kind:int, status:int, notes:?string, rejection_reason:?string, withdrawal_reason:?string}>  $acceptedStudents
      * @param  array<int, array{total:int, submitted:int}>  $periodCounts
      */
     public function __construct(

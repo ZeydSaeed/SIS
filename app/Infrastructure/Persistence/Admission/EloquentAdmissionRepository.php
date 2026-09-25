@@ -336,6 +336,14 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             $payload['notes'] = $notes;
         }
 
+        if ($toStatus === ApplicationStatus::Rejected->value && $notes !== null && trim($notes) !== '') {
+            $payload['rejection_reason'] = trim($notes);
+        }
+
+        if ($toStatus === ApplicationStatus::Withdrawn->value && $notes !== null && trim($notes) !== '') {
+            $payload['withdrawal_reason'] = trim($notes);
+        }
+
         DB::table(SchemaHelper::qualified('admission', 'applications'))
             ->where('id', $applicationId)
             ->update($payload);
