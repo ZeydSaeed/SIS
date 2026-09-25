@@ -148,7 +148,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
     /**
      * Converted applicants linked to a student row (ribbon «الطلبة المقبولين»).
      *
-     * @return list<array{id:int, full_name:string, academic_year_id:int, academic_year_name:string, period_id:int, period_name:string}>
+     * @return list<array{id:int, full_name:string, academic_year_id:int, academic_year_name:string, period_id:int, period_name:string, request_kind:int}>
      */
     private function loadAcceptedStudents(
         int $schoolId,
@@ -160,7 +160,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         $periods = SchemaHelper::qualified('admission', 'application_periods');
         $years = SchemaHelper::qualified('academic', 'academic_years');
 
-        // School-wide roster for the dialog filters (year + period).
+        // School-wide roster for the dialog filters (year + period + admission channel).
         $query = DB::table($apps.' as apps')
             ->join($periods.' as periods', 'periods.id', '=', 'apps.application_period_id')
             ->join($years.' as years', 'years.id', '=', 'periods.academic_year_id')
@@ -174,6 +174,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.grandfather_name',
                 'apps.great_grandfather_name',
                 'apps.last_name',
+                'apps.request_kind',
                 'periods.id as period_id',
                 'periods.name as period_name',
                 'years.id as academic_year_id',
@@ -204,6 +205,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'academic_year_name' => (string) $row->academic_year_name,
                 'period_id' => (int) $row->period_id,
                 'period_name' => (string) $row->period_name,
+                'request_kind' => (int) ($row->request_kind ?? 2),
             ];
         })->all();
     }

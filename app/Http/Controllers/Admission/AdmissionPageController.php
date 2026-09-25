@@ -441,6 +441,7 @@ final class AdmissionPageController extends Controller
             gender: (int) $request->validated('gender'),
             targetSchoolId: (int) $request->validated('target_school_id'),
             intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
+            requestKind: (int) ($request->validated('request_kind') ?? 2),
             nationalId: $request->validated('national_id'),
             gradeLevelId: $request->validated('grade_level_id') !== null
                 ? (int) $request->validated('grade_level_id')
@@ -475,6 +476,12 @@ final class AdmissionPageController extends Controller
                 : null,
             previousGpa: $request->validated('previous_gpa') !== null
                 ? (string) $request->validated('previous_gpa')
+                : null,
+            mathematicsGrade: $request->validated('mathematics_grade') !== null
+                ? (string) $request->validated('mathematics_grade')
+                : null,
+            physicsGrade: $request->validated('physics_grade') !== null
+                ? (string) $request->validated('physics_grade')
                 : null,
             previousStudyTrack: $request->validated('previous_study_track') !== null
                 ? (int) $request->validated('previous_study_track')
@@ -534,6 +541,7 @@ final class AdmissionPageController extends Controller
             gender: (int) $request->validated('gender'),
             targetSchoolId: (int) $request->validated('target_school_id'),
             intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
+            requestKind: (int) ($request->validated('request_kind') ?? 2),
             nationalId: $request->validated('national_id'),
             gradeLevelId: $request->validated('grade_level_id') !== null
                 ? (int) $request->validated('grade_level_id')
@@ -568,6 +576,12 @@ final class AdmissionPageController extends Controller
                 : null,
             previousGpa: $request->validated('previous_gpa') !== null
                 ? (string) $request->validated('previous_gpa')
+                : null,
+            mathematicsGrade: $request->validated('mathematics_grade') !== null
+                ? (string) $request->validated('mathematics_grade')
+                : null,
+            physicsGrade: $request->validated('physics_grade') !== null
+                ? (string) $request->validated('physics_grade')
                 : null,
             previousStudyTrack: $request->validated('previous_study_track') !== null
                 ? (int) $request->validated('previous_study_track')

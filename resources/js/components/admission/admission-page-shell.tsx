@@ -22,7 +22,6 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { usePageAlignment } from '@/hooks/use-page-alignment';
-import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -45,7 +44,7 @@ const AdmissionAcceptedStudentsDialog = lazy(async () => {
     return { default: mod.AdmissionAcceptedStudentsDialog };
 });
 
-type DraftDialogMode = 'draft' | 'createStudent';
+type DraftDialogMode = 'draft' | 'createStudent' | 'academicTransfer';
 
 type Props = {
     title: string;
@@ -199,7 +198,6 @@ function AdmissionPageShellInner({
 }: InnerProps) {
     const i18n = t();
     const page = usePage();
-    const { showMessage } = usePageError();
     const [draftOpen, setDraftOpen] = useState(false);
     const [requestTypeOpen, setRequestTypeOpen] = useState(false);
     const [draftMode, setDraftMode] = useState<DraftDialogMode>('draft');
@@ -267,7 +265,7 @@ function AdmissionPageShellInner({
 
     const handleSelectAcademicTransfer = () => {
         setRequestTypeOpen(false);
-        showMessage(i18n.admission.academicTransferSoon);
+        openDraftDialog('academicTransfer');
     };
 
     const titlebarHome = useMemo(

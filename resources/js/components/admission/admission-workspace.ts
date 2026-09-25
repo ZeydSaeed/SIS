@@ -99,6 +99,8 @@ export type AdmissionAcceptedStudent = {
     academic_year_name: string;
     period_id: number;
     period_name: string;
+    /** 1 = vocational; 2 = academic → vocational */
+    request_kind: number;
 };
 
 export type AdmissionPeriodCounts = Record<number, { total: number; submitted: number }>;

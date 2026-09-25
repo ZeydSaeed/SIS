@@ -376,7 +376,7 @@
 | id | BIGINT | PK |
 | school_id | BIGINT | FK → schools (**STU-DOC-U01** RLS denorm) |
 | student_id | BIGINT | FK → students |
-| document_type | SMALLINT | NOT NULL — 1=Identity, 2=Certificate, 3=Qualification, 4=Medical, 9=Other; **admission ID pack:** 11=Student national ID front, 12=Student national ID back, 13=Father national ID front, 14=Father national ID back, 15=Mother national ID front, 16=Mother national ID back, 17=Residence card front, 18=Residence card back, 19=Graduation certificate |
+| document_type | SMALLINT | NOT NULL — 1=Identity, 2=Certificate, 3=Qualification, 4=Medical, 9=Other; **admission ID pack:** 11=Student national ID front, 12=Student national ID back, 13=Father national ID front, 14=Father national ID back, 15=Mother national ID front, 16=Mother national ID back, 17=Residence card front, 18=Residence card back, 19=Graduation certificate, 20=Personal photo (صورة شخصية) |
 | storage_key | VARCHAR(500) | NOT NULL |
 | file_name | VARCHAR(255) | NOT NULL |
 | mime_type | VARCHAR(100) | NOT NULL |
@@ -488,6 +488,7 @@
 | branch_name | VARCHAR(100) | nullable — اسم الفرع من قائمة القبول الثابتة |
 | grade_level_id | SMALLINT | FK → grade_levels, **nullable** (قائمة المراحل لاحقاً) |
 | intended_grade_name | VARCHAR(100) | nullable — نص المرحلة المطلوبة حتى ضبط القائمة |
+| request_kind | SMALLINT | NOT NULL DEFAULT 2; CHECK IN (1, 2) — قناة القبول: 1=تحويل أكاديمي→مهني، 2=قبول مهني |
 | department_name | VARCHAR(100) | nullable — القسم (قائمة لاحقاً) |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | specialization_name | VARCHAR(100) | nullable — الاختصاص (نص حتى ضبط القائمة) |
@@ -501,6 +502,8 @@
 | previous_school_name | VARCHAR(255) | nullable — اسم المتوسطة المتخرج منها |
 | graduation_year | SMALLINT | nullable; CHECK 1950–2100 — سنة التخرج |
 | previous_gpa | NUMERIC(5,2) | nullable; CHECK 0–100 — المعدل |
+| mathematics_grade | NUMERIC(5,2) | nullable; CHECK 0–100 — درجة الرياضيات (قسم الامن السبراني) |
+| physics_grade | NUMERIC(5,2) | nullable; CHECK 0–100 — درجة الطبيعيات (قسم الأجهزة الطبية) |
 | previous_study_track | SMALLINT | nullable; CHECK IN (1–6) — 1=علمي، 2=أدبي، 3=صناعي، 4=تجاري، 5=مهني، 6=متوسطة |
 | status | SMALLINT | NOT NULL DEFAULT 1; CHECK 1–9 (see ApplicationStatus) |
 | submitted_at | TIMESTAMPTZ | |

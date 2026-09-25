@@ -202,6 +202,42 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-09-25 admission subject grades + personal photo
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Tables | `admission.applications`, `students.student_documents` |
+| Change | Add nullable `mathematics_grade` / `physics_grade` (0–100 CHECK); expand `document_type` to include 20 (personal photo) |
+| Risk | Additive only; no index (not filtered/joined yet); existing rows remain valid |
+| Blueprint | Updated |
+
+---
+
+## Change log — 2026-09-25 admission request_kind (قناة القبول)
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Table | `admission.applications` |
+| Change | Re-add `request_kind` SMALLINT NOT NULL DEFAULT 1 CHECK (1,2) for admission-channel filter/stats; backfill 2 when intended grade present |
+| Risk | Additive; dialog filter/counts only (≤500 rows); no index yet |
+| Blueprint | Updated |
+
+---
+
+## Change log — 2026-09-25 admission request_kind semantics (قناة القبول)
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Table | `admission.applications.request_kind` |
+| Change | Correct channel semantics: 1=academic→vocational transfer, 2=vocational intake (align UI/form; default 2) |
+| Risk | Existing inverted rows already match new semantics; no mass UPDATE |
+| Blueprint | Updated |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

@@ -31,8 +31,11 @@ interface AdmissionReadRepositoryInterface
      *     accepted_students: list<array{
      *         id:int,
      *         full_name:string,
+     *         academic_year_id:int,
      *         academic_year_name:string,
-     *         period_name:string
+     *         period_id:int,
+     *         period_name:string,
+     *         request_kind:int
      *     }>
      * }
      */

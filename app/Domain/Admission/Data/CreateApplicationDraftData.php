@@ -20,6 +20,7 @@ final readonly class CreateApplicationDraftData
         public int $gender,
         public int $targetSchoolId,
         public string $intendedGradeName,
+        public int $requestKind = 2,
         public ?string $nationalId = null,
         public ?int $gradeLevelId = null,
         public ?int $branchId = null,
@@ -37,6 +38,8 @@ final readonly class CreateApplicationDraftData
         public ?string $previousSchoolName = null,
         public ?int $graduationYear = null,
         public ?string $previousGpa = null,
+        public ?string $mathematicsGrade = null,
+        public ?string $physicsGrade = null,
         public ?int $previousStudyTrack = null,
         public ?string $notes = null,
     ) {}

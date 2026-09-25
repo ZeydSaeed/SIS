@@ -31,6 +31,7 @@ final class CreateApplicationDraftRequest extends FormRequest
             'gender' => ['required', 'integer', 'in:1,2'],
             'target_school_id' => ['required', 'integer', 'min:1'],
             'intended_grade_name' => ['nullable', 'string', 'max:100'],
+            'request_kind' => ['nullable', 'integer', 'in:1,2'],
             'grade_level_id' => ['nullable', 'integer', 'min:1'],
             'branch_id' => ['nullable', 'integer', 'min:1'],
             'branch_name' => ['nullable', 'string', 'max:100'],
@@ -48,6 +49,8 @@ final class CreateApplicationDraftRequest extends FormRequest
             'previous_school_name' => ['nullable', 'string', 'max:255'],
             'graduation_year' => ['nullable', 'integer', 'min:1950', 'max:2100'],
             'previous_gpa' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'mathematics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'physics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'previous_study_track' => ['nullable', 'integer', 'in:1,2,3,4,5,6'],
             'notes' => ['nullable', 'string'],
         ];

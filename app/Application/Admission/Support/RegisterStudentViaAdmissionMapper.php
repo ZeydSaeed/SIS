@@ -29,6 +29,7 @@ final class RegisterStudentViaAdmissionMapper
             gender: $command->gender,
             targetSchoolId: $command->targetSchoolId,
             intendedGradeName: $command->intendedGradeName,
+            requestKind: $command->requestKind,
             nationalId: $command->nationalId,
             gradeLevelId: $command->gradeLevelId,
             branchId: $command->branchId,
@@ -46,6 +47,8 @@ final class RegisterStudentViaAdmissionMapper
             previousSchoolName: $command->previousSchoolName,
             graduationYear: $command->graduationYear,
             previousGpa: $command->previousGpa,
+            mathematicsGrade: $command->mathematicsGrade,
+            physicsGrade: $command->physicsGrade,
             previousStudyTrack: $command->previousStudyTrack,
             notes: $command->notes,
         );

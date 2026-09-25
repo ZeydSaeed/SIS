@@ -52,7 +52,7 @@ type Props = {
     canManage: boolean;
     academicYearId?: number | null;
     /** draft = طلب قبول مسودة; createStudent = إضافة طالب → محوّل */
-    mode?: 'draft' | 'createStudent';
+    mode?: 'draft' | 'createStudent' | 'academicTransfer';
 };
 
 type DraftSelectOption = {
@@ -71,10 +71,12 @@ type DraftDocumentSlot = {
         | 'docMotherIdBack'
         | 'docResidenceFront'
         | 'docResidenceBack'
-        | 'docGraduationCertificate';
+        | 'docGraduationCertificate'
+        | 'docPersonalPhoto';
 };
 
 const DRAFT_DOCUMENT_SLOTS: readonly DraftDocumentSlot[] = [
+    { type: 20, labelKey: 'docPersonalPhoto' },
     { type: 11, labelKey: 'docStudentIdFront' },
     { type: 12, labelKey: 'docStudentIdBack' },
     { type: 13, labelKey: 'docFatherIdFront' },
@@ -85,6 +87,9 @@ const DRAFT_DOCUMENT_SLOTS: readonly DraftDocumentSlot[] = [
     { type: 18, labelKey: 'docResidenceBack' },
     { type: 19, labelKey: 'docGraduationCertificate' },
 ] as const;
+
+const CYBERSECURITY_DEPARTMENT = 'الامن السبراني';
+const MEDICAL_DEVICES_DEPARTMENT = 'الأجهزة الطبية';
 
 function filledClass(value: string): string {
     return value.trim() !== '' ? ' sis-admission-draft-field--filled' : '';
@@ -184,7 +189,7 @@ export function AdmissionApplicationDraftDialog({
     onOpenChange,
     periods,
     schools,
-    gradeLevels: _gradeLevels,
+    gradeLevels,
     branches,
     departments: _departments,
     specializations: _specializations,
@@ -192,7 +197,6 @@ export function AdmissionApplicationDraftDialog({
     academicYearId = null,
     mode = 'draft',
 }: Props) {
-    void _gradeLevels;
     void _specializations;
     void _departments;
 
@@ -201,12 +205,15 @@ export function AdmissionApplicationDraftDialog({
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
 
     const isCreateStudent = mode === 'createStudent';
+    const isAcademicTransfer = mode === 'academicTransfer';
     const formAction = isCreateStudent
         ? '/admission/applications/register-student'
         : '/admission/applications';
     const dialogTitle = isCreateStudent
         ? i18n.admission.createStudentDialogTitle
-        : i18n.admission.draftDialogTitle;
+        : isAcademicTransfer
+          ? i18n.admission.academicTransferDialogTitle
+          : i18n.admission.draftDialogTitle;
     const submitLabel = isCreateStudent
         ? i18n.admission.createStudentSubmit
         : i18n.admission.createDraft;
@@ -222,6 +229,7 @@ export function AdmissionApplicationDraftDialog({
     const [schoolId, setSchoolId] = useState(String(defaultSchoolId));
     const [branchName, setBranchName] = useState('');
     const [departmentName, setDepartmentName] = useState('');
+    const [gradeLevelId, setGradeLevelId] = useState('');
     const [gender, setGender] = useState('1');
     const [administrativeUnit, setAdministrativeUnit] = useState('');
     const [previousStudyTrack, setPreviousStudyTrack] = useState('');
@@ -294,6 +302,23 @@ export function AdmissionApplicationDraftDialog({
         return match !== undefined ? String(match.id) : '';
     }, [branchName, branches]);
 
+    const gradeLevelOptions = useMemo(
+        (): DraftSelectOption[] =>
+            gradeLevels.map((level) => ({ value: String(level.id), label: level.name })),
+        [gradeLevels],
+    );
+
+    const selectedGradeLevelName = useMemo(() => {
+        if (gradeLevelId === '') {
+            return '';
+        }
+
+        return gradeLevels.find((level) => String(level.id) === gradeLevelId)?.name ?? '';
+    }, [gradeLevelId, gradeLevels]);
+
+    const showMathematicsGrade = departmentName === CYBERSECURITY_DEPARTMENT;
+    const showPhysicsGrade = departmentName === MEDICAL_DEVICES_DEPARTMENT;
+
     useEffect(() => {
         const justOpened = open && !wasOpenRef.current;
         wasOpenRef.current = open;
@@ -305,6 +330,7 @@ export function AdmissionApplicationDraftDialog({
         setSchoolId(String(schools[0]?.id ?? ''));
         setBranchName('');
         setDepartmentName('');
+        setGradeLevelId('');
         setGender('1');
         setAdministrativeUnit('');
         setPreviousStudyTrack('');
@@ -314,6 +340,8 @@ export function AdmissionApplicationDraftDialog({
             documentFileInputRef.current.value = '';
         }
     }, [open, activePeriods, schools]);
+
+    const { contentRef, heroDragProps, bringToFront } = useSmoothDialogDrag(open);
 
     const openNativeDocumentPicker = (type: number) => {
         pendingDocumentTypeRef.current = type;
@@ -343,8 +371,6 @@ export function AdmissionApplicationDraftDialog({
 
         setDocumentFiles((current) => ({ ...current, [type]: file }));
     };
-
-    const { contentRef, heroDragProps, bringToFront } = useSmoothDialogDrag(open);
 
     if (!canManage) {
         return null;
@@ -383,6 +409,11 @@ export function AdmissionApplicationDraftDialog({
                                     <input type="hidden" name="academic_year_id" value={academicYearId} />
                                 ) : null}
                                 <input type="hidden" name="application_period_id" value={periodId} />
+                                <input
+                                    type="hidden"
+                                    name="request_kind"
+                                    value={isAcademicTransfer ? '1' : '2'}
+                                />
 
                                 <header className="sis-admission-sheet__hero" {...heroDragProps}>
                                     <WindowControls
@@ -405,7 +436,9 @@ export function AdmissionApplicationDraftDialog({
                                 </header>
 
                                 <SheetSection title={i18n.admission.sheetRegistrationInfo} tone="accent">
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--4">
+                                    <div
+                                        className={`sis-admission-sheet__row ${isAcademicTransfer ? 'sis-admission-sheet__row--5' : 'sis-admission-sheet__row--4'}`}
+                                    >
                                         <div className="sis-admission-sheet__field">
                                             <span className="sis-admission-sheet__label">
                                                 {i18n.admission.academicYear}
@@ -468,6 +501,29 @@ export function AdmissionApplicationDraftDialog({
                                                 ariaLabel={i18n.admission.department}
                                             />
                                         </SheetField>
+                                        {isAcademicTransfer ? (
+                                            <SheetField
+                                                label={i18n.admission.requestedAdmissionGrade}
+                                                name="grade_level_id"
+                                                error={errors.grade_level_id ?? errors.intended_grade_name}
+                                            >
+                                                <DraftSheetSelect
+                                                    name="grade_level_id"
+                                                    value={gradeLevelId}
+                                                    allowEmpty
+                                                    options={gradeLevelOptions}
+                                                    onChange={setGradeLevelId}
+                                                    ariaLabel={i18n.admission.requestedAdmissionGrade}
+                                                />
+                                                {selectedGradeLevelName !== '' ? (
+                                                    <input
+                                                        type="hidden"
+                                                        name="intended_grade_name"
+                                                        value={selectedGradeLevelName}
+                                                    />
+                                                ) : null}
+                                            </SheetField>
+                                        ) : null}
                                     </div>
                                 </SheetSection>
 
@@ -792,7 +848,9 @@ export function AdmissionApplicationDraftDialog({
                                 </SheetSection>
 
                                 <SheetSection title={i18n.admission.sheetPriorStudyInfo} tone="accent">
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--4">
+                                    <div
+                                        className={`sis-admission-sheet__row ${showMathematicsGrade || showPhysicsGrade ? 'sis-admission-sheet__row--5' : 'sis-admission-sheet__row--4'}`}
+                                    >
                                         <SheetField
                                             label={i18n.admission.previousSchoolName}
                                             name="previous_school_name"
@@ -859,6 +917,56 @@ export function AdmissionApplicationDraftDialog({
                                                 ariaLabel={i18n.admission.previousStudyTrack}
                                             />
                                         </SheetField>
+                                        {showMathematicsGrade ? (
+                                            <SheetField
+                                                label={i18n.admission.mathematicsGrade}
+                                                name="mathematics_grade"
+                                                error={errors.mathematics_grade}
+                                            >
+                                                <input
+                                                    id="mathematics_grade"
+                                                    name="mathematics_grade"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min={0}
+                                                    max={100}
+                                                    dir="ltr"
+                                                    placeholder=" "
+                                                    aria-invalid={errors.mathematics_grade ? true : undefined}
+                                                    aria-describedby={
+                                                        errors.mathematics_grade
+                                                            ? 'mathematics_grade-error'
+                                                            : undefined
+                                                    }
+                                                    className="sis-admission-sheet__control sis-ops-hub__link min-h-11 px-3 py-2"
+                                                    onChange={markFilled}
+                                                />
+                                            </SheetField>
+                                        ) : null}
+                                        {showPhysicsGrade ? (
+                                            <SheetField
+                                                label={i18n.admission.physicsGrade}
+                                                name="physics_grade"
+                                                error={errors.physics_grade}
+                                            >
+                                                <input
+                                                    id="physics_grade"
+                                                    name="physics_grade"
+                                                    type="number"
+                                                    step="0.01"
+                                                    min={0}
+                                                    max={100}
+                                                    dir="ltr"
+                                                    placeholder=" "
+                                                    aria-invalid={errors.physics_grade ? true : undefined}
+                                                    aria-describedby={
+                                                        errors.physics_grade ? 'physics_grade-error' : undefined
+                                                    }
+                                                    className="sis-admission-sheet__control sis-ops-hub__link min-h-11 px-3 py-2"
+                                                    onChange={markFilled}
+                                                />
+                                            </SheetField>
+                                        ) : null}
                                     </div>
                                 </SheetSection>
 
