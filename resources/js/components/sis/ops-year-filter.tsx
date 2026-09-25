@@ -38,6 +38,8 @@ export function formatAcademicYearOptionLabel(name: string, code: string): strin
         value
             .replaceAll(/السنة الدراسية/gi, '')
             .replaceAll(/السنه الدراسية/gi, '')
+            .replaceAll(/الدراسية/gi, '')
+            .replaceAll(/السنة/gi, '')
             .replaceAll(/academic\s*year/gi, '')
             .replaceAll(/^[-–—:\s]+|[-–—:\s]+$/g, '')
             .trim();

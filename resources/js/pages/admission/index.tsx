@@ -33,6 +33,7 @@ export default function AdmissionIndex({ workspace, filters, authorization }: Pa
         >
             <AdmissionPeriodsCard
                 periods={workspace.periods}
+                periodCounts={workspace.period_counts ?? {}}
                 academicYearId={filters.academic_year_id}
                 canManage={authorization.can_manage}
             />

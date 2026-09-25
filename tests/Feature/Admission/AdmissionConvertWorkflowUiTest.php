@@ -18,7 +18,7 @@ final class AdmissionConvertWorkflowUiTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
-    public function convert_redirects_to_converted_with_students_handoff_flash(): void
+    public function convert_creates_student_and_stays_on_admission(): void
     {
         $this->withoutVite();
         $schoolId = $this->createSchool('SCHOOL-A', 'School A');
@@ -34,32 +34,28 @@ final class AdmissionConvertWorkflowUiTest extends TestCase
         $periodId = $this->insertPeriod($schoolId, $yearId, 'Period Convert');
         $applicationId = $this->insertAcceptedApplication($periodId, $gradeId, $schoolId, 'APP-CV-001');
 
-        $response = $this->post("/admission/applications/{$applicationId}/convert");
+        $response = $this->from('/admission')->post("/admission/applications/{$applicationId}/convert");
 
-        $response->assertRedirect();
-        $this->assertTrue(
-            str_contains($response->headers->get('Location') ?? '', '/admission/converted'),
-            'Expected redirect to converted list, got: '.($response->headers->get('Location') ?? 'null'),
-        );
-
-        $workflow = $response->getSession()->get('workflow');
-        $this->assertIsArray($workflow, 'workflow flash missing: '.json_encode($response->getSession()->all()));
-        $this->assertSame('admission.convert', $workflow['step'] ?? null);
-        $this->assertSame('فتح الطلاب غير المسجّلين', $workflow['action_label'] ?? null);
-        $this->assertIsString($workflow['action_href'] ?? null);
-        $this->assertStringContainsString('/students', (string) $workflow['action_href']);
-        $this->assertStringContainsString('enrolled=0', (string) $workflow['action_href']);
-        $this->assertStringContainsString("academic_year_id={$yearId}", (string) $workflow['action_href']);
+        $response->assertRedirect('/admission');
+        $response->assertSessionHas('success');
 
         $this->assertDatabaseHas(SchemaHelper::qualified('admission', 'applications'), [
             'id' => $applicationId,
             'status' => ApplicationStatus::Converted->value,
         ]);
-        $this->assertNotNull(
-            DB::table(SchemaHelper::qualified('admission', 'applications'))
-                ->where('id', $applicationId)
-                ->value('student_id'),
-        );
+
+        $studentId = DB::table(SchemaHelper::qualified('admission', 'applications'))
+            ->where('id', $applicationId)
+            ->value('student_id');
+        $this->assertNotNull($studentId);
+
+        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
+            'id' => $studentId,
+            'school_id' => $schoolId,
+            'admitted_academic_year_id' => $yearId,
+            'first_name' => 'Hassan',
+            'last_name' => 'Convert',
+        ]);
     }
 
     private function insertPeriod(int $schoolId, int $yearId, string $name): int

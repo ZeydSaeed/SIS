@@ -24,7 +24,7 @@ class RegisterStudentDocumentRequest extends FormRequest
     public function rules(): array
     {
         return array_merge([
-            'document_type' => ['required', 'integer', 'in:1,2,3,4,9'],
+            'document_type' => ['required', 'integer', 'in:1,2,3,4,9,11,12,13,14,15,16,17,18,19'],
             'storage_key' => ['required', 'string', 'max:500'],
             'file_name' => ['required', 'string', 'max:255'],
             'mime_type' => ['required', 'string', 'max:100'],

@@ -39,7 +39,6 @@ use App\Http\Requests\Admission\TransitionApplicationStatusRequest;
 use App\Http\Requests\Admission\UpdateApplicationDraftRequest;
 use App\Http\Requests\Admission\UpdateApplicationPeriodRequest;
 use App\Http\Support\AcademicYearContextResolver;
-use App\Http\Support\WorkflowFlash;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -141,8 +140,33 @@ final class AdmissionPageController extends Controller
         );
     }
 
+    public function withdrawn(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 8,
+            path: '/admission/withdrawn',
+            labelKey: 'statusWithdrawn',
+            auditAction: 'admission.web.withdrawn',
+        );
+    }
+
+    public function rejected(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->stageWorkspacePage(
+            $request,
+            $handler,
+            status: 7,
+            path: '/admission/rejected',
+            labelKey: 'statusRejected',
+            auditAction: 'admission.web.rejected',
+        );
+    }
+
     public function converted(Request $request, GetAdmissionWorkspaceHandler $handler): Response
     {
+        // Legacy route — conversion now lands on students; keep for deep links.
         return $this->stageWorkspacePage(
             $request,
             $handler,
@@ -297,7 +321,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $request->validated('academic_year_id')])
-            ->with('success', 'Application period opened.');
+            ->with('success', 'تم فتح فترة التقديم.');
     }
 
     public function updatePeriod(
@@ -328,7 +352,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $academicYearId])
-            ->with('success', 'Application period updated.');
+            ->with('success', 'تم تحديث فترة التقديم.');
     }
 
     public function changePeriodStatus(
@@ -360,7 +384,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $academicYearId])
-            ->with('success', 'Application period status updated.');
+            ->with('success', 'تم تحديث حالة فترة التقديم.');
     }
 
     public function archivePeriod(
@@ -392,12 +416,13 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $academicYearId])
-            ->with('success', 'Application period archived.');
+            ->with('success', 'تم أرشفة فترة التقديم.');
     }
 
     public function storeApplication(
         CreateApplicationDraftRequest $request,
         CreateApplicationDraftHandler $handler,
+        TransitionApplicationStatusHandler $transitionHandler,
     ): RedirectResponse {
         $schoolId = $this->schoolContext->requireId();
         $result = $handler->handle(new CreateApplicationDraftCommand(
@@ -417,9 +442,14 @@ final class AdmissionPageController extends Controller
             targetSchoolId: (int) $request->validated('target_school_id'),
             intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
             nationalId: $request->validated('national_id'),
-            gradeLevelId: (int) $request->validated('grade_level_id'),
+            gradeLevelId: $request->validated('grade_level_id') !== null
+                ? (int) $request->validated('grade_level_id')
+                : null,
             branchId: $request->validated('branch_id') !== null
                 ? (int) $request->validated('branch_id')
+                : null,
+            branchName: $request->validated('branch_name') !== null && $request->validated('branch_name') !== ''
+                ? (string) $request->validated('branch_name')
                 : null,
             departmentName: $request->validated('department_name') !== null && $request->validated('department_name') !== ''
                 ? (string) $request->validated('department_name')
@@ -431,7 +461,24 @@ final class AdmissionPageController extends Controller
                 ? (string) $request->validated('specialization_name')
                 : null,
             governorate: $request->validated('governorate'),
+            administrativeUnit: $request->validated('administrative_unit') !== null
+                ? (int) $request->validated('administrative_unit')
+                : null,
             neighborhood: $request->validated('neighborhood'),
+            fatherOccupation: $request->validated('father_occupation'),
+            motherOccupation: $request->validated('mother_occupation'),
+            studentMobile: $request->validated('student_mobile'),
+            guardianMobile: $request->validated('guardian_mobile'),
+            previousSchoolName: $request->validated('previous_school_name'),
+            graduationYear: $request->validated('graduation_year') !== null
+                ? (int) $request->validated('graduation_year')
+                : null,
+            previousGpa: $request->validated('previous_gpa') !== null
+                ? (string) $request->validated('previous_gpa')
+                : null,
+            previousStudyTrack: $request->validated('previous_study_track') !== null
+                ? (int) $request->validated('previous_study_track')
+                : null,
             notes: $request->validated('notes'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
@@ -444,14 +491,26 @@ final class AdmissionPageController extends Controller
             "admission_application:{$result->applicationId}",
         );
 
+        // Ribbon has no Draft stage — move new طلب قبول straight to مُرسل.
+        $transitionHandler->handle(new TransitionApplicationStatusCommand(
+            schoolId: $schoolId,
+            applicationId: $result->applicationId,
+            toStatus: ApplicationStatus::Submitted->value,
+            reviewedBy: $request->user()?->id,
+            notes: null,
+            idempotencyKey: $request->header('X-Idempotency-Key') !== null
+                ? $request->header('X-Idempotency-Key').':submit'
+                : null,
+        ));
+
         $academicYearId = $request->input('academic_year_id')
             ?? $request->query('academic_year_id');
 
         return redirect()
-            ->route('admission.drafts', array_filter([
+            ->route('admission.submitted', array_filter([
                 'academic_year_id' => $academicYearId,
             ]))
-            ->with('success', "Draft application {$result->applicationNumber} created.");
+            ->with('success', 'تم إنشاء الطلب وإرساله.');
     }
 
     public function registerStudent(
@@ -476,9 +535,14 @@ final class AdmissionPageController extends Controller
             targetSchoolId: (int) $request->validated('target_school_id'),
             intendedGradeName: (string) ($request->validated('intended_grade_name') ?? ''),
             nationalId: $request->validated('national_id'),
-            gradeLevelId: (int) $request->validated('grade_level_id'),
+            gradeLevelId: $request->validated('grade_level_id') !== null
+                ? (int) $request->validated('grade_level_id')
+                : null,
             branchId: $request->validated('branch_id') !== null
                 ? (int) $request->validated('branch_id')
+                : null,
+            branchName: $request->validated('branch_name') !== null && $request->validated('branch_name') !== ''
+                ? (string) $request->validated('branch_name')
                 : null,
             departmentName: $request->validated('department_name') !== null && $request->validated('department_name') !== ''
                 ? (string) $request->validated('department_name')
@@ -490,7 +554,24 @@ final class AdmissionPageController extends Controller
                 ? (string) $request->validated('specialization_name')
                 : null,
             governorate: $request->validated('governorate'),
+            administrativeUnit: $request->validated('administrative_unit') !== null
+                ? (int) $request->validated('administrative_unit')
+                : null,
             neighborhood: $request->validated('neighborhood'),
+            fatherOccupation: $request->validated('father_occupation'),
+            motherOccupation: $request->validated('mother_occupation'),
+            studentMobile: $request->validated('student_mobile'),
+            guardianMobile: $request->validated('guardian_mobile'),
+            previousSchoolName: $request->validated('previous_school_name'),
+            graduationYear: $request->validated('graduation_year') !== null
+                ? (int) $request->validated('graduation_year')
+                : null,
+            previousGpa: $request->validated('previous_gpa') !== null
+                ? (string) $request->validated('previous_gpa')
+                : null,
+            previousStudyTrack: $request->validated('previous_study_track') !== null
+                ? (int) $request->validated('previous_study_track')
+                : null,
             notes: $request->validated('notes'),
             reviewedBy: $request->user()?->id,
             idempotencyKey: $request->header('X-Idempotency-Key'),
@@ -505,22 +586,9 @@ final class AdmissionPageController extends Controller
             ['student_id' => $result->studentId],
         );
 
-        return WorkflowFlash::with(
-            redirect()->route('admission.converted', array_filter([
-                'academic_year_id' => $result->academicYearId,
-            ], static fn ($value): bool => $value !== null)),
-            [
-                'tone' => 'warning',
-                'title' => 'تم إنشاء الطالب من القبول',
-                'message' => 'أكمل نواقص الملف من صفحة الطلاب إن لزم، ثم اختر الطلاب واضغط «تسجيل» لإنشاء التوزيع (السنة والصف والشعبة).',
-                'action_href' => route('students.index', array_filter([
-                    'academic_year_id' => $result->academicYearId,
-                    'enrolled' => 0,
-                ], static fn ($value): bool => $value !== null), absolute: false),
-                'action_label' => 'فتح الطلاب غير المسجّلين',
-                'step' => 'admission.register_student',
-            ],
-        );
+        return redirect()
+            ->back()
+            ->with('success', 'تم إنشاء الطالب من القبول.');
     }
 
     public function updateApplication(
@@ -547,7 +615,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'Draft application updated.');
+            ->with('success', 'تم تحديث مسودة الطلب.');
     }
 
     public function transition(
@@ -577,9 +645,13 @@ final class AdmissionPageController extends Controller
             ],
         );
 
+        $success = $result->toStatus === ApplicationStatus::Accepted->value
+            ? 'تم قبول الطلب وتحويله إلى طالب.'
+            : 'تم تحديث حالة الطلب.';
+
         return redirect()
             ->back()
-            ->with('success', 'Application status updated.');
+            ->with('success', $success);
     }
 
     public function bulkTransition(
@@ -611,9 +683,15 @@ final class AdmissionPageController extends Controller
             ],
         );
 
+        $success = $result->toStatus === ApplicationStatus::Accepted->value
+            ? ($result->count === 1
+                ? 'تم قبول الطلب وتحويله إلى طالب.'
+                : 'تم قبول الطلبات وتحويلها إلى طلاب.')
+            : 'تم تحديث حالات الطلبات.';
+
         return redirect()
             ->back()
-            ->with('success', 'Application statuses updated.');
+            ->with('success', $success);
     }
 
     public function convert(
@@ -638,23 +716,9 @@ final class AdmissionPageController extends Controller
             ['student_id' => $result->studentId],
         );
 
-        // Convert creates the student only — placement continues from Students → Enroll.
-        return WorkflowFlash::with(
-            redirect()->route('admission.converted', array_filter([
-                'academic_year_id' => $result->academicYearId,
-            ], static fn ($value): bool => $value !== null)),
-            [
-                'tone' => 'warning',
-                'title' => 'تم التحويل إلى طالب',
-                'message' => 'أكمل نواقص الملف من صفحة الطلاب إن لزم، ثم اختر الطلاب واضغط «تسجيل» لإنشاء التوزيع (السنة والصف والشعبة).',
-                'action_href' => route('students.index', array_filter([
-                    'academic_year_id' => $result->academicYearId,
-                    'enrolled' => 0,
-                ], static fn ($value): bool => $value !== null), absolute: false),
-                'action_label' => 'فتح الطلاب غير المسجّلين',
-                'step' => 'admission.convert',
-            ],
-        );
+        return redirect()
+            ->back()
+            ->with('success', 'تم التحويل إلى طالب.');
     }
 
     public function storeDocument(
@@ -683,6 +747,6 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'Application document registered.');
+            ->with('success', 'تم تسجيل مستند الطلب.');
     }
 }

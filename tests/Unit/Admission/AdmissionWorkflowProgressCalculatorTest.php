@@ -13,55 +13,52 @@ class AdmissionWorkflowProgressCalculatorTest extends TestCase
         $result = $this->calculator()->calculate($this->pipeline(), []);
 
         $this->assertSame(0, $result['overall_percent']);
-        $this->assertSame(0, $result['stage_percents'][ApplicationStatus::Draft->value]);
-        $this->assertSame(0, $result['stage_percents'][ApplicationStatus::Converted->value]);
+        $this->assertSame(0, $result['stage_percents'][ApplicationStatus::Submitted->value]);
+        $this->assertSame(0, $result['stage_percents'][ApplicationStatus::Accepted->value]);
     }
 
     public function test_occupancy_and_overall_from_current_statuses(): void
     {
         $statuses = [
-            ApplicationStatus::Draft->value,
-            ApplicationStatus::Draft->value,
             ApplicationStatus::Submitted->value,
-            ApplicationStatus::Converted->value,
+            ApplicationStatus::Submitted->value,
+            ApplicationStatus::UnderReview->value,
+            ApplicationStatus::Accepted->value,
         ];
 
         $result = $this->calculator()->calculate($this->pipeline(), $statuses);
 
-        $this->assertSame(50, $result['stage_percents'][ApplicationStatus::Draft->value]);
-        $this->assertSame(25, $result['stage_percents'][ApplicationStatus::Submitted->value]);
-        $this->assertSame(25, $result['stage_percents'][ApplicationStatus::Converted->value]);
-        $this->assertSame(0, $result['stage_percents'][ApplicationStatus::Accepted->value]);
-        $this->assertSame(39, $result['overall_percent']);
+        $this->assertSame(50, $result['stage_percents'][ApplicationStatus::Submitted->value]);
+        $this->assertSame(25, $result['stage_percents'][ApplicationStatus::UnderReview->value]);
+        $this->assertSame(25, $result['stage_percents'][ApplicationStatus::Accepted->value]);
+        $this->assertSame(0, $result['stage_percents'][ApplicationStatus::Interview->value]);
+        $this->assertSame(45, $result['overall_percent']);
     }
 
-    public function test_rejected_counts_in_overall_denominator_not_stage_occupancy(): void
+    public function test_withdrawn_and_rejected_are_not_pipeline_stages(): void
     {
-        $statuses = [
-            ApplicationStatus::Draft->value,
-            ApplicationStatus::Rejected->value,
-        ];
+        $pipeline = $this->pipeline();
 
-        $result = $this->calculator()->calculate($this->pipeline(), $statuses);
-
-        $this->assertSame(50, $result['stage_percents'][ApplicationStatus::Draft->value]);
-        $this->assertSame(7, $result['overall_percent']);
+        $this->assertNotContains(ApplicationStatus::Withdrawn->value, $pipeline);
+        $this->assertNotContains(ApplicationStatus::Rejected->value, $pipeline);
+        $this->assertNotContains(ApplicationStatus::Draft->value, $pipeline);
+        $this->assertNotContains(ApplicationStatus::Converted->value, $pipeline);
     }
 
     public function test_calculate_from_counts_matches_expanded_statuses(): void
     {
         $counts = [
-            ApplicationStatus::Draft->value => 2,
-            ApplicationStatus::Submitted->value => 1,
-            ApplicationStatus::Converted->value => 1,
+            ApplicationStatus::Submitted->value => 2,
+            ApplicationStatus::UnderReview->value => 1,
+            ApplicationStatus::Accepted->value => 1,
         ];
 
         $fromCounts = $this->calculator()->calculateFromCounts($this->pipeline(), $counts);
         $fromList = $this->calculator()->calculate($this->pipeline(), [
-            ApplicationStatus::Draft->value,
-            ApplicationStatus::Draft->value,
             ApplicationStatus::Submitted->value,
-            ApplicationStatus::Converted->value,
+            ApplicationStatus::Submitted->value,
+            ApplicationStatus::UnderReview->value,
+            ApplicationStatus::Accepted->value,
         ]);
 
         $this->assertSame($fromList, $fromCounts);

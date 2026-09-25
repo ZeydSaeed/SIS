@@ -894,6 +894,14 @@ body.sis-table-col-resizing * {
     flex-shrink: 0;
 }
 
+.sis-titlebar__home-ion {
+    display: block;
+    width: 1.05rem;
+    height: 1.05rem;
+    color: #000000;
+    font-size: 1.05rem;
+}
+
 .sis-titlebar__utility-badge {
     display: inline-flex;
     align-items: center;
@@ -2400,7 +2408,7 @@ input[type='reset']:disabled {
 
 .sis-list-select__menu {
     position: fixed;
-    z-index: 20000;
+    z-index: 40000;
     margin: 0;
     padding: 0.15rem 0;
     list-style: none;
@@ -2420,7 +2428,7 @@ input[type='reset']:disabled {
 #sis-list-select-portal {
     position: fixed;
     inset: 0;
-    z-index: 20000;
+    z-index: 40000;
     pointer-events: none;
 }
 
@@ -4435,6 +4443,8 @@ button.sis-admission-enroll-status-text:active {
 .sis-admission-page-head,
 .sis-admission-page > .sis-admission-progress {
     flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: visible;
 }
 
 .sis-admission-page-body {
@@ -4461,9 +4471,12 @@ button.sis-admission-enroll-status-text:active {
     display: none;
 }
 
-.sis-admission-page-body:has(.sis-admission-drafts-table),
-.sis-admission-page-body:has(.sis-admission-periods) {
+.sis-admission-page-body:has(.sis-admission-drafts-table) {
     overflow: hidden;
+}
+
+.sis-admission-page-body:has(.sis-admission-periods) {
+    overflow: auto;
 }
 
 .sis-admission-page-body:has(.sis-admission-drafts-table) > section:has(.sis-admission-drafts-table) {
@@ -4533,6 +4546,16 @@ button.sis-admission-enroll-status-text:active {
     min-height: var(--sis-admission-drafts-row-h);
     white-space: nowrap;
     vertical-align: middle;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: color-mix(in srgb, var(--sis-mist) 55%, var(--sis-pearl));
+    box-shadow: 0 1px 0 #000000;
+}
+
+.sis-admission-drafts-table.sis-admission-periods-table thead {
+    position: relative;
+    z-index: 3;
 }
 
 .sis-admission-drafts-table.sis-admission-periods-table td {
@@ -4749,6 +4772,8 @@ button.sis-admission-enroll-status-text:active {
     color: var(--sis-admission-surface-text);
     border: none;
     gap: 0;
+    overflow-x: hidden;
+    overflow-y: visible;
 }
 
 .sis-admission-active-periods__empty {
@@ -4830,6 +4855,55 @@ button.sis-admission-enroll-status-text:active {
 
 .sis-admission-filters--with-enrollment {
     grid-template-columns: 1fr 1fr 1fr;
+}
+
+.sis-ribbon__filters .sis-admission-filters--ribbon {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.35rem;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.sis-ribbon__filters .sis-admission-filters--ribbon > form {
+    display: block;
+    width: 100%;
+    margin: 0;
+}
+
+.sis-ribbon__filters .sis-admission-filters--ribbon > form > label,
+.sis-ribbon__filters .sis-admission-filters--ribbon > .sis-admission-period-filter {
+    display: grid !important;
+    grid-template-columns: 8.75rem 15rem;
+    align-items: center;
+    justify-content: start;
+    column-gap: 0.5rem;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    flex-wrap: nowrap !important;
+}
+
+.sis-ribbon__filters .sis-admission-filters--ribbon > form > label > span:first-child,
+.sis-ribbon__filters .sis-admission-filters--ribbon > .sis-admission-period-filter > span:first-child {
+    text-align: start;
+    white-space: nowrap;
+}
+
+.sis-ribbon__filters .sis-admission-filters--ribbon .sis-admission-select-fit,
+.sis-ribbon__filters .sis-admission-filters--ribbon .sis-admission-year-control,
+.sis-ribbon__filters .sis-admission-filters--ribbon .sis-list-select,
+.sis-ribbon__filters .sis-admission-filters--ribbon .sis-list-select__trigger {
+    width: 15rem !important;
+    min-width: 15rem !important;
+    max-width: 15rem !important;
 }
 
 .sis-admission-search {
@@ -5165,9 +5239,10 @@ button.sis-admission-enroll-status-text:active {
     gap: 0.2rem;
     list-style: none;
     margin: 0.04rem 0 0;
-    padding: 0 0 0.28rem;
+    padding: 0 0 0.55rem;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
+    overscroll-behavior-y: none;
     background: transparent;
     scrollbar-width: thin;
 }
@@ -5271,6 +5346,16 @@ button.sis-admission-enroll-status-text:active {
     background: var(--sis-admission-status-6);
 }
 
+.sis-admission-progress__segment--status-7 {
+    --sis-admission-segment-bg: var(--sis-admission-status-7);
+    background: var(--sis-admission-status-7);
+}
+
+.sis-admission-progress__segment--status-8 {
+    --sis-admission-segment-bg: var(--sis-admission-status-8);
+    background: var(--sis-admission-status-8);
+}
+
 .sis-admission-progress__segment--status-9 {
     --sis-admission-segment-bg: var(--sis-admission-status-9);
     background: var(--sis-admission-status-9);
@@ -5346,8 +5431,25 @@ button.sis-admission-enroll-status-text:active {
     opacity: 0.95;
 }
 
+.sis-admission-progress__meta {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.28rem;
+    flex-shrink: 0;
+}
+
+.sis-admission-progress__percent {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    line-height: 1.05;
+    opacity: 0.95;
+}
+
 .sis-admission-progress__overall-block {
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
@@ -5355,23 +5457,27 @@ button.sis-admission-enroll-status-text:active {
     width: 100%;
     max-width: 100%;
     margin-inline: 0;
-    margin-block-start: 0.4rem;
+    margin-block-start: 1.1rem;
     margin-block-end: 0.08rem;
+    flex-shrink: 0;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .sis-admission-progress__overall-track {
     position: relative;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
-    height: 0.85rem;
-    min-height: 0.85rem;
-    overflow: hidden;
+    height: 1.25rem;
+    min-height: 1.25rem;
+    overflow: visible;
     background: var(--sis-admission-period-card);
     border: 1px solid #000000;
+    visibility: visible !important;
 }
 
 .sis-admission-progress__overall-fill {
@@ -5387,30 +5493,56 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-admission-progress__overall-value {
-    position: relative;
+    position: absolute;
+    inset: 0;
     z-index: 2;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
     margin: 0;
-    font-size: 0.65rem;
+    padding-block: 0.12rem;
+    padding-inline: 0.45rem;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    font-size: 0.78rem;
     font-weight: 700;
     font-family: var(--sis-chrome-font);
     font-variant-numeric: lining-nums tabular-nums;
     line-height: 1;
     letter-spacing: 0.02em;
-    color: #001427 !important;
+    color: var(--sis-oxford) !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
     text-shadow: none;
+    pointer-events: none;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .sis-admission-progress__overall-track[data-contrast='light'] .sis-admission-progress__overall-value {
     color: #ffffff !important;
-    text-shadow: 0 0 1px color-mix(in srgb, var(--sis-night) 35%, transparent);
 }
 
-.sis-admission-progress__overall-row {
-    display: none;
+.sis-admission-progress__overall-track[data-contrast='dark'] .sis-admission-progress__overall-value {
+    color: var(--sis-oxford) !important;
 }
 
-.sis-admission-progress__overall {
-    display: none !important;
+.sis-admission-drafts-table-home {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 1.7rem;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.sis-admission-drafts-table-home .sis-admission-drafts-home {
+    margin-inline-start: auto;
 }
 
 .sis-admission-progress:has(.sis-admission-drafts-home) + * {
@@ -5446,11 +5578,33 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-admission-drafts-home .icofont-home {
+    display: none;
+}
+
+.sis-admission-drafts-home__ion {
     display: block;
-    width: 1.7rem;
-    height: 1.5rem;
+    width: 1.55rem;
+    height: 1.55rem;
     margin: 0;
-    background: transparent;
+    color: #000000;
+    font-size: 1.55rem;
+}
+
+ion-icon.sis-admission-drafts-home__ion {
+    color: #000000;
+}
+
+.sis-titlebar__home-ion {
+    display: block;
+    width: 1.05rem;
+    height: 1.05rem;
+    color: #000000;
+    font-size: 1.05rem;
+    transform: none;
+}
+
+.sis-admission-drafts-home__caption {
+    display: none;
 }
 
 .sis-admission-drafts-home__mark {
@@ -5485,7 +5639,7 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-admission-draft-dialog {
-    z-index: 61;
+    z-index: 25000 !important;
     background: var(--sis-admission-page) !important;
     color: var(--sis-oxford);
     border: 1px solid #000000;
@@ -5494,6 +5648,880 @@ button.sis-admission-enroll-status-text:active {
     opacity: 1 !important;
     isolation: isolate;
     box-shadow: 0 0.85rem 2.2rem color-mix(in srgb, var(--sis-night) 32%, transparent);
+}
+
+/* Admission request sheet — fit viewport, non-blocking overlay, classic cells. */
+.sis-admission-sheet-dialog__overlay {
+    display: none !important;
+    pointer-events: none !important;
+    background: transparent !important;
+    z-index: auto !important;
+}
+
+.sis-admission-sheet-dialog {
+    top: 50% !important;
+    left: 50% !important;
+    z-index: 25000 !important;
+    width: min(98vw, 64rem) !important;
+    max-width: min(98vw, 64rem) !important;
+    max-height: calc(100vh - 0.35rem) !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+    background: var(--sis-admission-page) !important;
+    box-shadow: 0 0.45rem 1.4rem color-mix(in srgb, var(--sis-night) 22%, transparent);
+    isolation: auto;
+    will-change: transform;
+    animation: none !important;
+    transition: none !important;
+}
+
+.sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog) {
+    min-height: min(86vh, 46rem) !important;
+}
+
+.sis-admission-sheet-dialog--maximized {
+    top: 0.35rem !important;
+    left: 0.35rem !important;
+    width: calc(100vw - 0.7rem) !important;
+    max-width: none !important;
+    height: calc(100vh - 0.7rem) !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    transform: none !important;
+}
+
+.sis-admission-sheet-dialog--maximized .sis-admission-sheet,
+.sis-admission-sheet-dialog--maximized .sis-admission-draft-form.sis-admission-sheet {
+    max-height: calc(100vh - 0.7rem);
+    min-height: calc(100vh - 0.7rem);
+    height: 100%;
+}
+
+.sis-admission-sheet-dialog--minimized {
+    width: min(22rem, 92vw) !important;
+    max-width: min(22rem, 92vw) !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.sis-admission-sheet-dialog--minimized .sis-admission-sheet,
+.sis-admission-sheet-dialog--minimized .sis-admission-draft-form.sis-admission-sheet {
+    min-height: 0 !important;
+    max-height: none;
+    height: auto;
+}
+
+.sis-admission-sheet-dialog--minimized .sis-admission-sheet > :not(.sis-admission-sheet__hero) {
+    display: none !important;
+}
+
+/* Hide Radix default close — chrome controls own close. */
+.sis-admission-sheet-dialog > button {
+    display: none !important;
+}
+
+.sis-admission-sheet {
+    --sheet-line: transparent;
+    --sheet-dark: var(--sis-color-sidebar);
+    --sheet-dark-text: var(--sis-color-sidebar-text);
+    /* Approved base palette only (hero bar keeps --sheet-dark). */
+    --sheet-accent: var(--sis-steel);
+    --sheet-interactive: color-mix(in srgb, var(--sis-mist) 28%, var(--sis-pearl));
+    --sheet-btn: var(--sheet-dark);
+    --sheet-btn-hover: color-mix(in srgb, var(--sheet-dark) 82%, var(--sis-pearl));
+    --sheet-btn-muted: var(--sheet-dark);
+    --sheet-btn-muted-hover: color-mix(in srgb, var(--sheet-dark) 82%, var(--sis-pearl));
+    --sheet-text: var(--sis-night);
+    --sheet-value: var(--sis-night);
+    --sheet-mark: var(--sis-mist);
+    --sheet-surface: var(--sis-admission-page);
+    --sheet-control-border: 1px solid var(--sis-mist);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    max-height: calc(100vh - 0.35rem);
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: var(--sheet-surface);
+    color: var(--sheet-text);
+    font-family: var(--sis-font-stack);
+    font-weight: 700;
+}
+
+.sis-admission-draft-form.sis-admission-sheet {
+    min-height: min(86vh, 46rem);
+}
+
+.sis-admission-sheet__empty {
+    margin: 1rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--sis-night);
+}
+
+.sis-admission-sheet__hero {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: 1.85rem;
+    height: 1.85rem;
+    padding-inline: 0.2rem 0.45rem;
+    background: var(--sis-color-sidebar);
+    color: var(--sis-color-sidebar-text);
+    flex-shrink: 0;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.sis-admission-sheet__hero:active {
+    cursor: grabbing;
+}
+
+.sis-admission-sheet__window-controls.sis-window__controls {
+    gap: 0.1rem;
+    background: transparent;
+    border-radius: 0;
+    flex-shrink: 0;
+}
+
+.sis-admission-sheet__window-controls .sis-window__control {
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 0;
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet__window-controls .sis-window__control:hover,
+.sis-admission-sheet__window-controls .sis-window__control:focus-visible {
+    background: color-mix(in srgb, var(--sis-pearl) 18%, transparent);
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet__window-controls .sis-window__control--close:hover,
+.sis-admission-sheet__window-controls .sis-window__control--close:focus-visible {
+    background: color-mix(in srgb, var(--sis-oxford) 75%, #ffffff);
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet__hero-copy {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
+    padding-block: 0;
+    margin: 0;
+}
+
+.sis-admission-sheet__hero-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--sis-color-sidebar-text);
+    white-space: nowrap;
+}
+
+.sis-admission-sheet__hero-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem;
+    background: transparent;
+}
+
+.sis-admission-sheet__logo.sis-app-logo {
+    width: 1.55rem;
+    height: 1.55rem;
+    margin: 0;
+    border-radius: 0;
+    background: transparent !important;
+}
+
+.sis-admission-sheet__logo .sis-app-logo__mark {
+    background-color: #ffff00;
+}
+
+.sis-admission-sheet__section {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.sis-admission-sheet__banner {
+    margin: 0;
+    padding: 0.12rem 0.45rem;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+    flex-shrink: 0;
+}
+
+.sis-admission-sheet__banner--accent {
+    background: var(--sheet-accent);
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet__banner--dark {
+    background: var(--sheet-dark);
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet__body {
+    display: flex;
+    flex-direction: column;
+    background: var(--sheet-surface);
+    border-block-end: 0;
+}
+
+.sis-admission-sheet__row {
+    display: grid;
+    gap: 0.25rem 0.4rem;
+    padding: 0.18rem 0.45rem;
+    border-block-end: 0;
+    align-items: start;
+}
+
+.sis-admission-sheet__body > .sis-admission-sheet__row:last-child {
+    border-block-end: 0;
+}
+
+.sis-admission-sheet__row--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sis-admission-sheet__row--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sis-admission-sheet__row--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sis-admission-sheet__row--5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.sis-admission-sheet__row--gender {
+    grid-template-columns: 1fr;
+    align-items: start;
+}
+
+.sis-admission-sheet__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.06rem;
+    min-width: 0;
+    width: 100%;
+    align-self: stretch;
+}
+
+.sis-admission-sheet__label,
+.sis-admission-sheet__choice-group > .sis-admission-sheet__label,
+.sis-admission-sheet legend.sis-admission-sheet__label {
+    display: block;
+    min-height: 0.9rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+    line-height: 0.9rem;
+}
+
+.sis-admission-sheet__error {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-admission-sheet__control,
+.sis-admission-sheet .sis-ops-hub__link.sis-admission-sheet__control {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 1.35rem;
+    height: 1.35rem;
+    margin: 0;
+    padding-block: 0;
+    padding-inline: 0.3rem;
+    box-sizing: border-box;
+    border: var(--sheet-control-border);
+    border-radius: 0;
+    background: transparent !important;
+    color: var(--sis-night) !important;
+    font-family: var(--sis-font-stack);
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sis-admission-sheet select.sis-admission-sheet__control {
+    display: block;
+    cursor: pointer;
+    appearance: auto;
+    -webkit-appearance: menulist;
+    font-weight: 700;
+}
+
+.sis-admission-sheet select.sis-admission-sheet__control option {
+    background: var(--sheet-interactive);
+    color: #000000;
+    font-weight: 700;
+}
+
+.sis-admission-sheet select.sis-admission-sheet__control option:checked,
+.sis-admission-sheet select.sis-admission-sheet__control option:hover {
+    background: var(--sheet-interactive);
+    color: #000000;
+}
+
+/* Custom list — themable menu (OS native popup cannot follow tokens). */
+.sis-admission-sheet-list-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.sis-admission-sheet-list-select .sis-list-select__trigger.sis-admission-sheet__control {
+    display: flex;
+    justify-content: flex-start;
+    text-align: start;
+    text-align-last: start;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.sis-admission-sheet-list-select .sis-list-select__value {
+    padding-inline: 0;
+    text-align: start;
+    text-align-last: start;
+    font-weight: 700;
+    color: #000000;
+}
+
+.sis-admission-sheet-list-select .sis-list-select__trigger::after {
+    inset-inline-end: 0.35rem;
+    color: #000000;
+}
+
+.sis-admission-sheet-list-select__menu {
+    --sheet-interactive: color-mix(in srgb, var(--sis-mist) 22%, var(--sis-pearl));
+    --sheet-option-active: color-mix(in srgb, var(--sis-mist) 42%, var(--sis-pearl));
+    --sheet-option-selected: color-mix(in srgb, var(--sis-steel) 55%, var(--sis-pearl));
+    margin: 0;
+    padding: 0.1rem 0;
+    background: var(--sheet-interactive);
+    color: var(--sis-night);
+    border: 1px solid var(--sis-mist);
+    border-radius: 0;
+    font-family: var(--sis-font-stack);
+    font-size: 0.74rem;
+    font-weight: 700;
+    box-shadow: 0 0.35rem 0.9rem color-mix(in srgb, var(--sis-night) 18%, transparent);
+}
+
+.sis-admission-sheet-list-select__menu .sis-list-select__option {
+    justify-content: flex-start;
+    padding-inline: 0.45rem;
+    color: var(--sis-night);
+    background: transparent;
+}
+
+.sis-admission-sheet-list-select__menu .sis-list-select__option.is-active {
+    background: var(--sheet-option-active);
+    color: var(--sis-night);
+}
+
+.sis-admission-sheet-list-select__menu .sis-list-select__option.is-selected {
+    background: var(--sheet-option-selected);
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet-list-select__menu .sis-list-select__option.is-selected.is-active {
+    background: var(--sis-steel);
+    color: var(--sis-pearl);
+}
+
+.sis-admission-sheet__control:hover,
+.sis-admission-sheet .sis-ops-hub__link.sis-admission-sheet__control:hover,
+.sis-admission-sheet select.sis-admission-sheet__control:hover,
+.sis-admission-sheet-list-select .sis-list-select__trigger.sis-admission-sheet__control:hover {
+    background: var(--sheet-interactive) !important;
+}
+
+.sis-admission-sheet__control:focus,
+.sis-admission-sheet__control:focus-visible,
+.sis-admission-sheet .sis-ops-hub__link.sis-admission-sheet__control:focus,
+.sis-admission-sheet .sis-ops-hub__link.sis-admission-sheet__control:focus-visible,
+.sis-admission-sheet select.sis-admission-sheet__control:focus,
+.sis-admission-sheet select.sis-admission-sheet__control:focus-visible,
+.sis-admission-sheet-list-select .sis-list-select__trigger.sis-admission-sheet__control:focus,
+.sis-admission-sheet-list-select .sis-list-select__trigger.sis-admission-sheet__control:focus-visible,
+.sis-admission-sheet-list-select .sis-list-select__trigger.sis-admission-sheet__control[aria-expanded='true'] {
+    outline: none;
+    box-shadow: none;
+    border: var(--sheet-control-border);
+    background: var(--sheet-interactive) !important;
+}
+
+.sis-admission-sheet .sis-admission-draft-field--filled,
+.sis-admission-sheet input.sis-admission-sheet__control:not(:placeholder-shown),
+.sis-admission-sheet select.sis-admission-sheet__control.sis-admission-draft-field--filled {
+    background: transparent !important;
+    color: #000000 !important;
+    font-weight: 700;
+}
+
+.sis-admission-sheet__choice-group {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+
+.sis-admission-sheet__choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.1rem;
+    margin-block-start: 0.2rem;
+}
+
+.sis-admission-sheet__choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #000000;
+    cursor: pointer;
+}
+
+.sis-admission-sheet__choice input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.sis-admission-sheet__choice-dot {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    border: 1px solid #000000;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.sis-admission-sheet__choice:has(input:checked) .sis-admission-sheet__choice-dot {
+    background: var(--sheet-mark);
+    border-color: #000000;
+    box-shadow: inset 0 0 0 1px #ffffff;
+}
+
+.sis-admission-sheet__choice:has(input:focus-visible) .sis-admission-sheet__choice-dot {
+    outline: 2px solid #000000;
+    outline-offset: 2px;
+}
+
+.sis-admission-sheet__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.3rem 0.45rem 0.35rem;
+    background: var(--sheet-surface);
+    border-block-start: 1px solid var(--sheet-line);
+    flex-shrink: 0;
+}
+
+.sis-admission-sheet__actions .sis-button,
+.sis-admission-sheet__actions button {
+    height: 1.45rem;
+    min-height: 1.45rem;
+    padding-block: 0;
+    padding-inline: 0.65rem;
+    border-radius: 0 !important;
+    font-weight: 700;
+    line-height: 1;
+    font-size: 0.74rem;
+}
+
+/* Create / cancel — same fill as window title bar. */
+.sis-admission-sheet__actions button[type='submit'],
+.sis-admission-sheet__actions button[type='button'] {
+    background: var(--sheet-btn) !important;
+    color: var(--sheet-dark-text) !important;
+    border: 1px solid color-mix(in srgb, var(--sheet-dark) 70%, #000000) !important;
+}
+
+.sis-admission-sheet__actions button[type='submit']:hover,
+.sis-admission-sheet__actions button[type='submit']:focus-visible,
+.sis-admission-sheet__actions button[type='button']:hover,
+.sis-admission-sheet__actions button[type='button']:focus-visible {
+    background: var(--sheet-btn-hover) !important;
+    color: var(--sheet-dark-text) !important;
+}
+
+.sis-admission-sheet__docs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.28rem;
+    padding: 0.3rem 0.45rem 0.35rem;
+}
+
+.sis-admission-sheet__doc-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.1rem;
+    min-height: 1.85rem;
+    margin: 0;
+    padding: 0.22rem 0.35rem;
+    border: var(--sheet-control-border);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--sis-admission-page) 82%, var(--sis-mist));
+    color: var(--sis-night);
+    font-family: var(--sis-font-stack);
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+}
+
+.sis-admission-sheet__doc-btn:hover,
+.sis-admission-sheet__doc-btn:focus-visible {
+    background: var(--sheet-interactive);
+    outline: none;
+}
+
+.sis-admission-sheet__doc-btn.is-filled {
+    border-color: var(--sis-steel);
+    background: color-mix(in srgb, var(--sis-mist) 32%, var(--sis-admission-page));
+}
+
+.sis-admission-sheet__doc-btn-file {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--sis-steel);
+}
+
+.sis-admission-sheet__doc-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.sis-admission-sheet__docs-hint {
+    margin: 0;
+    padding: 0 0.45rem 0.25rem;
+    font-size: 0.64rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+@media (max-width: 48rem) {
+    .sis-admission-sheet__docs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 30rem) {
+    .sis-admission-sheet__docs {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sis-admission-request-type-dialog {
+    width: min(96vw, 26rem) !important;
+    max-width: min(96vw, 26rem) !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.sis-admission-request-type-dialog .sis-admission-sheet {
+    min-height: 0 !important;
+    max-height: none;
+    height: auto;
+}
+
+/* Draft form — enlarge fields to fill the taller window. */
+.sis-admission-draft-form .sis-admission-sheet__section {
+    flex: 1 1 auto;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__body {
+    flex: 1 1 auto;
+    justify-content: center;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__row {
+    gap: 0.35rem 0.55rem;
+    padding: 0.32rem 0.55rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__label,
+.sis-admission-draft-form .sis-admission-sheet__choice-group > .sis-admission-sheet__label,
+.sis-admission-draft-form legend.sis-admission-sheet__label {
+    min-height: 1rem;
+    font-size: 0.74rem;
+    line-height: 1rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__control,
+.sis-admission-draft-form .sis-ops-hub__link.sis-admission-sheet__control {
+    min-height: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.84rem;
+    padding-inline: 0.4rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__banner {
+    padding: 0.18rem 0.55rem;
+    font-size: 0.76rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__docs {
+    gap: 0.35rem;
+    padding: 0.4rem 0.55rem 0.45rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__doc-btn {
+    min-height: 2.15rem;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.4rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__actions {
+    padding: 0.4rem 0.55rem 0.45rem;
+}
+
+.sis-admission-draft-form .sis-admission-sheet__actions .sis-button,
+.sis-admission-draft-form .sis-admission-sheet__actions button {
+    height: 1.7rem;
+    min-height: 1.7rem;
+    font-size: 0.8rem;
+}
+
+.sis-admission-request-type__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.75rem 0.85rem;
+}
+
+.sis-admission-request-type__option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 2.35rem;
+    margin: 0;
+    padding: 0.45rem 0.75rem;
+    border: var(--sheet-control-border);
+    border-radius: 0;
+    background: var(--sheet-surface);
+    color: #000000;
+    font-family: var(--sis-font-stack);
+    font-size: 0.88rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
+    cursor: pointer;
+}
+
+.sis-admission-request-type__option:hover,
+.sis-admission-request-type__option:focus-visible {
+    background: var(--sheet-interactive);
+    outline: none;
+}
+
+@media (max-width: 48rem) {
+    .sis-admission-sheet__row--2,
+    .sis-admission-sheet__row--3,
+    .sis-admission-sheet__row--4,
+    .sis-admission-sheet__row--5 {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 30rem) {
+    .sis-admission-sheet__row--2,
+    .sis-admission-sheet__row--3,
+    .sis-admission-sheet__row--4,
+    .sis-admission-sheet__row--5 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sis-admission-accepted-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    width: min(92vw, 46rem);
+    min-width: min(72vw, 28rem);
+    min-height: 16rem;
+    max-width: 96vw;
+    max-height: 90vh;
+    overflow: hidden;
+    padding: 0.85rem 1rem 0.75rem;
+    resize: both;
+}
+
+.sis-admission-accepted-dialog [data-slot='dialog-header'] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.sis-admission-accepted-dialog [data-slot='dialog-title'] {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--sis-night);
+}
+
+.sis-admission-accepted-dialog__filters {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.sis-admission-accepted-dialog__filters.sis-admission-filters {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+}
+
+.sis-admission-accepted-dialog__filters > .sis-admission-period-filter {
+    display: grid !important;
+    grid-template-columns: 8.75rem 15rem;
+    align-items: center;
+    justify-content: start;
+    column-gap: 0.5rem;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    flex-wrap: nowrap !important;
+}
+
+.sis-admission-accepted-dialog__filters > .sis-admission-period-filter > span:first-child {
+    text-align: start;
+    white-space: nowrap;
+}
+
+.sis-admission-accepted-dialog__filters .sis-admission-select-fit,
+.sis-admission-accepted-dialog__filters .sis-admission-year-control,
+.sis-admission-accepted-dialog__filters .sis-list-select,
+.sis-admission-accepted-dialog__filters .sis-list-select__trigger {
+    width: 15rem !important;
+    min-width: 15rem !important;
+    max-width: 15rem !important;
+}
+
+.sis-admission-accepted-dialog__empty {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--sis-oxford);
+}
+
+.sis-admission-accepted-dialog__scroller {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid #000000;
+    background: var(--sis-pearl);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sis-admission-accepted-dialog__scroller::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.sis-admission-accepted-dialog__table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-family: var(--sis-font-stack);
+    font-size: 0.8rem;
+}
+
+.sis-admission-accepted-dialog__table th,
+.sis-admission-accepted-dialog__table td {
+    padding-block: 0.28rem 0.32rem;
+    padding-inline: 0.45rem;
+    text-align: center;
+    border: 1px solid #000000;
+    vertical-align: middle;
+    line-height: 1.35;
+}
+
+.sis-admission-accepted-dialog__table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-weight: 700;
+    color: var(--sis-oxford);
+    background: color-mix(in srgb, var(--sis-mist) 55%, var(--sis-pearl));
+}
+
+.sis-admission-accepted-dialog__table tbody tr:hover {
+    background: var(--sis-hover);
+}
+
+.sis-admission-accepted-dialog__num {
+    width: 2.4rem;
+    white-space: nowrap;
+}
+
+.sis-admission-accepted-dialog__name {
+    text-align: start;
+    white-space: nowrap;
 }
 
 .sis-enrollments-placement-dialog__overlay {
@@ -5665,15 +6693,19 @@ button.sis-admission-enroll-status-text:active {
     width: 100%;
 }
 
-/* Admission period create card */
-.sis-admission-period-card {
+/* Admission period create panel (no titled card chrome) */
+.sis-admission-period-panel {
     display: flex;
+    flex: 0 1 auto;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--sis-admission-period-card);
+    gap: 0.75rem;
+    min-height: 0;
+    margin-block-start: 0;
+    padding: 0;
+    overflow: visible;
+    background: transparent;
     color: var(--sis-oxford);
-    border: 1px solid #000000;
+    border: 0;
     border-radius: 0;
     font-family: var(--sis-chrome-font);
 }
@@ -5686,7 +6718,7 @@ button.sis-admission-enroll-status-text:active {
 
 @media (min-width: 48rem) {
     .sis-admission-period-create {
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.9fr) max-content;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr) max-content;
         align-items: end;
     }
 }
@@ -5701,6 +6733,7 @@ button.sis-admission-enroll-status-text:active {
     line-height: 1.3;
 }
 
+.sis-admission-period-panel .sis-ops-hub__link,
 .sis-admission-period-card .sis-ops-hub__link {
     display: flex;
     flex-direction: row;
@@ -5720,18 +6753,22 @@ button.sis-admission-enroll-status-text:active {
     color: var(--sis-oxford);
 }
 
+.sis-admission-period-panel .sis-ops-hub__link:hover,
+.sis-admission-period-panel .sis-ops-hub__link:focus-visible,
 .sis-admission-period-card .sis-ops-hub__link:hover,
 .sis-admission-period-card .sis-ops-hub__link:focus-visible {
     background: var(--sis-admission-period-input);
     border-color: #000000;
 }
 
+.sis-admission-period-panel .sis-list-select__trigger.sis-ops-hub__link,
 .sis-admission-period-card .sis-list-select__trigger.sis-ops-hub__link {
     justify-content: center;
     text-align: center;
     text-align-last: center;
 }
 
+.sis-admission-period-panel__submit,
 .sis-admission-period-card__submit {
     display: flex;
     align-items: flex-end;
@@ -5933,16 +6970,10 @@ button.sis-admission-enroll-status-text:active {
     outline: none;
 }
 
+.sis-admission-period-panel input[name="name"],
 .sis-admission-period-card input[name="name"] {
     direction: rtl;
     text-align: right;
-}
-
-.sis-ops-hub__section-title.sis-admission-periods-title {
-    flex-shrink: 0;
-    text-align: right;
-    font-weight: 700;
-    margin: 0;
 }
 
 .sis-admission-periods {
@@ -5951,18 +6982,9 @@ button.sis-admission-enroll-status-text:active {
     flex-direction: column;
     min-height: 0;
     min-width: 0;
-    gap: 0.2rem;
-    padding-block-start: 1.15rem;
-    overflow: hidden;
-}
-
-.sis-admission-period-card {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-    margin-block-start: 0;
-    overflow: hidden;
+    gap: 0.55rem;
+    padding-block-start: 0.65rem;
+    overflow: auto;
 }
 
 .sis-admission-period-create {
@@ -6062,10 +7084,17 @@ button.sis-admission-enroll-status-text:active {
 .sis-admission-periods-table__num,
 .sis-admission-drafts-table__num,
 .sis-admission-periods-table__max,
-.sis-admission-periods-table__status,
-.sis-admission-periods-table__year {
+.sis-admission-periods-table__year,
+.sis-admission-periods-table__status {
     text-align: center;
     vertical-align: middle;
+}
+
+.sis-admission-periods-table th.sis-admission-periods-table__status,
+.sis-admission-periods-table td.sis-admission-periods-table__status {
+    border: 1px solid #000000;
+    border-inline-start: 1px solid #000000;
+    background-clip: padding-box;
 }
 
 .sis-admission-periods-table__num,

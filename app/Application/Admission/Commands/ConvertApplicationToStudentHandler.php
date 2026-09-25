@@ -58,12 +58,27 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
         }
 
         $status = ApplicationStatus::from($application['status']);
+        if ($status === ApplicationStatus::Converted && isset($application['student_id']) && $application['student_id'] !== null) {
+            return $this->finish($command, $application, (int) $application['student_id']);
+        }
+
         if (! $status->canConvertToStudent()) {
             throw ApplicationNotConvertibleException::forStatus($application['status']);
         }
 
-        if ($application['national_id'] !== null && $this->students->existsByNationalId($application['national_id'])) {
-            throw DuplicateNationalIdException::forNationalId($application['national_id']);
+        $nationalId = $application['national_id'] !== null && $application['national_id'] !== ''
+            ? (string) $application['national_id']
+            : null;
+
+        if ($nationalId !== null) {
+            $existingStudentId = $this->students->findIdByNationalIdForSchool($nationalId, $command->schoolId);
+            if ($existingStudentId !== null) {
+                throw DuplicateNationalIdException::forNationalId($nationalId);
+            }
+
+            if ($this->students->existsByNationalId($nationalId)) {
+                throw DuplicateNationalIdException::forNationalIdInOtherSchool($nationalId);
+            }
         }
 
         $studentCode = $this->students->generateStudentCode();
@@ -74,8 +89,19 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
             grandfatherName: $application['grandfather_name'] ?? null,
             greatGrandfatherName: $application['great_grandfather_name'] ?? null,
         );
+        $birthDate = $this->normalizeDate((string) $application['birth_date']);
+        $admittedAcademicYearId = isset($application['academic_year_id'])
+            ? (int) $application['academic_year_id']
+            : null;
 
-        $studentId = $this->unitOfWork->transaction(function () use ($command, $application, $studentCode, $fullName): int {
+        $studentId = $this->unitOfWork->transaction(function () use (
+            $command,
+            $application,
+            $studentCode,
+            $fullName,
+            $birthDate,
+            $admittedAcademicYearId,
+        ): int {
             $id = $this->students->saveNew(new CreateStudentData(
                 studentCode: $studentCode,
                 firstName: $application['first_name'],
@@ -88,8 +114,8 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 maternalGrandfatherName: $application['maternal_grandfather_name'] ?? null,
                 lastName: $application['last_name'],
                 fullName: $fullName,
-                gender: $application['gender'],
-                birthDate: $application['birth_date'],
+                gender: (int) $application['gender'],
+                birthDate: $birthDate,
                 nationalId: $application['national_id'],
                 birthPlace: $application['birth_place'] ?? null,
                 governorate: $application['governorate'] ?? null,
@@ -101,7 +127,7 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 departmentName: $application['department_name'] ?? null,
                 specializationName: $application['specialization_name'] ?? null,
                 schoolId: $command->schoolId,
-                admittedAcademicYearId: $application['academic_year_id'],
+                admittedAcademicYearId: $admittedAcademicYearId,
             ));
 
             $this->admission->markConverted($command->applicationId, $id, $command->reviewedBy);
@@ -124,6 +150,17 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
             return $id;
         });
 
+        return $this->finish($command, $application, $studentId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $application
+     */
+    private function finish(
+        ConvertApplicationToStudentCommand $command,
+        array $application,
+        int $studentId,
+    ): ConvertApplicationToStudentResult {
         if ($command->idempotencyKey !== null) {
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [
                 'application_id' => $command->applicationId,
@@ -147,5 +184,19 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 ? $application['department_name']
                 : null,
         );
+    }
+
+    private function normalizeDate(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return $trimmed;
+        }
+
+        try {
+            return (new \DateTimeImmutable($trimmed))->format('Y-m-d');
+        } catch (\Exception) {
+            return substr($trimmed, 0, 10);
+        }
     }
 }

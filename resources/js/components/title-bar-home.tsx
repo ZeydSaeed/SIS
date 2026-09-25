@@ -1,5 +1,4 @@
 import { Link } from '@inertiajs/react';
-import { Home } from 'lucide-react';
 import { usePageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 
 /** Icon-only admission home — matches title-bar utility icons next to close (X). */
@@ -18,7 +17,13 @@ export function TitleBarHome() {
             aria-label={home.ariaLabel}
             title={home.ariaLabel}
         >
-            <Home className="sis-titlebar__utility-icon" aria-hidden />
+            <ion-icon
+                name="arrow-up-right-box-outline"
+                class="sis-titlebar__utility-icon sis-titlebar__home-ion"
+                dir="ltr"
+                flip-rtl="false"
+                aria-hidden="true"
+            ></ion-icon>
         </Link>
     );
 }

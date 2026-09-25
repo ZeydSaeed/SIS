@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type MutableRefObject, type ReactNode } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import { XCircle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { AdmissionActivePeriodsTable } from '@/components/admission/admission-active-periods-table';
 import { AdmissionPeriodFilter } from '@/components/admission/admission-period-filter';
 import { useAdmissionSelection } from '@/components/admission/admission-selection';
 import {
     ADMISSION_PERIOD_FILTER_ALL,
     ADMISSION_STAGE_PATHS,
+    ADMISSION_STATUS_ACCEPTED,
     ADMISSION_STATUS_REQUEST,
     admissionWorkspaceQuery,
     type AdmissionPageAuthorization,
@@ -22,6 +22,7 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { usePageAlignment } from '@/hooks/use-page-alignment';
+import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -30,6 +31,18 @@ const AdmissionApplicationDraftDialog = lazy(async () => {
     const mod = await import('@/components/admission/admission-application-draft-dialog');
 
     return { default: mod.AdmissionApplicationDraftDialog };
+});
+
+const AdmissionRequestTypeDialog = lazy(async () => {
+    const mod = await import('@/components/admission/admission-request-type-dialog');
+
+    return { default: mod.AdmissionRequestTypeDialog };
+});
+
+const AdmissionAcceptedStudentsDialog = lazy(async () => {
+    const mod = await import('@/components/admission/admission-accepted-students-dialog');
+
+    return { default: mod.AdmissionAcceptedStudentsDialog };
 });
 
 type DraftDialogMode = 'draft' | 'createStudent';
@@ -92,6 +105,83 @@ function AdmissionCancelRibbon() {
     return null;
 }
 
+function AdmissionEditFiltersRibbon({
+    workspace,
+    academicYearId,
+    yearFilterAction,
+    selectedPeriodId,
+    periodQueryId,
+    onPeriodSelect,
+    searchDraftRef,
+}: {
+    workspace: AdmissionWorkspace;
+    academicYearId: number | null;
+    yearFilterAction: string;
+    selectedPeriodId: number | null;
+    periodQueryId: number;
+    onPeriodSelect: (periodId: number) => void;
+    searchDraftRef: MutableRefObject<string>;
+}) {
+    const i18n = t();
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        return [
+            {
+                id: 'admission-filters',
+                label: i18n.admission.ribbonFilters,
+                commands: [],
+                custom: (
+                    <div className="sis-ribbon__filters" aria-label={i18n.admission.ribbonFilters}>
+                        <div className="sis-admission-filters sis-admission-filters--ribbon">
+                            <OpsYearFilter
+                                action={yearFilterAction}
+                                academicYearId={academicYearId}
+                                extraParams={{
+                                    get q() {
+                                        const value = searchDraftRef.current.trim();
+
+                                        return value === '' ? undefined : value;
+                                    },
+                                    application_period_id:
+                                        periodQueryId === ADMISSION_PERIOD_FILTER_ALL
+                                            ? ADMISSION_PERIOD_FILTER_ALL
+                                            : periodQueryId > 0
+                                                ? periodQueryId
+                                                : undefined,
+                                }}
+                                label={i18n.enrollments.academicYear}
+                                showLabel
+                                inlineLabel
+                                compact
+                                showCurrentBadge={false}
+                                controlClassName="sis-admission-year-control"
+                            />
+                            <AdmissionPeriodFilter
+                                periods={workspace.active_periods ?? []}
+                                selectedPeriodId={selectedPeriodId}
+                                onPeriodSelect={onPeriodSelect}
+                            />
+                        </div>
+                    </div>
+                ),
+            },
+        ];
+    }, [
+        academicYearId,
+        i18n.admission.ribbonFilters,
+        i18n.enrollments.academicYear,
+        onPeriodSelect,
+        periodQueryId,
+        searchDraftRef,
+        selectedPeriodId,
+        workspace.active_periods,
+        yearFilterAction,
+    ]);
+
+    useRegisterPageRibbon('edit', editRibbonGroups);
+
+    return null;
+}
+
 /**
  * Must render inside AppLayout so titlebar search/home context providers are ancestors
  * (same pattern as StudentList / EnrollmentList).
@@ -109,8 +199,11 @@ function AdmissionPageShellInner({
 }: InnerProps) {
     const i18n = t();
     const page = usePage();
+    const { showMessage } = usePageError();
     const [draftOpen, setDraftOpen] = useState(false);
+    const [requestTypeOpen, setRequestTypeOpen] = useState(false);
     const [draftMode, setDraftMode] = useState<DraftDialogMode>('draft');
+    const [acceptedOpen, setAcceptedOpen] = useState(false);
     const filtersQ = searchFromPageFilters(page.props.filters);
     const searchDraftRef = useRef(filtersQ);
     const academicYearIdRef = useRef(academicYearId);
@@ -152,11 +245,29 @@ function AdmissionPageShellInner({
         setDraftOpen(true);
     };
 
+    const openRequestTypeDialog = () => {
+        if (!authorization.can_manage) {
+            return;
+        }
+
+        setRequestTypeOpen(true);
+    };
+
     const handleDraftOpenChange = (open: boolean) => {
         setDraftOpen(open);
         if (!open) {
             setDraftMode('draft');
         }
+    };
+
+    const handleSelectVocationalRequest = () => {
+        setRequestTypeOpen(false);
+        openDraftDialog('draft');
+    };
+
+    const handleSelectAcademicTransfer = () => {
+        setRequestTypeOpen(false);
+        showMessage(i18n.admission.academicTransferSoon);
     };
 
     const titlebarHome = useMemo(
@@ -216,7 +327,7 @@ function AdmissionPageShellInner({
 
     useRegisterPageTitlebarSearch(titlebarSearch);
 
-    const handlePeriodSelect = (periodId: number) => {
+    const handlePeriodSelect = useCallback((periodId: number) => {
         const next = periodId > 0 ? periodId : ADMISSION_PERIOD_FILTER_ALL;
         if (next === periodQueryId) {
             return;
@@ -235,11 +346,17 @@ function AdmissionPageShellInner({
                 only: ['workspace', 'filters', 'authorization', 'enrollmentFilterOptions'],
             },
         );
-    };
+    }, [academicYearId, periodQueryId, yearFilterAction]);
 
     const handleStageSelect = (status: number) => {
         if (status === ADMISSION_STATUS_REQUEST) {
-            openDraftDialog('draft');
+            openRequestTypeDialog();
+
+            return;
+        }
+
+        if (status === ADMISSION_STATUS_ACCEPTED) {
+            setAcceptedOpen(true);
 
             return;
         }
@@ -268,56 +385,43 @@ function AdmissionPageShellInner({
         router.visit(`/admission${liveQuery}`);
     };
 
+    const ribbonActiveStatus = draftOpen || requestTypeOpen
+        ? ADMISSION_STATUS_REQUEST
+        : acceptedOpen
+            ? ADMISSION_STATUS_ACCEPTED
+            : activeStatus;
+
     return (
         <>
             <Head title={title} />
             <AdmissionCancelRibbon />
+            <AdmissionEditFiltersRibbon
+                workspace={workspace}
+                academicYearId={academicYearId}
+                yearFilterAction={yearFilterAction}
+                selectedPeriodId={selectedPeriodId}
+                periodQueryId={periodQueryId}
+                onPeriodSelect={handlePeriodSelect}
+                searchDraftRef={searchDraftRef}
+            />
             <div className="sis-ops-hub sis-admission-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4" dir="rtl" lang="ar">
-                <div className="sis-admission-page-head">
-                    <div className="sis-admission-page-head__row">
-                        <div className="sis-admission-active-periods">
-                            <AdmissionActivePeriodsTable
-                                periods={workspace.active_periods ?? []}
-                                selectedPeriodId={selectedPeriodId}
-                                onPeriodSelect={handlePeriodSelect}
-                                searchQuery={activeStatus === null ? filtersQ : ''}
-                            />
-                        </div>
-                        <div className="sis-admission-filter-stack">
-                            <div className="sis-admission-filters">
-                                <OpsYearFilter
-                                    action={yearFilterAction}
-                                    academicYearId={academicYearId}
-                                    extraParams={{
-                                        get q() {
-                                            const value = searchDraftRef.current.trim();
-
-                                            return value === '' ? undefined : value;
-                                        },
-                                    }}
-                                    label={t().enrollments.academicYear}
-                                    showLabel
-                                    inlineLabel
-                                    compact
-                                    showCurrentBadge={false}
-                                    controlClassName="sis-admission-year-control"
-                                />
-                                <AdmissionPeriodFilter
-                                    periods={workspace.active_periods ?? []}
-                                    selectedPeriodId={selectedPeriodId}
-                                    onPeriodSelect={handlePeriodSelect}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <AdmissionWorkflowProgress
                     steps={workspace.workflow_steps}
                     progress={workspace.workflow_progress}
-                    activeStatus={draftOpen ? ADMISSION_STATUS_REQUEST : activeStatus}
+                    activeStatus={ribbonActiveStatus}
                     onStageSelect={handleStageSelect}
                 />
+
+                {requestTypeOpen ? (
+                    <Suspense fallback={null}>
+                        <AdmissionRequestTypeDialog
+                            open={requestTypeOpen}
+                            onOpenChange={setRequestTypeOpen}
+                            onSelectVocational={handleSelectVocationalRequest}
+                            onSelectAcademicTransfer={handleSelectAcademicTransfer}
+                        />
+                    </Suspense>
+                ) : null}
 
                 {draftOpen ? (
                     <Suspense fallback={null}>
@@ -333,6 +437,17 @@ function AdmissionPageShellInner({
                             canManage={authorization.can_manage}
                             academicYearId={academicYearId}
                             mode={draftMode}
+                        />
+                    </Suspense>
+                ) : null}
+
+                {acceptedOpen ? (
+                    <Suspense fallback={null}>
+                        <AdmissionAcceptedStudentsDialog
+                            open={acceptedOpen}
+                            onOpenChange={setAcceptedOpen}
+                            students={workspace.accepted_students ?? []}
+                            defaultAcademicYearId={academicYearId}
                         />
                     </Suspense>
                 ) : null}

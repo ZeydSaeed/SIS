@@ -58,11 +58,21 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'grade_level_id' => $data->gradeLevelId,
             'intended_grade_name' => $data->intendedGradeName,
             'branch_id' => $data->branchId,
+            'branch_name' => $data->branchName,
             'department_name' => $data->departmentName,
             'specialization_id' => $data->specializationId,
             'specialization_name' => $data->specializationName,
             'governorate' => $data->governorate,
+            'administrative_unit' => $data->administrativeUnit,
             'neighborhood' => $data->neighborhood,
+            'father_occupation' => $data->fatherOccupation,
+            'mother_occupation' => $data->motherOccupation,
+            'student_mobile' => $data->studentMobile,
+            'guardian_mobile' => $data->guardianMobile,
+            'previous_school_name' => $data->previousSchoolName,
+            'graduation_year' => $data->graduationYear,
+            'previous_gpa' => $data->previousGpa,
+            'previous_study_track' => $data->previousStudyTrack,
             'status' => ApplicationStatus::Draft->value,
             'submitted_at' => null,
             'reviewed_by' => null,
@@ -250,7 +260,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'maternal_father_name' => $this->nullableString($row->maternal_father_name),
             'maternal_grandfather_name' => $this->nullableString($row->maternal_grandfather_name),
             'national_id' => $this->nullableString($row->national_id),
-            'birth_date' => (string) $row->birth_date,
+            'birth_date' => substr((string) $row->birth_date, 0, 10),
             'birth_place' => $this->nullableString($row->birth_place),
             'gender' => (int) $row->gender,
             'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
@@ -268,6 +278,26 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'school_id' => (int) $row->school_id,
             'academic_year_id' => (int) $row->academic_year_id,
         ];
+    }
+
+    public function findAcceptedApplicationIdsWithoutStudent(int $schoolId): array
+    {
+        return DB::table(SchemaHelper::qualified('admission', 'applications').' as apps')
+            ->join(
+                SchemaHelper::qualified('admission', 'application_periods').' as periods',
+                'periods.id',
+                '=',
+                'apps.application_period_id',
+            )
+            ->where('periods.school_id', $schoolId)
+            ->where('apps.status', ApplicationStatus::Accepted->value)
+            ->whereNull('apps.student_id')
+            ->orderBy('apps.id')
+            ->limit(100)
+            ->pluck('apps.id')
+            ->map(static fn ($id): int => (int) $id)
+            ->values()
+            ->all();
     }
 
     public function updateDraft(UpdateApplicationDraftData $data): void

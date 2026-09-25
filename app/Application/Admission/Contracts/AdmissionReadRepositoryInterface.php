@@ -27,7 +27,13 @@ interface AdmissionReadRepositoryInterface
      *     workflow_steps: list<array{status:int, key:string}>,
      *     period_counts: array<int, array{total:int, submitted:int}>,
      *     status_counts: array<int, int>,
-     *     pagination: array{page:int, per_page:int, total:int, total_pages:int}
+     *     pagination: array{page:int, per_page:int, total:int, total_pages:int},
+     *     accepted_students: list<array{
+     *         id:int,
+     *         full_name:string,
+     *         academic_year_name:string,
+     *         period_name:string
+     *     }>
      * }
      */
     public function workspace(

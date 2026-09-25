@@ -24,5 +24,8 @@ interface StudentRepositoryInterface
 
     public function existsByNationalId(string $nationalId, ?int $exceptStudentId = null): bool;
 
+    /** @return int|null Student id when national ID exists for this school. */
+    public function findIdByNationalIdForSchool(string $nationalId, int $schoolId): ?int;
+
     public function generateStudentCode(): string;
 }

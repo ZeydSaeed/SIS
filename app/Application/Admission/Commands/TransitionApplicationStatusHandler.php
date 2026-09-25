@@ -8,6 +8,7 @@ use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Admission\Results\TransitionApplicationStatusResult;
+use App\Application\Admission\Support\AcceptedApplicationStudentConverter;
 use App\Domain\Admission\Events\ApplicationStatusTransitioned;
 use App\Domain\Admission\Exceptions\ApplicationNotFoundException;
 use App\Domain\Admission\Exceptions\InvalidApplicationTransitionException;
@@ -23,6 +24,7 @@ final class TransitionApplicationStatusHandler implements CommandHandler
         private readonly AdmissionRepositoryInterface $admission,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly AcceptedApplicationStudentConverter $convertAccepted,
     ) {}
 
     public function handle(Command $command): TransitionApplicationStatusResult
@@ -72,6 +74,30 @@ final class TransitionApplicationStatusHandler implements CommandHandler
                 occurredAt: new \DateTimeImmutable,
             ));
         });
+
+        if ($to === ApplicationStatus::Accepted) {
+            $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
+
+            try {
+                $this->convertAccepted->convert(
+                    schoolId: $command->schoolId,
+                    applicationId: $command->applicationId,
+                    reviewedBy: $command->reviewedBy,
+                    idempotencyKey: $command->idempotencyKey !== null
+                        ? $command->idempotencyKey.':convert'
+                        : null,
+                );
+            } catch (\Throwable $exception) {
+                $this->admission->transitionApplicationStatus(
+                    $command->applicationId,
+                    $from->value,
+                    $command->reviewedBy,
+                    $command->notes,
+                );
+
+                throw $exception;
+            }
+        }
 
         if ($command->idempotencyKey !== null) {
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [

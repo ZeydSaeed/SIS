@@ -18,6 +18,7 @@ type SisListSelectProps = {
     includeBlank?: boolean;
     className?: string;
     triggerClassName?: string;
+    menuClassName?: string;
     dir?: 'rtl' | 'ltr';
     variant?: 'field' | 'overlay';
 };
@@ -97,6 +98,7 @@ export function SisListSelect({
     includeBlank = false,
     className,
     triggerClassName,
+    menuClassName,
     dir = 'rtl',
     variant = 'field',
 }: SisListSelectProps) {
@@ -198,7 +200,7 @@ export function SisListSelect({
                       dir={dir}
                       data-sis-list-select=""
                       data-sis-align-exempt=""
-                      className="sis-list-select__menu sis-scroll-hidden"
+                      className={`sis-list-select__menu sis-scroll-hidden${menuClassName ? ` ${menuClassName}` : ''}`}
                       aria-label={ariaLabel}
                   >
                       {items.length === 0 ? (

@@ -10,6 +10,7 @@ use App\Application\Contracts\UnitOfWork;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Domain\Student\Data\CreateStudentData;
+use App\Domain\Student\Exceptions\DuplicateNationalIdException;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -51,6 +52,7 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
         $admission->expects($this->once())->method('markConverted')->with(44, 81, 7);
 
         $students = $this->createMock(StudentRepositoryInterface::class);
+        $students->method('findIdByNationalIdForSchool')->willReturn(null);
         $students->method('existsByNationalId')->willReturn(false);
         $students->method('generateStudentCode')->willReturn('STU-000081');
         $students->expects($this->once())
@@ -98,5 +100,49 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
         $this->assertNull($result->specializationId);
         $this->assertNull($result->gradeLevelId);
         $this->assertNull($result->branchId);
+    }
+
+    public function test_rejects_duplicate_national_id_in_same_school(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findApplicationForSchool')->willReturn([
+            'id' => 55,
+            'application_period_id' => 3,
+            'application_number' => 'APP-000055',
+            'first_name' => 'سارة',
+            'last_name' => 'محمد',
+            'national_id' => '22',
+            'birth_date' => '2014-01-01',
+            'gender' => 2,
+            'grade_level_id' => null,
+            'status' => ApplicationStatus::Accepted->value,
+            'notes' => null,
+            'student_id' => null,
+            'school_id' => 9,
+            'academic_year_id' => 12,
+        ]);
+        $admission->expects($this->never())->method('markConverted');
+
+        $students = $this->createMock(StudentRepositoryInterface::class);
+        $students->method('findIdByNationalIdForSchool')->with('22', 9)->willReturn(90);
+        $students->expects($this->never())->method('saveNew');
+
+        $unitOfWork = $this->createMock(UnitOfWork::class);
+        $unitOfWork->expects($this->never())->method('transaction');
+
+        $handler = new ConvertApplicationToStudentHandler(
+            $unitOfWork,
+            $admission,
+            $students,
+            $this->createMock(OutboxRepository::class),
+            $this->createMock(IdempotencyStore::class),
+        );
+
+        $this->expectException(DuplicateNationalIdException::class);
+        $handler->handle(new ConvertApplicationToStudentCommand(
+            schoolId: 9,
+            applicationId: 55,
+            reviewedBy: 7,
+        ));
     }
 }

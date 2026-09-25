@@ -376,7 +376,7 @@
 | id | BIGINT | PK |
 | school_id | BIGINT | FK → schools (**STU-DOC-U01** RLS denorm) |
 | student_id | BIGINT | FK → students |
-| document_type | SMALLINT | NOT NULL — 1=Identity, 2=Certificate, 3=Qualification, 4=Medical, 9=Other |
+| document_type | SMALLINT | NOT NULL — 1=Identity, 2=Certificate, 3=Qualification, 4=Medical, 9=Other; **admission ID pack:** 11=Student national ID front, 12=Student national ID back, 13=Father national ID front, 14=Father national ID back, 15=Mother national ID front, 16=Mother national ID back, 17=Residence card front, 18=Residence card back, 19=Graduation certificate |
 | storage_key | VARCHAR(500) | NOT NULL |
 | file_name | VARCHAR(255) | NOT NULL |
 | mime_type | VARCHAR(100) | NOT NULL |
@@ -484,14 +484,24 @@
 | birth_place | VARCHAR(255) | nullable — محل الولادة |
 | gender | SMALLINT | NOT NULL; CHECK IN (1, 2) |
 | target_school_id | BIGINT | FK → organization.schools, nullable — المدرسة المراد التقديم عليها |
-| branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
+| branch_id | BIGINT | FK → organization.branches, nullable — الفرع (عند الربط بالمؤسسة) |
+| branch_name | VARCHAR(100) | nullable — اسم الفرع من قائمة القبول الثابتة |
 | grade_level_id | SMALLINT | FK → grade_levels, **nullable** (قائمة المراحل لاحقاً) |
 | intended_grade_name | VARCHAR(100) | nullable — نص المرحلة المطلوبة حتى ضبط القائمة |
 | department_name | VARCHAR(100) | nullable — القسم (قائمة لاحقاً) |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | specialization_name | VARCHAR(100) | nullable — الاختصاص (نص حتى ضبط القائمة) |
 | governorate | VARCHAR(100) | nullable — المحافظة |
+| administrative_unit | SMALLINT | nullable; CHECK IN (1, 2, 3) — 1=المركز، 2=قضاء، 3=ناحية |
 | neighborhood | VARCHAR(100) | nullable — الحي |
+| student_mobile | VARCHAR(20) | nullable — رقم موبايل الطالب |
+| guardian_mobile | VARCHAR(20) | nullable — رقم موبايل ولي أمر الطالب |
+| father_occupation | VARCHAR(100) | nullable — وظيفة الأب |
+| mother_occupation | VARCHAR(100) | nullable — وظيفة الأم |
+| previous_school_name | VARCHAR(255) | nullable — اسم المتوسطة المتخرج منها |
+| graduation_year | SMALLINT | nullable; CHECK 1950–2100 — سنة التخرج |
+| previous_gpa | NUMERIC(5,2) | nullable; CHECK 0–100 — المعدل |
+| previous_study_track | SMALLINT | nullable; CHECK IN (1–6) — 1=علمي، 2=أدبي، 3=صناعي، 4=تجاري، 5=مهني، 6=متوسطة |
 | status | SMALLINT | NOT NULL DEFAULT 1; CHECK 1–9 (see ApplicationStatus) |
 | submitted_at | TIMESTAMPTZ | |
 | reviewed_by | BIGINT | FK → public.users, nullable |

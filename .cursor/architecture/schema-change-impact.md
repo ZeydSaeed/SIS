@@ -190,6 +190,18 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-09-25 student_documents admission ID types
+
+| Item | Value |
+|------|-------|
+| Class | Low |
+| Table | `students.student_documents` |
+| Change | Expand CHECK `document_type` to include 11–19 (national ID / residence / graduation scans) |
+| Risk | Additive constraint widen only; existing rows remain valid |
+| Blueprint | Updated |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

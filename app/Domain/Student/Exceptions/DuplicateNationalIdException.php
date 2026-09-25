@@ -8,6 +8,17 @@ final class DuplicateNationalIdException extends SisDomainException
 {
     public static function forNationalId(string $nationalId): self
     {
-        return new self("National ID {$nationalId} is already registered.", 'student.national_id_exists');
+        return new self(
+            "الرقم الوطني {$nationalId} مسجّل مسبقاً لطالب موجود.",
+            'student.national_id_exists',
+        );
+    }
+
+    public static function forNationalIdInOtherSchool(string $nationalId): self
+    {
+        return new self(
+            "الرقم الوطني {$nationalId} مسجّل مسبقاً لطالب في مدرسة أخرى.",
+            'student.national_id_exists',
+        );
     }
 }

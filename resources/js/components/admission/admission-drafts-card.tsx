@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Home, Pencil, Save, Trash2 } from 'lucide-react';
 import {
     forwardRef,
@@ -25,9 +25,11 @@ import {
     ADMISSION_STATUS_CONVERTED,
     ADMISSION_STATUS_DRAFT,
     ADMISSION_STATUS_INTERVIEW,
+    ADMISSION_STATUS_REJECTED,
     ADMISSION_STATUS_SUBMITTED,
     ADMISSION_STATUS_UNDER_REVIEW,
     ADMISSION_STATUS_WAITLISTED,
+    ADMISSION_STATUS_WITHDRAWN,
     admissionAllowedTransitions,
     admissionApplicationFullName,
     admissionCanConvert,
@@ -47,7 +49,7 @@ import {
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { t } from '@/i18n';
 
-const ADMISSION_STATUS_WITHDRAWN = 8;
+
 
 function visiblePages(current: number, totalPages: number): number[] {
     const windowSize = 5;
@@ -111,6 +113,15 @@ function documentTypeLabel(type: number): string {
     if (type === 1) return i18n.documentTypeId;
     if (type === 2) return i18n.documentTypeBirth;
     if (type === 3) return i18n.documentTypePhoto;
+    if (type === 11) return i18n.docStudentIdFront;
+    if (type === 12) return i18n.docStudentIdBack;
+    if (type === 13) return i18n.docFatherIdFront;
+    if (type === 14) return i18n.docFatherIdBack;
+    if (type === 15) return i18n.docMotherIdFront;
+    if (type === 16) return i18n.docMotherIdBack;
+    if (type === 17) return i18n.docResidenceFront;
+    if (type === 18) return i18n.docResidenceBack;
+    if (type === 19) return i18n.docGraduationCertificate;
     return i18n.documentTypeOther;
 }
 
@@ -500,6 +511,10 @@ export function AdmissionDraftsCard({
                 return i18n.admission.emptyWaitlisted;
             case ADMISSION_STATUS_ACCEPTED:
                 return i18n.admission.emptyAccepted;
+            case ADMISSION_STATUS_REJECTED:
+                return i18n.admission.emptyRejected;
+            case ADMISSION_STATUS_WITHDRAWN:
+                return i18n.admission.emptyWithdrawn;
             case ADMISSION_STATUS_CONVERTED:
                 return i18n.admission.emptyConverted;
             default:
@@ -637,10 +652,11 @@ export function AdmissionDraftsCard({
             {
                 application_ids: actionIds,
                 to_status: toStatus,
+                academic_year_id: academicYearId,
             },
             {
-                preserveScroll: true,
-                preserveState: true,
+                preserveScroll: toStatus !== ADMISSION_STATUS_ACCEPTED,
+                preserveState: toStatus !== ADMISSION_STATUS_ACCEPTED,
                 onSuccess: () => {
                     setCheckedIds([]);
                     setSelectedId(null);
@@ -650,7 +666,7 @@ export function AdmissionDraftsCard({
                 onFinish: () => setTransitioning(false),
             },
         );
-    }, [actionIds, canApplyTransition, i18n.errors.convertFailed, i18n.errors.transitionFailed, showInertiaErrors]);
+    }, [academicYearId, actionIds, canApplyTransition, i18n.errors.convertFailed, i18n.errors.transitionFailed, showInertiaErrors]);
 
     const goPage = useCallback(
         (page: number) => {
@@ -786,6 +802,24 @@ export function AdmissionDraftsCard({
 
     return (
         <section aria-label={stageLabel} className="flex min-h-0 flex-1 flex-col gap-3">
+            {homeHref ? (
+                <div className="sis-admission-drafts-table-home">
+                    <Link
+                        href={homeHref}
+                        prefetch
+                        className="sis-admission-drafts-home"
+                        aria-label={i18n.admission.backToAdmission}
+                    >
+                        <ion-icon
+                            name="arrow-up-right-box-outline"
+                            class="sis-admission-drafts-home__ion"
+                            dir="ltr"
+                            flip-rtl="false"
+                            aria-hidden="true"
+                        ></ion-icon>
+                    </Link>
+                </div>
+            ) : null}
             {rows.length === 0 ? (
                 <p className="text-sm">{emptyMessage}</p>
             ) : (

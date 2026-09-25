@@ -92,6 +92,17 @@ export type AdmissionPagination = {
     total_pages: number;
 };
 
+export type AdmissionAcceptedStudent = {
+    id: number;
+    full_name: string;
+    academic_year_id: number;
+    academic_year_name: string;
+    period_id: number;
+    period_name: string;
+};
+
+export type AdmissionPeriodCounts = Record<number, { total: number; submitted: number }>;
+
 export type AdmissionWorkspace = {
     periods: AdmissionPeriod[];
     applications: AdmissionApplication[];
@@ -108,6 +119,8 @@ export type AdmissionWorkspace = {
     pagination?: AdmissionPagination;
     /** Shared once — use instead of per-row allowed_transitions. */
     status_transitions?: Record<number, number[]>;
+    accepted_students?: AdmissionAcceptedStudent[];
+    period_counts?: AdmissionPeriodCounts;
 };
 
 export type AdmissionPageAuthorization = {
@@ -122,18 +135,17 @@ export const ADMISSION_STATUS_UNDER_REVIEW = 3;
 export const ADMISSION_STATUS_INTERVIEW = 4;
 export const ADMISSION_STATUS_WAITLISTED = 5;
 export const ADMISSION_STATUS_ACCEPTED = 6;
+export const ADMISSION_STATUS_REJECTED = 7;
+export const ADMISSION_STATUS_WITHDRAWN = 8;
 export const ADMISSION_STATUS_CONVERTED = 9;
 export const ADMISSION_STATUS_REQUEST = 0;
 
-/** Stage workspace routes — draft/submitted + pipeline pages. */
+/** Stage workspace routes shown on the admission ribbon (no draft / converted / withdrawn / rejected). */
 export const ADMISSION_STAGE_PATHS: Record<number, string> = {
-    [ADMISSION_STATUS_DRAFT]: '/admission/drafts',
     [ADMISSION_STATUS_SUBMITTED]: '/admission/submitted',
     [ADMISSION_STATUS_UNDER_REVIEW]: '/admission/under-review',
     [ADMISSION_STATUS_INTERVIEW]: '/admission/interview',
     [ADMISSION_STATUS_WAITLISTED]: '/admission/waitlisted',
-    [ADMISSION_STATUS_ACCEPTED]: '/admission/accepted',
-    [ADMISSION_STATUS_CONVERTED]: '/admission/converted',
 };
 
 export const ADMISSION_PERIOD_FILTER_ALL = 0;

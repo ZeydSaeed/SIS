@@ -20,6 +20,8 @@ final readonly class AdmissionWorkspaceDTO
      * @param  list<array{id:int, name:string, start_date:string, max_applications:?int, total_count:int, submitted_count:int, remaining:?int}>  $activePeriods
      * @param  array{page:int, per_page:int, total:int, total_pages:int}  $pagination
      * @param  array<int, list<int>>  $statusTransitions
+     * @param  list<array{id:int, full_name:string, academic_year_name:string, period_name:string, academic_year_id:int, period_id:int}>  $acceptedStudents
+     * @param  array<int, array{total:int, submitted:int}>  $periodCounts
      */
     public function __construct(
         public array $periods,
@@ -41,6 +43,8 @@ final readonly class AdmissionWorkspaceDTO
             'total_pages' => 1,
         ],
         public array $statusTransitions = [],
+        public array $acceptedStudents = [],
+        public array $periodCounts = [],
     ) {}
 
     /**
@@ -71,6 +75,8 @@ final readonly class AdmissionWorkspaceDTO
             'selected_period_id' => $this->selectedPeriodId,
             'pagination' => $this->pagination,
             'status_transitions' => $this->statusTransitions,
+            'accepted_students' => $this->acceptedStudents,
+            'period_counts' => $this->periodCounts,
         ];
     }
 }

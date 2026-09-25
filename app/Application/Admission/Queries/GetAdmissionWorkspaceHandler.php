@@ -73,6 +73,8 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
                 'total_pages' => 1,
             ],
             statusTransitions: $this->statusTransitions(),
+            acceptedStudents: $workspace['accepted_students'] ?? [],
+            periodCounts: $workspace['period_counts'] ?? [],
         );
     }
 
@@ -115,10 +117,15 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             ['status' => 0, 'percent' => $totalApps === 0 ? 0 : 100, 'count' => $totalApps],
         ];
         foreach ($pipeline as $status) {
+            $count = (int) ($statusCounts[$status] ?? 0);
+            // Ribbon «الطلبة المقبولين» shows accepted + converted (auto-convert on accept).
+            if ($status === ApplicationStatus::Accepted->value) {
+                $count += (int) ($statusCounts[ApplicationStatus::Converted->value] ?? 0);
+            }
             $stages[] = [
                 'status' => $status,
                 'percent' => $calculated['stage_percents'][$status] ?? 0,
-                'count' => (int) ($statusCounts[$status] ?? 0),
+                'count' => $count,
             ];
         }
 

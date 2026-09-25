@@ -4,6 +4,7 @@ namespace Tests\Unit\Admission;
 
 use App\Application\Admission\Commands\BulkTransitionApplicationStatusCommand;
 use App\Application\Admission\Commands\BulkTransitionApplicationStatusHandler;
+use App\Application\Admission\Support\AcceptedApplicationStudentConverter;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
@@ -45,6 +46,69 @@ class BulkTransitionApplicationStatusHandlerTest extends TestCase
         $this->assertSame([11, 12], $result->applicationIds);
         $this->assertSame(ApplicationStatus::Submitted->value, $result->toStatus);
         $this->assertSame(2, $result->count);
+    }
+
+    public function test_accept_converts_each_application_to_student(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findApplicationForSchool')->willReturnCallback(
+            fn (int $id): array => $this->applicationRow($id, ApplicationStatus::UnderReview->value),
+        );
+        $admission->expects($this->exactly(2))->method('transitionApplicationStatus');
+
+        $convert = $this->createMock(AcceptedApplicationStudentConverter::class);
+        $convert->expects($this->exactly(2))->method('convert')->with(
+            $this->equalTo(1),
+            $this->logicalOr($this->equalTo(11), $this->equalTo(12)),
+            $this->equalTo(7),
+            $this->isNull(),
+        );
+
+        $result = $this->handler($admission, convert: $convert)->handle(new BulkTransitionApplicationStatusCommand(
+            schoolId: 1,
+            applicationIds: [11, 12],
+            toStatus: ApplicationStatus::Accepted->value,
+            reviewedBy: 7,
+        ));
+
+        $this->assertTrue($result->success);
+        $this->assertSame(ApplicationStatus::Accepted->value, $result->toStatus);
+    }
+
+    public function test_accept_reverts_status_when_convert_fails(): void
+    {
+        $calls = [];
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findApplicationForSchool')->willReturn(
+            $this->applicationRow(11, ApplicationStatus::UnderReview->value),
+        );
+        $admission->expects($this->exactly(2))->method('transitionApplicationStatus')->willReturnCallback(
+            function (int $id, int $status) use (&$calls): void {
+                $calls[] = [$id, $status];
+            },
+        );
+
+        $convert = $this->createMock(AcceptedApplicationStudentConverter::class);
+        $convert->expects($this->once())->method('convert')->willThrowException(
+            new DomainException('تعذر التحويل'),
+        );
+
+        try {
+            $this->handler($admission, convert: $convert)->handle(new BulkTransitionApplicationStatusCommand(
+                schoolId: 1,
+                applicationIds: [11],
+                toStatus: ApplicationStatus::Accepted->value,
+                reviewedBy: 7,
+            ));
+            $this->fail('Expected DomainException was not thrown.');
+        } catch (DomainException $exception) {
+            $this->assertSame('تعذر التحويل', $exception->getMessage());
+        }
+
+        $this->assertSame([
+            [11, ApplicationStatus::Accepted->value],
+            [11, ApplicationStatus::UnderReview->value],
+        ], $calls);
     }
 
     public function test_rejects_empty_selection(): void
@@ -143,11 +207,17 @@ class BulkTransitionApplicationStatusHandlerTest extends TestCase
     private function handler(
         AdmissionRepositoryInterface $admission,
         ?OutboxRepository $outbox = null,
+        ?AcceptedApplicationStudentConverter $convert = null,
     ): BulkTransitionApplicationStatusHandler {
         $unitOfWork = $this->createMock(UnitOfWork::class);
         $unitOfWork->method('transaction')->willReturnCallback(
             static fn (callable $callback) => $callback(),
         );
+
+        if ($convert === null) {
+            $convert = $this->createMock(AcceptedApplicationStudentConverter::class);
+            $convert->expects($this->never())->method('convert');
+        }
 
         return new BulkTransitionApplicationStatusHandler(
             $unitOfWork,
@@ -155,6 +225,7 @@ class BulkTransitionApplicationStatusHandlerTest extends TestCase
             new BulkApplicationTransitionGuard($admission),
             $outbox ?? $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            $convert,
         );
     }
 }

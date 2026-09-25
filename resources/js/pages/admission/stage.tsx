@@ -27,6 +27,8 @@ type PageProps = {
             | 'statusInterview'
             | 'statusWaitlisted'
             | 'statusAccepted'
+            | 'statusWithdrawn'
+            | 'statusRejected'
             | 'statusConverted';
     };
 };

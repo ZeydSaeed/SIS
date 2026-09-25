@@ -34,7 +34,7 @@ class UploadStudentDocumentRequest extends FormRequest
         ]);
 
         return array_merge([
-            'document_type' => ['required', 'integer', 'in:1,2,3,4,9'],
+            'document_type' => ['required', 'integer', 'in:1,2,3,4,9,11,12,13,14,15,16,17,18,19'],
             'file' => ['required', 'file', 'max:'.$maxKb, 'mimetypes:'.implode(',', $mimes)],
             'student_id' => ['prohibited'],
             'school_id' => ['prohibited'],

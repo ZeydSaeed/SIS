@@ -137,7 +137,75 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'total' => $total,
                 'total_pages' => $totalPages,
             ],
+            'accepted_students' => $this->loadAcceptedStudents(
+                $schoolId,
+                $academicYearId,
+                $applicationPeriodId,
+            ),
         ];
+    }
+
+    /**
+     * Converted applicants linked to a student row (ribbon «الطلبة المقبولين»).
+     *
+     * @return list<array{id:int, full_name:string, academic_year_id:int, academic_year_name:string, period_id:int, period_name:string}>
+     */
+    private function loadAcceptedStudents(
+        int $schoolId,
+        int $academicYearId,
+        ?int $applicationPeriodId,
+    ): array {
+        unset($applicationPeriodId);
+        $apps = SchemaHelper::qualified('admission', 'applications');
+        $periods = SchemaHelper::qualified('admission', 'application_periods');
+        $years = SchemaHelper::qualified('academic', 'academic_years');
+
+        // School-wide roster for the dialog filters (year + period).
+        $query = DB::table($apps.' as apps')
+            ->join($periods.' as periods', 'periods.id', '=', 'apps.application_period_id')
+            ->join($years.' as years', 'years.id', '=', 'periods.academic_year_id')
+            ->where('periods.school_id', $schoolId)
+            ->where('apps.status', ApplicationStatus::Converted->value)
+            ->whereNotNull('apps.student_id')
+            ->select([
+                'apps.id',
+                'apps.first_name',
+                'apps.father_name',
+                'apps.grandfather_name',
+                'apps.great_grandfather_name',
+                'apps.last_name',
+                'periods.id as period_id',
+                'periods.name as period_name',
+                'years.id as academic_year_id',
+                'years.name as academic_year_name',
+            ]);
+
+        if ($academicYearId > 0) {
+            $query->orderByRaw('case when periods.academic_year_id = ? then 0 else 1 end', [$academicYearId]);
+        }
+
+        return $query
+            ->orderByDesc('apps.id')
+            ->limit(500)
+            ->get()
+            ->map(static function ($row): array {
+            $parts = array_filter([
+                (string) $row->first_name,
+                $row->father_name !== null ? (string) $row->father_name : null,
+                $row->grandfather_name !== null ? (string) $row->grandfather_name : null,
+                $row->great_grandfather_name !== null ? (string) $row->great_grandfather_name : null,
+                (string) $row->last_name,
+            ], static fn (?string $part): bool => $part !== null && trim($part) !== '');
+
+            return [
+                'id' => (int) $row->id,
+                'full_name' => implode(' ', $parts),
+                'academic_year_id' => (int) $row->academic_year_id,
+                'academic_year_name' => (string) $row->academic_year_name,
+                'period_id' => (int) $row->period_id,
+                'period_name' => (string) $row->period_name,
+            ];
+        })->all();
     }
 
     /**

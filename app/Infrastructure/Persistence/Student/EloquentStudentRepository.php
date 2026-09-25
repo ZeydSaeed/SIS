@@ -134,6 +134,16 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         return $query->exists();
     }
 
+    public function findIdByNationalIdForSchool(string $nationalId, int $schoolId): ?int
+    {
+        $id = StudentRecord::query()
+            ->where('national_id', $nationalId)
+            ->where('school_id', $schoolId)
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
+    }
+
     public function generateStudentCode(): string
     {
         $next = ((int) StudentRecord::query()->max('id')) + 1;

@@ -70,6 +70,13 @@ interface AdmissionRepositoryInterface
      */
     public function findApplicationForSchool(int $applicationId, int $schoolId): ?array;
 
+    /**
+     * Accepted applications that never received a student row (failed convert leftovers).
+     *
+     * @return list<int>
+     */
+    public function findAcceptedApplicationIdsWithoutStudent(int $schoolId): array;
+
     public function updateDraft(UpdateApplicationDraftData $data): void;
 
     public function transitionApplicationStatus(

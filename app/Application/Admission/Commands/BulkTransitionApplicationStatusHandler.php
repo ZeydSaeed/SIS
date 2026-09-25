@@ -3,6 +3,7 @@
 namespace App\Application\Admission\Commands;
 
 use App\Application\Admission\Results\BulkTransitionApplicationStatusResult;
+use App\Application\Admission\Support\AcceptedApplicationStudentConverter;
 use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
@@ -11,6 +12,7 @@ use App\Application\Contracts\UnitOfWork;
 use App\Domain\Admission\Events\ApplicationStatusTransitioned;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\Services\BulkApplicationTransitionGuard;
+use App\Domain\Admission\ValueObjects\ApplicationStatus;
 
 final class BulkTransitionApplicationStatusHandler implements CommandHandler
 {
@@ -22,6 +24,7 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
         private readonly BulkApplicationTransitionGuard $guard,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly AcceptedApplicationStudentConverter $convertAccepted,
     ) {}
 
     public function handle(Command $command): BulkTransitionApplicationStatusResult
@@ -64,6 +67,40 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
                 ));
             }
         });
+
+        if ($to === ApplicationStatus::Accepted) {
+            $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
+
+            $fromById = [];
+            foreach ($prepared as $item) {
+                $fromById[$item['id']] = $item['from'];
+            }
+
+            foreach ($applicationIds as $applicationId) {
+                try {
+                    $this->convertAccepted->convert(
+                        schoolId: $command->schoolId,
+                        applicationId: $applicationId,
+                        reviewedBy: $command->reviewedBy,
+                        idempotencyKey: $command->idempotencyKey !== null
+                            ? $command->idempotencyKey.':convert:'.$applicationId
+                            : null,
+                    );
+                } catch (\Throwable $exception) {
+                    $from = $fromById[$applicationId] ?? null;
+                    if ($from instanceof ApplicationStatus) {
+                        $this->admission->transitionApplicationStatus(
+                            $applicationId,
+                            $from->value,
+                            $command->reviewedBy,
+                            $command->notes,
+                        );
+                    }
+
+                    throw $exception;
+                }
+            }
+        }
 
         if ($command->idempotencyKey !== null) {
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [

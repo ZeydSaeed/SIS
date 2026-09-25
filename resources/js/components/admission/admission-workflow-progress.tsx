@@ -3,11 +3,11 @@ import {
     CheckCircle2,
     ClipboardList,
     Clock3,
-    FilePenLine,
     FilePlus2,
-    GraduationCap,
     MessagesSquare,
     Send,
+    UserMinus,
+    XCircle,
 } from 'lucide-react';
 import type {
     AdmissionWorkflowProgress as WorkflowProgressData,
@@ -29,25 +29,25 @@ const ADMISSION_REQUEST_STEP: AdmissionWorkflowStep = { status: 0, key: 'Admissi
 
 const STAGE_ICONS: Record<number, LucideIcon> = {
     0: FilePlus2,
-    1: FilePenLine,
     2: Send,
     3: ClipboardList,
     4: MessagesSquare,
     5: Clock3,
     6: CheckCircle2,
-    9: GraduationCap,
+    7: XCircle,
+    8: UserMinus,
 };
 
 /** Stages with light backgrounds use dark text; dark backgrounds use white. */
 const STAGE_TONE: Record<number, 'light' | 'dark'> = {
     0: 'dark',
-    1: 'dark',
     2: 'light',
     3: 'light',
     4: 'dark',
     5: 'light',
     6: 'dark',
-    9: 'dark',
+    7: 'dark',
+    8: 'dark',
 };
 
 function labelForStatus(status: number): string {
@@ -59,7 +59,9 @@ function labelForStatus(status: number): string {
         3: i18n.statusUnderReview,
         4: i18n.statusInterview,
         5: i18n.statusWaitlisted,
-        6: i18n.statusAccepted,
+        6: i18n.statusAcceptedStudents,
+        7: i18n.statusRejected,
+        8: i18n.statusWithdrawn,
         9: i18n.statusConverted,
     };
     return map[status] ?? String(status);
@@ -96,7 +98,7 @@ function buildStages(
     return steps.map((step) => ({
         status: step.status,
         label: labelForStatus(step.status),
-        icon: STAGE_ICONS[step.status] ?? FilePenLine,
+        icon: STAGE_ICONS[step.status] ?? ClipboardList,
         percent: percentForStatus(step.status, progress),
         count: countForStatus(step.status, progress),
         tone: STAGE_TONE[step.status] ?? 'light',
@@ -118,10 +120,13 @@ export function AdmissionWorkflowProgress({
     onStageSelect,
 }: Props) {
     const i18n = t();
+    const ribbonSteps = steps.filter(
+        (step) => step.status !== 1 && step.status !== 7 && step.status !== 8 && step.status !== 9,
+    );
     const displaySteps =
-        steps[0]?.status === ADMISSION_REQUEST_STEP.status
-            ? steps
-            : [ADMISSION_REQUEST_STEP, ...steps];
+        ribbonSteps[0]?.status === ADMISSION_REQUEST_STEP.status
+            ? ribbonSteps
+            : [ADMISSION_REQUEST_STEP, ...ribbonSteps];
     const stages = buildStages(displaySteps, progress ?? { overall_percent: 0, stages: [] });
     const overallPercent = clampPercent(progress?.overall_percent ?? 0);
 
@@ -144,7 +149,9 @@ export function AdmissionWorkflowProgress({
                                 title={
                                     stage.status === 0
                                         ? i18n.admission.draftDialogTitle
-                                        : i18n.admission.stageFilterHint
+                                        : stage.status === 6
+                                            ? i18n.admission.acceptedStudentsDialogTitle
+                                            : i18n.admission.stageFilterHint
                                 }
                                 onClick={() => onStageSelect?.(stage.status)}
                             >
@@ -175,6 +182,7 @@ export function AdmissionWorkflowProgress({
                     aria-valuemax={100}
                     aria-valuenow={overallPercent}
                     data-contrast={overallPercent >= 45 ? 'light' : 'dark'}
+                    dir="rtl"
                 >
                     <span
                         className="sis-admission-progress__overall-fill"

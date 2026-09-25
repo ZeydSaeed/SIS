@@ -70,6 +70,7 @@ function yearBounds(year: YearOption | undefined): { start?: string; end?: strin
 
 type Props = {
     periods: AdmissionPeriodRow[];
+    periodCounts?: Record<number, { total: number; submitted: number }>;
     academicYearId: number | null;
     canManage: boolean;
 };
@@ -125,17 +126,32 @@ export type PeriodRowHandle = {
 
 type PeriodEditorRowProps = {
     period: AdmissionPeriodRow;
+    serial: number;
     years: YearOption[];
     canManage: boolean;
     selected: boolean;
     editing: boolean;
     searchQuery: string;
+    submittedCount: number;
+    remaining: number | null;
     onSelect: (periodId: number) => void;
     onSaved: () => void;
 };
 
 const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(function PeriodEditorRow(
-    { period, years, canManage, selected, editing, searchQuery, onSelect, onSaved },
+    {
+        period,
+        serial,
+        years,
+        canManage,
+        selected,
+        editing,
+        searchQuery,
+        submittedCount,
+        remaining,
+        onSelect,
+        onSaved,
+    },
     ref,
 ) {
     const i18n = t().admission;
@@ -240,7 +256,24 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
             onClick={() => onSelect(period.id)}
         >
             <td className="sis-admission-periods-table__num">
-                <span dir="ltr">{period.id}</span>
+                <span dir="ltr">{serial}</span>
+            </td>
+            <td className="sis-admission-periods-table__year">
+                {editing ? (
+                    <SisListSelect
+                        value={String(academicYearId)}
+                        options={years.map((year) => ({
+                            value: String(year.id),
+                            label: formatAcademicYearOptionLabel(year.name, year.code),
+                        }))}
+                        onChange={(next) => setAcademicYearId(Number(next))}
+                        triggerClassName="sis-ops-hub__link"
+                        dir="ltr"
+                        ariaLabel={i18n.academicYear}
+                    />
+                ) : (
+                    <span dir="ltr">{yearLabel}</span>
+                )}
             </td>
             <td>
                 {editing ? (
@@ -311,22 +344,11 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                     <span dir="ltr">{period.max_applications ?? '—'}</span>
                 )}
             </td>
-            <td className="sis-admission-periods-table__year">
-                {editing ? (
-                    <SisListSelect
-                        value={String(academicYearId)}
-                        options={years.map((year) => ({
-                            value: String(year.id),
-                            label: formatAcademicYearOptionLabel(year.name, year.code),
-                        }))}
-                        onChange={(next) => setAcademicYearId(Number(next))}
-                        triggerClassName="sis-ops-hub__link"
-                        dir="ltr"
-                        ariaLabel={i18n.academicYear}
-                    />
-                ) : (
-                    <span dir="ltr">{yearLabel}</span>
-                )}
+            <td className="sis-admission-periods-table__num" dir="ltr">
+                {submittedCount}
+            </td>
+            <td className="sis-admission-periods-table__num" dir="ltr">
+                {remaining === null ? i18n.unlimitedCapacity : remaining}
             </td>
             <td
                 className="sis-admission-periods-table__status"
@@ -354,7 +376,12 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
     );
 });
 
-export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Props) {
+export function AdmissionPeriodsCard({
+    periods,
+    periodCounts = {},
+    academicYearId,
+    canManage,
+}: Props) {
     const i18n = t();
     const { showInertiaErrors } = usePageError();
     const searchQuery = useAdmissionSearchQuery();
@@ -521,10 +548,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
 
     return (
         <section aria-label={i18n.admission.periodsTitle} className="sis-admission-periods">
-            <h2 className="sis-ops-hub__section-title sis-admission-periods-title text-base">
-                {i18n.admission.periodsTitle}
-            </h2>
-            <div className="sis-admission-period-card">
+            <div className="sis-admission-period-panel">
                 {canManage ? (
                     <Form
                         action="/admission/periods"
@@ -535,6 +559,27 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                     >
                         {({ errors, processing }) => (
                             <>
+                                <OpsFormField
+                                    label={i18n.admission.academicYear}
+                                    name="academic_year_id"
+                                    error={errors.academic_year_id}
+                                >
+                                    <SisListSelect
+                                        name="academic_year_id"
+                                        required
+                                        value={createYearId === null ? '' : String(createYearId)}
+                                        options={years.map((year) => ({
+                                            value: String(year.id),
+                                            label: formatAcademicYearOptionLabel(year.name, year.code),
+                                        }))}
+                                        onChange={(next) =>
+                                            setCreateYearId(next === '' ? null : Number(next))
+                                        }
+                                        triggerClassName="sis-ops-hub__link"
+                                        dir="ltr"
+                                        ariaLabel={i18n.admission.academicYear}
+                                    />
+                                </OpsFormField>
                                 <OpsFormField
                                     label={i18n.admission.periodName}
                                     name="name"
@@ -582,28 +627,7 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                                         error={errors.max_applications}
                                     />
                                 </OpsFormField>
-                                <OpsFormField
-                                    label={i18n.admission.academicYear}
-                                    name="academic_year_id"
-                                    error={errors.academic_year_id}
-                                >
-                                    <SisListSelect
-                                        name="academic_year_id"
-                                        required
-                                        value={createYearId === null ? '' : String(createYearId)}
-                                        options={years.map((year) => ({
-                                            value: String(year.id),
-                                            label: formatAcademicYearOptionLabel(year.name, year.code),
-                                        }))}
-                                        onChange={(next) =>
-                                            setCreateYearId(next === '' ? null : Number(next))
-                                        }
-                                        triggerClassName="sis-ops-hub__link"
-                                        dir="ltr"
-                                        ariaLabel={i18n.admission.academicYear}
-                                    />
-                                </OpsFormField>
-                                <div className="sis-admission-period-card__submit">
+                                <div className="sis-admission-period-panel__submit">
                                     <Button
                                         type="submit"
                                         size="sm"
@@ -625,37 +649,55 @@ export function AdmissionPeriodsCard({ periods, academicYearId, canManage }: Pro
                 ) : (
                     <div className="sis-admission-periods-table">
                         <div className="sis-admission-periods-table__scroller" data-allow-x-scroll>
-                        <table ref={tableRef}>
-                            <thead>
-                                <tr>
-                                    <th className="sis-admission-periods-table__num">#</th>
-                                    <th>{i18n.admission.periodName}</th>
-                                    <th>{i18n.admission.startDate}</th>
-                                    <th>{i18n.admission.endDate}</th>
-                                    <th className="sis-admission-periods-table__max">
-                                        {i18n.admission.maxApplications}
-                                    </th>
-                                    <th>{i18n.admission.academicYear}</th>
-                                    <th>{i18n.admission.periodStatus}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {visible.map((period) => (
-                                    <PeriodEditorRow
-                                        key={period.id}
-                                        ref={selectedId === period.id ? selectedRowRef : null}
-                                        period={period}
-                                        years={years}
-                                        canManage={canManage}
-                                        selected={selectedId === period.id}
-                                        editing={editing && selectedId === period.id}
-                                        searchQuery={searchQuery}
-                                        onSelect={selectRow}
-                                        onSaved={exitEditing}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                            <table ref={tableRef}>
+                                <thead>
+                                    <tr>
+                                        <th className="sis-admission-periods-table__num">#</th>
+                                        <th>{i18n.admission.academicYear}</th>
+                                        <th>{i18n.admission.periodName}</th>
+                                        <th>{i18n.admission.startDate}</th>
+                                        <th>{i18n.admission.endDate}</th>
+                                        <th className="sis-admission-periods-table__max">
+                                            {i18n.admission.maxApplications}
+                                        </th>
+                                        <th>{i18n.admission.periodApplicationsCount}</th>
+                                        <th>{i18n.admission.remainingInPeriod}</th>
+                                        <th className="sis-admission-periods-table__status">
+                                            {i18n.admission.periodStatus}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {visible.map((period, index) => {
+                                        const counts = periodCounts[period.id] ?? {
+                                            total: 0,
+                                            submitted: 0,
+                                        };
+                                        const remaining =
+                                            period.max_applications === null
+                                                ? null
+                                                : Math.max(0, period.max_applications - counts.total);
+
+                                        return (
+                                            <PeriodEditorRow
+                                                key={period.id}
+                                                ref={selectedId === period.id ? selectedRowRef : null}
+                                                period={period}
+                                                serial={index + 1}
+                                                years={years}
+                                                canManage={canManage}
+                                                selected={selectedId === period.id}
+                                                editing={editing && selectedId === period.id}
+                                                searchQuery={searchQuery}
+                                                submittedCount={counts.submitted}
+                                                remaining={remaining}
+                                                onSelect={selectRow}
+                                                onSaved={exitEditing}
+                                            />
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}

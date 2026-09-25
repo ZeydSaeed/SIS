@@ -48,6 +48,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/interview', [AdmissionPageController::class, 'interview'])->name('interview');
         Route::get('/waitlisted', [AdmissionPageController::class, 'waitlisted'])->name('waitlisted');
         Route::get('/accepted', [AdmissionPageController::class, 'accepted'])->name('accepted');
+        Route::get('/withdrawn', [AdmissionPageController::class, 'withdrawn'])->name('withdrawn');
+        Route::get('/rejected', [AdmissionPageController::class, 'rejected'])->name('rejected');
         Route::get('/converted', [AdmissionPageController::class, 'converted'])->name('converted');
         Route::post('/periods', [AdmissionPageController::class, 'storePeriod'])->name('periods.store');
         Route::put('/periods/{period}', [AdmissionPageController::class, 'updatePeriod'])

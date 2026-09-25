@@ -79,20 +79,20 @@ enum ApplicationStatus: int
     }
 
     /**
-     * Ordered pipeline steps for UI (excludes terminal reject/withdraw).
+     * Ordered pipeline steps for UI ribbon.
+     * Excludes Draft (via «طلب قبول»), Converted (Accepted → student),
+     * and terminal Withdrawn / Rejected (not ribbon buttons).
      *
      * @return list<self>
      */
     public static function pipelineSteps(): array
     {
         return [
-            self::Draft,
             self::Submitted,
             self::UnderReview,
             self::Interview,
             self::Waitlisted,
             self::Accepted,
-            self::Converted,
         ];
     }
 }
