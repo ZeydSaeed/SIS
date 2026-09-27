@@ -24,10 +24,11 @@ final class FoundationReference
 
     public const TERM_TWO_CODE = 'T2';
 
+    /** Arabic grade labels aligned with SIS class SSOT (الأول / الثاني / الثالث). */
     /** @var list<array{code: string, name: string, level_order: int, education_stage: int}> */
     public const GRADE_LEVELS = [
-        ['code' => 'G10', 'name' => 'Grade 10', 'level_order' => 10, 'education_stage' => 3],
-        ['code' => 'G11', 'name' => 'Grade 11', 'level_order' => 11, 'education_stage' => 3],
-        ['code' => 'G12', 'name' => 'Grade 12', 'level_order' => 12, 'education_stage' => 3],
+        ['code' => 'G1', 'name' => 'الأول', 'level_order' => 1, 'education_stage' => 3],
+        ['code' => 'G2', 'name' => 'الثاني', 'level_order' => 2, 'education_stage' => 3],
+        ['code' => 'G3', 'name' => 'الثالث', 'level_order' => 3, 'education_stage' => 3],
     ];
 }

@@ -41,6 +41,9 @@ final class PersistConvertedStudentViaAdmission
         $schoolName = is_array($application) && is_string($application['school_name'] ?? null)
             ? $application['school_name']
             : null;
+        $resolvedBranchId = is_array($application) && isset($application['branch_id']) && $application['branch_id'] !== null
+            ? (int) $application['branch_id']
+            : $command->branchId;
 
         $studentId = $this->students->saveNew(
             RegisterStudentViaAdmissionMapper::toCreateStudentData(
@@ -49,6 +52,7 @@ final class PersistConvertedStudentViaAdmission
                 $fullName,
                 $period['academic_year_id'],
                 $schoolName,
+                $resolvedBranchId,
             ),
         );
 

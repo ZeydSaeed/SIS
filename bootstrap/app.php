@@ -70,11 +70,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 abort(404, $exception->getMessage());
             }
 
-            // Inertia ops pages: flash a single error for the shared error dialog.
+            // Inertia ops pages: flash domain code so the UI can localize it.
             return redirect()
                 ->back()
                 ->withInput()
-                ->with('error', $exception->getMessage());
+                ->with('error', $exception->errorCode());
         });
 
         $exceptions->render(function (\DomainException $exception, Request $request) {

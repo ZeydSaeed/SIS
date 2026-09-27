@@ -60,7 +60,10 @@ final class RegisterStudentViaAdmissionMapper
         string $fullName,
         int $academicYearId,
         ?string $schoolName,
+        ?int $resolvedBranchId = null,
     ): CreateStudentData {
+        $admittedClass = trim($command->intendedGradeName);
+
         return new CreateStudentData(
             studentCode: $studentCode,
             firstName: $command->firstName,
@@ -79,10 +82,10 @@ final class RegisterStudentViaAdmissionMapper
             birthPlace: $command->birthPlace,
             governorate: $command->governorate,
             neighborhood: $command->neighborhood,
-            admittedClassName: $command->intendedGradeName,
+            admittedClassName: $admittedClass !== '' ? $admittedClass : null,
             notes: $command->notes,
             schoolName: $schoolName,
-            branchId: $command->branchId,
+            branchId: $resolvedBranchId ?? $command->branchId,
             departmentName: $command->departmentName,
             specializationName: $command->specializationName,
             schoolId: $command->schoolId,

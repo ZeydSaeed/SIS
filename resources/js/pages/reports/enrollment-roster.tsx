@@ -47,11 +47,6 @@ export default function EnrollmentRosterReport({ enrollments, filters }: PagePro
 
     const columns: DataTableColumn<EnrollmentRow>[] = [
         {
-            id: 'enrollment_number',
-            header: i18n.enrollments.enrollmentNumber,
-            cell: (row) => <span dir="ltr">{row.enrollment_number}</span>,
-        },
-        {
             id: 'student_id',
             header: i18n.enrollments.student,
             cell: (row) => <span dir="ltr">{row.student_id}</span>,
@@ -116,9 +111,6 @@ export default function EnrollmentRosterReport({ enrollments, filters }: PagePro
                     mobileCard={(row) => (
                         <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3">
                             <div className="font-semibold">
-                                <span dir="ltr">{row.enrollment_number}</span>
-                            </div>
-                            <div className="text-sm opacity-80">
                                 {i18n.enrollments.student}{' '}
                                 <span dir="ltr">{row.student_id}</span>
                             </div>

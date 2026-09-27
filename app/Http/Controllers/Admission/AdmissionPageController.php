@@ -18,6 +18,8 @@ use App\Application\Admission\Commands\RegisterStudentViaAdmissionCommand;
 use App\Application\Admission\Commands\RegisterStudentViaAdmissionHandler;
 use App\Application\Admission\Commands\TransitionApplicationStatusCommand;
 use App\Application\Admission\Commands\TransitionApplicationStatusHandler;
+use App\Application\Admission\Commands\UpdateApplicationFollowUpCommand;
+use App\Application\Admission\Commands\UpdateApplicationFollowUpHandler;
 use App\Application\Admission\Commands\UpdateApplicationDraftCommand;
 use App\Application\Admission\Commands\UpdateApplicationDraftHandler;
 use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
@@ -37,6 +39,7 @@ use App\Http\Requests\Admission\RegisterApplicationDocumentRequest;
 use App\Http\Requests\Admission\RegisterStudentViaAdmissionRequest;
 use App\Http\Requests\Admission\TransitionApplicationStatusRequest;
 use App\Http\Requests\Admission\UpdateApplicationDraftRequest;
+use App\Http\Requests\Admission\UpdateApplicationFollowUpRequest;
 use App\Http\Requests\Admission\UpdateApplicationPeriodRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
@@ -611,11 +614,36 @@ final class AdmissionPageController extends Controller
         UpdateApplicationDraftHandler $handler,
     ): RedirectResponse {
         $schoolId = $this->schoolContext->requireId();
+        $updatePlacement = (bool) ($request->validated('update_placement') ?? false);
         $result = $handler->handle(new UpdateApplicationDraftCommand(
             schoolId: $schoolId,
             applicationId: $application,
             notes: $request->validated('notes'),
             reviewedAt: $request->validated('reviewed_at'),
+            branchId: $request->validated('branch_id') !== null
+                ? (int) $request->validated('branch_id')
+                : null,
+            branchName: $request->validated('branch_name') !== null && $request->validated('branch_name') !== ''
+                ? (string) $request->validated('branch_name')
+                : null,
+            departmentName: $request->validated('department_name') !== null && $request->validated('department_name') !== ''
+                ? (string) $request->validated('department_name')
+                : null,
+            gradeLevelId: $request->validated('grade_level_id') !== null
+                ? (int) $request->validated('grade_level_id')
+                : null,
+            intendedGradeName: $request->validated('intended_grade_name') !== null
+                && $request->validated('intended_grade_name') !== ''
+                ? (string) $request->validated('intended_grade_name')
+                : null,
+            specializationId: $request->validated('specialization_id') !== null
+                ? (int) $request->validated('specialization_id')
+                : null,
+            specializationName: $request->validated('specialization_name') !== null
+                && $request->validated('specialization_name') !== ''
+                ? (string) $request->validated('specialization_name')
+                : null,
+            updatePlacement: $updatePlacement,
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
 
@@ -630,6 +658,40 @@ final class AdmissionPageController extends Controller
         return redirect()
             ->back()
             ->with('success', 'تم تحديث مسودة الطلب.');
+    }
+
+    public function updateFollowUp(
+        UpdateApplicationFollowUpRequest $request,
+        UpdateApplicationFollowUpHandler $handler,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        /** @var list<array<string, mixed>> $updates */
+        $updates = $request->validated('updates');
+
+        $result = $handler->handle(new UpdateApplicationFollowUpCommand(
+            schoolId: $schoolId,
+            updates: array_map(static function (array $row): array {
+                return [
+                    'application_id' => (int) $row['application_id'],
+                    'full_name' => $row['full_name'] ?? null,
+                    'rejection_reason' => $row['rejection_reason'] ?? null,
+                    'withdrawal_reason' => $row['withdrawal_reason'] ?? null,
+                    'update_rejection_reason' => (bool) ($row['update_rejection_reason'] ?? false),
+                    'update_withdrawal_reason' => (bool) ($row['update_withdrawal_reason'] ?? false),
+                ];
+            }, $updates),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataModified,
+            'admission.web.application.follow_up_update',
+            'updated',
+            $request->user(),
+            'admission_applications:'.implode(',', $result->applicationIds),
+        );
+
+        return redirect()->back();
     }
 
     public function transition(

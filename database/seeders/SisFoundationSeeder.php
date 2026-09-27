@@ -14,6 +14,7 @@ class SisFoundationSeeder extends Seeder
         $this->call([
             FoundationOrganizationSeeder::class,
             FoundationAcademicSeeder::class,
+            FoundationEnrollmentStructureSeeder::class,
         ]);
     }
 }

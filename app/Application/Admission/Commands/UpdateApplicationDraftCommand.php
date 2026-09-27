@@ -11,6 +11,14 @@ final readonly class UpdateApplicationDraftCommand implements Command
         public int $applicationId,
         public ?string $notes = null,
         public ?string $reviewedAt = null,
+        public ?int $branchId = null,
+        public ?string $branchName = null,
+        public ?string $departmentName = null,
+        public ?int $gradeLevelId = null,
+        public ?string $intendedGradeName = null,
+        public ?int $specializationId = null,
+        public ?string $specializationName = null,
+        public bool $updatePlacement = false,
         public ?string $idempotencyKey = null,
     ) {}
 }

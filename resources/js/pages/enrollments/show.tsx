@@ -102,17 +102,19 @@ function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
 export default function EnrollmentShow({ enrollment }: PageProps) {
     const i18n = t();
 
+    const title = studentName(enrollment);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.enrollments.title, href: '/enrollments' },
-        { title: enrollment.enrollment_number, href: `/enrollments/${enrollment.id}` },
+        { title, href: `/enrollments/${enrollment.id}` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={enrollment.enrollment_number} />
+            <Head title={title} />
             <div className="sis-ops-hub sis-admission-page sis-students-page flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
-                    title={enrollment.enrollment_number}
+                    title={title}
                     description={i18n.enrollments.showDesc}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
@@ -137,20 +139,8 @@ export default function EnrollmentShow({ enrollment }: PageProps) {
                 </div>
                 <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                     <div>
-                        <dt className="opacity-70">{i18n.enrollments.enrollmentNumber}</dt>
-                        <dd>
-                            <span dir="ltr">{enrollment.enrollment_number}</span>
-                        </dd>
-                    </div>
-                    <div>
                         <dt className="opacity-70">{i18n.enrollments.student}</dt>
-                        <dd>{studentName(enrollment)}</dd>
-                    </div>
-                    <div>
-                        <dt className="opacity-70">{i18n.enrollments.studentCode}</dt>
-                        <dd>
-                            <span dir="ltr">{textOrDash(enrollment.student_code)}</span>
-                        </dd>
+                        <dd>{title}</dd>
                     </div>
                     <div>
                         <dt className="opacity-70">{i18n.enrollments.gender}</dt>
@@ -177,10 +167,6 @@ export default function EnrollmentShow({ enrollment }: PageProps) {
                     <div>
                         <dt className="opacity-70">{i18n.enrollments.gradeLevel}</dt>
                         <dd>{textOrDash(enrollment.grade_level_name ?? enrollment.grade_level_code)}</dd>
-                    </div>
-                    <div>
-                        <dt className="opacity-70">{i18n.enrollments.specialization}</dt>
-                        <dd>{textOrDash(enrollment.specialization_name)}</dd>
                     </div>
                     <div>
                         <dt className="opacity-70">{i18n.enrollments.departmentName}</dt>

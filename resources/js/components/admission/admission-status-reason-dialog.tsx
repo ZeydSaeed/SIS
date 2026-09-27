@@ -41,17 +41,18 @@ export function AdmissionStatusReasonDialog({
     const canSubmit = trimmed !== '' && !busy;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange} modal>
+        <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 className="sis-admission-status-reason-dialog sm:max-w-md"
-                overlayClassName="sis-admission-status-reason-dialog__overlay"
+                showOverlay={false}
                 dir="rtl"
                 lang="ar"
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onInteractOutside={(event) => {
-                    if (busy) {
-                        event.preventDefault();
-                    }
+                    event.preventDefault();
+                }}
+                onPointerDownOutside={(event) => {
+                    event.preventDefault();
                 }}
             >
                 <DialogTitle>{title}</DialogTitle>

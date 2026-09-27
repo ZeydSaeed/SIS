@@ -10,9 +10,14 @@ import {
     useState,
     type ReactNode,
 } from 'react';
+import {
+    ADMISSION_BRANCH_OPTIONS,
+    departmentsForBranch,
+} from '@/components/admission/admission-branch-catalog';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
 import { AdmissionStatusReasonDialog } from '@/components/admission/admission-status-reason-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { sisClassLabel, sisClassSelectOptions } from '@/lib/sis-class-section-options';
 import {
     selectTableRow,
     tableActionIds,
@@ -264,11 +269,58 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
     const errorsI18n = t().errors;
     const [notes, setNotes] = useState(app.notes ?? '');
     const [reviewedAt, setReviewedAt] = useState(app.reviewed_at ?? '');
+    const [branchName, setBranchName] = useState(app.branch_name ?? '');
+    const [departmentName, setDepartmentName] = useState(app.department_name ?? '');
+    const [classKey, setClassKey] = useState(() => {
+        const label = app.intended_grade_name?.trim() ?? '';
+        const match = sisClassSelectOptions().find(
+            (option) => option.label === label || label.includes(option.label),
+        );
+
+        return match?.value ?? '';
+    });
+    const [specializationId, setSpecializationId] = useState(
+        app.specialization_id !== null ? String(app.specialization_id) : '',
+    );
     const [saving, setSaving] = useState(false);
     const documentLabels = documentsForApplication(workspace, app.id);
     const documentsLabel = documentLabels.join('، ');
     const hasNotes = (app.notes?.trim() ?? '') !== '' || (editing && notes.trim() !== '');
     const hasDocuments = documentLabels.length > 0;
+
+    const branchOptions = useMemo(
+        () => ADMISSION_BRANCH_OPTIONS.map((name) => ({ value: name, label: name })),
+        [],
+    );
+    const departmentOptions = useMemo(
+        () => departmentsForBranch(branchName).map((name) => ({ value: name, label: name })),
+        [branchName],
+    );
+    const classOptions = useMemo(() => sisClassSelectOptions(), []);
+    const specializationOptions = useMemo(
+        () =>
+            workspace.specializations.map((item) => ({
+                value: String(item.id),
+                label: item.name,
+            })),
+        [workspace.specializations],
+    );
+
+    const syncPlacementFromApp = useCallback(() => {
+        const fromName = app.branch_name?.trim() ?? '';
+        const fromId =
+            fromName !== ''
+                ? fromName
+                : (workspace.branches.find((branch) => branch.id === app.branch_id)?.name ?? '');
+        setBranchName(fromId);
+        setDepartmentName(app.department_name ?? '');
+        const label = app.intended_grade_name?.trim() ?? '';
+        const match = sisClassSelectOptions().find(
+            (option) => option.label === label || label.includes(option.label),
+        );
+        setClassKey(match?.value ?? '');
+        setSpecializationId(app.specialization_id !== null ? String(app.specialization_id) : '');
+    }, [app, workspace.branches]);
 
     useEffect(() => {
         if (editing) {
@@ -277,12 +329,54 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
 
         setNotes(app.notes ?? '');
         setReviewedAt(app.reviewed_at ?? '');
-    }, [app, editing]);
+        syncPlacementFromApp();
+    }, [app, editing, syncPlacementFromApp]);
+
+    useEffect(() => {
+        if (editing) {
+            syncPlacementFromApp();
+        }
+    }, [editing, syncPlacementFromApp]);
 
     const save = useCallback(() => {
         if (saving) {
             return;
         }
+
+        const intendedGradeName = classKey === '' ? null : sisClassLabel(classKey) || null;
+        const matchedGrade =
+            intendedGradeName === null
+                ? null
+                : (workspace.grade_levels.find(
+                      (level) =>
+                          level.name.trim() === intendedGradeName
+                          || level.name.includes(intendedGradeName),
+                  ) ?? null);
+        const matchedBranch =
+            branchName.trim() === ''
+                ? null
+                : (workspace.branches.find((branch) => {
+                      const left = branch.name.trim();
+                      const right = branchName.trim();
+                      if (left === right) {
+                          return true;
+                      }
+                      const normalize = (value: string): string =>
+                          value
+                              .replace(/[أإآ]/g, 'ا')
+                              .replace(/ة/g, 'ه')
+                              .replace(/^(ال)+/u, '')
+                              .replace(/\s+/g, ' ');
+                      const a = normalize(left);
+                      const b = normalize(right);
+
+                      return a === b || a.includes(b) || b.includes(a);
+                  }) ?? null);
+        const matchedSpecialization =
+            specializationId === ''
+                ? null
+                : (workspace.specializations.find((item) => String(item.id) === specializationId) ??
+                  null);
 
         setSaving(true);
         router.put(
@@ -290,6 +384,14 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
             {
                 notes: notes.trim() === '' ? null : notes.trim(),
                 reviewed_at: reviewedAt === '' ? null : reviewedAt,
+                update_placement: true,
+                branch_id: matchedBranch?.id ?? null,
+                branch_name: branchName.trim() === '' ? null : branchName.trim(),
+                department_name: departmentName.trim() === '' ? null : departmentName.trim(),
+                grade_level_id: matchedGrade?.id ?? null,
+                intended_grade_name: intendedGradeName,
+                specialization_id: matchedSpecialization?.id ?? null,
+                specialization_name: matchedSpecialization?.name ?? null,
             },
             {
                 preserveScroll: true,
@@ -299,7 +401,22 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                 onFinish: () => setSaving(false),
             },
         );
-    }, [app.id, errorsI18n.saveFailed, notes, onSaved, reviewedAt, saving, showInertiaErrors]);
+    }, [
+        app.id,
+        branchName,
+        classKey,
+        departmentName,
+        errorsI18n.saveFailed,
+        notes,
+        onSaved,
+        reviewedAt,
+        saving,
+        showInertiaErrors,
+        specializationId,
+        workspace.branches,
+        workspace.grade_levels,
+        workspace.specializations,
+    ]);
 
     useImperativeHandle(ref, () => ({ save }), [save]);
 
@@ -339,24 +456,78 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                 )}
             </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                {displayText(
-                    lookupName(
-                        workspace.grade_levels,
-                        app.grade_level_id,
-                        app.intended_grade_name,
-                    ),
+                {editing ? (
+                    <SisListSelect
+                        value={classKey}
+                        options={classOptions}
+                        includeBlank
+                        onChange={setClassKey}
+                        ariaLabel={i18n.gradeLevel}
+                        className="sis-admission-drafts-table__inline-select"
+                        triggerClassName="sis-admission-accepted-sheet__edit-input"
+                    />
+                ) : (
+                    displayText(
+                        lookupName(
+                            workspace.grade_levels,
+                            app.grade_level_id,
+                            app.intended_grade_name,
+                        ),
+                    )
                 )}
             </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                {displayText(app.department_name)}
+                {editing ? (
+                    <div className="sis-admission-drafts-table__placement-stack">
+                        <SisListSelect
+                            value={branchName}
+                            options={branchOptions}
+                            includeBlank
+                            onChange={(next) => {
+                                setBranchName(next);
+                                setDepartmentName('');
+                            }}
+                            ariaLabel={i18n.branch}
+                            className="sis-admission-drafts-table__inline-select"
+                            triggerClassName="sis-admission-accepted-sheet__edit-input"
+                        />
+                        <SisListSelect
+                            value={departmentName}
+                            options={departmentOptions}
+                            includeBlank
+                            disabled={branchName.trim() === ''}
+                            onChange={setDepartmentName}
+                            ariaLabel={i18n.department}
+                            className="sis-admission-drafts-table__inline-select"
+                            triggerClassName="sis-admission-accepted-sheet__edit-input"
+                        />
+                    </div>
+                ) : (
+                    displayText(
+                        [app.branch_name, app.department_name].filter(Boolean).join(' / ')
+                            || app.department_name,
+                    )
+                )}
             </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                {displayText(
-                    lookupName(
-                        workspace.specializations,
-                        app.specialization_id,
-                        app.specialization_name,
-                    ),
+                {editing ? (
+                    <SisListSelect
+                        value={specializationId}
+                        options={specializationOptions}
+                        includeBlank
+                        onChange={setSpecializationId}
+                        ariaLabel={i18n.specialization}
+                        className="sis-admission-drafts-table__inline-select"
+                        triggerClassName="sis-admission-accepted-sheet__edit-input"
+                    />
+                ) : (
+                    displayText(
+                        lookupName(
+                            workspace.specializations,
+                            app.specialization_id,
+                            app.specialization_name,
+                        ),
+                    )
                 )}
             </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">

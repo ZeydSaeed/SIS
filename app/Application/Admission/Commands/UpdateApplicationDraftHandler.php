@@ -53,6 +53,14 @@ final class UpdateApplicationDraftHandler implements CommandHandler
                 applicationId: $command->applicationId,
                 notes: $command->notes,
                 reviewedAt: $command->reviewedAt,
+                branchId: $command->branchId,
+                branchName: $command->branchName,
+                departmentName: $command->departmentName,
+                gradeLevelId: $command->gradeLevelId,
+                intendedGradeName: $command->intendedGradeName,
+                specializationId: $command->specializationId,
+                specializationName: $command->specializationName,
+                updatePlacement: $command->updatePlacement,
             ));
 
             $this->outbox->stage(new ApplicationDraftUpdated(

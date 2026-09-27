@@ -35,9 +35,8 @@ const TONE_ICON: Record<MessageDialogTone, LucideIcon> = {
 };
 
 /**
- * App-wide message dialog (SSOT) — classic WINDOW chrome:
- * Night titlebar / Pearl body / Oxford border / tone icon.
- * Use for error, warning, success, and info notices.
+ * App-wide message dialog (SSOT) — classic WINDOW chrome.
+ * Non-modal: no overlay, no z-index stack — page behind stays interactive.
  */
 export function MessageDialog({
     open,
@@ -66,16 +65,23 @@ export function MessageDialog({
         : [];
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 className={`sis-message-dialog sis-message-dialog--${tone}`}
-                overlayClassName="sis-message-dialog__overlay"
+                showOverlay={false}
                 dir="rtl"
                 role={tone === 'error' || tone === 'warning' ? 'alertdialog' : 'dialog'}
                 aria-describedby="sis-message-dialog-description"
                 onOpenAutoFocus={(event) => {
                     event.preventDefault();
                     closeRef.current?.focus();
+                }}
+                onInteractOutside={(event) => {
+                    // Keep the notice open; do not steal / block page interaction.
+                    event.preventDefault();
+                }}
+                onPointerDownOutside={(event) => {
+                    event.preventDefault();
                 }}
             >
                 <DialogHeader className="sis-message-dialog__titlebar">

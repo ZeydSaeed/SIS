@@ -6,6 +6,7 @@ use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
 use App\Domain\Admission\Data\UpdateApplicationDraftData;
+use App\Domain\Admission\Data\UpdateApplicationFollowUpData;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 
 interface AdmissionRepositoryInterface
@@ -78,6 +79,8 @@ interface AdmissionRepositoryInterface
     public function findAcceptedApplicationIdsWithoutStudent(int $schoolId): array;
 
     public function updateDraft(UpdateApplicationDraftData $data): void;
+
+    public function updateFollowUp(UpdateApplicationFollowUpData $data): void;
 
     public function transitionApplicationStatus(
         int $applicationId,

@@ -141,10 +141,6 @@ export function StudentDetailsSurface({
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <h2 className="text-xl font-semibold">{student.full_name}</h2>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                        {i18n.students.code}:{' '}
-                        <span dir="ltr">{student.student_code}</span>
-                    </p>
                 </div>
                 <StudentStatusBadge status={student.status} />
             </div>

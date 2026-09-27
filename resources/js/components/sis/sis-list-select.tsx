@@ -16,6 +16,7 @@ type SisListSelectProps = {
     required?: boolean;
     disabled?: boolean;
     includeBlank?: boolean;
+    invalid?: boolean;
     className?: string;
     triggerClassName?: string;
     menuClassName?: string;
@@ -96,6 +97,7 @@ export function SisListSelect({
     required = false,
     disabled = false,
     includeBlank = false,
+    invalid = false,
     className,
     triggerClassName,
     menuClassName,
@@ -243,7 +245,28 @@ export function SisListSelect({
             className={`sis-list-select${variant === 'overlay' ? ' sis-list-select--overlay' : ''}${className ? ` ${className}` : ''}`}
             data-sis-list-select=""
         >
-            {name ? <input type="hidden" name={name} value={value} required={required} /> : null}
+            {/*
+              Native constraint validation needs a focusable control (not type=hidden)
+              so the browser bubble ("Please fill out this field.") anchors on the field.
+            */}
+            {name ? (
+                <input
+                    type="text"
+                    name={name}
+                    value={value}
+                    required={required}
+                    tabIndex={-1}
+                    readOnly
+                    aria-hidden="true"
+                    className="sis-list-select__native-required"
+                    onFocus={() => {
+                        triggerRef.current?.focus();
+                    }}
+                    onChange={() => {
+                        /* value is controlled via the combobox */
+                    }}
+                />
+            ) : null}
             <button
                 ref={triggerRef}
                 id={id}
@@ -260,6 +283,7 @@ export function SisListSelect({
                     open ? optionId(listId, items[activeIndex]?.value ?? '') : undefined
                 }
                 aria-required={required || undefined}
+                aria-invalid={invalid || undefined}
                 onPointerDown={(event) => {
                     // Keep focus/pointer inside the control so dialog focus-trap does not steal the gesture.
                     event.stopPropagation();

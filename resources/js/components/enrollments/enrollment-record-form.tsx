@@ -562,17 +562,6 @@ export function EnrollmentRecordForm({
         );
     }, [draft.branch_id, filterOptions.departments]);
 
-    const filteredSpecializations = useMemo(() => {
-        if (draft.department_id === '') {
-            return filterOptions.specializations;
-        }
-
-        return filterOptions.specializations.filter(
-            (item) =>
-                item.department_id === null || String(item.department_id) === draft.department_id,
-        );
-    }, [draft.department_id, filterOptions.specializations]);
-
     const yearOptions = useMemo(() => {
         const options = years.map((year) => ({
             value: String(year.id),
@@ -618,7 +607,6 @@ export function EnrollmentRecordForm({
     const sectionDisplay = displayValue(enrollment.section_name ?? enrollment.section_code);
     const branchDisplay = displayValue(enrollment.branch_name ?? enrollment.branch_code);
     const departmentDisplay = displayValue(enrollment.department_name);
-    const specializationDisplay = displayValue(enrollment.specialization_name);
     const gradeLevels = filterOptions.grade_levels ?? [];
     const gradeDisplay = displayValue(enrollment.grade_level_name ?? enrollment.grade_level_code);
     const stageDisplay = displayValue(enrollment.stage_name);
@@ -885,14 +873,6 @@ export function EnrollmentRecordForm({
                                 display={name}
                                 onChange={(value) => setField('quad_name', value)}
                             />
-                            <DraftField
-                                label={i18n.enrollments.studentCode}
-                                editing={false}
-                                value={displayValue(enrollment.student_code)}
-                                display={displayValue(enrollment.student_code)}
-                                dir="ltr"
-                                onChange={() => undefined}
-                            />
                             <DraftOptionalSelect
                                 label={i18n.enrollments.gender}
                                 editing={editing}
@@ -1062,20 +1042,6 @@ export function EnrollmentRecordForm({
                                 />
                             </div>
                             <div className="sis-admission-draft-row">
-                                <DraftOptionalSelect
-                                    label={i18n.enrollments.specialization}
-                                    editing={editing}
-                                    value={draft.specialization_id}
-                                    display={specializationDisplay}
-                                    options={[
-                                        { value: '', label: i18n.enrollments.allSpecializations },
-                                        ...filteredSpecializations.map((item) => ({
-                                            value: String(item.id),
-                                            label: item.name,
-                                        })),
-                                    ]}
-                                    onChange={(next) => setField('specialization_id', next)}
-                                />
                                 <DraftOptionalSelect
                                     label={i18n.enrollments.gradeLevel}
                                     editing={editing}
@@ -1366,14 +1332,6 @@ export function EnrollmentCreateForm({
                                 }
                             />
                             <DraftField
-                                label={i18n.students.code}
-                                editing={false}
-                                value={student?.student_code ?? ''}
-                                display={student?.student_code ?? '—'}
-                                dir="ltr"
-                                onChange={() => undefined}
-                            />
-                            <DraftField
                                 label={i18n.students.gender}
                                 editing={false}
                                 value={genderLabel}
@@ -1502,28 +1460,6 @@ export function EnrollmentCreateForm({
                                     setDraft((current) => ({
                                         ...current,
                                         section_id: next,
-                                    }))
-                                }
-                            />
-                            <DraftOptionalSelect
-                                label={i18n.enrollments.specialization}
-                                editing
-                                value={draft.specialization_id}
-                                display={draft.specialization_id}
-                                options={[
-                                    {
-                                        value: '',
-                                        label: i18n.enrollments.allSpecializations,
-                                    },
-                                    ...filterOptions.specializations.map((item) => ({
-                                        value: String(item.id),
-                                        label: item.name,
-                                    })),
-                                ]}
-                                onChange={(next) =>
-                                    setDraft((current) => ({
-                                        ...current,
-                                        specialization_id: next,
                                     }))
                                 }
                             />

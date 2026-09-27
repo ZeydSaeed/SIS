@@ -28,6 +28,7 @@ export type AdmissionApplication = {
     gender: number;
     target_school_id: number | null;
     branch_id: number | null;
+    branch_name: string | null;
     grade_level_id: number | null;
     intended_grade_name: string | null;
     department_name: string | null;

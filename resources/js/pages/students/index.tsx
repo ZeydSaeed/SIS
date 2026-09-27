@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
+import type { EnrollmentFormFilterOptions } from '@/components/enrollments/enrollment-record-form';
 import {
     StudentList,
     type StudentAuthorization,
@@ -20,9 +21,15 @@ type PageProps = {
         enrolled: number | null;
     };
     authorization: StudentAuthorization;
+    enrollmentFilterOptions?: EnrollmentFormFilterOptions;
 };
 
-export default function StudentsIndex({ students, filters, authorization }: PageProps) {
+export default function StudentsIndex({
+    students,
+    filters,
+    authorization,
+    enrollmentFilterOptions,
+}: PageProps) {
     const i18n = t();
 
     const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.students.title, href: '/students' }];
@@ -30,7 +37,12 @@ export default function StudentsIndex({ students, filters, authorization }: Page
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.students.title} />
-            <StudentList students={students} filters={filters} authorization={authorization} />
+            <StudentList
+                students={students}
+                filters={filters}
+                authorization={authorization}
+                enrollmentFilterOptions={enrollmentFilterOptions}
+            />
         </AppLayout>
     );
 }

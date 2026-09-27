@@ -428,9 +428,7 @@ final class EnrollmentPageController extends Controller
             "enrollment:{$result->enrollmentId}",
         );
 
-        return redirect()->route('enrollments.index', [
-            'academic_year_id' => $academicYearId,
-        ]);
+        return redirect()->back();
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

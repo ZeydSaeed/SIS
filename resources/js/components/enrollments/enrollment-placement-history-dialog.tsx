@@ -41,8 +41,7 @@ type TrackedFieldKey =
     | 'department_name'
     | 'specialization_name'
     | 'class_name'
-    | 'section_name'
-    | 'enrollment_number';
+    | 'section_name';
 
 type FieldChange = {
     key: TrackedFieldKey;
@@ -71,7 +70,6 @@ const TRACKED_FIELDS: TrackedFieldKey[] = [
     'specialization_name',
     'class_name',
     'section_name',
-    'enrollment_number',
 ];
 
 function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
@@ -108,7 +106,6 @@ function fieldLabel(key: TrackedFieldKey, i18n: ReturnType<typeof t>): string {
         specialization_name: i18n.enrollments.specialization,
         class_name: i18n.enrollments.className,
         section_name: i18n.enrollments.sectionName,
-        enrollment_number: i18n.enrollments.enrollmentNumber,
     };
 
     return map[key];
@@ -225,7 +222,7 @@ function StudentHistoryPanel({
 }) {
     const i18n = t();
     const studentTitle = displayValue(
-        history.student_full_name?.trim() || history.student_code || String(history.student_id),
+        history.student_full_name?.trim() || String(history.student_id),
     );
     const yearTitle = displayValue(
         history.academic_year_code?.trim() || history.academic_year_name?.trim() || '',

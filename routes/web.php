@@ -64,6 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/applications', [AdmissionPageController::class, 'storeApplication'])->name('applications.store');
         Route::post('/applications/register-student', [AdmissionPageController::class, 'registerStudent'])
             ->name('applications.register-student');
+        Route::put('/applications/follow-up', [AdmissionPageController::class, 'updateFollowUp'])
+            ->name('applications.follow-up');
         Route::put('/applications/{application}', [AdmissionPageController::class, 'updateApplication'])
             ->whereNumber('application')
             ->name('applications.update');

@@ -1,4 +1,6 @@
+import { router } from '@inertiajs/react';
 import {
+    Fragment,
     useCallback,
     useEffect,
     useMemo,
@@ -19,6 +21,7 @@ import {
     ADMISSION_STATUS_WITHDRAWN,
     type AdmissionAcceptedStudent,
 } from '@/components/admission/admission-workspace';
+import { usePageError } from '@/components/sis/page-error-context';
 import { formatAcademicYearOptionLabel } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
@@ -36,6 +39,7 @@ type Props = {
     onOpenChange: (open: boolean) => void;
     students: AdmissionAcceptedStudent[];
     defaultAcademicYearId?: number | null;
+    canManage?: boolean;
 };
 
 /** 1 = academic→vocational transfer, 2 = vocational school intake */
@@ -44,6 +48,13 @@ const REQUEST_KIND_TRANSFER = 1;
 
 type RosterEntry = {
     id: number;
+    full_name: string;
+    rejection_reason: string;
+    withdrawal_reason: string;
+    status: number;
+};
+
+type EditDraft = {
     full_name: string;
     rejection_reason: string;
     withdrawal_reason: string;
@@ -234,11 +245,36 @@ function toEntry(student: AdmissionAcceptedStudent): RosterEntry {
         full_name: student.full_name,
         rejection_reason: student.rejection_reason?.trim() ?? '',
         withdrawal_reason: student.withdrawal_reason?.trim() ?? '',
+        status: student.status,
     };
 }
 
 function cellName(entry: RosterEntry | undefined): string {
     return entry?.full_name ?? '';
+}
+
+function EditableCell({
+    editing,
+    value,
+    onChange,
+}: {
+    editing: boolean;
+    value: string;
+    onChange: (next: string) => void;
+}) {
+    if (!editing) {
+        return value !== '' ? <AcceptedCellScroll text={value} /> : null;
+    }
+
+    return (
+        <input
+            type="text"
+            className="sis-admission-accepted-sheet__edit-input"
+            value={value}
+            dir="rtl"
+            onChange={(event) => onChange(event.target.value)}
+        />
+    );
 }
 
 /** Application follow-up roster — category columns by status / admission channel. */
@@ -247,11 +283,16 @@ export function AdmissionAcceptedStudentsDialog({
     onOpenChange,
     students,
     defaultAcademicYearId = null,
+    canManage = false,
 }: Props) {
     const i18n = t();
     const admission = i18n.admission;
+    const { showInertiaErrors } = usePageError();
     const [yearId, setYearId] = useState<string>('');
     const [periodId, setPeriodId] = useState<string>('');
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [drafts, setDrafts] = useState<Record<number, EditDraft>>({});
     const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(open, {
         resizable: true,
         minSize: { width: 720, height: 360 },
@@ -275,6 +316,9 @@ export function AdmissionAcceptedStudentsDialog({
 
     useEffect(() => {
         if (!open) {
+            setEditing(false);
+            setDrafts({});
+            setSaving(false);
             return;
         }
 
@@ -285,6 +329,8 @@ export function AdmissionAcceptedStudentsDialog({
                 : (yearOptions[0]?.value ?? '');
         setYearId(preferred);
         setPeriodId('');
+        setEditing(false);
+        setDrafts({});
     }, [open, defaultAcademicYearId, yearOptions]);
 
     const periodOptions = useMemo(() => {
@@ -318,6 +364,151 @@ export function AdmissionAcceptedStudentsDialog({
             return true;
         });
     }, [students, yearId, periodId]);
+
+    const beginEdit = useCallback(() => {
+        const next: Record<number, EditDraft> = {};
+        for (const student of filteredByYearPeriod) {
+            next[student.id] = {
+                full_name: student.full_name,
+                rejection_reason: student.rejection_reason?.trim() ?? '',
+                withdrawal_reason: student.withdrawal_reason?.trim() ?? '',
+            };
+        }
+        setDrafts(next);
+        setEditing(true);
+    }, [filteredByYearPeriod]);
+
+    const displayEntry = useCallback(
+        (entry: RosterEntry | undefined): RosterEntry | undefined => {
+            if (entry === undefined) {
+                return undefined;
+            }
+            const draft = drafts[entry.id];
+            if (!editing || draft === undefined) {
+                return entry;
+            }
+
+            return {
+                ...entry,
+                full_name: draft.full_name,
+                rejection_reason: draft.rejection_reason,
+                withdrawal_reason: draft.withdrawal_reason,
+            };
+        },
+        [drafts, editing],
+    );
+
+    const patchDraft = useCallback((applicationId: number, patch: Partial<EditDraft>) => {
+        setDrafts((current) => {
+            const prior = current[applicationId] ?? {
+                full_name: '',
+                rejection_reason: '',
+                withdrawal_reason: '',
+            };
+
+            return {
+                ...current,
+                [applicationId]: { ...prior, ...patch },
+            };
+        });
+    }, []);
+
+    const saveEdits = useCallback(() => {
+        if (!editing || saving) {
+            return;
+        }
+
+        const updates: Array<{
+            application_id: number;
+            full_name: string;
+            rejection_reason: string | null;
+            withdrawal_reason: string | null;
+            update_rejection_reason: boolean;
+            update_withdrawal_reason: boolean;
+        }> = [];
+
+        for (const student of filteredByYearPeriod) {
+            const draft = drafts[student.id];
+            if (draft === undefined) {
+                continue;
+            }
+
+            const originalName = student.full_name;
+            const originalRejection = student.rejection_reason?.trim() ?? '';
+            const originalWithdrawal = student.withdrawal_reason?.trim() ?? '';
+            const nameChanged = draft.full_name.trim() !== originalName.trim();
+            const rejectionChanged =
+                student.status === ADMISSION_STATUS_REJECTED
+                && draft.rejection_reason.trim() !== originalRejection;
+            const withdrawalChanged =
+                student.status === ADMISSION_STATUS_WITHDRAWN
+                && draft.withdrawal_reason.trim() !== originalWithdrawal;
+
+            if (!nameChanged && !rejectionChanged && !withdrawalChanged) {
+                continue;
+            }
+
+            if (draft.full_name.trim() === '') {
+                showInertiaErrors({ full_name: i18n.errors.saveFailed }, i18n.errors.saveFailed);
+                return;
+            }
+
+            if (rejectionChanged && draft.rejection_reason.trim() === '') {
+                showInertiaErrors(
+                    { rejection_reason: admission.reasonRequiredHint },
+                    admission.reasonRequiredHint,
+                );
+                return;
+            }
+
+            if (withdrawalChanged && draft.withdrawal_reason.trim() === '') {
+                showInertiaErrors(
+                    { withdrawal_reason: admission.reasonRequiredHint },
+                    admission.reasonRequiredHint,
+                );
+                return;
+            }
+
+            updates.push({
+                application_id: student.id,
+                full_name: draft.full_name.trim(),
+                rejection_reason: rejectionChanged ? draft.rejection_reason.trim() : null,
+                withdrawal_reason: withdrawalChanged ? draft.withdrawal_reason.trim() : null,
+                update_rejection_reason: rejectionChanged,
+                update_withdrawal_reason: withdrawalChanged,
+            });
+        }
+
+        if (updates.length === 0) {
+            setEditing(false);
+            setDrafts({});
+            return;
+        }
+
+        setSaving(true);
+        router.put(
+            '/admission/applications/follow-up',
+            { updates },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    setEditing(false);
+                    setDrafts({});
+                },
+                onError: (errors) => showInertiaErrors(errors, i18n.errors.saveFailed),
+                onFinish: () => setSaving(false),
+            },
+        );
+    }, [
+        admission.reasonRequiredHint,
+        drafts,
+        editing,
+        filteredByYearPeriod,
+        i18n.errors.saveFailed,
+        saving,
+        showInertiaErrors,
+    ]);
 
     const vocationalStudents = useMemo(
         () =>
@@ -400,14 +591,14 @@ export function AdmissionAcceptedStudentsDialog({
         );
 
         return Array.from({ length: rowCount }, (_, index) => {
-            const vocational = vocationalStudents[index];
-            const transfer = transferStudents[index];
-            const submitted = submittedStudents[index];
-            const underReview = underReviewStudents[index];
-            const interview = interviewStudents[index];
-            const waitlisted = waitlistedStudents[index];
-            const rejected = rejectedStudents[index];
-            const withdrawn = withdrawnStudents[index];
+            const vocational = displayEntry(vocationalStudents[index]);
+            const transfer = displayEntry(transferStudents[index]);
+            const submitted = displayEntry(submittedStudents[index]);
+            const underReview = displayEntry(underReviewStudents[index]);
+            const interview = displayEntry(interviewStudents[index]);
+            const waitlisted = displayEntry(waitlistedStudents[index]);
+            const rejected = displayEntry(rejectedStudents[index]);
+            const withdrawn = displayEntry(withdrawnStudents[index]);
 
             return {
                 key: [
@@ -421,19 +612,18 @@ export function AdmissionAcceptedStudentsDialog({
                     withdrawn?.id ?? 'w0',
                     index,
                 ].join('-'),
-                vocationalName: cellName(vocational),
-                transferName: cellName(transfer),
-                submittedName: cellName(submitted),
-                underReviewName: cellName(underReview),
-                interviewName: cellName(interview),
-                waitlistedName: cellName(waitlisted),
-                rejectedName: cellName(rejected),
-                rejectionReason: rejected?.rejection_reason ?? '',
-                withdrawnName: cellName(withdrawn),
-                withdrawalReason: withdrawn?.withdrawal_reason ?? '',
+                vocational,
+                transfer,
+                submitted,
+                underReview,
+                interview,
+                waitlisted,
+                rejected,
+                withdrawn,
             };
         });
     }, [
+        displayEntry,
         vocationalStudents,
         transferStudents,
         submittedStudents,
@@ -455,18 +645,41 @@ export function AdmissionAcceptedStudentsDialog({
         withdrawn: withdrawnStudents.length,
     } as const;
 
-    const columns = [
-        { key: 'vocational', header: admission.acceptedStatsVocational, count: columnCounts.vocational, cell: (row: (typeof tableRows)[number]) => row.vocationalName },
-        { key: 'transfer', header: admission.acceptedStatsTransfer, count: columnCounts.transfer, cell: (row: (typeof tableRows)[number]) => row.transferName },
-        { key: 'submitted', header: admission.acceptedStatsSubmitted, count: columnCounts.submitted, cell: (row: (typeof tableRows)[number]) => row.submittedName },
-        { key: 'underReview', header: admission.acceptedStatsUnderReview, count: columnCounts.underReview, cell: (row: (typeof tableRows)[number]) => row.underReviewName },
-        { key: 'interview', header: admission.acceptedStatsInterview, count: columnCounts.interview, cell: (row: (typeof tableRows)[number]) => row.interviewName },
-        { key: 'waitlisted', header: admission.acceptedStatsWaitlisted, count: columnCounts.waitlisted, cell: (row: (typeof tableRows)[number]) => row.waitlistedName },
-        { key: 'rejected', header: admission.acceptedStatsRejected, count: columnCounts.rejected, cell: (row: (typeof tableRows)[number]) => row.rejectedName },
-        { key: 'rejectionReason', header: admission.acceptedStatsRejectionReason, cell: (row: (typeof tableRows)[number]) => row.rejectionReason, notes: true },
-        { key: 'withdrawn', header: admission.acceptedStatsWithdrawn, count: columnCounts.withdrawn, cell: (row: (typeof tableRows)[number]) => row.withdrawnName },
-        { key: 'withdrawalReason', header: admission.acceptedStatsWithdrawalReason, cell: (row: (typeof tableRows)[number]) => row.withdrawalReason, notes: true },
-    ] as const;
+    type NameColumnKey =
+        | 'vocational'
+        | 'transfer'
+        | 'submitted'
+        | 'underReview'
+        | 'interview'
+        | 'waitlisted'
+        | 'rejected'
+        | 'withdrawn';
+
+    const nameColumns: Array<{
+        key: NameColumnKey;
+        header: string;
+        count: number;
+        after?: 'rejection' | 'withdrawal';
+    }> = [
+        { key: 'vocational', header: admission.acceptedStatsVocational, count: columnCounts.vocational },
+        { key: 'transfer', header: admission.acceptedStatsTransfer, count: columnCounts.transfer },
+        { key: 'submitted', header: admission.acceptedStatsSubmitted, count: columnCounts.submitted },
+        { key: 'underReview', header: admission.acceptedStatsUnderReview, count: columnCounts.underReview },
+        { key: 'interview', header: admission.acceptedStatsInterview, count: columnCounts.interview },
+        { key: 'waitlisted', header: admission.acceptedStatsWaitlisted, count: columnCounts.waitlisted },
+        {
+            key: 'rejected',
+            header: admission.acceptedStatsRejected,
+            count: columnCounts.rejected,
+            after: 'rejection',
+        },
+        {
+            key: 'withdrawn',
+            header: admission.acceptedStatsWithdrawn,
+            count: columnCounts.withdrawn,
+            after: 'withdrawal',
+        },
+    ];
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
@@ -509,7 +722,7 @@ export function AdmissionAcceptedStudentsDialog({
                     </header>
 
                     <SheetSection title={admission.sheetAcceptedFilters}>
-                        <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
+                        <div className="sis-admission-sheet__row sis-admission-accepted-sheet__filters-row">
                             <SheetField label={admission.academicYear}>
                                 <SisListSelect
                                     value={yearId}
@@ -517,6 +730,8 @@ export function AdmissionAcceptedStudentsDialog({
                                     onChange={(next) => {
                                         setYearId(next);
                                         setPeriodId('');
+                                        setEditing(false);
+                                        setDrafts({});
                                     }}
                                     dir="ltr"
                                     ariaLabel={admission.academicYear}
@@ -529,7 +744,11 @@ export function AdmissionAcceptedStudentsDialog({
                                 <SisListSelect
                                     value={periodId}
                                     options={periodOptions}
-                                    onChange={setPeriodId}
+                                    onChange={(next) => {
+                                        setPeriodId(next);
+                                        setEditing(false);
+                                        setDrafts({});
+                                    }}
                                     dir="rtl"
                                     ariaLabel={admission.filterByPeriod}
                                     className={`sis-admission-sheet-list-select${periodId !== '' ? ' sis-admission-draft-field--filled' : ''}`}
@@ -537,6 +756,28 @@ export function AdmissionAcceptedStudentsDialog({
                                     menuClassName="sis-admission-sheet-list-select__menu"
                                 />
                             </SheetField>
+                            {canManage ? (
+                                <div
+                                    className="sis-admission-accepted-sheet__filter-actions"
+                                    role="group"
+                                    aria-label={i18n.common.actions}
+                                >
+                                    <Button
+                                        type="button"
+                                        disabled={editing || tableRows.length === 0 || saving}
+                                        onClick={beginEdit}
+                                    >
+                                        {i18n.common.edit}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        disabled={!editing || saving}
+                                        onClick={saveEdits}
+                                    >
+                                        {saving ? i18n.common.saving : i18n.common.save}
+                                    </Button>
+                                </div>
+                            ) : null}
                         </div>
                     </SheetSection>
 
@@ -553,20 +794,15 @@ export function AdmissionAcceptedStudentsDialog({
                                             <th scope="col" className="sis-admission-accepted-sheet__num">
                                                 #
                                             </th>
-                                            {columns.map((column) => (
-                                                <th
-                                                    key={column.key}
-                                                    scope="col"
-                                                    className={
-                                                        'notes' in column && column.notes
-                                                            ? 'sis-admission-accepted-sheet__notes'
-                                                            : 'sis-admission-accepted-sheet__channel'
-                                                    }
-                                                >
-                                                    <span className="sis-admission-accepted-sheet__col-label">
-                                                        {column.header}
-                                                    </span>
-                                                    {'count' in column ? (
+                                            {nameColumns.map((column) => (
+                                                <Fragment key={column.key}>
+                                                    <th
+                                                        scope="col"
+                                                        className="sis-admission-accepted-sheet__channel"
+                                                    >
+                                                        <span className="sis-admission-accepted-sheet__col-label">
+                                                            {column.header}
+                                                        </span>
                                                         <span
                                                             className="sis-admission-accepted-sheet__col-count"
                                                             dir="ltr"
@@ -574,8 +810,28 @@ export function AdmissionAcceptedStudentsDialog({
                                                         >
                                                             {column.count}
                                                         </span>
+                                                    </th>
+                                                    {column.after === 'rejection' ? (
+                                                        <th
+                                                            scope="col"
+                                                            className="sis-admission-accepted-sheet__notes"
+                                                        >
+                                                            <span className="sis-admission-accepted-sheet__col-label">
+                                                                {admission.acceptedStatsRejectionReason}
+                                                            </span>
+                                                        </th>
                                                     ) : null}
-                                                </th>
+                                                    {column.after === 'withdrawal' ? (
+                                                        <th
+                                                            scope="col"
+                                                            className="sis-admission-accepted-sheet__notes"
+                                                        >
+                                                            <span className="sis-admission-accepted-sheet__col-label">
+                                                                {admission.acceptedStatsWithdrawalReason}
+                                                            </span>
+                                                        </th>
+                                                    ) : null}
+                                                </Fragment>
                                             ))}
                                         </tr>
                                     </thead>
@@ -585,24 +841,65 @@ export function AdmissionAcceptedStudentsDialog({
                                                 <td className="sis-admission-accepted-sheet__num" dir="ltr">
                                                     {index + 1}
                                                 </td>
-                                                {columns.map((column) => {
-                                                    const value = column.cell(row);
-                                                    const isNotes = 'notes' in column && column.notes;
+                                                {nameColumns.map((column) => {
+                                                    const entry = row[column.key];
+                                                    const value = cellName(entry);
 
                                                     return (
-                                                        <td
-                                                            key={column.key}
-                                                            className={
-                                                                isNotes
-                                                                    ? 'sis-admission-accepted-sheet__notes'
-                                                                    : 'sis-admission-accepted-sheet__channel'
-                                                            }
-                                                            title={value}
-                                                        >
-                                                            {value !== '' ? (
-                                                                <AcceptedCellScroll text={value} />
+                                                        <Fragment key={column.key}>
+                                                            <td
+                                                                className="sis-admission-accepted-sheet__channel"
+                                                                title={value}
+                                                            >
+                                                                {entry ? (
+                                                                    <EditableCell
+                                                                        editing={editing}
+                                                                        value={value}
+                                                                        onChange={(next) =>
+                                                                            patchDraft(entry.id, {
+                                                                                full_name: next,
+                                                                            })
+                                                                        }
+                                                                    />
+                                                                ) : null}
+                                                            </td>
+                                                            {column.after === 'rejection' ? (
+                                                                <td
+                                                                    className="sis-admission-accepted-sheet__notes"
+                                                                    title={row.rejected?.rejection_reason ?? ''}
+                                                                >
+                                                                    {row.rejected ? (
+                                                                        <EditableCell
+                                                                            editing={editing}
+                                                                            value={row.rejected.rejection_reason}
+                                                                            onChange={(next) =>
+                                                                                patchDraft(row.rejected!.id, {
+                                                                                    rejection_reason: next,
+                                                                                })
+                                                                            }
+                                                                        />
+                                                                    ) : null}
+                                                                </td>
                                                             ) : null}
-                                                        </td>
+                                                            {column.after === 'withdrawal' ? (
+                                                                <td
+                                                                    className="sis-admission-accepted-sheet__notes"
+                                                                    title={row.withdrawn?.withdrawal_reason ?? ''}
+                                                                >
+                                                                    {row.withdrawn ? (
+                                                                        <EditableCell
+                                                                            editing={editing}
+                                                                            value={row.withdrawn.withdrawal_reason}
+                                                                            onChange={(next) =>
+                                                                                patchDraft(row.withdrawn!.id, {
+                                                                                    withdrawal_reason: next,
+                                                                                })
+                                                                            }
+                                                                        />
+                                                                    ) : null}
+                                                                </td>
+                                                            ) : null}
+                                                        </Fragment>
                                                     );
                                                 })}
                                             </tr>

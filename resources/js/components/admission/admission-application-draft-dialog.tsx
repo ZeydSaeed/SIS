@@ -20,12 +20,14 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { sisClassLabel, sisClassSelectOptions } from '@/lib/sis-class-section-options';
 import { t } from '@/i18n';
 
 export type DraftPeriodOption = {
     id: number;
     name: string;
     status: number;
+    school_id?: number;
 };
 
 export type DraftSchoolOption = {
@@ -223,13 +225,21 @@ export function AdmissionApplicationDraftDialog({
         [periods],
     );
     const defaultPeriodId = activePeriods[0]?.id ?? '';
-    const defaultSchoolId = schools[0]?.id ?? '';
+    const schoolIdForPeriod = (periodKey: string): string => {
+        const period = periods.find((item) => String(item.id) === periodKey);
+        if (period?.school_id != null && period.school_id > 0) {
+            return String(period.school_id);
+        }
+
+        return String(schools[0]?.id ?? '');
+    };
+    const defaultSchoolId = schoolIdForPeriod(String(defaultPeriodId));
 
     const [periodId, setPeriodId] = useState<string>(String(defaultPeriodId));
-    const [schoolId, setSchoolId] = useState(String(defaultSchoolId));
+    const [schoolId, setSchoolId] = useState(defaultSchoolId);
     const [branchName, setBranchName] = useState('');
     const [departmentName, setDepartmentName] = useState('');
-    const [gradeLevelId, setGradeLevelId] = useState('');
+    const [classKey, setClassKey] = useState('');
     const [gender, setGender] = useState('1');
     const [administrativeUnit, setAdministrativeUnit] = useState('');
     const [previousStudyTrack, setPreviousStudyTrack] = useState('');
@@ -297,24 +307,44 @@ export function AdmissionApplicationDraftDialog({
             return '';
         }
 
-        const match = branches.find((branch) => branch.name === branchName);
+        const exact = branches.find((branch) => branch.name.trim() === branchName.trim());
+        if (exact !== undefined) {
+            return String(exact.id);
+        }
 
-        return match !== undefined ? String(match.id) : '';
+        const normalize = (value: string): string =>
+            value
+                .trim()
+                .replace(/[أإآ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/^(ال)+/u, '')
+                .replace(/\s+/g, ' ');
+        const target = normalize(branchName);
+        const loose = branches.find((branch) => {
+            const candidate = normalize(branch.name);
+            return candidate === target || candidate.includes(target) || target.includes(candidate);
+        });
+
+        return loose !== undefined ? String(loose.id) : '';
     }, [branchName, branches]);
 
-    const gradeLevelOptions = useMemo(
-        (): DraftSelectOption[] =>
-            gradeLevels.map((level) => ({ value: String(level.id), label: level.name })),
-        [gradeLevels],
-    );
+    const classOptions = useMemo((): DraftSelectOption[] => sisClassSelectOptions(), []);
 
-    const selectedGradeLevelName = useMemo(() => {
-        if (gradeLevelId === '') {
+    const selectedClassLabel = useMemo(() => sisClassLabel(classKey), [classKey]);
+
+    const matchedGradeLevelId = useMemo(() => {
+        if (selectedClassLabel === '') {
             return '';
         }
 
-        return gradeLevels.find((level) => String(level.id) === gradeLevelId)?.name ?? '';
-    }, [gradeLevelId, gradeLevels]);
+        const match = gradeLevels.find(
+            (level) =>
+                level.name.trim() === selectedClassLabel
+                || level.name.includes(selectedClassLabel),
+        );
+
+        return match !== undefined ? String(match.id) : '';
+    }, [gradeLevels, selectedClassLabel]);
 
     const showMathematicsGrade = departmentName === CYBERSECURITY_DEPARTMENT;
     const showPhysicsGrade = departmentName === MEDICAL_DEVICES_DEPARTMENT;
@@ -326,11 +356,12 @@ export function AdmissionApplicationDraftDialog({
             return;
         }
 
-        setPeriodId(String(activePeriods[0]?.id ?? ''));
-        setSchoolId(String(schools[0]?.id ?? ''));
+        const nextPeriodId = String(activePeriods[0]?.id ?? '');
+        setPeriodId(nextPeriodId);
+        setSchoolId(schoolIdForPeriod(nextPeriodId));
         setBranchName('');
         setDepartmentName('');
-        setGradeLevelId('');
+        setClassKey('');
         setGender('1');
         setAdministrativeUnit('');
         setPreviousStudyTrack('');
@@ -339,7 +370,7 @@ export function AdmissionApplicationDraftDialog({
         if (documentFileInputRef.current) {
             documentFileInputRef.current.value = '';
         }
-    }, [open, activePeriods, schools]);
+    }, [open, activePeriods, schools, periods]);
 
     const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(open, {
         resizable: true,
@@ -440,9 +471,10 @@ export function AdmissionApplicationDraftDialog({
                                 </header>
 
                                 <SheetSection title={i18n.admission.sheetRegistrationInfo} tone="accent">
-                                    <div
-                                        className={`sis-admission-sheet__row ${isAcademicTransfer ? 'sis-admission-sheet__row--5' : 'sis-admission-sheet__row--4'}`}
-                                    >
+                                    {schoolId !== '' ? (
+                                        <input type="hidden" name="target_school_id" value={schoolId} />
+                                    ) : null}
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--4">
                                         <div className="sis-admission-sheet__field">
                                             <span className="sis-admission-sheet__label">
                                                 {i18n.admission.academicYear}
@@ -455,29 +487,13 @@ export function AdmissionApplicationDraftDialog({
                                             </div>
                                         </div>
                                         <SheetField
-                                            label={i18n.admission.school}
-                                            name="target_school_id"
-                                            error={errors.target_school_id}
-                                        >
-                                            <DraftSheetSelect
-                                                name="target_school_id"
-                                                required
-                                                value={schoolId}
-                                                options={schools.map((school) => ({
-                                                    value: String(school.id),
-                                                    label: school.name,
-                                                }))}
-                                                onChange={setSchoolId}
-                                                ariaLabel={i18n.admission.school}
-                                            />
-                                        </SheetField>
-                                        <SheetField
                                             label={i18n.admission.branch}
                                             name="branch_name"
                                             error={errors.branch_name}
                                         >
                                             <DraftSheetSelect
                                                 name="branch_name"
+                                                required
                                                 value={branchName}
                                                 allowEmpty
                                                 options={branchOptions}
@@ -492,42 +508,57 @@ export function AdmissionApplicationDraftDialog({
                                             ) : null}
                                         </SheetField>
                                         <SheetField
-                                            label={i18n.admission.department}
+                                            label={i18n.admission.specialization}
                                             name="department_name"
                                             error={errors.department_name}
                                         >
                                             <DraftSheetSelect
                                                 name="department_name"
+                                                required
                                                 value={departmentName}
                                                 allowEmpty
                                                 options={departmentOptions}
                                                 onChange={setDepartmentName}
-                                                ariaLabel={i18n.admission.department}
+                                                ariaLabel={i18n.admission.specialization}
                                             />
                                         </SheetField>
-                                        {isAcademicTransfer ? (
-                                            <SheetField
-                                                label={i18n.admission.requestedAdmissionGrade}
-                                                name="grade_level_id"
-                                                error={errors.grade_level_id ?? errors.intended_grade_name}
-                                            >
-                                                <DraftSheetSelect
-                                                    name="grade_level_id"
-                                                    value={gradeLevelId}
-                                                    allowEmpty
-                                                    options={gradeLevelOptions}
-                                                    onChange={setGradeLevelId}
-                                                    ariaLabel={i18n.admission.requestedAdmissionGrade}
+                                        <SheetField
+                                            label={
+                                                isAcademicTransfer
+                                                    ? i18n.admission.requestedAdmissionGrade
+                                                    : i18n.admission.gradeLevel
+                                            }
+                                            name="intended_grade_name"
+                                            error={errors.grade_level_id ?? errors.intended_grade_name}
+                                        >
+                                            <DraftSheetSelect
+                                                name="class_key"
+                                                required
+                                                value={classKey}
+                                                allowEmpty
+                                                options={classOptions}
+                                                onChange={setClassKey}
+                                                ariaLabel={
+                                                    isAcademicTransfer
+                                                        ? i18n.admission.requestedAdmissionGrade
+                                                        : i18n.admission.gradeLevel
+                                                }
+                                            />
+                                            {selectedClassLabel !== '' ? (
+                                                <input
+                                                    type="hidden"
+                                                    name="intended_grade_name"
+                                                    value={selectedClassLabel}
                                                 />
-                                                {selectedGradeLevelName !== '' ? (
-                                                    <input
-                                                        type="hidden"
-                                                        name="intended_grade_name"
-                                                        value={selectedGradeLevelName}
-                                                    />
-                                                ) : null}
-                                            </SheetField>
-                                        ) : null}
+                                            ) : null}
+                                            {matchedGradeLevelId !== '' ? (
+                                                <input
+                                                    type="hidden"
+                                                    name="grade_level_id"
+                                                    value={matchedGradeLevelId}
+                                                />
+                                            ) : null}
+                                        </SheetField>
                                     </div>
                                 </SheetSection>
 

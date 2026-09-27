@@ -48,14 +48,13 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
-import { appendEnrollmentHandoff } from '@/lib/enrollment-handoff';
 import {
     publishStudentStatusSync,
     subscribeStudentStatusSync,
 } from '@/lib/student-status-sync';
 import type { StudentAuthorization } from '@/components/students/student-details-surface';
+import type { EnrollmentFormFilterOptions } from '@/components/enrollments/enrollment-record-form';
 import { t } from '@/i18n';
-import { toast } from 'sonner';
 
 export type { StudentAuthorization };
 
@@ -68,6 +67,11 @@ const StudentCreateDialog = lazy(async () => {
     const mod = await import('@/components/students/student-record-form');
 
     return { default: mod.StudentCreateDialog };
+});
+const StudentEnrollmentDialog = lazy(async () => {
+    const mod = await import('@/components/students/student-enrollment-dialog');
+
+    return { default: mod.StudentEnrollmentDialog };
 });
 
 const STUDENTS_PER_PAGE = 17;
@@ -165,6 +169,7 @@ export type StudentListItem = {
     guardian_mobile?: string | null;
     email?: string | null;
     school_name?: string | null;
+    branch_id?: number | null;
     department_name?: string | null;
     stage_name?: string | null;
     section_name?: string | null;
@@ -203,6 +208,16 @@ type StudentListProps = {
         enrolled: number | null;
     };
     authorization: StudentAuthorization;
+    enrollmentFilterOptions?: EnrollmentFormFilterOptions;
+};
+
+const EMPTY_ENROLLMENT_FILTER_OPTIONS: EnrollmentFormFilterOptions = {
+    branches: [],
+    classes: [],
+    sections: [],
+    departments: [],
+    specializations: [],
+    grade_levels: [],
 };
 
 type VisitParams = {
@@ -769,6 +784,7 @@ export function StudentList({
     students,
     filters,
     authorization,
+    enrollmentFilterOptions = EMPTY_ENROLLMENT_FILTER_OPTIONS,
 }: StudentListProps) {
     const i18n = t();
     const { showInertiaErrors, showWarning } = usePageError();
@@ -789,6 +805,7 @@ export function StudentList({
     const [viewingStudents, setViewingStudents] = useState<StudentListItem[] | null>(null);
     const [viewingAsFileContinue, setViewingAsFileContinue] = useState(false);
     const [creatingStudent, setCreatingStudent] = useState(false);
+    const [enrollCandidates, setEnrollCandidates] = useState<StudentListItem[] | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<StudentListItem | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [applyingStatus, setApplyingStatus] = useState(false);
@@ -1156,6 +1173,12 @@ export function StudentList({
             return;
         }
 
+        if (filters.academic_year_id === null || filters.academic_year_id < 1) {
+            showWarning(i18n.students.enrollNeedsYear);
+
+            return;
+        }
+
         const selected = actionIds
             .map((id) => rows.find((row) => row.id === id) ?? null)
             .filter((row): row is StudentListItem => row !== null);
@@ -1176,48 +1199,26 @@ export function StudentList({
             return;
         }
 
-        const handoffStudents = eligible.map((row) => ({
-            id: row.id,
-            full_name: studentQuadName(row) || row.full_name,
-        }));
-
-        const queuedCount = appendEnrollmentHandoff({
-            academic_year_id: filters.academic_year_id,
-            students: handoffStudents,
-        });
-
-        clearSelection();
-
         const skippedEnrolled = selected.filter((row) => row.is_enrolled).length;
         const skippedInactive = selected.filter(
             (row) => !row.is_enrolled && row.status !== STUDENT_STATUS_ACTIVE,
         ).length;
         if (skippedEnrolled > 0) {
-            toast.message(i18n.students.enrollSkippedEnrolled);
+            showWarning(i18n.students.enrollSkippedEnrolled);
         }
         if (skippedInactive > 0) {
-            toast.message(i18n.students.enrollSkippedInactive);
+            showWarning(i18n.students.enrollSkippedInactive);
         }
 
-        const params = new URLSearchParams({ handoff: '1' });
-        if (filters.academic_year_id !== null && filters.academic_year_id > 0) {
-            params.set('academic_year_id', String(filters.academic_year_id));
-        }
-
-        toast.success(
-            i18n.students.enrollQueuedCount.replace('{count}', String(queuedCount)),
-        );
-
-        router.visit(`/enrollments?${params.toString()}`);
+        setEnrollCandidates(eligible);
     }, [
         actionIds,
         authorization.canEnroll,
-        clearSelection,
         filters.academic_year_id,
         filtersBusy,
         i18n.students.enrollNeedsEligible,
         i18n.students.enrollNeedsSelection,
-        i18n.students.enrollQueuedCount,
+        i18n.students.enrollNeedsYear,
         i18n.students.enrollSkippedEnrolled,
         i18n.students.enrollSkippedInactive,
         rows,
@@ -1877,6 +1878,38 @@ export function StudentList({
                     <StudentCreateDialog
                         canViewPii={authorization.canViewPii}
                         onClose={() => setCreatingStudent(false)}
+                    />
+                </Suspense>
+            ) : null}
+
+            {enrollCandidates !== null && enrollCandidates.length > 0 ? (
+                <Suspense fallback={null}>
+                    <StudentEnrollmentDialog
+                        open
+                        students={enrollCandidates.map((row) => ({
+                            id: row.id,
+                            full_name: studentQuadName(row) || row.full_name,
+                            student_code: row.student_code,
+                            is_enrolled: row.is_enrolled === true,
+                            branch_id: row.branch_id ?? null,
+                            department_name: row.department_name ?? null,
+                            admitted_class_name: row.admitted_class_name ?? null,
+                            section_name: row.section_name ?? null,
+                        }))}
+                        academicYearId={filters.academic_year_id}
+                        filterOptions={enrollmentFilterOptions}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                setEnrollCandidates(null);
+                            }
+                        }}
+                        onEnrolled={() => {
+                            setEnrollCandidates(null);
+                            clearSelection();
+                            router.reload({
+                                only: ['students', 'filters', 'authorization', 'enrollmentFilterOptions'],
+                            });
+                        }}
                     />
                 </Suspense>
             ) : null}

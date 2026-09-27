@@ -102,6 +102,16 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
             $birthDate,
             $admittedAcademicYearId,
         ): int {
+            $intendedGrade = isset($application['intended_grade_name']) && is_string($application['intended_grade_name'])
+                ? trim($application['intended_grade_name'])
+                : '';
+            $departmentName = isset($application['department_name']) && is_string($application['department_name'])
+                ? trim($application['department_name'])
+                : '';
+            $specializationName = isset($application['specialization_name']) && is_string($application['specialization_name'])
+                ? trim($application['specialization_name'])
+                : '';
+
             $id = $this->students->saveNew(new CreateStudentData(
                 studentCode: $studentCode,
                 firstName: $application['first_name'],
@@ -120,12 +130,12 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 birthPlace: $application['birth_place'] ?? null,
                 governorate: $application['governorate'] ?? null,
                 neighborhood: $application['neighborhood'] ?? null,
-                admittedClassName: $application['intended_grade_name'] ?? null,
+                admittedClassName: $intendedGrade !== '' ? $intendedGrade : null,
                 notes: $application['notes'] ?? null,
                 schoolName: $application['school_name'] ?? null,
                 branchId: isset($application['branch_id']) ? (int) $application['branch_id'] : null,
-                departmentName: $application['department_name'] ?? null,
-                specializationName: $application['specialization_name'] ?? null,
+                departmentName: $departmentName !== '' ? $departmentName : null,
+                specializationName: $specializationName !== '' ? $specializationName : null,
                 schoolId: $command->schoolId,
                 admittedAcademicYearId: $admittedAcademicYearId,
             ));

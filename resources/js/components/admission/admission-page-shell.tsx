@@ -446,6 +446,7 @@ function AdmissionPageShellInner({
                             onOpenChange={setAcceptedOpen}
                             students={workspace.accepted_students ?? []}
                             defaultAcademicYearId={academicYearId}
+                            canManage={authorization.can_manage}
                         />
                     </Suspense>
                 ) : null}

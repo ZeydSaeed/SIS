@@ -93,6 +93,38 @@ class UpdateApplicationDraftHandlerTest extends TestCase
         ));
     }
 
+    public function test_updates_placement_fields_on_draft(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findApplicationForSchool')->willReturn($this->applicationRow());
+        $admission->expects($this->once())
+            ->method('updateDraft')
+            ->with($this->callback(fn (UpdateApplicationDraftData $data): bool => $data->updatePlacement === true
+                && $data->branchId === 3
+                && $data->branchName === 'الصناعي'
+                && $data->departmentName === 'كهرباء'
+                && $data->intendedGradeName === 'الأول'
+                && $data->gradeLevelId === 1));
+
+        $outbox = $this->createMock(OutboxRepository::class);
+        $outbox->expects($this->once())->method('stage');
+
+        $result = $this->handler($admission, $outbox)->handle(new UpdateApplicationDraftCommand(
+            schoolId: 1,
+            applicationId: 12,
+            notes: null,
+            reviewedAt: null,
+            branchId: 3,
+            branchName: 'الصناعي',
+            departmentName: 'كهرباء',
+            gradeLevelId: 1,
+            intendedGradeName: 'الأول',
+            updatePlacement: true,
+        ));
+
+        $this->assertTrue($result->success);
+    }
+
     /**
      * @return array{
      *     id:int,

@@ -25,7 +25,7 @@ type ConfirmDialogProps = {
 
 /**
  * Shared confirmation dialog — same classic chrome as MessageDialog (SSOT visual).
- * Use for yes/no decisions only; notices go through usePageError / MessageDialog.
+ * Non-modal: no overlay / no z-index — page behind stays interactive.
  */
 export function ConfirmDialog({
     open,
@@ -46,10 +46,10 @@ export function ConfirmDialog({
     const Icon = isDanger ? AlertTriangle : Info;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 className={`sis-confirm-dialog sis-confirm-dialog--${tone}`}
-                overlayClassName="sis-confirm-dialog__overlay"
+                showOverlay={false}
                 dir="rtl"
                 onOpenAutoFocus={(event) => {
                     if (!isDanger) {
@@ -58,6 +58,12 @@ export function ConfirmDialog({
 
                     event.preventDefault();
                     cancelRef.current?.focus();
+                }}
+                onInteractOutside={(event) => {
+                    event.preventDefault();
+                }}
+                onPointerDownOutside={(event) => {
+                    event.preventDefault();
                 }}
             >
                 <DialogHeader className="sis-confirm-dialog__titlebar">

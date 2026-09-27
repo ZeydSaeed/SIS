@@ -7,6 +7,7 @@ use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
 use App\Domain\Admission\Data\UpdateApplicationDraftData;
+use App\Domain\Admission\Data\UpdateApplicationFollowUpData;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
@@ -230,6 +231,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'apps.gender',
                 'apps.target_school_id',
                 'apps.branch_id',
+                'apps.branch_name',
                 'apps.grade_level_id',
                 'apps.intended_grade_name',
                 'apps.department_name',
@@ -250,6 +252,12 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             return null;
         }
 
+        $branchName = $this->nullableString($row->branch_name);
+        $branchId = $row->branch_id !== null ? (int) $row->branch_id : null;
+        if ($branchId === null && $branchName !== null) {
+            $branchId = $this->resolveBranchIdForSchool((int) $row->school_id, $branchName);
+        }
+
         return [
             'id' => (int) $row->id,
             'application_period_id' => (int) $row->application_period_id,
@@ -266,7 +274,8 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'birth_date' => substr((string) $row->birth_date, 0, 10),
             'birth_place' => $this->nullableString($row->birth_place),
             'gender' => (int) $row->gender,
-            'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
+            'branch_id' => $branchId,
+            'branch_name' => $branchName,
             'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
             'intended_grade_name' => $this->nullableString($row->intended_grade_name),
             'department_name' => $this->nullableString($row->department_name),
@@ -281,6 +290,41 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'school_id' => (int) $row->school_id,
             'academic_year_id' => (int) $row->academic_year_id,
         ];
+    }
+
+    private function resolveBranchIdForSchool(int $schoolId, string $branchName): ?int
+    {
+        $name = trim($branchName);
+        if ($name === '') {
+            return null;
+        }
+
+        $branches = SchemaHelper::qualified('organization', 'branches');
+        $exact = DB::table($branches)
+            ->where('school_id', $schoolId)
+            ->where('status', 1)
+            ->where('name', $name)
+            ->value('id');
+        if ($exact !== null) {
+            return (int) $exact;
+        }
+
+        $rows = DB::table($branches)
+            ->where('school_id', $schoolId)
+            ->where('status', 1)
+            ->get(['id', 'name']);
+
+        foreach ($rows as $candidate) {
+            $candidateName = trim((string) $candidate->name);
+            if ($candidateName === '') {
+                continue;
+            }
+            if (mb_stripos($candidateName, $name) !== false || mb_stripos($name, $candidateName) !== false) {
+                return (int) $candidate->id;
+            }
+        }
+
+        return null;
     }
 
     public function findAcceptedApplicationIdsWithoutStudent(int $schoolId): array
@@ -305,13 +349,52 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
 
     public function updateDraft(UpdateApplicationDraftData $data): void
     {
+        $payload = [
+            'notes' => $data->notes,
+            'reviewed_at' => $data->reviewedAt,
+            'updated_at' => now(),
+        ];
+
+        if ($data->updatePlacement) {
+            $payload['branch_id'] = $data->branchId;
+            $payload['branch_name'] = $data->branchName;
+            $payload['department_name'] = $data->departmentName;
+            $payload['grade_level_id'] = $data->gradeLevelId;
+            $payload['intended_grade_name'] = $data->intendedGradeName;
+            $payload['specialization_id'] = $data->specializationId;
+            $payload['specialization_name'] = $data->specializationName;
+        }
+
         DB::table(SchemaHelper::qualified('admission', 'applications'))
             ->where('id', $data->applicationId)
-            ->update([
-                'notes' => $data->notes,
-                'reviewed_at' => $data->reviewedAt,
-                'updated_at' => now(),
-            ]);
+            ->update($payload);
+        $this->workspaceCache->forgetForApplicationId($data->applicationId);
+    }
+
+    public function updateFollowUp(UpdateApplicationFollowUpData $data): void
+    {
+        $payload = [
+            'first_name' => $data->firstName,
+            'father_name' => $data->fatherName,
+            'grandfather_name' => $data->grandfatherName,
+            'great_grandfather_name' => $data->greatGrandfatherName,
+            'last_name' => $data->lastName,
+            'updated_at' => now(),
+        ];
+
+        if ($data->updateRejectionReason) {
+            $payload['rejection_reason'] = $data->rejectionReason;
+            $payload['notes'] = $data->rejectionReason;
+        }
+
+        if ($data->updateWithdrawalReason) {
+            $payload['withdrawal_reason'] = $data->withdrawalReason;
+            $payload['notes'] = $data->withdrawalReason;
+        }
+
+        DB::table(SchemaHelper::qualified('admission', 'applications'))
+            ->where('id', $data->applicationId)
+            ->update($payload);
         $this->workspaceCache->forgetForApplicationId($data->applicationId);
     }
 

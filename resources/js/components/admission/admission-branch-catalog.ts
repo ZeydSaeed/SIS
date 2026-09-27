@@ -1,4 +1,7 @@
-/** Fixed vocational branch → department catalog for admission request form (RTL Arabic). */
+/**
+ * Fixed vocational branch → department catalog (RTL Arabic).
+ * SSOT twin: database/seeders/Support/AdmissionCatalogReference.php — keep in sync.
+ */
 export const ADMISSION_BRANCH_OPTIONS = [
     'الصناعي',
     'التجاري',

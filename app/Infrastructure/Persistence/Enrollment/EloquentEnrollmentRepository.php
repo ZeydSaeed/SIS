@@ -71,7 +71,77 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         ]);
         $record->save();
 
-        return (int) $record->getKey();
+        $enrollmentId = (int) $record->getKey();
+        $this->syncStudentPlacementOnEnroll(
+            $data->studentId,
+            $data->classId,
+            $data->sectionId,
+            $data->specializationId,
+            $data->branchId,
+            $data->departmentId,
+        );
+
+        return $enrollmentId;
+    }
+
+    /**
+     * On first enroll: write class/section always; branch/department/specialization only when provided
+     * so empty optional dialog fields do not wipe admission placement already on the student.
+     */
+    private function syncStudentPlacementOnEnroll(
+        int $studentId,
+        int $classId,
+        int $sectionId,
+        ?int $specializationId,
+        ?int $branchId,
+        ?int $departmentId,
+    ): void {
+        $studentFill = [];
+
+        $className = DB::table(SchemaHelper::qualified('enrollment', 'classes'))
+            ->where('id', $classId)
+            ->value('name');
+        if (is_string($className) && $className !== '') {
+            $studentFill['admitted_class_name'] = $className;
+            $studentFill['stage_name'] = $className;
+        }
+
+        $sectionName = DB::table(SchemaHelper::qualified('enrollment', 'sections'))
+            ->where('id', $sectionId)
+            ->value('name');
+        if (is_string($sectionName) && $sectionName !== '') {
+            $studentFill['section_name'] = $sectionName;
+        }
+
+        if ($branchId !== null) {
+            $studentFill['branch_id'] = $branchId;
+        }
+
+        if ($departmentId !== null) {
+            $departmentName = DB::table(SchemaHelper::qualified('organization', 'departments'))
+                ->where('id', $departmentId)
+                ->value('name');
+            $studentFill['department_name'] = is_string($departmentName) && $departmentName !== ''
+                ? $departmentName
+                : null;
+        }
+
+        if ($specializationId !== null) {
+            $specializationName = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
+                ->where('id', $specializationId)
+                ->value('name');
+            $studentFill['specialization_name'] = is_string($specializationName) && $specializationName !== ''
+                ? $specializationName
+                : null;
+        }
+
+        if ($studentFill === []) {
+            return;
+        }
+
+        DB::table(SchemaHelper::qualified('students', 'students'))
+            ->where('id', $studentId)
+            ->update(array_merge($studentFill, ['updated_at' => now()]));
     }
 
     public function updatePlacement(
@@ -146,6 +216,16 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         }
 
         if ($syncStudentLabels) {
+            $className = DB::table(SchemaHelper::qualified('enrollment', 'classes'))
+                ->where('id', $classId)
+                ->value('name');
+            $studentFill['admitted_class_name'] = is_string($className) && $className !== ''
+                ? $className
+                : null;
+            if (! $updateStage) {
+                $studentFill['stage_name'] = $studentFill['admitted_class_name'];
+            }
+
             $sectionName = DB::table(SchemaHelper::qualified('enrollment', 'sections'))
                 ->where('id', $sectionId)
                 ->value('name');

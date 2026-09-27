@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Student\Commands\ChangeStudentStatusesCommand;
 use App\Application\Student\Commands\ChangeStudentStatusesHandler;
 use App\Application\Student\Commands\CreateStudentHandler;
@@ -105,6 +106,18 @@ final class StudentPageController extends Controller
             ['page' => $page, 'per_page' => $perPage, 'search' => $q !== ''],
         );
 
+        $authorization = $this->listAuthorization($user);
+        $enrollmentFilterOptions = $authorization['canEnroll']
+            ? app(EnrollmentReadRepositoryInterface::class)->listFilterOptions($schoolId, $academicYearId)
+            : [
+                'branches' => [],
+                'classes' => [],
+                'sections' => [],
+                'departments' => [],
+                'specializations' => [],
+                'grade_levels' => [],
+            ];
+
         return Inertia::render('students/index', [
             'students' => $payload,
             'filters' => [
@@ -116,7 +129,8 @@ final class StudentPageController extends Controller
                 'gender' => $gender,
                 'enrolled' => $enrolled === null ? null : ($enrolled ? 1 : 0),
             ],
-            'authorization' => $this->listAuthorization($user),
+            'authorization' => $authorization,
+            'enrollmentFilterOptions' => $enrollmentFilterOptions,
         ]);
     }
 

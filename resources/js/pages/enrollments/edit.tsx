@@ -25,17 +25,17 @@ export default function EnrollmentEdit({ enrollment }: PageProps) {
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.enrollments.title, href: '/enrollments' },
-        { title: enrollment.enrollment_number, href: `/enrollments/${enrollment.id}` },
+        { title: i18n.enrollments.viewTitle, href: `/enrollments/${enrollment.id}` },
         { title: i18n.enrollments.editPlacement, href: `/enrollments/${enrollment.id}/edit` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`${i18n.common.edit} ${enrollment.enrollment_number}`} />
+            <Head title={i18n.enrollments.editTitle} />
             <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
                 <PageHeader
                     title={i18n.enrollments.editTitle}
-                    description={`${i18n.enrollments.editDesc} (${enrollment.enrollment_number})`}
+                    description={i18n.enrollments.editDesc}
                     icon={<ClipboardList className="size-6" aria-hidden />}
                 />
                 <Link

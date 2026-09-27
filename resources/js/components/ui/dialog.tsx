@@ -48,14 +48,17 @@ function DialogContent({
   className,
   children,
   overlayClassName,
+  showOverlay = true,
   ref,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   overlayClassName?: string
+  /** When false, no dimming layer — page behind stays interactive. */
+  showOverlay?: boolean
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay className={overlayClassName} />
+      {showOverlay ? <DialogOverlay className={overlayClassName} /> : null}
       <DialogPrimitive.Content
         data-slot="dialog-content"
         ref={ref}

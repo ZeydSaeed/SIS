@@ -362,17 +362,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             );
         }, [branchId, filterOptions.departments]);
 
-        const filteredSpecializations = useMemo(() => {
-            if (departmentId === '') {
-                return filterOptions.specializations;
-            }
-
-            return filterOptions.specializations.filter(
-                (item) =>
-                    item.department_id === null || String(item.department_id) === departmentId,
-            );
-        }, [departmentId, filterOptions.specializations]);
-
         const yearOptions = useMemo(() => {
             const options = years.map((year) => ({
                 value: String(year.id),
@@ -555,9 +544,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                         <HighlightedText text={name} query={search} />
                     </CellScroll>
                 </td>
-                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                    <span dir="ltr">{textOrDash(row.student_code)}</span>
-                </td>
                 <td className="sis-admission-drafts-table__text">
                     {editing ? (
                         <SelectCell
@@ -681,24 +667,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                         />
                     ) : (
                         <CellScroll>{textOrDash(row.department_name)}</CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
-                        <SelectCell
-                            value={specializationId}
-                            label={i18n.enrollments.specialization}
-                            options={[
-                                { value: '', label: i18n.enrollments.allSpecializations },
-                                ...filteredSpecializations.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
-                            ]}
-                            onChange={setSpecializationId}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.specialization_name)}</CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text">
