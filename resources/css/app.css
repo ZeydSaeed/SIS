@@ -8582,6 +8582,40 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
     font-size: 0.92rem;
 }
 
+/* Branch + department need more width for full Arabic names; class/section stay compact. */
+.sis-enrollment-record-sheet .sis-enrollment-record-sheet__field--wide {
+    grid-column: span 38 !important;
+    min-width: 0;
+}
+
+.sis-enrollment-record-sheet .sis-enrollment-record-sheet__field--narrow {
+    grid-column: span 22 !important;
+    min-width: 0;
+}
+
+.sis-enrollment-record-sheet .sis-enrollment-record-sheet__field--wide .sis-admission-sheet__control,
+.sis-enrollment-record-sheet
+    .sis-enrollment-record-sheet__field--wide
+    .sis-list-select__trigger.sis-admission-sheet__control {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    height: auto;
+    min-height: 2.15rem;
+    align-items: flex-start;
+    padding-block: 0.28rem;
+    line-height: 1.35;
+}
+
+.sis-enrollment-record-sheet
+    .sis-enrollment-record-sheet__field--wide
+    .sis-list-select__value {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.35;
+}
+
 .sis-student-enrollment-sheet__form {
     min-width: min(96vw, 28rem);
     width: min(96vw, 36rem);

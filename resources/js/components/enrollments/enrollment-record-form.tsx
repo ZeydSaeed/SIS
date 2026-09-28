@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import AppLogo from '@/components/app-logo';
 import {
     formatAcademicYearOptionLabel,
     type YearOption,
 } from '@/components/sis/ops-year-filter';
+import { SheetSection } from '@/components/sis/admission-sheet';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { usePageError } from '@/components/sis/page-error-context';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -13,6 +16,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { WindowControls } from '@/components/window-controls';
+import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
+import {
+    resolveSisSectionCode,
+    resolveSisSectionId,
+    sisSectionSelectOptions,
+} from '@/lib/sis-class-section-options';
 import { t } from '@/i18n';
 
 export type EnrollmentRecordValues = {
@@ -40,6 +52,8 @@ export type EnrollmentRecordValues = {
     student_last_name?: string | null;
     student_gender?: number | null;
     student_birth_date?: string | null;
+    /** Civil student status from students.status (not enrollment.status). */
+    student_status?: number | null;
     class_code?: string | null;
     class_name?: string | null;
     section_code?: string | null;
@@ -77,8 +91,16 @@ type EnrollmentRecordFormProps = {
     enrollment: EnrollmentRecordValues;
     canUpdate: boolean;
     filterOptions: EnrollmentFormFilterOptions;
-    onSaved?: (enrollment: EnrollmentRecordValues) => void;
     initialEditing?: boolean;
+    sheetTitle?: string;
+    onClose?: () => void;
+    heroDragProps?: HTMLAttributes<HTMLElement>;
+    showWindowControls?: boolean;
+    /** Hide per-form hero when a shared dialog chrome owns the title bar. */
+    hideHero?: boolean;
+    maximized?: boolean;
+    onMaximize?: () => void;
+    onSaved?: (enrollment: EnrollmentRecordValues) => void;
 };
 
 type EnrollmentViewDialogProps = {
@@ -122,7 +144,6 @@ type EnrollmentCreateFormProps = {
         class_id?: number | null;
         branch_id?: number | null;
         department_id?: number | null;
-        specialization_id?: number | null;
         effective_from?: string | null;
     };
     onCancel?: () => void;
@@ -130,30 +151,24 @@ type EnrollmentCreateFormProps = {
     showCancel?: boolean;
 };
 
+/** Editable placement fields for the enrollment sheet (view/edit dialog). Status is display-only. */
 type PlacementDraft = {
-    quad_name: string;
-    gender: string;
-    class_id: string;
-    section_id: string;
-    branch_id: string;
-    department_id: string;
-    specialization_id: string;
-    grade_level_id: string;
-    stage_name: string;
-    academic_year_id: string;
-    status: string;
     effective_from: string;
     effective_to: string;
+    branch_id: string;
+    department_id: string;
+    class_id: string;
+    /** Shared SIS section code: A | B | C */
+    section_code: string;
 };
 
 type CreateDraft = {
     student_id: string;
     academic_year_id: string;
     class_id: string;
-    section_id: string;
+    section_code: string;
     branch_id: string;
     department_id: string;
-    specialization_id: string;
     effective_from: string;
 };
 
@@ -207,88 +222,14 @@ function studentQuadName(enrollment: EnrollmentRecordValues): string {
     return enrollment.student_full_name?.trim() || '—';
 }
 
-function parseQuadName(full: string): {
-    first_name: string;
-    father_name: string | null;
-    grandfather_name: string | null;
-    great_grandfather_name: string | null;
-    last_name: string;
-} {
-    const parts = full
-        .trim()
-        .split(/\s+/)
-        .map((part) => part.trim())
-        .filter((part) => part !== '');
+function studentIdentifier(enrollment: EnrollmentRecordValues): string {
+    const code = enrollment.student_code?.trim();
 
-    if (parts.length === 0) {
-        return {
-            first_name: '',
-            father_name: null,
-            grandfather_name: null,
-            great_grandfather_name: null,
-            last_name: '',
-        };
+    if (code !== undefined && code !== '') {
+        return code;
     }
 
-    if (parts.length === 1) {
-        return {
-            first_name: parts[0],
-            father_name: null,
-            grandfather_name: null,
-            great_grandfather_name: null,
-            last_name: parts[0],
-        };
-    }
-
-    if (parts.length === 2) {
-        return {
-            first_name: parts[0],
-            father_name: null,
-            grandfather_name: null,
-            great_grandfather_name: null,
-            last_name: parts[1],
-        };
-    }
-
-    if (parts.length === 3) {
-        return {
-            first_name: parts[0],
-            father_name: parts[1],
-            grandfather_name: null,
-            great_grandfather_name: null,
-            last_name: parts[2],
-        };
-    }
-
-    if (parts.length === 4) {
-        return {
-            first_name: parts[0],
-            father_name: parts[1],
-            grandfather_name: parts[2],
-            great_grandfather_name: null,
-            last_name: parts[3],
-        };
-    }
-
-    return {
-        first_name: parts[0],
-        father_name: parts[1],
-        grandfather_name: parts[2],
-        great_grandfather_name: parts[3],
-        last_name: parts.slice(4).join(' '),
-    };
-}
-
-function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
-    const labels: Record<number, string> = {
-        0: i18n.status.inactive,
-        1: i18n.status.active,
-        2: i18n.status.cancelled,
-        3: i18n.status.transferred,
-        4: i18n.status.dismissed,
-    };
-
-    return labels[status] ?? String(status);
+    return enrollment.student_id > 0 ? String(enrollment.student_id) : '—';
 }
 
 function isFilled(value: string | number | null | undefined): boolean {
@@ -299,6 +240,610 @@ function isFilled(value: string | number | null | undefined): boolean {
     const text = String(value).trim();
 
     return text !== '' && text !== '—';
+}
+
+function todayIso(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function filledControlClass(filled: boolean, editing: boolean): string {
+    return `sis-admission-sheet__control${filled ? ' sis-admission-draft-field--filled' : ''}${editing ? '' : ' sis-admission-draft-readonly'}`;
+}
+
+/** Read-only sheet field — quad name / gender / academic year / student id. */
+function SheetDisplayField({
+    label,
+    display,
+    dir = 'rtl',
+}: {
+    label: string;
+    display: string;
+    dir?: 'rtl' | 'ltr';
+}) {
+    return (
+        <div className="sis-admission-sheet__field">
+            <span className="sis-admission-sheet__label">{label}</span>
+            <div className={filledControlClass(isFilled(display), false)} dir={dir} aria-readonly="true">
+                {display}
+            </div>
+        </div>
+    );
+}
+
+/** Editable sheet list field (branch, department, class, section). */
+function SheetListField({
+    label,
+    editing,
+    value,
+    display,
+    options,
+    onChange,
+    disabled = false,
+    includeBlank = true,
+    fieldClassName = '',
+}: {
+    label: string;
+    editing: boolean;
+    value: string;
+    display: string;
+    options: Array<{ value: string; label: string }>;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    includeBlank?: boolean;
+    fieldClassName?: string;
+}) {
+    return (
+        <label className={`sis-admission-sheet__field ${fieldClassName}`.trim()}>
+            <span className="sis-admission-sheet__label">{label}</span>
+            {editing ? (
+                <SisListSelect
+                    value={value}
+                    options={options}
+                    onChange={onChange}
+                    ariaLabel={label}
+                    includeBlank={includeBlank}
+                    disabled={disabled}
+                    className={`sis-admission-sheet-list-select${isFilled(value) ? ' sis-admission-draft-field--filled' : ''}`}
+                    triggerClassName={`sis-admission-sheet__control sis-admission-draft-select${isFilled(value) ? ' sis-admission-draft-field--filled' : ''}`}
+                    menuClassName="sis-admission-sheet-list-select__menu"
+                />
+            ) : (
+                <div className={filledControlClass(isFilled(display), false)}>{display}</div>
+            )}
+        </label>
+    );
+}
+
+/** Editable sheet date field (effective_from / effective_to). */
+function SheetDateField({
+    label,
+    editing,
+    value,
+    display,
+    onChange,
+}: {
+    label: string;
+    editing: boolean;
+    value: string;
+    display: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <label className="sis-admission-sheet__field">
+            <span className="sis-admission-sheet__label">{label}</span>
+            {editing ? (
+                <input
+                    type="date"
+                    dir="ltr"
+                    className={filledControlClass(isFilled(value), true)}
+                    value={value}
+                    placeholder=" "
+                    aria-label={label}
+                    onChange={(event) => onChange(event.target.value)}
+                />
+            ) : (
+                <div className={filledControlClass(isFilled(display), false)} dir="ltr">
+                    {display}
+                </div>
+            )}
+        </label>
+    );
+}
+
+function draftFromEnrollment(
+    enrollment: EnrollmentRecordValues,
+    sections: EnrollmentFormFilterOptions['sections'],
+): PlacementDraft {
+    return {
+        effective_from: isoDate(enrollment.effective_from),
+        effective_to: isoDate(enrollment.effective_to),
+        branch_id: enrollment.branch_id ? String(enrollment.branch_id) : '',
+        department_id: enrollment.department_id ? String(enrollment.department_id) : '',
+        class_id: String(enrollment.class_id),
+        section_code: resolveSisSectionCode(enrollment.section_id, sections),
+    };
+}
+
+/** Enrollment view/edit sheet — mirrors StudentRecordForm's sheet chrome and layout. */
+export function EnrollmentRecordForm({
+    enrollment,
+    canUpdate,
+    filterOptions,
+    initialEditing = false,
+    sheetTitle,
+    onClose,
+    heroDragProps,
+    showWindowControls = true,
+    hideHero = false,
+    maximized = false,
+    onMaximize,
+    onSaved,
+}: EnrollmentRecordFormProps) {
+    const i18n = t();
+    const { showError, showInertiaErrors } = usePageError();
+    const { academicYears } = usePage().props as { academicYears?: YearOption[] };
+    const years = academicYears ?? [];
+    const [editing, setEditing] = useState(initialEditing && canUpdate);
+    const [saving, setSaving] = useState(false);
+    const [draft, setDraft] = useState<PlacementDraft>(() =>
+        draftFromEnrollment(enrollment, filterOptions.sections),
+    );
+
+    useEffect(() => {
+        if (editing) {
+            return;
+        }
+
+        setDraft(draftFromEnrollment(enrollment, filterOptions.sections));
+    }, [editing, enrollment, filterOptions.sections]);
+
+    useEffect(() => {
+        if (initialEditing && canUpdate) {
+            setEditing(true);
+        }
+    }, [canUpdate, initialEditing]);
+
+    const setField = <K extends keyof PlacementDraft>(key: K, value: PlacementDraft[K]) => {
+        setDraft((current) => ({ ...current, [key]: value }));
+    };
+
+    const sectionOptions = useMemo(() => sisSectionSelectOptions(), []);
+
+    const filteredDepartments = useMemo(() => {
+        if (draft.branch_id === '') {
+            return filterOptions.departments;
+        }
+
+        return filterOptions.departments.filter(
+            (department) =>
+                department.branch_id === null || String(department.branch_id) === draft.branch_id,
+        );
+    }, [draft.branch_id, filterOptions.departments]);
+
+    const name = studentQuadName(enrollment);
+    const genderDisplay =
+        enrollment.student_gender === 1
+            ? i18n.students.male
+            : enrollment.student_gender === 2
+              ? i18n.students.female
+              : '—';
+    const yearDisplay =
+        formatAcademicYearOptionLabel(
+            enrollment.academic_year_name
+                ?? years.find((year) => year.id === enrollment.academic_year_id)?.name
+                ?? '',
+            enrollment.academic_year_code
+                ?? years.find((year) => year.id === enrollment.academic_year_id)?.code
+                ?? '',
+        ) || displayValue(enrollment.academic_year_id);
+    const classDisplay = displayValue(enrollment.class_name ?? enrollment.class_code);
+    const sectionDisplay =
+        resolveSisSectionCode(enrollment.section_id, filterOptions.sections)
+        || displayValue(enrollment.section_code ?? enrollment.section_name);
+    const branchDisplay = displayValue(enrollment.branch_name ?? enrollment.branch_code);
+    const departmentDisplay = displayValue(enrollment.department_name);
+    const birthDateDisplay = formatCivilDate(enrollment.student_birth_date);
+    const fieldsEditable = editing;
+
+    const finishSave = (next: EnrollmentRecordValues) => {
+        setEditing(false);
+        setSaving(false);
+        onSaved?.(next);
+    };
+
+    const savePlacement = (statusValue: number) => {
+        const resolvedClassId = draft.class_id !== '' ? Number(draft.class_id) : enrollment.class_id;
+        const resolvedSectionId = resolveSisSectionId(
+            draft.section_code,
+            resolvedClassId,
+            filterOptions.sections,
+        );
+
+        if (!resolvedClassId || resolvedSectionId === null) {
+            setSaving(false);
+            showError(
+                resolvedSectionId === null && draft.section_code !== ''
+                    ? i18n.students.enrollSectionNotFound
+                    : i18n.errors.missingClassSection,
+            );
+
+            return;
+        }
+
+        const resolvedBranchId = draft.branch_id === '' ? null : Number(draft.branch_id);
+        const resolvedDepartmentId = draft.department_id === '' ? null : Number(draft.department_id);
+        const sectionLabel =
+            sectionOptions.find((item) => item.value === draft.section_code)?.label
+            ?? draft.section_code;
+
+        const nextBase: EnrollmentRecordValues = {
+            ...enrollment,
+            class_id: resolvedClassId,
+            section_id: resolvedSectionId,
+            branch_id: resolvedBranchId,
+            department_id: resolvedDepartmentId,
+            status: statusValue,
+            effective_from: draft.effective_from || enrollment.effective_from,
+            effective_to: draft.effective_to === '' ? null : draft.effective_to,
+            class_name:
+                filterOptions.classes.find((item) => item.id === resolvedClassId)?.name
+                ?? enrollment.class_name,
+            section_name: sectionLabel,
+            section_code: draft.section_code,
+            branch_name:
+                filterOptions.branches.find((item) => item.id === resolvedBranchId)?.name ?? null,
+            department_name:
+                filterOptions.departments.find((item) => item.id === resolvedDepartmentId)?.name
+                ?? null,
+        };
+
+        router.put(
+            `/enrollments/${enrollment.id}`,
+            {
+                class_id: nextBase.class_id,
+                section_id: nextBase.section_id,
+                branch_id: nextBase.branch_id,
+                department_id: nextBase.department_id,
+                effective_from: draft.effective_from || undefined,
+                academic_year_id: enrollment.academic_year_id || undefined,
+                ...(draft.effective_to === ''
+                    ? { clear_effective_to: true }
+                    : { effective_to: draft.effective_to }),
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
+                onSuccess: () => {
+                    finishSave(nextBase);
+                },
+                onError: (errors) => {
+                    setSaving(false);
+                    showInertiaErrors(errors, i18n.errors.placementFailed);
+                },
+            },
+        );
+    };
+
+    const save = () => {
+        if (saving || !canUpdate) {
+            return;
+        }
+
+        if (draft.class_id === '' || draft.section_code === '') {
+            showError(i18n.errors.missingClassSection);
+            return;
+        }
+
+        setSaving(true);
+        savePlacement(enrollment.status);
+    };
+
+    const resolvedSheetTitle = sheetTitle ?? i18n.enrollments.viewTitle;
+
+    return (
+        <article
+            className="sis-admission-draft-form sis-admission-sheet sis-student-record-form"
+            dir="rtl"
+            lang="ar"
+        >
+            {!hideHero && (onClose || sheetTitle) ? (
+                <header className="sis-admission-sheet__hero" {...heroDragProps}>
+                    {onClose && showWindowControls ? (
+                        <WindowControls
+                            className="sis-admission-sheet__window-controls"
+                            label={i18n.window.controls}
+                            minimizeLabel={i18n.window.minimize}
+                            maximizeLabel={i18n.window.maximize}
+                            restoreLabel={i18n.window.restore}
+                            closeLabel={i18n.window.close}
+                            minimizable={false}
+                            maximizable={Boolean(onMaximize)}
+                            maximized={maximized}
+                            onMaximize={onMaximize}
+                            onClose={onClose}
+                        />
+                    ) : (
+                        <span className="sis-admission-sheet__window-controls" aria-hidden="true" />
+                    )}
+                    <div className="sis-admission-sheet__hero-copy">
+                        <p className="sis-admission-sheet__hero-title">{resolvedSheetTitle}</p>
+                    </div>
+                    <div className="sis-admission-sheet__hero-logo">
+                        <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />
+                    </div>
+                </header>
+            ) : null}
+
+            <SheetSection
+                id={`enrollment-student-${enrollment.id}`}
+                title={i18n.enrollments.student}
+            >
+                <div className="sis-student-record-form__name-line">
+                    <SheetDisplayField label={i18n.enrollments.quadName} display={name} />
+                    <div className="sis-admission-sheet__field sis-student-record-form__status-field">
+                        <span className="sis-admission-sheet__label">{i18n.common.status}</span>
+                        <div
+                            className="sis-student-record-form__status-value"
+                            aria-readonly="true"
+                        >
+                            <StudentStatusBadge status={enrollment.student_status ?? 1} />
+                        </div>
+                    </div>
+                </div>
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
+                    <SheetDisplayField
+                        label={i18n.enrollments.studentId}
+                        display={studentIdentifier(enrollment)}
+                        dir="ltr"
+                    />
+                    <SheetDisplayField label={i18n.enrollments.academicYear} display={yearDisplay} />
+                    <SheetDisplayField label={i18n.enrollments.gender} display={genderDisplay} />
+                    <SheetDisplayField
+                        label={i18n.students.birthDate}
+                        display={birthDateDisplay}
+                        dir="ltr"
+                    />
+                    <SheetDateField
+                        label={i18n.enrollments.effectiveFrom}
+                        editing={fieldsEditable}
+                        value={draft.effective_from}
+                        display={formatCivilDate(enrollment.effective_from)}
+                        onChange={(value) => setField('effective_from', value)}
+                    />
+                    <SheetDateField
+                        label={i18n.enrollments.effectiveTo}
+                        editing={fieldsEditable}
+                        value={draft.effective_to}
+                        display={formatCivilDate(enrollment.effective_to)}
+                        onChange={(value) => setField('effective_to', value)}
+                    />
+                </div>
+            </SheetSection>
+
+            <SheetSection
+                id={`enrollment-placement-${enrollment.id}`}
+                title={i18n.enrollments.editPlacement}
+            >
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-enrollment-record-sheet__placement-row">
+                    <SheetListField
+                        label={i18n.enrollments.branchName}
+                        editing={fieldsEditable}
+                        value={draft.branch_id}
+                        display={branchDisplay}
+                        fieldClassName="sis-enrollment-record-sheet__field--wide"
+                        options={filterOptions.branches.map((item) => ({
+                            value: String(item.id),
+                            label: item.name,
+                        }))}
+                        onChange={(next) => {
+                            setDraft((current) => ({
+                                ...current,
+                                branch_id: next,
+                                department_id: '',
+                            }));
+                        }}
+                    />
+                    <SheetListField
+                        label={i18n.enrollments.departmentName}
+                        editing={fieldsEditable}
+                        value={draft.department_id}
+                        display={departmentDisplay}
+                        disabled={draft.branch_id === ''}
+                        fieldClassName="sis-enrollment-record-sheet__field--wide"
+                        options={filteredDepartments.map((item) => ({
+                            value: String(item.id),
+                            label: item.name,
+                        }))}
+                        onChange={(next) => setField('department_id', next)}
+                    />
+                    <SheetListField
+                        label={i18n.enrollments.className}
+                        editing={fieldsEditable}
+                        value={draft.class_id}
+                        display={classDisplay}
+                        includeBlank={false}
+                        fieldClassName="sis-enrollment-record-sheet__field--narrow"
+                        options={filterOptions.classes.map((item) => ({
+                            value: String(item.id),
+                            label: item.name,
+                        }))}
+                        onChange={(next) => {
+                            setDraft((current) => ({
+                                ...current,
+                                class_id: next,
+                                section_code: '',
+                            }));
+                        }}
+                    />
+                    <SheetListField
+                        label={i18n.enrollments.sectionName}
+                        editing={fieldsEditable}
+                        value={draft.section_code}
+                        display={sectionDisplay}
+                        includeBlank={false}
+                        fieldClassName="sis-enrollment-record-sheet__field--narrow"
+                        options={sectionOptions}
+                        onChange={(next) => setField('section_code', next)}
+                    />
+                </div>
+            </SheetSection>
+
+            <div className="sis-admission-sheet__actions">
+                {onClose ? (
+                    <Button type="button" variant="outline" onClick={onClose}>
+                        {i18n.dialog.cancel}
+                    </Button>
+                ) : null}
+                {canUpdate ? (
+                    <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={editing}
+                            onClick={() => setEditing(true)}
+                        >
+                            {i18n.common.edit}
+                        </Button>
+                        <Button type="button" disabled={saving || !editing} onClick={save}>
+                            {saving ? i18n.common.saving : i18n.common.save}
+                        </Button>
+                    </>
+                ) : null}
+            </div>
+        </article>
+    );
+}
+
+export function EnrollmentViewDialog({
+    enrollments,
+    canUpdate = false,
+    filterOptions,
+    onClose,
+    onSaved,
+    initialEditing = false,
+}: EnrollmentViewDialogProps) {
+    const i18n = t();
+    const count = enrollments.length;
+    const viewTitle = i18n.enrollments.viewTitle;
+    const dialogTitle =
+        count > 1 ? `${i18n.enrollments.viewManyTitle} (${count})` : viewTitle;
+    const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(true, {
+        resizable: true,
+        minSize: { width: 520, height: 360 },
+    });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
+    const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
+    const enrollmentIdsKey = enrollments.map((enrollment) => enrollment.id).join(',');
+
+    useEffect(() => {
+        pageRefs.current = pageRefs.current.slice(0, count);
+    }, [count, enrollmentIdsKey]);
+
+    return (
+        <Dialog
+            open
+            modal={false}
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
+            <DialogContent
+                ref={contentRef}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-enrollment-record-sheet${maximizeClassName}${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
+                overlayClassName="sis-admission-sheet-dialog__overlay"
+                dir="rtl"
+                lang="ar"
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => event.preventDefault()}
+                onPointerDownCapture={bringToFront}
+            >
+                <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
+                {maximized ? null : resizeHandles}
+                {count > 1 ? (
+                    <>
+                        <header
+                            className="sis-admission-sheet__hero sis-student-sheet-dialog__shared-hero"
+                            {...(maximized ? {} : heroDragProps)}
+                        >
+                            <WindowControls
+                                className="sis-admission-sheet__window-controls"
+                                label={i18n.window.controls}
+                                minimizeLabel={i18n.window.minimize}
+                                maximizeLabel={i18n.window.maximize}
+                                restoreLabel={i18n.window.restore}
+                                closeLabel={i18n.window.close}
+                                minimizable={false}
+                                maximizable
+                                maximized={maximized}
+                                onMaximize={toggleMaximize}
+                                onClose={onClose}
+                            />
+                            <div className="sis-admission-sheet__hero-copy">
+                                <p className="sis-admission-sheet__hero-title">{viewTitle}</p>
+                            </div>
+                            <div className="sis-admission-sheet__hero-logo">
+                                <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />
+                            </div>
+                        </header>
+                        <div
+                            ref={scrollerRef}
+                            className="sis-student-sheet-dialog__many-scroller"
+                            dir="rtl"
+                        >
+                            {enrollments.map((enrollment, index) => (
+                                <div
+                                    key={enrollment.id}
+                                    ref={(node) => {
+                                        pageRefs.current[index] = node;
+                                    }}
+                                    className="sis-student-sheet-dialog__many-page"
+                                    data-enrollment-page={index}
+                                >
+                                    <EnrollmentRecordForm
+                                        enrollment={enrollment}
+                                        canUpdate={canUpdate}
+                                        filterOptions={filterOptions}
+                                        initialEditing={initialEditing}
+                                        hideHero
+                                        onClose={onClose}
+                                        onSaved={onSaved}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    enrollments.map((enrollment) => (
+                        <EnrollmentRecordForm
+                            key={enrollment.id}
+                            enrollment={enrollment}
+                            canUpdate={canUpdate}
+                            filterOptions={filterOptions}
+                            initialEditing={initialEditing}
+                            sheetTitle={viewTitle}
+                            onClose={onClose}
+                            heroDragProps={maximized ? undefined : heroDragProps}
+                            showWindowControls
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
+                            onSaved={onSaved}
+                        />
+                    ))
+                )}
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function controlClass(filled: boolean): string {
@@ -441,732 +986,6 @@ function DraftOptionalSelect({
     );
 }
 
-function resolveGradeLevelId(
-    enrollment: EnrollmentRecordValues,
-    filterOptions: EnrollmentFormFilterOptions,
-): string {
-    const fromClass = filterOptions.classes.find((item) => item.id === enrollment.class_id);
-    if (fromClass?.grade_level_id) {
-        return String(fromClass.grade_level_id);
-    }
-
-    const levels = filterOptions.grade_levels ?? [];
-    const byCode = levels.find((item) => item.code === enrollment.grade_level_code);
-    if (byCode) {
-        return String(byCode.id);
-    }
-
-    const byName = levels.find((item) => item.name === enrollment.grade_level_name);
-    if (byName) {
-        return String(byName.id);
-    }
-
-    return '';
-}
-
-function draftFromEnrollment(enrollment: EnrollmentRecordValues, filterOptions: EnrollmentFormFilterOptions): PlacementDraft {
-    const name = studentQuadName(enrollment);
-
-    return {
-        quad_name: name === '—' ? '' : name,
-        gender:
-            enrollment.student_gender === 1 || enrollment.student_gender === 2
-                ? String(enrollment.student_gender)
-                : '',
-        class_id: String(enrollment.class_id),
-        section_id: String(enrollment.section_id),
-        branch_id: enrollment.branch_id ? String(enrollment.branch_id) : '',
-        department_id: enrollment.department_id ? String(enrollment.department_id) : '',
-        specialization_id: enrollment.specialization_id ? String(enrollment.specialization_id) : '',
-        grade_level_id: resolveGradeLevelId(enrollment, filterOptions),
-        stage_name: enrollment.stage_name?.trim() ?? '',
-        academic_year_id: String(enrollment.academic_year_id),
-        status: String(enrollment.status),
-        effective_from: isoDate(enrollment.effective_from),
-        effective_to: isoDate(enrollment.effective_to),
-    };
-}
-
-function todayIso(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-}
-
-export function EnrollmentRecordForm({
-    enrollment,
-    canUpdate,
-    filterOptions,
-    onSaved,
-    initialEditing = false,
-}: EnrollmentRecordFormProps) {
-    const i18n = t();
-    const { showError, showInertiaErrors } = usePageError();
-    const { academicYears } = usePage().props as { academicYears?: YearOption[] };
-    const years = academicYears ?? [];
-    const [editing, setEditing] = useState(initialEditing && canUpdate);
-    const [saving, setSaving] = useState(false);
-    const [draft, setDraft] = useState<PlacementDraft>(() =>
-        draftFromEnrollment(enrollment, filterOptions),
-    );
-
-    useEffect(() => {
-        if (editing) {
-            return;
-        }
-
-        setDraft(draftFromEnrollment(enrollment, filterOptions));
-    }, [editing, enrollment, filterOptions]);
-
-    useEffect(() => {
-        if (initialEditing && canUpdate) {
-            setEditing(true);
-        }
-    }, [canUpdate, initialEditing]);
-
-    const setField = <K extends keyof PlacementDraft>(key: K, value: PlacementDraft[K]) => {
-        setDraft((current) => ({ ...current, [key]: value }));
-    };
-
-    const filteredClasses = useMemo(() => {
-        if (draft.grade_level_id === '') {
-            return filterOptions.classes;
-        }
-
-        return filterOptions.classes.filter(
-            (item) =>
-                item.grade_level_id === undefined
-                || String(item.grade_level_id) === draft.grade_level_id,
-        );
-    }, [draft.grade_level_id, filterOptions.classes]);
-
-    const filteredSections = useMemo(() => {
-        if (draft.class_id === '') {
-            return filterOptions.sections;
-        }
-
-        return filterOptions.sections.filter((section) => String(section.class_id) === draft.class_id);
-    }, [draft.class_id, filterOptions.sections]);
-
-    const filteredDepartments = useMemo(() => {
-        if (draft.branch_id === '') {
-            return filterOptions.departments;
-        }
-
-        return filterOptions.departments.filter(
-            (department) =>
-                department.branch_id === null || String(department.branch_id) === draft.branch_id,
-        );
-    }, [draft.branch_id, filterOptions.departments]);
-
-    const yearOptions = useMemo(() => {
-        const options = years.map((year) => ({
-            value: String(year.id),
-            label: formatAcademicYearOptionLabel(year.name, year.code),
-        }));
-        const currentId = String(enrollment.academic_year_id);
-        if (currentId !== '' && !options.some((option) => option.value === currentId)) {
-            options.unshift({
-                value: currentId,
-                label:
-                    formatAcademicYearOptionLabel(
-                        enrollment.academic_year_name ?? '',
-                        enrollment.academic_year_code ?? '',
-                    ) || currentId,
-            });
-        }
-
-        return options;
-    }, [
-        enrollment.academic_year_code,
-        enrollment.academic_year_id,
-        enrollment.academic_year_name,
-        years,
-    ]);
-
-    const yearDisplay =
-        formatAcademicYearOptionLabel(
-            enrollment.academic_year_name
-                ?? years.find((year) => year.id === enrollment.academic_year_id)?.name
-                ?? '',
-            enrollment.academic_year_code
-                ?? years.find((year) => year.id === enrollment.academic_year_id)?.code
-                ?? '',
-        ) || displayValue(enrollment.academic_year_id);
-
-    const genderDisplay =
-        enrollment.student_gender === 1
-            ? i18n.students.male
-            : enrollment.student_gender === 2
-              ? i18n.students.female
-              : '—';
-    const classDisplay = displayValue(enrollment.class_name ?? enrollment.class_code);
-    const sectionDisplay = displayValue(enrollment.section_name ?? enrollment.section_code);
-    const branchDisplay = displayValue(enrollment.branch_name ?? enrollment.branch_code);
-    const departmentDisplay = displayValue(enrollment.department_name);
-    const gradeLevels = filterOptions.grade_levels ?? [];
-    const gradeDisplay = displayValue(enrollment.grade_level_name ?? enrollment.grade_level_code);
-    const stageDisplay = displayValue(enrollment.stage_name);
-    const name = studentQuadName(enrollment);
-
-    const finishSave = (next: EnrollmentRecordValues) => {
-        setEditing(false);
-        setSaving(false);
-        onSaved?.(next);
-    };
-
-    const saveEnrollmentPlacement = (statusValue: number, nextBase: EnrollmentRecordValues) => {
-        router.put(
-            `/enrollments/${enrollment.id}`,
-            {
-                class_id: nextBase.class_id,
-                section_id: nextBase.section_id,
-                specialization_id: nextBase.specialization_id,
-                branch_id: nextBase.branch_id,
-                department_id: nextBase.department_id,
-                effective_from: nextBase.effective_from || undefined,
-                academic_year_id: nextBase.academic_year_id || undefined,
-                stage_name: nextBase.stage_name,
-                ...(nextBase.student_gender === 1 || nextBase.student_gender === 2
-                    ? { gender: nextBase.student_gender }
-                    : {}),
-                ...(nextBase.effective_to === null || nextBase.effective_to === ''
-                    ? { clear_effective_to: true }
-                    : { effective_to: nextBase.effective_to }),
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => finishSave(nextBase),
-                onError: (errors) => {
-                    setSaving(false);
-                    showInertiaErrors(errors, i18n.errors.placementFailed);
-                },
-            },
-        );
-    };
-
-    const savePlacementAndMeta = (statusValue: number) => {
-        const resolvedClassId =
-            draft.class_id !== ''
-                ? draft.class_id
-                : enrollment.class_id > 0
-                  ? String(enrollment.class_id)
-                  : '';
-        let resolvedSectionId =
-            draft.section_id !== ''
-                ? draft.section_id
-                : enrollment.section_id > 0
-                  ? String(enrollment.section_id)
-                  : '';
-
-        if (resolvedClassId !== '' && resolvedSectionId === '') {
-            const firstSection = filterOptions.sections.find(
-                (section) => String(section.class_id) === resolvedClassId,
-            );
-            resolvedSectionId = firstSection ? String(firstSection.id) : '';
-        }
-
-        if (resolvedClassId === '' || resolvedSectionId === '') {
-            setSaving(false);
-            showError(i18n.errors.missingClassSection);
-
-            return;
-        }
-
-        const parsedName = parseQuadName(draft.quad_name);
-        const hasParsedName = parsedName.first_name !== '' && parsedName.last_name !== '';
-        const nameParts = hasParsedName
-            ? parsedName
-            : {
-                  first_name: enrollment.student_first_name?.trim() || '',
-                  father_name: enrollment.student_father_name,
-                  grandfather_name: enrollment.student_grandfather_name,
-                  great_grandfather_name: enrollment.student_great_grandfather_name,
-                  last_name: enrollment.student_last_name?.trim() || '',
-              };
-
-        const birthDate = isoDate(enrollment.student_birth_date);
-        const selectedGrade = gradeLevels.find((item) => String(item.id) === draft.grade_level_id);
-        const departmentName =
-            filterOptions.departments.find((item) => String(item.id) === draft.department_id)
-                ?.name ?? null;
-        const specializationName =
-            filterOptions.specializations.find((item) => String(item.id) === draft.specialization_id)
-                ?.name ?? null;
-        const sectionName =
-            filterOptions.sections.find((item) => String(item.id) === resolvedSectionId)?.name
-            ?? null;
-        const stageName = draft.stage_name.trim() === '' ? null : draft.stage_name.trim();
-
-        const nextBase: EnrollmentRecordValues = {
-            ...enrollment,
-            academic_year_id: Number(draft.academic_year_id) || enrollment.academic_year_id,
-            class_id: Number(resolvedClassId),
-            section_id: Number(resolvedSectionId),
-            branch_id: draft.branch_id === '' ? null : Number(draft.branch_id),
-            department_id: draft.department_id === '' ? null : Number(draft.department_id),
-            specialization_id:
-                draft.specialization_id === '' ? null : Number(draft.specialization_id),
-            student_first_name: nameParts.first_name || enrollment.student_first_name,
-            student_father_name: nameParts.father_name,
-            student_grandfather_name: nameParts.grandfather_name,
-            student_great_grandfather_name: nameParts.great_grandfather_name,
-            student_last_name: nameParts.last_name || enrollment.student_last_name,
-            student_full_name: [
-                nameParts.first_name || enrollment.student_first_name,
-                nameParts.father_name,
-                nameParts.grandfather_name,
-                nameParts.great_grandfather_name,
-                nameParts.last_name || enrollment.student_last_name,
-            ]
-                .filter((part): part is string => Boolean(part && part.trim()))
-                .join(' '),
-            student_gender:
-                draft.gender === '1' || draft.gender === '2'
-                    ? Number(draft.gender)
-                    : enrollment.student_gender,
-            status: statusValue,
-            effective_from: draft.effective_from || enrollment.effective_from,
-            effective_to: draft.effective_to === '' ? null : draft.effective_to,
-            class_name:
-                filterOptions.classes.find((item) => String(item.id) === resolvedClassId)?.name
-                ?? enrollment.class_name,
-            section_name: sectionName,
-            branch_name:
-                filterOptions.branches.find((item) => String(item.id) === draft.branch_id)?.name
-                ?? null,
-            department_name: departmentName,
-            specialization_name: specializationName,
-            grade_level_code: selectedGrade?.code ?? enrollment.grade_level_code,
-            grade_level_name: selectedGrade?.name ?? enrollment.grade_level_name,
-            stage_name: stageName,
-            academic_year_name:
-                years.find((year) => String(year.id) === draft.academic_year_id)?.name
-                ?? enrollment.academic_year_name,
-            academic_year_code:
-                years.find((year) => String(year.id) === draft.academic_year_id)?.code
-                ?? enrollment.academic_year_code,
-        };
-
-        const continueWithPlacement = () => saveEnrollmentPlacement(statusValue, nextBase);
-
-        if (
-            birthDate === ''
-            || nameParts.first_name === ''
-            || nameParts.last_name === ''
-        ) {
-            continueWithPlacement();
-
-            return;
-        }
-
-        router.put(
-            `/students/${enrollment.student_id}`,
-            {
-                first_name: nameParts.first_name,
-                last_name: nameParts.last_name,
-                father_name: nameParts.father_name,
-                grandfather_name: nameParts.grandfather_name,
-                great_grandfather_name: nameParts.great_grandfather_name,
-                birth_date: birthDate,
-                gender:
-                    draft.gender === '1' || draft.gender === '2'
-                        ? Number(draft.gender)
-                        : enrollment.student_gender,
-                branch_id: draft.branch_id === '' ? null : Number(draft.branch_id),
-                department_name: departmentName,
-                specialization_name: specializationName,
-                stage_name: stageName,
-                section_name: sectionName,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
-                onSuccess: continueWithPlacement,
-                onError: (errors) => {
-                    // Placement/year/status must still persist even if student name update fails.
-                    showInertiaErrors(errors, i18n.errors.saveFailed);
-                    continueWithPlacement();
-                },
-            },
-        );
-    };
-
-    const save = () => {
-        if (saving || !canUpdate) {
-            return;
-        }
-
-        if (draft.class_id === '' || draft.section_id === '') {
-            showError(i18n.errors.missingClassSection);
-            return;
-        }
-
-        setSaving(true);
-        const nextStatus = Number(draft.status);
-        const statusChanged = nextStatus !== enrollment.status;
-
-        if (statusChanged) {
-            router.post(
-                '/enrollments/bulk-status',
-                {
-                    enrollment_ids: [enrollment.id],
-                    status: nextStatus,
-                    effective_to:
-                        nextStatus === 1
-                            ? undefined
-                            : draft.effective_to || draft.effective_from || todayIso(),
-                },
-                {
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
-                    onSuccess: () => savePlacementAndMeta(nextStatus),
-                    onError: (errors) => {
-                        setSaving(false);
-                        showInertiaErrors(errors, i18n.errors.statusFailed);
-                    },
-                },
-            );
-
-            return;
-        }
-
-        savePlacementAndMeta(nextStatus);
-    };
-
-    return (
-        <article className="sis-admission-draft-form sis-student-record-form" dir="rtl" lang="ar">
-            <header className="sis-student-record-form__head">
-                <h3 className="sis-student-record-form__title">
-                    {editing ? draft.quad_name.trim() || name : name}
-                </h3>
-                <div className="sis-student-record-form__head-meta">
-                    {canUpdate ? (
-                        editing ? (
-                            <StatusLikeButton tone="edit" disabled={saving} onClick={save}>
-                                {saving ? i18n.common.saving : i18n.common.save}
-                            </StatusLikeButton>
-                        ) : (
-                            <StatusLikeButton tone="edit" onClick={() => setEditing(true)}>
-                                {i18n.common.edit}
-                            </StatusLikeButton>
-                        )
-                    ) : null}
-                </div>
-            </header>
-
-            <div className="sis-student-record-form__sections">
-                <FormSection id={`enr-identity-${enrollment.id}`} title={i18n.enrollments.student}>
-                    <div className="sis-admission-draft-rows">
-                        <div className="sis-admission-draft-row">
-                            <DraftField
-                                label={i18n.enrollments.quadName}
-                                className="sis-enrollment-name-field"
-                                editing={editing}
-                                value={draft.quad_name}
-                                display={name}
-                                onChange={(value) => setField('quad_name', value)}
-                            />
-                            <DraftOptionalSelect
-                                label={i18n.enrollments.gender}
-                                editing={editing}
-                                value={draft.gender}
-                                display={genderDisplay}
-                                options={[
-                                    { value: '', label: i18n.enrollments.gender },
-                                    { value: '1', label: i18n.students.male },
-                                    { value: '2', label: i18n.students.female },
-                                ]}
-                                onChange={(next) => setField('gender', next)}
-                            />
-                        </div>
-                        <div className="sis-admission-draft-row">
-                            <DraftOptionalSelect
-                                label={i18n.enrollments.academicYear}
-                                editing={editing}
-                                value={draft.academic_year_id}
-                                display={yearDisplay}
-                                options={[
-                                    { value: '', label: i18n.enrollments.academicYear },
-                                    ...yearOptions,
-                                ]}
-                                onChange={(next) => setField('academic_year_id', next)}
-                            />
-                            <DraftField
-                                label={i18n.enrollments.studentId}
-                                editing={false}
-                                value={String(enrollment.student_id)}
-                                display={String(enrollment.student_id)}
-                                dir="ltr"
-                                onChange={() => undefined}
-                            />
-                        </div>
-                    </div>
-                </FormSection>
-
-                <div className="sis-student-record-form__stack">
-                    <FormSection
-                        id={`enr-status-${enrollment.id}`}
-                        title={i18n.enrollments.statusTabsTitle}
-                    >
-                        <div className="sis-admission-draft-rows">
-                            <div className="sis-admission-draft-row">
-                                <DraftOptionalSelect
-                                    label={i18n.common.status}
-                                    editing={editing}
-                                    value={draft.status}
-                                    display={statusLabel(enrollment.status, i18n)}
-                                    options={[
-                                        { value: '1', label: i18n.status.active },
-                                        { value: '0', label: i18n.status.inactive },
-                                        { value: '2', label: i18n.status.cancelled },
-                                        { value: '4', label: i18n.status.dismissed },
-                                        { value: '3', label: i18n.status.transferred },
-                                    ]}
-                                    onChange={(next) => setField('status', next)}
-                                />
-                                <DraftField
-                                    label={i18n.enrollments.effectiveFrom}
-                                    editing={editing}
-                                    type="date"
-                                    value={draft.effective_from}
-                                    display={formatCivilDate(enrollment.effective_from)}
-                                    dir="ltr"
-                                    onChange={(value) => setField('effective_from', value)}
-                                />
-                                <DraftField
-                                    label={i18n.enrollments.effectiveTo}
-                                    editing={editing}
-                                    type="date"
-                                    value={draft.effective_to}
-                                    display={formatCivilDate(enrollment.effective_to)}
-                                    dir="ltr"
-                                    onChange={(value) => setField('effective_to', value)}
-                                />
-                            </div>
-                        </div>
-                    </FormSection>
-
-                    <FormSection
-                        id={`enr-placement-${enrollment.id}`}
-                        title={i18n.enrollments.editPlacement}
-                    >
-                        <div className="sis-admission-draft-rows">
-                            <div className="sis-admission-draft-row">
-                                <DraftOptionalSelect
-                                    label={i18n.enrollments.className}
-                                    editing={editing}
-                                    value={draft.class_id}
-                                    display={classDisplay}
-                                    options={[
-                                        { value: '', label: i18n.enrollments.allClasses },
-                                        ...filteredClasses.map((item) => ({
-                                            value: String(item.id),
-                                            label: item.name,
-                                        })),
-                                    ]}
-                                    onChange={(next) => {
-                                        const selected = filterOptions.classes.find(
-                                            (item) => String(item.id) === next,
-                                        );
-                                        setDraft((current) => ({
-                                            ...current,
-                                            class_id: next,
-                                            section_id: '',
-                                            grade_level_id: selected?.grade_level_id
-                                                ? String(selected.grade_level_id)
-                                                : current.grade_level_id,
-                                        }));
-                                    }}
-                                />
-                                <DraftOptionalSelect
-                                    label={i18n.enrollments.sectionName}
-                                    editing={editing}
-                                    value={draft.section_id}
-                                    display={sectionDisplay}
-                                    options={[
-                                        { value: '', label: i18n.enrollments.allSections },
-                                        ...filteredSections.map((item) => ({
-                                            value: String(item.id),
-                                            label: item.name,
-                                        })),
-                                    ]}
-                                    onChange={(next) => setField('section_id', next)}
-                                />
-                                <DraftOptionalSelect
-                                    label={i18n.enrollments.branchName}
-                                    editing={editing}
-                                    value={draft.branch_id}
-                                    display={branchDisplay}
-                                    options={[
-                                        { value: '', label: i18n.enrollments.allBranches },
-                                        ...filterOptions.branches.map((item) => ({
-                                            value: String(item.id),
-                                            label: item.name,
-                                        })),
-                                    ]}
-                                    onChange={(next) => {
-                                        setDraft((current) => ({
-                                            ...current,
-                                            branch_id: next,
-                                            department_id: '',
-                                            specialization_id: '',
-                                        }));
-                                    }}
-                                />
-                                <DraftOptionalSelect
-                                    label={i18n.enrollments.departmentName}
-                                    editing={editing}
-                                    value={draft.department_id}
-                                    display={departmentDisplay}
-                                    options={[
-                                        { value: '', label: i18n.enrollments.allDepartments },
-                                        ...filteredDepartments.map((item) => ({
-                                            value: String(item.id),
-                                            label: item.name,
-                                        })),
-                                    ]}
-                                    onChange={(next) => {
-                                        setDraft((current) => ({
-                                            ...current,
-                                            department_id: next,
-                                            specialization_id: '',
-                                        }));
-                                    }}
-                                />
-                            </div>
-                            <div className="sis-admission-draft-row">
-                                <DraftOptionalSelect
-                                    label={i18n.enrollments.gradeLevel}
-                                    editing={editing}
-                                    value={draft.grade_level_id}
-                                    display={gradeDisplay}
-                                    options={[
-                                        { value: '', label: i18n.enrollments.gradeLevel },
-                                        ...gradeLevels.map((item) => ({
-                                            value: String(item.id),
-                                            label: item.name,
-                                        })),
-                                    ]}
-                                    onChange={(next) => {
-                                        setDraft((current) => {
-                                            const classStillValid =
-                                                next === ''
-                                                || filterOptions.classes.some(
-                                                    (item) =>
-                                                        String(item.id) === current.class_id
-                                                        && (item.grade_level_id === undefined
-                                                            || String(item.grade_level_id) === next),
-                                                );
-
-                                            return {
-                                                ...current,
-                                                grade_level_id: next,
-                                                class_id: classStillValid ? current.class_id : '',
-                                                section_id: classStillValid
-                                                    ? current.section_id
-                                                    : '',
-                                            };
-                                        });
-                                    }}
-                                />
-                                <DraftField
-                                    label={i18n.enrollments.stageName}
-                                    editing={editing}
-                                    value={draft.stage_name}
-                                    display={stageDisplay}
-                                    onChange={(value) => setField('stage_name', value)}
-                                />
-                            </div>
-                        </div>
-                    </FormSection>
-                </div>
-            </div>
-        </article>
-    );
-}
-
-export function EnrollmentViewDialog({
-    enrollments,
-    canUpdate = false,
-    filterOptions,
-    onClose,
-    onSaved,
-    initialEditing = false,
-}: EnrollmentViewDialogProps) {
-    const i18n = t();
-    const count = enrollments.length;
-    const title =
-        count > 1
-            ? `${i18n.enrollments.viewManyTitle} (${count})`
-            : initialEditing
-              ? i18n.enrollments.editTitle
-              : i18n.enrollments.viewTitle;
-
-    return (
-        <Dialog
-            open
-            onOpenChange={(open) => {
-                if (!open) {
-                    onClose();
-                }
-            }}
-        >
-            <DialogContent
-                className={`sis-admission-draft-dialog sis-student-view-dialog gap-1.5 p-3 sm:max-w-[min(96vw,92rem)]${count > 1 ? ' sis-student-view-dialog--many' : ''}`}
-                dir="rtl"
-                lang="ar"
-                data-sis-align-exempt=""
-                aria-describedby="enrollment-view-dialog-desc"
-                onOpenAutoFocus={(event) => event.preventDefault()}
-                onCloseAutoFocus={(event) => event.preventDefault()}
-                onPointerDownOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
-                onFocusOutside={(event) => {
-                    const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-sis-list-select]')) {
-                        event.preventDefault();
-                    }
-                }}
-            >
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription id="enrollment-view-dialog-desc" className="sr-only">
-                        {i18n.enrollments.viewDialogDesc}
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="sis-student-view-dialog__body">
-                    {enrollments.map((enrollment) => (
-                        <EnrollmentRecordForm
-                            key={enrollment.id}
-                            enrollment={enrollment}
-                            canUpdate={canUpdate}
-                            filterOptions={filterOptions}
-                            onSaved={onSaved}
-                            initialEditing={initialEditing || canUpdate}
-                        />
-                    ))}
-                </div>
-                <div className="sis-admission-draft-actions">
-                    <StatusLikeButton tone="close" onClick={onClose}>
-                        {i18n.window.close}
-                    </StatusLikeButton>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 export function EnrollmentCreateForm({
     academicYearId,
     filterOptions,
@@ -1192,14 +1011,13 @@ export function EnrollmentCreateForm({
         student_id: lockedStudentId ? String(lockedStudentId) : '',
         academic_year_id: academicYearId ? String(academicYearId) : '',
         class_id: initialDefaults?.class_id ? String(initialDefaults.class_id) : '',
-        section_id: '',
+        section_code: '',
         branch_id: initialDefaults?.branch_id ? String(initialDefaults.branch_id) : '',
         department_id: initialDefaults?.department_id ? String(initialDefaults.department_id) : '',
-        specialization_id: initialDefaults?.specialization_id
-            ? String(initialDefaults.specialization_id)
-            : '',
         effective_from: initialDefaults?.effective_from?.trim() || todayIso(),
     }));
+
+    const sectionOptions = useMemo(() => sisSectionSelectOptions(), []);
 
     const filteredDepartments = useMemo(() => {
         if (draft.branch_id === '') {
@@ -1211,14 +1029,6 @@ export function EnrollmentCreateForm({
                 department.branch_id === null || String(department.branch_id) === draft.branch_id,
         );
     }, [draft.branch_id, filterOptions.departments]);
-
-    const filteredSections = useMemo(() => {
-        if (draft.class_id === '') {
-            return filterOptions.sections;
-        }
-
-        return filterOptions.sections.filter((section) => String(section.class_id) === draft.class_id);
-    }, [draft.class_id, filterOptions.sections]);
 
     const yearOptions = years.map((year) => ({
         value: String(year.id),
@@ -1255,10 +1065,17 @@ export function EnrollmentCreateForm({
             draft.student_id === ''
             || draft.academic_year_id === ''
             || draft.class_id === ''
-            || draft.section_id === ''
+            || draft.section_code === ''
             || draft.effective_from === ''
         ) {
             showError(i18n.errors.requiredFields);
+            return;
+        }
+
+        const classId = Number(draft.class_id);
+        const sectionId = resolveSisSectionId(draft.section_code, classId, filterOptions.sections);
+        if (sectionId === null) {
+            showError(i18n.students.enrollSectionNotFound);
             return;
         }
 
@@ -1274,12 +1091,9 @@ export function EnrollmentCreateForm({
             {
                 student_id: studentId,
                 academic_year_id: Number(draft.academic_year_id),
-                class_id: Number(draft.class_id),
-                section_id: Number(draft.section_id),
+                class_id: classId,
+                section_id: sectionId,
                 effective_from: draft.effective_from,
-                ...(draft.specialization_id === ''
-                    ? {}
-                    : { specialization_id: Number(draft.specialization_id) }),
                 ...(draft.branch_id === '' ? {} : { branch_id: Number(draft.branch_id) }),
                 ...(draft.department_id === ''
                     ? {}
@@ -1440,26 +1254,23 @@ export function EnrollmentCreateForm({
                                     setDraft((current) => ({
                                         ...current,
                                         class_id: next,
-                                        section_id: '',
+                                        section_code: '',
                                     }))
                                 }
                             />
                             <DraftOptionalSelect
                                 label={i18n.enrollments.sectionName}
                                 editing
-                                value={draft.section_id}
-                                display={draft.section_id}
+                                value={draft.section_code}
+                                display={draft.section_code}
                                 options={[
                                     { value: '', label: i18n.enrollments.allSections },
-                                    ...filteredSections.map((item) => ({
-                                        value: String(item.id),
-                                        label: item.name,
-                                    })),
+                                    ...sectionOptions,
                                 ]}
                                 onChange={(next) =>
                                     setDraft((current) => ({
                                         ...current,
-                                        section_id: next,
+                                        section_code: next,
                                     }))
                                 }
                             />
