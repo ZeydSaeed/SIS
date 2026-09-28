@@ -5844,7 +5844,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     right: auto;
 }
 
-.sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog):not(.sis-admission-accepted-dialog):not(.sis-student-enrollment-sheet) {
+.sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog):not(.sis-admission-accepted-dialog):not(.sis-student-enrollment-sheet):not(.sis-enrollment-record-sheet) {
     min-height: min(86vh, 46rem) !important;
 }
 
@@ -5965,8 +5965,9 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    min-height: 1.85rem;
-    height: 1.85rem;
+    /* Tall enough for Arabic descenders (ي، ج، ق…) under Segoe UI. */
+    min-height: 2.1rem;
+    height: 2.1rem;
     padding-inline: 0.2rem 0.45rem;
     background: var(--sis-color-sidebar);
     color: var(--sis-color-sidebar-text);
@@ -5974,6 +5975,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     cursor: grab;
     touch-action: none;
     user-select: none;
+    overflow: visible;
 }
 
 .sis-admission-sheet__hero:active {
@@ -6021,9 +6023,14 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     margin: 0;
     font-size: 0.95rem;
     font-weight: 700;
-    line-height: 1;
+    /* line-height:1 + overflow:hidden clips Arabic glyph bottoms */
+    line-height: 1.35;
+    padding-block: 0.05rem 0.12rem;
     color: var(--sis-color-sidebar-text);
     white-space: nowrap;
+    overflow-x: hidden;
+    overflow-y: visible;
+    text-overflow: ellipsis;
 }
 
 .sis-admission-sheet__hero-logo {
@@ -6113,71 +6120,71 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 }
 
 /* Default = 5 columns (span 24 of 120). */
-.sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+.sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
     > .sis-admission-sheet__field,
-.sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+.sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
     > .sis-admission-sheet__choice-group {
     grid-column: span 24;
 }
 
 @container sis-sheet (max-width: 28rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 60; /* 2 cols */
     }
 }
 
 @container sis-sheet (min-width: 28.01rem) and (max-width: 40rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 40; /* 3 cols */
     }
 }
 
 @container sis-sheet (min-width: 40.01rem) and (max-width: 52rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 30; /* 4 cols */
     }
 }
 
 @container sis-sheet (min-width: 52.01rem) and (max-width: 68rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 24; /* 5 cols */
     }
 }
 
 @container sis-sheet (min-width: 68.01rem) and (max-width: 84rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 20; /* 6 cols */
     }
 }
 
 @container sis-sheet (min-width: 84.01rem) and (max-width: 100rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 15; /* 8 cols */
     }
 }
 
 @container sis-sheet (min-width: 100.01rem) {
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__field,
-    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender)
+    .sis-admission-sheet__row:not(.sis-admission-sheet__row--full):not(.sis-admission-sheet__row--gender):not(.sis-admission-sheet__row--2)
         > .sis-admission-sheet__choice-group {
         grid-column: span 12; /* 10 cols */
     }
@@ -6187,6 +6194,12 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 .sis-admission-sheet__row--full > .sis-admission-sheet__choice-group,
 .sis-admission-sheet__field--full {
     grid-column: 1 / -1;
+}
+
+/* Explicit 2-column row (e.g. enrollment id + year, effective dates). */
+.sis-admission-sheet__row--2 > .sis-admission-sheet__field,
+.sis-admission-sheet__row--2 > .sis-admission-sheet__choice-group {
+    grid-column: span 60;
 }
 
 .sis-admission-sheet__row--gender > .sis-admission-sheet__field,
@@ -8304,15 +8317,46 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-student-sheet-dialog .sis-admission-sheet__hero-title {
-    overflow: hidden;
+    /* Horizontal ellipsis only — overflow-y:hidden cuts title descenders */
+    overflow-x: hidden;
+    overflow-y: visible;
     text-overflow: ellipsis;
     min-width: 0;
+    line-height: 1.35;
 }
 
-/* Name summary row lives inside section body — same L/R inset as sibling fields. */
+/* Name + status on one row inside the form body (not the hero bar). */
+.sis-student-record-form__name-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: 0.75rem;
+    row-gap: 0.35rem;
+    width: 100%;
+    margin-bottom: 0.45rem;
+    padding-inline: 0;
+}
+
 .sis-student-record-form__name-line > .sis-admission-sheet__field {
-    grid-column: 1 / -1;
-    margin-bottom: 0.35rem;
+    grid-column: auto;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.sis-student-record-form__status-field {
+    width: max-content;
+    min-width: 6.5rem;
+    max-width: 11rem;
+    flex: 0 0 auto;
+}
+
+.sis-student-record-form__status-value {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 1.85rem;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .sis-student-sheet-dialog .sis-admission-sheet .sis-student-record-form__notes-field,
@@ -8459,6 +8503,83 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
     height: fit-content !important;
     min-height: 0 !important;
     max-height: min(92vh, 100%) !important;
+}
+
+/* Enrollment view/edit sheet — height follows content; width keeps track5 usable. */
+.sis-enrollment-record-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) {
+    width: var(--sis-sheet-w, min(98vw, 72rem)) !important;
+    max-width: min(
+        var(--sis-sheet-w, 80rem),
+        calc(100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap)))
+    ) !important;
+    height: var(--sis-sheet-h, fit-content) !important;
+    min-height: 0 !important;
+    max-height: var(--sis-sheet-h, min(92vh, 100%)) !important;
+}
+
+/* Default open: shrink-wrap fields; scroll only when viewport is short. */
+.sis-enrollment-record-sheet.sis-admission-sheet-dialog:not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized)
+    .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
+    flex: 0 1 auto !important;
+    height: auto !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.sis-enrollment-record-sheet.sis-admission-sheet-dialog[data-placed='true']
+    .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form,
+.sis-enrollment-record-sheet.sis-admission-sheet-dialog--maximized
+    .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.sis-enrollment-record-sheet .sis-admission-sheet__section {
+    flex: 0 0 auto !important;
+}
+
+.sis-enrollment-record-sheet .sis-admission-draft-form .sis-admission-sheet__body {
+    flex: 0 0 auto;
+    row-gap: 0.35rem;
+    padding-block: 0.4rem;
+}
+
+.sis-enrollment-record-sheet .sis-admission-draft-form .sis-admission-sheet__actions {
+    margin-bottom: 0.45rem;
+    margin-top: 0.55rem;
+}
+
+/* After user resize / maximize, pin actions to the bottom of free space. */
+.sis-enrollment-record-sheet.sis-admission-sheet-dialog[data-placed='true']
+    .sis-admission-draft-form
+    .sis-admission-sheet__actions,
+.sis-enrollment-record-sheet.sis-admission-sheet-dialog--maximized
+    .sis-admission-draft-form
+    .sis-admission-sheet__actions {
+    margin-top: auto;
+}
+
+.sis-enrollment-record-sheet .sis-student-record-form__status-field {
+    min-width: 7.5rem;
+    max-width: 12rem;
+}
+
+.sis-enrollment-record-sheet .sis-student-record-form__name-line {
+    margin-bottom: 0.35rem;
+}
+
+.sis-enrollment-record-sheet .sis-admission-draft-form .sis-admission-sheet__control,
+.sis-enrollment-record-sheet .sis-admission-draft-form .sis-ops-hub__link.sis-admission-sheet__control,
+.sis-enrollment-record-sheet .sis-admission-draft-form .sis-list-select__trigger.sis-admission-sheet__control {
+    min-height: 2.15rem;
+    height: 2.15rem;
+    font-size: 0.92rem;
 }
 
 .sis-student-enrollment-sheet__form {
