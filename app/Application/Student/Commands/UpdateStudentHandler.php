@@ -80,9 +80,15 @@ final class UpdateStudentHandler implements CommandHandler
                 email: $command->email,
                 schoolName: $command->schoolName,
                 departmentName: $command->departmentName,
-                specializationName: $command->specializationName,
-                stageName: $command->stageName,
-                sectionName: $command->sectionName,
+
+                fatherOccupation: $command->fatherOccupation,
+                motherOccupation: $command->motherOccupation,
+                administrativeUnit: $command->administrativeUnit,
+                graduationYear: $command->graduationYear,
+                previousGpa: $command->previousGpa,
+                previousStudyTrack: $command->previousStudyTrack,
+                mathematicsGrade: $command->mathematicsGrade,
+                physicsGrade: $command->physicsGrade,
             ));
 
             $this->outbox->stage(new StudentProfileUpdated(

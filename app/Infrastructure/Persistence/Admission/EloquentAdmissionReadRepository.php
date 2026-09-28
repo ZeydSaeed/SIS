@@ -352,7 +352,9 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         }
 
         $students = SchemaHelper::qualified('students', 'students');
-        $profileComplete = function ($sub) use ($students): void {
+        $documents = SchemaHelper::qualified('students', 'student_documents');
+        $requiredDocumentTypes = [20, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+        $profileComplete = function ($sub) use ($students, $documents, $requiredDocumentTypes): void {
             $textFilled = static fn (string $column): string => "nullif(btrim(stu.{$column}::text), '') is not null";
 
             $sub->select(DB::raw('1'))
@@ -380,25 +382,32 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 ->whereRaw($textFilled('house_number'))
                 ->whereRaw($textFilled('school_name'))
                 ->whereNotNull('stu.admitted_academic_year_id')
+                ->whereNotNull('stu.branch_id')
+                ->whereRaw($textFilled('department_name'))
+                ->whereRaw($textFilled('admitted_class_name'))
                 ->whereNotNull('stu.school_start_date')
                 ->whereRaw($textFilled('guardian_triple_name'))
+                ->whereRaw($textFilled('father_occupation'))
+                ->whereRaw($textFilled('mother_occupation'))
+                ->whereIn('stu.administrative_unit', [1, 2, 3])
                 ->whereRaw($textFilled('mobile'))
                 ->whereRaw($textFilled('guardian_mobile'))
-                ->where(function ($transfer) use ($textFilled): void {
-                    // Transfer fields optional unless any transfer value is present.
-                    $transfer->where(function ($empty): void {
-                        $empty->where(function ($q): void {
-                            $q->whereNull('stu.previous_school_name')
-                                ->orWhereRaw("btrim(stu.previous_school_name::text) = ''");
-                        })
-                            ->whereNull('stu.transfer_document_number')
-                            ->whereNull('stu.transfer_document_date');
-                    })->orWhere(function ($filled) use ($textFilled): void {
-                        $filled->whereRaw($textFilled('previous_school_name'))
-                            ->whereNotNull('stu.transfer_document_number')
-                            ->whereNotNull('stu.transfer_document_date');
-                    });
+                ->whereRaw($textFilled('previous_school_name'))
+                ->whereNotNull('stu.graduation_year')
+                ->whereNotNull('stu.previous_gpa')
+                ->whereIn('stu.previous_study_track', [1, 2, 3, 4, 5])
+                ->whereNotNull('stu.transfer_document_number')
+                ->whereNotNull('stu.transfer_document_date');
+
+            foreach ($requiredDocumentTypes as $documentType) {
+                $sub->whereExists(function ($doc) use ($documents, $documentType): void {
+                    $doc->select(DB::raw('1'))
+                        ->from($documents.' as doc')
+                        ->whereColumn('doc.student_id', 'stu.id')
+                        ->where('doc.document_type', $documentType)
+                        ->where('doc.status', 1);
                 });
+            }
         };
 
         $query->whereNotNull('apps.student_id');
@@ -794,9 +803,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'school_name',
                 'branch_id',
                 'department_name',
-                'specialization_name',
-                'stage_name',
-                'section_name',
+
                 'admitted_academic_year_id',
                 'status',
             ]);
@@ -840,9 +847,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'school_name' => $row->school_name !== null ? (string) $row->school_name : null,
                 'branch_id' => $row->branch_id !== null ? (int) $row->branch_id : null,
                 'department_name' => $row->department_name !== null ? (string) $row->department_name : null,
-                'specialization_name' => $row->specialization_name !== null ? (string) $row->specialization_name : null,
-                'stage_name' => $row->stage_name !== null ? (string) $row->stage_name : null,
-                'section_name' => $row->section_name !== null ? (string) $row->section_name : null,
+
                 'academic_year_id' => $row->admitted_academic_year_id !== null ? (int) $row->admitted_academic_year_id : null,
                 'status' => (int) $row->status,
             ];

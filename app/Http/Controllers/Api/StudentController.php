@@ -71,6 +71,7 @@ class StudentController extends Controller
         $academicYearId = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
         $gender = $this->queryGender($request);
         $enrolled = $this->queryEnrolled($request);
+        $requestKind = $this->queryRequestKind($request);
 
         $result = $handler->handle(new ListStudentsQuery(
             status: $status,
@@ -80,6 +81,7 @@ class StudentController extends Controller
             academicYearId: $academicYearId,
             gender: $gender,
             enrolled: $enrolled,
+            requestKind: $requestKind,
         ));
 
         $payload = $result->toArray();
@@ -109,6 +111,7 @@ class StudentController extends Controller
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
         $enrolled = $this->queryEnrolled($request);
+        $requestKind = $this->queryRequestKind($request);
 
         $result = $handler->handle(new SearchStudentsQuery(
             term: $term,
@@ -119,6 +122,7 @@ class StudentController extends Controller
             academicYearId: $academicYearId,
             gender: $gender,
             enrolled: $enrolled,
+            requestKind: $requestKind,
         ));
 
         $payload = $result->toArray();
@@ -623,5 +627,16 @@ class StudentController extends Controller
         }
 
         return null;
+    }
+
+    private function queryRequestKind(Request $request): ?int
+    {
+        if (! $request->filled('request_kind')) {
+            return null;
+        }
+
+        $kind = (int) $request->query('request_kind');
+
+        return $kind === 1 || $kind === 2 ? $kind : null;
     }
 }

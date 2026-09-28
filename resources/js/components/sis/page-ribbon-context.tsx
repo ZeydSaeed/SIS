@@ -9,17 +9,9 @@ import {
     type ReactNode,
 } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import type { ChromeTabId } from '@/components/sis/chrome-tabs';
 
-export type PageRibbonTab =
-    | 'file'
-    | 'home'
-    | 'edit'
-    | 'add'
-    | 'settings'
-    | 'lists'
-    | 'tools'
-    | 'reports'
-    | 'help';
+export type PageRibbonTab = ChromeTabId;
 
 export type PageRibbonCommand = {
     id: string;
@@ -63,6 +55,8 @@ type PageRibbonApi = {
 };
 
 const COMMAND_PRIORITY = ['view', 'edit', 'save', 'cancel', 'delete'] as const;
+/** Lower = earlier in RTL ribbon (right / start). Actions first, then status/distribution/filters. */
+const GROUP_PRIORITY = ['actions', 'status', 'distribution', 'filter'] as const;
 const RIBBON_PIN_STORAGE_KEY = 'sis.ribbon.pinned';
 
 const PageRibbonContext = createContext<PageRibbonApi | null>(null);
@@ -91,6 +85,13 @@ function commandPriority(id: string): number {
     const index = COMMAND_PRIORITY.findIndex((token) => id.includes(token));
 
     return index === -1 ? COMMAND_PRIORITY.length : index;
+}
+
+function groupPriority(group: PageRibbonGroup): number {
+    const haystack = `${group.id} ${group.label}`.toLocaleLowerCase('ar');
+    const index = GROUP_PRIORITY.findIndex((token) => haystack.includes(token));
+
+    return index === -1 ? GROUP_PRIORITY.length : index;
 }
 
 function mergeGroups(groups: PageRibbonGroup[]): PageRibbonGroup[] {
@@ -133,7 +134,7 @@ function mergeGroups(groups: PageRibbonGroup[]): PageRibbonGroup[] {
         };
     }
 
-    return merged;
+    return merged.sort((left, right) => groupPriority(left) - groupPriority(right));
 }
 
 function groupsByTabFromOwners(

@@ -124,7 +124,7 @@ final class GradesPageController extends Controller
                 'grade_id' => $result->gradeId,
                 'academic_year_id' => $result->academicYearId,
             ])
-            ->with('success', 'Grade entered.');
+            ->with('success', 'flash.grades.entered');
     }
 
     public function actions(Request $request, GetStudentGradeHandler $handler): Response
@@ -219,7 +219,7 @@ final class GradesPageController extends Controller
                 'grade_id' => $result->newGradeId,
                 'academic_year_id' => $result->academicYearId,
             ])
-            ->with('success', 'Grade corrected.');
+            ->with('success', 'flash.grades.corrected');
     }
 
     public function void(
@@ -251,7 +251,7 @@ final class GradesPageController extends Controller
                 'grade_id' => $result->gradeId,
                 'academic_year_id' => $result->academicYearId,
             ])
-            ->with('success', 'Grade voided.');
+            ->with('success', 'flash.grades.voided');
     }
 
     public function finalize(
@@ -282,6 +282,6 @@ final class GradesPageController extends Controller
                 'grade_id' => $result->gradeId,
                 'academic_year_id' => $result->academicYearId,
             ])
-            ->with('success', 'Grade finalized.');
+            ->with('success', 'flash.grades.finalized');
     }
 }

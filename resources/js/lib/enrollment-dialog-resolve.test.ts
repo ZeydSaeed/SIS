@@ -104,7 +104,8 @@ describe('validateEnrollmentDialog scenarios', () => {
         });
         expect(result.ok).toBe(false);
         if (!result.ok) {
-            expect(result.issue.tone).toBe('warning');
+            expect(result.issue.tone).toBe('info');
+            expect(result.issue.titleKey).toBe('enrollGuideTitle');
             expect(result.issue.details).toContain('emptyStudents');
         }
     });
@@ -125,6 +126,9 @@ describe('validateEnrollmentDialog scenarios', () => {
         });
         expect(result.ok).toBe(false);
         if (!result.ok) {
+            expect(result.issue.tone).toBe('info');
+            expect(result.issue.titleKey).toBe('enrollGuideTitle');
+            expect(result.issue.descriptionKey).toBe('guideFillRequired');
             expect(result.issue.fieldErrors).toEqual({
                 branch_name: 'emptyBranch',
                 department_name: 'emptyDepartment',

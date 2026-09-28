@@ -87,9 +87,20 @@ final class RegisterStudentViaAdmissionMapper
             schoolName: $schoolName,
             branchId: $resolvedBranchId ?? $command->branchId,
             departmentName: $command->departmentName,
-            specializationName: $command->specializationName,
             schoolId: $command->schoolId,
             admittedAcademicYearId: $academicYearId,
+            mobile: $command->studentMobile,
+            guardianMobile: $command->guardianMobile,
+            previousSchoolName: $command->previousSchoolName,
+            fatherOccupation: $command->fatherOccupation,
+            motherOccupation: $command->motherOccupation,
+            administrativeUnit: $command->administrativeUnit,
+            graduationYear: $command->graduationYear,
+            previousGpa: $command->previousGpa !== null ? (float) $command->previousGpa : null,
+            previousStudyTrack: $command->previousStudyTrack,
+            mathematicsGrade: $command->mathematicsGrade !== null ? (float) $command->mathematicsGrade : null,
+            physicsGrade: $command->physicsGrade !== null ? (float) $command->physicsGrade : null,
+            requestKind: $command->requestKind,
         );
     }
 }

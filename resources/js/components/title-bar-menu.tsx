@@ -1,29 +1,8 @@
-import type { RibbonTab } from '@/components/title-bar-ribbon';
-
-const TITLE_BAR_ITEMS = [
-    'ملف',
-    'الصفحة الرئيسية',
-    'تحرير',
-    'اضافة',
-    'اعدادات',
-    'قوائم',
-    'ادوات',
-    'تقارير',
-    'مساعدة',
-] as const;
-
-const LABEL_TO_TAB: Partial<Record<(typeof TITLE_BAR_ITEMS)[number], RibbonTab>> =
-    {
-        ملف: 'file',
-        'الصفحة الرئيسية': 'home',
-        تحرير: 'edit',
-        اضافة: 'add',
-        اعدادات: 'settings',
-        قوائم: 'lists',
-        ادوات: 'tools',
-        تقارير: 'reports',
-        مساعدة: 'help',
-    };
+import {
+    chromeTabItems,
+    type RibbonTab,
+} from '@/components/sis/chrome-tabs';
+import { t } from '@/i18n';
 
 type TitleBarMenuProps = {
     activeRibbon?: RibbonTab | null;
@@ -33,32 +12,34 @@ type TitleBarMenuProps = {
 
 export type { RibbonTab };
 
+/**
+ * Global titlebar tab strip — one SSOT (`chrome-tabs` + `i18n.chrome.tabs`) on every page.
+ */
 export function TitleBarMenu({
     activeRibbon = null,
     onRibbonChange,
     ribbonPinned = false,
 }: TitleBarMenuProps) {
+    const i18n = t();
+    const tabs = chromeTabItems(i18n.chrome.tabs);
+
     return (
-        <nav className="sis-titlebar__menu" aria-label="شريط القوائم" dir="rtl">
-            {TITLE_BAR_ITEMS.map((label) => {
-                const tab = LABEL_TO_TAB[label] ?? null;
-                const isActive = tab !== null && activeRibbon === tab;
+        <nav className="sis-titlebar__menu" aria-label={i18n.chrome.tabsAria} dir="rtl">
+            {tabs.map(({ id, label }) => {
+                const isActive = activeRibbon === id;
 
                 return (
                     <button
-                        key={label}
+                        key={id}
                         type="button"
                         className={
                             isActive
                                 ? 'sis-titlebar__menu-item sis-titlebar__menu-item--active'
                                 : 'sis-titlebar__menu-item'
                         }
-                        aria-pressed={tab ? isActive : undefined}
+                        aria-pressed={isActive}
                         onClick={() => {
-                            if (!tab) {
-                                return;
-                            }
-                            if (activeRibbon === tab) {
+                            if (activeRibbon === id) {
                                 if (ribbonPinned) {
                                     return;
                                 }
@@ -66,7 +47,7 @@ export function TitleBarMenu({
 
                                 return;
                             }
-                            onRibbonChange?.(tab);
+                            onRibbonChange?.(id);
                         }}
                     >
                         {label}

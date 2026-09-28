@@ -170,15 +170,23 @@ export type StudentListItem = {
     email?: string | null;
     school_name?: string | null;
     branch_id?: number | null;
+    branch_name?: string | null;
     department_name?: string | null;
-    stage_name?: string | null;
-    section_name?: string | null;
-    specialization_name?: string | null;
+    father_occupation?: string | null;
+    mother_occupation?: string | null;
+    administrative_unit?: number | null;
+    graduation_year?: number | null;
+    previous_gpa?: number | null;
+    previous_study_track?: number | null;
+    mathematics_grade?: number | null;
+    physics_grade?: number | null;
+    request_kind?: number | null;
     academic_year_id?: number | null;
     academic_year_name?: string | null;
     academic_year_code?: string | null;
     status: number;
     is_enrolled?: boolean;
+    documents?: Array<{ id: number; document_type: number | string; file_name: string; storage_key?: string }>;
 };
 
 export type StudentsPayload = {
@@ -206,6 +214,7 @@ type StudentListProps = {
         academic_year_id: number | null;
         gender: number | null;
         enrolled: number | null;
+        request_kind: number | null;
     };
     authorization: StudentAuthorization;
     enrollmentFilterOptions?: EnrollmentFormFilterOptions;
@@ -229,6 +238,7 @@ type VisitParams = {
     academic_year_id?: number | null;
     gender?: number | null;
     enrolled?: number | null;
+    request_kind?: number | null;
     quiet?: boolean;
 };
 
@@ -797,6 +807,10 @@ export function StudentList({
     const genderValue = filters.gender === 1 || filters.gender === 2 ? String(filters.gender) : '';
     const enrolledValue =
         filters.enrolled === 1 || filters.enrolled === 0 ? String(filters.enrolled) : '';
+    const requestKindValue =
+        filters.request_kind === 1 || filters.request_kind === 2
+            ? String(filters.request_kind)
+            : '';
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
@@ -952,6 +966,8 @@ export function StudentList({
             'academic_year_id' in params ? params.academic_year_id : current.academic_year_id;
         const nextGender = 'gender' in params ? params.gender : current.gender;
         const nextEnrolled = 'enrolled' in params ? params.enrolled : current.enrolled;
+        const nextRequestKind =
+            'request_kind' in params ? params.request_kind : current.request_kind;
 
         router.get(
             '/students',
@@ -964,6 +980,8 @@ export function StudentList({
                 academic_year_id: nextYear ?? undefined,
                 gender: nextGender ?? undefined,
                 enrolled: nextEnrolled === 0 || nextEnrolled === 1 ? nextEnrolled : undefined,
+                request_kind:
+                    nextRequestKind === 1 || nextRequestKind === 2 ? nextRequestKind : undefined,
             },
             {
                 preserveState: true,
@@ -1022,6 +1040,7 @@ export function StudentList({
             q: '',
             gender: null,
             enrolled: null,
+            request_kind: null,
             page: 1,
             student: undefined,
         });
@@ -1311,7 +1330,204 @@ export function StudentList({
         })();
     }, [editingIds, savingRows]);
 
-    const ribbonGroups = useMemo((): PageRibbonGroup[] => {
+    const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        const genderFilterLabel =
+            genderValue === '1'
+                ? i18n.students.male
+                : genderValue === '2'
+                  ? i18n.students.female
+                  : i18n.students.gender;
+        const enrolledFilterLabel =
+            enrolledValue === '1'
+                ? i18n.students.enrolledStudents
+                : enrolledValue === '0'
+                  ? i18n.students.notEnrolledStudents
+                  : i18n.students.enrollmentFilter;
+        const requestKindFilterLabel =
+            requestKindValue === '1'
+                ? i18n.students.requestKindAcademicTransfer
+                : requestKindValue === '2'
+                  ? i18n.students.requestKindVocational
+                  : i18n.students.requestKindFilter;
+
+        return [
+            {
+                id: 'student-filters',
+                label: i18n.students.ribbonFilters,
+                commands: [],
+                custom: (
+                    <div className="sis-ribbon__filters" aria-label={i18n.students.structureFiltersTitle}>
+                        <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--students">
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <OpsYearFilter
+                                    action="/students"
+                                    academicYearId={filters.academic_year_id}
+                                    extraParams={{
+                                        get q() {
+                                            const value = searchDraftRef.current.trim();
+
+                                            return value === '' ? undefined : value;
+                                        },
+                                        per_page: STUDENTS_PER_PAGE,
+                                        status: filters.status ?? undefined,
+                                        gender: filters.gender ?? undefined,
+                                        enrolled:
+                                            filters.enrolled === 0 || filters.enrolled === 1
+                                                ? filters.enrolled
+                                                : undefined,
+                                        request_kind:
+                                            filters.request_kind === 1 || filters.request_kind === 2
+                                                ? filters.request_kind
+                                                : undefined,
+                                    }}
+                                    onYearChange={(yearId) => {
+                                        if (filtersBusy) {
+                                            return;
+                                        }
+                                        visitList({
+                                            academic_year_id: yearId,
+                                            page: 1,
+                                            student: undefined,
+                                        });
+                                    }}
+                                    label={i18n.students.academicYear}
+                                    showLabel={false}
+                                    compact
+                                    showCurrentBadge={false}
+                                    disabled={filtersBusy}
+                                    controlClassName="sis-admission-year-control"
+                                />
+                            </div>
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {genderFilterLabel}
+                                    </span>
+                                    <SisListSelect
+                                        value={genderValue}
+                                        options={[
+                                            { value: '', label: i18n.students.gender },
+                                            { value: '1', label: i18n.students.male },
+                                            { value: '2', label: i18n.students.female },
+                                        ]}
+                                        onChange={(next) => {
+                                            if (filtersBusy) {
+                                                return;
+                                            }
+                                            visitList({
+                                                gender:
+                                                    next === '1' || next === '2' ? Number(next) : null,
+                                                page: 1,
+                                                student: undefined,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.students.filterByGender}
+                                    />
+                                </span>
+                            </div>
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {enrolledFilterLabel}
+                                    </span>
+                                    <SisListSelect
+                                        value={enrolledValue}
+                                        options={[
+                                            { value: '', label: i18n.students.enrollmentFilter },
+                                            { value: '1', label: i18n.students.enrolledStudents },
+                                            { value: '0', label: i18n.students.notEnrolledStudents },
+                                        ]}
+                                        onChange={(next) => {
+                                            if (filtersBusy) {
+                                                return;
+                                            }
+                                            visitList({
+                                                enrolled:
+                                                    next === '1' || next === '0' ? Number(next) : null,
+                                                page: 1,
+                                                student: undefined,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.students.filterByEnrollment}
+                                    />
+                                </span>
+                            </div>
+                            <div className="sis-ribbon__filter-field" dir="rtl">
+                                <span className="sis-admission-select-fit">
+                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
+                                        {requestKindFilterLabel}
+                                    </span>
+                                    <SisListSelect
+                                        value={requestKindValue}
+                                        options={[
+                                            { value: '', label: i18n.students.requestKindFilter },
+                                            {
+                                                value: '2',
+                                                label: i18n.students.requestKindVocational,
+                                            },
+                                            {
+                                                value: '1',
+                                                label: i18n.students.requestKindAcademicTransfer,
+                                            },
+                                        ]}
+                                        onChange={(next) => {
+                                            if (filtersBusy) {
+                                                return;
+                                            }
+                                            visitList({
+                                                request_kind:
+                                                    next === '1' || next === '2'
+                                                        ? Number(next)
+                                                        : null,
+                                                page: 1,
+                                                student: undefined,
+                                            });
+                                        }}
+                                        disabled={filtersBusy}
+                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
+                                        dir="rtl"
+                                        ariaLabel={i18n.students.filterByRequestKind}
+                                    />
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="sis-ribbon__item sis-ribbon__item--filter-clear"
+                            disabled={filtersBusy}
+                            aria-label={i18n.students.clearFiltersAria}
+                            title={i18n.students.clearFiltersAria}
+                            onClick={clearStructureFilters}
+                        >
+                            <FilterX className="sis-ribbon__icon" aria-hidden />
+                            <span className="sis-ribbon__label">{i18n.students.clearFilters}</span>
+                        </button>
+                    </div>
+                ),
+            },
+        ];
+    }, [
+        clearStructureFilters,
+        enrolledValue,
+        filters.academic_year_id,
+        filters.enrolled,
+        filters.gender,
+        filters.request_kind,
+        filters.status,
+        filtersBusy,
+        genderValue,
+        requestKindValue,
+        i18n,
+        visitList,
+    ]);
+
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const recordCommands: PageRibbonCommand[] = [
             {
                 id: 'view-student',
@@ -1417,142 +1633,11 @@ export function StudentList({
             };
         });
 
-        const genderFilterLabel =
-            genderValue === '1'
-                ? i18n.students.male
-                : genderValue === '2'
-                  ? i18n.students.female
-                  : i18n.students.gender;
-        const enrolledFilterLabel =
-            enrolledValue === '1'
-                ? i18n.students.enrolledStudents
-                : enrolledValue === '0'
-                  ? i18n.students.notEnrolledStudents
-                  : i18n.students.enrollmentFilter;
-
         const groups: PageRibbonGroup[] = [
             {
-                id: 'student-record',
+                id: 'student-actions',
                 label: i18n.common.actions,
                 commands: recordCommands,
-            },
-            {
-                id: 'student-filters',
-                label: i18n.students.ribbonFilters,
-                commands: [],
-                custom: (
-                    <div className="sis-ribbon__filters" aria-label={i18n.students.structureFiltersTitle}>
-                        <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--students">
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <OpsYearFilter
-                                    action="/students"
-                                    academicYearId={filters.academic_year_id}
-                                    extraParams={{
-                                        get q() {
-                                            const value = searchDraftRef.current.trim();
-
-                                            return value === '' ? undefined : value;
-                                        },
-                                        per_page: STUDENTS_PER_PAGE,
-                                        status: filters.status ?? undefined,
-                                        gender: filters.gender ?? undefined,
-                                        enrolled:
-                                            filters.enrolled === 0 || filters.enrolled === 1
-                                                ? filters.enrolled
-                                                : undefined,
-                                    }}
-                                    onYearChange={(yearId) => {
-                                        if (filtersBusy) {
-                                            return;
-                                        }
-                                        visitList({
-                                            academic_year_id: yearId,
-                                            page: 1,
-                                            student: undefined,
-                                        });
-                                    }}
-                                    label={i18n.students.academicYear}
-                                    showLabel={false}
-                                    compact
-                                    showCurrentBadge={false}
-                                    disabled={filtersBusy}
-                                    controlClassName="sis-admission-year-control"
-                                />
-                            </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {genderFilterLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={genderValue}
-                                        options={[
-                                            { value: '', label: i18n.students.gender },
-                                            { value: '1', label: i18n.students.male },
-                                            { value: '2', label: i18n.students.female },
-                                        ]}
-                                        onChange={(next) => {
-                                            if (filtersBusy) {
-                                                return;
-                                            }
-                                            visitList({
-                                                gender:
-                                                    next === '1' || next === '2' ? Number(next) : null,
-                                                page: 1,
-                                                student: undefined,
-                                            });
-                                        }}
-                                        disabled={filtersBusy}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={i18n.students.filterByGender}
-                                    />
-                                </span>
-                            </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {enrolledFilterLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={enrolledValue}
-                                        options={[
-                                            { value: '', label: i18n.students.enrollmentFilter },
-                                            { value: '1', label: i18n.students.enrolledStudents },
-                                            { value: '0', label: i18n.students.notEnrolledStudents },
-                                        ]}
-                                        onChange={(next) => {
-                                            if (filtersBusy) {
-                                                return;
-                                            }
-                                            visitList({
-                                                enrolled:
-                                                    next === '1' || next === '0' ? Number(next) : null,
-                                                page: 1,
-                                                student: undefined,
-                                            });
-                                        }}
-                                        disabled={filtersBusy}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={i18n.students.filterByEnrollment}
-                                    />
-                                </span>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            className="sis-ribbon__item sis-ribbon__item--filter-clear"
-                            disabled={filtersBusy}
-                            aria-label={i18n.students.clearFiltersAria}
-                            title={i18n.students.clearFiltersAria}
-                            onClick={clearStructureFilters}
-                        >
-                            <FilterX className="sis-ribbon__icon" aria-hidden />
-                            <span className="sis-ribbon__label">{i18n.students.clearFilters}</span>
-                        </button>
-                    </div>
-                ),
             },
             {
                 id: 'student-status-tabs',
@@ -1605,16 +1690,11 @@ export function StudentList({
         canDelete,
         canSelect,
         clearSelection,
-        clearStructureFilters,
         editing,
-        enrolledValue,
         enrollSelected,
         filters.academic_year_id,
-        filters.enrolled,
-        filters.gender,
         filters.status,
         filtersBusy,
-        genderValue,
         hasActiveSelection,
         hasEditTargets,
         hasViewTargets,
@@ -1628,10 +1708,10 @@ export function StudentList({
         startEditing,
         students.status_progress,
         viewTargets,
-        visitList,
     ]);
 
-    useRegisterPageRibbon('edit', ribbonGroups);
+    useRegisterPageRibbon('home', homeRibbonGroups);
+    useRegisterPageRibbon('edit', editRibbonGroups);
 
     const titlebarSearch = useMemo(
         () => ({
@@ -1850,7 +1930,7 @@ export function StudentList({
                                 : undefined
                         }
                         proceedLabel={i18n.common.save}
-                        initialEditing={viewingAsFileContinue}
+                        initialEditing={false}
                         onClose={() => {
                             setViewingStudents(null);
                             setViewingAsFileContinue(false);
@@ -1894,7 +1974,6 @@ export function StudentList({
                             branch_id: row.branch_id ?? null,
                             department_name: row.department_name ?? null,
                             admitted_class_name: row.admitted_class_name ?? null,
-                            section_name: row.section_name ?? null,
                         }))}
                         academicYearId={filters.academic_year_id}
                         filterOptions={enrollmentFilterOptions}

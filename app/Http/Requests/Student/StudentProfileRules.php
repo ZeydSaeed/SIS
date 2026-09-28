@@ -48,9 +48,15 @@ final class StudentProfileRules
             'school_name' => ['nullable', 'string', 'max:255'],
             'branch_id' => ['nullable', 'integer', 'min:1'],
             'department_name' => ['nullable', 'string', 'max:100'],
-            'specialization_name' => ['nullable', 'string', 'max:100'],
-            'stage_name' => ['nullable', 'string', 'max:100'],
-            'section_name' => ['nullable', 'string', 'max:100'],
+
+            'father_occupation' => ['nullable', 'string', 'max:100'],
+            'mother_occupation' => ['nullable', 'string', 'max:100'],
+            'administrative_unit' => ['nullable', 'integer', 'in:1,2,3'],
+            'graduation_year' => ['nullable', 'integer', 'min:1950', 'max:2100'],
+            'previous_gpa' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'previous_study_track' => ['nullable', 'integer', 'in:1,2,3,4,5'],
+            'mathematics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'physics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'student_code' => $requireStudentCode
                 ? ['nullable', 'string', 'max:50']
                 : ['prohibited'],

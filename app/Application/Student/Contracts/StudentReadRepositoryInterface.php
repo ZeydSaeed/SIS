@@ -20,6 +20,7 @@ interface StudentReadRepositoryInterface
         ?int $academicYearId = null,
         ?int $gender = null,
         ?bool $enrolled = null,
+        ?int $requestKind = null,
     ): array;
 
     /**
@@ -34,15 +35,17 @@ interface StudentReadRepositoryInterface
         ?int $academicYearId = null,
         ?int $gender = null,
         ?bool $enrolled = null,
+        ?int $requestKind = null,
     ): array;
 
     /**
-     * @return array<int, int> status => count for the school, optionally scoped to an academic year, gender, and enrollment flag
+     * @return array<int, int> status => count for the school, optionally scoped to year / gender / enrollment / request kind
      */
     public function countByStatus(
         int $schoolId,
         ?int $academicYearId = null,
         ?int $gender = null,
         ?bool $enrolled = null,
+        ?int $requestKind = null,
     ): array;
 }

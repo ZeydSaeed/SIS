@@ -11,6 +11,7 @@ use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Domain\Student\Data\CreateStudentData;
 use App\Domain\Student\Exceptions\DuplicateNationalIdException;
+use App\Domain\Student\Repositories\StudentDocumentRepositoryInterface;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -42,6 +43,18 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
             'specialization_name' => 'كهرباء',
             'governorate' => 'بغداد',
             'neighborhood' => 'الكرادة',
+            'administrative_unit' => 1,
+            'father_occupation' => 'موظف',
+            'mother_occupation' => 'ربة بيت',
+            'student_mobile' => '07700000000',
+            'guardian_mobile' => '07800000000',
+            'previous_school_name' => 'متوسطة النور',
+            'graduation_year' => 2024,
+            'previous_gpa' => 85.5,
+            'previous_study_track' => 1,
+            'mathematics_grade' => null,
+            'physics_grade' => null,
+            'request_kind' => 2,
             'school_name' => 'Demo Vocational School',
             'status' => ApplicationStatus::Accepted->value,
             'notes' => null,
@@ -49,6 +62,7 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
             'school_id' => 9,
             'academic_year_id' => 12,
         ]);
+        $admission->method('listDocumentsForApplication')->willReturn([]);
         $admission->expects($this->once())->method('markConverted')->with(44, 81, 7);
 
         $students = $this->createMock(StudentRepositoryInterface::class);
@@ -71,10 +85,14 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
                 && $data->schoolName === 'Demo Vocational School'
                 && $data->admittedClassName === 'الرابع'
                 && $data->departmentName === 'صناعي'
-                && $data->specializationName === 'كهرباء'
+                && $data->requestKind === 2
+                && $data->fatherOccupation === 'موظف'
                 && $data->nationalId === 'NID-44'
                 && $data->admittedAcademicYearId === 12))
             ->willReturn(81);
+
+        $documents = $this->createMock(StudentDocumentRepositoryInterface::class);
+        $documents->method('listActiveForStudent')->willReturn([]);
 
         $unitOfWork = $this->createMock(UnitOfWork::class);
         $unitOfWork->method('transaction')->willReturnCallback(fn (callable $callback) => $callback());
@@ -83,6 +101,7 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
             $unitOfWork,
             $admission,
             $students,
+            $documents,
             $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
         );
@@ -134,6 +153,7 @@ class ConvertApplicationToStudentHandlerTest extends TestCase
             $unitOfWork,
             $admission,
             $students,
+            $this->createMock(StudentDocumentRepositoryInterface::class),
             $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
         );

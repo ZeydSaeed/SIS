@@ -42,8 +42,13 @@ final readonly class UpdateStudentCommand implements Command
         public ?string $email = null,
         public ?string $schoolName = null,
         public ?string $departmentName = null,
-        public ?string $specializationName = null,
-        public ?string $stageName = null,
-        public ?string $sectionName = null,
+        public ?string $fatherOccupation = null,
+        public ?string $motherOccupation = null,
+        public ?int $administrativeUnit = null,
+        public ?int $graduationYear = null,
+        public ?float $previousGpa = null,
+        public ?int $previousStudyTrack = null,
+        public ?float $mathematicsGrade = null,
+        public ?float $physicsGrade = null,
     ) {}
 }

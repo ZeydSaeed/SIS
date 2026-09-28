@@ -56,17 +56,8 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
     const [details, setDetails] = useState<string[]>([]);
     const lastFlashRef = useRef<string | null>(null);
 
-    const isAdmissionPage =
-        (typeof page.url === 'string' && page.url.startsWith('/admission'))
-        || (typeof page.component === 'string' && page.component.startsWith('admission/'));
-
     const openMessage = useCallback(
         (input: string | ShowMessageInput, defaultTone: MessageDialogTone) => {
-            // Admission: only error dialogs — suppress success / info / warning chrome.
-            if (isAdmissionPage && defaultTone !== 'error') {
-                return;
-            }
-
             if (typeof input === 'string') {
                 setTone(defaultTone);
                 setTitle(undefined);
@@ -77,18 +68,13 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
                 return;
             }
 
-            const nextTone = input.tone ?? defaultTone;
-            if (isAdmissionPage && nextTone !== 'error') {
-                return;
-            }
-
-            setTone(nextTone);
+            setTone(input.tone ?? defaultTone);
             setTitle(input.title);
             setDescription(resolveErrorMessage(input.description, i18n.errors.generic));
             setDetails(input.details ?? []);
             setOpen(true);
         },
-        [i18n.errors.generic, isAdmissionPage],
+        [i18n.errors.generic],
     );
 
     const showMessage = useCallback(
@@ -160,18 +146,12 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        // Admission: never surface success flash dialogs.
-        if (isAdmissionPage) {
-            return;
-        }
-
         if (typeof flashSuccess === 'string' && flashSuccess.trim() !== '') {
             showSuccess({
                 description: resolveErrorMessage(flashSuccess),
             });
         }
     }, [
-        isAdmissionPage,
         page.props.flash?.error,
         page.props.flash?.success,
         showError,

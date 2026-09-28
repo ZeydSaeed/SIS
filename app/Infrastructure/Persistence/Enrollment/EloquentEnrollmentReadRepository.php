@@ -344,23 +344,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         }
 
         if ($specializationId !== null && $specializationId > 0) {
-            $specializationsTable = SchemaHelper::qualified('vocational', 'specializations');
-            $spec = DB::table($specializationsTable)
-                ->where('id', $specializationId)
-                ->select(['id', 'name'])
-                ->first();
-
-            if ($spec === null) {
-                $query->whereRaw('1 = 0');
-            } else {
-                $specName = trim((string) $spec->name);
-                $query->where(function (Builder $builder) use ($specializationId, $specName): void {
-                    $builder->where('e.specialization_id', $specializationId);
-                    if ($specName !== '') {
-                        $builder->orWhere('s.specialization_name', $specName);
-                    }
-                });
-            }
+            $query->where('e.specialization_id', $specializationId);
         }
 
         $term = trim($q);
@@ -460,8 +444,6 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                 's.status as student_status',
                 's.school_name as student_school_name',
                 's.department_name',
-                's.stage_name as student_stage_name',
-                's.specialization_name as student_specialization_name',
                 'y.name as academic_year_name',
                 'y.code as academic_year_code',
                 'c.code as class_code',
@@ -482,10 +464,11 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
 
     private function toDto(object $row): EnrollmentDTO
     {
-        $specializationName = $this->nullableString($row->specialization_name ?? null)
-            ?? $this->nullableString($row->student_specialization_name ?? null);
+        $specializationName = $this->nullableString($row->specialization_name ?? null);
         $schoolName = $this->nullableString($row->school_name ?? null)
             ?? $this->nullableString($row->student_school_name ?? null);
+        $className = $this->nullableString($row->class_name ?? null);
+        $stageName = $className;
 
         return new EnrollmentDTO(
             id: (int) $row->id,
@@ -516,7 +499,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             academicYearName: $this->nullableString($row->academic_year_name ?? null),
             academicYearCode: $this->nullableString($row->academic_year_code ?? null),
             classCode: $this->nullableString($row->class_code ?? null),
-            className: $this->nullableString($row->class_name ?? null),
+            className: $className,
             sectionCode: $this->nullableString($row->section_code ?? null),
             sectionName: $this->nullableString($row->section_name ?? null),
             specializationCode: $this->nullableString($row->specialization_code ?? null),
@@ -527,7 +510,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             gradeLevelName: $this->nullableString($row->grade_level_name ?? null),
             departmentName: $this->nullableString($row->org_department_name ?? null)
                 ?? $this->nullableString($row->department_name ?? null),
-            stageName: $this->nullableString($row->student_stage_name ?? null),
+            stageName: $stageName,
             createdAt: $this->formatTimestamp($row->created_at ?? null),
             updatedAt: $this->formatTimestamp($row->updated_at ?? null),
         );

@@ -37,6 +37,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [StudentPageController::class, 'store'])->name('store');
         Route::post('/bulk-status', [StudentPageController::class, 'bulkStatus'])->name('bulk-status');
         Route::put('/{student}', [StudentPageController::class, 'update'])->whereNumber('student')->name('update');
+        Route::post('/{student}/documents/upload', [StudentPageController::class, 'uploadDocument'])
+            ->whereNumber('student')
+            ->name('documents.upload');
         Route::get('/{student}', [StudentPageController::class, 'show'])->name('show');
     });
 

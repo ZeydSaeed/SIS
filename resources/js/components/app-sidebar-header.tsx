@@ -6,7 +6,6 @@ import { TitleBarMenu } from '@/components/title-bar-menu';
 import {
     TitleBarRibbon,
     type RibbonActionId,
-    type RibbonTab,
 } from '@/components/title-bar-ribbon';
 import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SisSearchField } from '@/components/sis/sis-search-field';
@@ -141,7 +140,7 @@ export function AppSidebarHeader({
 }: {
     breadcrumbs?: BreadcrumbItemType[];
 }) {
-    const activeRibbon = useActivePageRibbonTab() as RibbonTab | null;
+    const activeRibbon = useActivePageRibbonTab();
     const setActiveRibbon = useSetActivePageRibbonTab();
     const ribbonPinned = usePageRibbonPinned();
     const page = usePage();

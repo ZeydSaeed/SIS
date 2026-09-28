@@ -12,10 +12,13 @@ export type WorkflowNoticeTone = 'info' | 'success' | 'warning' | 'error';
 
 export type WorkflowNoticeData = {
     tone: WorkflowNoticeTone;
+    /** May be a workflow.* / flash.* key until resolved by WorkflowFlashHost. */
     title: string;
+    /** May be a workflow.* / flash.* key until resolved by WorkflowFlashHost. */
     message: string;
     action_href?: string | null;
     action_label?: string | null;
+    /** Stable step key — preferred SSOT lookup into ar.workflow. */
     step?: string | null;
 };
 

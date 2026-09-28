@@ -1,12 +1,11 @@
 import { useRef } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { NoticeSheetFrame } from '@/components/sis/notice-sheet-frame';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogHeader,
-    DialogTitle,
 } from '@/components/ui/dialog';
+import { useCenterNoticeOverHost } from '@/hooks/use-center-notice-over-host';
 import { t } from '@/i18n';
 
 type ConfirmDialogTone = 'default' | 'danger';
@@ -24,8 +23,8 @@ type ConfirmDialogProps = {
 };
 
 /**
- * Shared confirmation dialog — same classic chrome as MessageDialog (SSOT visual).
- * Non-modal: no overlay / no z-index — page behind stays interactive.
+ * Shared confirmation dialog — same admission-form chrome as MessageDialog (SSOT).
+ * Centered over the open host sheet, else viewport center.
  */
 export function ConfirmDialog({
     open,
@@ -42,15 +41,19 @@ export function ConfirmDialog({
     const confirm = confirmLabel ?? i18n.dialog.confirm;
     const cancel = cancelLabel ?? i18n.dialog.cancel;
     const cancelRef = useRef<HTMLButtonElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    useCenterNoticeOverHost(open, contentRef);
     const isDanger = tone === 'danger';
-    const Icon = isDanger ? AlertTriangle : Info;
+    const banner = isDanger ? i18n.dialog.warningTitle : i18n.dialog.infoTitle;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
-                className={`sis-confirm-dialog sis-confirm-dialog--${tone}`}
+                ref={contentRef}
+                className={`sis-confirm-dialog sis-notice-sheet sis-confirm-dialog--${tone}`}
                 showOverlay={false}
                 dir="rtl"
+                lang="ar"
                 onOpenAutoFocus={(event) => {
                     if (!isDanger) {
                         return;
@@ -66,40 +69,32 @@ export function ConfirmDialog({
                     event.preventDefault();
                 }}
             >
-                <DialogHeader className="sis-confirm-dialog__titlebar">
-                    <DialogTitle className="sis-confirm-dialog__title">{title}</DialogTitle>
-                </DialogHeader>
-                <div className="sis-confirm-dialog__body">
-                    <span className="sis-confirm-dialog__icon-wrap" aria-hidden="true">
-                        <Icon className="sis-confirm-dialog__icon" />
-                    </span>
-                    <DialogDescription className="sis-confirm-dialog__copy">
+                <NoticeSheetFrame
+                    title={title}
+                    banner={banner}
+                    onClose={() => onOpenChange(false)}
+                >
+                    <DialogDescription className="sis-notice-sheet__copy">
                         {description}
                     </DialogDescription>
-                </div>
-                <div className="sis-confirm-dialog__actions">
-                    <button
-                        ref={cancelRef}
-                        type="button"
-                        className="sis-confirm-dialog__btn sis-confirm-dialog__btn--cancel"
-                        onClick={() => onOpenChange(false)}
-                        disabled={confirmPending}
-                    >
-                        {cancel}
-                    </button>
-                    <button
-                        type="button"
-                        className={
-                            isDanger
-                                ? 'sis-confirm-dialog__btn sis-confirm-dialog__btn--danger'
-                                : 'sis-confirm-dialog__btn sis-confirm-dialog__btn--confirm'
-                        }
-                        onClick={onConfirm}
-                        disabled={confirmPending}
-                    >
-                        {confirmPending ? i18n.dialog.working : confirm}
-                    </button>
-                </div>
+                    <div className="sis-admission-sheet__actions">
+                        <button
+                            ref={cancelRef}
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                            disabled={confirmPending}
+                        >
+                            {cancel}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onConfirm}
+                            disabled={confirmPending}
+                        >
+                            {confirmPending ? i18n.dialog.working : confirm}
+                        </button>
+                    </div>
+                </NoticeSheetFrame>
             </DialogContent>
         </Dialog>
     );

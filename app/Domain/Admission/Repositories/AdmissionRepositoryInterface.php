@@ -61,6 +61,18 @@ interface AdmissionRepositoryInterface
      *     specialization_name:?string,
      *     governorate:?string,
      *     neighborhood:?string,
+     *     administrative_unit:?int,
+     *     father_occupation:?string,
+     *     mother_occupation:?string,
+     *     student_mobile:?string,
+     *     guardian_mobile:?string,
+     *     previous_school_name:?string,
+     *     graduation_year:?int,
+     *     previous_gpa:?float,
+     *     previous_study_track:?int,
+     *     mathematics_grade:?float,
+     *     physics_grade:?float,
+     *     request_kind:int,
      *     school_name:?string,
      *     status:int,
      *     notes:?string,
@@ -70,6 +82,11 @@ interface AdmissionRepositoryInterface
      * }|null
      */
     public function findApplicationForSchool(int $applicationId, int $schoolId): ?array;
+
+    /**
+     * @return list<array{id:int, document_type:int, storage_key:string, file_name:string, file_hash:string}>
+     */
+    public function listDocumentsForApplication(int $applicationId): array;
 
     /**
      * Accepted applications that never received a student row (failed convert leftovers).

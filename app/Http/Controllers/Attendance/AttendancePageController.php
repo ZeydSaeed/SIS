@@ -206,7 +206,7 @@ final class AttendancePageController extends Controller
 
         return redirect()
             ->route('attendance.show', ['session' => $session])
-            ->with('success', 'Section attendance saved.');
+            ->with('success', 'flash.attendance.sectionSaved');
     }
 
     public function close(
@@ -234,7 +234,7 @@ final class AttendancePageController extends Controller
 
         return redirect()
             ->route('attendance.show', ['session' => $session])
-            ->with('success', 'Attendance session closed.');
+            ->with('success', 'flash.attendance.sessionClosed');
     }
 
     public function create(Request $request): Response
@@ -286,6 +286,6 @@ final class AttendancePageController extends Controller
 
         return redirect()
             ->route('attendance.show', ['session' => $result->sessionId])
-            ->with('success', 'Attendance session created.');
+            ->with('success', 'flash.attendance.sessionCreated');
     }
 }

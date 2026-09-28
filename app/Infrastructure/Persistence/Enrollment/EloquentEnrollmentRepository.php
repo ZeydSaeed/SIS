@@ -102,15 +102,14 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             ->where('id', $classId)
             ->value('name');
         if (is_string($className) && $className !== '') {
-            $studentFill['admitted_class_name'] = $className;
-            $studentFill['stage_name'] = $className;
+            // Keep admitted_class_name as admission grade; do not overwrite from enrollment.
         }
 
         $sectionName = DB::table(SchemaHelper::qualified('enrollment', 'sections'))
             ->where('id', $sectionId)
             ->value('name');
         if (is_string($sectionName) && $sectionName !== '') {
-            $studentFill['section_name'] = $sectionName;
+            // section_name removed from students.students — placement lives on enrollment.sections
         }
 
         if ($branchId !== null) {
@@ -127,12 +126,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         }
 
         if ($specializationId !== null) {
-            $specializationName = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
-                ->where('id', $specializationId)
-                ->value('name');
-            $studentFill['specialization_name'] = is_string($specializationName) && $specializationName !== ''
-                ? $specializationName
-                : null;
+            // specialization_name column removed from students table; skip student label sync
         }
 
         if ($studentFill === []) {
@@ -198,40 +192,14 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             }
         }
         if ($syncStudentLabels || $specializationId !== null) {
-            if ($specializationId !== null) {
-                $specializationName = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
-                    ->where('id', $specializationId)
-                    ->value('name');
-                $studentFill['specialization_name'] = is_string($specializationName) && $specializationName !== ''
-                    ? $specializationName
-                    : null;
-            } else {
-                $studentFill['specialization_name'] = null;
-            }
+            // specialization_name column removed from students table — skip
         }
         if ($updateStage) {
-            $studentFill['stage_name'] = $stageName !== null && trim($stageName) !== ''
-                ? trim($stageName)
-                : null;
+            // class_name / stage denorm removed from students.students — skip
         }
 
         if ($syncStudentLabels) {
-            $className = DB::table(SchemaHelper::qualified('enrollment', 'classes'))
-                ->where('id', $classId)
-                ->value('name');
-            $studentFill['admitted_class_name'] = is_string($className) && $className !== ''
-                ? $className
-                : null;
-            if (! $updateStage) {
-                $studentFill['stage_name'] = $studentFill['admitted_class_name'];
-            }
-
-            $sectionName = DB::table(SchemaHelper::qualified('enrollment', 'sections'))
-                ->where('id', $sectionId)
-                ->value('name');
-            $studentFill['section_name'] = is_string($sectionName) && $sectionName !== ''
-                ? $sectionName
-                : null;
+            // class_name / section_name removed; admitted_class_name remains admission SSOT
         }
 
         if ($studentFill !== []) {

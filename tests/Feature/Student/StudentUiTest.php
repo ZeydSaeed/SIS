@@ -457,7 +457,6 @@ final class StudentUiTest extends TestCase
             'school_name' => 'Demo Vocational School',
             'admitted_class_name' => 'الثالث',
             'department_name' => 'صناعي',
-            'specialization_name' => 'ميكانيك',
         ]);
 
         $this->get('/students')
@@ -480,8 +479,7 @@ final class StudentUiTest extends TestCase
                 ->where('students.data.0.neighborhood', 'العشار')
                 ->where('students.data.0.school_name', 'Demo Vocational School')
                 ->where('students.data.0.admitted_class_name', 'الثالث')
-                ->where('students.data.0.department_name', 'صناعي')
-                ->where('students.data.0.specialization_name', 'ميكانيك'));
+                ->where('students.data.0.department_name', 'صناعي'));
     }
 
     #[Test]
@@ -577,7 +575,6 @@ final class StudentUiTest extends TestCase
             'father_name' => 'Father',
             'birth_date' => '2012-05-01',
             'department_name' => 'كهرباء',
-            'specialization_name' => 'الكترونيك',
             'admitted_class_name' => 'الثالث',
         ])->assertRedirect();
 
@@ -586,7 +583,6 @@ final class StudentUiTest extends TestCase
             'first_name' => 'New',
             'father_name' => 'Father',
             'department_name' => 'كهرباء',
-            'specialization_name' => 'الكترونيك',
             'admitted_class_name' => 'الثالث',
             'national_id' => 'NAT-KEEP-001',
             'mother_name' => 'Original Mother',
@@ -611,7 +607,7 @@ final class StudentUiTest extends TestCase
             'birth_date' => '2012-05-01',
             'governorate' => 'بغداد',
             'neighborhood' => 'الكرادة',
-            'stage_name' => 'ابتدائي',
+            'admitted_class_name' => 'الأول',
             'mobile' => '07700000000',
         ]);
 
@@ -622,7 +618,7 @@ final class StudentUiTest extends TestCase
             'governorate' => 'النجف',
             'neighborhood' => 'المركز',
             'gender' => 2,
-            'stage_name' => 'متوسطة',
+            'admitted_class_name' => 'الثاني',
             'previous_school_name' => 'مدرسة الرافدين',
             'mobile' => '07811111111',
             'national_id' => 'NAT-VIS-001',
@@ -636,7 +632,7 @@ final class StudentUiTest extends TestCase
             'governorate' => 'النجف',
             'neighborhood' => 'المركز',
             'gender' => 2,
-            'stage_name' => 'متوسطة',
+            'admitted_class_name' => 'الثاني',
             'previous_school_name' => 'مدرسة الرافدين',
             'mobile' => '07811111111',
             'national_id' => 'NAT-VIS-001',

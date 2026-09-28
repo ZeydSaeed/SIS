@@ -19,6 +19,7 @@ type PageProps = {
         academic_year_id: number | null;
         gender: number | null;
         enrolled: number | null;
+        request_kind: number | null;
     };
     authorization: StudentAuthorization;
     enrollmentFilterOptions?: EnrollmentFormFilterOptions;

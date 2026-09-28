@@ -6,6 +6,7 @@ import {
     type WorkflowNoticeData,
 } from '@/components/sis/sis-workflow-notice';
 import { t } from '@/i18n';
+import { resolveUiMessage, resolveWorkflowCopy } from '@/lib/resolve-ui-message';
 import type { FlashToast } from '@/types/ui';
 
 type FlashProps = {
@@ -23,10 +24,15 @@ function isWorkflowNotice(value: unknown): value is WorkflowNoticeData {
     }
 
     const record = value as Record<string, unknown>;
-
-    return (
+    const hasStep = typeof record.step === 'string' && record.step.trim() !== '';
+    const hasCopy =
         typeof record.title === 'string'
         && typeof record.message === 'string'
+        && record.title.trim() !== ''
+        && record.message.trim() !== '';
+
+    return (
+        (hasStep || hasCopy)
         && (record.tone === 'info'
             || record.tone === 'success'
             || record.tone === 'warning'
@@ -34,9 +40,33 @@ function isWorkflowNotice(value: unknown): value is WorkflowNoticeData {
     );
 }
 
+function resolveNotice(workflow: WorkflowNoticeData): WorkflowNoticeData {
+    const fromStep = resolveWorkflowCopy(workflow.step);
+    if (fromStep !== null) {
+        return {
+            ...workflow,
+            title: fromStep.title,
+            message: fromStep.message,
+            action_label: workflow.action_href
+                ? (fromStep.action_label ?? resolveUiMessage(workflow.action_label ?? '', fromStep.action_label))
+                : workflow.action_label,
+        };
+    }
+
+    return {
+        ...workflow,
+        title: resolveUiMessage(workflow.title, workflow.title),
+        message: resolveUiMessage(workflow.message, workflow.message),
+        action_label: workflow.action_label
+            ? resolveUiMessage(workflow.action_label, workflow.action_label)
+            : workflow.action_label,
+    };
+}
+
 /**
  * Renders shared flash.workflow banners inside AppLayout (Inertia page tree).
  * Also surfaces flash.toast once per navigation for ops pages.
+ * Copy is resolved from resources/js/i18n/ar.ts (Arabic SSOT).
  */
 export function WorkflowFlashHost() {
     const i18n = t();
@@ -57,7 +87,11 @@ export function WorkflowFlashHost() {
                 if (onAdmission && type !== 'error') {
                     /* skip */
                 } else if (type === 'success' || type === 'info' || type === 'warning' || type === 'error') {
-                    toast[type](toastData.message);
+                    const fromStep = resolveWorkflowCopy(toastData.message);
+                    const message = fromStep
+                        ? `${fromStep.title} — ${fromStep.message}`
+                        : resolveUiMessage(toastData.message);
+                    toast[type](message);
                 }
             }
         }
@@ -78,7 +112,7 @@ export function WorkflowFlashHost() {
         }
 
         lastWorkflowKeyRef.current = key;
-        setNotice(workflow);
+        setNotice(resolveNotice(workflow));
     }, [page.props.flash?.workflow, page.props.flash?.toast, page.url]);
 
     if (notice === null) {

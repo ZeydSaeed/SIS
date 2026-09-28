@@ -1,4 +1,5 @@
 import { t } from '@/i18n';
+import { resolveUiMessage } from '@/lib/resolve-ui-message';
 
 export type InertiaErrorBag = Record<string, string | string[] | undefined>;
 
@@ -34,27 +35,9 @@ export function collectInertiaErrorMessages(errors: InertiaErrorBag | undefined 
     return Array.from(new Set(messages));
 }
 
-/** Map known domain error codes (and fall back) to Arabic UI copy. */
+/** Map known domain / flash / workflow keys to Arabic UI copy (SSOT = ar.ts). */
 export function resolveErrorMessage(raw: string | null | undefined, fallback?: string): string {
-    const i18n = t();
-    const text = (raw ?? '').trim();
-    const defaultMessage = fallback ?? i18n.errors.generic;
-
-    if (text === '') {
-        return defaultMessage;
-    }
-
-    const coded = i18n.errors.codes[text as keyof typeof i18n.errors.codes];
-    if (coded) {
-        return coded;
-    }
-
-    // Domain codes look like "enrollment.invalid_status" with no spaces.
-    if (/^[a-z][a-z0-9_.]+$/i.test(text) && text.includes('.')) {
-        return defaultMessage;
-    }
-
-    return text;
+    return resolveUiMessage(raw, fallback);
 }
 
 export function summarizeInertiaErrors(

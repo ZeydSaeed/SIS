@@ -49,11 +49,13 @@ class RecommendationController extends Controller
             reason: $request->validated('reason'),
         ));
 
+        $success = $result->optimizationEventCode
+            ? 'flash.recommendationApproved?code='.rawurlencode((string) $result->optimizationEventCode)
+            : 'flash.recommendationApprovedManual';
+
         return redirect()
             ->route('intelligence.recommendations.show', $recommendation)
-            ->with('success', $result->optimizationEventCode
-                ? __('Recommendation approved and optimization :code started.', ['code' => $result->optimizationEventCode])
-                : __('Recommendation approved. Manual execution may be required for this action type.'));
+            ->with('success', $success);
     }
 
     public function reject(
@@ -70,6 +72,6 @@ class RecommendationController extends Controller
 
         return redirect()
             ->route('intelligence.recommendations.index')
-            ->with('success', __('Recommendation rejected.'));
+            ->with('success', 'flash.recommendationRejected');
     }
 }

@@ -4,7 +4,10 @@ import {
     studentNeedsRegistrationContinuation,
     studentProfileCompletenessGaps,
 } from '@/components/admission/student-profile-gaps';
-import { studentRecordCompletenessGaps } from '@/components/students/student-record-gaps';
+import {
+    STUDENT_REQUIRED_DOCUMENT_TYPES,
+    studentRecordCompletenessGaps,
+} from '@/components/students/student-record-gaps';
 import type { AdmissionApplication } from '@/components/admission/admission-workspace';
 
 function baseApp(overrides: Partial<AdmissionApplication> = {}): AdmissionApplication {
@@ -45,7 +48,15 @@ function baseApp(overrides: Partial<AdmissionApplication> = {}): AdmissionApplic
     };
 }
 
-/** Complete civil+study profile without transfer or email (email optional). */
+function allDocuments(): Array<{ id: number; document_type: number; file_name: string }> {
+    return STUDENT_REQUIRED_DOCUMENT_TYPES.map((slot, index) => ({
+        id: index + 1,
+        document_type: slot.type,
+        file_name: `doc-${slot.type}.jpg`,
+    }));
+}
+
+/** Complete civil+study profile without email/notes (excluded from count). */
 function completeRecord(): Record<string, unknown> {
     return {
         id: 10,
@@ -72,20 +83,32 @@ function completeRecord(): Record<string, unknown> {
         house_number: '12',
         school_name: 'مدرسة النور',
         academic_year_id: 12,
+        branch_id: 1,
+        branch_name: 'الصناعي',
+        department_name: 'الميكانيك',
+        admitted_class_name: 'Grade 11',
         school_start_date: '2026-09-01',
-        previous_school_name: null,
-        transfer_document_number: null,
-        transfer_document_date: null,
+        previous_school_name: 'مدرسة سابقة',
+        transfer_document_number: 100,
+        transfer_document_date: '2026-08-01',
+        graduation_year: 2025,
+        previous_gpa: 85,
+        previous_study_track: 1,
+        father_occupation: 'موظف',
+        mother_occupation: 'ربة منزل',
+        administrative_unit: 1,
         guardian_triple_name: 'أحمد علي حسن',
         mobile: '7700000000',
         guardian_mobile: '7700000001',
         email: null,
+        notes: null,
+        documents: allDocuments(),
         status: 1,
     };
 }
 
 describe('studentProfileCompletenessGaps', () => {
-    it('lists empty required fields (transfer/email not required when empty)', () => {
+    it('lists empty required fields and excludes email/notes', () => {
         const app = baseApp({
             student_record: {
                 id: 10,
@@ -120,6 +143,8 @@ describe('studentProfileCompletenessGaps', () => {
                 mobile: null,
                 guardian_mobile: null,
                 email: null,
+                notes: null,
+                documents: [],
                 status: 1,
             },
         });
@@ -129,14 +154,14 @@ describe('studentProfileCompletenessGaps', () => {
         expect(gaps).toContain('اسم أب الأم');
         expect(gaps).toContain('محل الولادة');
         expect(gaps).toContain('الجنسية');
-        expect(gaps).not.toContain('اسم المدرسة التي نُقل منها');
+        expect(gaps).toContain('صورة شخصية');
         expect(gaps).not.toContain('البريد الإلكتروني');
-        expect(gaps).toHaveLength(14);
+        expect(gaps).not.toContain('الملاحظات');
         expect(isStudentProfileComplete(app)).toBe(false);
         expect(studentNeedsRegistrationContinuation(app)).toBe(true);
     });
 
-    it('complete without transfer/email → مستوفي', () => {
+    it('complete without email/notes → مستوفي', () => {
         const record = completeRecord();
         const app = baseApp({ student_record: record });
 
@@ -156,17 +181,16 @@ describe('studentProfileCompletenessGaps', () => {
         expect(studentRecordCompletenessGaps(record)).toEqual([]);
     });
 
-    it('requires full transfer set when any transfer field is filled', () => {
+    it('counts each missing document slot when documents key is present', () => {
         const record = {
             ...completeRecord(),
-            previous_school_name: 'مدرسة سابقة',
-            transfer_document_number: null,
-            transfer_document_date: null,
+            documents: [{ id: 1, document_type: 20, file_name: 'photo.jpg' }],
         };
 
         const gaps = studentRecordCompletenessGaps(record);
-        expect(gaps).toContain('رقم وثيقة النقل');
-        expect(gaps).toContain('تاريخ وثيقة النقل');
+        expect(gaps).toHaveLength(STUDENT_REQUIRED_DOCUMENT_TYPES.length - 1);
+        expect(gaps).not.toContain('صورة شخصية');
+        expect(gaps).toContain('البطاقة الوطنية للطالب (الوجه الأول)');
     });
 
     it('missing academic_year_id key (legacy list) is not a false gap', () => {
@@ -180,5 +204,15 @@ describe('studentProfileCompletenessGaps', () => {
         const record = { ...completeRecord(), academic_year_id: null };
 
         expect(studentRecordCompletenessGaps(record)).toContain('السنة الدراسية');
+    });
+
+    it('does not count blank math/physics grades (hidden when empty)', () => {
+        const record = {
+            ...completeRecord(),
+            mathematics_grade: null,
+            physics_grade: null,
+        };
+
+        expect(studentRecordCompletenessGaps(record)).toEqual([]);
     });
 });

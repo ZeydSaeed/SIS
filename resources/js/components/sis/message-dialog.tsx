@@ -1,18 +1,11 @@
 import { useRef } from 'react';
-import {
-    AlertCircle,
-    AlertTriangle,
-    CheckCircle2,
-    Info,
-    type LucideIcon,
-} from 'lucide-react';
+import { NoticeSheetFrame } from '@/components/sis/notice-sheet-frame';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogHeader,
-    DialogTitle,
 } from '@/components/ui/dialog';
+import { useCenterNoticeOverHost } from '@/hooks/use-center-notice-over-host';
 import { t } from '@/i18n';
 
 export type MessageDialogTone = 'error' | 'warning' | 'success' | 'info';
@@ -27,16 +20,26 @@ type MessageDialogProps = {
     onOpenChange: (open: boolean) => void;
 };
 
-const TONE_ICON: Record<MessageDialogTone, LucideIcon> = {
-    error: AlertCircle,
-    warning: AlertTriangle,
-    success: CheckCircle2,
-    info: Info,
-};
+function toneBannerLabel(
+    tone: MessageDialogTone,
+    labels: { error: string; warning: string; success: string; info: string },
+): string {
+    if (tone === 'error') {
+        return labels.error;
+    }
+    if (tone === 'warning') {
+        return labels.warning;
+    }
+    if (tone === 'success') {
+        return labels.success;
+    }
+
+    return labels.info;
+}
 
 /**
- * App-wide message dialog (SSOT) — classic WINDOW chrome.
- * Non-modal: no overlay, no z-index stack — page behind stays interactive.
+ * App-wide message dialog (SSOT) — same chrome as admission student form.
+ * Centered over the open host sheet (e.g. enrollment), else viewport center.
  */
 export function MessageDialog({
     open,
@@ -59,17 +62,26 @@ export function MessageDialog({
                 ? i18n.dialog.successTitle
                 : i18n.dialog.infoTitle);
     const closeRef = useRef<HTMLButtonElement>(null);
-    const Icon = TONE_ICON[tone];
+    const contentRef = useRef<HTMLDivElement>(null);
+    useCenterNoticeOverHost(open, contentRef);
     const uniqueDetails = details
         ? Array.from(new Set(details.map((item) => item.trim()).filter(Boolean)))
         : [];
+    const banner = toneBannerLabel(tone, {
+        error: i18n.dialog.errorTitle,
+        warning: i18n.dialog.warningTitle,
+        success: i18n.dialog.successTitle,
+        info: i18n.dialog.infoTitle,
+    });
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
-                className={`sis-message-dialog sis-message-dialog--${tone}`}
+                ref={contentRef}
+                className={`sis-message-dialog sis-notice-sheet sis-message-dialog--${tone}`}
                 showOverlay={false}
                 dir="rtl"
+                lang="ar"
                 role={tone === 'error' || tone === 'warning' ? 'alertdialog' : 'dialog'}
                 aria-describedby="sis-message-dialog-description"
                 onOpenAutoFocus={(event) => {
@@ -77,46 +89,40 @@ export function MessageDialog({
                     closeRef.current?.focus();
                 }}
                 onInteractOutside={(event) => {
-                    // Keep the notice open; do not steal / block page interaction.
                     event.preventDefault();
                 }}
                 onPointerDownOutside={(event) => {
                     event.preventDefault();
                 }}
             >
-                <DialogHeader className="sis-message-dialog__titlebar">
-                    <DialogTitle className="sis-message-dialog__title">{heading}</DialogTitle>
-                </DialogHeader>
-                <div className="sis-message-dialog__body">
-                    <span className="sis-message-dialog__icon-wrap" aria-hidden="true">
-                        <Icon className="sis-message-dialog__icon" />
-                    </span>
-                    <div className="sis-message-dialog__copy-stack">
-                        <DialogDescription
-                            id="sis-message-dialog-description"
-                            className="sis-message-dialog__copy"
-                        >
-                            {description}
-                        </DialogDescription>
-                        {uniqueDetails.length > 0 ? (
-                            <ul className="sis-message-dialog__details">
-                                {uniqueDetails.map((item) => (
-                                    <li key={item}>{item}</li>
-                                ))}
-                            </ul>
-                        ) : null}
-                    </div>
-                </div>
-                <div className="sis-message-dialog__actions">
-                    <button
-                        ref={closeRef}
-                        type="button"
-                        className="sis-message-dialog__btn"
-                        onClick={() => onOpenChange(false)}
+                <NoticeSheetFrame
+                    title={heading}
+                    banner={banner}
+                    onClose={() => onOpenChange(false)}
+                >
+                    <DialogDescription
+                        id="sis-message-dialog-description"
+                        className="sis-notice-sheet__copy"
                     >
-                        {close}
-                    </button>
-                </div>
+                        {description}
+                    </DialogDescription>
+                    {uniqueDetails.length > 0 ? (
+                        <ul className="sis-notice-sheet__details">
+                            {uniqueDetails.map((item) => (
+                                <li key={item}>{item}</li>
+                            ))}
+                        </ul>
+                    ) : null}
+                    <div className="sis-admission-sheet__actions">
+                        <button
+                            ref={closeRef}
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                        >
+                            {close}
+                        </button>
+                    </div>
+                </NoticeSheetFrame>
             </DialogContent>
         </Dialog>
     );

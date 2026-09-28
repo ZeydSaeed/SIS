@@ -180,7 +180,7 @@ export function StudentEnrollmentDialog({
     onEnrolled,
 }: Props) {
     const i18n = t();
-    const { showError, showWarning, showSuccess, showInertiaErrors } = usePageError();
+    const { showError, showWarning, showSuccess, showInfo, showInertiaErrors } = usePageError();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
     const formRef = useRef<HTMLFormElement>(null);
@@ -248,6 +248,11 @@ export function StudentEnrollmentDialog({
             details: issue.details,
         };
 
+        if (issue.tone === 'info' || issue.titleKey === 'enrollGuideTitle') {
+            showInfo(payload);
+            return;
+        }
+
         if (issue.tone === 'warning') {
             showWarning(payload);
             return;
@@ -306,12 +311,7 @@ export function StudentEnrollmentDialog({
 
     const onFormSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const form = formRef.current;
-        if (form !== null && !form.checkValidity()) {
-            // Native browser bubble only (e.g. "Please fill out this field.").
-            form.reportValidity();
-            return;
-        }
+        // Arabic in-sheet guidance owns empty required fields (not the browser English tip).
         void submit();
     };
 
@@ -342,26 +342,13 @@ export function StudentEnrollmentDialog({
                 departmentMissingInBranch: i18n.students.enrollDepartmentMissingInBranch,
                 noClassesInYear: i18n.students.enrollNoClassesInYear,
                 noSectionsForClass: i18n.students.enrollNoSectionsForClass,
-                guideFillRequired: i18n.students.enrollDialogHint,
+                guideFillRequired: i18n.students.enrollGuideFillRequired,
                 classLabel: i18n.enrollments.className,
                 sectionLabel: i18n.enrollments.sectionName,
             },
         });
 
         if (!validation.ok) {
-            if (validation.issue.fieldErrors !== undefined) {
-                setFieldErrors(validation.issue.fieldErrors);
-            }
-
-            // Empty / field-anchored issues → native HTML tip only (no MessageDialog / no z-index).
-            const hasFieldAnchors =
-                validation.issue.fieldErrors !== undefined
-                && Object.keys(validation.issue.fieldErrors).length > 0;
-            if (hasFieldAnchors || validation.issue.titleKey === 'enrollWarningTitle') {
-                formRef.current?.reportValidity();
-                return;
-            }
-
             presentIssue(validation.issue);
             return;
         }
@@ -503,7 +490,7 @@ export function StudentEnrollmentDialog({
                     ref={formRef}
                     className="sis-admission-sheet sis-student-enrollment-sheet__form"
                     onSubmit={onFormSubmit}
-                    noValidate={false}
+                    noValidate
                 >
                     <header className="sis-admission-sheet__hero" {...heroDragProps}>
                         <WindowControls
@@ -550,6 +537,7 @@ export function StudentEnrollmentDialog({
                                 label={i18n.enrollments.academicYear}
                                 name="academic_year_id"
                                 required
+                                error={fieldErrors.academic_year_id}
                             >
                                 <div className="sis-student-enrollment-sheet__year-wrap">
                                     <input
@@ -560,11 +548,12 @@ export function StudentEnrollmentDialog({
                                         value={draft.academic_year_id}
                                         readOnly
                                         tabIndex={-1}
+                                        aria-invalid={Boolean(fieldErrors.academic_year_id)}
                                         aria-label={i18n.enrollments.academicYear}
                                         className="sis-student-enrollment-sheet__native-year"
                                     />
                                     <div
-                                        className="sis-admission-sheet__control sis-admission-draft-field--filled"
+                                        className={`sis-admission-sheet__control sis-admission-draft-field--filled${invalidClass(Boolean(fieldErrors.academic_year_id))}`}
                                         aria-hidden="true"
                                         dir="ltr"
                                     >
@@ -576,6 +565,7 @@ export function StudentEnrollmentDialog({
                                 label={i18n.enrollments.effectiveFrom}
                                 name="effective_from"
                                 required
+                                error={fieldErrors.effective_from}
                             >
                                 <input
                                     id="effective_from"
@@ -583,7 +573,8 @@ export function StudentEnrollmentDialog({
                                     type="date"
                                     dir="ltr"
                                     required
-                                    className={`sis-admission-sheet__control${filledClass(draft.effective_from)}`}
+                                    aria-invalid={Boolean(fieldErrors.effective_from)}
+                                    className={`sis-admission-sheet__control${filledClass(draft.effective_from)}${invalidClass(Boolean(fieldErrors.effective_from))}`}
                                     value={draft.effective_from}
                                     aria-label={i18n.enrollments.effectiveFrom}
                                     onChange={(event) =>
@@ -593,7 +584,11 @@ export function StudentEnrollmentDialog({
                             </SheetField>
                         </div>
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
-                            <SheetField label={i18n.admission.branch} name="branch_name" required>
+                            <SheetField
+                                label={i18n.admission.branch}
+                                name="branch_name"
+                                required
+                            >
                                 <SheetSelect
                                     id="branch_name"
                                     name="branch_name"
@@ -601,6 +596,7 @@ export function StudentEnrollmentDialog({
                                     options={branchOptions}
                                     allowEmpty
                                     required
+                                    invalid={Boolean(fieldErrors.branch_name)}
                                     onChange={(next) => patchDraft({ branch_name: next })}
                                     ariaLabel={i18n.admission.branch}
                                 />
@@ -617,6 +613,7 @@ export function StudentEnrollmentDialog({
                                     options={departmentOptions}
                                     allowEmpty
                                     required
+                                    invalid={Boolean(fieldErrors.department_name)}
                                     disabled={draft.branch_name.trim() === ''}
                                     onChange={(next) => patchDraft({ department_name: next })}
                                     ariaLabel={i18n.admission.specialization}
@@ -636,6 +633,7 @@ export function StudentEnrollmentDialog({
                                     options={classOptions}
                                     allowEmpty
                                     required
+                                    invalid={Boolean(fieldErrors.class_key)}
                                     onChange={(next) => patchDraft({ class_key: next })}
                                     ariaLabel={i18n.enrollments.className}
                                 />
@@ -652,6 +650,7 @@ export function StudentEnrollmentDialog({
                                     options={sectionOptions}
                                     allowEmpty
                                     required
+                                    invalid={Boolean(fieldErrors.section_code)}
                                     dir="ltr"
                                     onChange={(next) => patchDraft({ section_code: next })}
                                     ariaLabel={i18n.enrollments.sectionName}

@@ -17,6 +17,7 @@ use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Domain\Student\Data\CreateStudentData;
 use App\Domain\Student\Events\StudentRegistered;
 use App\Domain\Student\Exceptions\DuplicateNationalIdException;
+use App\Domain\Student\Repositories\StudentDocumentRepositoryInterface;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 
 final class ConvertApplicationToStudentHandler implements CommandHandler
@@ -27,6 +28,7 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
         private readonly UnitOfWork $unitOfWork,
         private readonly AdmissionRepositoryInterface $admission,
         private readonly StudentRepositoryInterface $students,
+        private readonly StudentDocumentRepositoryInterface $studentDocuments,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
     ) {}
@@ -108,9 +110,7 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
             $departmentName = isset($application['department_name']) && is_string($application['department_name'])
                 ? trim($application['department_name'])
                 : '';
-            $specializationName = isset($application['specialization_name']) && is_string($application['specialization_name'])
-                ? trim($application['specialization_name'])
-                : '';
+            $requestKind = isset($application['request_kind']) ? (int) $application['request_kind'] : 2;
 
             $id = $this->students->saveNew(new CreateStudentData(
                 studentCode: $studentCode,
@@ -132,13 +132,30 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
                 neighborhood: $application['neighborhood'] ?? null,
                 admittedClassName: $intendedGrade !== '' ? $intendedGrade : null,
                 notes: $application['notes'] ?? null,
+                mobile: $application['student_mobile'] ?? null,
+                guardianMobile: $application['guardian_mobile'] ?? null,
                 schoolName: $application['school_name'] ?? null,
                 branchId: isset($application['branch_id']) ? (int) $application['branch_id'] : null,
                 departmentName: $departmentName !== '' ? $departmentName : null,
-                specializationName: $specializationName !== '' ? $specializationName : null,
+                previousSchoolName: $application['previous_school_name'] ?? null,
+                fatherOccupation: $application['father_occupation'] ?? null,
+                motherOccupation: $application['mother_occupation'] ?? null,
+                administrativeUnit: isset($application['administrative_unit']) ? (int) $application['administrative_unit'] : null,
+                graduationYear: isset($application['graduation_year']) ? (int) $application['graduation_year'] : null,
+                previousGpa: isset($application['previous_gpa']) ? (float) $application['previous_gpa'] : null,
+                previousStudyTrack: isset($application['previous_study_track']) ? (int) $application['previous_study_track'] : null,
+                mathematicsGrade: isset($application['mathematics_grade']) ? (float) $application['mathematics_grade'] : null,
+                physicsGrade: isset($application['physics_grade']) ? (float) $application['physics_grade'] : null,
+                requestKind: $requestKind,
                 schoolId: $command->schoolId,
                 admittedAcademicYearId: $admittedAcademicYearId,
             ));
+
+            $this->copyApplicationDocumentsToStudent(
+                $command->applicationId,
+                $command->schoolId,
+                $id,
+            );
 
             $this->admission->markConverted($command->applicationId, $id, $command->reviewedBy);
 
@@ -208,5 +225,57 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
         } catch (\Exception) {
             return substr($trimmed, 0, 10);
         }
+    }
+
+    private function copyApplicationDocumentsToStudent(int $applicationId, int $schoolId, int $studentId): void
+    {
+        $docs = $this->admission->listDocumentsForApplication($applicationId);
+        if ($docs === []) {
+            return;
+        }
+
+        $existingTypes = [];
+        foreach ($this->studentDocuments->listActiveForStudent($schoolId, $studentId) as $existing) {
+            $existingTypes[$existing->documentType] = true;
+        }
+
+        $now = (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM);
+        foreach ($docs as $doc) {
+            $type = $doc['document_type'];
+            if (isset($existingTypes[$type])) {
+                continue;
+            }
+
+            $fileName = $doc['file_name'];
+            $this->studentDocuments->create(
+                $schoolId,
+                $studentId,
+                $type,
+                $doc['storage_key'],
+                $fileName,
+                $this->guessMimeType($fileName),
+                0,
+                $doc['file_hash'],
+                null,
+                $now,
+            );
+            $existingTypes[$type] = true;
+        }
+    }
+
+    private function guessMimeType(string $fileName): string
+    {
+        $lower = strtolower($fileName);
+        if (str_ends_with($lower, '.png')) {
+            return 'image/png';
+        }
+        if (str_ends_with($lower, '.webp')) {
+            return 'image/webp';
+        }
+        if (str_ends_with($lower, '.pdf')) {
+            return 'application/pdf';
+        }
+
+        return 'image/jpeg';
     }
 }

@@ -100,9 +100,15 @@ final class UpdateStudentListRowHandler implements CommandHandler
             schoolName: $overlay ? $command->schoolName : $current->schoolName,
             branchId: $command->branchId !== null ? $command->branchId : $current->branchId,
             departmentName: $command->departmentName ?? $current->departmentName,
-            specializationName: $command->specializationName ?? $current->specializationName,
-            stageName: $command->stageName ?? $current->stageName,
-            sectionName: $command->sectionName ?? $current->sectionName,
+
+            fatherOccupation: $overlay ? $command->fatherOccupation : $current->fatherOccupation,
+            motherOccupation: $overlay ? $command->motherOccupation : $current->motherOccupation,
+            administrativeUnit: $overlay && $command->administrativeUnit !== null ? $command->administrativeUnit : $current->administrativeUnit,
+            graduationYear: $overlay && $command->graduationYear !== null ? $command->graduationYear : $current->graduationYear,
+            previousGpa: $overlay && $command->previousGpa !== null ? $command->previousGpa : $current->previousGpa,
+            previousStudyTrack: $overlay && $command->previousStudyTrack !== null ? $command->previousStudyTrack : $current->previousStudyTrack,
+            mathematicsGrade: $overlay && $command->mathematicsGrade !== null ? $command->mathematicsGrade : $current->mathematicsGrade,
+            physicsGrade: $overlay && $command->physicsGrade !== null ? $command->physicsGrade : $current->physicsGrade,
             admittedAcademicYearId: $command->admittedAcademicYearId !== null
                 ? $command->admittedAcademicYearId
                 : $current->admittedAcademicYearId,

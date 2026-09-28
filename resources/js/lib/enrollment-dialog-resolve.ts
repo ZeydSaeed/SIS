@@ -235,9 +235,9 @@ export function validateEnrollmentDialog(
         return {
             ok: false,
             issue: {
-                tone: 'warning',
-                titleKey: 'enrollWarningTitle',
-                descriptionKey: messages.emptyFields,
+                tone: 'info',
+                titleKey: 'enrollGuideTitle',
+                descriptionKey: messages.guideFillRequired,
                 details: emptyDetails,
                 fieldErrors,
             },

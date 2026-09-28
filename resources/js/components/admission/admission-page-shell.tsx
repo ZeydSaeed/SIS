@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type MutableRefObject, type ReactNode } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import { XCircle } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { AdmissionPeriodFilter } from '@/components/admission/admission-period-filter';
-import { useAdmissionSelection } from '@/components/admission/admission-selection';
 import {
     ADMISSION_PERIOD_FILTER_ALL,
     ADMISSION_STAGE_PATHS,
@@ -21,7 +19,6 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
-import { usePageAlignment } from '@/hooks/use-page-alignment';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -71,40 +68,7 @@ function searchFromPageFilters(filters: unknown): string {
     return '';
 }
 
-function AdmissionCancelRibbon() {
-    const i18n = t();
-    const { hasTarget } = usePageAlignment();
-    const { hasTableSelection, clearSelection } = useAdmissionSelection();
-    const canClearSelection = hasTarget || hasTableSelection;
-    const cancelRibbonGroups = useMemo((): PageRibbonGroup[] => {
-        return [
-            {
-                id: 'page-actions',
-                label: i18n.common.actions,
-                commands: [
-                    {
-                        id: 'cancel-admission-selection',
-                        label: i18n.common.cancel,
-                        icon: XCircle,
-                        disabled: !canClearSelection,
-                        onSelect: clearSelection,
-                    },
-                ],
-            },
-        ];
-    }, [
-        canClearSelection,
-        clearSelection,
-        i18n.common.actions,
-        i18n.common.cancel,
-    ]);
-
-    useRegisterPageRibbon('home', cancelRibbonGroups);
-
-    return null;
-}
-
-function AdmissionEditFiltersRibbon({
+function AdmissionHomeFiltersRibbon({
     workspace,
     academicYearId,
     yearFilterAction,
@@ -122,7 +86,7 @@ function AdmissionEditFiltersRibbon({
     searchDraftRef: MutableRefObject<string>;
 }) {
     const i18n = t();
-    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+    const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
         return [
             {
                 id: 'admission-filters',
@@ -176,7 +140,7 @@ function AdmissionEditFiltersRibbon({
         yearFilterAction,
     ]);
 
-    useRegisterPageRibbon('edit', editRibbonGroups);
+    useRegisterPageRibbon('home', homeRibbonGroups);
 
     return null;
 }
@@ -392,8 +356,7 @@ function AdmissionPageShellInner({
     return (
         <>
             <Head title={title} />
-            <AdmissionCancelRibbon />
-            <AdmissionEditFiltersRibbon
+            <AdmissionHomeFiltersRibbon
                 workspace={workspace}
                 academicYearId={academicYearId}
                 yearFilterAction={yearFilterAction}

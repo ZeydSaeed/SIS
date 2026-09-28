@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { Home, Pencil, Save, Trash2 } from 'lucide-react';
+import { Home, Pencil, Save, Trash2, XCircle } from 'lucide-react';
 import {
     forwardRef,
     useCallback,
@@ -25,7 +25,12 @@ import {
     toggleTableSelectAll,
 } from '@/components/sis/table-row-selection';
 import { useAdmissionSearchQuery } from '@/components/admission/admission-search-context';
-import { useAdmissionSelectionClearer } from '@/components/admission/admission-selection';
+import {
+    clearAdmissionSelection,
+    useAdmissionSelection,
+    useAdmissionSelectionClearer,
+} from '@/components/admission/admission-selection';
+import { usePageAlignment } from '@/hooks/use-page-alignment';
 import {
     ADMISSION_STATUS_ACCEPTED,
     ADMISSION_STATUS_CONVERTED,
@@ -629,6 +634,8 @@ export function AdmissionDraftsCard({
     const i18n = t();
     const { showInertiaErrors } = usePageError();
     const searchQuery = useAdmissionSearchQuery();
+    const { hasTarget } = usePageAlignment();
+    const { hasTableSelection, clearSelection: clearPageSelection } = useAdmissionSelection();
     const selectedRowRef = useRef<DraftRowHandle>(null);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
@@ -954,11 +961,13 @@ export function AdmissionDraftsCard({
         ],
     );
 
-    const ribbonGroups = useMemo((): PageRibbonGroup[] => {
-        const groups: PageRibbonGroup[] = [];
+    const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        if (!homeHref) {
+            return [];
+        }
 
-        if (homeHref) {
-            groups.push({
+        return [
+            {
                 id: 'admission-home',
                 label: i18n.admission.homeCaption,
                 commands: [
@@ -971,67 +980,85 @@ export function AdmissionDraftsCard({
                         },
                     },
                 ],
-            });
-        }
+            },
+        ];
+    }, [homeHref, i18n.admission.homeCaption]);
 
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         if (!canManage) {
-            return groups;
+            return [];
         }
 
-        groups.push({
-            id: 'admission-draft-actions',
-            label: i18n.common.actions,
-            commands: [
-                {
-                    id: 'edit-draft',
-                    label: i18n.common.edit,
-                    icon: Pencil,
-                    disabled: !hasSelection || !canEditStage,
-                    onSelect: () => setEditing(true),
-                },
-                {
-                    id: 'save-draft',
-                    label: i18n.common.save,
-                    icon: Save,
-                    disabled: !hasSelection || !editing || !canEditStage,
-                    onSelect: () => selectedRowRef.current?.save(),
-                },
-                {
-                    id: 'delete-draft',
-                    label: i18n.common.delete,
-                    icon: Trash2,
-                    disabled: !hasSelection || !canWithdraw,
-                    onSelect: () => {
-                        if (selectedDraft) {
-                            setReasonPrompt({
-                                kind: 'withdraw',
-                                toStatus: ADMISSION_STATUS_WITHDRAWN,
-                                applicationIds: [selectedDraft.id],
-                                mode: 'single',
-                            });
-                        }
+        return [
+            {
+                id: 'admission-draft-actions',
+                label: i18n.common.actions,
+                commands: [
+                    {
+                        id: 'edit-draft',
+                        label: i18n.common.edit,
+                        icon: Pencil,
+                        disabled: !hasSelection || !canEditStage,
+                        onSelect: () => setEditing(true),
                     },
-                },
-            ],
-        });
-
-        return groups;
+                    {
+                        id: 'save-draft',
+                        label: i18n.common.save,
+                        icon: Save,
+                        disabled: !hasSelection || !editing || !canEditStage,
+                        onSelect: () => selectedRowRef.current?.save(),
+                    },
+                    {
+                        id: 'cancel-draft-selection',
+                        label: i18n.common.cancel,
+                        icon: XCircle,
+                        disabled: !(hasTarget || hasTableSelection || hasSelection || editing),
+                        onSelect: () => {
+                            setEditing(false);
+                            setSelectedId(null);
+                            setCheckedIds([]);
+                            clearPageSelection();
+                            clearAdmissionSelection();
+                        },
+                    },
+                    {
+                        id: 'delete-draft',
+                        label: i18n.common.delete,
+                        icon: Trash2,
+                        disabled: !hasSelection || !canWithdraw,
+                        onSelect: () => {
+                            if (selectedDraft) {
+                                setReasonPrompt({
+                                    kind: 'withdraw',
+                                    toStatus: ADMISSION_STATUS_WITHDRAWN,
+                                    applicationIds: [selectedDraft.id],
+                                    mode: 'single',
+                                });
+                            }
+                        },
+                    },
+                ],
+            },
+        ];
     }, [
         canEditStage,
         canManage,
         canWithdraw,
+        clearPageSelection,
         editing,
         hasSelection,
-        homeHref,
-        i18n.admission.homeCaption,
+        hasTableSelection,
+        hasTarget,
         i18n.common.actions,
+        i18n.common.cancel,
         i18n.common.delete,
         i18n.common.edit,
         i18n.common.save,
         selectedDraft,
     ]);
 
-    useRegisterPageRibbon('home', ribbonGroups);
+    useRegisterPageRibbon('home', homeRibbonGroups);
+    useRegisterPageRibbon('edit', editRibbonGroups);
 
     return (
         <section aria-label={stageLabel} className="flex min-h-0 flex-1 flex-col gap-3">

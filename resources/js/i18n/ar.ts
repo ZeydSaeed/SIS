@@ -1,5 +1,7 @@
 /**
- * Arabic-first operational UI strings (SSOT for ops surfaces).
+ * Arabic-first operational UI strings — single source of truth (SSOT) for:
+ * labels, guidance, warnings, errors, flash/toast copy, and workflow notices.
+ * Backend flashes keys (flash.* / workflow step / domain codes); React resolves via resolveUiMessage.
  * Numbers/codes should still use dir="ltr" in presentation.
  */
 export const ar = {
@@ -67,6 +69,54 @@ export const ar = {
         awaitingEnrollmentBadge: 'بانتظار التسجيل',
         awaitingEnrollmentHint:
             'طالب بلا توزيع سنوي — أكمل الصف والشعبة لإظهاره في التسجيلات.',
+    },
+    /**
+     * Flash / toast / success-error notices from HTTP redirects.
+     * Backend must flash these keys (flash.*) — not prose — so Arabic stays in one SSOT.
+     */
+    flash: {
+        profileUpdated: 'تم تحديث الملف الشخصي.',
+        passwordUpdated: 'تم تحديث كلمة المرور.',
+        studentUpdated: 'تم تحديث بيانات الطالب.',
+        studentStatusesUpdated: 'تم تحديث حالات الطلاب.',
+        recommendationApproved: 'تم اعتماد التوصية وبدء التحسين :code.',
+        recommendationApprovedManual:
+            'تم اعتماد التوصية. قد يتطلب هذا النوع من الإجراءات تنفيذاً يدوياً.',
+        recommendationRejected: 'تم رفض التوصية.',
+        admission: {
+            periodOpened: 'تم فتح فترة التقديم.',
+            periodUpdated: 'تم تحديث فترة التقديم.',
+            periodStatusUpdated: 'تم تحديث حالة فترة التقديم.',
+            periodArchived: 'تم أرشفة فترة التقديم.',
+            applicationSubmitted: 'تم إنشاء الطلب وإرساله.',
+            studentCreatedFromAdmission: 'تم إنشاء الطالب من القبول.',
+            draftUpdated: 'تم تحديث مسودة الطلب.',
+            applicationAcceptedConverted: 'تم قبول الطلب وتحويله إلى طالب.',
+            applicationsAcceptedConverted: 'تم قبول الطلبات وتحويلها إلى طلاب.',
+            applicationStatusUpdated: 'تم تحديث حالة الطلب.',
+            applicationsStatusUpdated: 'تم تحديث حالات الطلبات.',
+            convertedToStudent: 'تم التحويل إلى طالب.',
+            documentRegistered: 'تم تسجيل مستند الطلب.',
+        },
+        enrollment: {
+            bulkStatusPartial: 'تم تحديث :updated تسجيل وتخطي :skipped (تعارض أو طالب غير مؤهل).',
+            bulkStatusNone: 'لم يُحدَّث أي تسجيل — تحقق من أهلية الطالب أو وجود تسجيل نشط آخر لنفس السنة.',
+            created: 'تم إنشاء التسجيل بنجاح.',
+            updated: 'تم تحديث التوزيع بنجاح.',
+            statusesUpdated: 'تم تحديث حالات التسجيل.',
+            placementUpdated: 'تم تحديث التوزيع.',
+        },
+        grades: {
+            entered: 'تم إدخال الدرجة.',
+            corrected: 'تم تصحيح الدرجة.',
+            voided: 'تم إبطال الدرجة.',
+            finalized: 'تم اعتماد الدرجة.',
+        },
+        attendance: {
+            sectionSaved: 'تم حفظ حضور الشعبة.',
+            sessionClosed: 'تم إغلاق جلسة الحضور.',
+            sessionCreated: 'تم إنشاء جلسة الحضور.',
+        },
     },
     gates: {
         advanced: 'متقدم',
@@ -158,6 +208,19 @@ export const ar = {
         notifications: 'التنبيهات والإشعارات',
         schedule: 'السجلات والمهام المجدولة',
         monitor: 'مراقبة أداء الخادم',
+        /** Titlebar tab strip — SSOT labels (see chrome-tabs.ts). */
+        tabs: {
+            file: 'ملف',
+            home: 'الصفحة الرئيسية',
+            edit: 'تحرير',
+            add: 'اضافة',
+            settings: 'اعدادات',
+            lists: 'قوائم',
+            tools: 'ادوات',
+            reports: 'تقارير',
+            help: 'مساعدة',
+        },
+        tabsAria: 'شريط القوائم',
     },
     dialog: {
         confirm: 'تأكيد',
@@ -220,7 +283,7 @@ export const ar = {
         delete: 'حذف',
         status: 'الحالة',
         actions: 'إجراءات',
-        fontDefault: 'Default',
+        fontDefault: 'افتراضي',
         optional: 'اختياري',
         yes: 'نعم',
         no: 'لا',
@@ -359,9 +422,13 @@ export const ar = {
         notFoundDesc: 'سجل الطالب المطلوب غير موجود.',
         gender: 'الجنس',
         filterByGender: 'تصفية حسب الجنس',
+        filterByRequestKind: 'تصفية حسب نوع طلب القبول',
+        requestKindFilter: 'نوع التقديم',
+        requestKindVocational: 'قبول مهني',
+        requestKindAcademicTransfer: 'تحويل أكاديمي',
         allGenders: 'الكل',
         clearFilters: 'إلغاء الفلترة',
-        clearFiltersAria: 'إلغاء فلاتر الجنس والتسجيل والبحث الحالية',
+        clearFiltersAria: 'إلغاء فلاتر الجنس والتسجيل ونوع التقديم والبحث الحالية',
         clearSelection: 'إلغاء التحديد',
         clearSelectionAria: 'إلغاء تحديد صفوف الجدول',
         structureFiltersTitle: 'فلاتر الطلاب',
@@ -383,6 +450,8 @@ export const ar = {
         enrollDialogSubmit: 'إنشاء التسجيل',
         enrollNeedsYear: 'حدّد السنة الدراسية من شريط الفلاتر قبل التسجيل.',
         enrollGuideTitle: 'إرشاد التسجيل',
+        enrollGuideFillRequired:
+            'يرجى ملء الحقول المطلوبة أدناه ثم اضغط «إنشاء التسجيل» مرة أخرى.',
         enrollWarningTitle: 'تنبيه قبل التسجيل',
         enrollEmptyFields: 'لا يمكن المتابعة — أكمل الحقول الفارغة أولاً.',
         enrollEmptyBranch: 'اختر الفرع.',
@@ -437,8 +506,19 @@ export const ar = {
         academicYear: 'السنة الدراسية',
         departmentName: 'الاختصاص',
         branchName: 'الفرع',
+        className: 'الصف',
         stageName: 'المرحلة',
         sectionName: 'الشعبة',
+        fatherOccupation: 'وظيفة الأب',
+        motherOccupation: 'وظيفة الأم',
+        administrativeUnit: 'الوحدة الإدارية',
+        graduationYear: 'سنة التخرج',
+        previousGpa: 'المعدل',
+        previousStudyTrack: 'مرحلة الدراسة السابقة',
+        mathematicsGrade: 'درجة مادة الرياضيات',
+        physicsGrade: 'درجة مادة الطبيعيات',
+        documentsSection: 'المستمسكات',
+        requestKind: 'نوع التقديم',
         updated: 'آخر تحديث',
     },
     auth: {

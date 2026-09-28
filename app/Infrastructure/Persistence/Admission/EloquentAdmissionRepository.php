@@ -238,7 +238,19 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'apps.specialization_id',
                 'apps.specialization_name',
                 'apps.governorate',
+                'apps.administrative_unit',
                 'apps.neighborhood',
+                'apps.father_occupation',
+                'apps.mother_occupation',
+                'apps.student_mobile',
+                'apps.guardian_mobile',
+                'apps.previous_school_name',
+                'apps.graduation_year',
+                'apps.previous_gpa',
+                'apps.previous_study_track',
+                'apps.mathematics_grade',
+                'apps.physics_grade',
+                'apps.request_kind',
                 'apps.status',
                 'apps.notes',
                 'apps.student_id',
@@ -282,7 +294,19 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'specialization_id' => $row->specialization_id !== null ? (int) $row->specialization_id : null,
             'specialization_name' => $this->nullableString($row->specialization_name),
             'governorate' => $this->nullableString($row->governorate),
+            'administrative_unit' => $row->administrative_unit !== null ? (int) $row->administrative_unit : null,
             'neighborhood' => $this->nullableString($row->neighborhood),
+            'father_occupation' => $this->nullableString($row->father_occupation),
+            'mother_occupation' => $this->nullableString($row->mother_occupation),
+            'student_mobile' => $this->nullableString($row->student_mobile),
+            'guardian_mobile' => $this->nullableString($row->guardian_mobile),
+            'previous_school_name' => $this->nullableString($row->previous_school_name),
+            'graduation_year' => $row->graduation_year !== null ? (int) $row->graduation_year : null,
+            'previous_gpa' => $row->previous_gpa !== null ? (float) $row->previous_gpa : null,
+            'previous_study_track' => $row->previous_study_track !== null ? (int) $row->previous_study_track : null,
+            'mathematics_grade' => $row->mathematics_grade !== null ? (float) $row->mathematics_grade : null,
+            'physics_grade' => $row->physics_grade !== null ? (float) $row->physics_grade : null,
+            'request_kind' => (int) ($row->request_kind ?? 2),
             'school_name' => $this->nullableString($row->target_school_name ?? $row->period_school_name),
             'status' => (int) $row->status,
             'notes' => $this->nullableString($row->notes),
@@ -290,6 +314,23 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'school_id' => (int) $row->school_id,
             'academic_year_id' => (int) $row->academic_year_id,
         ];
+    }
+
+    public function listDocumentsForApplication(int $applicationId): array
+    {
+        return DB::table(SchemaHelper::qualified('admission', 'application_documents'))
+            ->where('application_id', $applicationId)
+            ->orderBy('document_type')
+            ->orderBy('id')
+            ->get(['id', 'document_type', 'storage_key', 'file_name', 'file_hash'])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'document_type' => (int) $row->document_type,
+                'storage_key' => (string) $row->storage_key,
+                'file_name' => (string) $row->file_name,
+                'file_hash' => (string) $row->file_hash,
+            ])
+            ->all();
     }
 
     private function resolveBranchIdForSchool(int $schoolId, string $branchName): ?int

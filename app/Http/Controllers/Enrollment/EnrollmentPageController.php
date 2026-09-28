@@ -27,6 +27,7 @@ use App\Http\Requests\Enrollment\ChangeEnrollmentStatusesRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Http\Support\WorkflowFlash;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -198,14 +199,14 @@ final class EnrollmentPageController extends Controller
         if ($updated > 0 && $skipped > 0) {
             return redirect()->back()->with(
                 'success',
-                "تم تحديث {$updated} تسجيل وتخطي {$skipped} (تعارض أو طالب غير مؤهل).",
+                'flash.enrollment.bulkStatusPartial?updated='.$updated.'&skipped='.$skipped,
             );
         }
 
         if ($updated === 0 && $skipped > 0) {
             return redirect()->back()->with(
                 'error',
-                'لم يُحدَّث أي تسجيل — تحقق من أهلية الطالب أو وجود تسجيل نشط آخر لنفس السنة.',
+                'flash.enrollment.bulkStatusNone',
             );
         }
 
@@ -428,7 +429,13 @@ final class EnrollmentPageController extends Controller
             "enrollment:{$result->enrollmentId}",
         );
 
-        return redirect()->back();
+        return WorkflowFlash::with(
+            redirect()->back(),
+            [
+                'tone' => 'success',
+                'step' => 'enrollment.created',
+            ],
+        );
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

@@ -2,12 +2,17 @@
 import {
     CheckCircle2,
     CircleSlash,
+    Eye,
     FilterX,
     GraduationCap,
     History,
     PauseCircle,
+    Pencil,
+    Save,
+    Trash2,
     UserMinus,
     Users,
+    XCircle,
     type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
@@ -483,7 +488,7 @@ export function EnrollmentList({
 
     useEffect(() => {
         if (isHandoffMode) {
-            setActiveRibbonTab('edit');
+            setActiveRibbonTab('home');
         }
     }, [isHandoffMode, setActiveRibbonTab]);
 
@@ -1159,56 +1164,8 @@ export function EnrollmentList({
         [visitList],
     );
 
-    const ribbonGroups = useMemo((): PageRibbonGroup[] => {
-        const statusCommands: PageRibbonCommand[] = ENROLLMENT_STATUS_TABS.map((tab) => {
-            const full = statusTabLabel(tab.status, i18n);
-            const count = countForStatus(tab.status, enrollments.status_progress);
-
-            return {
-                id: tab.status === null ? 'status-tab-all' : `status-tab-${tab.status}`,
-                label: full,
-                title: `${full} (${count})`,
-                icon: tab.icon,
-                count,
-                pressed: filters.status === tab.status,
-                onSelect: () => onStatusTabClick(tab.status, filters.status === tab.status),
-            };
-        });
-
-        const supersededLabel = i18n.enrollments.ribbonSuperseded;
-        const supersededCommand: PageRibbonCommand = {
-            id: 'placement-history',
-            label: supersededLabel,
-            title: hasViewTargets
-                ? supersededLabel
-                : i18n.enrollments.historyNeedsSelection,
-            icon: ENROLLMENT_SUPERSEDED_TAB.icon,
-            disabled: !hasViewTargets,
-            onSelect: openPlacementHistory,
-        };
-
-        const distributionCommands: PageRibbonCommand[] = [];
-        if (canSelect) {
-            for (const action of ENROLLMENT_STATUS_ACTIONS) {
-                const full = statusTabLabel(action.status, i18n);
-                const needsCancel =
-                    action.status === 0
-                    || action.status === 2
-                    || action.status === 3
-                    || action.status === 4;
-
-                distributionCommands.push({
-                    id: `action-status-${action.status}`,
-                    label: full,
-                    title: canApplyStatus ? full : i18n.enrollments.statusNeedsSelection,
-                    icon: action.icon,
-                    disabled: !canApplyStatus || (needsCancel && !authorization.canCancel),
-                    onSelect: () => applyStatus(action.status),
-                });
-            }
-        }
-
-        const groups: PageRibbonGroup[] = [
+    const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        return [
             {
                 id: 'enrollment-filters',
                 label: i18n.enrollments.ribbonFilters,
@@ -1543,6 +1500,150 @@ export function EnrollmentList({
                     </div>
                 ),
             },
+        ];
+    }, [
+        applyPlacementPatch,
+        branchValue,
+        classValue,
+        clearStructureFilters,
+        departmentIdValue,
+        filterDepartments,
+        filterOptions.branches,
+        filterOptions.classes,
+        filterSections,
+        filters.academic_year_id,
+        filters.branch_id,
+        filters.class_id,
+        filters.department_id,
+        filters.gender,
+        filters.section_id,
+        filters.status,
+        filtersBusy,
+        genderFilterLabel,
+        genderValue,
+        handoffDraft.branch_id,
+        handoffDraft.class_id,
+        handoffDraft.department_id,
+        handoffDraft.section_id,
+        i18n,
+        isEditMode,
+        isHandoffMode,
+        isStructureEditMode,
+        patchHandoffDraft,
+        sectionValue,
+        showWarning,
+        structureBranchLabel,
+        structureClassLabel,
+        structureDepartmentLabel,
+        structureSectionLabel,
+        visitList,
+    ]);
+
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        const actionCommands: PageRibbonCommand[] = [
+            {
+                id: 'view-enrollment',
+                label: i18n.common.view,
+                icon: Eye,
+                disabled: !hasViewTargets,
+                onSelect: () => openViewDialog(false),
+            },
+        ];
+
+        if (canSelect) {
+            actionCommands.push(
+                {
+                    id: 'edit-enrollment',
+                    label: i18n.common.edit,
+                    icon: Pencil,
+                    tone: 'edit',
+                    disabled: !hasEditTargets || savingRows,
+                    onSelect: startEditing,
+                },
+                {
+                    id: 'save-enrollment',
+                    label: i18n.common.save,
+                    icon: Save,
+                    tone: 'save',
+                    disabled: !editing || savingRows,
+                    onSelect: saveEditingRows,
+                },
+                {
+                    id: 'cancel-enrollment-selection',
+                    label: i18n.common.cancel,
+                    icon: XCircle,
+                    disabled: !hasActiveSelection || savingRows,
+                    onSelect: clearSelection,
+                },
+                {
+                    id: 'delete-enrollment',
+                    label: i18n.common.delete,
+                    icon: Trash2,
+                    tone: 'delete',
+                    disabled: !canDelete || savingRows,
+                    onSelect: () => {
+                        if (selectedRow !== null) {
+                            setDeleteTarget(selectedRow);
+                        }
+                    },
+                },
+            );
+        }
+
+        const statusCommands: PageRibbonCommand[] = ENROLLMENT_STATUS_TABS.map((tab) => {
+            const full = statusTabLabel(tab.status, i18n);
+            const count = countForStatus(tab.status, enrollments.status_progress);
+
+            return {
+                id: tab.status === null ? 'status-tab-all' : `status-tab-${tab.status}`,
+                label: full,
+                title: `${full} (${count})`,
+                icon: tab.icon,
+                count,
+                pressed: filters.status === tab.status,
+                onSelect: () => onStatusTabClick(tab.status, filters.status === tab.status),
+            };
+        });
+
+        const supersededLabel = i18n.enrollments.ribbonSuperseded;
+        const supersededCommand: PageRibbonCommand = {
+            id: 'placement-history',
+            label: supersededLabel,
+            title: hasViewTargets
+                ? supersededLabel
+                : i18n.enrollments.historyNeedsSelection,
+            icon: ENROLLMENT_SUPERSEDED_TAB.icon,
+            disabled: !hasViewTargets,
+            onSelect: openPlacementHistory,
+        };
+
+        const distributionCommands: PageRibbonCommand[] = [];
+        if (canSelect) {
+            for (const action of ENROLLMENT_STATUS_ACTIONS) {
+                const full = statusTabLabel(action.status, i18n);
+                const needsCancel =
+                    action.status === 0
+                    || action.status === 2
+                    || action.status === 3
+                    || action.status === 4;
+
+                distributionCommands.push({
+                    id: `action-status-${action.status}`,
+                    label: full,
+                    title: canApplyStatus ? full : i18n.enrollments.statusNeedsSelection,
+                    icon: action.icon,
+                    disabled: !canApplyStatus || (needsCancel && !authorization.canCancel),
+                    onSelect: () => applyStatus(action.status),
+                });
+            }
+        }
+
+        const groups: PageRibbonGroup[] = [
+            {
+                id: 'enrollment-actions',
+                label: i18n.common.actions,
+                commands: actionCommands,
+            },
             {
                 id: 'enrollment-status-tabs',
                 label: i18n.enrollments.ribbonStatus,
@@ -1593,54 +1694,31 @@ export function EnrollmentList({
 
         return groups;
     }, [
-        applyPlacementPatch,
         applyStatus,
         authorization.canCancel,
-        branchValue,
         canApplyStatus,
+        canDelete,
         canSelect,
-        classValue,
-        clearStructureFilters,
-        departmentIdValue,
+        clearSelection,
+        editing,
         enrollments.status_progress,
-        filterDepartments,
-        filterOptions.branches,
-        filterOptions.classes,
-        filterSections,
-        filters.academic_year_id,
-        filters.branch_id,
-        filters.class_id,
-        filters.department_id,
-        filters.gender,
-        filters.section_id,
         filters.status,
-        filtersBusy,
-        genderFilterLabel,
-        genderValue,
-        handoffDraft.branch_id,
-        handoffDraft.class_id,
-        handoffDraft.department_id,
-        handoffDraft.section_id,
+        hasActiveSelection,
+        hasEditTargets,
         hasViewTargets,
         i18n,
-        isEditMode,
-        isHandoffMode,
-        isStructureEditMode,
         onStatusTabClick,
         openPlacementHistory,
+        openViewDialog,
         overallPercent,
-        patchHandoffDraft,
-        sectionValue,
-        showError,
-        showWarning,
-        structureBranchLabel,
-        structureClassLabel,
-        structureDepartmentLabel,
-        structureSectionLabel,
-        visitList,
+        saveEditingRows,
+        savingRows,
+        selectedRow,
+        startEditing,
     ]);
 
-    useRegisterPageRibbon('edit', ribbonGroups);
+    useRegisterPageRibbon('home', homeRibbonGroups);
+    useRegisterPageRibbon('edit', editRibbonGroups);
 
     const titlebarSearch = useMemo(
         () => ({

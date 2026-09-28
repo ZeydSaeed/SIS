@@ -44,9 +44,6 @@ export type StudentDetail = {
     branch_id?: number | null;
     branch_name?: string | null;
     department_name?: string | null;
-    specialization_name?: string | null;
-    stage_name?: string | null;
-    section_name?: string | null;
     academic_year_id?: number | null;
     academic_year_name?: string | null;
     academic_year_code?: string | null;

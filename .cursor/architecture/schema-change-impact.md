@@ -262,6 +262,42 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-09-28 students drop specialization/stage, add class_name + admission parity
+
+| Item | Value |
+|------|-------|
+| Class | Medium |
+| Table | `students.students` |
+| Change | Drop columns `specialization_name`, `stage_name` (user-approved). Add `class_name` string(100) nullable, `father_occupation` string(100) nullable, `mother_occupation` string(100) nullable, `administrative_unit` smallint nullable (CHECK 1-3), `graduation_year` smallint nullable (CHECK 1950-2100), `previous_gpa` decimal(5,2) nullable (CHECK 0-100), `previous_study_track` smallint nullable (CHECK 1-5), `mathematics_grade` decimal(5,2) nullable (CHECK 0-100), `physics_grade` decimal(5,2) nullable (CHECK 0-100). Types match `admission.applications`. |
+| Risk | Column drops affect enrollment repo student-label sync (removed writes). Admission convert/register mappers updated to copy new parity fields. All student DTOs, commands, handlers, rules, UI updated. |
+| Blueprint | Updated |
+
+---
+
+## Change log — 2026-09-28 students.request_kind + admission parity/document backfill
+
+| Item | Value |
+|------|-------|
+| Class | Low–Medium |
+| Table | `students.students`, `students.student_documents` |
+| Change | Add nullable `request_kind` SMALLINT CHECK (1,2). Backfill from linked `admission.applications` (parity columns + request_kind). Copy missing `application_documents` onto `student_documents` for converted students. Convert path now copies request_kind, class_name, and documents. |
+| Risk | Additive column + data backfill only; no drops. Document copy skips existing active types. |
+| Blueprint | Updated |
+
+---
+
+## Change log — 2026-09-28 drop students class_name + section_name
+
+| Item | Value |
+|------|-------|
+| Class | Medium |
+| Table | `students.students` |
+| Change | User-approved drop of `class_name` and `section_name`. Placement remains on `enrollment.*`; `admitted_class_name` retained as admission grade level (المستوى الدراسي). Enrollment sync no longer writes dropped columns. |
+| Risk | Destructive column drop on denormalized student labels only; enrollment class/section unchanged. |
+| Blueprint | Updated |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

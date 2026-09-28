@@ -315,17 +315,23 @@
 | transfer_document_number | BIGINT | رقم وثيقة النقل |
 | transfer_document_date | DATE | تاريخ وثيقة النقل |
 | school_start_date | DATE | تاريخ ابتداء الدوام |
-| admitted_class_name | VARCHAR(100) | الصف الذي قُبل فيه |
+| admitted_class_name | VARCHAR(100) | الصف الذي قُبل فيه / المستوى الدراسي من القبول |
 | admitted_academic_year_id | BIGINT | FK → academic.academic_years, nullable — سنة القبول المحفوظة بعد التحويل |
 | notes | TEXT | الملاحظات |
 | mobile | VARCHAR(30) | رقم موبايل الطالب (PII) |
 | guardian_mobile | VARCHAR(30) | رقم موبايل ولي الأمر (PII) |
 | email | VARCHAR(255) | البريد الإلكتروني (PII) |
 | school_name | VARCHAR(255) | المدرسة (تسمية سجل؛ school_id يبقى سياق المستأجر) |
-| department_name | VARCHAR(100) | القسم |
-| specialization_name | VARCHAR(100) | الاختصاص (نص حتى ضبط القائمة) |
-| stage_name | VARCHAR(100) | المرحلة |
-| section_name | VARCHAR(100) | الشعبة |
+| department_name | VARCHAR(100) | القسم / الاختصاص (نص القبول) |
+| father_occupation | VARCHAR(100) | وظيفة الأب — nullable |
+| mother_occupation | VARCHAR(100) | وظيفة الأم — nullable |
+| administrative_unit | SMALLINT | الوحدة الإدارية — nullable; CHECK IN (1,2,3) |
+| graduation_year | SMALLINT | سنة التخرج — nullable; CHECK 1950–2100 |
+| previous_gpa | DECIMAL(5,2) | المعدل — nullable; CHECK 0–100 |
+| previous_study_track | SMALLINT | مرحلة الدراسة السابقة — nullable; CHECK IN (1,2,3,4,5) |
+| mathematics_grade | DECIMAL(5,2) | درجة الرياضيات — nullable; CHECK 0–100 |
+| physics_grade | DECIMAL(5,2) | درجة الطبيعيات — nullable; CHECK 0–100 |
+| request_kind | SMALLINT | قناة القبول المحفوظة من الاستمارة — nullable; CHECK IN (1,2); 1=تحويل أكاديمي→مهني، 2=قبول مهني |
 | photo_storage_key | VARCHAR(500) | |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |

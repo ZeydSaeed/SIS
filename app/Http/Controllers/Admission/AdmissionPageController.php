@@ -324,7 +324,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $request->validated('academic_year_id')])
-            ->with('success', 'تم فتح فترة التقديم.');
+            ->with('success', 'flash.admission.periodOpened');
     }
 
     public function updatePeriod(
@@ -355,7 +355,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $academicYearId])
-            ->with('success', 'تم تحديث فترة التقديم.');
+            ->with('success', 'flash.admission.periodUpdated');
     }
 
     public function changePeriodStatus(
@@ -387,7 +387,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $academicYearId])
-            ->with('success', 'تم تحديث حالة فترة التقديم.');
+            ->with('success', 'flash.admission.periodStatusUpdated');
     }
 
     public function archivePeriod(
@@ -419,7 +419,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->route('admission.index', ['academic_year_id' => $academicYearId])
-            ->with('success', 'تم أرشفة فترة التقديم.');
+            ->with('success', 'flash.admission.periodArchived');
     }
 
     public function storeApplication(
@@ -520,7 +520,7 @@ final class AdmissionPageController extends Controller
             ->route('admission.submitted', array_filter([
                 'academic_year_id' => $academicYearId,
             ]))
-            ->with('success', 'تم إنشاء الطلب وإرساله.');
+            ->with('success', 'flash.admission.applicationSubmitted');
     }
 
     public function registerStudent(
@@ -605,7 +605,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'تم إنشاء الطالب من القبول.');
+            ->with('success', 'flash.admission.studentCreatedFromAdmission');
     }
 
     public function updateApplication(
@@ -657,7 +657,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'تم تحديث مسودة الطلب.');
+            ->with('success', 'flash.admission.draftUpdated');
     }
 
     public function updateFollowUp(
@@ -722,8 +722,8 @@ final class AdmissionPageController extends Controller
         );
 
         $success = $result->toStatus === ApplicationStatus::Accepted->value
-            ? 'تم قبول الطلب وتحويله إلى طالب.'
-            : 'تم تحديث حالة الطلب.';
+            ? 'flash.admission.applicationAcceptedConverted'
+            : 'flash.admission.applicationStatusUpdated';
 
         return redirect()
             ->back()
@@ -761,9 +761,9 @@ final class AdmissionPageController extends Controller
 
         $success = $result->toStatus === ApplicationStatus::Accepted->value
             ? ($result->count === 1
-                ? 'تم قبول الطلب وتحويله إلى طالب.'
-                : 'تم قبول الطلبات وتحويلها إلى طلاب.')
-            : 'تم تحديث حالات الطلبات.';
+                ? 'flash.admission.applicationAcceptedConverted'
+                : 'flash.admission.applicationsAcceptedConverted')
+            : 'flash.admission.applicationsStatusUpdated';
 
         return redirect()
             ->back()
@@ -794,7 +794,7 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'تم التحويل إلى طالب.');
+            ->with('success', 'flash.admission.convertedToStudent');
     }
 
     public function storeDocument(
@@ -823,6 +823,6 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'تم تسجيل مستند الطلب.');
+            ->with('success', 'flash.admission.documentRegistered');
     }
 }

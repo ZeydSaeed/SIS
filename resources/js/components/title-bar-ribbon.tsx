@@ -70,7 +70,10 @@ import {
     PAGE_TYPOGRAPHY_DEFAULT,
     usePageTypography,
 } from '@/hooks/use-page-typography';
+import type { RibbonTab } from '@/components/sis/chrome-tabs';
 import { t } from '@/i18n';
+
+export type { RibbonTab };
 
 export type FileRibbonActionId =
     | 'new'
@@ -164,17 +167,6 @@ export type RibbonActionId =
     | ToolsRibbonActionId
     | ReportsRibbonActionId
     | HelpRibbonActionId;
-
-export type RibbonTab =
-    | 'file'
-    | 'home'
-    | 'edit'
-    | 'add'
-    | 'settings'
-    | 'lists'
-    | 'tools'
-    | 'reports'
-    | 'help';
 
 type RibbonItem = {
     id: string;
@@ -602,7 +594,6 @@ export function TitleBarRibbon({
     onCollapse,
 }: TitleBarRibbonProps) {
     const tabGroups = usePageRibbonGroups(tab);
-    const homeGroups = usePageRibbonGroups('home');
     const pinned = usePageRibbonPinned();
     const setPinned = useSetPageRibbonPinned();
     const { url } = usePage();
@@ -614,12 +605,7 @@ export function TitleBarRibbon({
         || path.startsWith('/enrollments/')
         || path === '/admission'
         || path.startsWith('/admission/');
-    const pageGroups =
-        tab === 'home'
-            ? homeGroups
-            : tab === 'edit'
-              ? tabGroups
-              : [...tabGroups, ...homeGroups];
+    const pageGroups = tab === 'home' || tab === 'edit' ? tabGroups : [];
     const staticGroups =
         tab === 'file'
             ? FILE_RIBBON_GROUPS
@@ -661,41 +647,25 @@ export function TitleBarRibbon({
         ),
         ...staticGroups,
     ];
-    const isEnrollmentsEdit =
-        tab === 'edit' && groups.some((group) => group.id.startsWith('enrollment-'));
-    const isStudentsEdit =
-        tab === 'edit' && groups.some((group) => group.id.startsWith('student-'));
+    const isEnrollmentsRibbon = groups.some((group) =>
+        group.id.startsWith('enrollment-'),
+    );
+    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-'));
     const isAdmissionRibbon = groups.some(
         (group) =>
             group.id.startsWith('admission-') || group.id === 'page-actions',
     );
 
-    const ariaLabel =
-        tab === 'file'
-            ? 'شريط ملف'
-            : tab === 'edit'
-              ? 'شريط تحرير'
-              : tab === 'add'
-                ? 'شريط اضافة'
-                : tab === 'settings'
-                  ? 'شريط اعدادات'
-                  : tab === 'lists'
-                    ? 'شريط قوائم'
-                    : tab === 'tools'
-                      ? 'شريط ادوات'
-                      : tab === 'reports'
-                        ? 'شريط تقارير'
-                        : tab === 'help'
-                          ? 'شريط مساعدة'
-                          : 'شريط الصفحة الرئيسية';
+    const i18n = t();
+    const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
     return (
         <div
             className={[
                 'sis-ribbon',
                 tab === 'edit' ? 'sis-ribbon--fit' : '',
-                isEnrollmentsEdit ? 'sis-ribbon--enrollments-edit' : '',
-                isStudentsEdit ? 'sis-ribbon--students-edit' : '',
+                isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
+                isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
                 isAdmissionRibbon ? 'sis-ribbon--admission' : '',
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
             ]

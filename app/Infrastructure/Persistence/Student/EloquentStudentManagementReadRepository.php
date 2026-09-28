@@ -54,9 +54,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'school_name',
         'branch_id',
         'department_name',
-        'specialization_name',
-        'stage_name',
-        'section_name',
+
+        'father_occupation',
+        'mother_occupation',
+        'administrative_unit',
+        'graduation_year',
+        'previous_gpa',
+        'previous_study_track',
+        'mathematics_grade',
+        'physics_grade',
+        'request_kind',
         'admitted_academic_year_id',
         'status',
     ];
@@ -103,9 +110,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'school_name',
         'branch_id',
         'department_name',
-        'specialization_name',
-        'stage_name',
-        'section_name',
+
+        'father_occupation',
+        'mother_occupation',
+        'administrative_unit',
+        'graduation_year',
+        'previous_gpa',
+        'previous_study_track',
+        'mathematics_grade',
+        'physics_grade',
+        'request_kind',
         'status',
         'created_at',
         'updated_at',
@@ -146,19 +160,17 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         ?int $academicYearId = null,
         ?int $gender = null,
         ?bool $enrolled = null,
+        ?int $requestKind = null,
     ): array {
-        $query = StudentRecord::query()
-            ->select(self::LIST_COLUMNS)
-            ->where('school_id', $schoolId)
-            ->orderBy('full_name')
-            ->orderBy('id');
+        $query = $this->baseListQuery($schoolId);
 
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
         $this->applyEnrollmentScope($query, $schoolId, $academicYearId, $enrolled);
+        $this->applyRequestKindScope($query, $requestKind);
 
         if ($status !== null) {
-            $query->where('status', $status);
+            $query->where('s.status', $status);
         }
 
         return $this->paginateQuery($query, $page, $perPage, $schoolId, $academicYearId);
@@ -173,20 +185,18 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         ?int $academicYearId = null,
         ?int $gender = null,
         ?bool $enrolled = null,
+        ?int $requestKind = null,
     ): array {
         $term = trim($term);
-        $query = StudentRecord::query()
-            ->select(self::LIST_COLUMNS)
-            ->where('school_id', $schoolId)
-            ->orderBy('full_name')
-            ->orderBy('id');
+        $query = $this->baseListQuery($schoolId);
 
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
         $this->applyEnrollmentScope($query, $schoolId, $academicYearId, $enrolled);
+        $this->applyRequestKindScope($query, $requestKind);
 
         if ($status !== null) {
-            $query->where('status', $status);
+            $query->where('s.status', $status);
         }
 
         if ($term !== '') {
@@ -196,31 +206,49 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             if (ctype_digit($term)) {
                 $id = (int) $term;
                 $query->where(function (Builder $builder) use ($term, $id): void {
-                    $builder->where('student_code', $term);
+                    $builder->where('s.student_code', $term);
                     if ($id > 0) {
-                        $builder->orWhere('id', $id);
+                        $builder->orWhere('s.id', $id);
                     }
                 });
             } else {
                 $pattern = '%'.$term.'%';
 
                 $query->where(function (Builder $builder) use ($likeOperator, $pattern): void {
-                    $builder->where('full_name', $likeOperator, $pattern)
-                        ->orWhere('student_code', $likeOperator, $pattern)
-                        ->orWhere('national_id', $likeOperator, $pattern)
-                        ->orWhere('first_name', $likeOperator, $pattern)
-                        ->orWhere('father_name', $likeOperator, $pattern)
-                        ->orWhere('grandfather_name', $likeOperator, $pattern)
-                        ->orWhere('great_grandfather_name', $likeOperator, $pattern)
-                        ->orWhere('last_name', $likeOperator, $pattern)
-                        ->orWhere('mother_name', $likeOperator, $pattern)
-                        ->orWhere('maternal_father_name', $likeOperator, $pattern)
-                        ->orWhere('maternal_grandfather_name', $likeOperator, $pattern);
+                    $builder->where('s.full_name', $likeOperator, $pattern)
+                        ->orWhere('s.student_code', $likeOperator, $pattern)
+                        ->orWhere('s.national_id', $likeOperator, $pattern)
+                        ->orWhere('s.first_name', $likeOperator, $pattern)
+                        ->orWhere('s.father_name', $likeOperator, $pattern)
+                        ->orWhere('s.grandfather_name', $likeOperator, $pattern)
+                        ->orWhere('s.great_grandfather_name', $likeOperator, $pattern)
+                        ->orWhere('s.last_name', $likeOperator, $pattern)
+                        ->orWhere('s.mother_name', $likeOperator, $pattern)
+                        ->orWhere('s.maternal_father_name', $likeOperator, $pattern)
+                        ->orWhere('s.maternal_grandfather_name', $likeOperator, $pattern);
                 });
             }
         }
 
         return $this->paginateQuery($query, $page, $perPage, $schoolId, $academicYearId);
+    }
+
+    private function baseListQuery(int $schoolId): Builder
+    {
+        $studentsTable = SchemaHelper::qualified('students', 'students');
+        $branchesTable = SchemaHelper::qualified('organization', 'branches');
+
+        return StudentRecord::query()
+            ->from($studentsTable.' as s')
+            ->leftJoin($branchesTable.' as br', 'br.id', '=', 's.branch_id')
+            ->select(array_map(
+                static fn (string $column): string => 's.'.$column,
+                self::LIST_COLUMNS,
+            ))
+            ->addSelect('br.name as branch_name')
+            ->where('s.school_id', $schoolId)
+            ->orderBy('s.full_name')
+            ->orderBy('s.id');
     }
 
     /**
@@ -231,11 +259,13 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         ?int $academicYearId = null,
         ?int $gender = null,
         ?bool $enrolled = null,
+        ?int $requestKind = null,
     ): array {
         $query = StudentRecord::query()->where('school_id', $schoolId);
         $this->applyAcademicYearScope($query, $schoolId, $academicYearId);
         $this->applyGenderScope($query, $gender);
         $this->applyEnrollmentScope($query, $schoolId, $academicYearId, $enrolled);
+        $this->applyRequestKindScope($query, $requestKind);
 
         $rows = $query
             ->toBase()
@@ -265,7 +295,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         $page = max(1, $page);
         $perPage = min(max(1, $perPage), 100);
 
-        $paginator = $query->paginate($perPage, self::LIST_COLUMNS, 'page', $page);
+        // Preserve join select (incl. branch_name); do not re-select LIST_COLUMNS only.
+        $paginator = $query->paginate($perPage, ['*'], 'page', $page);
         /** @var list<StudentRecord> $records */
         $records = array_values($paginator->items());
         $enrolledIds = $this->activeEnrollmentStudentIds(
@@ -283,6 +314,18 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             $records,
         );
 
+        $documentsByStudent = $this->activeDocumentsByStudentIds(
+            $schoolId,
+            array_map(static fn (StudentListItemDTO $item): int => $item->id, $items),
+        );
+
+        $items = array_map(
+            static function (StudentListItemDTO $item) use ($documentsByStudent): StudentListItemDTO {
+                return $item->withDocuments($documentsByStudent[$item->id] ?? []);
+            },
+            $items,
+        );
+
         return [
             'items' => $items,
             'pagination' => [
@@ -292,6 +335,38 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 'last_page' => $paginator->lastPage(),
             ],
         ];
+    }
+
+    /**
+     * @param  list<int>  $studentIds
+     * @return array<int, list<array{id: int, document_type: int, file_name: string}>>
+     */
+    private function activeDocumentsByStudentIds(int $schoolId, array $studentIds): array
+    {
+        if ($studentIds === []) {
+            return [];
+        }
+
+        $rows = DB::table(SchemaHelper::qualified('students', 'student_documents'))
+            ->where('school_id', $schoolId)
+            ->whereIn('student_id', $studentIds)
+            ->where('status', 1)
+            ->orderBy('document_type')
+            ->orderBy('id')
+            ->get(['id', 'student_id', 'document_type', 'file_name']);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $studentId = (int) $row->student_id;
+            $map[$studentId] ??= [];
+            $map[$studentId][] = [
+                'id' => (int) $row->id,
+                'document_type' => (int) $row->document_type,
+                'file_name' => (string) $row->file_name,
+            ];
+        }
+
+        return $map;
     }
 
     private function mapListItem(StudentRecord $record, bool $isEnrolled = false): StudentListItemDTO
@@ -334,10 +409,20 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             email: $record->email,
             schoolName: $record->school_name,
             branchId: $record->branch_id !== null ? (int) $record->branch_id : null,
+            branchName: isset($record->branch_name) && is_string($record->branch_name) && $record->branch_name !== ''
+                ? $record->branch_name
+                : null,
             departmentName: $record->department_name,
-            specializationName: $record->specialization_name,
-            stageName: $record->stage_name,
-            sectionName: $record->section_name,
+
+            fatherOccupation: $record->father_occupation,
+            motherOccupation: $record->mother_occupation,
+            administrativeUnit: $record->administrative_unit !== null ? (int) $record->administrative_unit : null,
+            graduationYear: $record->graduation_year !== null ? (int) $record->graduation_year : null,
+            previousGpa: $record->previous_gpa !== null ? (float) $record->previous_gpa : null,
+            previousStudyTrack: $record->previous_study_track !== null ? (int) $record->previous_study_track : null,
+            mathematicsGrade: $record->mathematics_grade !== null ? (float) $record->mathematics_grade : null,
+            physicsGrade: $record->physics_grade !== null ? (float) $record->physics_grade : null,
+            requestKind: $record->request_kind !== null ? (int) $record->request_kind : null,
             academicYearId: $record->admitted_academic_year_id !== null
                 ? (int) $record->admitted_academic_year_id
                 : null,
@@ -395,9 +480,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 ? $record->branch_name
                 : null,
             departmentName: $record->department_name,
-            specializationName: $record->specialization_name,
-            stageName: $record->stage_name,
-            sectionName: $record->section_name,
+
+            fatherOccupation: $record->father_occupation,
+            motherOccupation: $record->mother_occupation,
+            administrativeUnit: $record->administrative_unit !== null ? (int) $record->administrative_unit : null,
+            graduationYear: $record->graduation_year !== null ? (int) $record->graduation_year : null,
+            previousGpa: $record->previous_gpa !== null ? (float) $record->previous_gpa : null,
+            previousStudyTrack: $record->previous_study_track !== null ? (int) $record->previous_study_track : null,
+            mathematicsGrade: $record->mathematics_grade !== null ? (float) $record->mathematics_grade : null,
+            physicsGrade: $record->physics_grade !== null ? (float) $record->physics_grade : null,
+            requestKind: $record->request_kind !== null ? (int) $record->request_kind : null,
             academicYearId: $year['id'],
             academicYearName: $year['name'],
             academicYearCode: $year['code'],
@@ -413,7 +505,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             return;
         }
 
-        $studentsTable = $query->getModel()->getTable();
+        // List queries alias students as `s` (branch join); detail/count keep model table.
+        $studentsTable = $this->listStudentsAliasOrTable($query);
         $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
 
         $applicationsTable = SchemaHelper::qualified('admission', 'applications');
@@ -459,7 +552,16 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             return;
         }
 
-        $query->where('gender', $gender);
+        $query->where($this->listStudentsAliasOrTable($query).'.gender', $gender);
+    }
+
+    private function applyRequestKindScope(Builder $query, ?int $requestKind): void
+    {
+        if ($requestKind !== 1 && $requestKind !== 2) {
+            return;
+        }
+
+        $query->where($this->listStudentsAliasOrTable($query).'.request_kind', $requestKind);
     }
 
     private function applyEnrollmentScope(
@@ -472,7 +574,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             return;
         }
 
-        $studentsTable = $query->getModel()->getTable();
+        $studentsTable = $this->listStudentsAliasOrTable($query);
         $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
 
         $exists = function ($existsQuery) use ($studentsTable, $enrollmentsTable, $schoolId, $academicYearId): void {
@@ -490,6 +592,20 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         } else {
             $query->whereNotExists($exists);
         }
+    }
+
+    /**
+     * List/search queries use `from students as s`; countByStatus uses the model table.
+     */
+    private function listStudentsAliasOrTable(Builder $query): string
+    {
+        $from = $query->getQuery()->from;
+
+        if (is_string($from) && preg_match('/\bas\s+s\b/i', $from) === 1) {
+            return 's';
+        }
+
+        return $query->getModel()->getTable();
     }
 
     /**

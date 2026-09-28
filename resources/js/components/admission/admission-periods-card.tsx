@@ -1,5 +1,5 @@
 import { Form, router, usePage } from '@inertiajs/react';
-import { Pencil, Save, Trash2 } from 'lucide-react';
+import { Pencil, Save, Trash2, XCircle } from 'lucide-react';
 import {
     forwardRef,
     useCallback,
@@ -26,7 +26,12 @@ import {
 } from '@/components/sis/ops-year-filter';
 import { Button } from '@/components/ui/button';
 import { useAdmissionSearchQuery } from '@/components/admission/admission-search-context';
-import { useAdmissionSelectionClearer } from '@/components/admission/admission-selection';
+import {
+    clearAdmissionSelection,
+    useAdmissionSelection,
+    useAdmissionSelectionClearer,
+} from '@/components/admission/admission-selection';
+import { usePageAlignment } from '@/hooks/use-page-alignment';
 import {
     admissionQueryMatches,
     admissionSearchSegments,
@@ -386,6 +391,8 @@ export function AdmissionPeriodsCard({
     const i18n = t();
     const { showInertiaErrors } = usePageError();
     const searchQuery = useAdmissionSearchQuery();
+    const { hasTarget } = usePageAlignment();
+    const { hasTableSelection, clearSelection: clearPageSelection } = useAdmissionSelection();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = useMemo(() => {
         const all = academicYears ?? [];
@@ -490,6 +497,18 @@ export function AdmissionPeriodsCard({
                         onSelect: () => selectedRowRef.current?.save(),
                     },
                     {
+                        id: 'cancel-period-selection',
+                        label: i18n.common.cancel,
+                        icon: XCircle,
+                        disabled: !(hasTarget || hasTableSelection || hasSelection || editing),
+                        onSelect: () => {
+                            setEditing(false);
+                            setSelectedId(null);
+                            clearPageSelection();
+                            clearAdmissionSelection();
+                        },
+                    },
+                    {
                         id: 'delete-period',
                         label: i18n.common.delete,
                         icon: Trash2,
@@ -507,9 +526,13 @@ export function AdmissionPeriodsCard({
         ];
     }, [
         canManage,
+        clearPageSelection,
         editing,
         hasSelection,
+        hasTableSelection,
+        hasTarget,
         i18n.common.actions,
+        i18n.common.cancel,
         i18n.common.delete,
         i18n.common.edit,
         i18n.common.save,
@@ -518,7 +541,7 @@ export function AdmissionPeriodsCard({
         yearReady,
     ]);
 
-    useRegisterPageRibbon('home', ribbonGroups);
+    useRegisterPageRibbon('edit', ribbonGroups);
 
     const confirmArchive = () => {
         if (archiveTarget === null || academicYearId === null) {

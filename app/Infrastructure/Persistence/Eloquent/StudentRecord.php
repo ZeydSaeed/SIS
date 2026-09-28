@@ -45,15 +45,22 @@ class StudentRecord extends Model
         'mobile',
         'guardian_mobile',
         'email',
-        'school_name',
-        'department_name',
-        'specialization_name',
-        'stage_name',
-        'section_name',
-        'photo_storage_key',
-        'status',
-        'admitted_academic_year_id',
-    ];
+            'school_name',
+            'branch_id',
+            'department_name',
+            'father_occupation',
+            'mother_occupation',
+            'administrative_unit',
+            'graduation_year',
+            'previous_gpa',
+            'previous_study_track',
+            'mathematics_grade',
+            'physics_grade',
+            'request_kind',
+            'photo_storage_key',
+            'status',
+            'admitted_academic_year_id',
+        ];
 
     public function __construct(array $attributes = [])
     {
@@ -72,6 +79,13 @@ class StudentRecord extends Model
             'status' => 'integer',
             'gender' => 'integer',
             'religion' => 'integer',
+            'administrative_unit' => 'integer',
+            'graduation_year' => 'integer',
+            'previous_gpa' => 'decimal:2',
+            'previous_study_track' => 'integer',
+            'mathematics_grade' => 'decimal:2',
+            'physics_grade' => 'decimal:2',
+            'request_kind' => 'integer',
         ];
     }
 }

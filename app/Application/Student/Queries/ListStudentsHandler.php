@@ -25,6 +25,7 @@ final class ListStudentsHandler implements QueryHandler
             $query->academicYearId,
             $query->gender,
             $query->enrolled,
+            $query->requestKind,
         );
 
         return StudentListPageDTO::fromPage(
@@ -34,6 +35,7 @@ final class ListStudentsHandler implements QueryHandler
                 $query->academicYearId,
                 $query->gender,
                 $query->enrolled,
+                $query->requestKind,
             ),
         );
     }

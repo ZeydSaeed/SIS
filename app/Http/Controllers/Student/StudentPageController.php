@@ -8,6 +8,8 @@ use App\Application\Student\Commands\ChangeStudentStatusesHandler;
 use App\Application\Student\Commands\CreateStudentHandler;
 use App\Application\Student\Commands\UpdateStudentListRowCommand;
 use App\Application\Student\Commands\UpdateStudentListRowHandler;
+use App\Application\Student\Commands\UploadStudentDocumentCommand;
+use App\Application\Student\Commands\UploadStudentDocumentHandler;
 use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
 use App\Application\Student\Queries\ListStudentsHandler;
@@ -19,6 +21,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\ChangeStudentStatusesRequest;
 use App\Http\Requests\Student\CreateStudentRequest;
 use App\Http\Requests\Student\UpdateStudentListRowRequest;
+use App\Http\Requests\Student\UploadStudentDocumentRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Http\Support\WorkflowFlash;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
@@ -30,8 +33,10 @@ use App\Security\Authorization\Permission;
 use App\Security\Authorization\StudentSchoolAccessService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\StudentPolicy;
+use App\Intelligence\Support\CorrelationContext;
 use App\Security\Support\StudentResponseSanitizer;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -66,6 +71,7 @@ final class StudentPageController extends Controller
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
         $enrolled = $this->queryEnrolled($request);
+        $requestKind = $this->queryRequestKind($request);
         $academicYearId = $this->academicYears->resolve(
             $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null,
             $request,
@@ -81,6 +87,7 @@ final class StudentPageController extends Controller
                 academicYearId: $academicYearId,
                 gender: $gender,
                 enrolled: $enrolled,
+                requestKind: $requestKind,
             ));
         } else {
             $result = $listHandler->handle(new ListStudentsQuery(
@@ -91,6 +98,7 @@ final class StudentPageController extends Controller
                 academicYearId: $academicYearId,
                 gender: $gender,
                 enrolled: $enrolled,
+                requestKind: $requestKind,
             ));
         }
 
@@ -128,6 +136,7 @@ final class StudentPageController extends Controller
                 'academic_year_id' => $academicYearId,
                 'gender' => $gender,
                 'enrolled' => $enrolled === null ? null : ($enrolled ? 1 : 0),
+                'request_kind' => $requestKind,
             ],
             'authorization' => $authorization,
             'enrollmentFilterOptions' => $enrollmentFilterOptions,
@@ -154,10 +163,7 @@ final class StudentPageController extends Controller
             redirect()->route('enrollments.create', ['student_id' => $result->studentId]),
             [
                 'tone' => 'warning',
-                'title' => 'تم إنشاء سجل الطالب',
-                'message' => 'سجل الطالب محفوظ كهوية مدنية فقط. لن يظهر في جدول التسجيلات قبل اختيار السنة والصف والشعبة وإنشاء التوزيع.',
                 'action_href' => route('enrollments.create', ['student_id' => $result->studentId], absolute: false),
-                'action_label' => 'إكمال التوزيع الآن',
                 'step' => 'student.created',
             ],
         );
@@ -193,7 +199,7 @@ final class StudentPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'Student statuses updated.');
+            ->with('success', 'flash.studentStatusesUpdated');
     }
 
     public function update(
@@ -220,8 +226,8 @@ final class StudentPageController extends Controller
             grandfatherName: $this->nullableString($validated, 'grandfather_name'),
             greatGrandfatherName: $this->nullableString($validated, 'great_grandfather_name'),
             departmentName: $this->nullableString($validated, 'department_name'),
-            specializationName: $this->nullableString($validated, 'specialization_name'),
             admittedClassName: $this->nullableString($validated, 'admitted_class_name'),
+
             applyFormFields: $applyFormFields,
             applyPii: $applyPii,
             motherName: $this->nullableString($validated, 'mother_name'),
@@ -245,8 +251,18 @@ final class StudentPageController extends Controller
             notes: $this->nullableString($validated, 'notes'),
             schoolName: $this->nullableString($validated, 'school_name'),
             branchId: $this->nullableInt($validated, 'branch_id'),
-            stageName: $this->nullableString($validated, 'stage_name'),
-            sectionName: $this->nullableString($validated, 'section_name'),
+
+            fatherOccupation: $this->nullableString($validated, 'father_occupation'),
+            motherOccupation: $this->nullableString($validated, 'mother_occupation'),
+            administrativeUnit: $this->nullableInt($validated, 'administrative_unit'),
+            graduationYear: $this->nullableInt($validated, 'graduation_year'),
+            previousGpa: isset($validated['previous_gpa']) && $validated['previous_gpa'] !== null && $validated['previous_gpa'] !== ''
+                ? (float) $validated['previous_gpa'] : null,
+            previousStudyTrack: $this->nullableInt($validated, 'previous_study_track'),
+            mathematicsGrade: isset($validated['mathematics_grade']) && $validated['mathematics_grade'] !== null && $validated['mathematics_grade'] !== ''
+                ? (float) $validated['mathematics_grade'] : null,
+            physicsGrade: isset($validated['physics_grade']) && $validated['physics_grade'] !== null && $validated['physics_grade'] !== ''
+                ? (float) $validated['physics_grade'] : null,
             nationalId: $this->nullableString($validated, 'national_id'),
             mobile: $this->nullableString($validated, 'mobile'),
             guardianMobile: $this->nullableString($validated, 'guardian_mobile'),
@@ -264,7 +280,7 @@ final class StudentPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'Student updated.');
+            ->with('success', 'flash.studentUpdated');
     }
 
     public function show(Request $request, int $student, GetStudentHandler $handler): Response
@@ -305,6 +321,68 @@ final class StudentPageController extends Controller
         ]);
     }
 
+    public function uploadDocument(
+        int $student,
+        UploadStudentDocumentRequest $request,
+        UploadStudentDocumentHandler $handler,
+    ): JsonResponse {
+        $file = $request->file('file');
+        /** @var list<string> $allowedMimes */
+        $allowedMimes = config('sis.documents.allowed_mimes', [
+            'application/pdf',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'text/plain',
+        ]);
+
+        $result = $handler->handle(new UploadStudentDocumentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            studentId: $student,
+            documentType: (int) $request->validated('document_type'),
+            fileName: (string) $file->getClientOriginalName(),
+            mimeType: (string) ($file->getMimeType() ?: 'application/octet-stream'),
+            contents: (string) file_get_contents($file->getRealPath()),
+            maxBytes: (int) config('sis.documents.max_bytes', 10 * 1024 * 1024),
+            allowedMimes: $allowedMimes,
+            uploadedBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        if ($result->failed()) {
+            $code = $result->errors[0] ?? 'student.document_upload_failed';
+
+            return response()->json([
+                'message' => 'Student document upload rejected.',
+                'error_code' => $code,
+                'meta' => ['correlation_id' => CorrelationContext::id()],
+            ], $code === 'student.not_found' ? 404 : 422);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.web.documents.binary.upload',
+            'uploaded',
+            $request->user(),
+            'student:'.$student,
+            [
+                'from_idempotency' => $result->fromIdempotencyCache,
+                'storage_key' => $result->storageKey,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'document_id' => $result->documentId,
+                'storage_key' => $result->storageKey,
+                'file_name' => (string) $file->getClientOriginalName(),
+                'document_type' => (int) $request->validated('document_type'),
+                'from_idempotency' => $result->fromIdempotencyCache,
+            ],
+            'meta' => ['correlation_id' => CorrelationContext::id()],
+        ], $result->fromIdempotencyCache ? 200 : 201);
+    }
+
     private function queryGender(Request $request): ?int
     {
         if (! $request->filled('gender')) {
@@ -333,6 +411,17 @@ final class StudentPageController extends Controller
         }
 
         return null;
+    }
+
+    private function queryRequestKind(Request $request): ?int
+    {
+        if (! $request->filled('request_kind')) {
+            return null;
+        }
+
+        $kind = (int) $request->query('request_kind');
+
+        return $kind === 1 || $kind === 2 ? $kind : null;
     }
 
     /**

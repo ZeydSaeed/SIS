@@ -1,5 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
     ADMISSION_BRANCH_OPTIONS,
     departmentsForBranch,
@@ -11,6 +11,7 @@ import {
     type YearOption,
 } from '@/components/sis/ops-year-filter';
 import { usePageError } from '@/components/sis/page-error-context';
+import { SheetField, SheetSection } from '@/components/sis/admission-sheet';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
 import {
@@ -100,49 +101,6 @@ function filledClass(value: string): string {
 function markFilled(event: ChangeEvent<HTMLInputElement>): void {
     const el = event.currentTarget;
     el.classList.toggle('sis-admission-draft-field--filled', el.value.trim() !== '');
-}
-
-function SheetField({
-    label,
-    name,
-    error,
-    children,
-    className = '',
-}: {
-    label: string;
-    name: string;
-    error?: string;
-    children: ReactNode;
-    className?: string;
-}) {
-    return (
-        <label className={`sis-admission-sheet__field ${className}`.trim()} htmlFor={name}>
-            <span className="sis-admission-sheet__label">{label}</span>
-            {children}
-            {error ? (
-                <span id={`${name}-error`} className="sis-admission-sheet__error" role="alert">
-                    {error}
-                </span>
-            ) : null}
-        </label>
-    );
-}
-
-function SheetSection({
-    title,
-    tone,
-    children,
-}: {
-    title: string;
-    tone: 'accent' | 'dark';
-    children: ReactNode;
-}) {
-    return (
-        <section className="sis-admission-sheet__section">
-            <h3 className={`sis-admission-sheet__banner sis-admission-sheet__banner--${tone}`}>{title}</h3>
-            <div className="sis-admission-sheet__body">{children}</div>
-        </section>
-    );
 }
 
 /** Sheet selects use SisListSelect so menu bg/selection can follow accent derivatives (native OS lists cannot). */
@@ -474,7 +432,7 @@ export function AdmissionApplicationDraftDialog({
                                     {schoolId !== '' ? (
                                         <input type="hidden" name="target_school_id" value={schoolId} />
                                     ) : null}
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--4">
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <div className="sis-admission-sheet__field">
                                             <span className="sis-admission-sheet__label">
                                                 {i18n.admission.academicYear}
@@ -484,6 +442,18 @@ export function AdmissionApplicationDraftDialog({
                                                 aria-readonly="true"
                                             >
                                                 {academicYearDisplay}
+                                            </div>
+                                        </div>
+                                        <div className="sis-admission-sheet__field">
+                                            <span className="sis-admission-sheet__label">
+                                                {i18n.students.schoolName}
+                                            </span>
+                                            <div
+                                                className="sis-admission-sheet__control sis-admission-draft-field--filled"
+                                                aria-readonly="true"
+                                            >
+                                                {schools.find((school) => String(school.id) === schoolId)?.name
+                                                    ?? '—'}
                                             </div>
                                         </div>
                                         <SheetField
@@ -522,6 +492,21 @@ export function AdmissionApplicationDraftDialog({
                                                 ariaLabel={i18n.admission.specialization}
                                             />
                                         </SheetField>
+                                        <SheetField
+                                            label={i18n.admission.requestTypeTitle}
+                                            name="request_kind_display"
+                                        >
+                                            <div
+                                                className="sis-admission-sheet__control sis-admission-draft-field--filled"
+                                                aria-readonly="true"
+                                            >
+                                                {isAcademicTransfer
+                                                    ? i18n.admission.requestTypeAcademicTransfer
+                                                    : i18n.admission.requestTypeVocational}
+                                            </div>
+                                        </SheetField>
+                                    </div>
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-admission-sheet__row--after-gap">
                                         <SheetField
                                             label={
                                                 isAcademicTransfer
@@ -641,7 +626,7 @@ export function AdmissionApplicationDraftDialog({
                                         </SheetField>
                                     </div>
 
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--4">
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <SheetField
                                             label={i18n.admission.birthDate}
                                             name="birth_date"
@@ -724,7 +709,7 @@ export function AdmissionApplicationDraftDialog({
                                 </SheetSection>
 
                                 <SheetSection title={i18n.admission.sheetParentsInfo} tone="accent">
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--3">
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <SheetField
                                             label={i18n.admission.motherName}
                                             name="mother_name"
@@ -770,9 +755,6 @@ export function AdmissionApplicationDraftDialog({
                                                 onChange={markFilled}
                                             />
                                         </SheetField>
-                                    </div>
-
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
                                         <SheetField
                                             label={i18n.admission.fatherOccupation}
                                             name="father_occupation"
@@ -787,6 +769,8 @@ export function AdmissionApplicationDraftDialog({
                                                 onChange={markFilled}
                                             />
                                         </SheetField>
+                                    </div>
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <SheetField
                                             label={i18n.admission.motherOccupation}
                                             name="mother_occupation"
@@ -805,7 +789,7 @@ export function AdmissionApplicationDraftDialog({
                                 </SheetSection>
 
                                 <SheetSection title={i18n.admission.sheetResidenceInfo} tone="accent">
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--3">
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <SheetField
                                             label={i18n.admission.governorate}
                                             name="governorate"
@@ -816,6 +800,20 @@ export function AdmissionApplicationDraftDialog({
                                                 dir="rtl"
                                                 placeholder=" "
                                                 error={errors.governorate}
+                                                className="sis-admission-sheet__control"
+                                                onChange={markFilled}
+                                            />
+                                        </SheetField>
+                                        <SheetField
+                                            label={i18n.admission.neighborhood}
+                                            name="neighborhood"
+                                            error={errors.neighborhood}
+                                        >
+                                            <OpsTextInput
+                                                name="neighborhood"
+                                                dir="rtl"
+                                                placeholder=" "
+                                                error={errors.neighborhood}
                                                 className="sis-admission-sheet__control"
                                                 onChange={markFilled}
                                             />
@@ -835,23 +833,6 @@ export function AdmissionApplicationDraftDialog({
                                             />
                                         </SheetField>
                                         <SheetField
-                                            label={i18n.admission.neighborhood}
-                                            name="neighborhood"
-                                            error={errors.neighborhood}
-                                        >
-                                            <OpsTextInput
-                                                name="neighborhood"
-                                                dir="rtl"
-                                                placeholder=" "
-                                                error={errors.neighborhood}
-                                                className="sis-admission-sheet__control"
-                                                onChange={markFilled}
-                                            />
-                                        </SheetField>
-                                    </div>
-
-                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
-                                        <SheetField
                                             label={i18n.admission.studentMobile}
                                             name="student_mobile"
                                             error={errors.student_mobile}
@@ -865,6 +846,8 @@ export function AdmissionApplicationDraftDialog({
                                                 onChange={markFilled}
                                             />
                                         </SheetField>
+                                    </div>
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <SheetField
                                             label={i18n.admission.guardianMobile}
                                             name="guardian_mobile"
@@ -883,9 +866,7 @@ export function AdmissionApplicationDraftDialog({
                                 </SheetSection>
 
                                 <SheetSection title={i18n.admission.sheetPriorStudyInfo} tone="accent">
-                                    <div
-                                        className={`sis-admission-sheet__row ${showMathematicsGrade || showPhysicsGrade ? 'sis-admission-sheet__row--5' : 'sis-admission-sheet__row--4'}`}
-                                    >
+                                    <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <SheetField
                                             label={i18n.admission.previousSchoolName}
                                             name="previous_school_name"

@@ -40,14 +40,84 @@ final readonly class StudentListItemDTO
         public ?string $email,
         public ?string $schoolName,
         public ?int $branchId,
+        public ?string $branchName,
         public ?string $departmentName,
-        public ?string $specializationName,
-        public ?string $stageName,
-        public ?string $sectionName,
+
+        public ?string $fatherOccupation,
+        public ?string $motherOccupation,
+        public ?int $administrativeUnit,
+        public ?int $graduationYear,
+        public ?float $previousGpa,
+        public ?int $previousStudyTrack,
+        public ?float $mathematicsGrade,
+        public ?float $physicsGrade,
+        public ?int $requestKind,
         public ?int $academicYearId,
         public int $status,
         public bool $isEnrolled = false,
+        /** @var list<array{id: int, document_type: int, file_name: string}> */
+        public array $documents = [],
     ) {}
+
+    /**
+     * @param  list<array{id: int, document_type: int, file_name: string}>  $documents
+     */
+    public function withDocuments(array $documents): self
+    {
+        return new self(
+            id: $this->id,
+            studentCode: $this->studentCode,
+            fullName: $this->fullName,
+            firstName: $this->firstName,
+            fatherName: $this->fatherName,
+            grandfatherName: $this->grandfatherName,
+            greatGrandfatherName: $this->greatGrandfatherName,
+            lastName: $this->lastName,
+            motherName: $this->motherName,
+            maternalFatherName: $this->maternalFatherName,
+            maternalGrandfatherName: $this->maternalGrandfatherName,
+            guardianTripleName: $this->guardianTripleName,
+            governorate: $this->governorate,
+            neighborhood: $this->neighborhood,
+            locality: $this->locality,
+            houseNumber: $this->houseNumber,
+            birthDate: $this->birthDate,
+            birthPlace: $this->birthPlace,
+            registrationPlace: $this->registrationPlace,
+            gender: $this->gender,
+            nationality: $this->nationality,
+            religion: $this->religion,
+            mawalidDate: $this->mawalidDate,
+            nationalId: $this->nationalId,
+            previousSchoolName: $this->previousSchoolName,
+            transferDocumentNumber: $this->transferDocumentNumber,
+            transferDocumentDate: $this->transferDocumentDate,
+            schoolStartDate: $this->schoolStartDate,
+            admittedClassName: $this->admittedClassName,
+            notes: $this->notes,
+            mobile: $this->mobile,
+            guardianMobile: $this->guardianMobile,
+            email: $this->email,
+            schoolName: $this->schoolName,
+            branchId: $this->branchId,
+            branchName: $this->branchName,
+            departmentName: $this->departmentName,
+
+            fatherOccupation: $this->fatherOccupation,
+            motherOccupation: $this->motherOccupation,
+            administrativeUnit: $this->administrativeUnit,
+            graduationYear: $this->graduationYear,
+            previousGpa: $this->previousGpa,
+            previousStudyTrack: $this->previousStudyTrack,
+            mathematicsGrade: $this->mathematicsGrade,
+            physicsGrade: $this->physicsGrade,
+            requestKind: $this->requestKind,
+            academicYearId: $this->academicYearId,
+            status: $this->status,
+            isEnrolled: $this->isEnrolled,
+            documents: $documents,
+        );
+    }
 
     /**
      * @return array<string, mixed>
@@ -90,13 +160,22 @@ final readonly class StudentListItemDTO
             'email' => $this->email,
             'school_name' => $this->schoolName,
             'branch_id' => $this->branchId,
+            'branch_name' => $this->branchName,
             'department_name' => $this->departmentName,
-            'specialization_name' => $this->specializationName,
-            'stage_name' => $this->stageName,
-            'section_name' => $this->sectionName,
+
+            'father_occupation' => $this->fatherOccupation,
+            'mother_occupation' => $this->motherOccupation,
+            'administrative_unit' => $this->administrativeUnit,
+            'graduation_year' => $this->graduationYear,
+            'previous_gpa' => $this->previousGpa,
+            'previous_study_track' => $this->previousStudyTrack,
+            'mathematics_grade' => $this->mathematicsGrade,
+            'physics_grade' => $this->physicsGrade,
+            'request_kind' => $this->requestKind,
             'academic_year_id' => $this->academicYearId,
             'status' => $this->status,
             'is_enrolled' => $this->isEnrolled,
+            'documents' => $this->documents,
         ];
     }
 }
