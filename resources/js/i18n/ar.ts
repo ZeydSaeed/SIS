@@ -272,6 +272,7 @@ export const ar = {
         page: 'صفحة',
         of: 'من',
         load: 'تحميل',
+        loading: 'جارٍ التحميل…',
         save: 'حفظ',
         saving: 'جارٍ الحفظ…',
         open: 'فتح',

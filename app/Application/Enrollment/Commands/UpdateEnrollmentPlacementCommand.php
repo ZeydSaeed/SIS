@@ -20,8 +20,6 @@ final readonly class UpdateEnrollmentPlacementCommand implements Command
         public ?int $academicYearId = null,
         public ?string $effectiveTo = null,
         public bool $clearEffectiveTo = false,
-        public ?string $stageName = null,
-        public bool $updateStage = false,
         public ?int $gender = null,
         public ?int $updatedBy = null,
         public ?string $idempotencyKey = null,

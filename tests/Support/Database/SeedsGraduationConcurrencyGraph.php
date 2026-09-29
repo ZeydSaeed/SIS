@@ -143,7 +143,6 @@ trait SeedsGraduationConcurrencyGraph
             'school_id' => $schoolId,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'E'.$suffix,
             'status' => 1,
             'effective_from' => '2025-09-01',
             'created_at' => now(),

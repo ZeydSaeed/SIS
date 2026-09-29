@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     resolveSisClassId,
+    resolveSisSectionCode,
     resolveSisSectionId,
 } from '@/lib/sis-class-section-options';
 
@@ -35,5 +36,18 @@ describe('resolveSisSectionId', () => {
 
     it('returns null when section is missing for the class', () => {
         expect(resolveSisSectionId('C', 1, sections)).toBeNull();
+    });
+});
+
+describe('resolveSisSectionCode', () => {
+    const sections = [
+        { id: 1, class_id: 1, code: 'SEC-A', name: 'شعبة أ' },
+        { id: 2, class_id: 1, code: 'SEC-B', name: 'ب' },
+    ];
+
+    it('maps persisted sections back to A/B/C', () => {
+        expect(resolveSisSectionCode(1, sections)).toBe('A');
+        expect(resolveSisSectionCode(2, sections)).toBe('B');
+        expect(resolveSisSectionCode(99, sections)).toBe('');
     });
 });

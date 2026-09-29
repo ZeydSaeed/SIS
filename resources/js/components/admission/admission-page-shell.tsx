@@ -20,6 +20,7 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
+import { sisSmoothMutation, sisToggleQueryFlag } from '@/lib/sis-ui-perf';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -166,6 +167,7 @@ function AdmissionPageShellInner({
     const [requestTypeOpen, setRequestTypeOpen] = useState(false);
     const [draftMode, setDraftMode] = useState<DraftDialogMode>('draft');
     const [acceptedOpen, setAcceptedOpen] = useState(false);
+    const [acceptedRosterLoading, setAcceptedRosterLoading] = useState(false);
     const filtersQ = searchFromPageFilters(page.props.filters);
     const searchDraftRef = useRef(filtersQ);
     const academicYearIdRef = useRef(academicYearId);
@@ -267,6 +269,7 @@ function AdmissionPageShellInner({
             {
                 preserveState: true,
                 preserveScroll: true,
+                async: true,
                 replace: true,
                 only: ['workspace', 'filters'],
                 showProgress: false,
@@ -319,6 +322,15 @@ function AdmissionPageShellInner({
 
         if (status === ADMISSION_STATUS_ACCEPTED) {
             setAcceptedOpen(true);
+            if (workspace.accepted_students_included !== true) {
+                setAcceptedRosterLoading(true);
+                router.visit(sisToggleQueryFlag(page.url, 'include_accepted_roster', true), {
+                    ...sisSmoothMutation(['workspace']),
+                    replace: true,
+                    showProgress: false,
+                    onFinish: () => setAcceptedRosterLoading(false),
+                });
+            }
 
             return;
         }
@@ -406,8 +418,24 @@ function AdmissionPageShellInner({
                     <Suspense fallback={null}>
                         <AdmissionAcceptedStudentsDialog
                             open={acceptedOpen}
-                            onOpenChange={setAcceptedOpen}
+                            onOpenChange={(open) => {
+                                setAcceptedOpen(open);
+                                if (!open) {
+                                    setAcceptedRosterLoading(false);
+                                    if (page.url.includes('include_accepted_roster=')) {
+                                        router.visit(
+                                            sisToggleQueryFlag(page.url, 'include_accepted_roster', false),
+                                            {
+                                                ...sisSmoothMutation(['workspace']),
+                                                replace: true,
+                                                showProgress: false,
+                                            },
+                                        );
+                                    }
+                                }
+                            }}
                             students={workspace.accepted_students ?? []}
+                            loading={acceptedRosterLoading && workspace.accepted_students_included !== true}
                             defaultAcademicYearId={academicYearId}
                             canManage={authorization.can_manage}
                         />

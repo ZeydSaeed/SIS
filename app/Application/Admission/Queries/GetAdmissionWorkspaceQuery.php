@@ -16,5 +16,6 @@ final readonly class GetAdmissionWorkspaceQuery implements Query
         public int $perPage = 17,
         public ?string $search = null,
         public ?string $enrollmentStatus = null,
+        public bool $includeAcceptedStudents = false,
     ) {}
 }

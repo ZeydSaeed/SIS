@@ -32,7 +32,6 @@ class UpdateEnrollmentPlacementRequest extends FormRequest
             'effective_to' => ['nullable', 'date'],
             'clear_effective_to' => ['sometimes', 'boolean'],
             'academic_year_id' => ['nullable', 'integer', 'min:1'],
-            'stage_name' => ['nullable', 'string', 'max:100'],
             'gender' => ['nullable', 'integer', 'in:1,2'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());
     }

@@ -164,9 +164,7 @@ final class BulkEnrollmentPlacementExecutor
         [$classId, $sectionId] = $this->resolveClassAndSection($command, $enrollment);
         $this->assertPlacementBelongs($command->schoolId, $enrollment->academicYearId, $classId, $sectionId);
 
-        $specializationId = $command->updateSpecialization
-            ? $command->specializationId
-            : $enrollment->specializationId;
+        // specialization_id dropped from enrollment.enrollments — never apply vocational specialization.
         $branchId = $command->updateBranch ? $command->branchId : $enrollment->branchId;
         $departmentId = $command->updateDepartment ? $command->departmentId : $enrollment->departmentId;
 
@@ -174,7 +172,7 @@ final class BulkEnrollmentPlacementExecutor
             enrollment: $enrollment,
             classId: $classId,
             sectionId: $sectionId,
-            specializationId: $specializationId,
+            specializationId: null,
             branchId: $branchId,
             departmentId: $departmentId,
             updatedBy: $command->updatedBy,

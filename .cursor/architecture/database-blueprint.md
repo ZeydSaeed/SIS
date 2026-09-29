@@ -595,8 +595,8 @@
 | department_id | BIGINT | FK → organization.departments, nullable — القسم |
 | class_id | BIGINT | FK → classes |
 | section_id | BIGINT | FK → sections |
-| specialization_id | BIGINT | FK → specializations, nullable |
-| enrollment_number | VARCHAR(50) | UNIQUE NOT NULL |
+| specialization_id | ~~removed 2026-09-29~~ | Dropped — الاختصاص في الواجهة = `department_id` |
+| enrollment_number | ~~removed 2026-09-29~~ | Dropped — لم يعد يُعرض أو يُخزَّن |
 | status | SMALLINT | NOT NULL DEFAULT 1 — 0=Inactive, 1=Active, 2=Cancelled, 4=Dismissed, 3=Transferred, 5=Superseded (prior mid-year placement) |
 | effective_from | DATE | NOT NULL |
 | effective_to | DATE | |
@@ -616,6 +616,8 @@
 
 **Security (ENR-U01):** FORCE RLS school isolation on `school_id` (fail-closed GUC). Hard DELETE rejected by trigger — cancel via `status` + `effective_to`.  
 **Note:** Legacy ENABLE-only fail-open policy replaced.
+
+**UI binding note (2026-09-29):** `EnrollmentRecordForm` edits `status`, `effective_from`, `effective_to`, `branch_id`, `department_id` (Arabic **الاختصاص**), `class_id`, `section_id`. Display-only: student name/id/gender/birth, academic year. Removed from UI and DB: `specialization_id`, `enrollment_number`. Stage/grade remain join-only via `classes.grade_level_id` → `academic.grade_levels` (not enrollment columns; not shown on this sheet). Save path: `PUT /enrollments/{id}` → `UpdateEnrollmentPlacementHandler` with Inertia `only` reload so list/dialog reflect DB.
 
 ### `enrollment.enrollment_subjects`
 

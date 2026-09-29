@@ -16,7 +16,13 @@ import { SisListSelect } from '@/components/sis/sis-list-select';
 import { usePageError } from '@/components/sis/page-error-context';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { t } from '@/i18n';
+import {
+    resolveSisSectionCode,
+    resolveSisSectionId,
+    sisSectionSelectOptions,
+} from '@/lib/sis-class-section-options';
 import { publishStudentStatusSync } from '@/lib/student-status-sync';
+import { pickDirtyPayload, sisSmoothMutation } from '@/lib/sis-ui-perf';
 import type {
     EnrollmentFilterOptions,
     EnrollmentListItem,
@@ -272,8 +278,8 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
         const [classId, setClassId] = useState(
             row.class_id > 0 ? String(row.class_id) : '',
         );
-        const [sectionId, setSectionId] = useState(
-            row.section_id > 0 ? String(row.section_id) : '',
+        const [sectionCode, setSectionCode] = useState(
+            resolveSisSectionCode(row.section_id, filterOptions.sections),
         );
         const [branchId, setBranchId] = useState(row.branch_id ? String(row.branch_id) : '');
         const [departmentId, setDepartmentId] = useState(
@@ -303,7 +309,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     : '',
             );
             setClassId(row.class_id > 0 ? String(row.class_id) : '');
-            setSectionId(row.section_id > 0 ? String(row.section_id) : '');
+            setSectionCode(resolveSisSectionCode(row.section_id, filterOptions.sections));
             setBranchId(row.branch_id ? String(row.branch_id) : '');
             setDepartmentId(row.department_id ? String(row.department_id) : '');
             setSpecializationId(row.specialization_id ? String(row.specialization_id) : '');
@@ -334,22 +340,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             return current ? [current, ...byGrade] : byGrade;
         }, [classId, filterOptions.classes, gradeLevelId]);
 
-        const filteredSections = useMemo(() => {
-            const byClass =
-                classId === ''
-                    ? filterOptions.sections
-                    : filterOptions.sections.filter(
-                          (section) => String(section.class_id) === classId,
-                      );
-
-            if (sectionId === '' || byClass.some((item) => String(item.id) === sectionId)) {
-                return byClass;
-            }
-
-            const current = filterOptions.sections.find((item) => String(item.id) === sectionId);
-
-            return current ? [current, ...byClass] : byClass;
-        }, [classId, filterOptions.sections, sectionId]);
+        const sectionOptions = useMemo(() => sisSectionSelectOptions(), []);
 
         const filteredDepartments = useMemo(() => {
             if (branchId === '') {
@@ -394,45 +385,70 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
 
         const save = useCallback((): Promise<void> => {
             const resolvedClassId =
-                classId !== '' ? classId : String(row.class_id > 0 ? row.class_id : '');
-            let resolvedSectionId =
-                sectionId !== '' ? sectionId : String(row.section_id > 0 ? row.section_id : '');
+                classId !== '' ? Number(classId) : row.class_id > 0 ? row.class_id : 0;
+            const code =
+                sectionCode !== ''
+                    ? sectionCode
+                    : resolveSisSectionCode(row.section_id, filterOptions.sections);
+            const resolvedSectionId =
+                resolvedClassId > 0
+                    ? resolveSisSectionId(code, resolvedClassId, filterOptions.sections)
+                    : null;
 
-            if (resolvedClassId !== '' && resolvedSectionId === '') {
-                const firstSection = filterOptions.sections.find(
-                    (section) => String(section.class_id) === resolvedClassId,
+            if (!resolvedClassId || resolvedSectionId === null) {
+                showError(
+                    code !== '' && resolvedClassId > 0
+                        ? i18n.students.enrollSectionNotFound
+                        : i18n.errors.missingClassSection,
                 );
-                resolvedSectionId = firstSection ? String(firstSection.id) : '';
-            }
-
-            if (resolvedClassId === '' || resolvedSectionId === '') {
-                showError(i18n.errors.missingClassSection);
                 return Promise.reject(new Error('enrollment-row-invalid'));
             }
 
             setSaving(true);
             const nextStatus = Number(status);
-            const payload = {
-                class_id: Number(resolvedClassId),
-                section_id: Number(resolvedSectionId),
+            const baseline = {
+                class_id: row.class_id,
+                section_id: row.section_id,
+                specialization_id: row.specialization_id ?? null,
+                branch_id: row.branch_id ?? null,
+                department_id: row.department_id ?? null,
+                academic_year_id: row.academic_year_id,
+                effective_from: isoDate(row.effective_from),
+                effective_to: isoDate(row.effective_to),
+                gender: row.student_gender ?? null,
+            };
+            const nextPlacement = {
+                class_id: resolvedClassId,
+                section_id: resolvedSectionId,
                 specialization_id:
                     specializationId === '' ? null : Number(specializationId),
                 branch_id: branchId === '' ? null : Number(branchId),
                 department_id: departmentId === '' ? null : Number(departmentId),
                 academic_year_id: Number(academicYearId) || row.academic_year_id,
-                stage_name: stageName.trim() === '' ? null : stageName.trim(),
-                ...(gender === '1' || gender === '2' ? { gender: Number(gender) } : {}),
-                effective_from: effectiveFrom || row.effective_from,
-                ...(effectiveTo === ''
-                    ? { clear_effective_to: true }
-                    : { effective_to: effectiveTo }),
+                effective_from: effectiveFrom || isoDate(row.effective_from),
+                effective_to: effectiveTo === '' ? null : effectiveTo,
+                gender: gender === '1' || gender === '2' ? Number(gender) : null,
             };
+
+            const dirty = pickDirtyPayload(baseline, nextPlacement, {
+                always: ['class_id', 'section_id'],
+            });
+
+            const payload: Record<string, string | number | boolean | null> = {
+                ...dirty,
+            };
+            if (effectiveTo === '' && (row.effective_to ?? null) !== null) {
+                payload.clear_effective_to = true;
+                delete payload.effective_to;
+            }
+            if (payload.gender === null) {
+                delete payload.gender;
+            }
 
             const putPlacement = () =>
                 new Promise<void>((resolve, reject) => {
                     router.put(`/enrollments/${row.id}`, payload, {
-                        preserveScroll: true,
-                        preserveState: true,
+                        ...sisSmoothMutation(['enrollments', 'filters', 'authorization']),
                         onSuccess: () => resolve(),
                         onError: (errors) => {
                             showInertiaErrors(errors, i18n.errors.placementFailed);
@@ -457,8 +473,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                                     : effectiveTo || effectiveFrom || todayIso(),
                         },
                         {
-                            preserveScroll: true,
-                            preserveState: true,
+                            ...sisSmoothMutation(['enrollments', 'filters', 'authorization']),
                             onSuccess: () => {
                                 void putPlacement().then(resolve).catch((error) => {
                                     setSaving(false);
@@ -488,13 +503,14 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
             i18n.errors.missingClassSection,
             i18n.errors.placementFailed,
             i18n.errors.statusFailed,
+            i18n.students.enrollSectionNotFound,
             row.academic_year_id,
             row.class_id,
             row.effective_from,
             row.id,
             row.section_id,
             row.student_status,
-            sectionId,
+            sectionCode,
             showError,
             showInertiaErrors,
             specializationId,
@@ -592,13 +608,7 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                                     (item) => String(item.id) === next,
                                 );
                                 setClassId(next);
-                                const firstSection =
-                                    next === ''
-                                        ? undefined
-                                        : filterOptions.sections.find(
-                                              (section) => String(section.class_id) === next,
-                                          );
-                                setSectionId(firstSection ? String(firstSection.id) : '');
+                                setSectionCode('');
                                 if (selectedClass?.grade_level_id) {
                                     setGradeLevelId(String(selectedClass.grade_level_id));
                                 }
@@ -611,19 +621,22 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                 <td className="sis-admission-drafts-table__text">
                     {editing ? (
                         <SelectCell
-                            value={sectionId}
+                            value={sectionCode}
                             label={i18n.enrollments.sectionName}
                             options={[
                                 { value: '', label: i18n.enrollments.sectionName },
-                                ...filteredSections.map((item) => ({
-                                    value: String(item.id),
-                                    label: item.name,
-                                })),
+                                ...sectionOptions,
                             ]}
-                            onChange={setSectionId}
+                            onChange={setSectionCode}
                         />
                     ) : (
-                        <CellScroll>{textOrDash(row.section_name ?? row.section_code)}</CellScroll>
+                        <CellScroll>
+                            {textOrDash(
+                                resolveSisSectionCode(row.section_id, filterOptions.sections)
+                                || row.section_code
+                                || row.section_name,
+                            )}
+                        </CellScroll>
                     )}
                 </td>
                 <td className="sis-admission-drafts-table__text">

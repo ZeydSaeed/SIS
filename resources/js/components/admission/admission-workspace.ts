@@ -128,6 +128,8 @@ export type AdmissionWorkspace = {
     /** Shared once — use instead of per-row allowed_transitions. */
     status_transitions?: Record<number, number[]>;
     accepted_students?: AdmissionAcceptedStudent[];
+    /** True only when server included the deferred accepted roster. */
+    accepted_students_included?: boolean;
     period_counts?: AdmissionPeriodCounts;
 };
 

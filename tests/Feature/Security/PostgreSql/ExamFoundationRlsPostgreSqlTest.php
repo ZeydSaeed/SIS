@@ -186,7 +186,6 @@ class ExamFoundationRlsPostgreSqlTest extends PostgreSqlIntegrationTestCase
             'school_id' => $schoolId,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'ENR-EX-'.$suffix,
             'status' => 1,
             'effective_from' => '2026-09-01',
             'created_at' => now(),

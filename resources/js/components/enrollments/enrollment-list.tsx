@@ -33,6 +33,11 @@ import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
+    resolveSisSectionCode,
+    resolveSisSectionId,
+    sisSectionSelectOptions,
+} from '@/lib/sis-class-section-options';
+import {
     tableActionIds,
     toggleTableRowChecked,
     toggleTableSelectAll,
@@ -56,6 +61,7 @@ import {
     publishStudentStatusSync,
     subscribeStudentStatusSync,
 } from '@/lib/student-status-sync';
+import { sisSmoothMutation } from '@/lib/sis-ui-perf';
 import { t } from '@/i18n';
 
 const ENROLLMENTS_PER_PAGE = 17;
@@ -267,8 +273,8 @@ export function EnrollmentList({
         filterOptions.classes.find((item) => String(item.id) === classValue)?.name
         ?? i18n.enrollments.allClasses;
     const selectedSectionLabel =
-        filterOptions.sections.find((item) => String(item.id) === sectionValue)?.name
-        ?? i18n.enrollments.allSections;
+        resolveSisSectionCode(filters.section_id, filterOptions.sections)
+        || i18n.enrollments.allSections;
     const selectedBranchLabel =
         filterOptions.branches.find((item) => String(item.id) === branchValue)?.name
         ?? i18n.enrollments.allBranches;
@@ -569,14 +575,13 @@ export function EnrollmentList({
         );
     }, []);
 
-    const filterSections = useMemo(() => {
-        const activeClass = isHandoffMode ? handoffDraft.class_id : classValue;
-        if (isEditMode || activeClass === '') {
-            return filterOptions.sections;
-        }
-
-        return filterOptions.sections.filter((section) => String(section.class_id) === activeClass);
-    }, [classValue, filterOptions.sections, handoffDraft.class_id, isEditMode, isHandoffMode]);
+    const sectionUiOptions = useMemo(
+        () => [
+            { value: '', label: i18n.enrollments.allSections },
+            ...sisSectionSelectOptions(),
+        ],
+        [i18n.enrollments.allSections],
+    );
 
     const filterDepartments = useMemo(() => {
         const activeBranch = isHandoffMode ? handoffDraft.branch_id : branchValue;
@@ -594,8 +599,10 @@ export function EnrollmentList({
         filterOptions.classes.find((item) => String(item.id) === handoffDraft.class_id)?.name
         ?? i18n.enrollments.allClasses;
     const handoffSectionLabel =
-        filterOptions.sections.find((item) => String(item.id) === handoffDraft.section_id)?.name
-        ?? i18n.enrollments.allSections;
+        resolveSisSectionCode(
+            handoffDraft.section_id === '' ? null : Number(handoffDraft.section_id),
+            filterOptions.sections,
+        ) || i18n.enrollments.allSections;
     const handoffBranchLabel =
         filterOptions.branches.find((item) => String(item.id) === handoffDraft.branch_id)?.name
         ?? i18n.enrollments.allBranches;
@@ -671,6 +678,7 @@ export function EnrollmentList({
             {
                 preserveState: true,
                 preserveScroll: true,
+                async: true,
                 replace: true,
                 only: [...onlyProps],
                 showProgress: params.quiet !== true,
@@ -781,9 +789,7 @@ export function EnrollmentList({
                     effective_to: today,
                 },
                 {
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: ['enrollments', 'filters', 'authorization'],
+                    ...sisSmoothMutation(['enrollments', 'filters', 'authorization']),
                     onSuccess: () => {
                         publishStudentStatusSync(studentIds, targetStatus, 'enrollments');
                     },
@@ -1434,18 +1440,20 @@ export function EnrollmentList({
                                         key={isStructureEditMode ? 'section-edit' : 'section-filter'}
                                         value={
                                             isHandoffMode
-                                                ? handoffDraft.section_id
+                                                ? resolveSisSectionCode(
+                                                      handoffDraft.section_id === ''
+                                                          ? null
+                                                          : Number(handoffDraft.section_id),
+                                                      filterOptions.sections,
+                                                  )
                                                 : isEditMode
                                                   ? ''
-                                                  : sectionValue
+                                                  : resolveSisSectionCode(
+                                                        filters.section_id,
+                                                        filterOptions.sections,
+                                                    )
                                         }
-                                        options={[
-                                            { value: '', label: i18n.enrollments.allSections },
-                                            ...filterSections.map((item) => ({
-                                                value: String(item.id),
-                                                label: item.name,
-                                            })),
-                                        ]}
+                                        options={sectionUiOptions}
                                         onChange={(next) => {
                                             if (isHandoffMode) {
                                                 if (filtersBusy || next === '') {
@@ -1458,7 +1466,18 @@ export function EnrollmentList({
                                                     return;
                                                 }
 
-                                                patchHandoffDraft({ section_id: next });
+                                                const sectionId = resolveSisSectionId(
+                                                    next,
+                                                    Number(handoffDraft.class_id),
+                                                    filterOptions.sections,
+                                                );
+                                                if (sectionId === null) {
+                                                    showWarning(i18n.students.enrollSectionNotFound);
+
+                                                    return;
+                                                }
+
+                                                patchHandoffDraft({ section_id: String(sectionId) });
 
                                                 return;
                                             }
@@ -1468,13 +1487,57 @@ export function EnrollmentList({
                                                     return;
                                                 }
 
-                                                applyPlacementPatch({ section_id: Number(next) });
+                                                const classId = classValue === '' ? null : Number(classValue);
+                                                if (classId === null) {
+                                                    showWarning(i18n.enrollments.handoffNeedsPlacement);
+
+                                                    return;
+                                                }
+
+                                                const sectionId = resolveSisSectionId(
+                                                    next,
+                                                    classId,
+                                                    filterOptions.sections,
+                                                );
+                                                if (sectionId === null) {
+                                                    showWarning(i18n.students.enrollSectionNotFound);
+
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ section_id: sectionId });
+
+                                                return;
+                                            }
+
+                                            if (next === '') {
+                                                visitList({
+                                                    section_id: null,
+                                                    page: 1,
+                                                });
+
+                                                return;
+                                            }
+
+                                            if (classValue === '') {
+                                                showWarning(i18n.enrollments.handoffNeedsPlacement);
+
+                                                return;
+                                            }
+
+                                            const sectionId = resolveSisSectionId(
+                                                next,
+                                                Number(classValue),
+                                                filterOptions.sections,
+                                            );
+                                            if (sectionId === null) {
+                                                showWarning(i18n.students.enrollSectionNotFound);
 
                                                 return;
                                             }
 
                                             visitList({
-                                                section_id: next === '' ? null : Number(next),
+                                                section_id: sectionId,
                                                 page: 1,
                                             });
                                         }}
@@ -1510,7 +1573,8 @@ export function EnrollmentList({
         filterDepartments,
         filterOptions.branches,
         filterOptions.classes,
-        filterSections,
+        filterOptions.sections,
+        sectionUiOptions,
         filters.academic_year_id,
         filters.branch_id,
         filters.class_id,
@@ -1898,13 +1962,31 @@ export function EnrollmentList({
                             setViewDialogEditing(false);
                         }}
                         onSaved={(updated) => {
-                            setViewingEnrollments((current) =>
-                                current === null
-                                    ? current
-                                    : current.map((row) =>
-                                          row.id === updated.id ? { ...row, ...updated } : row,
-                                      ),
-                            );
+                            setViewingEnrollments((current) => {
+                                if (current === null) {
+                                    return current;
+                                }
+
+                                const serverMatch = serverRowsRef.current.find(
+                                    (row) =>
+                                        row.student_id === updated.student_id
+                                        && row.status !== 5,
+                                );
+
+                                if (serverMatch !== undefined) {
+                                    return current.map((row) =>
+                                        row.student_id === updated.student_id
+                                            ? { ...row, ...serverMatch }
+                                            : row,
+                                    );
+                                }
+
+                                return current.map((row) =>
+                                    row.id === updated.id || row.student_id === updated.student_id
+                                        ? { ...row, ...updated }
+                                        : row,
+                                );
+                            });
                         }}
                     />
                 </Suspense>

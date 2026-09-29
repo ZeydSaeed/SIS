@@ -108,7 +108,6 @@ final class Phase75BuildRankingSnapshotPostgreSqlTest extends PostgreSqlIntegrat
             'school_id' => $schoolId,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'ENR-U06-'.$tag.'-'.uniqid(),
             'status' => 1,
             'effective_from' => '2026-09-01',
         ]);

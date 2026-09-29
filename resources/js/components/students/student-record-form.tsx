@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type HTMLAttributes, type ReactNode } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
-import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import {
+    StudentStatusBadge,
+    normalizeStudentStatus,
+} from '@/components/students/student-status-badge';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import {
     formatAcademicYearOptionLabel,
@@ -17,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { t } from '@/i18n';
 import {
     admissionBranchSelectOptions,
@@ -25,6 +29,7 @@ import {
     classKeyFromAdmittedClassName,
     resolveBranchIdByName,
 } from '@/lib/enrollment-dialog-resolve';
+import { pickDirtyPayload, sisSmoothMutation } from '@/lib/sis-ui-perf';
 import { sisClassLabel } from '@/lib/sis-class-section-options';
 import type { EnrollmentFormFilterOptions } from '@/components/enrollments/enrollment-record-form';
 
@@ -94,6 +99,8 @@ type StudentRecordFormProps = {
     showWindowControls?: boolean;
     /** Hide per-form hero when a shared dialog chrome owns the title bar. */
     hideHero?: boolean;
+    maximized?: boolean;
+    onMaximize?: () => void;
     onSaved?: (student: StudentRecordFormValues) => void;
     onProceed?: (student: StudentRecordFormValues) => void;
 };
@@ -648,6 +655,8 @@ export function StudentRecordForm({
     heroDragProps,
     showWindowControls = true,
     hideHero = false,
+    maximized = false,
+    onMaximize,
     onSaved,
     onProceed,
 }: StudentRecordFormProps) {
@@ -888,7 +897,7 @@ export function StudentRecordForm({
         }
 
         setSaving(true);
-        const payload = buildPayload();
+        const fullPayload = buildPayload();
 
         if (isCreate) {
             const idempotencyKey =
@@ -896,7 +905,7 @@ export function StudentRecordForm({
                     ? crypto.randomUUID()
                     : `student-create-${Date.now()}`;
 
-            router.post('/students', payload, {
+            router.post('/students', fullPayload, {
                 headers: { 'X-Idempotency-Key': idempotencyKey },
                 onError: (errors) => showInertiaErrors(errors, i18n.errors.createFailed),
                 onFinish: () => setSaving(false),
@@ -905,9 +914,57 @@ export function StudentRecordForm({
             return;
         }
 
+        const baseline: Record<string, string | number | null> = {
+            first_name: student.first_name,
+            last_name: student.last_name,
+            father_name: student.father_name ?? null,
+            grandfather_name: student.grandfather_name ?? null,
+            great_grandfather_name: student.great_grandfather_name ?? null,
+            mother_name: student.mother_name ?? null,
+            maternal_father_name: student.maternal_father_name ?? null,
+            maternal_grandfather_name: student.maternal_grandfather_name ?? null,
+            guardian_triple_name: student.guardian_triple_name ?? null,
+            governorate: student.governorate ?? null,
+            neighborhood: student.neighborhood ?? null,
+            locality: student.locality ?? null,
+            house_number: student.house_number ?? null,
+            birth_date: isoDate(student.birth_date),
+            birth_place: student.birth_place ?? null,
+            registration_place: student.registration_place ?? null,
+            gender: student.gender,
+            nationality: student.nationality ?? null,
+            religion: student.religion ?? 1,
+            mawalid_date: isoDate(student.mawalid_date),
+            previous_school_name: student.previous_school_name ?? null,
+            transfer_document_number: student.transfer_document_number ?? null,
+            transfer_document_date: isoDate(student.transfer_document_date),
+            school_start_date: isoDate(student.school_start_date),
+            notes: student.notes ?? null,
+            school_name: student.school_name ?? null,
+            department_name: student.department_name ?? null,
+            admitted_class_name: student.admitted_class_name ?? null,
+            father_occupation: student.father_occupation ?? null,
+            mother_occupation: student.mother_occupation ?? null,
+            administrative_unit: student.administrative_unit ?? null,
+            graduation_year: student.graduation_year ?? null,
+            previous_gpa: student.previous_gpa ?? null,
+            previous_study_track: student.previous_study_track ?? null,
+            mathematics_grade: student.mathematics_grade ?? null,
+            physics_grade: student.physics_grade ?? null,
+            academic_year_id: student.academic_year_id ?? null,
+            branch_id: student.branch_id ?? null,
+            national_id: student.national_id ?? null,
+            mobile: student.mobile ?? null,
+            guardian_mobile: student.guardian_mobile ?? null,
+            email: student.email ?? null,
+        };
+
+        const payload = pickDirtyPayload(baseline, fullPayload, {
+            always: ['first_name', 'last_name', 'birth_date'],
+        });
+
         router.put(`/students/${student.id}`, payload, {
-            preserveScroll: true,
-            preserveState: true,
+            ...sisSmoothMutation(['students', 'filters', 'authorization']),
             onSuccess: () => {
                 const admittedClassName = resolvedAdmittedClassName();
                 const resolvedBranchId = resolveBranchIdByName(draft.branch_name, orgBranches);
@@ -991,7 +1048,9 @@ export function StudentRecordForm({
                             restoreLabel={i18n.window.restore}
                             closeLabel={i18n.window.close}
                             minimizable={false}
-                            maximizable={false}
+                            maximizable={Boolean(onMaximize)}
+                            maximized={maximized}
+                            onMaximize={onMaximize}
                             onClose={onClose}
                         />
                     ) : (
@@ -999,7 +1058,6 @@ export function StudentRecordForm({
                     )}
                     <div className="sis-admission-sheet__hero-copy">
                         <p className="sis-admission-sheet__hero-title">{resolvedSheetTitle}</p>
-                        {isCreate ? null : <StudentStatusBadge status={student.status} />}
                     </div>
                     <div className="sis-admission-sheet__hero-logo">
                         <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />
@@ -1011,11 +1069,22 @@ export function StudentRecordForm({
                 id={`student-registration-${student.id}`}
                 title={i18n.admission.sheetRegistrationInfo}
             >
-                <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-student-record-form__name-line">
+                <div className="sis-student-record-form__name-line">
                     <DraftDisplayField
                         label={i18n.students.quadName}
                         display={displayValue(name)}
                     />
+                    {isCreate ? null : (
+                        <div className="sis-admission-sheet__field sis-student-record-form__status-field">
+                            <span className="sis-admission-sheet__label">{i18n.common.status}</span>
+                            <div
+                                className="sis-student-record-form__status-value"
+                                aria-readonly="true"
+                            >
+                                <StudentStatusBadge status={normalizeStudentStatus(student.status)} />
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                     {isCreate ? (
@@ -1599,74 +1668,7 @@ export function StudentViewDialog({
         resizable: true,
         minSize: { width: 520, height: 360 },
     });
-    const [activeIndex, setActiveIndex] = useState(0);
-    const scrollerRef = useRef<HTMLDivElement | null>(null);
-    const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
-    const studentIdsKey = students.map((student) => student.id).join(',');
-
-    useEffect(() => {
-        setActiveIndex(0);
-        pageRefs.current = pageRefs.current.slice(0, count);
-    }, [count, studentIdsKey]);
-
-    useEffect(() => {
-        if (count <= 1) {
-            return;
-        }
-
-        const root = scrollerRef.current;
-        if (!root) {
-            return;
-        }
-
-        const resolveActiveIndex = (): number => {
-            const pages = pageRefs.current;
-            const rootRect = root.getBoundingClientRect();
-            const rootCenterX = rootRect.left + rootRect.width / 2;
-            let bestIndex = 0;
-            let bestDist = Number.POSITIVE_INFINITY;
-
-            for (let index = 0; index < pages.length; index += 1) {
-                const page = pages[index];
-                if (!page) {
-                    continue;
-                }
-
-                const rect = page.getBoundingClientRect();
-                const pageCenterX = rect.left + rect.width / 2;
-                const dist = Math.abs(pageCenterX - rootCenterX);
-
-                if (dist < bestDist) {
-                    bestDist = dist;
-                    bestIndex = index;
-                }
-            }
-
-            return Math.max(0, Math.min(count - 1, bestIndex));
-        };
-
-        const syncActiveIndex = () => {
-            const next = resolveActiveIndex();
-            setActiveIndex((prev) => (prev === next ? prev : next));
-        };
-
-        syncActiveIndex();
-        root.addEventListener('scroll', syncActiveIndex, { passive: true });
-        root.addEventListener('scrollend', syncActiveIndex);
-
-        const resizeObserver = new ResizeObserver(() => {
-            syncActiveIndex();
-        });
-        resizeObserver.observe(root);
-
-        return () => {
-            root.removeEventListener('scroll', syncActiveIndex);
-            root.removeEventListener('scrollend', syncActiveIndex);
-            resizeObserver.disconnect();
-        };
-    }, [count, studentIdsKey]);
-
-    const activeStudent = students[Math.min(activeIndex, Math.max(count - 1, 0))] ?? students[0];
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     return (
         <Dialog
@@ -1680,7 +1682,7 @@ export function StudentViewDialog({
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog${maximizeClassName}${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -1691,12 +1693,12 @@ export function StudentViewDialog({
                 onPointerDownCapture={bringToFront}
             >
                 <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
-                {resizeHandles}
+                {maximized ? null : resizeHandles}
                 {count > 1 ? (
                     <>
                         <header
                             className="sis-admission-sheet__hero sis-student-sheet-dialog__shared-hero"
-                            {...heroDragProps}
+                            {...(maximized ? {} : heroDragProps)}
                         >
                             <WindowControls
                                 className="sis-admission-sheet__window-controls"
@@ -1706,32 +1708,23 @@ export function StudentViewDialog({
                                 restoreLabel={i18n.window.restore}
                                 closeLabel={i18n.window.close}
                                 minimizable={false}
-                                maximizable={false}
+                                maximizable
+                                maximized={maximized}
+                                onMaximize={toggleMaximize}
                                 onClose={onClose}
                             />
                             <div className="sis-admission-sheet__hero-copy">
                                 <p className="sis-admission-sheet__hero-title">{viewTitle}</p>
-                                {activeStudent ? (
-                                    <StudentStatusBadge status={activeStudent.status} />
-                                ) : null}
                             </div>
                             <div className="sis-admission-sheet__hero-logo">
                                 <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />
                             </div>
                         </header>
-                        <div
-                            ref={scrollerRef}
-                            className="sis-student-sheet-dialog__many-scroller"
-                            dir="rtl"
-                        >
-                            {students.map((student, index) => (
+                        <div className="sis-student-sheet-dialog__many-scroller" dir="rtl">
+                            {students.map((student) => (
                                 <div
                                     key={student.id}
-                                    ref={(node) => {
-                                        pageRefs.current[index] = node;
-                                    }}
                                     className="sis-student-sheet-dialog__many-page"
-                                    data-student-page={index}
                                 >
                                     <StudentRecordForm
                                         student={student}
@@ -1759,8 +1752,10 @@ export function StudentViewDialog({
                             initialEditing={initialEditing}
                             sheetTitle={viewTitle}
                             onClose={onClose}
-                            heroDragProps={heroDragProps}
+                            heroDragProps={maximized ? undefined : heroDragProps}
                             showWindowControls
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
                             onSaved={onSaved}
                             onProceed={onProceed}
                         />
@@ -1777,6 +1772,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
         resizable: true,
         minSize: { width: 520, height: 360 },
     });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     return (
         <Dialog
@@ -1790,7 +1786,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
         >
             <DialogContent
                 ref={contentRef}
-                className="sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog"
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -1801,7 +1797,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
                 onPointerDownCapture={bringToFront}
             >
                 <DialogTitle className="sr-only">{i18n.students.createTitle}</DialogTitle>
-                {resizeHandles}
+                {maximized ? null : resizeHandles}
                 <StudentRecordForm
                     student={emptyStudentRecordValues()}
                     canViewPii={canViewPii}
@@ -1809,7 +1805,9 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
                     mode="create"
                     sheetTitle={i18n.students.createTitle}
                     onClose={onClose}
-                    heroDragProps={heroDragProps}
+                    heroDragProps={maximized ? undefined : heroDragProps}
+                    maximized={maximized}
+                    onMaximize={toggleMaximize}
                 />
             </DialogContent>
         </Dialog>

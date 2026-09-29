@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import {
     admissionBranchSelectOptions,
     admissionClassSelectOptions,
@@ -198,6 +199,7 @@ export function StudentEnrollmentDialog({
         resizable: true,
         minSize: { width: 640, height: 360 },
     });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     useEffect(() => {
         if (!open) {
@@ -473,7 +475,7 @@ export function StudentEnrollmentDialog({
         >
             <DialogContent
                 ref={contentRef}
-                className="sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-enrollment-sheet"
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-enrollment-sheet${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -484,7 +486,7 @@ export function StudentEnrollmentDialog({
                 onPointerDownCapture={bringToFront}
             >
                 <DialogTitle className="sr-only">{i18n.students.enrollDialogTitle}</DialogTitle>
-                {resizeHandles}
+                {maximized ? null : resizeHandles}
 
                 <form
                     ref={formRef}
@@ -492,7 +494,7 @@ export function StudentEnrollmentDialog({
                     onSubmit={onFormSubmit}
                     noValidate
                 >
-                    <header className="sis-admission-sheet__hero" {...heroDragProps}>
+                    <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
                         <WindowControls
                             className="sis-admission-sheet__window-controls"
                             label={i18n.window.controls}
@@ -501,7 +503,9 @@ export function StudentEnrollmentDialog({
                             restoreLabel={i18n.window.restore}
                             closeLabel={i18n.window.close}
                             minimizable={false}
-                            maximizable={false}
+                            maximizable
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
                             onClose={() => onOpenChange(false)}
                         />
                         <div className="sis-admission-sheet__hero-copy">

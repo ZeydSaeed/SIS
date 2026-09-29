@@ -344,7 +344,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         }
 
         if ($specializationId !== null && $specializationId > 0) {
-            $query->where('e.specialization_id', $specializationId);
+            // specialization_id dropped from enrollment.enrollments — ignore filter.
         }
 
         $term = trim($q);
@@ -352,8 +352,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             if (ctype_digit($term)) {
                 $studentId = (int) $term;
                 $query->where(function (Builder $builder) use ($term, $studentId): void {
-                    $builder->where('e.enrollment_number', $term)
-                        ->orWhere('s.student_code', $term);
+                    $builder->where('s.student_code', $term);
                     if ($studentId > 0) {
                         $builder->orWhere('s.id', $studentId)
                             ->orWhere('e.student_id', $studentId)
@@ -365,8 +364,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                 $pattern = '%'.$term.'%';
 
                 $query->where(function (Builder $builder) use ($likeOperator, $pattern): void {
-                    $builder->where('e.enrollment_number', $likeOperator, $pattern)
-                        ->orWhere('s.full_name', $likeOperator, $pattern)
+                    $builder->where('s.full_name', $likeOperator, $pattern)
                         ->orWhere('s.student_code', $likeOperator, $pattern)
                         ->orWhere('s.first_name', $likeOperator, $pattern)
                         ->orWhere('s.father_name', $likeOperator, $pattern)
@@ -377,8 +375,6 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                         ->orWhere('c.name', $likeOperator, $pattern)
                         ->orWhere('sec.code', $likeOperator, $pattern)
                         ->orWhere('sec.name', $likeOperator, $pattern)
-                        ->orWhere('sp.code', $likeOperator, $pattern)
-                        ->orWhere('sp.name', $likeOperator, $pattern)
                         ->orWhere('g.name', $likeOperator, $pattern)
                         ->orWhere('y.name', $likeOperator, $pattern)
                         ->orWhere('y.code', $likeOperator, $pattern)
@@ -399,7 +395,6 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         $classes = SchemaHelper::qualified('enrollment', 'classes');
         $sections = SchemaHelper::qualified('enrollment', 'sections');
         $gradeLevels = SchemaHelper::qualified('academic', 'grade_levels');
-        $specializations = SchemaHelper::qualified('vocational', 'specializations');
         $schools = SchemaHelper::qualified('organization', 'schools');
         $branches = SchemaHelper::qualified('organization', 'branches');
         $departments = SchemaHelper::qualified('organization', 'departments');
@@ -410,7 +405,6 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             ->join($classes.' as c', 'c.id', '=', 'e.class_id')
             ->join($sections.' as sec', 'sec.id', '=', 'e.section_id')
             ->leftJoin($gradeLevels.' as g', 'g.id', '=', 'c.grade_level_id')
-            ->leftJoin($specializations.' as sp', 'sp.id', '=', 'e.specialization_id')
             ->leftJoin($schools.' as sch', 'sch.id', '=', 'e.school_id')
             ->leftJoin($branches.' as br', 'br.id', '=', 'e.branch_id')
             ->leftJoin($departments.' as dep', 'dep.id', '=', 'e.department_id')
@@ -424,8 +418,6 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                 'e.department_id',
                 'e.class_id',
                 'e.section_id',
-                'e.specialization_id',
-                'e.enrollment_number',
                 'e.status',
                 'e.effective_from',
                 'e.effective_to',
@@ -450,8 +442,6 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                 'c.name as class_name',
                 'sec.code as section_code',
                 'sec.name as section_name',
-                'sp.code as specialization_code',
-                'sp.name as specialization_name',
                 'g.code as grade_level_code',
                 'g.name as grade_level_name',
                 'sch.name as school_name',
@@ -464,24 +454,23 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
 
     private function toDto(object $row): EnrollmentDTO
     {
-        $specializationName = $this->nullableString($row->specialization_name ?? null);
         $schoolName = $this->nullableString($row->school_name ?? null)
             ?? $this->nullableString($row->student_school_name ?? null);
         $className = $this->nullableString($row->class_name ?? null);
-        $stageName = $className;
+        $enrollmentId = (int) $row->id;
 
         return new EnrollmentDTO(
-            id: (int) $row->id,
+            id: $enrollmentId,
             studentId: (int) $row->student_id,
             schoolId: (int) $row->school_id,
             academicYearId: (int) $row->academic_year_id,
             classId: (int) $row->class_id,
             sectionId: (int) $row->section_id,
-            enrollmentNumber: (string) $row->enrollment_number,
+            enrollmentNumber: 'ENR-'.$enrollmentId,
             status: (int) $row->status,
             effectiveFrom: $this->formatDate($row->effective_from) ?? '',
             effectiveTo: $this->formatDate($row->effective_to ?? null),
-            specializationId: $this->nullableInt($row->specialization_id ?? null),
+            specializationId: null,
             branchId: $this->nullableInt($row->branch_id ?? null),
             departmentId: $this->nullableInt($row->department_id ?? null),
             enrolledBy: $this->nullableInt($row->enrolled_by ?? null),
@@ -502,15 +491,15 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             className: $className,
             sectionCode: $this->nullableString($row->section_code ?? null),
             sectionName: $this->nullableString($row->section_name ?? null),
-            specializationCode: $this->nullableString($row->specialization_code ?? null),
-            specializationName: $specializationName,
+            specializationCode: null,
+            specializationName: null,
             branchCode: $this->nullableString($row->branch_code ?? null),
             branchName: $this->nullableString($row->branch_name ?? null),
             gradeLevelCode: $this->nullableString($row->grade_level_code ?? null),
             gradeLevelName: $this->nullableString($row->grade_level_name ?? null),
             departmentName: $this->nullableString($row->org_department_name ?? null)
                 ?? $this->nullableString($row->department_name ?? null),
-            stageName: $stageName,
+            stageName: null,
             createdAt: $this->formatTimestamp($row->created_at ?? null),
             updatedAt: $this->formatTimestamp($row->updated_at ?? null),
         );

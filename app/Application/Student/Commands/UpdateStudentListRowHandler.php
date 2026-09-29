@@ -38,9 +38,11 @@ final class UpdateStudentListRowHandler implements CommandHandler
         $fullName = StudentNameFormatter::fullName(
             firstName: $command->firstName,
             lastName: $command->lastName,
-            fatherName: $command->fatherName,
-            grandfatherName: $command->grandfatherName,
-            greatGrandfatherName: $command->greatGrandfatherName,
+            fatherName: $command->has('father_name') ? $command->fatherName : $current->fatherName,
+            grandfatherName: $command->has('grandfather_name') ? $command->grandfatherName : $current->grandfatherName,
+            greatGrandfatherName: $command->has('great_grandfather_name')
+                ? $command->greatGrandfatherName
+                : $current->greatGrandfatherName,
             middleName: $current->middleName,
         );
 
@@ -61,57 +63,152 @@ final class UpdateStudentListRowHandler implements CommandHandler
         UpdateStudentData $current,
         string $fullName,
     ): UpdateStudentData {
+        $pickString = static function (string $field, ?string $incoming, ?string $existing) use ($command): ?string {
+            return $command->has($field) ? $incoming : $existing;
+        };
+        $pickInt = static function (string $field, ?int $incoming, ?int $existing) use ($command): ?int {
+            return $command->has($field) ? $incoming : $existing;
+        };
+        $pickFloat = static function (string $field, ?float $incoming, ?float $existing) use ($command): ?float {
+            return $command->has($field) ? $incoming : $existing;
+        };
+
+        // Legacy group flags remain as fallback when presentFields is empty (tests / old callers).
+        $useField = $command->presentFields !== [];
         $overlay = $command->applyFormFields;
         $pii = $command->applyPii;
 
         return new UpdateStudentData(
             firstName: $command->firstName,
             middleName: $current->middleName,
-            fatherName: $command->fatherName,
-            grandfatherName: $command->grandfatherName,
-            greatGrandfatherName: $command->greatGrandfatherName,
-            motherName: $overlay ? $command->motherName : $current->motherName,
-            maternalFatherName: $overlay ? $command->maternalFatherName : $current->maternalFatherName,
-            maternalGrandfatherName: $overlay ? $command->maternalGrandfatherName : $current->maternalGrandfatherName,
+            fatherName: $useField
+                ? $pickString('father_name', $command->fatherName, $current->fatherName)
+                : $command->fatherName,
+            grandfatherName: $useField
+                ? $pickString('grandfather_name', $command->grandfatherName, $current->grandfatherName)
+                : $command->grandfatherName,
+            greatGrandfatherName: $useField
+                ? $pickString('great_grandfather_name', $command->greatGrandfatherName, $current->greatGrandfatherName)
+                : $command->greatGrandfatherName,
+            motherName: $useField
+                ? $pickString('mother_name', $command->motherName, $current->motherName)
+                : ($overlay ? $command->motherName : $current->motherName),
+            maternalFatherName: $useField
+                ? $pickString('maternal_father_name', $command->maternalFatherName, $current->maternalFatherName)
+                : ($overlay ? $command->maternalFatherName : $current->maternalFatherName),
+            maternalGrandfatherName: $useField
+                ? $pickString('maternal_grandfather_name', $command->maternalGrandfatherName, $current->maternalGrandfatherName)
+                : ($overlay ? $command->maternalGrandfatherName : $current->maternalGrandfatherName),
             lastName: $command->lastName,
             fullName: $fullName,
-            gender: $command->gender !== null ? $command->gender : $current->gender,
+            gender: $useField
+                ? ($command->has('gender') && $command->gender !== null ? $command->gender : $current->gender)
+                : ($command->gender !== null ? $command->gender : $current->gender),
             birthDate: $command->birthDate,
-            nationalId: $pii ? $command->nationalId : $current->nationalId,
-            birthPlace: $overlay ? $command->birthPlace : $current->birthPlace,
-            nationality: $overlay ? $command->nationality : $current->nationality,
-            guardianTripleName: $overlay ? $command->guardianTripleName : $current->guardianTripleName,
-            governorate: $overlay ? $command->governorate : $current->governorate,
-            neighborhood: $overlay ? $command->neighborhood : $current->neighborhood,
-            locality: $overlay ? $command->locality : $current->locality,
-            houseNumber: $overlay ? $command->houseNumber : $current->houseNumber,
-            registrationPlace: $overlay ? $command->registrationPlace : $current->registrationPlace,
-            religion: $overlay && $command->religion !== null ? $command->religion : $current->religion,
-            mawalidDate: $overlay ? $command->mawalidDate : $current->mawalidDate,
-            previousSchoolName: $overlay ? $command->previousSchoolName : $current->previousSchoolName,
-            transferDocumentNumber: $overlay ? $command->transferDocumentNumber : $current->transferDocumentNumber,
-            transferDocumentDate: $overlay ? $command->transferDocumentDate : $current->transferDocumentDate,
-            schoolStartDate: $overlay ? $command->schoolStartDate : $current->schoolStartDate,
-            admittedClassName: $command->admittedClassName ?? $current->admittedClassName,
-            notes: $overlay ? $command->notes : $current->notes,
-            mobile: $pii ? $command->mobile : $current->mobile,
-            guardianMobile: $pii ? $command->guardianMobile : $current->guardianMobile,
-            email: $pii ? $command->email : $current->email,
-            schoolName: $overlay ? $command->schoolName : $current->schoolName,
-            branchId: $command->branchId !== null ? $command->branchId : $current->branchId,
-            departmentName: $command->departmentName ?? $current->departmentName,
-
-            fatherOccupation: $overlay ? $command->fatherOccupation : $current->fatherOccupation,
-            motherOccupation: $overlay ? $command->motherOccupation : $current->motherOccupation,
-            administrativeUnit: $overlay && $command->administrativeUnit !== null ? $command->administrativeUnit : $current->administrativeUnit,
-            graduationYear: $overlay && $command->graduationYear !== null ? $command->graduationYear : $current->graduationYear,
-            previousGpa: $overlay && $command->previousGpa !== null ? $command->previousGpa : $current->previousGpa,
-            previousStudyTrack: $overlay && $command->previousStudyTrack !== null ? $command->previousStudyTrack : $current->previousStudyTrack,
-            mathematicsGrade: $overlay && $command->mathematicsGrade !== null ? $command->mathematicsGrade : $current->mathematicsGrade,
-            physicsGrade: $overlay && $command->physicsGrade !== null ? $command->physicsGrade : $current->physicsGrade,
-            admittedAcademicYearId: $command->admittedAcademicYearId !== null
-                ? $command->admittedAcademicYearId
-                : $current->admittedAcademicYearId,
+            nationalId: $useField
+                ? $pickString('national_id', $command->nationalId, $current->nationalId)
+                : ($pii ? $command->nationalId : $current->nationalId),
+            birthPlace: $useField
+                ? $pickString('birth_place', $command->birthPlace, $current->birthPlace)
+                : ($overlay ? $command->birthPlace : $current->birthPlace),
+            nationality: $useField
+                ? $pickString('nationality', $command->nationality, $current->nationality)
+                : ($overlay ? $command->nationality : $current->nationality),
+            guardianTripleName: $useField
+                ? $pickString('guardian_triple_name', $command->guardianTripleName, $current->guardianTripleName)
+                : ($overlay ? $command->guardianTripleName : $current->guardianTripleName),
+            governorate: $useField
+                ? $pickString('governorate', $command->governorate, $current->governorate)
+                : ($overlay ? $command->governorate : $current->governorate),
+            neighborhood: $useField
+                ? $pickString('neighborhood', $command->neighborhood, $current->neighborhood)
+                : ($overlay ? $command->neighborhood : $current->neighborhood),
+            locality: $useField
+                ? $pickString('locality', $command->locality, $current->locality)
+                : ($overlay ? $command->locality : $current->locality),
+            houseNumber: $useField
+                ? $pickString('house_number', $command->houseNumber, $current->houseNumber)
+                : ($overlay ? $command->houseNumber : $current->houseNumber),
+            registrationPlace: $useField
+                ? $pickString('registration_place', $command->registrationPlace, $current->registrationPlace)
+                : ($overlay ? $command->registrationPlace : $current->registrationPlace),
+            religion: $useField
+                ? ($command->has('religion') && $command->religion !== null ? $command->religion : $current->religion)
+                : ($overlay && $command->religion !== null ? $command->religion : $current->religion),
+            mawalidDate: $useField
+                ? $pickString('mawalid_date', $command->mawalidDate, $current->mawalidDate)
+                : ($overlay ? $command->mawalidDate : $current->mawalidDate),
+            previousSchoolName: $useField
+                ? $pickString('previous_school_name', $command->previousSchoolName, $current->previousSchoolName)
+                : ($overlay ? $command->previousSchoolName : $current->previousSchoolName),
+            transferDocumentNumber: $useField
+                ? $pickInt('transfer_document_number', $command->transferDocumentNumber, $current->transferDocumentNumber)
+                : ($overlay ? $command->transferDocumentNumber : $current->transferDocumentNumber),
+            transferDocumentDate: $useField
+                ? $pickString('transfer_document_date', $command->transferDocumentDate, $current->transferDocumentDate)
+                : ($overlay ? $command->transferDocumentDate : $current->transferDocumentDate),
+            schoolStartDate: $useField
+                ? $pickString('school_start_date', $command->schoolStartDate, $current->schoolStartDate)
+                : ($overlay ? $command->schoolStartDate : $current->schoolStartDate),
+            admittedClassName: $useField
+                ? ($command->has('admitted_class_name')
+                    ? ($command->admittedClassName ?? $current->admittedClassName)
+                    : $current->admittedClassName)
+                : ($command->admittedClassName ?? $current->admittedClassName),
+            notes: $useField
+                ? $pickString('notes', $command->notes, $current->notes)
+                : ($overlay ? $command->notes : $current->notes),
+            mobile: $useField
+                ? $pickString('mobile', $command->mobile, $current->mobile)
+                : ($pii ? $command->mobile : $current->mobile),
+            guardianMobile: $useField
+                ? $pickString('guardian_mobile', $command->guardianMobile, $current->guardianMobile)
+                : ($pii ? $command->guardianMobile : $current->guardianMobile),
+            email: $useField
+                ? $pickString('email', $command->email, $current->email)
+                : ($pii ? $command->email : $current->email),
+            schoolName: $useField
+                ? $pickString('school_name', $command->schoolName, $current->schoolName)
+                : ($overlay ? $command->schoolName : $current->schoolName),
+            branchId: $useField
+                ? $pickInt('branch_id', $command->branchId, $current->branchId)
+                : ($command->branchId !== null ? $command->branchId : $current->branchId),
+            departmentName: $useField
+                ? ($command->has('department_name')
+                    ? ($command->departmentName ?? $current->departmentName)
+                    : $current->departmentName)
+                : ($command->departmentName ?? $current->departmentName),
+            fatherOccupation: $useField
+                ? $pickString('father_occupation', $command->fatherOccupation, $current->fatherOccupation)
+                : ($overlay ? $command->fatherOccupation : $current->fatherOccupation),
+            motherOccupation: $useField
+                ? $pickString('mother_occupation', $command->motherOccupation, $current->motherOccupation)
+                : ($overlay ? $command->motherOccupation : $current->motherOccupation),
+            administrativeUnit: $useField
+                ? $pickInt('administrative_unit', $command->administrativeUnit, $current->administrativeUnit)
+                : ($overlay && $command->administrativeUnit !== null ? $command->administrativeUnit : $current->administrativeUnit),
+            graduationYear: $useField
+                ? $pickInt('graduation_year', $command->graduationYear, $current->graduationYear)
+                : ($overlay && $command->graduationYear !== null ? $command->graduationYear : $current->graduationYear),
+            previousGpa: $useField
+                ? $pickFloat('previous_gpa', $command->previousGpa, $current->previousGpa)
+                : ($overlay && $command->previousGpa !== null ? $command->previousGpa : $current->previousGpa),
+            previousStudyTrack: $useField
+                ? $pickInt('previous_study_track', $command->previousStudyTrack, $current->previousStudyTrack)
+                : ($overlay && $command->previousStudyTrack !== null ? $command->previousStudyTrack : $current->previousStudyTrack),
+            mathematicsGrade: $useField
+                ? $pickFloat('mathematics_grade', $command->mathematicsGrade, $current->mathematicsGrade)
+                : ($overlay && $command->mathematicsGrade !== null ? $command->mathematicsGrade : $current->mathematicsGrade),
+            physicsGrade: $useField
+                ? $pickFloat('physics_grade', $command->physicsGrade, $current->physicsGrade)
+                : ($overlay && $command->physicsGrade !== null ? $command->physicsGrade : $current->physicsGrade),
+            admittedAcademicYearId: $useField
+                ? ($command->has('academic_year_id')
+                    ? ($command->admittedAcademicYearId ?? $current->admittedAcademicYearId)
+                    : $current->admittedAcademicYearId)
+                : ($command->admittedAcademicYearId !== null
+                    ? $command->admittedAcademicYearId
+                    : $current->admittedAcademicYearId),
         );
     }
 }

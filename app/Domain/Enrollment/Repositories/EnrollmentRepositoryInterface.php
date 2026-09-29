@@ -26,8 +26,6 @@ interface EnrollmentRepositoryInterface
         ?int $academicYearId = null,
         ?string $effectiveTo = null,
         bool $clearEffectiveTo = false,
-        ?string $stageName = null,
-        bool $updateStage = false,
         bool $syncStudentLabels = false,
     ): void;
 

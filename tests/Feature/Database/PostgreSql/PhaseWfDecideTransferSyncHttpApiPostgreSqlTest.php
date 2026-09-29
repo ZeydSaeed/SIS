@@ -81,7 +81,6 @@ final class PhaseWfDecideTransferSyncHttpApiPostgreSqlTest extends PostgreSqlInt
             'school_id' => $fromSchool,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'EN-WDS-'.$suffix,
             'status' => 1,
             'effective_from' => '2026-09-01',
             'created_at' => now(),

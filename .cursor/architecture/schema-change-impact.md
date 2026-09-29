@@ -298,6 +298,42 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-09-28 enrollment sheet UI parity (no schema change)
+
+| Item | Value |
+|------|-------|
+| Class | None (UI + API wiring only — no migration) |
+| Table | `enrollment.enrollments` (no column change) |
+| Change | `enrollment-record-form.tsx` (`EnrollmentRecordForm`/`EnrollmentViewDialog`) rewritten to match the student sheet dialog chrome (hero, `WindowControls`, `SheetSection`, many-scroller, Cancel/Edit/Save). UI now edits `status`, `effective_from`, `effective_to`, `branch_id`, `department_id` (labelled الاختصاص), `class_id`, `section_id` directly on the enrollment record; quad name, gender, academic year, and student id (`student_code \|\| student_id`) are display-only, join-derived fields — never written back. Removed the `grade_level`/`stage_name` inputs and the editable name/gender fields, and removed the `PUT /students/{id}` side-write that previously carried `department_name`/`branch_id`/`stage_name`/`section_name` back onto the denormalized student row. Save is now: `POST /enrollments/bulk-status` (only if status changed) then `PUT /enrollments/{id}` with `class_id`, `section_id`, `branch_id`, `department_id`, `specialization_id` (echoes existing `enrollment.specialization_id` unchanged — not user-editable), `effective_from`, `effective_to`/`clear_effective_to`, `academic_year_id` (unchanged, echoed). `EnrollmentController::update()` was already validating `branch_id`/`department_id`/`effective_from`/`effective_to`/`clear_effective_to`/`academic_year_id`/`gender` in `UpdateEnrollmentPlacementRequest` and `UpdateEnrollmentPlacementCommand`/`UpdateEnrollmentPlacementHandler` already supported them, but the controller was not forwarding those validated fields into the command (dead wiring — only `class_id`/`section_id`/`specialization_id` were applied). Fixed the controller to forward all validated fields (`updateBranch`/`updateDepartment` gated on `$request->has(...)`, `clearEffectiveTo` via `$request->boolean(...)`) so the enrollment-only PUT is now the single source of truth for placement + effective-date changes. |
+| Risk | Low — no DDL. Closes a real functional gap (branch/department/date edits were silently dropped by the controller before this fix) and removes a redundant, indirect write path through the student row. `enrollment.branch_id`/`enrollment.department_id`/`enrollment.specialization_id` remain the FK-correct source of truth for placement; `students.branch_id`/`students.department_name` are denormalized labels still synced by `EloquentEnrollmentRepository::updatePlacement()` (unchanged), not by the UI. |
+| Blueprint | Noted under `enrollment.enrollments` — see `database-blueprint.md` (no column added/dropped; FK model already correct). |
+
+---
+
+## Change log — 2026-09-29 drop enrollment specialization_id + enrollment_number
+
+| Item | Value |
+|------|-------|
+| Class | Medium (destructive column drop) |
+| Table | `enrollment.enrollments` |
+| Change | Dropped `specialization_id` (vocational; UI الاختصاص = `department_id`) and `enrollment_number`. Stage/grade were never enrollment columns (join via class → grade_levels) — removed from enrollment sheet UI only. Writers/readers updated to stop selecting/writing dropped columns; API/Inertia update always passes `specializationId: null`. Save path: `PUT /enrollments/{id}` + Inertia `only` reload; list `onSaved` merges by `student_id` to handle mid-year supersede id change. |
+| Risk | Medium — irreversible column drop; synthetic `ENR-{id}` remains in DTO/API for backward-compatible response shape only. |
+| Blueprint | Updated |
+
+---
+
+## Change log — 2026-09-29 graduation denorm triggers (enrollment specialization drop follow-up)
+
+| Item | Value |
+|------|-------|
+| Class | Low (function replace only) |
+| Table | `graduation.completion_outcomes` / `graduation.graduation_awards` triggers |
+| Change | `enforce_completion_outcome_denorm` / `enforce_graduation_award_denorm` no longer SELECT `enrollment.enrollments.specialization_id` (column dropped). Insert denorm still validates school/student/academic_year against enrollment; graduation-row `specialization_id` remains optional/immutable on UPDATE. |
+| Risk | Low — restores graduation insert path broken by prior column drop. |
+| Blueprint | No table column change |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

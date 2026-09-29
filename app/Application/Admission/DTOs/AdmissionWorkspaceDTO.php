@@ -45,6 +45,7 @@ final readonly class AdmissionWorkspaceDTO
         public array $statusTransitions = [],
         public array $acceptedStudents = [],
         public array $periodCounts = [],
+        public bool $acceptedStudentsIncluded = false,
     ) {}
 
     /**
@@ -76,6 +77,7 @@ final readonly class AdmissionWorkspaceDTO
             'pagination' => $this->pagination,
             'status_transitions' => $this->statusTransitions,
             'accepted_students' => $this->acceptedStudents,
+            'accepted_students_included' => $this->acceptedStudentsIncluded,
             'period_counts' => $this->periodCounts,
         ];
     }

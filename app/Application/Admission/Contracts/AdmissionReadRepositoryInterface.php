@@ -53,5 +53,6 @@ interface AdmissionReadRepositoryInterface
         ?int $applicationPeriodId = null,
         ?string $search = null,
         ?string $enrollmentStatus = null,
+        bool $includeAcceptedStudents = false,
     ): array;
 }

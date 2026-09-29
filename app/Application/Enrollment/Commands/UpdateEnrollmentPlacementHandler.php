@@ -69,8 +69,6 @@ final class UpdateEnrollmentPlacementHandler implements CommandHandler
                 academicYearId: $command->academicYearId,
                 effectiveTo: $command->effectiveTo,
                 clearEffectiveTo: $command->clearEffectiveTo,
-                stageName: $command->stageName,
-                updateStage: $command->updateStage,
                 syncStudentLabels: true,
             );
 

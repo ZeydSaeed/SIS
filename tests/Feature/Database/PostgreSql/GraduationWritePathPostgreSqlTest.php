@@ -229,7 +229,6 @@ final class GraduationWritePathPostgreSqlTest extends PostgreSqlIntegrationTestC
             'school_id' => $g['school_a'],
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'E2-'.$g['enrollment_a'],
             'status' => 1,
             'effective_from' => '2025-09-01',
             'created_at' => now(),

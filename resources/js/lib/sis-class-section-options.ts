@@ -130,3 +130,26 @@ export function resolveSisSectionId(
 
     return match?.id ?? null;
 }
+
+/** Map a persisted section row back to the shared UI code (A / B / C). */
+export function resolveSisSectionCode(
+    sectionId: number | null | undefined,
+    sections: SisSectionRef[],
+): string {
+    if (sectionId === null || sectionId === undefined || sectionId <= 0) {
+        return '';
+    }
+
+    const section = sections.find((item) => item.id === sectionId);
+    if (section === undefined) {
+        return '';
+    }
+
+    for (const option of SIS_SECTION_OPTIONS) {
+        if (sectionAliasMatch(section, option.value)) {
+            return option.value;
+        }
+    }
+
+    return '';
+}

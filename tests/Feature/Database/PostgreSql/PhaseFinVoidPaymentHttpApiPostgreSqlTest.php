@@ -67,7 +67,6 @@ final class PhaseFinVoidPaymentHttpApiPostgreSqlTest extends PostgreSqlIntegrati
             'school_id' => $schoolId,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'ENV-'.$suffix,
             'status' => 1,
             'effective_from' => '2026-09-01',
             'created_at' => now(),

@@ -48,6 +48,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         ?int $applicationPeriodId = null,
         ?string $search = null,
         ?string $enrollmentStatus = null,
+        bool $includeAcceptedStudents = false,
     ): array {
         $page = max(1, $page);
         $perPage = max(1, min(self::MAX_PER_PAGE, $perPage));
@@ -137,11 +138,13 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'total' => $total,
                 'total_pages' => $totalPages,
             ],
-            'accepted_students' => $this->loadAcceptedStudents(
-                $schoolId,
-                $academicYearId,
-                $applicationPeriodId,
-            ),
+            'accepted_students' => $includeAcceptedStudents
+                ? $this->loadAcceptedStudents(
+                    $schoolId,
+                    $academicYearId,
+                    $applicationPeriodId,
+                )
+                : [],
         ];
     }
 

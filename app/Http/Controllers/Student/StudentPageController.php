@@ -115,7 +115,7 @@ final class StudentPageController extends Controller
         );
 
         $authorization = $this->listAuthorization($user);
-        $enrollmentFilterOptions = $authorization['canEnroll']
+        $enrollmentFilterOptions = ($authorization['canEnroll'] && $request->boolean('include_enrollment_filters'))
             ? app(EnrollmentReadRepositoryInterface::class)->listFilterOptions($schoolId, $academicYearId)
             : [
                 'branches' => [],
@@ -222,6 +222,7 @@ final class StudentPageController extends Controller
             firstName: (string) $validated['first_name'],
             lastName: (string) $validated['last_name'],
             birthDate: (string) $validated['birth_date'],
+            presentFields: array_keys($validated),
             fatherName: $this->nullableString($validated, 'father_name'),
             grandfatherName: $this->nullableString($validated, 'grandfather_name'),
             greatGrandfatherName: $this->nullableString($validated, 'great_grandfather_name'),

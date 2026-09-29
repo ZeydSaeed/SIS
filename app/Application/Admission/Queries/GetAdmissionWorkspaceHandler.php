@@ -47,6 +47,7 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             $statusScopePeriodId,
             $query->search,
             $query->enrollmentStatus,
+            $query->includeAcceptedStudents,
         );
 
         return new AdmissionWorkspaceDTO(
@@ -75,6 +76,7 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             statusTransitions: $this->statusTransitions(),
             acceptedStudents: $workspace['accepted_students'] ?? [],
             periodCounts: $workspace['period_counts'] ?? [],
+            acceptedStudentsIncluded: $query->includeAcceptedStudents,
         );
     }
 

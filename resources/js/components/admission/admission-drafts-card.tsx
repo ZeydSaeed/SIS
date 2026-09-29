@@ -18,6 +18,7 @@ import { AdmissionDateTimeField } from '@/components/admission/admission-date-ti
 import { AdmissionStatusReasonDialog } from '@/components/admission/admission-status-reason-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { sisClassLabel, sisClassSelectOptions } from '@/lib/sis-class-section-options';
+import { pickDirtyPayload, isDirtyPayloadEmpty, sisSmoothMutation } from '@/lib/sis-ui-perf';
 import {
     selectTableRow,
     tableActionIds,
@@ -384,30 +385,68 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                   null);
 
         setSaving(true);
-        router.put(
-            `/admission/applications/${app.id}`,
-            {
-                notes: notes.trim() === '' ? null : notes.trim(),
-                reviewed_at: reviewedAt === '' ? null : reviewedAt,
-                update_placement: true,
-                branch_id: matchedBranch?.id ?? null,
-                branch_name: branchName.trim() === '' ? null : branchName.trim(),
-                department_name: departmentName.trim() === '' ? null : departmentName.trim(),
-                grade_level_id: matchedGrade?.id ?? null,
-                intended_grade_name: intendedGradeName,
-                specialization_id: matchedSpecialization?.id ?? null,
-                specialization_name: matchedSpecialization?.name ?? null,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => onSaved(),
-                onError: (errors) => showInertiaErrors(errors, errorsI18n.saveFailed),
-                onFinish: () => setSaving(false),
-            },
-        );
+        const baseline = {
+            notes: app.notes ?? null,
+            reviewed_at: app.reviewed_at ?? null,
+            update_placement: true,
+            branch_id: app.branch_id ?? null,
+            branch_name: app.branch_name ?? null,
+            department_name: app.department_name ?? null,
+            grade_level_id: app.grade_level_id ?? null,
+            intended_grade_name: app.intended_grade_name ?? null,
+            specialization_id: app.specialization_id ?? null,
+            specialization_name: app.specialization_name ?? null,
+        };
+        const next = {
+            notes: notes.trim() === '' ? null : notes.trim(),
+            reviewed_at: reviewedAt === '' ? null : reviewedAt,
+            update_placement: true,
+            branch_id: matchedBranch?.id ?? null,
+            branch_name: branchName.trim() === '' ? null : branchName.trim(),
+            department_name: departmentName.trim() === '' ? null : departmentName.trim(),
+            grade_level_id: matchedGrade?.id ?? null,
+            intended_grade_name: intendedGradeName,
+            specialization_id: matchedSpecialization?.id ?? null,
+            specialization_name: matchedSpecialization?.name ?? null,
+        };
+        const payload = pickDirtyPayload(baseline, next, {
+            always: ['update_placement'],
+            groups: [
+                [
+                    'branch_id',
+                    'branch_name',
+                    'department_name',
+                    'grade_level_id',
+                    'intended_grade_name',
+                    'specialization_id',
+                    'specialization_name',
+                ],
+            ],
+        });
+
+        if (isDirtyPayloadEmpty(payload, ['update_placement'])) {
+            setSaving(false);
+            onSaved();
+            return;
+        }
+
+        router.put(`/admission/applications/${app.id}`, payload, {
+            ...sisSmoothMutation(['workspace', 'filters']),
+            onSuccess: () => onSaved(),
+            onError: (errors) => showInertiaErrors(errors, errorsI18n.saveFailed),
+            onFinish: () => setSaving(false),
+        });
     }, [
+        app.branch_id,
+        app.branch_name,
+        app.department_name,
+        app.grade_level_id,
         app.id,
+        app.intended_grade_name,
+        app.notes,
+        app.reviewed_at,
+        app.specialization_id,
+        app.specialization_name,
         branchName,
         classKey,
         departmentName,

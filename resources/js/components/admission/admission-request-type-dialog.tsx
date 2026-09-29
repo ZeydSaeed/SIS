@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { t } from '@/i18n';
 
 type Props = {
@@ -25,12 +26,13 @@ export function AdmissionRequestTypeDialog({
 }: Props) {
     const i18n = t();
     const { contentRef, heroDragProps, bringToFront } = useSmoothDialogDrag(open);
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 ref={contentRef}
-                className="sis-admission-draft-dialog sis-admission-sheet-dialog sis-admission-request-type-dialog sm:max-w-lg"
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-admission-request-type-dialog sm:max-w-lg${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -43,7 +45,7 @@ export function AdmissionRequestTypeDialog({
                 <DialogTitle className="sr-only">{i18n.admission.draftDialogTitle}</DialogTitle>
 
                 <div className="sis-admission-sheet sis-admission-request-type">
-                    <header className="sis-admission-sheet__hero" {...heroDragProps}>
+                    <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
                         <WindowControls
                             className="sis-admission-sheet__window-controls"
                             label={i18n.window.controls}
@@ -52,7 +54,9 @@ export function AdmissionRequestTypeDialog({
                             restoreLabel={i18n.window.restore}
                             closeLabel={i18n.window.close}
                             minimizable={false}
-                            maximizable={false}
+                            maximizable
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
                             onClose={() => onOpenChange(false)}
                         />
                         <div className="sis-admission-sheet__hero-copy">

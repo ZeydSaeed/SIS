@@ -256,6 +256,7 @@ final class AdmissionPageController extends Controller
             perPage: $perPage,
             search: $search,
             enrollmentStatus: $enrollmentStatus,
+            includeAcceptedStudents: $request->boolean('include_accepted_roster'),
         ));
 
         $this->securityAudit->record(

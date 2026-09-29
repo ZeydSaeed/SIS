@@ -34,8 +34,6 @@ final class ApplyEnrollmentPlacementChange
         ?int $academicYearId = null,
         ?string $effectiveTo = null,
         bool $clearEffectiveTo = false,
-        ?string $stageName = null,
-        bool $updateStage = false,
         bool $syncStudentLabels = false,
     ): int {
         $previousClassId = $enrollment->classId;
@@ -78,8 +76,6 @@ final class ApplyEnrollmentPlacementChange
                 $academicYearId,
                 $effectiveTo,
                 $clearEffectiveTo,
-                $stageName,
-                $updateStage,
                 $syncStudentLabels,
             );
         }

@@ -80,7 +80,6 @@ class EnrollStudentHandlerTest extends TestCase
         $idempotency = $this->createMock(IdempotencyStore::class);
         $idempotency->method('find')->willReturn([
             'enrollment_id' => 42,
-            'enrollment_number' => 'ENR-10-2026-000001',
         ]);
 
         $handler = new EnrollStudentHandler(

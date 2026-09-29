@@ -61,10 +61,8 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             'school_id' => $data->schoolId,
             'class_id' => $data->classId,
             'section_id' => $data->sectionId,
-            'specialization_id' => $data->specializationId,
             'branch_id' => $data->branchId,
             'department_id' => $data->departmentId,
-            'enrollment_number' => $data->enrollmentNumber,
             'status' => EnrollmentStatus::ACTIVE,
             'effective_from' => $data->effectiveFrom,
             'enrolled_by' => $data->enrolledBy,
@@ -149,15 +147,12 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
         ?int $academicYearId = null,
         ?string $effectiveTo = null,
         bool $clearEffectiveTo = false,
-        ?string $stageName = null,
-        bool $updateStage = false,
         bool $syncStudentLabels = false,
     ): void {
         $record = EnrollmentRecord::query()->findOrFail($enrollmentId);
         $fill = [
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'specialization_id' => $specializationId,
             'branch_id' => $branchId,
             'department_id' => $departmentId,
         ];
@@ -190,16 +185,6 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             } else {
                 $studentFill['department_name'] = null;
             }
-        }
-        if ($syncStudentLabels || $specializationId !== null) {
-            // specialization_name column removed from students table — skip
-        }
-        if ($updateStage) {
-            // class_name / stage denorm removed from students.students — skip
-        }
-
-        if ($syncStudentLabels) {
-            // class_name / section_name removed; admitted_class_name remains admission SSOT
         }
 
         if ($studentFill !== []) {
@@ -327,16 +312,15 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
     ): int {
         $this->setClosedStatus($current->id, EnrollmentStatus::SUPERSEDED, $effectiveTo);
 
-        $enrollmentNumber = $this->generateEnrollmentNumber($current->schoolId, $current->academicYearId);
         $newId = $this->save(new CreateEnrollmentData(
             studentId: $current->studentId,
             academicYearId: $current->academicYearId,
             schoolId: $current->schoolId,
             classId: $classId,
             sectionId: $sectionId,
-            enrollmentNumber: $enrollmentNumber,
+            enrollmentNumber: 'ENR-pending',
             effectiveFrom: $effectiveFrom,
-            specializationId: $specializationId,
+            specializationId: null,
             branchId: $branchId,
             departmentId: $departmentId,
             enrolledBy: $enrolledBy,
@@ -347,7 +331,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             $newId,
             $classId,
             $sectionId,
-            $specializationId,
+            null,
             $branchId,
             $departmentId,
             syncStudentLabels: true,
@@ -358,25 +342,23 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
 
     public function generateEnrollmentNumber(int $schoolId, int $academicYearId): string
     {
-        $count = EnrollmentRecord::query()
-            ->where('school_id', $schoolId)
-            ->where('academic_year_id', $academicYearId)
-            ->count();
-
-        return sprintf('ENR-%d-%d-%06d', $schoolId, $academicYearId, $count + 1);
+        // Column dropped — keep a stable ephemeral token for events/idempotency payloads only.
+        return sprintf('ENR-%d-%d-%s', $schoolId, $academicYearId, bin2hex(random_bytes(4)));
     }
 
     private function toSnapshot(EnrollmentRecord $record): EnrollmentSnapshot
     {
+        $id = (int) $record->getKey();
+
         return new EnrollmentSnapshot(
-            id: (int) $record->getKey(),
+            id: $id,
             studentId: (int) $record->student_id,
             schoolId: (int) $record->school_id,
             academicYearId: (int) $record->academic_year_id,
             classId: (int) $record->class_id,
             sectionId: (int) $record->section_id,
-            specializationId: $record->specialization_id !== null ? (int) $record->specialization_id : null,
-            enrollmentNumber: (string) $record->enrollment_number,
+            specializationId: null,
+            enrollmentNumber: 'ENR-'.$id,
             status: (int) $record->status,
             effectiveFrom: $record->effective_from->format('Y-m-d'),
             effectiveTo: $record->effective_to?->format('Y-m-d'),

@@ -6,12 +6,16 @@ use App\Application\Contracts\Command;
 
 final readonly class UpdateStudentListRowCommand implements Command
 {
+    /**
+     * @param  list<string>  $presentFields  keys present in the validated request (dirty/partial update)
+     */
     public function __construct(
         public int $studentId,
         public int $schoolId,
         public string $firstName,
         public string $lastName,
         public string $birthDate,
+        public array $presentFields = [],
         public ?string $fatherName = null,
         public ?string $grandfatherName = null,
         public ?string $greatGrandfatherName = null,
@@ -54,4 +58,9 @@ final readonly class UpdateStudentListRowCommand implements Command
         public ?string $email = null,
         public ?int $admittedAcademicYearId = null,
     ) {}
+
+    public function has(string $field): bool
+    {
+        return in_array($field, $this->presentFields, true);
+    }
 }

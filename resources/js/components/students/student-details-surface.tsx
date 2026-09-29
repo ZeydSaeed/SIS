@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/sis/error-state';
 import { formatAcademicYearOptionLabel } from '@/components/sis/ops-year-filter';
-import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import { StudentStatusBadge, studentStatusLabel } from '@/components/students/student-status-badge';
 import { t } from '@/i18n';
 
 export type StudentDetail = {
@@ -143,6 +143,7 @@ export function StudentDetailsSurface({
             </div>
 
             <dl className="grid gap-4 sm:grid-cols-2">
+                <DetailField label={i18n.common.status} value={studentStatusLabel(student.status)} />
                 <DetailField label={i18n.students.firstName} value={student.first_name} />
                 <DetailField label={i18n.students.fatherName} value={student.father_name} />
                 <DetailField label={i18n.students.grandfatherName} value={student.grandfather_name} />

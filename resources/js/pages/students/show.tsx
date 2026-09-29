@@ -15,6 +15,7 @@ import {
     type StudentAuthorization,
     type StudentDetail,
 } from '@/components/students/student-details-surface';
+import { StudentStatusBadge } from '@/components/students/student-status-badge';
 import { StudentViewDialog } from '@/components/students/student-record-form';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -127,7 +128,11 @@ export default function StudentsShow({ student, authorization }: PageProps) {
                     </Button>
                 </div>
 
-                <PageHeader title={student.full_name} description={i18n.students.showDesc} />
+                <PageHeader
+                    title={student.full_name}
+                    description={i18n.students.showDesc}
+                    actions={<StudentStatusBadge status={student.status} />}
+                />
 
                 <div className="border-border rounded-xl border p-6">
                     <StudentDetailsSurface

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { sisClassLabel, sisClassSelectOptions } from '@/lib/sis-class-section-options';
 import { t } from '@/i18n';
 
@@ -334,6 +335,7 @@ export function AdmissionApplicationDraftDialog({
         resizable: true,
         minSize: { width: 520, height: 360 },
     });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     const openNativeDocumentPicker = (type: number) => {
         pendingDocumentTypeRef.current = type;
@@ -372,7 +374,7 @@ export function AdmissionApplicationDraftDialog({
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 ref={contentRef}
-                className="sis-admission-draft-dialog sis-admission-sheet-dialog sm:max-w-4xl"
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -383,7 +385,7 @@ export function AdmissionApplicationDraftDialog({
                 onPointerDownCapture={bringToFront}
             >
                 <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
-                {resizeHandles}
+                {maximized ? null : resizeHandles}
 
                 {activePeriods.length === 0 ? (
                     <p className="sis-admission-sheet__empty">{i18n.admission.noOpenPeriod}</p>
@@ -408,7 +410,7 @@ export function AdmissionApplicationDraftDialog({
                                     value={isAcademicTransfer ? '1' : '2'}
                                 />
 
-                                <header className="sis-admission-sheet__hero" {...heroDragProps}>
+                                <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
                                     <WindowControls
                                         className="sis-admission-sheet__window-controls"
                                         label={i18n.window.controls}
@@ -417,7 +419,9 @@ export function AdmissionApplicationDraftDialog({
                                         restoreLabel={i18n.window.restore}
                                         closeLabel={i18n.window.close}
                                         minimizable={false}
-                                        maximizable={false}
+                                        maximizable
+                                        maximized={maximized}
+                                        onMaximize={toggleMaximize}
                                         onClose={() => onOpenChange(false)}
                                     />
                                     <div className="sis-admission-sheet__hero-copy">

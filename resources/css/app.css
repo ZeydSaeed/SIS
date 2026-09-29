@@ -5756,10 +5756,12 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     right: auto !important;
     bottom: auto !important;
     z-index: 200000 !important;
-    width: var(--sis-sheet-w, min(98vw, 64rem)) !important;
-    max-width: min(
-        var(--sis-sheet-w, 64rem),
+    width: var(
+        --sis-sheet-w,
         calc(100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap)))
+    ) !important;
+    max-width: calc(
+        100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap))
     ) !important;
     max-height: var(--sis-sheet-h, calc(100vh - 0.35rem)) !important;
     min-height: 0 !important;
@@ -6664,19 +6666,15 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     outline: none;
 }
 
-@media (max-width: 48rem) {
-    .sis-admission-accepted-sheet__filters-row {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .sis-admission-accepted-sheet__filter-actions {
-        grid-column: 1 / -1;
-    }
-}
-
 @media (max-width: 30rem) {
     .sis-admission-accepted-sheet__filters-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+        gap: 0.25rem 0.35rem;
+    }
+
+    .sis-admission-accepted-sheet__filter-actions button {
+        padding-inline: 0.45rem;
+        font-size: 0.72rem;
     }
 }
 
@@ -6694,6 +6692,30 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     padding: 0 !important;
     resize: none !important;
     overflow: hidden !important;
+}
+
+/* Maximize must beat the fixed default height/width on this dialog. */
+.sis-admission-accepted-dialog.sis-admission-sheet-dialog--maximized {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100vh !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+    border-radius: 0 !important;
+}
+
+.sis-admission-accepted-dialog.sis-admission-sheet-dialog--maximized .sis-admission-accepted-sheet,
+.sis-admission-accepted-dialog.sis-admission-sheet-dialog--maximized .sis-admission-sheet {
+    width: 100%;
+    max-height: 100vh !important;
+    min-height: 100vh !important;
+    height: 100% !important;
 }
 
 .sis-admission-accepted-dialog[data-resized='true'],
@@ -6739,19 +6761,34 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     padding: 0.32rem 0.55rem;
 }
 
-.sis-admission-accepted-sheet__filters-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+/* Keep year + period + edit/save on one toolbar line (override row display:contents). */
+.sis-admission-accepted-sheet .sis-admission-sheet__body > .sis-admission-accepted-sheet__filters-row {
+    display: grid !important;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(7.5rem, 0.9fr) minmax(11rem, 1.45fr) auto;
     align-items: end;
-    gap: 0.35rem 0.55rem;
+    column-gap: 0.55rem;
+    row-gap: 0;
+    width: 100%;
+    min-width: 0;
+    padding: 0.32rem 0.55rem;
+    box-sizing: border-box;
+}
+
+.sis-admission-accepted-sheet__filters-row > .sis-admission-sheet__field,
+.sis-admission-accepted-sheet__filters-row > .sis-admission-accepted-sheet__filter-actions {
+    grid-column: auto !important;
+    min-width: 0;
+    margin: 0;
 }
 
 .sis-admission-accepted-sheet__filter-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 0.35rem;
     padding-block-end: 0.05rem;
+    flex-shrink: 0;
 }
 
 .sis-admission-accepted-sheet__filter-actions button {
@@ -7593,6 +7630,8 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 
 .sis-admission-periods-table tbody tr {
     cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 2.4rem;
 }
 
 .sis-admission-periods-table tbody tr:hover {
@@ -8280,6 +8319,13 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
+    width: var(
+        --sis-sheet-w,
+        calc(100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap)))
+    ) !important;
+    max-width: calc(
+        100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap))
+    ) !important;
 }
 
 .sis-student-sheet-dialog .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {

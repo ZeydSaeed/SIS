@@ -654,7 +654,6 @@ trait InteractsWithSecurity
             'school_id' => $schoolId,
             'class_id' => $class->id,
             'section_id' => $section->id,
-            'enrollment_number' => 'ENR-'.uniqid(),
             'status' => 1,
             'effective_from' => '2026-09-01',
         ]);

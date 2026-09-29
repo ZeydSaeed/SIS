@@ -518,6 +518,7 @@ export function EnrollmentRecordForm({
             {
                 preserveScroll: true,
                 preserveState: true,
+                async: true,
                 only: ['enrollments', 'filters', 'filterOptions', 'authorization'],
                 onSuccess: () => {
                     finishSave(nextBase);

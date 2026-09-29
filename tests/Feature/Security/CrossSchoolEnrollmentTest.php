@@ -32,7 +32,6 @@ class CrossSchoolEnrollmentTest extends TestCase
             'school_id' => $schoolB,
             'class_id' => $classB->id,
             'section_id' => $sectionB->id,
-            'enrollment_number' => 'ENR-B-001',
             'status' => 1,
             'effective_from' => '2026-09-01',
         ]);
@@ -85,7 +84,6 @@ class CrossSchoolEnrollmentTest extends TestCase
             'school_id' => $schoolB,
             'class_id' => $classB->id,
             'section_id' => $sectionB->id,
-            'enrollment_number' => 'ENR-B-002',
             'status' => 1,
             'effective_from' => '2026-09-01',
         ]);

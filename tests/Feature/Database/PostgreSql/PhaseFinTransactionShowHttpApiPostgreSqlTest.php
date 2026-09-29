@@ -65,7 +65,6 @@ final class PhaseFinTransactionShowHttpApiPostgreSqlTest extends PostgreSqlInteg
             'school_id' => $schoolId,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'EN-'.$suffix,
             'status' => 1,
             'effective_from' => '2026-09-01',
             'created_at' => now(),

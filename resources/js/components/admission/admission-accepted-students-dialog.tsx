@@ -32,12 +32,14 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { t } from '@/i18n';
 
 type Props = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     students: AdmissionAcceptedStudent[];
+    loading?: boolean;
     defaultAcademicYearId?: number | null;
     canManage?: boolean;
 };
@@ -282,6 +284,7 @@ export function AdmissionAcceptedStudentsDialog({
     open,
     onOpenChange,
     students,
+    loading = false,
     defaultAcademicYearId = null,
     canManage = false,
 }: Props) {
@@ -297,6 +300,7 @@ export function AdmissionAcceptedStudentsDialog({
         resizable: true,
         minSize: { width: 720, height: 360 },
     });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     const yearOptions = useMemo(() => {
         const map = new Map<number, string>();
@@ -685,7 +689,7 @@ export function AdmissionAcceptedStudentsDialog({
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
                 ref={contentRef}
-                className="sis-admission-draft-dialog sis-admission-sheet-dialog sis-admission-accepted-dialog"
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-admission-accepted-dialog${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -696,10 +700,10 @@ export function AdmissionAcceptedStudentsDialog({
                 onPointerDownCapture={bringToFront}
             >
                 <DialogTitle className="sr-only">{admission.acceptedStudentsDialogTitle}</DialogTitle>
-                {resizeHandles}
+                {maximized ? null : resizeHandles}
 
                 <div className="sis-admission-sheet sis-admission-accepted-sheet">
-                    <header className="sis-admission-sheet__hero" {...heroDragProps}>
+                    <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
                         <WindowControls
                             className="sis-admission-sheet__window-controls"
                             label={i18n.window.controls}
@@ -708,7 +712,9 @@ export function AdmissionAcceptedStudentsDialog({
                             restoreLabel={i18n.window.restore}
                             closeLabel={i18n.window.close}
                             minimizable={false}
-                            maximizable={false}
+                            maximizable
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
                             onClose={() => onOpenChange(false)}
                         />
                         <div className="sis-admission-sheet__hero-copy">
@@ -782,7 +788,11 @@ export function AdmissionAcceptedStudentsDialog({
                     </SheetSection>
 
                     <div className="sis-admission-accepted-sheet__list-body">
-                        {tableRows.length === 0 ? (
+                        {loading ? (
+                            <p className="sis-admission-sheet__empty sis-admission-accepted-sheet__empty" aria-busy="true">
+                                {i18n.common.loading}
+                            </p>
+                        ) : tableRows.length === 0 ? (
                             <p className="sis-admission-sheet__empty sis-admission-accepted-sheet__empty">
                                 {admission.emptyAcceptedStudents}
                             </p>

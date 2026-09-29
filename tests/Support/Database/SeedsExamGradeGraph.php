@@ -195,7 +195,6 @@ trait SeedsExamGradeGraph
             'school_id' => $schoolId,
             'class_id' => $classId,
             'section_id' => $sectionId,
-            'enrollment_number' => 'ENR-G-'.$suffix,
             'status' => 1,
             'effective_from' => '2025-09-01',
             'created_at' => now(),

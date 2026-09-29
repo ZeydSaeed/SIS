@@ -52,6 +52,7 @@ import {
     publishStudentStatusSync,
     subscribeStudentStatusSync,
 } from '@/lib/student-status-sync';
+import { pickDirtyPayload, sisSmoothMutation, sisToggleQueryFlag } from '@/lib/sis-ui-perf';
 import type { StudentAuthorization } from '@/components/students/student-details-surface';
 import type { EnrollmentFormFilterOptions } from '@/components/enrollments/enrollment-record-form';
 import { t } from '@/i18n';
@@ -228,6 +229,17 @@ const EMPTY_ENROLLMENT_FILTER_OPTIONS: EnrollmentFormFilterOptions = {
     specializations: [],
     grade_levels: [],
 };
+
+function hasEnrollmentFilterCatalog(options: EnrollmentFormFilterOptions): boolean {
+    return (
+        options.branches.length > 0
+        || options.classes.length > 0
+        || options.sections.length > 0
+        || options.departments.length > 0
+        || options.specializations.length > 0
+        || options.grade_levels.length > 0
+    );
+}
 
 type VisitParams = {
     q?: string;
@@ -534,46 +546,41 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
 
             setSaving(true);
 
-            const payload: Record<string, string | number | null> = {
+            const baseline: Record<string, string | number | null> = {
+                first_name: row.first_name,
+                last_name: row.last_name,
+                father_name: row.father_name ?? null,
+                grandfather_name: row.grandfather_name ?? null,
+                great_grandfather_name: row.great_grandfather_name ?? null,
+                birth_date: dateInputValue(row.birth_date),
+                gender: row.gender,
+                previous_school_name: row.previous_school_name ?? null,
+                transfer_document_number: row.transfer_document_number ?? null,
+            };
+            const next: Record<string, string | number | null> = {
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 father_name: emptyToNull(fatherName),
                 grandfather_name: emptyToNull(grandfatherName),
                 great_grandfather_name: emptyToNull(greatGrandfatherName),
                 birth_date: birthDate,
-                governorate: row.governorate ?? null,
-                neighborhood: row.neighborhood ?? null,
                 gender,
                 previous_school_name: emptyToNull(previousSchoolName),
                 transfer_document_number: parseOptionalInt(transferDocumentNumber),
-                transfer_document_date: row.transfer_document_date ?? null,
-                mother_name: row.mother_name ?? null,
-                maternal_father_name: row.maternal_father_name ?? null,
-                maternal_grandfather_name: row.maternal_grandfather_name ?? null,
-                guardian_triple_name: row.guardian_triple_name ?? null,
-                locality: row.locality ?? null,
-                house_number: row.house_number ?? null,
-                birth_place: row.birth_place ?? null,
-                registration_place: row.registration_place ?? null,
-                nationality: row.nationality ?? null,
-                religion: row.religion,
-                mawalid_date: row.mawalid_date ?? null,
-                school_start_date: row.school_start_date ?? null,
-                notes: row.notes ?? null,
-                school_name: row.school_name ?? null,
             };
 
             if (canViewPii) {
-                payload.mobile = emptyToNull(mobile);
-                payload.national_id = row.national_id ?? null;
-                payload.guardian_mobile = row.guardian_mobile ?? null;
-                payload.email = row.email ?? null;
+                baseline.mobile = emptyToNull(maskMobileDigits(row.mobile ?? ''));
+                next.mobile = emptyToNull(mobile);
             }
+
+            const payload = pickDirtyPayload(baseline, next, {
+                always: ['first_name', 'last_name', 'birth_date'],
+            });
 
             return new Promise((resolve, reject) => {
                 router.put(`/students/${row.id}`, payload, {
-                    preserveScroll: true,
-                    preserveState: true,
+                    ...sisSmoothMutation(['students', 'filters', 'authorization']),
                     onSuccess: () => resolve(),
                     onError: (errors) => {
                         showInertiaErrors(errors, i18n.errors.saveFailed);
@@ -832,10 +839,14 @@ export function StudentList({
     const selectedIdRef = useRef(selectedId);
     const applyingStatusRef = useRef(false);
     const createIntentHandledRef = useRef(false);
+    const enrollmentFiltersLoadedRef = useRef(hasEnrollmentFilterCatalog(enrollmentFilterOptions));
     const rowRefs = useRef(new Map<number, StudentRowHandle>());
     filtersRef.current = filters;
     checkedIdsRef.current = checkedIds;
     selectedIdRef.current = selectedId;
+    if (hasEnrollmentFilterCatalog(enrollmentFilterOptions)) {
+        enrollmentFiltersLoadedRef.current = true;
+    }
     const [statusOverrides, setStatusOverrides] = useState<Record<number, number>>({});
     const serverRows = students?.data ?? [];
     const rows = useMemo(() => {
@@ -986,12 +997,33 @@ export function StudentList({
             {
                 preserveState: true,
                 preserveScroll: true,
+                async: true,
                 replace: nextStudent === undefined,
                 only: ['students', 'filters', 'authorization'],
                 showProgress: params.quiet !== true,
             },
         );
     }, []);
+
+    const ensureEnrollmentFilters = useCallback(
+        (then: () => void) => {
+            if (enrollmentFiltersLoadedRef.current || hasEnrollmentFilterCatalog(enrollmentFilterOptions)) {
+                enrollmentFiltersLoadedRef.current = true;
+                then();
+
+                return;
+            }
+
+            enrollmentFiltersLoadedRef.current = true;
+            router.visit(sisToggleQueryFlag(page.url, 'include_enrollment_filters', true), {
+                ...sisSmoothMutation(['enrollmentFilterOptions']),
+                replace: true,
+                showProgress: false,
+                onFinish: () => then(),
+            });
+        },
+        [enrollmentFilterOptions, page.url],
+    );
 
     const commitSearch = useCallback(
         (query: string) => {
@@ -1160,9 +1192,7 @@ export function StudentList({
                     status: targetStatus,
                 },
                 {
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: ['students', 'filters', 'authorization'],
+                    ...sisSmoothMutation(['students', 'filters', 'authorization']),
                     onSuccess: () => {
                         publishStudentStatusSync(studentIds, targetStatus, 'students');
                     },
@@ -1229,10 +1259,13 @@ export function StudentList({
             showWarning(i18n.students.enrollSkippedInactive);
         }
 
-        setEnrollCandidates(eligible);
+        ensureEnrollmentFilters(() => {
+            setEnrollCandidates(eligible);
+        });
     }, [
         actionIds,
         authorization.canEnroll,
+        ensureEnrollmentFilters,
         filters.academic_year_id,
         filtersBusy,
         i18n.students.enrollNeedsEligible,
@@ -1286,17 +1319,24 @@ export function StudentList({
 
     const openStudentFile = useCallback(
         (row: StudentListItem) => {
-            setViewingAsFileContinue(true);
-            setViewingStudents([
-                {
-                    ...row,
-                    academic_year_id: row.academic_year_id ?? filters.academic_year_id,
-                    academic_year_name: row.academic_year_name ?? selectedAcademicYear?.name ?? null,
-                    academic_year_code: row.academic_year_code ?? selectedAcademicYear?.code ?? null,
-                },
-            ]);
+            ensureEnrollmentFilters(() => {
+                setViewingAsFileContinue(true);
+                setViewingStudents([
+                    {
+                        ...row,
+                        academic_year_id: row.academic_year_id ?? filters.academic_year_id,
+                        academic_year_name: row.academic_year_name ?? selectedAcademicYear?.name ?? null,
+                        academic_year_code: row.academic_year_code ?? selectedAcademicYear?.code ?? null,
+                    },
+                ]);
+            });
         },
-        [filters.academic_year_id, selectedAcademicYear?.code, selectedAcademicYear?.name],
+        [
+            ensureEnrollmentFilters,
+            filters.academic_year_id,
+            selectedAcademicYear?.code,
+            selectedAcademicYear?.name,
+        ],
     );
 
     const startEditing = useCallback(() => {
@@ -1535,17 +1575,19 @@ export function StudentList({
                 icon: Eye,
                 disabled: !hasViewTargets,
                 onSelect: () => {
-                    setViewingAsFileContinue(false);
-                    setViewingStudents(
-                        viewTargets.map((row) => ({
-                            ...row,
-                            academic_year_id: row.academic_year_id ?? filters.academic_year_id,
-                            academic_year_name:
-                                row.academic_year_name ?? selectedAcademicYear?.name ?? null,
-                            academic_year_code:
-                                row.academic_year_code ?? selectedAcademicYear?.code ?? null,
-                        })),
-                    );
+                    ensureEnrollmentFilters(() => {
+                        setViewingAsFileContinue(false);
+                        setViewingStudents(
+                            viewTargets.map((row) => ({
+                                ...row,
+                                academic_year_id: row.academic_year_id ?? filters.academic_year_id,
+                                academic_year_name:
+                                    row.academic_year_name ?? selectedAcademicYear?.name ?? null,
+                                academic_year_code:
+                                    row.academic_year_code ?? selectedAcademicYear?.code ?? null,
+                            })),
+                        );
+                    });
                 },
             },
         ];
@@ -1692,6 +1734,7 @@ export function StudentList({
         clearSelection,
         editing,
         enrollSelected,
+        ensureEnrollmentFilters,
         filters.academic_year_id,
         filters.status,
         filtersBusy,
@@ -1746,9 +1789,7 @@ export function StudentList({
                 status: STUDENT_STATUS_WITHDRAWN,
             },
             {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['students', 'filters', 'authorization'],
+                ...sisSmoothMutation(['students', 'filters', 'authorization']),
                 onSuccess: () => {
                     if (selectedId === deleteTarget.id) {
                         setSelectedId(null);

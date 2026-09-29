@@ -87,7 +87,7 @@ final class AttendanceCancelSessionPostgreSqlTest extends PostgreSqlIntegrationT
         ]);
         $enrollmentA = (int) DB::table('enrollment.enrollments')->insertGetId([
             'student_id' => $studentA, 'academic_year_id' => $yearId, 'school_id' => $schoolA,
-            'class_id' => $classA, 'section_id' => $sectionA, 'enrollment_number' => 'EC'.$suffix,
+            'class_id' => $classA, 'section_id' => $sectionA,
             'status' => 1, 'effective_from' => '2026-09-01', 'created_at' => now(), 'updated_at' => now(),
         ]);
 
