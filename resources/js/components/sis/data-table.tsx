@@ -25,6 +25,8 @@ type DataTableProps<T> = {
     getRowAriaLabel?: (row: T) => string;
     mobileCard?: (row: T) => ReactNode;
     caption?: string;
+    /** When false, omits the column header row (cells still render). */
+    showHeader?: boolean;
 };
 
 export function DataTable<T>({
@@ -39,6 +41,7 @@ export function DataTable<T>({
     getRowAriaLabel,
     mobileCard,
     caption,
+    showHeader = true,
 }: DataTableProps<T>) {
     const isMobile = useIsMobile();
 
@@ -78,22 +81,24 @@ export function DataTable<T>({
                         {caption}
                     </caption>
                 ) : null}
-                <thead className="bg-muted/50">
-                    <tr>
-                        {visibleColumns.map((column) => (
-                            <th
-                                key={column.id}
-                                scope="col"
-                                className={cn(
-                                    'whitespace-nowrap px-4 py-3 text-start font-medium',
-                                    column.className,
-                                )}
-                            >
-                                {column.header}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
+                {showHeader ? (
+                    <thead className="bg-muted/50">
+                        <tr>
+                            {visibleColumns.map((column) => (
+                                <th
+                                    key={column.id}
+                                    scope="col"
+                                    className={cn(
+                                        'whitespace-nowrap px-4 py-3 text-start font-medium',
+                                        column.className,
+                                    )}
+                                >
+                                    {column.header}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                ) : null}
                 <tbody>
                     {rows.length === 0 ? (
                         <tr>

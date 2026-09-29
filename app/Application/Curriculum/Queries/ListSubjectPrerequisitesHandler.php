@@ -16,6 +16,10 @@ final class ListSubjectPrerequisitesHandler
      */
     public function handle(ListSubjectPrerequisitesQuery $query): array
     {
+        $rows = $query->includeInactive
+            ? $this->prerequisites->listForSubject($query->subjectId)
+            : $this->prerequisites->listActiveForSubject($query->subjectId);
+
         return array_map(
             fn ($row): PrerequisiteDTO => new PrerequisiteDTO(
                 id: $row->id,
@@ -24,7 +28,7 @@ final class ListSubjectPrerequisitesHandler
                 status: $row->status,
                 createdAt: $row->createdAt,
             ),
-            $this->prerequisites->listActiveForSubject($query->subjectId),
+            $rows,
         );
     }
 }

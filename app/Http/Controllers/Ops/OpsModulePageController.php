@@ -30,15 +30,6 @@ final class OpsModulePageController extends Controller
         );
     }
 
-    public function curriculum(): Response
-    {
-        return $this->shell(
-            'curriculum',
-            'المنهج',
-            'البرامج والمواد والخطط الدراسية — مخطط curriculum.',
-        );
-    }
-
     public function promotion(): Response
     {
         return $this->shell(

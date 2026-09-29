@@ -21,6 +21,9 @@ interface PrerequisiteRepositoryInterface
     /** @return list<PrerequisiteSnapshot> */
     public function listActiveForSubject(int $subjectId): array;
 
+    /** @return list<PrerequisiteSnapshot> */
+    public function listForSubject(int $subjectId): array;
+
     /** @return list<int> active prerequisite_subject_id edges from $subjectId */
     public function activePrerequisiteSubjectIds(int $subjectId): array;
 }

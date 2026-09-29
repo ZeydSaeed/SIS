@@ -15,6 +15,8 @@ class SisFoundationSeeder extends Seeder
             FoundationOrganizationSeeder::class,
             FoundationAcademicSeeder::class,
             FoundationEnrollmentStructureSeeder::class,
+            CurriculumCatalogSeeder::class,
+            CurriculumPlansSeeder::class,
         ]);
     }
 }

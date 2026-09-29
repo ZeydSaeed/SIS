@@ -94,6 +94,17 @@ final class EloquentPrerequisiteRepository implements PrerequisiteRepositoryInte
         return $rows->map(fn ($row): PrerequisiteSnapshot => $this->map($row))->all();
     }
 
+    public function listForSubject(int $subjectId): array
+    {
+        $rows = DB::table(SchemaHelper::qualified('curriculum', 'prerequisites'))
+            ->where('subject_id', $subjectId)
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [PrerequisiteStatus::Active->value])
+            ->orderBy('id')
+            ->get(['id', 'subject_id', 'prerequisite_subject_id', 'status', 'created_at']);
+
+        return $rows->map(fn ($row): PrerequisiteSnapshot => $this->map($row))->all();
+    }
+
     public function activePrerequisiteSubjectIds(int $subjectId): array
     {
         return DB::table(SchemaHelper::qualified('curriculum', 'prerequisites'))

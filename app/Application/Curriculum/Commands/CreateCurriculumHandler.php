@@ -8,7 +8,9 @@ use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Curriculum\Results\CreateCurriculumResult;
+use App\Domain\Curriculum\Contracts\SpecializationCatalogPort;
 use App\Domain\Curriculum\Events\CurriculumCreated;
+use App\Domain\Curriculum\Events\CurriculumSubjectLinked;
 use App\Domain\Curriculum\Repositories\CurriculumRepositoryInterface;
 use App\Domain\Curriculum\Services\CreateCurriculumGuard;
 use App\Domain\Curriculum\Support\CurriculumIdempotencyGuard;
@@ -21,6 +23,7 @@ final class CreateCurriculumHandler implements CommandHandler
         private readonly UnitOfWork $unitOfWork,
         private readonly CurriculumRepositoryInterface $curricula,
         private readonly CreateCurriculumGuard $guard,
+        private readonly SpecializationCatalogPort $specializations,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
     ) {}
@@ -46,14 +49,41 @@ final class CreateCurriculumHandler implements CommandHandler
         }
 
         $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
+            $createdAt = (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM);
             $id = $this->curricula->create(
                 $command->schoolId,
                 $command->academicYearId,
                 $command->gradeLevelId,
                 $command->name,
                 $command->specializationId,
-                (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+                $createdAt,
             );
+
+            if ($command->specializationId !== null) {
+                $order = 0;
+                foreach ($this->specializations->listActiveSubjectTemplates(
+                    $command->schoolId,
+                    $command->specializationId,
+                ) as $template) {
+                    $linkId = $this->curricula->linkSubject(
+                        $command->schoolId,
+                        $id,
+                        $template->subjectId,
+                        $template->creditHours,
+                        $template->isRequired,
+                        $order,
+                        $createdAt,
+                    );
+                    $this->outbox->stage(new CurriculumSubjectLinked(
+                        $linkId,
+                        $id,
+                        $template->subjectId,
+                        new \DateTimeImmutable,
+                    ));
+                    $order++;
+                }
+            }
+
             $this->outbox->stage(new CurriculumCreated($id, $command->schoolId, new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['curriculum_id' => $id]);
 

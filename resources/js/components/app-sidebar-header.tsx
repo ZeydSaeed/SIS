@@ -9,7 +9,10 @@ import {
 } from '@/components/title-bar-ribbon';
 import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SisSearchField } from '@/components/sis/sis-search-field';
-import { usePageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
+import {
+    usePageTitlebarSearch,
+    type PageTitlebarSearchConfig,
+} from '@/components/sis/page-titlebar-search-context';
 import {
     useActivePageRibbonTab,
     usePageRibbonPinned,
@@ -23,10 +26,31 @@ import {
     pageClipboardPaste,
 } from '@/hooks/use-page-clipboard';
 import { togglePageTextStyle } from '@/hooks/use-page-text-style';
+import { t } from '@/i18n';
 import appearance from '@/routes/appearance';
 import { edit as profileEdit } from '@/routes/profile';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
+
+const idleTitlebarSearchCommit = (): void => {
+    // Idle chrome — page did not register a search adapter.
+};
+
+function useTitlebarSearchSlot(): PageTitlebarSearchConfig {
+    const i18n = t();
+    const registered = usePageTitlebarSearch();
+
+    if (registered) {
+        return registered;
+    }
+
+    return {
+        committedQuery: '',
+        label: i18n.chrome.searchAria,
+        placeholder: i18n.chrome.search,
+        onCommit: idleTitlebarSearchCommit,
+    };
+}
 
 function findAndReplace(): void {
     const findText = window.prompt('بحث عن:');
@@ -250,7 +274,7 @@ export function AppSidebarHeader({
         }
     }, [closeRibbon, page.url]);
 
-    const titlebarSearch = usePageTitlebarSearch();
+    const titlebarSearch = useTitlebarSearchSlot();
 
     return (
         <div
@@ -261,11 +285,7 @@ export function AppSidebarHeader({
             }
         >
             <header
-                className={
-                    titlebarSearch
-                        ? 'sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3'
-                        : 'sis-titlebar flex min-h-10 shrink-0 items-center gap-2 px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3'
-                }
+                className="sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3"
                 dir="rtl"
             >
                 <div className="sis-titlebar__start">
@@ -276,19 +296,17 @@ export function AppSidebarHeader({
                         ribbonPinned={ribbonPinned}
                     />
                 </div>
-                {titlebarSearch ? (
-                    <div className="sis-titlebar__search-slot">
-                        <div className="sis-titlebar__search">
-                            <SisSearchField
-                                committedQuery={titlebarSearch.committedQuery}
-                                label={titlebarSearch.label}
-                                placeholder={titlebarSearch.placeholder}
-                                onDraftChange={titlebarSearch.onDraftChange}
-                                onCommit={titlebarSearch.onCommit}
-                            />
-                        </div>
+                <div className="sis-titlebar__search-slot">
+                    <div className="sis-titlebar__search">
+                        <SisSearchField
+                            committedQuery={titlebarSearch.committedQuery}
+                            label={titlebarSearch.label}
+                            placeholder={titlebarSearch.placeholder}
+                            onDraftChange={titlebarSearch.onDraftChange}
+                            onCommit={titlebarSearch.onCommit}
+                        />
                     </div>
-                ) : null}
+                </div>
                 <div className="sis-titlebar__leading flex shrink-0 items-center gap-1" dir="ltr">
                     <TitleBarControls />
                     <TitleBarHome />

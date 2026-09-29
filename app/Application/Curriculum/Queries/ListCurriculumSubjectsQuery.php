@@ -7,5 +7,6 @@ final readonly class ListCurriculumSubjectsQuery
     public function __construct(
         public int $schoolId,
         public int $curriculumId,
+        public bool $includeInactive = false,
     ) {}
 }

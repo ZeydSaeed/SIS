@@ -80,6 +80,64 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         return $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all();
     }
 
+    public function listAll(): array
+    {
+        $rows = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [SubjectStatus::Active->value])
+            ->orderBy('code')
+            ->get([
+                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
+                'max_grade', 'pass_grade', 'status',
+            ]);
+
+        return $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all();
+    }
+
+    public function search(
+        ?int $status,
+        ?int $subjectType,
+        string $q,
+        int $page,
+        int $perPage,
+    ): array {
+        $query = DB::table(SchemaHelper::qualified('curriculum', 'subjects'));
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+        if ($subjectType !== null) {
+            $query->where('subject_type', $subjectType);
+        }
+
+        $needle = trim($q);
+        if ($needle !== '') {
+            $like = '%'.$needle.'%';
+            $query->where(function ($inner) use ($like): void {
+                $inner->where('name', 'ilike', $like)
+                    ->orWhere('code', 'ilike', $like)
+                    ->orWhere('name_en', 'ilike', $like);
+            });
+        }
+
+        $total = (int) (clone $query)->count();
+        $page = max(1, $page);
+        $perPage = min(max(1, $perPage), 100);
+        $rows = $query
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [SubjectStatus::Active->value])
+            ->orderBy('code')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get([
+                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
+                'max_grade', 'pass_grade', 'status',
+            ]);
+
+        return [
+            'items' => $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all(),
+            'total' => $total,
+        ];
+    }
+
     public function deactivate(int $subjectId): bool
     {
         $updated = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))

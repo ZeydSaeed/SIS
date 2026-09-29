@@ -26,6 +26,20 @@ interface SubjectRepositoryInterface
     /** @return list<SubjectSnapshot> */
     public function listActive(): array;
 
+    /** @return list<SubjectSnapshot> */
+    public function listAll(): array;
+
+    /**
+     * @return array{items: list<SubjectSnapshot>, total: int}
+     */
+    public function search(
+        ?int $status,
+        ?int $subjectType,
+        string $q,
+        int $page,
+        int $perPage,
+    ): array;
+
     public function deactivate(int $subjectId): bool;
 
     public function reactivate(int $subjectId): bool;

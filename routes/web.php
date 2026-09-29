@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admission\AdmissionPageController;
 use App\Http\Controllers\Attendance\AttendancePageController;
+use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
 use App\Http\Controllers\Grades\GradesPageController;
@@ -116,6 +117,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{schedule}', [TimetablePageController::class, 'show'])->whereNumber('schedule')->name('show');
     });
 
+    Route::prefix('curriculum')->name('curriculum.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [CurriculumPageController::class, 'index'])->name('index');
+        Route::get('/curricula/{curriculum}', [CurriculumPageController::class, 'show'])
+            ->whereNumber('curriculum')
+            ->name('show');
+        Route::post('/curricula', [CurriculumPageController::class, 'storeCurriculum'])->name('curricula.store');
+        Route::patch('/curricula/{curriculum}', [CurriculumPageController::class, 'updateCurriculum'])
+            ->whereNumber('curriculum')
+            ->name('curricula.update');
+        Route::post('/curricula/{curriculum}/deactivate', [CurriculumPageController::class, 'deactivateCurriculum'])
+            ->whereNumber('curriculum')
+            ->name('curricula.deactivate');
+        Route::post('/curricula/{curriculum}/reactivate', [CurriculumPageController::class, 'reactivateCurriculum'])
+            ->whereNumber('curriculum')
+            ->name('curricula.reactivate');
+        Route::post('/curricula/{curriculum}/subjects', [CurriculumPageController::class, 'storeCurriculumSubject'])
+            ->whereNumber('curriculum')
+            ->name('curriculum_subjects.store');
+        Route::post('/curriculum-subjects/{link}/deactivate', [CurriculumPageController::class, 'deactivateCurriculumSubject'])
+            ->whereNumber('link')
+            ->name('curriculum_subjects.deactivate');
+        Route::post('/curriculum-subjects/{link}/reactivate', [CurriculumPageController::class, 'reactivateCurriculumSubject'])
+            ->whereNumber('link')
+            ->name('curriculum_subjects.reactivate');
+        Route::post('/subjects', [CurriculumPageController::class, 'storeSubject'])->name('subjects.store');
+        Route::patch('/subjects/{subject}', [CurriculumPageController::class, 'updateSubject'])
+            ->whereNumber('subject')
+            ->name('subjects.update');
+        Route::post('/subjects/{subject}/deactivate', [CurriculumPageController::class, 'deactivateSubject'])
+            ->whereNumber('subject')
+            ->name('subjects.deactivate');
+        Route::post('/subjects/{subject}/reactivate', [CurriculumPageController::class, 'reactivateSubject'])
+            ->whereNumber('subject')
+            ->name('subjects.reactivate');
+        Route::post('/subjects/{subject}/prerequisites', [CurriculumPageController::class, 'storePrerequisite'])
+            ->whereNumber('subject')
+            ->name('prerequisites.store');
+        Route::post('/prerequisites/{prerequisite}/deactivate', [CurriculumPageController::class, 'deactivatePrerequisite'])
+            ->whereNumber('prerequisite')
+            ->name('prerequisites.deactivate');
+        Route::post('/prerequisites/{prerequisite}/reactivate', [CurriculumPageController::class, 'reactivatePrerequisite'])
+            ->whereNumber('prerequisite')
+            ->name('prerequisites.reactivate');
+        Route::post('/enrollments/{enrollment}/subjects', [CurriculumPageController::class, 'assignEnrollmentSubject'])
+            ->whereNumber('enrollment')
+            ->name('enrollment_subjects.store');
+    });
+
     Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ResultsPageController::class, 'index'])->name('index');
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
@@ -147,7 +196,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Blueprint lifecycle / support shells (UI scaffolding — handlers land per module gate).
     Route::middleware('require.school.context')->group(function (): void {
         Route::get('/guardians', [OpsModulePageController::class, 'guardians'])->name('guardians.index');
-        Route::get('/curriculum', [OpsModulePageController::class, 'curriculum'])->name('curriculum.index');
         Route::get('/promotion', [OpsModulePageController::class, 'promotion'])->name('promotion.index');
         Route::get('/transfers', [OpsModulePageController::class, 'transfers'])->name('transfers.index');
         Route::get('/graduation', [OpsModulePageController::class, 'graduation'])->name('graduation.index');

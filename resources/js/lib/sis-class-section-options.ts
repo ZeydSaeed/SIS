@@ -82,6 +82,24 @@ export function resolveSisClassId(classKey: string, classes: SisClassRef[]): num
     return sorted[index]?.id ?? null;
 }
 
+/** Map a persisted class row back to the shared UI key (1 / 2 / 3). */
+export function resolveSisClassKey(
+    classId: number | null | undefined,
+    classes: SisClassRef[],
+): string {
+    if (classId === null || classId === undefined || classId <= 0) {
+        return '';
+    }
+
+    for (const option of SIS_CLASS_OPTIONS) {
+        if (resolveSisClassId(option.value, classes) === classId) {
+            return option.value;
+        }
+    }
+
+    return '';
+}
+
 function sectionAliasMatch(section: SisSectionRef, uiCode: string): boolean {
     const code = uiCode.trim().toUpperCase();
     const aliases = SECTION_ALIASES[code] ?? [code];

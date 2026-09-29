@@ -88,6 +88,85 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         return $rows->map(fn ($row): CurriculumSnapshot => $this->mapCurriculum($row))->all();
     }
 
+    public function listForSchool(int $schoolId, int $academicYearId): array
+    {
+        $this->bindSchool($schoolId);
+
+        $rows = DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [CurriculumStatus::Active->value])
+            ->orderBy('id')
+            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
+
+        return $rows->map(fn ($row): CurriculumSnapshot => $this->mapCurriculum($row))->all();
+    }
+
+    public function searchForSchool(
+        int $schoolId,
+        int $academicYearId,
+        ?int $status,
+        ?int $gradeLevelId,
+        ?int $specializationId,
+        ?int $branchId,
+        string $q,
+        int $page,
+        int $perPage,
+    ): array {
+        $this->bindSchool($schoolId);
+
+        $curricula = SchemaHelper::qualified('curriculum', 'curricula');
+        $specs = SchemaHelper::qualified('vocational', 'specializations');
+        $departments = SchemaHelper::qualified('organization', 'departments');
+
+        $query = DB::table($curricula.' as c')
+            ->leftJoin($specs.' as sp', 'sp.id', '=', 'c.specialization_id')
+            ->leftJoin($departments.' as d', 'd.id', '=', 'sp.department_id')
+            ->where('c.school_id', $schoolId)
+            ->where('c.academic_year_id', $academicYearId);
+
+        if ($status !== null) {
+            $query->where('c.status', $status);
+        }
+        if ($gradeLevelId !== null) {
+            $query->where('c.grade_level_id', $gradeLevelId);
+        }
+        if ($specializationId !== null) {
+            $query->where('c.specialization_id', $specializationId);
+        }
+        if ($branchId !== null) {
+            $query->where('d.branch_id', $branchId);
+        }
+
+        $needle = trim($q);
+        if ($needle !== '') {
+            $like = '%'.$needle.'%';
+            $query->where(function ($inner) use ($like): void {
+                $inner->where('c.name', 'ilike', $like)
+                    ->orWhere('sp.name', 'ilike', $like)
+                    ->orWhere('d.name', 'ilike', $like);
+            });
+        }
+
+        $total = (int) (clone $query)->count('c.id');
+        $page = max(1, $page);
+        $perPage = min(max(1, $perPage), 100);
+        $rows = $query
+            ->orderByRaw('CASE WHEN c.status = ? THEN 0 ELSE 1 END', [CurriculumStatus::Active->value])
+            ->orderBy('c.id')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get([
+                'c.id', 'c.school_id', 'c.academic_year_id', 'c.grade_level_id',
+                'c.specialization_id', 'c.name', 'c.status',
+            ]);
+
+        return [
+            'items' => $rows->map(fn ($row): CurriculumSnapshot => $this->mapCurriculum($row))->all(),
+            'total' => $total,
+        ];
+    }
+
     public function deactivate(int $schoolId, int $curriculumId): bool
     {
         $this->bindSchool($schoolId);
@@ -242,6 +321,22 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects'))
             ->where('curriculum_id', $curriculumId)
             ->where('status', CurriculumStatus::Active->value)
+            ->orderBy('subject_order')
+            ->orderBy('id')
+            ->get([
+                'id', 'curriculum_id', 'subject_id', 'weekly_hours',
+                'is_required', 'subject_order', 'status',
+            ]);
+
+        return $rows->map(fn ($row): CurriculumSubjectSnapshot => $this->mapLink($row))->all();
+    }
+
+    public function listLinks(int $schoolId, int $curriculumId): array
+    {
+        $this->bindSchool($schoolId);
+
+        $rows = DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects'))
+            ->where('curriculum_id', $curriculumId)
             ->orderBy('subject_order')
             ->orderBy('id')
             ->get([

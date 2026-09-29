@@ -58,6 +58,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { usePageRibbonGroups, usePageRibbonPinned, useSetPageRibbonPinned } from '@/components/sis/page-ribbon-context';
+import { isTitlebarOpsAccentPath } from '@/components/sis/titlebar-ssot';
 import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
 import { preservePageClipboardSelection } from '@/hooks/use-page-clipboard';
 import {
@@ -598,32 +599,33 @@ export function TitleBarRibbon({
     const setPinned = useSetPageRibbonPinned();
     const { url } = usePage();
     const path = url.split('?')[0] ?? url;
-    const isOpsAccentPage =
-        path === '/students'
-        || path.startsWith('/students/')
-        || path === '/enrollments'
-        || path.startsWith('/enrollments/')
-        || path === '/admission'
-        || path.startsWith('/admission/');
-    const pageGroups = tab === 'home' || tab === 'edit' ? tabGroups : [];
-    const staticGroups =
-        tab === 'file'
-            ? FILE_RIBBON_GROUPS
-            : tab === 'edit'
-              ? EDIT_RIBBON_GROUPS
-              : tab === 'add'
-                ? ADD_RIBBON_GROUPS
-                : tab === 'settings'
-                  ? SETTINGS_RIBBON_GROUPS
-                  : tab === 'lists'
-                    ? LISTS_RIBBON_GROUPS
-                    : tab === 'tools'
-                      ? TOOLS_RIBBON_GROUPS
-                      : tab === 'reports'
-                        ? REPORTS_RIBBON_GROUPS
-                        : tab === 'help'
-                          ? HELP_RIBBON_GROUPS
-                          : buildHomeGroups();
+    const isOpsAccentPage = isTitlebarOpsAccentPath(path);
+    // Pages may own any chrome tab via registration (SSOT). home/edit merge with
+    // static chrome; lists/tools/reports are replaced when the page registers them.
+    const pageOwnsContentTab =
+        tabGroups.length > 0
+        && (tab === 'lists' || tab === 'tools' || tab === 'reports');
+    const pageGroups =
+        tab === 'home' || tab === 'edit' || pageOwnsContentTab ? tabGroups : [];
+    const staticGroups = pageOwnsContentTab
+        ? []
+        : tab === 'file'
+          ? FILE_RIBBON_GROUPS
+          : tab === 'edit'
+            ? EDIT_RIBBON_GROUPS
+            : tab === 'add'
+              ? ADD_RIBBON_GROUPS
+              : tab === 'settings'
+                ? SETTINGS_RIBBON_GROUPS
+                : tab === 'lists'
+                  ? LISTS_RIBBON_GROUPS
+                  : tab === 'tools'
+                    ? TOOLS_RIBBON_GROUPS
+                    : tab === 'reports'
+                      ? REPORTS_RIBBON_GROUPS
+                      : tab === 'help'
+                        ? HELP_RIBBON_GROUPS
+                        : buildHomeGroups();
     const groups: RibbonGroup[] = [
         ...pageGroups.map(
             (group): RibbonGroup => ({

@@ -1,3 +1,7 @@
+/**
+ * Page → titlebar search adapter (SSOT chrome: see titlebar-ssot.ts).
+ * Register from a child of AppLayout; last owner wins when multiple register.
+ */
 import {
     createContext,
     useContext,

@@ -27,6 +27,26 @@ interface CurriculumRepositoryInterface
     /** @return list<CurriculumSnapshot> */
     public function listActiveForSchool(int $schoolId, int $academicYearId): array;
 
+    /** @return list<CurriculumSnapshot> */
+    public function listForSchool(int $schoolId, int $academicYearId): array;
+
+    /**
+     * Filtered/paginated curricula for operational UI.
+     *
+     * @return array{items: list<CurriculumSnapshot>, total: int}
+     */
+    public function searchForSchool(
+        int $schoolId,
+        int $academicYearId,
+        ?int $status,
+        ?int $gradeLevelId,
+        ?int $specializationId,
+        ?int $branchId,
+        string $q,
+        int $page,
+        int $perPage,
+    ): array;
+
     public function deactivate(int $schoolId, int $curriculumId): bool;
 
     public function reactivate(int $schoolId, int $curriculumId): bool;
@@ -64,6 +84,9 @@ interface CurriculumRepositoryInterface
 
     /** @return list<CurriculumSubjectSnapshot> */
     public function listActiveLinks(int $schoolId, int $curriculumId): array;
+
+    /** @return list<CurriculumSubjectSnapshot> */
+    public function listLinks(int $schoolId, int $curriculumId): array;
 
     public function deactivateLink(int $schoolId, int $linkId): bool;
 

@@ -342,6 +342,27 @@ trait InteractsWithSecurity
         return $user;
     }
 
+    protected function actingAsCurriculumManagerForSchool(int $schoolId, ?User $user = null): User
+    {
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantCurriculumManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+
+        return $user;
+    }
+
+    protected function actingAsCurriculumManagerWeb(?User $user = null, ?int $schoolId = null): User
+    {
+        $schoolId ??= $this->createSchool('SCHOOL-A', 'School A');
+        $user ??= User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantCurriculumManager($user, $schoolId);
+        $this->actingAs($user);
+        $this->withSession(['current_school_id' => $schoolId]);
+
+        return $user;
+    }
+
     protected function actingAsPromotionManagerForSchool(int $schoolId, ?User $user = null): User
     {
         $user ??= User::factory()->create();

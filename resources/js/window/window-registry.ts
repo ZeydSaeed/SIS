@@ -88,6 +88,12 @@ export function getWindowCatalog(): Record<string, SisWindowDescriptor> {
             href: embedHref('/attendance/create'),
             minimumSize: { width: 560, height: 520 },
         },
+        'curriculum.list': {
+            windowId: 'curriculum.list',
+            title: i18n.modules.curriculum,
+            href: embedHref('/curriculum'),
+            minimumSize: { width: 720, height: 520 },
+        },
     };
 }
 
@@ -95,7 +101,25 @@ export function getWindowCatalog(): Record<string, SisWindowDescriptor> {
 export const WINDOW_CATALOG = getWindowCatalog();
 
 export function resolveWindow(windowId: string): SisWindowDescriptor | null {
-    return getWindowCatalog()[windowId] ?? null;
+    const catalog = getWindowCatalog();
+    if (catalog[windowId]) {
+        return catalog[windowId];
+    }
+
+    const showMatch = /^curriculum\.show\.(\d+)$/.exec(windowId);
+    if (showMatch) {
+        const curriculumId = showMatch[1];
+        const i18n = t();
+
+        return {
+            windowId,
+            title: i18n.curriculum.showTitle,
+            href: embedHref(`/curriculum/curricula/${curriculumId}`),
+            minimumSize: { width: 720, height: 560 },
+        };
+    }
+
+    return null;
 }
 
 /** Map app route path → windowId for sidebar / menu open. */
@@ -114,6 +138,16 @@ export function windowIdForPath(path: string): string | null {
         '/exams': 'exams.list',
         '/grades': 'grades.list',
         '/reports': 'reports.hub',
+        '/curriculum': 'curriculum.list',
     };
-    return map[clean] ?? null;
+    if (map[clean]) {
+        return map[clean];
+    }
+
+    const curriculumShow = /^\/curriculum\/curricula\/(\d+)$/.exec(clean);
+    if (curriculumShow) {
+        return `curriculum.show.${curriculumShow[1]}`;
+    }
+
+    return null;
 }

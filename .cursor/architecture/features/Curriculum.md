@@ -29,9 +29,26 @@ See [.cursor/architecture/FEATURE-DONE.md](../FEATURE-DONE.md).
 | Command | LinkCurriculumSubject | ✅ |
 | Command | DeactivateCurriculumSubject | ✅ |
 | Query | ListSubjectPrerequisites | ✅ |
-| Query | ListSubjects | ✅ |
-| Query | ListCurricula | ✅ |
-| Query | ListCurriculumSubjects | ✅ |
+| Query | ListSubjects | ✅ (+ includeInactive for web) |
+| Query | ListCurricula | ✅ (+ includeInactive for web) |
+| Query | ListCurriculumSubjects | ✅ (+ includeInactive for web) |
+
+## Web (Inertia)
+
+| Surface | Status |
+|---------|--------|
+| `GET /curriculum` page | ✅ list + server filters + pagination |
+| `GET /curriculum/curricula/{id}` detail tabs | ✅ plan / subjects / prerequisites / students |
+| Create / Edit / Deactivate / Reactivate curriculum | ✅ web routes → Application handlers |
+| Auto-link specialization subjects on create | ✅ CreateCurriculumHandler + specialization_subjects |
+| Create / Edit / Deactivate / Reactivate subject | ✅ |
+| Link / Deactivate / Reactivate curriculum subjects | ✅ |
+| Prerequisites web store/deactivate/reactivate | ✅ |
+| Enrollment subject assign from curriculum detail | ✅ AssignEnrollmentSubjectHandler |
+| Branch → department SSOT | ✅ `AdmissionCatalogReference` |
+| Subject catalog SSOT by branch/dept | ✅ `CurriculumSubjectCatalogReference` + seeder |
+| Demo curricula seed (spec × grade) | ✅ `CurriculumPlansSeeder` |
+| Window registry curriculum.list / show | ✅ |
 
 ## Enrollment prereq (cross-context)
 

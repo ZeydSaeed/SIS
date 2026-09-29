@@ -14,9 +14,18 @@ final class ListCurriculumSubjectsHandler
     /** @return list<CurriculumSubjectDTO>|null null when curriculum missing */
     public function handle(ListCurriculumSubjectsQuery $query): ?array
     {
-        if ($this->curricula->findActiveInSchool($query->schoolId, $query->curriculumId) === null) {
+        $curriculum = $this->curricula->findActiveInSchool($query->schoolId, $query->curriculumId)
+            ?? ($query->includeInactive
+                ? $this->curricula->findInactiveInSchool($query->schoolId, $query->curriculumId)
+                : null);
+
+        if ($curriculum === null) {
             return null;
         }
+
+        $rows = $query->includeInactive
+            ? $this->curricula->listLinks($query->schoolId, $query->curriculumId)
+            : $this->curricula->listActiveLinks($query->schoolId, $query->curriculumId);
 
         return array_map(
             fn ($row): CurriculumSubjectDTO => new CurriculumSubjectDTO(
@@ -28,7 +37,7 @@ final class ListCurriculumSubjectsHandler
                 subjectOrder: $row->subjectOrder,
                 status: $row->status,
             ),
-            $this->curricula->listActiveLinks($query->schoolId, $query->curriculumId),
+            $rows,
         );
     }
 }

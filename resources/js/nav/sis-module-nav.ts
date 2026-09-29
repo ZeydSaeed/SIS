@@ -122,6 +122,7 @@ export function getSisSidebarSections(): SisNavSection[] {
                 moduleItem('admission'),
                 moduleItem('students'),
                 moduleItem('enrollments'),
+                moduleItem('curriculum'),
                 moduleItem('attendance'),
                 moduleItem('holidays'),
             ],
@@ -132,7 +133,6 @@ export function getSisSidebarSections(): SisNavSection[] {
             titleEn: 'Student Affairs',
             items: [
                 moduleItem('timetable'),
-                moduleItem('curriculum'),
                 moduleItem('guardians'),
                 moduleItem('health'),
                 moduleItem('transfers'),

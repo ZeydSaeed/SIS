@@ -6,5 +6,6 @@ final readonly class ListSubjectPrerequisitesQuery
 {
     public function __construct(
         public int $subjectId,
+        public bool $includeInactive = false,
     ) {}
 }
