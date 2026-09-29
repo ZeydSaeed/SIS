@@ -653,6 +653,7 @@ export function TitleBarRibbon({
         group.id.startsWith('enrollment-'),
     );
     const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-'));
+    const isCurriculumRibbon = groups.some((group) => group.id.startsWith('curriculum-'));
     const isAdmissionRibbon = groups.some(
         (group) =>
             group.id.startsWith('admission-') || group.id === 'page-actions',
@@ -668,6 +669,7 @@ export function TitleBarRibbon({
                 tab === 'edit' ? 'sis-ribbon--fit' : '',
                 isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
                 isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
+                isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
                 isAdmissionRibbon ? 'sis-ribbon--admission' : '',
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
             ]

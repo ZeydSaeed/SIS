@@ -1250,6 +1250,70 @@ body.sis-table-col-resizing * {
     padding-block-end: 0.12rem;
 }
 
+/* Curriculum edit ribbon — same single-line command layout as enrollments. */
+.sis-ribbon--curriculum-edit .sis-ribbon__body {
+    justify-content: stretch;
+    align-items: stretch;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group--commands {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group--commands .sis-ribbon__items {
+    max-width: none;
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-evenly;
+    gap: 0.2rem;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-actions'] {
+    flex: 0.9 1 0;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-status-tabs'] {
+    flex: 1.2 1 0;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-distribution'] {
+    flex: 1 1 0;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-superseded'] {
+    flex: 0 0 auto;
+    min-width: max-content;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-actions'] .sis-ribbon__item,
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-status-tabs'] .sis-ribbon__item,
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-distribution'] .sis-ribbon__item {
+    min-width: 3.1rem;
+    max-width: 4.6rem;
+    overflow: visible;
+    line-height: 1.4;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-actions'] .sis-ribbon__label,
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-status-tabs'] .sis-ribbon__label,
+.sis-ribbon--curriculum-edit .sis-ribbon__group[data-group-id='curriculum-distribution'] .sis-ribbon__label {
+    display: block;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.45;
+    padding-block-end: 0.12rem;
+}
+
+.sis-ribbon--curriculum-edit .sis-ribbon__item.is-pressed,
+.sis-ribbon--curriculum-edit .sis-ribbon__item[aria-pressed='true'] {
+    background: var(--sis-hover);
+}
+
 .sis-ribbon--students-edit .sis-ribbon__body {
     justify-content: flex-start;
 }
@@ -1456,6 +1520,61 @@ body.sis-table-col-resizing * {
 }
 
 .sis-ribbon--enrollments-edit .sis-ribbon__item[data-item-id='status-tab-5'] {
+    color: var(--sis-ribbon-accent-history);
+}
+
+/* Curriculum edit — colored icons (same ops palette as enrollments). */
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='view-subjects'] {
+    color: var(--sis-ribbon-accent-view);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='create-subject'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='create-plan'] {
+    color: var(--sis-ribbon-accent-new);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-selected-subject'] {
+    color: var(--sis-ribbon-accent-edit);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='select-all-visible'] {
+    color: var(--sis-ribbon-accent-people);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='clear-selection'] {
+    color: var(--sis-ribbon-accent-cancel);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-all'] {
+    color: var(--sis-student-status-all);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-active'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='dist-active'] {
+    color: var(--sis-student-status-1);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-inactive'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='dist-inactive'] {
+    color: color-mix(in srgb, var(--sis-student-status-0) 42%, var(--sis-oxford));
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-core'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='dist-core'] {
+    color: var(--sis-ribbon-accent-academic);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-specialization'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='dist-specialization'] {
+    color: var(--sis-ribbon-accent-transfer);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='status-practical'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='dist-practical'] {
+    color: var(--sis-ribbon-accent-ops);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='curriculum-superseded-action'] {
     color: var(--sis-ribbon-accent-history);
 }
 
@@ -3973,11 +4092,11 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table {
-    /* Thin black card frame around each curriculum table. */
-    border: 1px solid #000000 !important;
-    background: var(--sis-pearl) !important;
+    /* No outer card — table grid carries its own border. */
+    border: none !important;
+    background: transparent !important;
     margin-top: 0;
-    padding: 0.45rem;
+    padding: 0;
     overflow: hidden;
     box-shadow: none !important;
     border-radius: 0.35rem;
@@ -4119,8 +4238,6 @@ button.sis-admission-enroll-status-text:active {
     min-width: 0;
     width: 100%;
     overflow: hidden;
-    padding: 0.15rem;
-    box-sizing: border-box;
 }
 
 .sis-enrollments-page .sis-enrollments-filter-chip {

@@ -1,11 +1,14 @@
+import AppLogo from '@/components/app-logo';
+import { SheetField, SheetSection } from '@/components/sis/admission-sheet';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
-    DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { OpsFormField } from '@/components/sis/ops-form-field';
+import { WindowControls } from '@/components/window-controls';
+import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { t } from '@/i18n';
 
 export type PlacementHistorySegment = {
@@ -142,7 +145,7 @@ function buildTimeline(
                 key,
                 label: fieldLabel(key, i18n),
                 value: fieldValue(first, key),
-            })).filter((field) => field.value !== '—'),
+            })),
         },
     ];
 
@@ -189,37 +192,25 @@ function currentStatus(segments: PlacementHistorySegment[], i18n: ReturnType<typ
     return statusLabel(current.status, i18n);
 }
 
-function ReadonlyBox({
+function filledControlClass(filled: boolean): string {
+    return `sis-admission-sheet__control sis-admission-draft-readonly${filled ? ' sis-admission-draft-field--filled' : ''}`;
+}
+
+function SheetReadonly({
     value,
     dir = 'rtl',
 }: {
     value: string;
     dir?: 'rtl' | 'ltr';
 }) {
-    const filled = value !== '—';
-
     return (
-        <div
-            className={
-                filled
-                    ? 'sis-ops-hub__link sis-admission-draft-control sis-admission-draft-readonly sis-admission-draft-field--filled'
-                    : 'sis-ops-hub__link sis-admission-draft-control sis-admission-draft-readonly'
-            }
-            dir={dir}
-            aria-live="polite"
-        >
+        <div className={filledControlClass(value !== '—')} dir={dir} aria-readonly="true">
             {value}
         </div>
     );
 }
 
-function StudentHistoryPanel({
-    history,
-    showDivider,
-}: {
-    history: PlacementHistoryPayload;
-    showDivider: boolean;
-}) {
+function StudentHistoryPanel({ history }: { history: PlacementHistoryPayload }) {
     const i18n = t();
     const studentTitle = displayValue(
         history.student_full_name?.trim() || String(history.student_id),
@@ -232,131 +223,115 @@ function StudentHistoryPanel({
     const hasChanges = timeline.some((entry) => entry.kind === 'change');
 
     return (
-        <article
-            className={
-                showDivider
-                    ? 'sis-placement-history-student sis-placement-history-student--divided'
-                    : 'sis-placement-history-student'
-            }
-        >
-            <div className="sis-admission-draft-rows">
-                <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                    <OpsFormField
+        <div className="sis-placement-history-sheet__student">
+            <SheetSection
+                id={`placement-history-student-${history.student_id}`}
+                title={i18n.enrollments.student}
+            >
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-placement-history-sheet__summary-row">
+                    <SheetField
                         label={i18n.enrollments.quadName}
-                        name={`history_student_${history.student_id}`}
+                        className="sis-placement-history-sheet__field--name"
                     >
-                        <ReadonlyBox value={studentTitle} />
-                    </OpsFormField>
-                    <OpsFormField
+                        <SheetReadonly value={studentTitle} />
+                    </SheetField>
+                    <SheetField
                         label={i18n.enrollments.academicYear}
-                        name={`history_year_${history.student_id}`}
+                        className="sis-placement-history-sheet__field--year"
                     >
-                        <ReadonlyBox value={yearTitle} dir="ltr" />
-                    </OpsFormField>
-                    <OpsFormField
-                        label={i18n.enrollments.statusTabsTitle}
-                        name={`history_status_${history.student_id}`}
+                        <SheetReadonly value={yearTitle} dir="ltr" />
+                    </SheetField>
+                    <SheetField
+                        label={i18n.common.status}
+                        className="sis-placement-history-sheet__field--status"
                     >
-                        <ReadonlyBox value={statusTitle} />
-                    </OpsFormField>
+                        <SheetReadonly value={statusTitle} />
+                    </SheetField>
                 </div>
-            </div>
+            </SheetSection>
 
             {timeline.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                    {i18n.enrollments.placementHistoryEmpty}
-                </p>
+                <SheetSection
+                    id={`placement-history-empty-${history.student_id}`}
+                    title={i18n.enrollments.placementHistoryTitle}
+                >
+                    <p className="sis-admission-sheet__empty">{i18n.enrollments.placementHistoryEmpty}</p>
+                </SheetSection>
             ) : (
-                <div className="sis-placement-history-timeline">
-                    {timeline.map((entry) => (
-                        <section
-                            key={`${history.student_id}-${entry.kind}-${entry.id}`}
-                            className={
-                                entry.kind === 'original'
-                                    ? 'sis-placement-history-block sis-placement-history-block--original'
-                                    : 'sis-placement-history-block sis-placement-history-block--change'
-                            }
-                        >
-                            <header className="sis-placement-history-block__head">
-                                <span className="sis-placement-history-block__kind">
-                                    {entry.kind === 'original'
-                                        ? i18n.enrollments.placementHistoryOriginal
-                                        : i18n.enrollments.placementHistoryChange}
-                                </span>
-                                <span className="sis-placement-history-block__date" dir="ltr">
-                                    {entry.date}
-                                </span>
-                            </header>
-
-                            {entry.kind === 'original' ? (
-                                entry.fields.length === 0 ? (
-                                    <p className="sis-placement-history-block__empty">
-                                        {i18n.enrollments.placementHistoryEmpty}
-                                    </p>
-                                ) : (
-                                    <div className="sis-admission-draft-row sis-admission-draft-row--3">
-                                        {entry.fields.map((field) => (
-                                            <OpsFormField
-                                                key={field.key}
-                                                label={field.label}
-                                                name={`history_original_${history.student_id}_${entry.id}_${field.key}`}
-                                            >
-                                                <ReadonlyBox value={field.value} />
-                                            </OpsFormField>
-                                        ))}
-                                    </div>
-                                )
+                timeline.map((entry) => (
+                    <SheetSection
+                        key={`${history.student_id}-${entry.kind}-${entry.id}`}
+                        id={`placement-history-${history.student_id}-${entry.kind}-${entry.id}`}
+                        title={`${
+                            entry.kind === 'original'
+                                ? i18n.enrollments.placementHistoryOriginal
+                                : i18n.enrollments.placementHistoryChange
+                        } — ${entry.date}`}
+                    >
+                        {entry.kind === 'original' ? (
+                            entry.fields.length === 0 ? (
+                                <p className="sis-admission-sheet__empty">
+                                    {i18n.enrollments.placementHistoryEmpty}
+                                </p>
                             ) : (
-                                <ul className="sis-placement-history-changes">
+                                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-placement-history-sheet__fields-row">
                                     {entry.fields.map((field) => (
-                                        <li
+                                        <SheetField
                                             key={field.key}
-                                            className="sis-placement-history-change"
+                                            label={field.label}
+                                            className={`sis-placement-history-sheet__field sis-placement-history-sheet__field--${field.key}`}
                                         >
-                                            <span className="sis-placement-history-change__label">
-                                                {field.label}
-                                            </span>
-                                            <span
-                                                className="sis-placement-history-change__values"
-                                                dir="ltr"
-                                            >
-                                                <span className="sis-placement-history-change__from">
-                                                    {field.from}
-                                                </span>
-                                                <span
-                                                    className="sis-placement-history-change__arrow"
-                                                    aria-hidden
-                                                >
-                                                    →
-                                                </span>
-                                                <span className="sis-placement-history-change__to">
-                                                    {field.to}
-                                                </span>
-                                            </span>
-                                        </li>
+                                            <SheetReadonly value={field.value} />
+                                        </SheetField>
                                     ))}
-                                </ul>
-                            )}
-                        </section>
-                    ))}
-
-                    {!hasChanges && timeline.length > 0 ? (
-                        <p className="text-muted-foreground text-sm">
-                            {i18n.enrollments.placementHistoryNoChanges}
-                        </p>
-                    ) : null}
-                </div>
+                                </div>
+                            )
+                        ) : (
+                            <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-placement-history-sheet__fields-row">
+                                {entry.fields.map((field) => (
+                                    <SheetField
+                                        key={field.key}
+                                        label={field.label}
+                                        className={`sis-placement-history-sheet__field sis-placement-history-sheet__field--${field.key}`}
+                                    >
+                                        <div
+                                            className={`${filledControlClass(true)} sis-placement-history-sheet__change`}
+                                            dir="ltr"
+                                            aria-readonly="true"
+                                        >
+                                            <span>{field.from}</span>
+                                            <span aria-hidden="true">→</span>
+                                            <span>{field.to}</span>
+                                        </div>
+                                    </SheetField>
+                                ))}
+                            </div>
+                        )}
+                    </SheetSection>
+                ))
             )}
-        </article>
+
+            {!hasChanges && timeline.length > 0 ? (
+                <p className="sis-placement-history-sheet__hint">
+                    {i18n.enrollments.placementHistoryNoChanges}
+                </p>
+            ) : null}
+        </div>
     );
 }
 
+/** Placement history sheet — same chrome SSOT as enrollment / students / admission forms. */
 export function EnrollmentPlacementHistoryDialog({ histories, onClose }: Props) {
     const i18n = t();
     const title =
         histories.length > 1
             ? `${i18n.enrollments.placementHistoryTitle} (${histories.length})`
             : i18n.enrollments.placementHistoryTitle;
+    const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(true, {
+        resizable: true,
+        minSize: { width: 720, height: 320 },
+    });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     return (
         <Dialog
@@ -369,37 +344,61 @@ export function EnrollmentPlacementHistoryDialog({ histories, onClose }: Props) 
             }}
         >
             <DialogContent
-                className="sis-admission-draft-dialog sis-placement-history-dialog max-h-[90vh] overflow-y-auto sm:max-w-3xl"
-                overlayClassName="sis-placement-history-dialog__overlay"
+                ref={contentRef}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-placement-history-dialog${maximizeClassName}`}
+                overlayClassName="sis-admission-sheet-dialog__overlay sis-placement-history-dialog__overlay"
                 dir="rtl"
                 lang="ar"
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
                 onPointerDownOutside={(event) => event.preventDefault()}
                 onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownCapture={bringToFront}
             >
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                </DialogHeader>
+                <DialogTitle className="sr-only">{title}</DialogTitle>
+                {maximized ? null : resizeHandles}
 
-                <div className="sis-admission-draft-form sis-placement-history-form">
+                <div className="sis-admission-sheet sis-placement-history-sheet">
+                    <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
+                        <WindowControls
+                            className="sis-admission-sheet__window-controls"
+                            label={i18n.window.controls}
+                            minimizeLabel={i18n.window.minimize}
+                            maximizeLabel={i18n.window.maximize}
+                            restoreLabel={i18n.window.restore}
+                            closeLabel={i18n.window.close}
+                            minimizable={false}
+                            maximizable
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
+                            onClose={onClose}
+                        />
+                        <div className="sis-admission-sheet__hero-copy">
+                            <p className="sis-admission-sheet__hero-title">{title}</p>
+                        </div>
+                        <div className="sis-admission-sheet__hero-logo">
+                            <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />
+                        </div>
+                    </header>
+
                     {histories.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">
-                            {i18n.enrollments.placementHistoryEmpty}
-                        </p>
+                        <SheetSection
+                            id="placement-history-empty"
+                            title={i18n.enrollments.placementHistoryTitle}
+                        >
+                            <p className="sis-admission-sheet__empty">
+                                {i18n.enrollments.placementHistoryEmpty}
+                            </p>
+                        </SheetSection>
                     ) : (
-                        <div className="sis-placement-history-students">
-                            {histories.map((history, index) => (
-                                <StudentHistoryPanel
-                                    key={history.student_id}
-                                    history={history}
-                                    showDivider={index > 0}
-                                />
+                        <div className="sis-placement-history-sheet__students">
+                            {histories.map((history) => (
+                                <StudentHistoryPanel key={history.student_id} history={history} />
                             ))}
                         </div>
                     )}
 
-                    <div className="sis-admission-draft-actions">
+                    <div className="sis-admission-sheet__actions">
                         <Button type="button" variant="outline" onClick={onClose}>
                             {i18n.dialog.cancel}
                         </Button>

@@ -1,5 +1,12 @@
 import { router, usePage } from '@inertiajs/react';
-import { FilterX } from 'lucide-react';
+import {
+    Eye,
+    FilterX,
+    Pencil,
+    Plus,
+    Users,
+    XCircle,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     CURRICULUM_DEFAULT_TABLE_VIEW,
@@ -9,6 +16,14 @@ import {
     catalogDepartmentsForBranch,
     catalogSubjectsFor,
 } from '@/components/curriculum/curriculum-subject-catalog';
+import {
+    CURRICULUM_DISTRIBUTION_ACTIONS,
+    CURRICULUM_STATUS_TABS,
+    CURRICULUM_SUPERSEDED_ICON,
+    editFilterEquals,
+    matchesCurriculumEditFilter,
+    type CurriculumEditFilter,
+} from '@/components/curriculum/curriculum-edit-controls';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import {
@@ -17,6 +32,7 @@ import {
 } from '@/components/sis/ops-year-filter';
 import {
     useRegisterPageRibbon,
+    type PageRibbonCommand,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
@@ -301,6 +317,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const [confirm, setConfirm] = useState<ConfirmState>(null);
     const [confirmPending, setConfirmPending] = useState(false);
     const [activeView, setActiveView] = useState<CurriculumListView>('curricula');
+    const [editFilter, setEditFilter] = useState<CurriculumEditFilter>({ kind: 'all' });
+    const [selectedNames, setSelectedNames] = useState<string[]>([]);
+    const canManage = props.authorization?.canManage === true;
 
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const yearCatalog = academicYears ?? [];
@@ -645,18 +664,28 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const catalogSubjectRows = useMemo(() => {
         const query = filters.q.trim().toLowerCase();
         const catalogNames = new Set<string>();
-        const rows = catalogAllSubjectTableRows().map((row) => {
+        const rows: Array<{
+            id: number | null;
+            name: string;
+            subject_type: number;
+            credit_hours: number | null;
+            max_grade: number;
+            pass_grade: number;
+            status: number;
+            prerequisites: string;
+        }> = catalogAllSubjectTableRows().map((row) => {
             const fromDb = subjectsByName.get(row.name);
             catalogNames.add(row.name);
 
             return {
+                id: fromDb?.id ?? null,
                 name: row.name,
                 subject_type: fromDb?.subject_type ?? row.subject_type,
                 credit_hours: fromDb?.credit_hours ?? row.credit_hours,
                 max_grade: fromDb?.max_grade ?? row.max_grade,
                 pass_grade: fromDb?.pass_grade ?? row.pass_grade,
                 status: fromDb?.status ?? row.status,
-                prerequisites: '' as string,
+                prerequisites: '',
             };
         });
 
@@ -665,6 +694,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 continue;
             }
             rows.push({
+                id: fromDb.id,
                 name: fromDb.name,
                 subject_type: fromDb.subject_type,
                 credit_hours: fromDb.credit_hours,
@@ -683,6 +713,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return row.name.toLowerCase().includes(query);
         });
     }, [filters.q, subjects.data, subjectsByName]);
+
+    const visibleSubjectRows = useMemo(
+        () =>
+            catalogSubjectRows.filter((row) =>
+                matchesCurriculumEditFilter(row, editFilter),
+            ),
+        [catalogSubjectRows, editFilter],
+    );
 
     const catalogCurriculumRows = useMemo(() => {
         const classLabel = selectedClass === '' ? '' : sisClassLabel(selectedClass);
@@ -719,6 +757,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
 
         const seen = new Set<string>();
         const out: Array<{
+            id: number | null;
             name: string;
             subject_type: number;
             credit_hours: number;
@@ -735,6 +774,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 const fromDb = subjectsByName.get(subject.name);
                 out.push({
                     ...subject,
+                    id: fromDb?.id ?? null,
                     status: fromDb?.status ?? 1,
                 });
             }
@@ -743,21 +783,229 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         return out;
     }, [catalogCurriculumRows, selectedBranch, selectedClass, selectedSpec, subjectsByName]);
 
+    const visiblePlanSubjectRows = useMemo(
+        () =>
+            curriculumPlanSubjectRows.filter((row) =>
+                matchesCurriculumEditFilter(row, editFilter),
+            ),
+        [curriculumPlanSubjectRows, editFilter],
+    );
+
     const hasSubjectSearch = filters.q.trim() !== '';
+
+    const selectedSet = useMemo(() => new Set(selectedNames), [selectedNames]);
+    const hasSelection = selectedNames.length > 0;
+
+    const toggleSelectedName = useCallback((name: string): void => {
+        setSelectedNames((prev) =>
+            prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name],
+        );
+    }, []);
+
+    const clearSelection = useCallback((): void => {
+        setSelectedNames([]);
+    }, []);
+
+    const selectAllVisible = useCallback((): void => {
+        const rows = activeView === 'subjects' ? visibleSubjectRows : visiblePlanSubjectRows;
+        setSelectedNames(rows.map((row) => row.name));
+    }, [activeView, visiblePlanSubjectRows, visibleSubjectRows]);
+
+    const applyDistribution = useCallback(
+        (apply: { kind: 'status'; value: 1 | 2 } | { kind: 'type'; value: 1 | 2 | 3 }): void => {
+            if (!canManage || !hasSelection) {
+                return;
+            }
+
+            const targets = selectedNames
+                .map((name) => subjectsByName.get(name))
+                .filter((row): row is SubjectRow => row !== undefined);
+
+            if (targets.length === 0) {
+                return;
+            }
+
+            for (const target of targets) {
+                if (apply.kind === 'status') {
+                    if (apply.value === 1 && target.status !== 1) {
+                        postWithIdempotency(`/curriculum/subjects/${target.id}/reactivate`);
+                    } else if (apply.value === 2 && target.status === 1) {
+                        postWithIdempotency(`/curriculum/subjects/${target.id}/deactivate`);
+                    }
+                } else if (target.subject_type !== apply.value) {
+                    patchWithIdempotency(`/curriculum/subjects/${target.id}`, {
+                        name: target.name,
+                        subject_type: apply.value,
+                        credit_hours: target.credit_hours,
+                        max_grade: target.max_grade,
+                        pass_grade: target.pass_grade,
+                    });
+                }
+            }
+
+            clearSelection();
+        },
+        [canManage, clearSelection, hasSelection, selectedNames, subjectsByName],
+    );
+
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        const actionCommands: PageRibbonCommand[] = [
+            {
+                id: 'view-subjects',
+                label: c.view,
+                icon: Eye,
+                onSelect: () => {
+                    setActiveView('subjects');
+                },
+            },
+            {
+                id: 'create-subject',
+                label: c.createSubjectAction,
+                icon: Plus,
+                tone: 'edit',
+                disabled: !canManage,
+                onSelect: () => {
+                    setEditingSubject(null);
+                    setSubjectDialogOpen(true);
+                },
+            },
+            {
+                id: 'create-plan',
+                label: c.createPlanAction,
+                icon: Plus,
+                tone: 'edit',
+                disabled: !canManage,
+                onSelect: () => {
+                    setEditingPlan(null);
+                    setPlanDialogOpen(true);
+                },
+            },
+            {
+                id: 'edit-selected-subject',
+                label: i18n.common.edit,
+                icon: Pencil,
+                tone: 'edit',
+                disabled: !canManage || selectedNames.length !== 1,
+                title: i18n.common.edit,
+                onSelect: () => {
+                    const name = selectedNames[0];
+                    const row = name ? subjectsByName.get(name) : undefined;
+                    if (!row) {
+                        return;
+                    }
+                    setEditingSubject(row);
+                    setSubjectDialogOpen(true);
+                },
+            },
+            {
+                id: 'select-all-visible',
+                label: c.selectAllVisible,
+                icon: Users,
+                onSelect: selectAllVisible,
+            },
+            {
+                id: 'clear-selection',
+                label: c.clearSelection,
+                icon: XCircle,
+                disabled: !hasSelection,
+                onSelect: clearSelection,
+            },
+        ];
+
+        const statusCommands: PageRibbonCommand[] = CURRICULUM_STATUS_TABS.map((tab) => {
+            const label = c[tab.labelKey];
+
+            return {
+                id: tab.id,
+                label,
+                title: label,
+                icon: tab.icon,
+                pressed: editFilterEquals(editFilter, tab.filter),
+                onSelect: () => {
+                    setEditFilter(tab.filter);
+                    setActiveView('subjects');
+                },
+            };
+        });
+
+        const distributionCommands: PageRibbonCommand[] = CURRICULUM_DISTRIBUTION_ACTIONS.map(
+            (action) => {
+                const label = c[action.labelKey];
+
+                return {
+                    id: action.id,
+                    label,
+                    title: label,
+                    icon: action.icon,
+                    disabled: !canManage,
+                    onSelect: () => applyDistribution(action.apply),
+                };
+            },
+        );
+
+        const supersededLabel = c.ribbonSuperseded;
+        const supersededCommand: PageRibbonCommand = {
+            id: 'curriculum-superseded-action',
+            label: supersededLabel,
+            title: supersededLabel,
+            icon: CURRICULUM_SUPERSEDED_ICON,
+            pressed: editFilter.kind === 'superseded',
+            onSelect: () => {
+                setEditFilter({ kind: 'superseded' });
+                setActiveView('subjects');
+            },
+        };
+
+        return [
+            {
+                id: 'curriculum-actions',
+                label: c.ribbonActions,
+                commands: actionCommands,
+            },
+            {
+                id: 'curriculum-status-tabs',
+                label: c.ribbonStatus,
+                commands: statusCommands,
+            },
+            {
+                id: 'curriculum-distribution',
+                label: c.ribbonDistribution,
+                commands: distributionCommands,
+            },
+            {
+                id: 'curriculum-superseded',
+                label: c.ribbonSuperseded,
+                commands: [supersededCommand],
+            },
+        ];
+    }, [
+        applyDistribution,
+        c,
+        canManage,
+        clearSelection,
+        editFilter,
+        hasSelection,
+        i18n.common.edit,
+        selectAllVisible,
+        selectedNames,
+        subjectsByName,
+    ]);
+
+    useRegisterPageRibbon('edit', editRibbonGroups);
 
     const tableRef = useRef<HTMLTableElement>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const tableRowCount =
         activeView === 'subjects'
-            ? catalogSubjectRows.length
-            : curriculumPlanSubjectRows.length;
+            ? visibleSubjectRows.length
+            : visiblePlanSubjectRows.length;
 
     useResizableTableColumns(tableRef, {
         storageKey: activeView === 'subjects' ? 'curriculum.subjects' : 'curriculum.plans',
         columnSignature:
             activeView === 'subjects'
-                ? 'seq:name:type:hours:max:pass:prereq:status:v2'
-                : 'seq:name:type:hours:max:status:v2',
+                ? 'select:seq:name:type:hours:max:pass:prereq:status:v3'
+                : 'select:seq:name:type:hours:max:status:v3',
         enabled: tableRowCount > 0,
     });
     useSmoothVerticalScroll(scrollerRef, tableRowCount > 0);
@@ -860,6 +1108,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                             <p className="text-sm px-1 py-2">
                                 {hasSubjectSearch ? c.emptySearch : c.subjectsEmptyDesc}
                             </p>
+                        ) : visibleSubjectRows.length === 0 ? (
+                            <p className="text-sm px-1 py-2">{c.editErrorEmpty}</p>
                         ) : (
                             <div className="sis-curriculum-subjects-table">
                                 <div
@@ -869,6 +1119,29 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                     <table ref={tableRef}>
                                         <thead>
                                             <tr>
+                                                <th className="sis-admission-drafts-table__select">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            visibleSubjectRows.length > 0 &&
+                                                            visibleSubjectRows.every((row) =>
+                                                                selectedSet.has(row.name),
+                                                            )
+                                                        }
+                                                        onChange={() => {
+                                                            if (
+                                                                visibleSubjectRows.every((row) =>
+                                                                    selectedSet.has(row.name),
+                                                                )
+                                                            ) {
+                                                                clearSelection();
+                                                            } else {
+                                                                selectAllVisible();
+                                                            }
+                                                        }}
+                                                        aria-label={c.selectAllVisible}
+                                                    />
+                                                </th>
                                                 <th className="sis-admission-drafts-table__num">
                                                     {c.seq}
                                                 </th>
@@ -884,8 +1157,25 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {catalogSubjectRows.map((row, index) => (
-                                                <tr key={`${row.name}-${index}`}>
+                                            {visibleSubjectRows.map((row, index) => (
+                                                <tr
+                                                    key={`${row.name}-${index}`}
+                                                    className={
+                                                        selectedSet.has(row.name)
+                                                            ? 'sis-admission-periods-table__row--selected'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    <td className="sis-admission-drafts-table__select">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedSet.has(row.name)}
+                                                            onChange={() =>
+                                                                toggleSelectedName(row.name)
+                                                            }
+                                                            aria-label={row.name}
+                                                        />
+                                                    </td>
                                                     <td className="sis-admission-drafts-table__num">
                                                         {index + 1}
                                                     </td>
@@ -930,6 +1220,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                         <p className="text-sm px-1 py-2">
                             {hasSubjectSearch ? c.emptySearch : c.plansEmptyDesc}
                         </p>
+                    ) : visiblePlanSubjectRows.length === 0 ? (
+                        <p className="text-sm px-1 py-2">{c.editErrorEmpty}</p>
                     ) : (
                         <div className="sis-curriculum-subjects-table">
                             <div
@@ -939,6 +1231,29 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                 <table ref={tableRef}>
                                     <thead>
                                         <tr>
+                                            <th className="sis-admission-drafts-table__select">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        visiblePlanSubjectRows.length > 0 &&
+                                                        visiblePlanSubjectRows.every((row) =>
+                                                            selectedSet.has(row.name),
+                                                        )
+                                                    }
+                                                    onChange={() => {
+                                                        if (
+                                                            visiblePlanSubjectRows.every((row) =>
+                                                                selectedSet.has(row.name),
+                                                            )
+                                                        ) {
+                                                            clearSelection();
+                                                        } else {
+                                                            selectAllVisible();
+                                                        }
+                                                    }}
+                                                    aria-label={c.selectAllVisible}
+                                                />
+                                            </th>
                                             <th className="sis-admission-drafts-table__num">
                                                 {c.seq}
                                             </th>
@@ -952,8 +1267,25 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {curriculumPlanSubjectRows.map((subject, index) => (
-                                            <tr key={`${subject.name}-${index}`}>
+                                        {visiblePlanSubjectRows.map((subject, index) => (
+                                            <tr
+                                                key={`${subject.name}-${index}`}
+                                                className={
+                                                    selectedSet.has(subject.name)
+                                                        ? 'sis-admission-periods-table__row--selected'
+                                                        : undefined
+                                                }
+                                            >
+                                                <td className="sis-admission-drafts-table__select">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedSet.has(subject.name)}
+                                                        onChange={() =>
+                                                            toggleSelectedName(subject.name)
+                                                        }
+                                                        aria-label={subject.name}
+                                                    />
+                                                </td>
                                                 <td className="sis-admission-drafts-table__num">
                                                     {index + 1}
                                                 </td>

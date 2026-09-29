@@ -33,8 +33,11 @@ import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
+    resolveSisClassId,
+    resolveSisClassKey,
     resolveSisSectionCode,
     resolveSisSectionId,
+    sisClassSelectOptions,
     sisSectionSelectOptions,
 } from '@/lib/sis-class-section-options';
 import {
@@ -265,12 +268,12 @@ export function EnrollmentList({
             : genderValue === '2'
               ? i18n.students.female
               : i18n.enrollments.gender;
-    const classValue = filters.class_id ? String(filters.class_id) : '';
+    const classValue = resolveSisClassKey(filters.class_id, filterOptions.classes);
     const sectionValue = filters.section_id ? String(filters.section_id) : '';
     const branchValue = filters.branch_id ? String(filters.branch_id) : '';
     const departmentIdValue = filters.department_id ? String(filters.department_id) : '';
     const selectedClassLabel =
-        filterOptions.classes.find((item) => String(item.id) === classValue)?.name
+        sisClassSelectOptions().find((item) => item.value === classValue)?.label
         ?? i18n.enrollments.allClasses;
     const selectedSectionLabel =
         resolveSisSectionCode(filters.section_id, filterOptions.sections)
@@ -596,8 +599,14 @@ export function EnrollmentList({
     }, [branchValue, filterOptions.departments, handoffDraft.branch_id, isEditMode, isHandoffMode]);
 
     const handoffClassLabel =
-        filterOptions.classes.find((item) => String(item.id) === handoffDraft.class_id)?.name
-        ?? i18n.enrollments.allClasses;
+        sisClassSelectOptions().find(
+            (item) =>
+                item.value
+                === resolveSisClassKey(
+                    handoffDraft.class_id === '' ? null : Number(handoffDraft.class_id),
+                    filterOptions.classes,
+                ),
+        )?.label ?? i18n.enrollments.allClasses;
     const handoffSectionLabel =
         resolveSisSectionCode(
             handoffDraft.section_id === '' ? null : Number(handoffDraft.section_id),
@@ -1384,17 +1393,19 @@ export function EnrollmentList({
                                         key={isStructureEditMode ? 'class-edit' : 'class-filter'}
                                         value={
                                             isHandoffMode
-                                                ? handoffDraft.class_id
+                                                ? resolveSisClassKey(
+                                                      handoffDraft.class_id === ''
+                                                          ? null
+                                                          : Number(handoffDraft.class_id),
+                                                      filterOptions.classes,
+                                                  )
                                                 : isEditMode
                                                   ? ''
                                                   : classValue
                                         }
                                         options={[
                                             { value: '', label: i18n.enrollments.allClasses },
-                                            ...filterOptions.classes.map((item) => ({
-                                                value: String(item.id),
-                                                label: item.name,
-                                            })),
+                                            ...sisClassSelectOptions(),
                                         ]}
                                         onChange={(next) => {
                                             if (isHandoffMode) {
@@ -1402,7 +1413,18 @@ export function EnrollmentList({
                                                     return;
                                                 }
 
-                                                patchHandoffDraft({ class_id: next });
+                                                const classId =
+                                                    next === ''
+                                                        ? null
+                                                        : resolveSisClassId(
+                                                              next,
+                                                              filterOptions.classes,
+                                                          );
+                                                patchHandoffDraft({
+                                                    class_id:
+                                                        classId === null ? '' : String(classId),
+                                                    section_id: '',
+                                                });
 
                                                 return;
                                             }
@@ -1412,13 +1434,28 @@ export function EnrollmentList({
                                                     return;
                                                 }
 
-                                                applyPlacementPatch({ class_id: Number(next) });
+                                                const classId = resolveSisClassId(
+                                                    next,
+                                                    filterOptions.classes,
+                                                );
+                                                if (classId === null) {
+                                                    return;
+                                                }
+
+                                                applyPlacementPatch({ class_id: classId });
 
                                                 return;
                                             }
 
+                                            const classId =
+                                                next === ''
+                                                    ? null
+                                                    : resolveSisClassId(
+                                                          next,
+                                                          filterOptions.classes,
+                                                      );
                                             visitList({
-                                                class_id: next === '' ? null : Number(next),
+                                                class_id: classId,
                                                 section_id: null,
                                                 page: 1,
                                             });
