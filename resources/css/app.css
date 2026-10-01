@@ -67,6 +67,21 @@
     --sis-pearl: #e0e1dd;          /* window background */
     --sis-hover: #caf0f8;          /* hover */
     --sis-ribbon: #edf6f9;         /* file ribbon surface */
+    /* Interactive corner radii — system-wide SSOT */
+    --sis-button-radius: 0.375rem;
+    --sis-field-radius: 0.375rem;
+    --sis-surface-radius: 0.5rem; /* dialogs, sheets, windows */
+    --sis-table-radius: 0.65rem; /* table outer frame */
+    /* Table grid + typography — system-wide SSOT */
+    --sis-table-line-width: 1px;
+    --sis-table-line-color: #000000;
+    --sis-table-line-style: solid;
+    --sis-table-line: var(--sis-table-line-width) var(--sis-table-line-style)
+        var(--sis-table-line-color);
+    --sis-table-font-family: var(--sis-font-stack);
+    --sis-table-font-size: 0.875rem;
+    --sis-table-font-weight: 400;
+    --sis-table-header-weight: 700;
 
     /* Admission workflow progress — per-stage palette (ops brief) */
     --sis-admission-status-0: #009be2;
@@ -831,7 +846,7 @@ body.sis-table-col-resizing * {
     line-height: 1.2;
     padding: 0.25rem 0.55rem;
     margin: 0;
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     box-shadow: none;
     text-decoration: none;
     white-space: nowrap;
@@ -845,7 +860,7 @@ body.sis-table-col-resizing * {
 
 .sis-titlebar .sis-window__control {
     color: var(--sis-pearl) !important;
-    border-radius: 0 !important;
+    border-radius: var(--sis-button-radius) !important;
 }
 
 .sis-titlebar__utilities {
@@ -882,7 +897,7 @@ body.sis-table-col-resizing * {
     margin: 0;
     padding: 0;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     background: transparent;
     color: inherit;
     cursor: pointer;
@@ -921,7 +936,7 @@ body.sis-table-col-resizing * {
 .sis-titlebar .sis-titlebar__menu-item,
 .sis-titlebar .sis-titlebar__utility,
 .sis-titlebar .sis-window__control {
-    border-radius: 0 !important;
+    border-radius: var(--sis-button-radius) !important;
 }
 
 .sis-titlebar .sis-titlebar__utility-badge {
@@ -1427,19 +1442,22 @@ body.sis-table-col-resizing * {
     color: var(--sis-steel) !important;
 }
 
-.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='view-student'] {
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='view-student'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='view-enrollment'] {
     color: var(--sis-ribbon-accent-view);
 }
 
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-student'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-draft'],
-.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-period'] {
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-period'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='edit-enrollment'] {
     color: var(--sis-ribbon-accent-edit);
 }
 
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-student'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-draft'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-period'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save-enrollment'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='save'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='saveAs'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='savePdf'] {
@@ -1448,7 +1466,8 @@ body.sis-table-col-resizing * {
 
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-student'],
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-draft'],
-.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-period'] {
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-period'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='delete-enrollment'] {
     color: var(--sis-ribbon-accent-delete);
 }
 
@@ -2186,7 +2205,7 @@ body.sis-table-col-resizing * {
     max-height: 100%;
     padding: 0.2rem 0.3rem;
     border: 0;
-    border-radius: 0.25rem;
+    border-radius: var(--sis-button-radius);
     background: transparent;
     color: var(--sis-oxford);
     font-family: var(--sis-chrome-font);
@@ -2881,7 +2900,7 @@ input[type='reset']:disabled {
     min-height: 2.25rem;
     padding: 0.35rem 0.75rem;
     border: 1px solid var(--sis-mist);
-    border-radius: 0.35rem;
+    border-radius: var(--sis-button-radius);
     background: transparent;
     color: var(--sis-steel);
     font: inherit;
@@ -3285,7 +3304,7 @@ button.sis-admission-enroll-status-text:active {
 .sis-desktop-shell__action {
     min-height: 2.5rem;
     padding: 0.4rem 0.85rem;
-    border-radius: 0.4rem;
+    border-radius: var(--sis-button-radius);
     border: 1px solid var(--sis-oxford);
     background: var(--sis-mist);
     color: var(--sis-oxford);
@@ -3335,7 +3354,7 @@ button.sis-admission-enroll-status-text:active {
 .sis-desktop-workspace__task {
     min-height: 2.25rem;
     padding: 0.3rem 0.75rem;
-    border-radius: 0.3rem;
+    border-radius: var(--sis-button-radius);
     border: 1px solid var(--sis-oxford);
     background: var(--sis-mist);
     color: var(--sis-oxford);
@@ -3355,10 +3374,11 @@ button.sis-admission-enroll-status-text:active {
     flex-direction: column;
     min-width: 20rem;
     min-height: 14rem;
-    border: 1px solid var(--sis-oxford);
-    border-radius: 0.45rem;
+    border: 0;
+    border-radius: var(--sis-surface-radius);
     background: var(--sis-pearl);
     overflow: hidden;
+    box-shadow: 0 0.45rem 1.4rem color-mix(in srgb, var(--sis-night) 22%, transparent);
 }
 
 .sis-window__titlebar {
@@ -3398,7 +3418,7 @@ button.sis-admission-enroll-status-text:active {
     width: 2rem;
     height: 2rem;
     border: 0;
-    border-radius: 0.25rem;
+    border-radius: var(--sis-button-radius);
     background: transparent;
     color: inherit;
     cursor: pointer;
@@ -3822,7 +3842,7 @@ button.sis-admission-enroll-status-text:active {
 .sis-enrollments-page .sis-enrollments-filters-bar .sis-list-select__trigger:focus-visible,
 .sis-enrollments-page .sis-enrollments-filters-bar .sis-list-select__trigger:active {
     border: 0 !important;
-    border-radius: 0 !important;
+    border-radius: var(--sis-field-radius) !important;
     outline: none !important;
     box-shadow: none !important;
     filter: none !important;
@@ -3930,6 +3950,10 @@ button.sis-admission-enroll-status-text:active {
     overflow: hidden;
     width: 100%;
     max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .sis-curriculum-view-tabs {
@@ -3951,7 +3975,7 @@ button.sis-admission-enroll-status-text:active {
     padding-block: 0.25rem;
     padding-inline: 0.95rem;
     border: 1px solid var(--sidebar);
-    border-radius: 0.55rem;
+    border-radius: var(--sis-button-radius) !important;
     background: var(--sidebar);
     color: var(--sidebar-foreground);
     font-family: var(--sis-font-stack);
@@ -4092,14 +4116,15 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table {
-    /* No outer card — table grid carries its own border. */
-    border: none !important;
-    background: transparent !important;
+    /* Same outer frame as admission/students tables */
+    border: 1px solid #000000 !important;
+    border-color: #000000 !important;
+    background: var(--sis-admission-page) !important;
     margin-top: 0;
     padding: 0;
     overflow: hidden;
     box-shadow: none !important;
-    border-radius: 0.35rem;
+    border-radius: var(--sis-table-radius) !important;
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -4130,13 +4155,13 @@ button.sis-admission-enroll-status-text:active {
 /* Radius + thin 1px grid — no overflow:hidden on <table> (breaks sticky thead). */
 .sis-curriculum-page .sis-curriculum-subjects-table table {
     width: 100%;
-    border: 1px solid #000000 !important;
+    border: 0 !important;
     border-collapse: separate;
     border-spacing: 0;
     background: var(--sis-admission-page);
     outline: none;
     box-shadow: none;
-    border-radius: 0.35rem;
+    border-radius: var(--sis-table-radius);
     overflow: visible;
     font-family: var(--sis-font-stack);
     font-size: 0.875rem;
@@ -4202,19 +4227,19 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table thead tr:first-child th:first-child {
-    border-start-start-radius: 0.35rem;
+    border-start-start-radius: 0;
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table thead tr:first-child th:last-child {
-    border-start-end-radius: 0.35rem;
+    border-start-end-radius: 0;
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table tbody tr:last-child td:first-child {
-    border-end-start-radius: 0.35rem;
+    border-end-start-radius: 0;
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table tbody tr:last-child td:last-child {
-    border-end-end-radius: 0.35rem;
+    border-end-end-radius: 0;
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__name,
@@ -4226,7 +4251,7 @@ button.sis-admission-enroll-status-text:active {
 /* Stronger divider on prerequisites column (merged — no empty spacer col). */
 .sis-curriculum-page .sis-curriculum-subjects-table th:nth-child(7),
 .sis-curriculum-page .sis-curriculum-subjects-table td.sis-curriculum-prereq-col {
-    border-inline-start: 2px solid #000000 !important;
+    border-inline-start: var(--sis-table-line) !important;
 }
 
 .sis-curriculum-table-stage {
@@ -4251,7 +4276,7 @@ button.sis-admission-enroll-status-text:active {
     min-height: 1.72rem;
     max-height: 1.72rem;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     outline: none;
     box-shadow: none;
     overflow: hidden;
@@ -5055,6 +5080,7 @@ button.sis-admission-enroll-status-text:active {
     min-height: 1.7rem;
     padding: 0.2rem 0.7rem;
     border: 1px solid #000000;
+    border-radius: var(--sis-field-radius) !important;
     font-size: 0.75rem;
     font-weight: 600;
     font-family: var(--sis-chrome-font);
@@ -5090,24 +5116,402 @@ button.sis-admission-enroll-status-text:active {
     color: var(--sis-student-status-text-light);
 }
 
-/* Admission workflow segmented progress (RTL) — fixed per-stage colors */
+/* Admission page shell — radius lives on controls/surfaces, not the page itself. */
 .sis-admission-page {
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     height: 100%;
+    max-height: 100%;
     background: var(--sis-admission-page);
     border-radius: 0;
     gap: 0.08rem;
     padding-block-start: 0.45rem;
 }
 
-/* Sharp corners on admission page — keep circular utility badge only */
-.sis-admission-page :where(*):not(.sis-titlebar__utility-badge):not(svg):not(svg *) {
+/*
+ * System-wide radius for buttons, fields, dialogs/windows, and table frames.
+ * Replaces the former admission sharp-corners override that forced radius: 0.
+ */
+:is(
+    button,
+    [data-slot='button'],
+    [role='button'],
+    .sis-button,
+    .sis-ribbon__item,
+    .sis-curriculum-view-tabs__btn,
+    .sis-admission-sheet__doc-btn,
+    .sis-workflow-notice__dismiss,
+    .sis-desktop-shell__action,
+    .sis-desktop-workspace__task,
+    .sis-window__control,
+    .sis-titlebar__trigger,
+    .sis-titlebar__menu-item,
+    .sis-titlebar__utility,
+    .sis-sidebar-logo-button,
+    .sis-admission-period-submit,
+    .sis-ops-hub__link,
+    .sis-enrollments-filter-chip,
+    .sis-admission-pagination__link,
+    .sis-student-record-form__action,
+    .sis-admission-request-type__option,
+    [data-sidebar='trigger']
+) {
+    border-radius: var(--sis-button-radius) !important;
+}
+
+:is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='hidden']),
+    textarea,
+    select,
+    [data-slot='input'],
+    [data-slot='textarea'],
+    .sis-list-select__trigger,
+    .sis-admission-year-control,
+    .sis-admission-select-fit,
+    .sis-students-table__edit-input,
+    .sis-admission-sheet input,
+    .sis-admission-sheet textarea,
+    .sis-admission-sheet select,
+    .sis-admission-draft-dialog input,
+    .sis-admission-draft-dialog textarea,
+    .sis-admission-draft-dialog select,
+    .sis-notice-sheet input,
+    .sis-notice-sheet textarea,
+    .sis-confirm-dialog input,
+    .sis-confirm-dialog textarea,
+    .sis-ops-form-field input,
+    .sis-ops-form-field textarea,
+    .sis-ops-form-field select
+) {
+    border-radius: var(--sis-field-radius) !important;
+}
+
+:is(
+    [data-slot='dialog-content'],
+    [data-slot='sheet-content'],
+    .sis-admission-sheet-dialog,
+    .sis-admission-draft-dialog,
+    .sis-admission-sheet,
+    .sis-admission-draft-form.sis-admission-sheet,
+    .sis-notice-sheet,
+    .sis-confirm-dialog,
+    .sis-window,
+    .sis-admission-status-reason-dialog
+) {
+    border-radius: var(--sis-surface-radius) !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-students-page .sis-admission-drafts-table,
+    .sis-enrollments-page .sis-admission-drafts-table,
+    .sis-admission-accepted-sheet__scroller
+) {
+    border-radius: var(--sis-table-radius) !important;
+}
+
+/*
+ * Tables only: rounded outer frame.
+ * Frame lives on the wrapper; cell outer edges are cleared so borders do not fight the curve.
+ * Internal grid lines remain.
+ */
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-data-table
+) {
+    border: var(--sis-table-line) !important;
+    border-color: var(--sis-table-line-color) !important;
+    border-radius: var(--sis-table-radius) !important;
+    background-clip: padding-box;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table
+) {
+    overflow: hidden !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller
+) table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller
+) :is(thead, tbody, tfoot) tr > :first-child {
+    border-inline-start: 0 !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller
+) :is(thead, tbody, tfoot) tr > :last-child {
+    border-inline-end: 0 !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller
+) thead tr:first-child > * {
+    border-block-start: 0 !important;
+}
+
+/*
+ * Keep a bottom edge on the last data row.
+ * Paginated tables often leave empty space below the last row, so the wrapper
+ * frame alone does not read as a row underline — restore the cell bottom border.
+ */
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-data-table
+) tbody tr:last-child > *,
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-data-table
+) tfoot tr:last-child > * {
+    border-block-end: var(--sis-table-line) !important;
+}
+
+/*
+ * System-wide table line + font SSOT.
+ * Same thickness, color, style, and typeface on every ops/data table.
+ */
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-curriculum-subjects-nested,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-data-table
+) {
+    border: var(--sis-table-line) !important;
+    border-color: var(--sis-table-line-color) !important;
+    font-family: var(--sis-table-font-family);
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-curriculum-subjects-nested,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-data-table
+) table,
+.sis-admission-accepted-sheet__table {
+    font-family: var(--sis-table-font-family) !important;
+    font-size: var(--sis-table-font-size) !important;
+    font-weight: var(--sis-table-font-weight) !important;
+    color: var(--sis-oxford);
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-curriculum-subjects-nested,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-admission-accepted-sheet__table,
+    .sis-data-table
+) :is(th, td) {
+    border-color: var(--sis-table-line-color) !important;
+    border-style: var(--sis-table-line-style) !important;
+    font-family: var(--sis-table-font-family) !important;
+    font-size: var(--sis-table-font-size) !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-curriculum-subjects-nested,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-admission-accepted-sheet__table,
+    .sis-data-table
+) th {
+    font-weight: var(--sis-table-header-weight) !important;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table,
+    .sis-curriculum-subjects-nested,
+    .sis-admission-accepted-sheet__scroller,
+    .sis-admission-accepted-sheet__table,
+    .sis-data-table
+) td {
+    font-weight: var(--sis-table-font-weight) !important;
+}
+
+.sis-data-table {
+    overflow: hidden !important;
+    border-radius: var(--sis-table-radius) !important;
+    background: var(--sis-admission-page);
+    background-clip: padding-box;
+}
+
+.sis-data-table table {
+    width: 100%;
+    min-width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 0 !important;
+}
+
+.sis-data-table th,
+.sis-data-table td {
+    border: var(--sis-table-line);
+    padding: 0.16rem 0.4rem 0.24rem;
+    line-height: 1.4;
+    vertical-align: middle;
+    text-align: center;
+    text-align-last: center;
+    white-space: nowrap;
+    color: var(--sis-oxford);
+}
+
+.sis-data-table thead th {
+    background: color-mix(in srgb, var(--sis-mist) 42%, var(--sis-pearl));
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    box-shadow: 0 var(--sis-table-line-width) 0 var(--sis-table-line-color);
+}
+
+.sis-data-table tbody td {
+    border-block-start: 0;
+}
+
+.sis-data-table th + th,
+.sis-data-table td + td {
+    border-inline-start: 0;
+}
+
+.sis-data-table :is(thead, tbody, tfoot) tr > :first-child {
+    border-inline-start: 0 !important;
+}
+
+.sis-data-table :is(thead, tbody, tfoot) tr > :last-child {
+    border-inline-end: 0 !important;
+}
+
+.sis-data-table thead tr:first-child > * {
+    border-block-start: 0 !important;
+}
+
+.sis-data-table tbody tr:last-child > * {
+    border-block-end: var(--sis-table-line) !important;
+}
+
+.sis-data-table caption {
+    caption-side: top;
+    padding: 0.35rem 0.5rem;
+    text-align: start;
+    font-family: var(--sis-table-font-family);
+    font-size: var(--sis-table-font-size);
+    font-weight: var(--sis-table-header-weight);
+    color: var(--sis-oxford);
+    background: color-mix(in srgb, var(--sis-mist) 28%, var(--sis-pearl));
+    border-block-end: var(--sis-table-line);
+}
+
+/*
+ * Rounded surfaces without a hard outer stroke (dialogs/windows/sheets).
+ * Tables keep their own outer frame above — excluded here.
+ */
+:is(
+    [data-slot='dialog-content'],
+    [data-slot='sheet-content'],
+    .sis-admission-sheet-dialog,
+    .sis-admission-draft-dialog,
+    .sis-admission-sheet,
+    .sis-admission-draft-form.sis-admission-sheet,
+    .sis-notice-sheet,
+    .sis-confirm-dialog,
+    .sis-message-dialog,
+    .sis-window,
+    .sis-admission-status-reason-dialog,
+    .sis-admission-periods-card,
+    .sis-admission-period-card,
+    .sis-admission-period-panel,
+    .sis-ops-hub__notice,
+    .sis-workflow-notice
+) {
+    border: 0 !important;
+    border-color: transparent !important;
+    outline: none !important;
+}
+
+:is(
+    [data-slot='dialog-content'],
+    [data-slot='sheet-content'],
+    .sis-admission-sheet-dialog,
+    .sis-admission-draft-dialog,
+    .sis-notice-sheet,
+    .sis-confirm-dialog,
+    .sis-message-dialog,
+    .sis-window,
+    .sis-admission-status-reason-dialog,
+    .sis-admission-periods-card,
+    .sis-admission-period-card,
+    .sis-admission-period-panel,
+    .sis-ops-hub__notice,
+    .sis-workflow-notice
+) {
+    overflow: hidden !important;
+}
+
+/* Fullscreen / maximized surfaces stay flush to the viewport. */
+:is(
+    .sis-admission-sheet-dialog--maximized,
+    .sis-admission-accepted-dialog.sis-admission-sheet-dialog--maximized,
+    .sis-placement-history-dialog.sis-admission-sheet-dialog--maximized
+) {
     border-radius: 0 !important;
 }
 
 .sis-page-surface:has(.sis-admission-page) {
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     overscroll-behavior: none;
+    min-height: 0;
+}
+
+.sis-page-surface:has(.sis-admission-page) > .sis-admission-page,
+.sis-page-surface:has(.sis-admission-page) > .sis-ops-hub.sis-admission-page {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    height: 100%;
 }
 
 [data-slot='sidebar-inset']:has(.sis-admission-page) {
@@ -5150,10 +5554,14 @@ button.sis-admission-enroll-status-text:active {
 }
 
 .sis-admission-page-body:has(.sis-admission-periods) {
-    overflow: auto;
+    overflow: hidden !important;
 }
 
-.sis-admission-page-body:has(.sis-admission-drafts-table) > section:has(.sis-admission-drafts-table) {
+.sis-admission-page-body:has(.sis-admission-drafts-table) > section:has(.sis-admission-drafts-table),
+.sis-admission-page-body:has(.sis-admission-periods-table) > section:has(.sis-admission-periods-table),
+.sis-admission-page-body > .sis-admission-periods,
+.sis-admission-page-body > .sis-curriculum-table-stage,
+.sis-admission-page-body > section:has(.sis-curriculum-subjects-table) {
     flex: 1 1 auto;
     box-sizing: border-box;
     width: 100%;
@@ -5167,6 +5575,88 @@ button.sis-admission-enroll-status-text:active {
     flex-direction: column;
 }
 
+/* Periods home: create panel stays compact; periods table fills the rest of the card. */
+.sis-admission-periods {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: 100%;
+}
+
+.sis-admission-periods > .sis-admission-period-panel {
+    flex: 0 0 auto !important;
+}
+
+.sis-admission-periods > .sis-admission-periods-table {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    align-self: stretch;
+}
+
+.sis-admission-periods > .sis-admission-periods-table > .sis-admission-periods-table__scroller {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100%;
+}
+
+/*
+ * System-wide: table cards fill the available card area (full width + remaining height).
+ * Pagination / toolbars stay outside and shrink; the table frame grows.
+ */
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table
+) {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    align-self: stretch;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto;
+}
+
+:is(
+    .sis-admission-drafts-table__scroller,
+    .sis-admission-periods-table__scroller,
+    .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller
+) {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+}
+
+:is(
+    .sis-admission-drafts-table,
+    .sis-admission-periods-table,
+    .sis-curriculum-subjects-table
+) > table,
+:is(
+    .sis-admission-drafts-table__scroller,
+    .sis-admission-periods-table__scroller,
+    .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller
+) > table {
+    width: 100% !important;
+    max-width: none;
+}
+
+.sis-admission-drafts-pagination {
+    flex-shrink: 0;
+}
+
+.sis-admission-drafts-transitions,
+.sis-curriculum-view-tabs,
+.sis-admission-period-panel,
+.sis-admission-period-create {
+    flex-shrink: 0;
+}
+
 .sis-admission-drafts-table {
     display: flex;
     flex: 1 1 auto;
@@ -5178,9 +5668,8 @@ button.sis-admission-enroll-status-text:active {
     min-width: 0;
     margin-inline: 0;
     overflow: hidden;
-    /* Card frame matches periods/drafts cell border. */
     border: 1px solid #000000;
-    border-radius: 0;
+    border-radius: var(--sis-table-radius);
     background: var(--sis-admission-page);
     --sis-admission-drafts-row-h: 1.85rem;
 }
@@ -5952,6 +6441,7 @@ button.sis-admission-enroll-status-text:active {
     overflow: visible;
     margin: 0;
     border: 1px solid #000000;
+    border-radius: 0 !important;
 }
 
 .sis-admission-progress__segment {
@@ -5969,7 +6459,7 @@ button.sis-admission-enroll-status-text:active {
     margin: 0;
     padding: 0;
     border: 0;
-    border-radius: 0;
+    border-radius: 0 !important;
     background: var(--sis-admission-segment-bg, var(--sis-admission-pending));
     font: inherit;
     color: inherit;
@@ -5985,7 +6475,7 @@ button.sis-admission-enroll-status-text:active {
 .sis-admission-progress__segment--active {
     z-index: 4;
     overflow: visible;
-    border-radius: 0;
+    border-radius: 0 !important;
     box-shadow:
         0 0.28rem 0.7rem color-mix(in srgb, var(--sis-oxford) 32%, transparent),
         0 0.08rem 0.2rem color-mix(in srgb, var(--sis-night) 18%, transparent);
@@ -6340,11 +6830,12 @@ ion-icon.sis-admission-drafts-home__ion {
     z-index: 200000 !important;
     background: var(--sis-admission-page) !important;
     color: var(--sis-oxford);
-    border: 1px solid #000000;
-    border-radius: 0;
+    border: 0;
+    border-radius: var(--sis-surface-radius);
     font-family: var(--sis-chrome-font);
     opacity: 1 !important;
     isolation: isolate;
+    overflow: hidden;
     box-shadow: 0 0.85rem 2.2rem color-mix(in srgb, var(--sis-night) 32%, transparent);
 }
 
@@ -6404,7 +6895,8 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     padding: 0 !important;
     gap: 0 !important;
     overflow: hidden !important;
-    border-radius: 0 !important;
+    border: 0 !important;
+    border-radius: var(--sis-surface-radius) !important;
     background: var(--sis-admission-page) !important;
     box-shadow: 0 0.45rem 1.4rem color-mix(in srgb, var(--sis-night) 22%, transparent);
     isolation: auto;
@@ -6628,7 +7120,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 .sis-admission-sheet__window-controls .sis-window__control {
     width: 1.55rem;
     height: 1.55rem;
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     color: var(--sis-pearl);
 }
 
@@ -6887,7 +7379,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     padding-inline: 0.3rem;
     box-sizing: border-box;
     border: var(--sheet-control-border);
-    border-radius: 0;
+    border-radius: var(--sis-field-radius);
     background: transparent !important;
     color: var(--sis-night) !important;
     font-family: var(--sis-font-stack);
@@ -7089,7 +7581,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     min-height: 1.45rem;
     padding-block: 0;
     padding-inline: 0.65rem;
-    border-radius: 0 !important;
+    border-radius: var(--sis-button-radius) !important;
     font-weight: 700;
     line-height: 1;
     font-size: 0.74rem;
@@ -7128,7 +7620,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     margin: 0;
     padding: 0.22rem 0.35rem;
     border: var(--sheet-control-border);
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     background: color-mix(in srgb, var(--sis-admission-page) 82%, var(--sis-mist));
     color: var(--sis-night);
     font-family: var(--sis-font-stack);
@@ -7283,7 +7775,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     margin: 0;
     padding: 0.45rem 0.75rem;
     border: var(--sheet-control-border);
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     background: var(--sheet-surface);
     color: #000000;
     font-family: var(--sis-font-stack);
@@ -7430,7 +7922,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     min-height: 1.75rem;
     padding-block: 0;
     padding-inline: 0.7rem;
-    border-radius: 0 !important;
+    border-radius: var(--sis-button-radius) !important;
     font-weight: 700;
     line-height: 1;
     font-size: 0.78rem;
@@ -7526,6 +8018,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
     border: 1px solid #000000;
+    border-radius: var(--sis-table-radius);
     background: var(--sis-admission-page);
     /* Visible horizontal scrollbar (approved palette). */
     scrollbar-width: thin;
@@ -7848,7 +8341,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 /* Admission period create panel (no titled card chrome) */
 .sis-admission-period-panel {
     display: flex;
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     flex-direction: column;
     gap: 0.75rem;
     min-height: 0;
@@ -7944,7 +8437,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     font-size: 0.8125rem !important;
     line-height: 1.2 !important;
     white-space: nowrap;
-    border-radius: 0 !important;
+    border-radius: var(--sis-button-radius) !important;
 }
 
 .sis-admission-datetime {
@@ -7963,7 +8456,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     box-sizing: border-box;
     background: var(--sis-admission-period-input);
     border: 1px solid #000000;
-    border-radius: 0;
+    border-radius: var(--sis-field-radius) !important;
     color: var(--sis-oxford);
 }
 
@@ -8136,7 +8629,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     min-width: 0;
     gap: 0.55rem;
     padding-block-start: 0.65rem;
-    overflow: auto;
+    overflow: hidden;
 }
 
 /*
@@ -8188,14 +8681,15 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 
 .sis-admission-periods-table {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
     min-width: 0;
+    width: 100%;
     overflow: hidden;
     overscroll-behavior: none;
-    /* Card frame — same stroke as table cell borders. */
     border: 1px solid #000000;
-    border-radius: 0;
+    border-radius: var(--sis-table-radius);
     background: var(--sis-admission-page);
 }
 
@@ -8451,7 +8945,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     -moz-appearance: none;
     appearance: none;
     border: 0 !important;
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     background: transparent !important;
     background-color: transparent !important;
     color: var(--sis-oxford);
@@ -8519,6 +9013,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     margin-block-end: 0.4rem;
     overflow: hidden;
     border: 1px solid #000000;
+    border-radius: 0;
     background: var(--sis-admission-page);
 }
 
@@ -8794,14 +9289,15 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-admission-status-reason-dialog {
     z-index: 210000 !important;
     pointer-events: auto;
-    border: 1px solid var(--sis-oxford);
-    border-radius: 0;
+    border: 0;
+    border-radius: var(--sis-surface-radius);
     background: var(--sis-pearl);
     color: var(--sis-oxford);
     font-family: var(--sis-chrome-font);
     box-shadow: 0 0.55rem 1.4rem color-mix(in srgb, var(--sis-night) 28%, transparent);
     gap: 0.85rem;
     padding: 1rem 1.1rem;
+    overflow: hidden;
 }
 
 .sis-admission-status-reason-dialog__field {
@@ -8821,7 +9317,7 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     min-height: 6rem;
     padding: 0.5rem 0.65rem;
     border: 1px solid var(--sis-oxford);
-    border-radius: 0;
+    border-radius: var(--sis-field-radius);
     background: var(--sis-pearl);
     color: var(--sis-oxford);
     font-family: var(--sis-chrome-font);
@@ -8866,8 +9362,8 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
-    border: 1px solid #000000 !important;
-    border-radius: 0 !important;
+    border: 0 !important;
+    border-radius: var(--sis-surface-radius) !important;
     background: var(--sis-admission-page) !important;
     color: var(--sis-oxford);
     font-family: var(--sis-font-stack);
@@ -9037,6 +9533,13 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     min-height: 1.85rem;
     width: fit-content;
     max-width: 100%;
+}
+
+.sis-student-record-form__status-value .sis-student-status-badge,
+.sis-enrollment-record-sheet .sis-student-status-badge,
+.sis-student-sheet-dialog .sis-student-status-badge,
+.sis-admission-sheet .sis-student-status-badge {
+    border-radius: var(--sis-field-radius) !important;
 }
 
 .sis-student-sheet-dialog .sis-admission-sheet .sis-student-record-form__notes-field,
@@ -9720,7 +10223,7 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
     height: 1.45rem;
     padding: 0 0.7rem;
     border: 0;
-    border-radius: 0;
+    border-radius: var(--sis-button-radius);
     font-family: var(--sis-font-stack);
     font-size: 0.7rem;
     font-weight: 700;

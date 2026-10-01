@@ -74,24 +74,21 @@ export function DataTable<T>({
         : columns;
 
     return (
-        <div className="overflow-x-auto rounded-xl border" data-allow-x-scroll>
-            <table className="w-max min-w-full text-sm">
+        <div className="sis-data-table overflow-x-auto" data-allow-x-scroll>
+            <table>
                 {caption ? (
-                    <caption className="bg-muted/30 border-b px-4 py-2 text-start text-sm font-medium">
+                    <caption>
                         {caption}
                     </caption>
                 ) : null}
                 {showHeader ? (
-                    <thead className="bg-muted/50">
+                    <thead>
                         <tr>
                             {visibleColumns.map((column) => (
                                 <th
                                     key={column.id}
                                     scope="col"
-                                    className={cn(
-                                        'whitespace-nowrap px-4 py-3 text-start font-medium',
-                                        column.className,
-                                    )}
+                                    className={column.className}
                                 >
                                     {column.header}
                                 </th>
@@ -102,14 +99,11 @@ export function DataTable<T>({
                 <tbody>
                     {rows.length === 0 ? (
                         <tr>
-                            <td
-                                colSpan={Math.max(visibleColumns.length, 1)}
-                                className="text-muted-foreground px-4 py-10 text-center"
-                            >
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-foreground font-medium">{emptyTitle}</span>
+                            <td colSpan={Math.max(visibleColumns.length, 1)}>
+                                <div className="flex flex-col gap-1 py-6">
+                                    <span className="font-medium">{emptyTitle}</span>
                                     {emptyDescription ? (
-                                        <span className="text-sm">{emptyDescription}</span>
+                                        <span>{emptyDescription}</span>
                                     ) : null}
                                 </div>
                             </td>
@@ -118,10 +112,7 @@ export function DataTable<T>({
                         rows.map((row) => (
                             <tr
                                 key={rowKey(row)}
-                                className={cn(
-                                    'border-t',
-                                    onRowClick && 'hover:bg-muted/40 cursor-pointer',
-                                )}
+                                className={cn(onRowClick && 'cursor-pointer')}
                                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                                 onKeyDown={
                                     onRowClick
@@ -141,13 +132,7 @@ export function DataTable<T>({
                                 }
                             >
                                 {visibleColumns.map((column) => (
-                                    <td
-                                        key={column.id}
-                                        className={cn(
-                                            'whitespace-nowrap px-4 py-3',
-                                            column.className,
-                                        )}
-                                    >
+                                    <td key={column.id} className={column.className}>
                                         {column.cell(row)}
                                     </td>
                                 ))}

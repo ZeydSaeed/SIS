@@ -115,50 +115,50 @@ export default function RecommendationsIndex({
                     ))}
                 </div>
 
-                <div className="overflow-x-auto rounded-xl border" data-allow-x-scroll>
-                    <table className="w-full min-w-[720px] text-sm">
-                        <thead className="bg-muted/50">
-                            <tr className="text-start">
-                                <th className="px-4 py-3 font-medium">Code</th>
-                                <th className="px-4 py-3 font-medium">Table</th>
-                                <th className="px-4 py-3 font-medium">Action</th>
-                                <th className="px-4 py-3 font-medium">Risk</th>
-                                <th className="px-4 py-3 font-medium">Confidence</th>
-                                <th className="px-4 py-3 font-medium">Status</th>
-                                <th className="px-4 py-3 font-medium"></th>
+                <div className="sis-data-table overflow-x-auto" data-allow-x-scroll>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Table</th>
+                                <th>Action</th>
+                                <th>Risk</th>
+                                <th>Confidence</th>
+                                <th>Status</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             {recommendations.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-muted-foreground px-4 py-8 text-center">
+                                    <td colSpan={7}>
                                         لا توصيات — النظام يراقب تلقائيًا (Tier 0–1)
                                     </td>
                                 </tr>
                             ) : (
                                 recommendations.data.map((rec) => (
-                                    <tr key={rec.id} className="border-t">
-                                        <td className="px-4 py-3 font-mono text-xs" dir="ltr">
+                                    <tr key={rec.id}>
+                                        <td dir="ltr">
                                             {rec.code}
                                         </td>
-                                        <td className="px-4 py-3" dir="ltr">
+                                        <td dir="ltr">
                                             {rec.schema_name}.{rec.table_name}
                                         </td>
-                                        <td className="px-4 py-3">{rec.action_type}</td>
-                                        <td className="px-4 py-3">
+                                        <td>{rec.action_type}</td>
+                                        <td>
                                             <Badge variant="outline">{riskLabel(rec.risk_tier)}</Badge>
                                         </td>
-                                        <td className="px-4 py-3" dir="ltr">
+                                        <td dir="ltr">
                                             {rec.confidence
                                                 ? `${(Number(rec.confidence) * 100).toFixed(0)}%`
                                                 : '—'}
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td>
                                             <Badge variant={statusVariant(rec.status)}>
                                                 {rec.status}
                                             </Badge>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td>
                                             <Button asChild size="sm" variant="ghost">
                                                 <Link href={`/intelligence/recommendations/${rec.id}`}>
                                                     Review
