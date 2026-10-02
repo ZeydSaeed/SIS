@@ -9687,6 +9687,23 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     flex: 0 0 auto;
     width: 100%;
     z-index: 3;
+    border-radius: 0 !important;
+}
+
+/* Multi-select: square the form top (banner under title bar) — no surface radius. */
+.sis-student-sheet-dialog--many
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-draft-form.sis-admission-sheet,
+.sis-student-sheet-dialog--many
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
+    border-radius: 0 !important;
+}
+
+.sis-student-sheet-dialog--many .sis-admission-sheet__banner,
+.sis-student-sheet-dialog--many .sis-admission-sheet__banner--accent,
+.sis-student-sheet-dialog--many .sis-admission-sheet__banner--dark {
+    border-radius: 0 !important;
 }
 
 /* Horizontal track: one sheet “page” after another — thin bottom scrollbar only. */
@@ -9703,7 +9720,9 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     overflow-y: hidden;
     overscroll-behavior: none;
     scroll-snap-type: x mandatory;
-    scrollbar-gutter: stable;
+    scroll-padding-inline: 0;
+    /* Avoid gutter stealing page width on the first paint (JS locks px widths). */
+    scrollbar-gutter: auto;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--sis-steel) 72%, var(--sis-oxford))
         color-mix(in srgb, var(--sis-mist) 40%, transparent);
@@ -9729,16 +9748,57 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-student-sheet-dialog--many .sis-student-sheet-dialog__many-page {
+    box-sizing: border-box;
     flex: 0 0 100%;
     width: 100%;
     max-width: 100%;
     min-width: 100%;
     scroll-snap-align: start;
+    scroll-snap-stop: always;
     min-height: 100%;
 }
 
-.sis-student-sheet-dialog--many .sis-student-sheet-dialog__many-page > .sis-admission-draft-form.sis-admission-sheet,
-.sis-student-sheet-dialog--many .sis-student-sheet-dialog__many-page > .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
+/* Student multi-view (fill): each page + form fills the scroller box exactly. */
+.sis-student-sheet-dialog--many:not(.sis-enrollment-record-sheet) .sis-student-sheet-dialog__many-page {
+    height: 100%;
+    max-height: 100%;
+    align-self: stretch;
+}
+
+.sis-student-sheet-dialog--many:not(.sis-enrollment-record-sheet)
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-draft-form.sis-admission-sheet,
+.sis-student-sheet-dialog--many:not(.sis-enrollment-record-sheet)
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Enrollment / curriculum multi-view (hug): page height follows form content. */
+.sis-student-sheet-dialog--many.sis-enrollment-record-sheet .sis-student-sheet-dialog__many-scroller {
+    flex: 0 0 auto !important;
+    align-items: flex-start;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+.sis-student-sheet-dialog--many.sis-enrollment-record-sheet .sis-student-sheet-dialog__many-page {
+    min-height: 0 !important;
+    height: auto !important;
+    align-self: flex-start;
+}
+
+.sis-student-sheet-dialog--many.sis-enrollment-record-sheet
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-draft-form.sis-admission-sheet,
+.sis-student-sheet-dialog--many.sis-enrollment-record-sheet
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
     width: 100%;
     min-height: auto !important;
     max-height: none !important;
@@ -9796,23 +9856,7 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     min-width: 0;
 }
 
-body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-sheet-dialog:not([data-placed='true']),
-.sis-student-enrollment-sheet.sis-admission-sheet-dialog:not([data-placed='true']) {
-    top: 50% !important;
-    left: 50% !important;
-    right: auto !important;
-    transform: translate(-50%, -50%) !important;
-}
-
-.sis-student-enrollment-sheet.sis-admission-draft-dialog,
-.sis-student-enrollment-sheet.sis-admission-sheet-dialog {
-    width: fit-content !important;
-    min-width: min(96vw, 28rem) !important;
-    max-width: min(96vw, 36rem) !important;
-    height: fit-content !important;
-    min-height: 0 !important;
-    max-height: min(92vh, 100%) !important;
-}
+/* Create-enrollment sheet reuses `.sis-enrollment-record-sheet` sizing/chrome. */
 
 /* Enrollment view/edit sheet — height follows content; width keeps track5 usable. */
 .sis-enrollment-record-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) {
@@ -9926,9 +9970,14 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
 }
 
 .sis-student-enrollment-sheet__form {
-    min-width: min(96vw, 28rem);
-    width: min(96vw, 36rem);
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
+}
+
+.sis-student-enrollment-sheet .sis-student-enrollment-sheet__names-field {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .sis-student-enrollment-sheet .sis-admission-sheet__label {
@@ -9969,11 +10018,17 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
 
 .sis-student-enrollment-sheet__student-list {
     margin: 0;
-    padding: 0.2rem 0;
+    padding: 0.28rem 0.45rem;
     list-style: none;
     width: 100%;
-    max-height: 5.5rem;
+    max-height: 7.5rem;
     overflow: auto;
+    height: auto !important;
+    min-height: 2.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    box-sizing: border-box;
 }
 
 .sis-student-enrollment-sheet__student-list li {
@@ -9982,8 +10037,8 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
     align-items: baseline;
     justify-content: space-between;
     gap: 0.35rem 0.75rem;
-    padding-block: 0.14rem;
-    font-size: 0.9rem;
+    padding-block: 0.06rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: var(--sis-night);
 }

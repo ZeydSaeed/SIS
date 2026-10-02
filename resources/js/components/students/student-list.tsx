@@ -2036,6 +2036,7 @@ export function StudentList({
                             id: row.id,
                             full_name: studentQuadName(row) || row.full_name,
                             student_code: row.student_code,
+                            status: row.status,
                             is_enrolled: row.is_enrolled === true,
                             branch_id: row.branch_id ?? null,
                             department_name: row.department_name ?? null,

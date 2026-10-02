@@ -19,6 +19,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
+import { useManySheetPageFit } from '@/hooks/use-many-sheet-page-fit';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { t } from '@/i18n';
@@ -1669,6 +1670,17 @@ export function StudentViewDialog({
         resizable: false,
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
+    const studentIdsKey = students.map((student) => student.id).join(',');
+
+    useManySheetPageFit({
+        contentRef,
+        scrollerRef,
+        count,
+        maximized,
+        mode: 'fill',
+        resetKey: studentIdsKey,
+    });
 
     return (
         <Dialog
@@ -1718,7 +1730,11 @@ export function StudentViewDialog({
                                 <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />
                             </div>
                         </header>
-                        <div className="sis-student-sheet-dialog__many-scroller" dir="rtl">
+                        <div
+                            ref={scrollerRef}
+                            className="sis-student-sheet-dialog__many-scroller"
+                            dir="rtl"
+                        >
                             {students.map((student) => (
                                 <div
                                     key={student.id}

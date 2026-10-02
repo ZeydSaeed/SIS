@@ -27,7 +27,6 @@ use App\Http\Requests\Enrollment\ChangeEnrollmentStatusesRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
 use App\Http\Requests\Enrollment\UpdateEnrollmentPlacementRequest;
 use App\Http\Support\AcademicYearContextResolver;
-use App\Http\Support\WorkflowFlash;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -429,13 +428,7 @@ final class EnrollmentPageController extends Controller
             "enrollment:{$result->enrollmentId}",
         );
 
-        return WorkflowFlash::with(
-            redirect()->back(),
-            [
-                'tone' => 'success',
-                'step' => 'enrollment.created',
-            ],
-        );
+        return redirect()->back();
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import { useManySheetPageFit } from '@/hooks/use-many-sheet-page-fit';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import {
@@ -740,12 +741,16 @@ export function EnrollmentViewDialog({
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
     const scrollerRef = useRef<HTMLDivElement | null>(null);
-    const pageRefs = useRef<Array<HTMLDivElement | null>>([]);
     const enrollmentIdsKey = enrollments.map((enrollment) => enrollment.id).join(',');
 
-    useEffect(() => {
-        pageRefs.current = pageRefs.current.slice(0, count);
-    }, [count, enrollmentIdsKey]);
+    useManySheetPageFit({
+        contentRef,
+        scrollerRef,
+        count,
+        maximized,
+        mode: 'hug',
+        resetKey: enrollmentIdsKey,
+    });
 
     return (
         <Dialog
@@ -805,9 +810,6 @@ export function EnrollmentViewDialog({
                             {enrollments.map((enrollment, index) => (
                                 <div
                                     key={enrollment.id}
-                                    ref={(node) => {
-                                        pageRefs.current[index] = node;
-                                    }}
                                     className="sis-student-sheet-dialog__many-page"
                                     data-enrollment-page={index}
                                 >

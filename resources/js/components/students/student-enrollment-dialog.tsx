@@ -2,6 +2,8 @@ import { router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
 import type { EnrollmentFormFilterOptions } from '@/components/enrollments/enrollment-record-form';
+import { StudentStatusBadge } from '@/components/students/student-status-badge';
+import { SheetField, SheetSection } from '@/components/sis/admission-sheet';
 import { usePageError } from '@/components/sis/page-error-context';
 import { formatAcademicYearOptionLabel } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
@@ -32,6 +34,7 @@ export type StudentEnrollmentCandidate = {
     id: number;
     full_name: string;
     student_code?: string | null;
+    status?: number | null;
     is_enrolled?: boolean;
     branch_id?: number | null;
     branch_name?: string | null;
@@ -65,63 +68,50 @@ function todayIsoDate(): string {
     return `${year}-${month}-${day}`;
 }
 
+function isFilled(value: string): boolean {
+    return value.trim() !== '';
+}
+
 function filledClass(value: string): string {
-    return value.trim() !== '' ? ' sis-admission-draft-field--filled' : '';
+    return isFilled(value) ? ' sis-admission-draft-field--filled' : '';
 }
 
 function invalidClass(invalid: boolean): string {
     return invalid ? ' sis-student-enrollment-sheet__control--invalid' : '';
 }
 
-function SheetField({
-    label,
-    name,
-    required = false,
-    error,
-    hint,
-    children,
-}: {
-    label: string;
-    name: string;
-    required?: boolean;
-    error?: string;
-    hint?: string;
-    children: ReactNode;
-}) {
-    return (
-        <label className="sis-admission-sheet__field" htmlFor={name}>
-            <span className="sis-admission-sheet__label">
-                {label}
-                {required ? (
-                    <span className="sis-student-enrollment-sheet__required" aria-hidden="true">
-                        *
-                    </span>
-                ) : null}
-            </span>
-            {children}
-            {error ? (
-                <span id={`${name}-error`} className="sis-admission-sheet__error" role="alert">
-                    {error}
-                </span>
-            ) : hint ? (
-                <span className="sis-student-enrollment-sheet__hint">{hint}</span>
-            ) : null}
-        </label>
-    );
+function displayValue(value: string | number | null | undefined): string {
+    if (value === null || value === undefined) {
+        return '—';
+    }
+
+    const text = String(value).trim();
+
+    return text === '' ? '—' : text;
 }
 
-function SheetSection({
-    title,
-    children,
+function filledControlClass(filled: boolean, editing: boolean): string {
+    return `sis-admission-sheet__control${filled ? ' sis-admission-draft-field--filled' : ''}${editing ? '' : ' sis-admission-draft-readonly'}`;
+}
+
+function SheetDisplayField({
+    label,
+    display,
+    dir = 'rtl',
+    fieldClassName = '',
 }: {
-    title: string;
-    children: ReactNode;
+    label: string;
+    display: string;
+    dir?: 'rtl' | 'ltr';
+    fieldClassName?: string;
 }) {
     return (
-        <section className="sis-admission-sheet__section">
-            <h3 className="sis-admission-sheet__banner sis-admission-sheet__banner--accent">{title}</h3>
-            <div className="sis-admission-sheet__body">{children}</div>
-        </section>
+        <div className={`sis-admission-sheet__field ${fieldClassName}`.trim()}>
+            <span className="sis-admission-sheet__label">{label}</span>
+            <div className={filledControlClass(isFilled(display), false)} dir={dir} aria-readonly="true">
+                {display}
+            </div>
+        </div>
     );
 }
 
@@ -172,6 +162,26 @@ function SheetSelect({
     );
 }
 
+function RequiredSheetField({
+    label,
+    name,
+    error,
+    fieldClassName = '',
+    children,
+}: {
+    label: string;
+    name: string;
+    error?: string;
+    fieldClassName?: string;
+    children: ReactNode;
+}) {
+    return (
+        <SheetField label={label} name={name} required error={error} className={fieldClassName}>
+            {children}
+        </SheetField>
+    );
+}
+
 export function StudentEnrollmentDialog({
     open,
     students,
@@ -200,6 +210,9 @@ export function StudentEnrollmentDialog({
         minSize: { width: 640, height: 360 },
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
+    const singleStudent = students.length === 1 ? students[0] : null;
+    const studentNamesLabel =
+        students.length === 1 ? i18n.enrollments.quadName : i18n.students.enrollDialogStudents;
 
     useEffect(() => {
         if (!open) {
@@ -229,7 +242,6 @@ export function StudentEnrollmentDialog({
         return formatAcademicYearOptionLabel(year.name, year.code);
     }, [draft.academic_year_id, years]);
 
-    // SSOT: same catalogs as admission new-request form.
     const branchOptions = useMemo(() => admissionBranchSelectOptions(), []);
     const departmentOptions = useMemo(
         () => admissionDepartmentSelectOptions(draft.branch_name),
@@ -302,6 +314,9 @@ export function StudentEnrollmentDialog({
             keysToClear.push('class_key', 'section_code');
         } else if ('section_code' in patch) {
             keysToClear.push('section_code');
+        }
+        if ('academic_year_id' in patch) {
+            keysToClear.push('academic_year_id');
         }
         if ('effective_from' in patch) {
             keysToClear.push('effective_from');
@@ -475,7 +490,7 @@ export function StudentEnrollmentDialog({
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-enrollment-sheet${maximizeClassName}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-enrollment-record-sheet sis-student-enrollment-sheet${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -490,7 +505,7 @@ export function StudentEnrollmentDialog({
 
                 <form
                     ref={formRef}
-                    className="sis-admission-sheet sis-student-enrollment-sheet__form"
+                    className="sis-admission-draft-form sis-admission-sheet sis-student-record-form"
                     onSubmit={onFormSubmit}
                     noValidate
                 >
@@ -518,29 +533,65 @@ export function StudentEnrollmentDialog({
                         </div>
                     </header>
 
-                    <SheetSection title={i18n.students.enrollDialogStudents}>
-                        <div className="sis-admission-sheet__row">
-                            <ul className="sis-student-enrollment-sheet__student-list">
-                                {students.map((student) => (
-                                    <li key={student.id}>
-                                        <span>{student.full_name}</span>
-                                        {student.is_enrolled === true ? (
-                                            <span className="sis-student-enrollment-sheet__badge">
-                                                {i18n.students.enrollmentYes}
-                                            </span>
-                                        ) : null}
-                                    </li>
-                                ))}
-                            </ul>
+                    <SheetSection id="enroll-create-student" title={i18n.enrollments.student}>
+                        <div className="sis-student-record-form__name-line">
+                            {singleStudent ? (
+                                <SheetDisplayField
+                                    label={studentNamesLabel}
+                                    display={displayValue(singleStudent.full_name)}
+                                />
+                            ) : (
+                                <div className="sis-admission-sheet__field sis-student-enrollment-sheet__names-field">
+                                    <span className="sis-admission-sheet__label">{studentNamesLabel}</span>
+                                    <ul
+                                        className="sis-student-enrollment-sheet__student-list sis-admission-sheet__control sis-admission-draft-field--filled sis-admission-draft-readonly"
+                                        aria-label={studentNamesLabel}
+                                    >
+                                        {students.map((student) => (
+                                            <li key={student.id}>
+                                                <span>{displayValue(student.full_name)}</span>
+                                                {student.is_enrolled === true ? (
+                                                    <span className="sis-student-enrollment-sheet__badge">
+                                                        {i18n.students.enrollmentYes}
+                                                    </span>
+                                                ) : null}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {singleStudent ? (
+                                <div className="sis-admission-sheet__field sis-student-record-form__status-field">
+                                    <span className="sis-admission-sheet__label">{i18n.common.status}</span>
+                                    <div
+                                        className="sis-student-record-form__status-value"
+                                        aria-readonly="true"
+                                    >
+                                        <StudentStatusBadge status={singleStudent.status ?? 1} />
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
-                    </SheetSection>
 
-                    <SheetSection title={i18n.students.enrollDialogRequired}>
-                        <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
-                            <SheetField
+                        <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
+                            <SheetDisplayField
+                                label={i18n.enrollments.studentId}
+                                display={
+                                    singleStudent
+                                        ? displayValue(
+                                              singleStudent.student_code ?? singleStudent.id,
+                                          )
+                                        : displayValue(
+                                              students
+                                                  .map((student) => student.student_code ?? student.id)
+                                                  .join('، '),
+                                          )
+                                }
+                                dir="ltr"
+                            />
+                            <RequiredSheetField
                                 label={i18n.enrollments.academicYear}
                                 name="academic_year_id"
-                                required
                                 error={fieldErrors.academic_year_id}
                             >
                                 <div className="sis-student-enrollment-sheet__year-wrap">
@@ -557,18 +608,17 @@ export function StudentEnrollmentDialog({
                                         className="sis-student-enrollment-sheet__native-year"
                                     />
                                     <div
-                                        className={`sis-admission-sheet__control sis-admission-draft-field--filled${invalidClass(Boolean(fieldErrors.academic_year_id))}`}
+                                        className={`${filledControlClass(isFilled(yearLabel), false)}${invalidClass(Boolean(fieldErrors.academic_year_id))}`}
                                         aria-hidden="true"
                                         dir="ltr"
                                     >
                                         {yearLabel}
                                     </div>
                                 </div>
-                            </SheetField>
-                            <SheetField
+                            </RequiredSheetField>
+                            <RequiredSheetField
                                 label={i18n.enrollments.effectiveFrom}
                                 name="effective_from"
-                                required
                                 error={fieldErrors.effective_from}
                             >
                                 <input
@@ -578,20 +628,26 @@ export function StudentEnrollmentDialog({
                                     dir="ltr"
                                     required
                                     aria-invalid={Boolean(fieldErrors.effective_from)}
-                                    className={`sis-admission-sheet__control${filledClass(draft.effective_from)}${invalidClass(Boolean(fieldErrors.effective_from))}`}
+                                    className={`${filledControlClass(isFilled(draft.effective_from), true)}${invalidClass(Boolean(fieldErrors.effective_from))}`}
                                     value={draft.effective_from}
                                     aria-label={i18n.enrollments.effectiveFrom}
                                     onChange={(event) =>
                                         patchDraft({ effective_from: event.target.value })
                                     }
                                 />
-                            </SheetField>
+                            </RequiredSheetField>
                         </div>
-                        <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
-                            <SheetField
-                                label={i18n.admission.branch}
+                    </SheetSection>
+
+                    <SheetSection
+                        id="enroll-create-placement"
+                        title={i18n.enrollments.placementDialogTitle}
+                    >
+                        <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-enrollment-record-sheet__placement-row">
+                            <RequiredSheetField
+                                label={i18n.enrollments.branchName}
                                 name="branch_name"
-                                required
+                                fieldClassName="sis-enrollment-record-sheet__field--wide"
                             >
                                 <SheetSelect
                                     id="branch_name"
@@ -602,13 +658,13 @@ export function StudentEnrollmentDialog({
                                     required
                                     invalid={Boolean(fieldErrors.branch_name)}
                                     onChange={(next) => patchDraft({ branch_name: next })}
-                                    ariaLabel={i18n.admission.branch}
+                                    ariaLabel={i18n.enrollments.branchName}
                                 />
-                            </SheetField>
-                            <SheetField
-                                label={i18n.admission.specialization}
+                            </RequiredSheetField>
+                            <RequiredSheetField
+                                label={i18n.enrollments.departmentName}
                                 name="department_name"
-                                required
+                                fieldClassName="sis-enrollment-record-sheet__field--wide"
                             >
                                 <SheetSelect
                                     id="department_name"
@@ -620,15 +676,13 @@ export function StudentEnrollmentDialog({
                                     invalid={Boolean(fieldErrors.department_name)}
                                     disabled={draft.branch_name.trim() === ''}
                                     onChange={(next) => patchDraft({ department_name: next })}
-                                    ariaLabel={i18n.admission.specialization}
+                                    ariaLabel={i18n.enrollments.departmentName}
                                 />
-                            </SheetField>
-                        </div>
-                        <div className="sis-admission-sheet__row sis-admission-sheet__row--2">
-                            <SheetField
+                            </RequiredSheetField>
+                            <RequiredSheetField
                                 label={i18n.enrollments.className}
                                 name="class_key"
-                                required
+                                fieldClassName="sis-enrollment-record-sheet__field--narrow"
                             >
                                 <SheetSelect
                                     id="class_key"
@@ -641,11 +695,11 @@ export function StudentEnrollmentDialog({
                                     onChange={(next) => patchDraft({ class_key: next })}
                                     ariaLabel={i18n.enrollments.className}
                                 />
-                            </SheetField>
-                            <SheetField
+                            </RequiredSheetField>
+                            <RequiredSheetField
                                 label={i18n.enrollments.sectionName}
                                 name="section_code"
-                                required
+                                fieldClassName="sis-enrollment-record-sheet__field--narrow"
                             >
                                 <SheetSelect
                                     id="section_code"
@@ -659,7 +713,7 @@ export function StudentEnrollmentDialog({
                                     onChange={(next) => patchDraft({ section_code: next })}
                                     ariaLabel={i18n.enrollments.sectionName}
                                 />
-                            </SheetField>
+                            </RequiredSheetField>
                         </div>
                     </SheetSection>
 

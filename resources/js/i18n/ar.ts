@@ -63,9 +63,6 @@ export const ar = {
         enrollmentRequiredTitle: 'التوزيع مطلوب لإكمال المسار',
         enrollmentRequiredMessage:
             'ملف الطالب موجود، لكن جدول التسجيلات يعرض فقط من له صف وشعبة لهذه السنة. اختر الصف والشعبة ثم اضغط إنشاء التسجيل.',
-        enrollmentCreatedTitle: 'اكتمل التسجيل',
-        enrollmentCreatedMessage:
-            'أُنشئ التوزيع السنوي بنجاح. الطالب يظهر الآن في جدول التسجيلات ويمكن متابعة الحضور والدرجات عليه.',
         awaitingEnrollmentBadge: 'بانتظار التسجيل',
         awaitingEnrollmentHint:
             'طالب بلا توزيع سنوي — أكمل الصف والشعبة لإظهاره في التسجيلات.',

@@ -85,10 +85,6 @@ export function resolveWorkflowCopy(step: string | null | undefined): WorkflowCo
             message: i18n.workflow.convertStayMessage,
             action_label: i18n.workflow.convertActionStudents,
         },
-        'enrollment.created': {
-            title: i18n.workflow.enrollmentCreatedTitle,
-            message: i18n.workflow.enrollmentCreatedMessage,
-        },
     };
 
     return map[step.trim()] ?? null;
