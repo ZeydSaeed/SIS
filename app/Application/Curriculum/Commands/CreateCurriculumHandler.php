@@ -12,6 +12,7 @@ use App\Domain\Curriculum\Contracts\SpecializationCatalogPort;
 use App\Domain\Curriculum\Events\CurriculumCreated;
 use App\Domain\Curriculum\Events\CurriculumSubjectLinked;
 use App\Domain\Curriculum\Repositories\CurriculumRepositoryInterface;
+use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
 use App\Domain\Curriculum\Services\CreateCurriculumGuard;
 use App\Domain\Curriculum\Support\CurriculumIdempotencyGuard;
 
@@ -22,6 +23,7 @@ final class CreateCurriculumHandler implements CommandHandler
     public function __construct(
         private readonly UnitOfWork $unitOfWork,
         private readonly CurriculumRepositoryInterface $curricula,
+        private readonly SubjectRepositoryInterface $subjects,
         private readonly CreateCurriculumGuard $guard,
         private readonly SpecializationCatalogPort $specializations,
         private readonly OutboxRepository $outbox,
@@ -48,7 +50,17 @@ final class CreateCurriculumHandler implements CommandHandler
             return CreateCurriculumResult::failure([$error]);
         }
 
-        $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
+        $subjectIds = array_values(array_unique(array_map(
+            static fn (mixed $id): int => (int) $id,
+            $command->subjectIds,
+        )));
+        foreach ($subjectIds as $subjectId) {
+            if ($this->subjects->findActive($subjectId) === null) {
+                return CreateCurriculumResult::failure(['curriculum.subject_not_found']);
+            }
+        }
+
+        $id = $this->unitOfWork->transaction(function () use ($command, $key, $subjectIds): int {
             $createdAt = (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM);
             $id = $this->curricula->create(
                 $command->schoolId,
@@ -59,7 +71,26 @@ final class CreateCurriculumHandler implements CommandHandler
                 $createdAt,
             );
 
-            if ($command->specializationId !== null) {
+            if ($subjectIds !== []) {
+                foreach ($subjectIds as $order => $subjectId) {
+                    $snapshot = $this->subjects->findActive($subjectId);
+                    $linkId = $this->curricula->linkSubject(
+                        $command->schoolId,
+                        $id,
+                        $subjectId,
+                        $snapshot?->creditHours,
+                        true,
+                        $order,
+                        $createdAt,
+                    );
+                    $this->outbox->stage(new CurriculumSubjectLinked(
+                        $linkId,
+                        $id,
+                        $subjectId,
+                        new \DateTimeImmutable,
+                    ));
+                }
+            } elseif ($command->specializationId !== null) {
                 $order = 0;
                 foreach ($this->specializations->listActiveSubjectTemplates(
                     $command->schoolId,

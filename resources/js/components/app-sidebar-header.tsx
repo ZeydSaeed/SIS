@@ -1,11 +1,12 @@
 import { router, usePage } from '@inertiajs/react';
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { TitleBarControls } from '@/components/title-bar-controls';
 import { TitleBarHome } from '@/components/title-bar-home';
 import { TitleBarMenu } from '@/components/title-bar-menu';
 import {
     TitleBarRibbon,
     type RibbonActionId,
+    type RibbonTab,
 } from '@/components/title-bar-ribbon';
 import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SisSearchField } from '@/components/sis/sis-search-field';
@@ -26,6 +27,10 @@ import {
     pageClipboardPaste,
 } from '@/hooks/use-page-clipboard';
 import { togglePageTextStyle } from '@/hooks/use-page-text-style';
+import {
+    dispatchSisRibbonLayout,
+    sisRibbonLayoutSettleMs,
+} from '@/lib/sis-ribbon-layout';
 import { t } from '@/i18n';
 import {
     dispatchOpenCreateCurriculum,
@@ -171,6 +176,57 @@ export function AppSidebarHeader({
     const setActiveRibbon = useSetActivePageRibbonTab();
     const ribbonPinned = usePageRibbonPinned();
     const page = usePage();
+    const [renderedRibbonTab, setRenderedRibbonTab] = useState<RibbonTab | null>(activeRibbon);
+    const [ribbonExpanded, setRibbonExpanded] = useState(Boolean(activeRibbon));
+    const ribbonWasOpenRef = useRef(Boolean(activeRibbon));
+    const ribbonSettleTimerRef = useRef(0);
+    const ribbonOpenRafRef = useRef(0);
+
+    useLayoutEffect(() => {
+        window.clearTimeout(ribbonSettleTimerRef.current);
+        cancelAnimationFrame(ribbonOpenRafRef.current);
+
+        if (activeRibbon !== null) {
+            const opening = !ribbonWasOpenRef.current;
+            setRenderedRibbonTab(activeRibbon);
+
+            if (opening) {
+                dispatchSisRibbonLayout({ phase: 'start', open: true });
+                setRibbonExpanded(false);
+                ribbonOpenRafRef.current = requestAnimationFrame(() => {
+                    setRibbonExpanded(true);
+                });
+                ribbonSettleTimerRef.current = window.setTimeout(() => {
+                    dispatchSisRibbonLayout({ phase: 'settled', open: true });
+                }, sisRibbonLayoutSettleMs());
+                ribbonWasOpenRef.current = true;
+
+                return () => {
+                    cancelAnimationFrame(ribbonOpenRafRef.current);
+                    window.clearTimeout(ribbonSettleTimerRef.current);
+                };
+            }
+
+            ribbonWasOpenRef.current = true;
+
+            return;
+        }
+
+        if (ribbonWasOpenRef.current) {
+            dispatchSisRibbonLayout({ phase: 'start', open: false });
+            setRibbonExpanded(false);
+            ribbonSettleTimerRef.current = window.setTimeout(() => {
+                setRenderedRibbonTab(null);
+                dispatchSisRibbonLayout({ phase: 'settled', open: false });
+                ribbonWasOpenRef.current = false;
+            }, sisRibbonLayoutSettleMs());
+        }
+
+        return () => {
+            window.clearTimeout(ribbonSettleTimerRef.current);
+            cancelAnimationFrame(ribbonOpenRafRef.current);
+        };
+    }, [activeRibbon]);
 
     const closeRibbon = useCallback(() => {
         setActiveRibbon(null, { force: true });
@@ -307,14 +363,17 @@ export function AppSidebarHeader({
 
     const titlebarSearch = useTitlebarSearchSlot();
 
+    const chromeClassName = [
+        'sis-chrome',
+        'shrink-0',
+        ribbonExpanded ? 'sis-chrome--ribbon-open' : '',
+        renderedRibbonTab ? 'sis-chrome--ribbon-present' : '',
+    ]
+        .filter(Boolean)
+        .join(' ');
+
     return (
-        <div
-            className={
-                activeRibbon
-                    ? 'sis-chrome sis-chrome--ribbon-open shrink-0'
-                    : 'sis-chrome shrink-0'
-            }
-        >
+        <div className={chromeClassName}>
             <header
                 className="sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3"
                 dir="rtl"
@@ -344,13 +403,15 @@ export function AppSidebarHeader({
                     <TitleBarUtilities />
                 </div>
             </header>
-            {activeRibbon ? (
+            {renderedRibbonTab ? (
                 <div className="sis-ribbon-slot" role="presentation">
-                    <TitleBarRibbon
-                        tab={activeRibbon}
-                        onAction={onRibbonAction}
-                        onCollapse={closeRibbon}
-                    />
+                    <div className="sis-ribbon-slot__panel">
+                        <TitleBarRibbon
+                            tab={renderedRibbonTab}
+                            onAction={onRibbonAction}
+                            onCollapse={closeRibbon}
+                        />
+                    </div>
                 </div>
             ) : null}
         </div>

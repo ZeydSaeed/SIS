@@ -104,7 +104,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
 
     public function searchForSchool(
         int $schoolId,
-        int $academicYearId,
+        ?int $academicYearId,
         ?int $status,
         ?int $gradeLevelId,
         ?int $specializationId,
@@ -122,8 +122,11 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         $query = DB::table($curricula.' as c')
             ->leftJoin($specs.' as sp', 'sp.id', '=', 'c.specialization_id')
             ->leftJoin($departments.' as d', 'd.id', '=', 'sp.department_id')
-            ->where('c.school_id', $schoolId)
-            ->where('c.academic_year_id', $academicYearId);
+            ->where('c.school_id', $schoolId);
+
+        if ($academicYearId !== null) {
+            $query->where('c.academic_year_id', $academicYearId);
+        }
 
         if ($status !== null) {
             $query->where('c.status', $status);
@@ -153,6 +156,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         $perPage = min(max(1, $perPage), 100);
         $rows = $query
             ->orderByRaw('CASE WHEN c.status = ? THEN 0 ELSE 1 END', [CurriculumStatus::Active->value])
+            ->orderBy('c.academic_year_id')
             ->orderBy('c.id')
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)

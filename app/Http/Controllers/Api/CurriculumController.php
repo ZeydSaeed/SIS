@@ -310,6 +310,7 @@ class CurriculumController extends Controller
         CreateCurriculumHandler $handler,
     ): JsonResponse {
         $schoolId = $this->schoolContext->requireId();
+        $subjectIds = $request->validated('subject_ids') ?? [];
         $result = $handler->handle(new CreateCurriculumCommand(
             schoolId: $schoolId,
             academicYearId: (int) $request->validated('academic_year_id'),
@@ -319,6 +320,7 @@ class CurriculumController extends Controller
                 ? (int) $request->validated('specialization_id')
                 : null,
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            subjectIds: array_map(static fn (mixed $id): int => (int) $id, is_array($subjectIds) ? $subjectIds : []),
         ));
 
         if ($result->failed()) {

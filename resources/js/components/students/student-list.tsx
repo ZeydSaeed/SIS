@@ -29,6 +29,11 @@ import {
 } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import {
+    clipRowsToFitPageSize,
+    fitAwareLastPage,
+    useDebouncedFitPageSync,
+} from '@/lib/sis-ribbon-layout';
 import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
@@ -875,6 +880,20 @@ export function StudentList({
         last_page: 1,
     };
     const rowOffset = (pagination.page - 1) * pagination.per_page;
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: STUDENTS_PER_PAGE,
+        enabled: true,
+    });
+    fitPageSizeRef.current = fitPageSize;
+    const displayRows = useMemo(
+        () => clipRowsToFitPageSize(rows, fitPageSize),
+        [fitPageSize, rows],
+    );
+    const fitLastPage = fitAwareLastPage(
+        pagination.total,
+        fitPageSize,
+        pagination.last_page,
+    );
     const canSelect = authorization.canUpdate;
 
     useEffect(() => {
@@ -943,9 +962,9 @@ export function StudentList({
         columnSignature: `${canSelect ? 'select' : 'readonly'}:file:enrolled`,
         enabled: rows.length > 0,
     });
-    useSmoothVerticalScroll(scrollerRef, rows.length > 0);
+    useSmoothVerticalScroll(scrollerRef, displayRows.length > 0);
 
-    const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+    const rowIds = useMemo(() => displayRows.map((row) => row.id), [displayRows]);
     const visibleCheckedIds = useMemo(
         () => checkedIds.filter((id) => rowIds.includes(id)),
         [checkedIds, rowIds],
@@ -1008,19 +1027,13 @@ export function StudentList({
         );
     }, []);
 
-    const fitPageSize = useFitTablePageSize(scrollerRef, {
-        fallbackRows: STUDENTS_PER_PAGE,
-        enabled: true,
-    });
-    fitPageSizeRef.current = fitPageSize;
-
-    useEffect(() => {
-        if (fitPageSize === filters.per_page) {
-            return;
-        }
-
-        visitList({ per_page: fitPageSize, quiet: true });
-    }, [fitPageSize, filters.per_page, visitList]);
+    const syncFitPageSize = useCallback(
+        (nextPerPage: number) => {
+            visitList({ per_page: nextPerPage, quiet: true });
+        },
+        [visitList],
+    );
+    useDebouncedFitPageSync(fitPageSize, filters.per_page, syncFitPageSize);
 
     const ensureEnrollmentFilters = useCallback(
         (then: () => void) => {
@@ -1310,14 +1323,14 @@ export function StudentList({
 
     const goPage = useCallback(
         (page: number) => {
-            if (page < 1 || page > pagination.last_page || page === pagination.page) {
+            if (page < 1 || page > fitLastPage || page === pagination.page) {
                 return;
             }
 
             writeStoredListPage('students', page);
             visitList({ page, student: undefined });
         },
-        [pagination.last_page, pagination.page, visitList],
+        [fitLastPage, pagination.page, visitList],
     );
 
     const selectedStudent = rows.find((row) => row.id === selectedId) ?? null;
@@ -1880,7 +1893,7 @@ export function StudentList({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {rows.map((row, index) => {
+                                            {displayRows.map((row, index) => {
                                                 const selected = selectedId === row.id;
                                                 const checked = visibleCheckedIds.includes(row.id);
 
@@ -1924,7 +1937,7 @@ export function StudentList({
                                                 <span aria-hidden="true">&laquo;</span>
                                             </button>
                                         </li>
-                                        {visiblePages(pagination.page, pagination.last_page).map(
+                                        {visiblePages(pagination.page, fitLastPage).map(
                                             (pageNum) => (
                                                 <li
                                                     key={pageNum}
@@ -1953,7 +1966,7 @@ export function StudentList({
                                                 type="button"
                                                 className="sis-admission-pagination__link"
                                                 aria-label={i18n.common.next}
-                                                disabled={pagination.page >= pagination.last_page}
+                                                disabled={pagination.page >= fitLastPage}
                                                 onClick={() => goPage(pagination.page + 1)}
                                             >
                                                 <span aria-hidden="true">&raquo;</span>

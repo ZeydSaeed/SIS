@@ -6,7 +6,7 @@ final readonly class ListCurriculaQuery
 {
     public function __construct(
         public int $schoolId,
-        public int $academicYearId,
+        public ?int $academicYearId,
         public bool $includeInactive = false,
         public ?int $status = null,
         public ?int $gradeLevelId = null,

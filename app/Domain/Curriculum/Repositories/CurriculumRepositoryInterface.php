@@ -37,7 +37,7 @@ interface CurriculumRepositoryInterface
      */
     public function searchForSchool(
         int $schoolId,
-        int $academicYearId,
+        ?int $academicYearId,
         ?int $status,
         ?int $gradeLevelId,
         ?int $specializationId,

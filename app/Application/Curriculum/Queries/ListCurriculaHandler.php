@@ -46,8 +46,8 @@ final class ListCurriculaHandler
         }
 
         $rows = $query->includeInactive
-            ? $this->curricula->listForSchool($query->schoolId, $query->academicYearId)
-            : $this->curricula->listActiveForSchool($query->schoolId, $query->academicYearId);
+            ? $this->curricula->listForSchool($query->schoolId, (int) $query->academicYearId)
+            : $this->curricula->listActiveForSchool($query->schoolId, (int) $query->academicYearId);
 
         return array_map(fn ($row): CurriculumDTO => $this->map($row), $rows);
     }

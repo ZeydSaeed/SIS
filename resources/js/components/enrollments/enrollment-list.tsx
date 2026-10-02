@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+﻿import { router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     CircleSlash,
@@ -30,6 +30,11 @@ import type {
 } from '@/components/enrollments/enrollment-types';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import {
+    clipRowsToFitPageSize,
+    fitAwareLastPage,
+    useDebouncedFitPageSync,
+} from '@/lib/sis-ribbon-layout';
 import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
@@ -349,6 +354,20 @@ export function EnrollmentList({
         last_page: 1,
     };
     const rowOffset = (pagination.page - 1) * pagination.per_page;
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: ENROLLMENTS_PER_PAGE,
+        enabled: true,
+    });
+    fitPageSizeRef.current = fitPageSize;
+    const displayRows = useMemo(
+        () => clipRowsToFitPageSize(rows, fitPageSize),
+        [fitPageSize, rows],
+    );
+    const fitLastPage = fitAwareLastPage(
+        pagination.total,
+        fitPageSize,
+        pagination.last_page,
+    );
     const overallPercent = clampPercent(enrollments.status_progress?.overall_percent ?? 0);
     const canSelect = authorization.canUpdate || authorization.canCancel;
 
@@ -476,11 +495,11 @@ export function EnrollmentList({
     useResizableTableColumns(tableRef, {
         storageKey: 'enrollments.list',
         columnSignature: canSelect ? 'select-v4-no-code' : 'readonly-v4-no-code',
-        enabled: rows.length > 0,
+        enabled: displayRows.length > 0,
     });
-    useSmoothVerticalScroll(scrollerRef, rows.length > 0);
+    useSmoothVerticalScroll(scrollerRef, displayRows.length > 0);
 
-    const rowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+    const rowIds = useMemo(() => displayRows.map((row) => row.id), [displayRows]);
     const visibleCheckedIds = useMemo(
         () => checkedIds.filter((id) => rowIds.includes(id)),
         [checkedIds, rowIds],
@@ -699,19 +718,13 @@ export function EnrollmentList({
         );
     }, []);
 
-    const fitPageSize = useFitTablePageSize(scrollerRef, {
-        fallbackRows: ENROLLMENTS_PER_PAGE,
-        enabled: true,
-    });
-    fitPageSizeRef.current = fitPageSize;
-
-    useEffect(() => {
-        if (fitPageSize === filters.per_page) {
-            return;
-        }
-
-        visitList({ per_page: fitPageSize, quiet: true });
-    }, [fitPageSize, filters.per_page, visitList]);
+    const syncFitPageSize = useCallback(
+        (nextPerPage: number) => {
+            visitList({ per_page: nextPerPage, quiet: true });
+        },
+        [visitList],
+    );
+    useDebouncedFitPageSync(fitPageSize, filters.per_page, syncFitPageSize);
 
     const commitSearch = useCallback(
         (query: string) => {
@@ -1896,7 +1909,7 @@ export function EnrollmentList({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {rows.map((row, index) => {
+                                            {displayRows.map((row, index) => {
                                                 const selected = selectedId === row.id;
                                                 const checked = checkedIds.includes(row.id);
                                                 const rowEditing =
@@ -1952,7 +1965,7 @@ export function EnrollmentList({
                                                 <span aria-hidden="true">&laquo;</span>
                                             </button>
                                         </li>
-                                        {visiblePages(pagination.page, pagination.last_page).map(
+                                        {visiblePages(pagination.page, fitLastPage).map(
                                             (pageNum) => (
                                                 <li
                                                     key={pageNum}
@@ -1983,7 +1996,7 @@ export function EnrollmentList({
                                                 type="button"
                                                 className="sis-admission-pagination__link"
                                                 aria-label={i18n.common.next}
-                                                disabled={pagination.page >= pagination.last_page}
+                                                disabled={pagination.page >= fitLastPage}
                                                 onClick={() => goPage(pagination.page + 1)}
                                             >
                                                 <span aria-hidden="true">&raquo;</span>

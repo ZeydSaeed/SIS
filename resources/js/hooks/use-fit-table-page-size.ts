@@ -1,4 +1,9 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
+import {
+    SIS_RIBBON_LAYOUT_EVENT,
+    sisRibbonLayoutSettleMs,
+    type SisRibbonLayoutDetail,
+} from '@/lib/sis-ribbon-layout';
 
 type Options = {
     /** Used before the first successful measure. */
@@ -6,6 +11,11 @@ type Options = {
     minRows?: number;
     maxRows?: number;
     enabled?: boolean;
+    /**
+     * Remeasure when this changes — e.g. curriculum subjects/plans tab switch
+     * remounts the scroller while the ref object identity stays the same.
+     */
+    remountKey?: string | number | boolean | null;
 };
 
 const DEFAULT_FALLBACK = 17;
@@ -14,7 +24,7 @@ const DEFAULT_MAX = 40;
 const DEFAULT_ROW_PX = 36;
 
 function resolveRowHeightPx(scroller: HTMLElement, table: HTMLTableElement | null): number {
-    const card = scroller.closest('.sis-admission-drafts-table, .sis-curriculum-subjects-table');
+    const card = scroller.closest('.sis-admission-drafts-table');
     if (card instanceof HTMLElement) {
         const raw = getComputedStyle(card).getPropertyValue('--sis-admission-drafts-row-h').trim();
         if (raw !== '') {
@@ -71,7 +81,7 @@ function outerBlockSize(el: HTMLElement): number {
  * not from the card itself — so content-hug cards still adapt when the ribbon opens.
  */
 function measurePageSize(scroller: HTMLElement): number | null {
-    const card = scroller.closest('.sis-admission-drafts-table, .sis-curriculum-subjects-table');
+    const card = scroller.closest('.sis-admission-drafts-table');
     if (!(card instanceof HTMLElement)) {
         return null;
     }
@@ -107,19 +117,19 @@ function measurePageSize(scroller: HTMLElement): number | null {
     }
 
     const table = scroller.querySelector('table');
-    const thead = table?.tHead;
-    const headH = thead ? Math.ceil(thead.getBoundingClientRect().height) : 36;
+    const rowH = resolveRowHeightPx(scroller, table);
+    // Header is locked to the same row height as body rows (exact content-hug CSS).
+    const headH = rowH;
     const cardStyle = getComputedStyle(card);
     const borderY =
         (Number.parseFloat(cardStyle.borderTopWidth) || 0) +
         (Number.parseFloat(cardStyle.borderBottomWidth) || 0);
 
-    const availableForRows = availableForCard - headH - borderY - 2;
+    // Match CSS: height = headH + (N * rowH) + borderY — no slack fudge.
+    const availableForRows = availableForCard - headH - borderY;
     if (availableForRows < 20) {
         return null;
     }
-
-    const rowH = resolveRowHeightPx(scroller, table);
 
     return Math.floor(availableForRows / rowH);
 }
@@ -127,6 +137,7 @@ function measurePageSize(scroller: HTMLElement): number | null {
 /**
  * How many body rows fit in the remaining stage height (ribbon-aware).
  * Pair with content-hug table cards so the frame wraps rows 100%.
+ * Measures continuously during ribbon motion; pages should debounce server sync.
  */
 export function useFitTablePageSize(
     scrollerRef: RefObject<HTMLElement | null>,
@@ -136,6 +147,7 @@ export function useFitTablePageSize(
     const minRows = options.minRows ?? DEFAULT_MIN;
     const maxRows = options.maxRows ?? DEFAULT_MAX;
     const enabled = options.enabled !== false;
+    const remountKey = options.remountKey ?? null;
     const [pageSize, setPageSize] = useState(fallback);
 
     useLayoutEffect(() => {
@@ -149,12 +161,17 @@ export function useFitTablePageSize(
         }
 
         const stage = resolveStage(scroller);
+        const pageBody =
+            scroller.closest('.sis-admission-page-body') ?? scroller.closest('.sis-ops-hub');
         const surface =
             scroller.closest('.sis-page-surface') ??
             scroller.closest('.sis-ops-hub') ??
             document.documentElement;
+        const chrome = document.querySelector('.sis-chrome');
 
         let frame = 0;
+        let settleTimer = 0;
+        let ribbonMotion = false;
 
         const apply = (): void => {
             const measured = measurePageSize(scroller);
@@ -166,27 +183,80 @@ export function useFitTablePageSize(
             setPageSize((current) => (current === next ? current : next));
         };
 
-        const schedule = (): void => {
+        const scheduleLive = (): void => {
             cancelAnimationFrame(frame);
             frame = requestAnimationFrame(apply);
         };
 
-        schedule();
+        const scheduleSettled = (): void => {
+            window.clearTimeout(settleTimer);
+            settleTimer = window.setTimeout(() => {
+                ribbonMotion = false;
+                apply();
+            }, sisRibbonLayoutSettleMs());
+        };
 
-        const observer = new ResizeObserver(schedule);
+        const onRibbonLayout = (event: Event): void => {
+            const detail = (event as CustomEvent<SisRibbonLayoutDetail>).detail;
+            if (!detail) {
+                return;
+            }
+
+            if (detail.phase === 'start') {
+                ribbonMotion = true;
+                scheduleLive();
+                scheduleSettled();
+
+                return;
+            }
+
+            ribbonMotion = false;
+            scheduleSettled();
+        };
+
+        const onResize = (): void => {
+            if (ribbonMotion) {
+                scheduleLive();
+
+                return;
+            }
+
+            scheduleLive();
+        };
+
+        scheduleLive();
+
+        const observer = new ResizeObserver(() => {
+            if (ribbonMotion) {
+                scheduleLive();
+
+                return;
+            }
+
+            scheduleLive();
+        });
         observer.observe(stage);
-        if (surface instanceof Element && surface !== stage) {
+        if (pageBody instanceof Element && pageBody !== stage) {
+            observer.observe(pageBody);
+        }
+        if (surface instanceof Element && surface !== stage && surface !== pageBody) {
             observer.observe(surface);
         }
+        if (chrome instanceof Element) {
+            observer.observe(chrome);
+        }
 
-        window.addEventListener('resize', schedule);
+        window.addEventListener('resize', onResize);
+        window.addEventListener(SIS_RIBBON_LAYOUT_EVENT, onRibbonLayout);
 
         return () => {
             cancelAnimationFrame(frame);
+            window.clearTimeout(settleTimer);
             observer.disconnect();
-            window.removeEventListener('resize', schedule);
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener(SIS_RIBBON_LAYOUT_EVENT, onRibbonLayout);
         };
-    }, [enabled, maxRows, minRows, scrollerRef]);
+    }, [enabled, maxRows, minRows, remountKey, scrollerRef]);
 
     return pageSize;
 }

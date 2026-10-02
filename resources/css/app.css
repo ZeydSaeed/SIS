@@ -67,6 +67,9 @@
     --sis-pearl: #e0e1dd;          /* window background */
     --sis-hover: #caf0f8;          /* hover */
     --sis-ribbon: #edf6f9;         /* file ribbon surface */
+    /* Ribbon open/close ↔ table fit motion (keep JS settle ms in sync) */
+    --sis-ribbon-motion-ms: 320ms;
+    --sis-ribbon-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
     /* Interactive corner radii — system-wide SSOT */
     --sis-button-radius: 0.375rem;
     --sis-field-radius: 0.375rem;
@@ -528,6 +531,15 @@ html[data-sis-font-size] .sis-page-surface :where(*):not(svg):not(svg *) {
     -ms-overflow-style: none !important;
 }
 
+/* Soft stage reflow while ribbon height animates — no jumpy scroll anchoring. */
+.sis-page-surface:has(.sis-admission-page) .sis-admission-page-body,
+.sis-page-surface:has(.sis-students-page) .sis-admission-page-body,
+.sis-page-surface:has(.sis-enrollments-page) .sis-admission-page-body,
+.sis-page-surface:has(.sis-curriculum-page) .sis-admission-page-body,
+.sis-page-surface:has(.sis-curriculum-page) .sis-curriculum-table-stage {
+    overflow-anchor: none;
+}
+
 .sis-page-surface:has(.sis-admission-page)::-webkit-scrollbar,
 .sis-page-surface:has(.sis-students-page)::-webkit-scrollbar,
 .sis-page-surface:has(.sis-enrollments-page)::-webkit-scrollbar,
@@ -637,20 +649,35 @@ body.sis-table-col-resizing * {
     box-shadow: 0 0.45rem 1.1rem color-mix(in srgb, var(--sis-night) 35%, transparent);
 }
 
-/* In-flow ribbon: pushes page content down when open (no overlay cover). */
+/* In-flow ribbon: smooth height expand/collapse — table stage reflows with it. */
 .sis-ribbon-slot {
     position: relative;
     z-index: 1;
     width: 100%;
+    display: grid;
+    grid-template-rows: 0fr;
     overflow: hidden;
+    transition: grid-template-rows var(--sis-ribbon-motion-ms) var(--sis-ribbon-motion-ease);
 }
 
 .sis-chrome--ribbon-open .sis-ribbon-slot {
+    grid-template-rows: 1fr;
     border-bottom: 0;
+}
+
+.sis-ribbon-slot__panel {
+    min-height: 0;
+    overflow: hidden;
 }
 
 .sis-ribbon-slot .sis-ribbon {
     box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sis-ribbon-slot {
+        transition: none;
+    }
 }
 
 .sis-titlebar a,
@@ -1902,31 +1929,10 @@ body.sis-table-col-resizing * {
 }
 
 /*
- * Curriculum reuses sis-students-page table chrome.
- * Override fixed row height so nested subject tables are not clipped.
+ * Curriculum list cards reuse students/enrollments chrome
+ * (sis-admission-periods-table sis-admission-drafts-table).
+ * Nested subject matrices keep their own compact rules below.
  */
-.sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table tbody tr {
-    height: auto;
-}
-
-.sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td {
-    height: auto;
-    min-height: var(--sis-admission-drafts-row-h);
-    max-height: none;
-    overflow: visible;
-    white-space: normal;
-    vertical-align: middle;
-}
-
-.sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-admission-drafts-table__num,
-.sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-admission-drafts-table__name,
-.sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-students-table__nowrap {
-    height: auto;
-    max-height: none;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
 .sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th:nth-child(4),
 .sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td:nth-child(4) {
     width: 4.5rem;
@@ -2147,6 +2153,11 @@ body.sis-table-col-resizing * {
     height: 100%;
     max-height: 100%;
     margin-inline-start: 0.15rem;
+}
+
+.sis-ribbon__item--filter-clear.is-active {
+    background: color-mix(in srgb, var(--sis-mist) 45%, var(--sis-pearl));
+    outline: 1px solid color-mix(in srgb, var(--sis-oxford) 35%, transparent);
 }
 
 .sis-ribbon__count {
@@ -4022,10 +4033,10 @@ button.sis-admission-enroll-status-text:active {
     min-height: 2rem;
     padding-block: 0.25rem;
     padding-inline: 0.95rem;
-    border: 1px solid var(--sidebar);
+    border: 1px solid var(--sis-hover);
     border-radius: var(--sis-button-radius) !important;
-    background: var(--sidebar);
-    color: var(--sidebar-foreground);
+    background: var(--sis-hover);
+    color: var(--sis-night);
     font-family: var(--sis-font-stack);
     font-size: 0.88rem;
     font-weight: 600;
@@ -4035,15 +4046,15 @@ button.sis-admission-enroll-status-text:active {
 
 .sis-curriculum-view-tabs__btn.is-active,
 .sis-curriculum-view-tabs__btn[aria-selected='true'] {
-    background: var(--sis-hover);
-    color: var(--sis-night);
-    border-color: var(--sis-oxford);
+    background: var(--sis-night);
+    color: var(--sis-pearl);
+    border-color: var(--sis-night);
     box-shadow: none;
 }
 
 .sis-curriculum-view-tabs__btn:hover,
 .sis-curriculum-view-tabs__btn:focus-visible {
-    background: var(--sis-hover);
+    background: color-mix(in srgb, var(--sis-hover) 78%, var(--sis-mist));
     color: var(--sis-night);
     outline: none;
 }
@@ -4052,8 +4063,8 @@ button.sis-admission-enroll-status-text:active {
 .sis-curriculum-view-tabs__btn[aria-selected='true']:hover,
 .sis-curriculum-view-tabs__btn.is-active:focus-visible,
 .sis-curriculum-view-tabs__btn[aria-selected='true']:focus-visible {
-    background: var(--sis-hover);
-    color: var(--sis-night);
+    background: var(--sis-night);
+    color: var(--sis-pearl);
 }
 
 .sis-curriculum-page-filters {
@@ -4163,179 +4174,35 @@ button.sis-admission-enroll-status-text:active {
     background: transparent !important;
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table {
-    /* Outer frame hugs displayed rows; pagination adapts to stage budget. */
-    border: 1px solid #000000 !important;
-    border-color: #000000 !important;
-    background: var(--sis-admission-page) !important;
-    margin-top: 0;
-    padding: 0;
-    overflow: hidden;
-    box-shadow: none !important;
-    border-radius: var(--sis-table-radius) !important;
-    flex: 0 0 auto !important;
-    height: fit-content !important;
-    max-height: none !important;
-    min-height: 0 !important;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    width: 100%;
-    box-sizing: border-box;
-    align-self: stretch;
-    --sis-admission-drafts-row-h: 2.15rem;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border-radius: 0.35rem;
-    flex: 0 0 auto !important;
-    height: auto !important;
-    max-height: none !important;
-    min-height: 0 !important;
-    min-width: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-}
-
-/* Radius + thin 1px grid — no overflow:hidden on <table> (breaks sticky thead). */
-.sis-curriculum-page .sis-curriculum-subjects-table table {
-    width: 100%;
-    border: 0 !important;
-    border-collapse: separate;
-    border-spacing: 0;
-    background: var(--sis-admission-page);
-    outline: none;
-    box-shadow: none;
-    border-radius: var(--sis-table-radius);
-    overflow: visible;
-    font-family: var(--sis-font-stack);
-    font-size: 0.875rem;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table th,
-.sis-curriculum-page .sis-curriculum-subjects-table td {
-    box-sizing: border-box;
-    border: var(--sis-table-line);
-    padding: 0.22rem 0.5rem;
-    line-height: 1.45;
-    height: 2.15rem;
-    min-height: 2.15rem;
-    max-height: 2.15rem;
-    vertical-align: middle;
-    text-align: center;
-    text-align-last: center;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table thead th {
-    font-weight: var(--sis-table-header-weight);
-    color: var(--sis-oxford);
-    background: color-mix(in srgb, var(--sis-mist) 42%, var(--sis-pearl));
-    position: sticky;
-    top: 0;
-    z-index: 4;
-    box-shadow: 0 var(--sis-table-line-width) 0 var(--sis-table-line-color);
-    white-space: normal;
-    max-height: none;
-    height: auto;
-    min-height: 2.15rem;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table tbody td {
-    border-block-start: 0;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table tbody tr:hover td {
-    background: var(--sis-hover);
-}
-
-/* Uniform inner cell content — one centered/start line per cell. */
-.sis-curriculum-page .sis-curriculum-subjects-table tbody td > .sis-students-table__cell-scroll {
-    display: block;
-    max-width: 100%;
-    min-width: 0;
-    margin: 0;
-    padding: 0;
-    line-height: 1.45;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    scrollbar-width: none;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table tbody td > .sis-students-table__cell-scroll::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-curriculum-subject-status {
+/* Curriculum columns on the shared students/enrollments table chrome. */
+.sis-curriculum-page .sis-admission-drafts-table .sis-curriculum-subject-status {
     min-width: 5.75rem;
     white-space: nowrap;
     overflow: hidden;
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-curriculum-subject-status[data-status='1'] {
+.sis-curriculum-page .sis-admission-drafts-table .sis-curriculum-subject-status[data-status='1'] {
     background: color-mix(in srgb, var(--sis-student-status-1) 34%, var(--sis-pearl));
     color: var(--sis-night);
     font-weight: 600;
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-curriculum-subject-status[data-status='2'] {
+.sis-curriculum-page .sis-admission-drafts-table .sis-curriculum-subject-status[data-status='2'] {
     background: color-mix(in srgb, var(--sis-student-status-0) 58%, var(--sis-pearl));
     color: var(--sis-night);
     font-weight: 600;
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table tbody tr:hover .sis-curriculum-subject-status[data-status='1'] {
+.sis-curriculum-page .sis-admission-drafts-table tbody tr:hover .sis-curriculum-subject-status[data-status='1'] {
     background: color-mix(in srgb, var(--sis-student-status-1) 42%, var(--sis-pearl));
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table tbody tr:hover .sis-curriculum-subject-status[data-status='2'] {
+.sis-curriculum-page .sis-admission-drafts-table tbody tr:hover .sis-curriculum-subject-status[data-status='2'] {
     background: color-mix(in srgb, var(--sis-student-status-0) 68%, var(--sis-pearl));
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table th + th,
-.sis-curriculum-page .sis-curriculum-subjects-table td + td {
-    border-inline-start: 0;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table thead tr:first-child th:first-child {
-    border-start-start-radius: 0;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table thead tr:first-child th:last-child {
-    border-start-end-radius: 0;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table tbody tr:last-child td:first-child {
-    border-end-start-radius: 0;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table tbody tr:last-child td:last-child {
-    border-end-end-radius: 0;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__name,
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__name-head {
-    text-align: start;
-    text-align-last: start;
-}
-
 /* Type: framed left+right, centered like other cells. */
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td).sis-curriculum-type-col {
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td).sis-curriculum-type-col {
     text-align: center;
     text-align-last: center;
     white-space: nowrap;
@@ -4344,7 +4211,7 @@ button.sis-admission-enroll-status-text:active {
 }
 
 /* Hours: left + right borders on curriculum page tables. */
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td).sis-curriculum-hours-col {
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td).sis-curriculum-hours-col {
     width: 4.5rem;
     max-width: 5rem;
     white-space: nowrap;
@@ -4355,30 +4222,32 @@ button.sis-admission-enroll-status-text:active {
 }
 
 /* Keep a single shared edge with the previous cell (no double line). */
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td):has(+ .sis-curriculum-type-col),
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td):has(+ .sis-curriculum-hours-col),
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td):has(+ .sis-curriculum-subject-status) {
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td):has(+ .sis-curriculum-type-col),
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td):has(+ .sis-curriculum-hours-col),
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td):has(+ .sis-curriculum-subject-status) {
     border-inline-end: 0 !important;
 }
 
 /* Subject status: single vertical line on the visual right. */
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td).sis-curriculum-subject-status {
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td).sis-curriculum-subject-status {
     border-inline-start: var(--sis-table-line) !important;
 }
 
 /* Prerequisites keep a single start divider when present. */
-.sis-curriculum-page .sis-curriculum-subjects-table :is(th, td).sis-curriculum-prereq-col {
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td).sis-curriculum-prereq-col {
     border-inline-start: var(--sis-table-line) !important;
 }
 
 .sis-curriculum-table-context {
     display: flex;
     flex: 0 0 auto;
-    flex-wrap: wrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 0.55rem 1.1rem;
+    justify-content: center;
+    gap: 0.55rem 1rem;
     margin: 0 0 0.35rem;
-    padding: 0.28rem 0.45rem;
+    padding: 0.35rem 0.55rem;
     border: var(--sis-table-line);
     border-radius: var(--sis-field-radius);
     background: color-mix(in srgb, var(--sis-mist) 28%, var(--sis-pearl));
@@ -4386,10 +4255,13 @@ button.sis-admission-enroll-status-text:active {
     font-size: var(--sis-table-font-size);
     color: var(--sis-oxford);
     line-height: 1.35;
+    overflow-x: auto;
 }
 
 .sis-curriculum-table-context__item {
     display: inline-flex;
+    flex: 0 0 auto;
+    flex-direction: row;
     align-items: baseline;
     gap: 0.35rem;
     min-width: 0;
@@ -5398,7 +5270,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-students-page .sis-admission-drafts-table,
     .sis-enrollments-page .sis-admission-drafts-table,
     .sis-admission-accepted-sheet__scroller
@@ -5414,7 +5285,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller,
     .sis-data-table
 ) {
@@ -5426,8 +5296,7 @@ button.sis-admission-enroll-status-text:active {
 
 :is(
     .sis-admission-drafts-table,
-    .sis-admission-periods-table,
-    .sis-curriculum-subjects-table
+    .sis-admission-periods-table
 ) {
     overflow: hidden !important;
 }
@@ -5435,7 +5304,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller
 ) table {
     border-collapse: separate !important;
@@ -5447,7 +5315,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller
 ) :is(thead, tbody, tfoot) tr > :first-child {
     border-inline-start: 0 !important;
@@ -5456,7 +5323,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller
 ) :is(thead, tbody, tfoot) tr > :last-child {
     border-inline-end: 0 !important;
@@ -5465,7 +5331,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller
 ) thead tr:first-child > * {
     border-block-start: 0 !important;
@@ -5479,14 +5344,12 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller,
     .sis-data-table
 ) tbody tr:last-child > *,
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-admission-accepted-sheet__scroller,
     .sis-data-table
 ) tfoot tr:last-child > * {
@@ -5500,7 +5363,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-curriculum-subjects-nested,
     .sis-admission-accepted-sheet__scroller,
     .sis-data-table
@@ -5513,7 +5375,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-curriculum-subjects-nested,
     .sis-admission-accepted-sheet__scroller,
     .sis-data-table
@@ -5528,7 +5389,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-curriculum-subjects-nested,
     .sis-admission-accepted-sheet__scroller,
     .sis-admission-accepted-sheet__table,
@@ -5543,7 +5403,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-curriculum-subjects-nested,
     .sis-admission-accepted-sheet__scroller,
     .sis-admission-accepted-sheet__table,
@@ -5555,7 +5414,6 @@ button.sis-admission-enroll-status-text:active {
 :is(
     .sis-admission-drafts-table,
     .sis-admission-periods-table,
-    .sis-curriculum-subjects-table,
     .sis-curriculum-subjects-nested,
     .sis-admission-accepted-sheet__scroller,
     .sis-admission-accepted-sheet__table,
@@ -5751,8 +5609,7 @@ button.sis-admission-enroll-status-text:active {
 .sis-admission-page-body:has(.sis-admission-drafts-table) > section:has(.sis-admission-drafts-table),
 .sis-admission-page-body:has(.sis-admission-periods-table) > section:has(.sis-admission-periods-table),
 .sis-admission-page-body > .sis-admission-periods,
-.sis-admission-page-body > .sis-curriculum-table-stage,
-.sis-admission-page-body > section:has(.sis-curriculum-subjects-table) {
+.sis-admission-page-body > .sis-curriculum-table-stage {
     flex: 1 1 auto;
     box-sizing: border-box;
     width: 100%;
@@ -5801,10 +5658,7 @@ button.sis-admission-enroll-status-text:active {
  * List table cards hug displayed rows 100%.
  * useFitTablePageSize measures stage budget (ribbon-aware); card height = table.
  */
-:is(
-    .sis-admission-drafts-table,
-    .sis-curriculum-subjects-table
-) {
+.sis-admission-drafts-table {
     display: flex !important;
     flex: 0 0 auto !important;
     flex-direction: column !important;
@@ -5831,13 +5685,6 @@ button.sis-admission-enroll-status-text:active {
 }
 
 /* Curriculum / drafts / students / enrollments: scroller wraps table only. */
-.sis-curriculum-page .sis-curriculum-subjects-table {
-    flex: 0 0 auto !important;
-    height: fit-content !important;
-    max-height: none !important;
-}
-
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller,
 .sis-admission-drafts-table > .sis-admission-drafts-table__scroller {
     flex: 0 0 auto !important;
     height: auto !important;
@@ -5860,20 +5707,13 @@ button.sis-admission-enroll-status-text:active {
     height: 100%;
 }
 
-.sis-curriculum-page .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller {
-    width: 100%;
-    max-width: 100%;
-}
-
 :is(
     .sis-admission-drafts-table,
-    .sis-admission-periods-table,
-    .sis-curriculum-subjects-table
+    .sis-admission-periods-table
 ) > table,
 :is(
     .sis-admission-drafts-table__scroller,
-    .sis-admission-periods-table__scroller,
-    .sis-curriculum-subjects-table .sis-admission-drafts-table__scroller
+    .sis-admission-periods-table__scroller
 ) > table {
     width: 100% !important;
     max-width: none;
@@ -10716,7 +10556,316 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
     flex-shrink: 0;
 }
 
-/* Curriculum subject sheet reuses enrollment-record sheet chrome/sizing SSOT. */
+/*
+ * Create curriculum shuttle — fixed full-viewport sheet (no drag/resize/chrome scroll).
+ * Filters on one row; dual panes with fixed row count + pagination.
+ */
+.sis-curriculum-create-sheet.sis-curriculum-create-sheet--fixed.sis-enrollment-record-sheet.sis-admission-sheet-dialog {
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    translate: none !important;
+    width: min(96vw, 72rem) !important;
+    max-width: min(
+        72rem,
+        calc(100vw - var(--sis-admission-sidebar-rail, 0px) - (2 * var(--sis-admission-sidebar-gap, 0.75rem)))
+    ) !important;
+    height: min(92vh, 44rem) !important;
+    min-height: min(92vh, 44rem) !important;
+    max-height: min(92vh, 44rem) !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    grid-template-rows: minmax(0, 1fr);
+    cursor: default !important;
+}
+
+.sis-curriculum-create-sheet.sis-curriculum-create-sheet--fixed.sis-enrollment-record-sheet.sis-admission-sheet-dialog
+    .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form.sis-curriculum-create-sheet__form,
+.sis-curriculum-create-sheet.sis-curriculum-create-sheet--fixed
+    .sis-curriculum-create-sheet__form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+}
+
+.sis-curriculum-create-sheet--fixed .sis-admission-sheet__hero {
+    flex: 0 0 auto;
+}
+
+.sis-curriculum-create-sheet__filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem 0.55rem;
+    flex: 0 0 auto;
+    align-items: end;
+    padding: 0.45rem 0.65rem 0.25rem;
+    min-width: 0;
+}
+
+.sis-curriculum-create-sheet__filter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.sis-curriculum-create-sheet__filter .sis-admission-sheet__label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sis-curriculum-create-sheet__shuttle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0.2rem 0 0;
+    padding-inline: 0.65rem;
+}
+
+.sis-curriculum-create-sheet__pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border: var(--sis-table-line);
+    border-radius: var(--sis-field-radius);
+    background: var(--sheet-surface, var(--sis-admission-page));
+    overflow: hidden;
+}
+
+.sis-curriculum-create-sheet__pane-head {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.55rem;
+    background: var(--sis-oxford);
+    color: var(--sis-pearl);
+    font-family: var(--sis-font-stack);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.sis-curriculum-create-sheet__pane-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--sheet-surface, var(--sis-admission-page));
+}
+
+.sis-curriculum-create-sheet__table {
+    width: 100%;
+    height: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    background: var(--sheet-surface, var(--sis-admission-page));
+    font-family: var(--sis-table-font-family);
+    font-size: var(--sis-table-font-size);
+    color: var(--sis-oxford);
+}
+
+.sis-curriculum-create-sheet__table th,
+.sis-curriculum-create-sheet__table td {
+    box-sizing: border-box;
+    border: var(--sis-table-line);
+    border-block-start: 0;
+    border-inline-start: 0;
+    padding: 0;
+    height: 1.85rem;
+    max-height: 1.85rem;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sis-curriculum-create-sheet__table th:last-child,
+.sis-curriculum-create-sheet__table td:last-child {
+    border-inline-end: 0;
+}
+
+.sis-curriculum-create-sheet__table tbody tr:last-child td {
+    border-block-end: 0;
+}
+
+.sis-curriculum-create-sheet__table thead th {
+    border-block-start: 0;
+    background: color-mix(in srgb, var(--sis-mist) 35%, var(--sis-pearl));
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-curriculum-create-sheet__check {
+    width: 2.1rem;
+    text-align: center !important;
+}
+
+.sis-curriculum-create-sheet__name-head {
+    text-align: start;
+    padding-inline: 0.45rem !important;
+}
+
+.sis-curriculum-create-sheet__name {
+    text-align: start;
+}
+
+.sis-curriculum-create-sheet__cell-inner {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 1.85rem;
+    padding-inline: 0.45rem;
+    overflow: hidden;
+}
+
+.sis-curriculum-create-sheet__cell-inner--check {
+    justify-content: center;
+    padding-inline: 0;
+    list-style: none;
+}
+
+.sis-curriculum-create-sheet__cell-inner--check input[type='checkbox'] {
+    width: 0.9rem;
+    height: 0.9rem;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--sis-oxford);
+    cursor: pointer;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.sis-curriculum-create-sheet__cell-inner--name {
+    justify-content: flex-start;
+    font-weight: 600;
+    text-overflow: ellipsis;
+}
+
+.sis-curriculum-create-sheet__row--selected td {
+    background: color-mix(in srgb, var(--sis-hover) 55%, var(--sis-admission-page));
+}
+
+.sis-curriculum-create-sheet__row--pad {
+    cursor: default !important;
+    pointer-events: none;
+}
+
+.sis-curriculum-create-sheet__row--pad td {
+    background: transparent;
+}
+
+.sis-curriculum-create-sheet__table tbody tr:not(.sis-curriculum-create-sheet__row--pad) {
+    cursor: pointer;
+}
+
+.sis-curriculum-create-sheet__table tbody tr:not(.sis-curriculum-create-sheet__row--pad):hover td {
+    background: color-mix(in srgb, var(--sis-hover) 35%, var(--sis-admission-page));
+}
+
+.sis-curriculum-create-sheet__pager {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.15rem;
+    padding: 0.15rem 0.35rem;
+    border-top: var(--sis-table-line);
+    background: color-mix(in srgb, var(--sis-mist) 20%, var(--sis-pearl));
+}
+
+.sis-curriculum-create-sheet__pager .sis-admission-drafts-pagination {
+    margin-block-start: 0;
+    width: 100%;
+    justify-content: center;
+}
+
+.sis-curriculum-create-sheet__arrows {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding-block: 0.35rem;
+    align-self: center;
+}
+
+.sis-curriculum-create-sheet__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    cursor: pointer;
+}
+
+.sis-curriculum-create-sheet__arrow svg {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.sis-curriculum-create-sheet__arrow:hover:not(:disabled),
+.sis-curriculum-create-sheet__arrow:focus-visible:not(:disabled) {
+    background: var(--sis-hover);
+    outline: none;
+}
+
+.sis-curriculum-create-sheet__arrow:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.sis-curriculum-create-sheet--fixed .sis-admission-sheet__actions {
+    flex: 0 0 auto;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.45rem !important;
+    padding-inline: 0.65rem;
+}
+
+@media (max-width: 56rem) {
+    .sis-curriculum-create-sheet__filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sis-curriculum-create-sheet.sis-curriculum-create-sheet--fixed.sis-enrollment-record-sheet.sis-admission-sheet-dialog {
+        height: min(94vh, 48rem) !important;
+        min-height: min(94vh, 48rem) !important;
+        max-height: min(94vh, 48rem) !important;
+    }
+}
+
+@media (max-width: 40rem) {
+    .sis-curriculum-create-sheet__filters {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sis-curriculum-create-sheet__shuttle {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+    }
+
+    .sis-curriculum-create-sheet__arrows {
+        flex-direction: row;
+    }
+}
+
 .sis-curriculum-subject-sheet.sis-enrollment-record-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) {
     width: var(--sis-sheet-w, min(98vw, 72rem)) !important;
     max-width: min(

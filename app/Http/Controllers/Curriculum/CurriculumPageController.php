@@ -98,10 +98,12 @@ final class CurriculumPageController extends Controller
         }
 
         $schoolId = $this->schoolContext->requireId();
-        $requestedYear = $request->filled('academic_year_id')
+        $allCurricula = $request->boolean('all_curricula');
+        $requestedYear = (! $allCurricula && $request->filled('academic_year_id'))
             ? (int) $request->query('academic_year_id')
             : null;
-        $academicYearId = $this->academicYears->resolve($requestedYear);
+        // Filter option catalogs still need a year context; curricula list may span all years.
+        $academicYearId = $this->academicYears->resolve($allCurricula ? null : $requestedYear);
         $selectedCurriculumId = $request->filled('curriculum_id')
             ? (int) $request->query('curriculum_id')
             : null;
@@ -109,16 +111,22 @@ final class CurriculumPageController extends Controller
         $q = trim((string) $request->query('q', ''));
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $classId = null;
-        if ($request->exists('class_id')) {
+        if (! $allCurricula && $request->exists('class_id')) {
             if ($request->filled('class_id')) {
                 $classId = (int) $request->query('class_id');
             }
         }
-        $gradeLevelId = $request->filled('grade_level_id') ? (int) $request->query('grade_level_id') : null;
-        $specializationId = $request->filled('specialization_id') ? (int) $request->query('specialization_id') : null;
-        $branchId = $request->filled('branch_id') ? (int) $request->query('branch_id') : null;
+        $gradeLevelId = (! $allCurricula && $request->filled('grade_level_id'))
+            ? (int) $request->query('grade_level_id')
+            : null;
+        $specializationId = (! $allCurricula && $request->filled('specialization_id'))
+            ? (int) $request->query('specialization_id')
+            : null;
+        $branchId = (! $allCurricula && $request->filled('branch_id'))
+            ? (int) $request->query('branch_id')
+            : null;
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 17)), 100);
+        $perPage = min(max(1, (int) $request->query('per_page', $allCurricula ? 100 : 17)), 100);
 
         $subjectQ = trim((string) $request->query('subject_q', ''));
         $subjectStatus = $request->filled('subject_status') ? (int) $request->query('subject_status') : null;
@@ -128,11 +136,11 @@ final class CurriculumPageController extends Controller
 
         $filterOptions = $enrollmentReads->listFilterOptions($schoolId, $academicYearId);
 
-        $branch = trim((string) $request->query('branch', ''));
-        $specialization = trim((string) $request->query('specialization', ''));
+        $branch = $allCurricula ? '' : trim((string) $request->query('branch', ''));
+        $specialization = $allCurricula ? '' : trim((string) $request->query('specialization', ''));
 
         // صف SSOT = enrollment.classes (الأول / الثاني / الثالث) → grade_level_id for curricula filter.
-        if ($classId !== null) {
+        if (! $allCurricula && $classId !== null) {
             $gradeLevelId = null;
             foreach ($filterOptions['classes'] ?? [] as $classRow) {
                 if ((int) ($classRow['id'] ?? 0) === $classId) {
@@ -144,10 +152,10 @@ final class CurriculumPageController extends Controller
         $meta = $this->buildLabelMaps($filterOptions);
 
         $curriculaPayload = ['data' => [], 'pagination' => ['page' => 1, 'per_page' => $perPage, 'total' => 0, 'last_page' => 1]];
-        if ($academicYearId !== null) {
+        if ($allCurricula || $academicYearId !== null) {
             $result = $curriculaHandler->handle(new ListCurriculaQuery(
                 schoolId: $schoolId,
-                academicYearId: $academicYearId,
+                academicYearId: $allCurricula ? null : $academicYearId,
                 includeInactive: true,
                 status: $status,
                 gradeLevelId: $gradeLevelId,
@@ -287,7 +295,8 @@ final class CurriculumPageController extends Controller
             'subjects' => $subjectsPayload,
             'linkedSubjects' => $linkedSubjects,
             'filters' => [
-                'academic_year_id' => $academicYearId,
+                'academic_year_id' => $allCurricula ? null : $academicYearId,
+                'all_curricula' => $allCurricula,
                 'curriculum_id' => $selectedCurriculumId,
                 'q' => $q,
                 'status' => $status,
@@ -323,6 +332,7 @@ final class CurriculumPageController extends Controller
         CreateCurriculumHandler $handler,
     ): RedirectResponse {
         $schoolId = $this->schoolContext->requireId();
+        $subjectIds = $request->validated('subject_ids') ?? [];
         $result = $handler->handle(new CreateCurriculumCommand(
             schoolId: $schoolId,
             academicYearId: (int) $request->validated('academic_year_id'),
@@ -332,6 +342,7 @@ final class CurriculumPageController extends Controller
                 ? (int) $request->validated('specialization_id')
                 : null,
             idempotencyKey: $this->idempotencyKey($request),
+            subjectIds: array_map(static fn (mixed $id): int => (int) $id, is_array($subjectIds) ? $subjectIds : []),
         ));
 
         if ($result->failed()) {
@@ -463,6 +474,10 @@ final class CurriculumPageController extends Controller
             maxGrade: (int) ($request->validated('max_grade') ?? 100),
             passGrade: (int) ($request->validated('pass_grade') ?? 50),
             idempotencyKey: $this->idempotencyKey($request),
+            prerequisiteSubjectIds: array_map(
+                static fn (mixed $id): int => (int) $id,
+                $request->validated('prerequisite_subject_ids') ?? [],
+            ),
         ));
 
         if ($result->failed()) {

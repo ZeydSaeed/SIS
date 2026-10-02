@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import {
     Eye,
+    Filter,
     FilterX,
     Pencil,
     Trash2,
@@ -14,6 +15,7 @@ import {
     catalogDepartmentsForBranch,
     catalogSubjectsFor,
 } from '@/components/curriculum/curriculum-subject-catalog';
+import { CurriculumCreateSheetDialog } from '@/components/curriculum/curriculum-create-sheet';
 import { CurriculumPlanSheetDialog } from '@/components/curriculum/curriculum-plan-sheet';
 import { CurriculumSubjectSheetDialog } from '@/components/curriculum/curriculum-subject-sheet';
 import {
@@ -136,6 +138,8 @@ export type CurriculumFilterOptions = {
 
 export type CurriculumPageFilters = {
     academic_year_id: number | null;
+    /** When true, curricula list spans every academic year (overview mode). */
+    all_curricula: boolean;
     curriculum_id: number | null;
     q: string;
     status: number | null;
@@ -404,6 +408,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const filters = useMemo<CurriculumPageFilters>(
         () => ({
             academic_year_id: props.filters?.academic_year_id ?? null,
+            all_curricula: Boolean(props.filters?.all_curricula),
             curriculum_id: props.filters?.curriculum_id ?? null,
             q: props.filters?.q ?? '',
             status: props.filters?.status ?? null,
@@ -509,6 +514,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const fitPageSize = useFitTablePageSize(scrollerRef, {
         fallbackRows: CURRICULUM_PER_PAGE,
         enabled: true,
+        remountKey: activeView,
     });
 
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
@@ -565,32 +571,40 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         only?: string[],
     ): void => {
         const next: CurriculumPageFilters = { ...filters, ...overrides };
-        // Keep session on current year unless the year control is explicitly set —
-        // otherwise a one-off curriculum year pick empties students/enrollments/admission.
-        const yearForRequest =
-            selectedYear !== ''
+        const showAll =
+            Object.prototype.hasOwnProperty.call(overrides, 'all_curricula')
+                ? Boolean(overrides.all_curricula)
+                : next.all_curricula;
+        // Explicit academic_year_id in overrides always wins — setState is async, so
+        // reading selectedYear here would re-send the previous year on every change.
+        const yearForRequest = showAll
+            ? null
+            : Object.prototype.hasOwnProperty.call(overrides, 'academic_year_id')
+              ? (overrides.academic_year_id ?? currentYearId)
+              : selectedYear !== ''
                 ? Number(selectedYear)
-                : (overrides.academic_year_id ?? currentYearId);
+                : (currentYearId ?? filters.academic_year_id);
 
         router.get(
             '/curriculum',
             {
                 ...omitEmpty({
                     academic_year_id: yearForRequest ?? undefined,
+                    all_curricula: showAll ? 1 : undefined,
                     curriculum_id: next.curriculum_id,
                     q: next.q,
                     status: next.status,
                     page: next.page,
-                    per_page: next.per_page,
+                    per_page: showAll ? 100 : next.per_page,
                     subject_q: next.subject_q,
                     subject_status: next.subject_status,
                     subject_type: next.subject_type,
                     subject_page: next.subject_page,
                     subject_per_page: next.subject_per_page,
                 }),
-                branch: next.branch,
-                specialization: next.specialization,
-                class_id: next.class_id ?? '',
+                branch: showAll ? '' : next.branch,
+                specialization: showAll ? '' : next.specialization,
+                class_id: showAll ? '' : (next.class_id ?? ''),
             },
             {
                 preserveState: true,
@@ -663,6 +677,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
 
     // Sticky empty years (e.g. 2025-2026) hide students/enrollments/admission — pin back to current.
     useEffect(() => {
+        if (filters.all_curricula) {
+            return;
+        }
+
         if (selectedYear !== '') {
             return;
         }
@@ -675,10 +693,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return;
         }
 
-        visitIndex({ academic_year_id: currentYearId });
+        visitIndex({ academic_year_id: currentYearId, all_curricula: false });
         // Mount / year-catalog sync only — visitIndex closes over latest filters.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentYearId, filters.academic_year_id, selectedYear]);
+    }, [currentYearId, filters.academic_year_id, filters.all_curricula, selectedYear]);
 
     const titlebarSearch = useMemo(
         () => ({
@@ -759,6 +777,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         clearCurriculumStoredFilters();
         visitIndex({
             academic_year_id: currentYearId ?? filters.academic_year_id,
+            all_curricula: false,
             branch: '',
             specialization: '',
             class_id: null,
@@ -767,6 +786,27 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         // visitIndex closes over latest filters/state when invoked
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentYearId, filters.academic_year_id]);
+
+    const showAllCurricula = useCallback((): void => {
+        setSelectedYear('');
+        setSelectedBranch('');
+        setSelectedSpec('');
+        setSelectedClass('');
+        clearCurriculumStoredFilters();
+        setActiveView('curricula');
+        visitIndex({
+            academic_year_id: null,
+            all_curricula: true,
+            branch: '',
+            specialization: '',
+            class_id: null,
+            grade_level_id: null,
+            specialization_id: null,
+            branch_id: null,
+            per_page: 100,
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
         return [
@@ -796,18 +836,17 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                         ]}
                                         onChange={(next) => {
                                             setSelectedYear(next);
-                                            if (next !== '') {
-                                                visitIndex({
-                                                    academic_year_id: Number(next),
-                                                });
-                                            } else if (
-                                                currentYearId !== null &&
-                                                currentYearId !== undefined
-                                            ) {
-                                                visitIndex({
-                                                    academic_year_id: currentYearId,
-                                                });
+                                            const yearId =
+                                                next !== ''
+                                                    ? Number(next)
+                                                    : currentYearId;
+                                            if (yearId === null || yearId === undefined) {
+                                                return;
                                             }
+                                            visitIndex({
+                                                academic_year_id: yearId,
+                                                all_curricula: false,
+                                            });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
                                         dir="rtl"
@@ -835,6 +874,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             visitIndex({
                                                 class_id: classId,
                                                 grade_level_id: null,
+                                                all_curricula: false,
                                             });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -863,6 +903,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             visitIndex({
                                                 branch: next,
                                                 specialization: '',
+                                                all_curricula: false,
                                             });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -889,6 +930,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             setSelectedSpec(next);
                                             visitIndex({
                                                 specialization: next,
+                                                all_curricula: false,
                                             });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -908,6 +950,21 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                             <FilterX className="sis-ribbon__icon" aria-hidden />
                             <span className="sis-ribbon__label">{c.clearFilters}</span>
                         </button>
+                        <button
+                            type="button"
+                            className={
+                                filters.all_curricula
+                                    ? 'sis-ribbon__item sis-ribbon__item--filter-clear is-active'
+                                    : 'sis-ribbon__item sis-ribbon__item--filter-clear'
+                            }
+                            aria-label={c.showAllCurriculaAria}
+                            title={c.showAllCurriculaAria}
+                            aria-pressed={filters.all_curricula}
+                            onClick={showAllCurricula}
+                        >
+                            <Filter className="sis-ribbon__icon" aria-hidden />
+                            <span className="sis-ribbon__label">{c.showAllCurricula}</span>
+                        </button>
                     </div>
                 ),
             },
@@ -923,10 +980,12 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         clearPageFilters,
         currentYearId,
         filterOptions.classes,
+        filters.all_curricula,
         selectedBranch,
         selectedClass,
         selectedSpec,
         selectedYear,
+        showAllCurricula,
         yearCatalog,
         yearFilterLabel,
     ]);
@@ -1007,6 +1066,80 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
 
     const catalogCurriculumRows = useMemo(() => {
         const classLabel = selectedClass === '' ? '' : sisClassLabel(selectedClass);
+
+        // Overview: every curriculum across years (DB) or full catalog matrix.
+        if (filters.all_curricula) {
+            if (curricula.data.length > 0) {
+                return curricula.data.map((row) => ({
+                    key: `db-${row.id}`,
+                    branch_name: row.branch_name ?? '',
+                    specialization_name: row.specialization_name ?? '',
+                    class_name: row.grade_level_name ?? '',
+                    subjects: (row.subjects ?? []).map((subject) => ({
+                        name: subject.name,
+                        subject_type: subject.subject_type,
+                        credit_hours: subject.credit_hours ?? 0,
+                        max_grade: subject.max_grade ?? 0,
+                    })),
+                }));
+            }
+
+            return catalogCurriculumTableRows();
+        }
+
+        const yearId =
+            selectedYear !== ''
+                ? Number(selectedYear)
+                : (filters.academic_year_id ?? null);
+
+        // Prefer DB curricula for the active academic year so the year filter is visible.
+        const dbMatches = curricula.data.filter((row) => {
+            if (yearId !== null && row.academic_year_id !== yearId) {
+                return false;
+            }
+            if (selectedBranch !== '' && (row.branch_name ?? '') !== selectedBranch) {
+                return false;
+            }
+            if (selectedSpec !== '' && (row.specialization_name ?? '') !== selectedSpec) {
+                return false;
+            }
+            if (classLabel !== '') {
+                const classOk =
+                    (row.grade_level_name ?? '') === classLabel
+                    || filterOptions.classes.some(
+                        (item) =>
+                            item.grade_level_id === row.grade_level_id
+                            && (item.name === classLabel || String(item.id) === selectedClass),
+                    );
+                if (!classOk) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        if (dbMatches.length > 0) {
+            return dbMatches.map((row) => ({
+                key: `db-${row.id}`,
+                branch_name: row.branch_name ?? '',
+                specialization_name: row.specialization_name ?? '',
+                class_name: row.grade_level_name ?? classLabel,
+                subjects: (row.subjects ?? []).map((subject) => ({
+                    name: subject.name,
+                    subject_type: subject.subject_type,
+                    credit_hours: subject.credit_hours ?? 0,
+                    max_grade: subject.max_grade ?? 0,
+                })),
+            }));
+        }
+
+        // Explicit year with no DB curricula → empty list (year filter applied).
+        if (selectedYear !== '') {
+            return [];
+        }
+
+        // No explicit year yet — catalog matrix for planning until curricula exist.
         let rows = catalogCurriculumTableRows();
 
         if (selectedBranch !== '') {
@@ -1020,7 +1153,16 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         }
 
         return rows;
-    }, [selectedBranch, selectedClass, selectedSpec]);
+    }, [
+        curricula.data,
+        filterOptions.classes,
+        filters.academic_year_id,
+        filters.all_curricula,
+        selectedBranch,
+        selectedClass,
+        selectedSpec,
+        selectedYear,
+    ]);
 
     /** Curricula tab: subjects of filtered plans (all plans when no filters). */
     const curriculumPlanSubjectRows = useMemo(() => {
@@ -1485,16 +1627,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 >
                     {activeView === 'subjects' ? (
                         <>
-                            <CurriculumTableFilterContext
-                                ariaLabel={c.tableContextAria}
-                                labels={{
-                                    academicYear: c.academicYear,
-                                    branch: c.branch,
-                                    specialization: c.specialization,
-                                    gradeLevel: c.gradeLevel,
-                                }}
-                                context={tableFilterContext}
-                            />
                             {catalogSubjectRows.length === 0 ? (
                             <p className="text-sm px-1 py-2">
                                 {hasSubjectSearch ? c.emptySearch : c.subjectsEmptyDesc}
@@ -1503,7 +1635,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                             <p className="text-sm px-1 py-2">{c.editErrorEmpty}</p>
                         ) : (
                             <>
-                            <div className="sis-curriculum-subjects-table">
+                            <div className="sis-admission-periods-table sis-admission-drafts-table">
                                 <div
                                     className="sis-admission-drafts-table__scroller"
                                     ref={scrollerRef}
@@ -1687,7 +1819,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                 }}
                                 context={tableFilterContext}
                             />
-                            {curriculumPlanSubjectRows.length === 0 ? (
+                        {curriculumPlanSubjectRows.length === 0 ? (
                         <p className="text-sm px-1 py-2">
                             {hasSubjectSearch ? c.emptySearch : c.plansEmptyDesc}
                         </p>
@@ -1695,7 +1827,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                         <p className="text-sm px-1 py-2">{c.editErrorEmpty}</p>
                     ) : (
                         <>
-                        <div className="sis-curriculum-subjects-table">
+                        <div className="sis-admission-periods-table sis-admission-drafts-table">
                             <div
                                 className="sis-admission-drafts-table__scroller"
                                 ref={scrollerRef}
@@ -1854,11 +1986,11 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             </div>
 
             {planCreateOpen ? (
-                <CurriculumPlanSheetDialog
-                    mode="create"
+                <CurriculumCreateSheetDialog
                     canManage={canManage}
                     filterOptions={filterOptions}
                     defaultAcademicYearId={filters.academic_year_id}
+                    subjects={subjects.data}
                     onClose={() => setPlanCreateOpen(false)}
                 />
             ) : null}

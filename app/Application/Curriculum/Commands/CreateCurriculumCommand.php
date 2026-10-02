@@ -6,6 +6,9 @@ use App\Application\Contracts\Command;
 
 final readonly class CreateCurriculumCommand implements Command
 {
+    /**
+     * @param  list<int>  $subjectIds  When non-empty, link these subjects instead of specialization catalog templates.
+     */
     public function __construct(
         public int $schoolId,
         public int $academicYearId,
@@ -13,5 +16,6 @@ final readonly class CreateCurriculumCommand implements Command
         public string $name,
         public ?int $specializationId,
         public ?string $idempotencyKey,
+        public array $subjectIds = [],
     ) {}
 }

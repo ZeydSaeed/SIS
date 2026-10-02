@@ -32,6 +32,11 @@ import {
     useAdmissionSelectionClearer,
 } from '@/components/admission/admission-selection';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import {
+    clipRowsToFitPageSize,
+    fitAwareLastPage,
+    useDebouncedFitPageSync,
+} from '@/lib/sis-ribbon-layout';
 import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageAlignment } from '@/hooks/use-page-alignment';
 import {
@@ -712,6 +717,15 @@ export function AdmissionDraftsCard({
 
     // Server already filters by stage + Active periods and sorts by applicant name.
     const rows = workspace.applications;
+    const displayRows = useMemo(
+        () => clipRowsToFitPageSize(rows, fitPageSize),
+        [fitPageSize, rows],
+    );
+    const fitTotalPages = fitAwareLastPage(
+        pagination.total,
+        fitPageSize,
+        pagination.total_pages,
+    );
 
     useResizableTableColumns(tableRef, {
         storageKey: 'admission.drafts',
@@ -756,7 +770,7 @@ export function AdmissionDraftsCard({
         }
     })();
     const stageLabel = applicationStatusLabel(status);
-    const rowIds = useMemo(() => rows.map((app) => app.id), [rows]);
+    const rowIds = useMemo(() => displayRows.map((app) => app.id), [displayRows]);
     const visibleCheckedIds = useMemo(
         () => checkedIds.filter((id) => rowIds.includes(id)),
         [checkedIds, rowIds],
@@ -997,9 +1011,13 @@ export function AdmissionDraftsCard({
             const nextPerPage = options?.perPage ?? fitPageSizeRef.current;
             const pageUnchanged = page === pagination.page;
             const perPageUnchanged = nextPerPage === pagination.per_page;
+            const lastPageForNav = Math.max(
+                1,
+                Math.ceil(Math.max(pagination.total, 1) / Math.max(nextPerPage, 1)),
+            );
             if (
                 page < 1 ||
-                (options?.perPage == null && page > pagination.total_pages) ||
+                (options?.perPage == null && page > lastPageForNav) ||
                 (pageUnchanged && perPageUnchanged)
             ) {
                 return;
@@ -1035,13 +1053,18 @@ export function AdmissionDraftsCard({
         ],
     );
 
-    useEffect(() => {
-        if (!yearFilterAction || fitPageSize === pagination.per_page) {
-            return;
-        }
-
-        goPage(pagination.page, { perPage: fitPageSize, quiet: true });
-    }, [fitPageSize, goPage, pagination.page, pagination.per_page, yearFilterAction]);
+    const syncFitPageSize = useCallback(
+        (nextPerPage: number) => {
+            goPage(pagination.page, { perPage: nextPerPage, quiet: true });
+        },
+        [goPage, pagination.page],
+    );
+    useDebouncedFitPageSync(
+        fitPageSize,
+        pagination.per_page,
+        syncFitPageSize,
+        Boolean(yearFilterAction),
+    );
 
     const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
         if (!homeHref) {
@@ -1232,7 +1255,7 @@ export function AdmissionDraftsCard({
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((app, index) => (
+                            {displayRows.map((app, index) => (
                                 <DraftEditorRow
                                     key={app.id}
                                     ref={selectedId === app.id ? selectedRowRef : null}
@@ -1271,7 +1294,7 @@ export function AdmissionDraftsCard({
                                     <span aria-hidden="true">&laquo;</span>
                                 </button>
                             </li>
-                            {visiblePages(pagination.page, pagination.total_pages).map((pageNum) => (
+                            {visiblePages(pagination.page, fitTotalPages).map((pageNum) => (
                                 <li key={pageNum} className="sis-admission-pagination__item">
                                     <button
                                         type="button"
@@ -1293,7 +1316,7 @@ export function AdmissionDraftsCard({
                                     type="button"
                                     className="sis-admission-pagination__link"
                                     aria-label={i18n.common.next}
-                                    disabled={pagination.page >= pagination.total_pages}
+                                    disabled={pagination.page >= fitTotalPages}
                                     onClick={() => goPage(pagination.page + 1)}
                                 >
                                     <span aria-hidden="true">&raquo;</span>

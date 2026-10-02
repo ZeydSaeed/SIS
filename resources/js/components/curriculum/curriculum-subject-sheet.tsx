@@ -646,7 +646,7 @@ function SubjectRecordForm({
                                     disabled={saving || !canSave}
                                     onClick={() => save(true)}
                                 >
-                                    {saving ? i18n.common.saving : c.saveAndClose}
+                                    {saving ? i18n.common.saving : c.save}
                                 </Button>
                                 <Button
                                     type="button"
