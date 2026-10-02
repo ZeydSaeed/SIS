@@ -6,6 +6,9 @@ use App\Application\Contracts\Command;
 
 final readonly class CreateSubjectCommand implements Command
 {
+    /**
+     * @param  list<int>  $prerequisiteSubjectIds  Optional active subjects this subject requires.
+     */
     public function __construct(
         public string $code,
         public string $name,
@@ -15,5 +18,6 @@ final readonly class CreateSubjectCommand implements Command
         public int $maxGrade,
         public int $passGrade,
         public ?string $idempotencyKey,
+        public array $prerequisiteSubjectIds = [],
     ) {}
 }
