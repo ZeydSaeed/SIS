@@ -27,8 +27,7 @@ class CreateSubjectRequest extends FormRequest
             'credit_hours' => ['nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['nullable', 'integer', 'min:0', 'max:1000'],
-            'prerequisite_subject_ids' => ['nullable', 'array', 'max:40'],
-            'prerequisite_subject_ids.*' => ['integer', 'min:1', 'distinct'],
+            'prerequisites_text' => ['nullable', 'string', 'max:500'],
             'status' => ['prohibited'],
             'subject_id' => ['prohibited'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());

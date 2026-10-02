@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentSubjectRepository implements SubjectRepositoryInterface
 {
+    private const SELECT_COLUMNS = [
+        'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
+        'max_grade', 'pass_grade', 'status', 'prerequisites_text',
+    ];
+
     public function codeExists(string $code): bool
     {
         return DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
@@ -26,6 +31,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         int $maxGrade,
         int $passGrade,
         string $createdAt,
+        ?string $prerequisitesText = null,
     ): int {
         return (int) DB::table(SchemaHelper::qualified('curriculum', 'subjects'))->insertGetId([
             'code' => $code,
@@ -35,6 +41,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             'credit_hours' => $creditHours,
             'max_grade' => $maxGrade,
             'pass_grade' => $passGrade,
+            'prerequisites_text' => $prerequisitesText,
             'status' => SubjectStatus::Active->value,
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
@@ -46,10 +53,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $row = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->where('id', $subjectId)
             ->where('status', SubjectStatus::Active->value)
-            ->first([
-                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
-                'max_grade', 'pass_grade', 'status',
-            ]);
+            ->first(self::SELECT_COLUMNS);
 
         return $row === null ? null : $this->map($row);
     }
@@ -59,10 +63,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $row = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->where('id', $subjectId)
             ->where('status', SubjectStatus::Inactive->value)
-            ->first([
-                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
-                'max_grade', 'pass_grade', 'status',
-            ]);
+            ->first(self::SELECT_COLUMNS);
 
         return $row === null ? null : $this->map($row);
     }
@@ -72,10 +73,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->where('status', SubjectStatus::Active->value)
             ->orderBy('code')
-            ->get([
-                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
-                'max_grade', 'pass_grade', 'status',
-            ]);
+            ->get(self::SELECT_COLUMNS);
 
         return $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all();
     }
@@ -85,10 +83,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [SubjectStatus::Active->value])
             ->orderBy('code')
-            ->get([
-                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
-                'max_grade', 'pass_grade', 'status',
-            ]);
+            ->get(self::SELECT_COLUMNS);
 
         return $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all();
     }
@@ -127,10 +122,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             ->orderBy('code')
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)
-            ->get([
-                'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
-                'max_grade', 'pass_grade', 'status',
-            ]);
+            ->get(self::SELECT_COLUMNS);
 
         return [
             'items' => $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all(),
@@ -167,7 +159,15 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
     public function updateActive(int $subjectId, array $fields, string $updatedAt): bool
     {
         $payload = ['updated_at' => $updatedAt];
-        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade'] as $key) {
+        foreach ([
+            'name',
+            'name_en',
+            'subject_type',
+            'credit_hours',
+            'max_grade',
+            'pass_grade',
+            'prerequisites_text',
+        ] as $key) {
             if (array_key_exists($key, $fields)) {
                 $payload[$key] = $fields[$key];
             }
@@ -183,6 +183,10 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
 
     private function map(object $row): SubjectSnapshot
     {
+        $prerequisitesText = property_exists($row, 'prerequisites_text') && $row->prerequisites_text !== null
+            ? (string) $row->prerequisites_text
+            : null;
+
         return new SubjectSnapshot(
             id: (int) $row->id,
             code: (string) $row->code,
@@ -193,6 +197,9 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             maxGrade: (int) $row->max_grade,
             passGrade: (int) $row->pass_grade,
             status: (int) $row->status,
+            prerequisitesText: $prerequisitesText !== null && trim($prerequisitesText) !== ''
+                ? trim($prerequisitesText)
+                : null,
         );
     }
 }

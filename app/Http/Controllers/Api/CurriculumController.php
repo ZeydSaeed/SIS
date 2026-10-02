@@ -101,10 +101,7 @@ class CurriculumController extends Controller
             maxGrade: (int) ($request->validated('max_grade') ?? 100),
             passGrade: (int) ($request->validated('pass_grade') ?? 50),
             idempotencyKey: $request->header('X-Idempotency-Key'),
-            prerequisiteSubjectIds: array_map(
-                static fn (mixed $id): int => (int) $id,
-                $request->validated('prerequisite_subject_ids') ?? [],
-            ),
+            prerequisitesText: $request->validated('prerequisites_text'),
         ));
 
         if ($result->failed()) {
@@ -228,9 +225,9 @@ class CurriculumController extends Controller
         UpdateSubjectRequest $request,
         UpdateSubjectHandler $handler,
     ): JsonResponse {
-        /** @var array{name?: string, name_en?: ?string, subject_type?: int, credit_hours?: ?int, max_grade?: int, pass_grade?: int} $fields */
+        /** @var array{name?: string, name_en?: ?string, subject_type?: int, credit_hours?: ?int, max_grade?: int, pass_grade?: int, prerequisites_text?: ?string} $fields */
         $fields = [];
-        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade'] as $key) {
+        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text'] as $key) {
             if ($request->exists($key)) {
                 $fields[$key] = $request->validated($key);
             }
@@ -962,6 +959,8 @@ class CurriculumController extends Controller
             'max_grade' => $dto->maxGrade,
             'pass_grade' => $dto->passGrade,
             'status' => $dto->status,
+            'prerequisites_text' => $dto->prerequisitesText,
+            'prerequisites' => $dto->prerequisitesText ?? '',
         ];
     }
 

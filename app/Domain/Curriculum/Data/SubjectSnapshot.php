@@ -14,5 +14,6 @@ final readonly class SubjectSnapshot
         public int $maxGrade,
         public int $passGrade,
         public int $status,
+        public ?string $prerequisitesText = null,
     ) {}
 }

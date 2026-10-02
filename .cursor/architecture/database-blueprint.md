@@ -726,6 +726,7 @@
 | credit_hours | SMALLINT | |
 | max_grade | SMALLINT | NOT NULL DEFAULT 100 |
 | pass_grade | SMALLINT | NOT NULL DEFAULT 50 |
+| prerequisites_text | VARCHAR(500) | nullable — optional free-text prerequisites note (display); formal edges remain in `curriculum.prerequisites` |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |

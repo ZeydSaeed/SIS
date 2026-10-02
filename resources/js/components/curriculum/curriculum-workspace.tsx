@@ -104,7 +104,6 @@ export type SubjectRow = {
     pass_grade: number;
     status: number;
     prerequisites?: string;
-    prerequisite_subject_ids?: number[];
 };
 
 export type LinkedSubjectRow = {
@@ -1011,6 +1010,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         const rows: Array<{
             id: number | null;
             name: string;
+            name_en: string;
             subject_type: number;
             credit_hours: number | null;
             max_grade: number;
@@ -1024,6 +1024,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return {
                 id: fromDb?.id ?? null,
                 name: row.name,
+                name_en: fromDb?.name_en?.trim() || '',
                 subject_type: fromDb?.subject_type ?? row.subject_type,
                 credit_hours: fromDb?.credit_hours ?? row.credit_hours,
                 max_grade: fromDb?.max_grade ?? row.max_grade,
@@ -1040,6 +1041,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             rows.push({
                 id: fromDb.id,
                 name: fromDb.name,
+                name_en: fromDb.name_en?.trim() || '',
                 subject_type: fromDb.subject_type,
                 credit_hours: fromDb.credit_hours,
                 max_grade: fromDb.max_grade,
@@ -1054,7 +1056,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 return true;
             }
 
-            return row.name.toLowerCase().includes(query);
+            return (
+                row.name.toLowerCase().includes(query) ||
+                row.name_en.toLowerCase().includes(query)
+            );
         });
     }, [filters.q, subjects.data, subjectsByName]);
 
@@ -1173,6 +1178,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         const out: Array<{
             id: number | null;
             name: string;
+            name_en: string;
             subject_type: number;
             credit_hours: number;
             max_grade: number;
@@ -1189,6 +1195,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 out.push({
                     ...subject,
                     id: fromDb?.id ?? null,
+                    name_en: fromDb?.name_en?.trim() || '',
                     status: fromDb?.status ?? 1,
                 });
             }
@@ -1495,8 +1502,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         storageKey: activeView === 'subjects' ? 'curriculum.subjects' : 'curriculum.plans',
         columnSignature:
             activeView === 'subjects'
-                ? 'select:seq:name:type:hours:max:pass:prereq:status:v3'
-                : 'select:seq:name:type:hours:max:status:v3',
+                ? 'select:seq:name:name_en:type:hours:max:pass:prereq:status:v4'
+                : 'select:seq:name:name_en:type:hours:max:status:v4',
         enabled: tableRowCount > 0,
     });
     useSmoothVerticalScroll(scrollerRef, tableRowCount > 0);
@@ -1674,6 +1681,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                 <th className="sis-admission-drafts-table__name-head">
                                                     {c.subjectName}
                                                 </th>
+                                                <th className="sis-admission-drafts-table__name-head sis-curriculum-name-en-col">
+                                                    {c.subjectNameEn}
+                                                </th>
                                                 <th className="sis-curriculum-type-col">{c.subjectType}</th>
                                                 <th className="sis-curriculum-hours-col">{c.creditHours}</th>
                                                 <th>{c.maxGrade}</th>
@@ -1710,6 +1720,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                     <td className="sis-admission-drafts-table__name sis-students-table__nowrap">
                                                         <div className="sis-students-table__cell-scroll">
                                                             {row.name}
+                                                        </div>
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__name sis-students-table__nowrap sis-curriculum-name-en-col">
+                                                        <div className="sis-students-table__cell-scroll" dir="ltr">
+                                                            {row.name_en.trim() !== ''
+                                                                ? row.name_en
+                                                                : '—'}
                                                         </div>
                                                     </td>
                                                     <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
@@ -1866,6 +1883,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             <th className="sis-admission-drafts-table__name-head">
                                                 {c.subjectName}
                                             </th>
+                                            <th className="sis-admission-drafts-table__name-head sis-curriculum-name-en-col">
+                                                {c.subjectNameEn}
+                                            </th>
                                             <th className="sis-curriculum-type-col">{c.subjectType}</th>
                                             <th className="sis-curriculum-hours-col">{c.creditHours}</th>
                                             <th>{c.maxGrade}</th>
@@ -1900,6 +1920,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                 <td className="sis-admission-drafts-table__name sis-students-table__nowrap">
                                                     <div className="sis-students-table__cell-scroll">
                                                         {subject.name}
+                                                    </div>
+                                                </td>
+                                                <td className="sis-admission-drafts-table__name sis-students-table__nowrap sis-curriculum-name-en-col">
+                                                    <div className="sis-students-table__cell-scroll" dir="ltr">
+                                                        {subject.name_en.trim() !== ''
+                                                            ? subject.name_en
+                                                            : '—'}
                                                     </div>
                                                 </td>
                                                 <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
@@ -2016,9 +2043,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 <CurriculumSubjectSheetDialog
                     mode="create"
                     canManage={canManage}
-                    prerequisiteOptions={subjects.data
-                        .filter((row) => Number(row.status) === 1)
-                        .map((row) => ({ id: row.id, name: row.name }))}
                     onClose={() => setSubjectCreateOpen(false)}
                 />
             ) : null}
@@ -2028,9 +2052,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                     subjects={subjectSheetSubjects}
                     canManage={canManage}
                     initialEditing={subjectSheetEditing}
-                    prerequisiteOptions={subjects.data
-                        .filter((row) => Number(row.status) === 1)
-                        .map((row) => ({ id: row.id, name: row.name }))}
                     onClose={() => {
                         setSubjectSheetSubjects([]);
                         setSubjectSheetEditing(false);

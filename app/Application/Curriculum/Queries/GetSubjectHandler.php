@@ -29,6 +29,7 @@ final class GetSubjectHandler
             maxGrade: $s->maxGrade,
             passGrade: $s->passGrade,
             status: $s->status,
+            prerequisitesText: $s->prerequisitesText,
         );
     }
 }

@@ -57,6 +57,7 @@ final class ListSubjectsHandler
             maxGrade: $row->maxGrade,
             passGrade: $row->passGrade,
             status: $row->status,
+            prerequisitesText: $row->prerequisitesText,
         );
     }
 }

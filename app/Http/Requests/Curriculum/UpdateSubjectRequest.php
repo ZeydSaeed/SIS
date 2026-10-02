@@ -24,6 +24,7 @@ class UpdateSubjectRequest extends FormRequest
             'credit_hours' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['sometimes', 'integer', 'min:0', 'max:1000'],
+            'prerequisites_text' => ['sometimes', 'nullable', 'string', 'max:500'],
             'code' => ['prohibited'],
             'status' => ['prohibited'],
             'subject_id' => ['prohibited'],

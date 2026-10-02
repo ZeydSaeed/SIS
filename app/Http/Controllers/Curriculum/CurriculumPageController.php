@@ -65,7 +65,6 @@ use App\Http\Requests\Curriculum\UpdateCurriculumRequest;
 use App\Http\Requests\Curriculum\UpdateSubjectRequest;
 use App\Http\Requests\Enrollment\AssignEnrollmentSubjectRequest;
 use App\Http\Support\AcademicYearContextResolver;
-use App\Domain\Curriculum\Repositories\PrerequisiteRepositoryInterface;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Context\SchoolContext;
@@ -90,7 +89,6 @@ final class CurriculumPageController extends Controller
         ListSubjectsHandler $subjectsHandler,
         ListCurriculumSubjectsHandler $linksHandler,
         EnrollmentReadRepositoryInterface $enrollmentReads,
-        PrerequisiteRepositoryInterface $prerequisites,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -206,8 +204,7 @@ final class CurriculumPageController extends Controller
             'max_grade' => $dto->maxGrade,
             'pass_grade' => $dto->passGrade,
             'status' => $dto->status,
-            'prerequisites' => '',
-            'prerequisite_subject_ids' => [],
+            'prerequisites' => $dto->prerequisitesText ?? '',
         ];
         $subjectsPayload = [
             'data' => array_map($mapSubjectRow, $subjectsForCatalog['items']),
@@ -229,28 +226,6 @@ final class CurriculumPageController extends Controller
         foreach ($allSubjects as $dto) {
             assert($dto instanceof SubjectDTO);
             $subjectById[$dto->id] = $mapSubjectRow($dto);
-        }
-
-        $prerequisiteMap = $prerequisites->activePrerequisiteSubjectIdsForSubjects(
-            array_map(static fn (array $row): int => (int) $row['id'], array_values($subjectById)),
-        );
-        foreach ($subjectById as $subjectId => $subject) {
-            $prereqIds = $prerequisiteMap[(int) $subjectId] ?? [];
-            $names = [];
-            foreach ($prereqIds as $prereqId) {
-                $name = $subjectById[$prereqId]['name'] ?? null;
-                if (is_string($name) && $name !== '') {
-                    $names[] = $name;
-                }
-            }
-            $subjectById[$subjectId]['prerequisite_subject_ids'] = $prereqIds;
-            $subjectById[$subjectId]['prerequisites'] = implode('، ', $names);
-        }
-        foreach ($subjectsPayload['data'] as $index => $subject) {
-            $enriched = $subjectById[$subject['id']] ?? $subject;
-            $subjectsPayload['data'][$index]['prerequisite_subject_ids'] =
-                $enriched['prerequisite_subject_ids'] ?? [];
-            $subjectsPayload['data'][$index]['prerequisites'] = $enriched['prerequisites'] ?? '';
         }
 
         $linkedSubjects = [];
@@ -500,10 +475,7 @@ final class CurriculumPageController extends Controller
             maxGrade: (int) ($request->validated('max_grade') ?? 100),
             passGrade: (int) ($request->validated('pass_grade') ?? 50),
             idempotencyKey: $this->idempotencyKey($request),
-            prerequisiteSubjectIds: array_map(
-                static fn (mixed $id): int => (int) $id,
-                $request->validated('prerequisite_subject_ids') ?? [],
-            ),
+            prerequisitesText: $request->validated('prerequisites_text'),
         ));
 
         if ($result->failed()) {
@@ -529,7 +501,7 @@ final class CurriculumPageController extends Controller
         UpdateSubjectHandler $handler,
     ): RedirectResponse {
         $fields = [];
-        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade'] as $key) {
+        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text'] as $key) {
             if ($request->exists($key)) {
                 $fields[$key] = $request->validated($key);
             }

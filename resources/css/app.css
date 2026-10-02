@@ -4238,6 +4238,13 @@ button.sis-admission-enroll-status-text:active {
     border-inline-start: var(--sis-table-line) !important;
 }
 
+/* English subject name: LTR, start-aligned like Arabic name. */
+.sis-curriculum-page .sis-admission-drafts-table :is(th, td).sis-curriculum-name-en-col {
+    text-align: start;
+    text-align-last: start;
+    white-space: nowrap;
+}
+
 .sis-curriculum-table-context {
     display: flex;
     flex: 0 0 auto;
@@ -10940,6 +10947,39 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
 .sis-curriculum-subject-sheet.sis-admission-draft-form.sis-student-record-form .sis-admission-sheet__section,
 .sis-curriculum-subject-sheet.sis-admission-draft-form.sis-student-record-form .sis-admission-sheet__body {
     flex: 0 0 auto !important;
+}
+
+/* English name + subject status: one aligned row (side by side). */
+.sis-curriculum-subject-sheet .sis-curriculum-subject-sheet__en-status-line {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 11rem) !important;
+    align-items: end !important;
+    column-gap: 0.75rem;
+    width: 100%;
+}
+
+.sis-curriculum-subject-sheet .sis-curriculum-subject-sheet__en-status-line > .sis-admission-sheet__field {
+    grid-column: auto !important;
+    margin-bottom: 0 !important;
+    min-width: 0;
+}
+
+.sis-curriculum-subject-sheet .sis-curriculum-subject-sheet__en-name-field {
+    width: 100%;
+}
+
+.sis-curriculum-subject-sheet .sis-curriculum-subject-sheet__en-status-line .sis-student-record-form__status-field {
+    width: 100%;
+    min-width: 7.5rem;
+    max-width: none;
+}
+
+.sis-curriculum-subject-sheet .sis-curriculum-subject-sheet__en-status-line .sis-admission-sheet__control,
+.sis-curriculum-subject-sheet
+    .sis-curriculum-subject-sheet__en-status-line
+    .sis-list-select__trigger.sis-admission-sheet__control {
+    min-height: 2.15rem;
+    height: 2.15rem;
 }
 
 .sis-curriculum-subject-prereqs {

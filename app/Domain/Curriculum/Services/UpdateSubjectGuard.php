@@ -12,7 +12,15 @@ final class UpdateSubjectGuard
     ) {}
 
     /**
-     * @param  array{name?: string, name_en?: ?string, subject_type?: int, credit_hours?: ?int, max_grade?: int, pass_grade?: int}  $fields
+     * @param  array{
+     *     name?: string,
+     *     name_en?: ?string,
+     *     subject_type?: int,
+     *     credit_hours?: ?int,
+     *     max_grade?: int,
+     *     pass_grade?: int,
+     *     prerequisites_text?: ?string
+     * }  $fields
      */
     public function rejectionCode(int $subjectId, array $fields): ?string
     {

@@ -1211,8 +1211,6 @@ export const ar = {
         subjectStatus: 'حالة المادة',
         prerequisitesColumn: 'المتطلبات',
         prerequisitesField: 'المتطلبات',
-        prerequisitesOptionalHint: 'اختياري — اختر مواداً سابقة إن وُجدت',
-        prerequisitesAdd: 'إضافة متطلب',
         nonePrerequisites: '—',
         filterDefault: 'افتراضي',
         tableContextAria: 'سياق التصفية الحالي للمنهج',

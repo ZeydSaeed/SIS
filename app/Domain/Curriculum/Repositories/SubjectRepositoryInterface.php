@@ -17,6 +17,7 @@ interface SubjectRepositoryInterface
         int $maxGrade,
         int $passGrade,
         string $createdAt,
+        ?string $prerequisitesText = null,
     ): int;
 
     public function findActive(int $subjectId): ?SubjectSnapshot;
@@ -44,6 +45,16 @@ interface SubjectRepositoryInterface
 
     public function reactivate(int $subjectId): bool;
 
-    /** @param  array{name?: string, name_en?: ?string, subject_type?: int, credit_hours?: ?int, max_grade?: int, pass_grade?: int}  $fields */
+    /**
+     * @param  array{
+     *     name?: string,
+     *     name_en?: ?string,
+     *     subject_type?: int,
+     *     credit_hours?: ?int,
+     *     max_grade?: int,
+     *     pass_grade?: int,
+     *     prerequisites_text?: ?string
+     * }  $fields
+     */
     public function updateActive(int $subjectId, array $fields, string $updatedAt): bool;
 }
