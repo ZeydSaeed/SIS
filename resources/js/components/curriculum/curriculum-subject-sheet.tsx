@@ -686,7 +686,6 @@ function SubjectRecordForm({
                                     onChange={addPrerequisite}
                                     ariaLabel={c.prerequisitesAdd}
                                     includeBlank
-                                    blankLabel={c.prerequisitesAdd}
                                     className="sis-admission-sheet-list-select"
                                     triggerClassName="sis-admission-sheet__control sis-admission-draft-select"
                                     menuClassName="sis-admission-sheet-list-select__menu"
@@ -705,7 +704,7 @@ function SubjectRecordForm({
                                                         type="button"
                                                         className="sis-curriculum-subject-prereqs__chip"
                                                         onClick={() => removePrerequisite(id)}
-                                                        aria-label={`${i18n.common.remove}: ${label}`}
+                                                        aria-label={`${i18n.common.delete}: ${label}`}
                                                     >
                                                         <span>{label}</span>
                                                         <span aria-hidden="true">×</span>
@@ -824,6 +823,7 @@ type Props = {
     mode?: CurriculumSubjectSheetMode;
     canManage: boolean;
     initialEditing?: boolean;
+    prerequisiteOptions?: CurriculumSubjectPrerequisiteOption[];
     onClose: () => void;
 };
 
@@ -835,6 +835,7 @@ export function CurriculumSubjectSheetDialog({
     mode = 'edit',
     canManage,
     initialEditing = false,
+    prerequisiteOptions = [],
     onClose,
 }: Props) {
     const i18n = t();
@@ -1080,6 +1081,7 @@ export function CurriculumSubjectSheetDialog({
                                         hideHero
                                         sheetTitle={subject.name}
                                         onClose={onClose}
+                                        prerequisiteOptions={prerequisiteOptions}
                                     />
                                 </div>
                             ))}
@@ -1099,6 +1101,7 @@ export function CurriculumSubjectSheetDialog({
                             showWindowControls
                             maximized={maximized}
                             onMaximize={toggleMaximize}
+                            prerequisiteOptions={prerequisiteOptions}
                         />
                     ))
                 )}
