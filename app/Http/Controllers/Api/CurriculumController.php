@@ -101,6 +101,10 @@ class CurriculumController extends Controller
             maxGrade: (int) ($request->validated('max_grade') ?? 100),
             passGrade: (int) ($request->validated('pass_grade') ?? 50),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            prerequisiteSubjectIds: array_map(
+                static fn (mixed $id): int => (int) $id,
+                $request->validated('prerequisite_subject_ids') ?? [],
+            ),
         ));
 
         if ($result->failed()) {

@@ -65,6 +65,7 @@ use App\Http\Requests\Curriculum\UpdateCurriculumRequest;
 use App\Http\Requests\Curriculum\UpdateSubjectRequest;
 use App\Http\Requests\Enrollment\AssignEnrollmentSubjectRequest;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Domain\Curriculum\Repositories\PrerequisiteRepositoryInterface;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Context\SchoolContext;
@@ -89,6 +90,7 @@ final class CurriculumPageController extends Controller
         ListSubjectsHandler $subjectsHandler,
         ListCurriculumSubjectsHandler $linksHandler,
         EnrollmentReadRepositoryInterface $enrollmentReads,
+        PrerequisiteRepositoryInterface $prerequisites,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -204,6 +206,8 @@ final class CurriculumPageController extends Controller
             'max_grade' => $dto->maxGrade,
             'pass_grade' => $dto->passGrade,
             'status' => $dto->status,
+            'prerequisites' => '',
+            'prerequisite_subject_ids' => [],
         ];
         $subjectsPayload = [
             'data' => array_map($mapSubjectRow, $subjectsForCatalog['items']),
@@ -225,6 +229,28 @@ final class CurriculumPageController extends Controller
         foreach ($allSubjects as $dto) {
             assert($dto instanceof SubjectDTO);
             $subjectById[$dto->id] = $mapSubjectRow($dto);
+        }
+
+        $prerequisiteMap = $prerequisites->activePrerequisiteSubjectIdsForSubjects(
+            array_map(static fn (array $row): int => (int) $row['id'], array_values($subjectById)),
+        );
+        foreach ($subjectById as $subjectId => $subject) {
+            $prereqIds = $prerequisiteMap[(int) $subjectId] ?? [];
+            $names = [];
+            foreach ($prereqIds as $prereqId) {
+                $name = $subjectById[$prereqId]['name'] ?? null;
+                if (is_string($name) && $name !== '') {
+                    $names[] = $name;
+                }
+            }
+            $subjectById[$subjectId]['prerequisite_subject_ids'] = $prereqIds;
+            $subjectById[$subjectId]['prerequisites'] = implode('، ', $names);
+        }
+        foreach ($subjectsPayload['data'] as $index => $subject) {
+            $enriched = $subjectById[$subject['id']] ?? $subject;
+            $subjectsPayload['data'][$index]['prerequisite_subject_ids'] =
+                $enriched['prerequisite_subject_ids'] ?? [];
+            $subjectsPayload['data'][$index]['prerequisites'] = $enriched['prerequisites'] ?? '';
         }
 
         $linkedSubjects = [];

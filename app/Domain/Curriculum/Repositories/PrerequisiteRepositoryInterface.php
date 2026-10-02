@@ -26,4 +26,12 @@ interface PrerequisiteRepositoryInterface
 
     /** @return list<int> active prerequisite_subject_id edges from $subjectId */
     public function activePrerequisiteSubjectIds(int $subjectId): array;
+
+    /**
+     * Active prerequisite edges for many subjects (index/list enrichment).
+     *
+     * @param  list<int>  $subjectIds
+     * @return array<int, list<int>> subject_id => prerequisite_subject_ids
+     */
+    public function activePrerequisiteSubjectIdsForSubjects(array $subjectIds): array;
 }
