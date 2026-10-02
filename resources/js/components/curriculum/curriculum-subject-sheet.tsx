@@ -22,6 +22,13 @@ export type CurriculumSubjectSheetSubject = {
     max_grade: number;
     pass_grade: number;
     status: number;
+    prerequisites?: string;
+    prerequisite_subject_ids?: number[];
+};
+
+export type CurriculumSubjectPrerequisiteOption = {
+    id: number;
+    name: string;
 };
 
 export type CurriculumSubjectSheetMode = 'edit' | 'create';
@@ -35,6 +42,7 @@ type Draft = {
     max_grade: string;
     pass_grade: string;
     status: string;
+    prerequisite_subject_ids: string[];
 };
 
 /** Blank subject for create-mode SSOT — same sheet as enrollment-style view/edit. */
@@ -99,6 +107,7 @@ function toDraft(subject: CurriculumSubjectSheetSubject): Draft {
         max_grade: String(subject.max_grade ?? 100),
         pass_grade: String(subject.pass_grade ?? 50),
         status: String(Number(subject.status) === 1 ? 1 : 2),
+        prerequisite_subject_ids: (subject.prerequisite_subject_ids ?? []).map(String),
     };
 }
 
@@ -214,6 +223,7 @@ function SubjectRecordForm({
     showWindowControls = true,
     maximized,
     onMaximize,
+    prerequisiteOptions = [],
 }: {
     subject: CurriculumSubjectSheetSubject;
     canManage: boolean;
@@ -226,6 +236,7 @@ function SubjectRecordForm({
     showWindowControls?: boolean;
     maximized?: boolean;
     onMaximize?: () => void;
+    prerequisiteOptions?: CurriculumSubjectPrerequisiteOption[];
 }) {
     const i18n = t();
     const c = i18n.curriculum;
@@ -236,12 +247,14 @@ function SubjectRecordForm({
     const [saving, setSaving] = useState(false);
     const [pendingStatus, setPendingStatus] = useState<1 | 2 | null>(null);
     const [confirmPending, setConfirmPending] = useState(false);
+    const [prereqPick, setPrereqPick] = useState('');
     const nameInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         setDraft(toDraft(subject));
         setEditing((isCreate || initialEditing) && canManage);
         setPendingStatus(null);
+        setPrereqPick('');
     }, [canManage, initialEditing, isCreate, subject]);
 
     const typeOptions = useMemo(
@@ -261,6 +274,20 @@ function SubjectRecordForm({
         [i18n.status.active, i18n.status.inactive],
     );
 
+    const availablePrerequisiteOptions = useMemo(() => {
+        const selected = new Set(draft.prerequisite_subject_ids);
+        return prerequisiteOptions
+            .filter((row) => row.id !== subject.id && !selected.has(String(row.id)))
+            .map((row) => ({ value: String(row.id), label: row.name }));
+    }, [draft.prerequisite_subject_ids, prerequisiteOptions, subject.id]);
+
+    const selectedPrerequisiteLabels = useMemo(() => {
+        const byId = new Map(prerequisiteOptions.map((row) => [String(row.id), row.name]));
+        return draft.prerequisite_subject_ids
+            .map((id) => byId.get(id) ?? id)
+            .filter((label) => label.trim() !== '');
+    }, [draft.prerequisite_subject_ids, prerequisiteOptions]);
+
     const statusDisplay =
         Number(draft.status) === 1 ? i18n.status.active : i18n.status.inactive;
     const typeDisplay = subjectTypeLabel(Number(draft.subject_type), c);
@@ -278,6 +305,32 @@ function SubjectRecordForm({
         setDraft((current) => ({ ...current, [key]: value }));
     };
 
+    const addPrerequisite = (value: string): void => {
+        if (value.trim() === '') {
+            return;
+        }
+        setDraft((current) => {
+            if (current.prerequisite_subject_ids.includes(value)) {
+                return current;
+            }
+
+            return {
+                ...current,
+                prerequisite_subject_ids: [...current.prerequisite_subject_ids, value],
+            };
+        });
+        setPrereqPick('');
+    };
+
+    const removePrerequisite = (value: string): void => {
+        setDraft((current) => ({
+            ...current,
+            prerequisite_subject_ids: current.prerequisite_subject_ids.filter(
+                (id) => id !== value,
+            ),
+        }));
+    };
+
     const createSubject = (closeAfter: boolean): void => {
         const name = draft.name.trim();
         const code = draft.code.trim() || subjectCodeFromName(name);
@@ -292,6 +345,7 @@ function SubjectRecordForm({
                 credit_hours: draft.credit_hours === '' ? null : Number(draft.credit_hours),
                 max_grade: Number(draft.max_grade),
                 pass_grade: Number(draft.pass_grade),
+                prerequisite_subject_ids: draft.prerequisite_subject_ids.map(Number),
             },
             {
                 preserveScroll: true,
@@ -311,6 +365,7 @@ function SubjectRecordForm({
                     }
 
                     setDraft(toDraft(blankCurriculumSubject()));
+                    setPrereqPick('');
                     showSuccess({ description: c.subjectCreatedContinue });
                     requestAnimationFrame(() => {
                         nameInputRef.current?.focus();
@@ -617,6 +672,68 @@ function SubjectRecordForm({
                         fieldClassName="sis-enrollment-record-sheet__field--narrow"
                         onChange={(value) => setField('pass_grade', value)}
                     />
+                </div>
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
+                    <label className="sis-admission-sheet__field sis-enrollment-record-sheet__field--wide">
+                        <span className="sis-admission-sheet__label">
+                            {c.prerequisitesField}
+                        </span>
+                        {fieldsEditable && isCreate ? (
+                            <div className="sis-curriculum-subject-prereqs">
+                                <SisListSelect
+                                    value={prereqPick}
+                                    options={availablePrerequisiteOptions}
+                                    onChange={addPrerequisite}
+                                    ariaLabel={c.prerequisitesAdd}
+                                    includeBlank
+                                    blankLabel={c.prerequisitesAdd}
+                                    className="sis-admission-sheet-list-select"
+                                    triggerClassName="sis-admission-sheet__control sis-admission-draft-select"
+                                    menuClassName="sis-admission-sheet-list-select__menu"
+                                />
+                                {draft.prerequisite_subject_ids.length > 0 ? (
+                                    <ul className="sis-curriculum-subject-prereqs__chips">
+                                        {draft.prerequisite_subject_ids.map((id) => {
+                                            const label =
+                                                prerequisiteOptions.find(
+                                                    (row) => String(row.id) === id,
+                                                )?.name ?? id;
+
+                                            return (
+                                                <li key={id}>
+                                                    <button
+                                                        type="button"
+                                                        className="sis-curriculum-subject-prereqs__chip"
+                                                        onClick={() => removePrerequisite(id)}
+                                                        aria-label={`${i18n.common.remove}: ${label}`}
+                                                    >
+                                                        <span>{label}</span>
+                                                        <span aria-hidden="true">×</span>
+                                                    </button>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                ) : (
+                                    <p className="sis-curriculum-subject-prereqs__hint">
+                                        {c.prerequisitesOptionalHint}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div
+                                className={filledControlClass(
+                                    selectedPrerequisiteLabels.length > 0 ||
+                                        Boolean(subject.prerequisites?.trim()),
+                                    false,
+                                )}
+                            >
+                                {selectedPrerequisiteLabels.length > 0
+                                    ? selectedPrerequisiteLabels.join('، ')
+                                    : subject.prerequisites?.trim() || c.nonePrerequisites}
+                            </div>
+                        )}
+                    </label>
                 </div>
             </SheetSection>
 
