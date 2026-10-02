@@ -1,4 +1,4 @@
-﻿import { router, usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     CircleSlash,
@@ -29,6 +29,8 @@ import type {
     EnrollmentListItem,
 } from '@/components/enrollments/enrollment-types';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
@@ -208,6 +210,7 @@ type VisitParams = {
     q?: string;
     status?: number | null;
     page?: number;
+    per_page?: number;
     academic_year_id?: number | null;
     gender?: number | null;
     class_id?: number | null;
@@ -305,6 +308,7 @@ export function EnrollmentList({
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
+    const fitPageSizeRef = useRef(ENROLLMENTS_PER_PAGE);
     const filtersRef = useRef(filters);
     const searchDraftRef = useRef(filters.q);
     const checkedIdsRef = useRef(checkedIds);
@@ -446,7 +450,7 @@ export function EnrollmentList({
             }
         }
 
-        // Handoff from students uses the structure bar — never open create dialog.
+        // Handoff from students uses the structure bar - never open create dialog.
         // Legacy ?create=1 without handoff still opens the dialog for ribbon/deep links.
         if (wantsCreate && authorization.canCreate && (handoff === null || handoff.students.length === 0)) {
             const studentIdRaw = params.get('student_id');
@@ -532,7 +536,7 @@ export function EnrollmentList({
             {
                 q: current.q.trim() || undefined,
                 page: current.page,
-                per_page: ENROLLMENTS_PER_PAGE,
+                per_page: fitPageSizeRef.current,
                 status: current.status ?? undefined,
                 academic_year_id: current.academic_year_id ?? undefined,
                 gender: current.gender ?? undefined,
@@ -559,7 +563,7 @@ export function EnrollmentList({
             {
                 q: current.q.trim() || undefined,
                 page: current.page,
-                per_page: ENROLLMENTS_PER_PAGE,
+                per_page: fitPageSizeRef.current,
                 status: current.status ?? undefined,
                 academic_year_id: current.academic_year_id ?? undefined,
                 gender: current.gender ?? undefined,
@@ -671,7 +675,7 @@ export function EnrollmentList({
             {
                 q: nextQuery.trim() || undefined,
                 page: params.page ?? current.page,
-                per_page: ENROLLMENTS_PER_PAGE,
+                per_page: params.per_page ?? fitPageSizeRef.current,
                 status:
                     nextStatus === 5 || nextStatus === null || nextStatus === undefined
                         ? undefined
@@ -695,9 +699,23 @@ export function EnrollmentList({
         );
     }, []);
 
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: ENROLLMENTS_PER_PAGE,
+        enabled: true,
+    });
+    fitPageSizeRef.current = fitPageSize;
+
+    useEffect(() => {
+        if (fitPageSize === filters.per_page) {
+            return;
+        }
+
+        visitList({ per_page: fitPageSize, quiet: true });
+    }, [fitPageSize, filters.per_page, visitList]);
+
     const commitSearch = useCallback(
         (query: string) => {
-            visitList({ q: query, page: 1, quiet: true });
+            visitList({ q: query, quiet: true });
         },
         [visitList],
     );
@@ -793,7 +811,7 @@ export function EnrollmentList({
                 '/enrollments/bulk-status',
                 {
                     enrollment_ids: enrollmentIds.map((id) => Number(id)),
-                    // Keep numeric 0 (inactive) — never coerce via || / ?? falsy checks.
+                    // Keep numeric 0 (inactive) - never coerce via || / ?? falsy checks.
                     status: targetStatus,
                     effective_to: today,
                 },
@@ -1021,7 +1039,6 @@ export function EnrollmentList({
             branch_id: null,
             department_id: null,
             specialization_id: null,
-            page: 1,
         });
     }, [clearHandoff, isHandoffMode, visitList]);
 
@@ -1166,7 +1183,6 @@ export function EnrollmentList({
 
             visitList({
                 status,
-                page: 1,
             });
         },
         [visitList],
@@ -1175,6 +1191,7 @@ export function EnrollmentList({
     const goPage = useCallback(
         (page: number) => {
             visitList({ page });
+            writeStoredListPage('enrollments', page);
         },
         [visitList],
     );
@@ -1202,7 +1219,7 @@ export function EnrollmentList({
 
                                             return value === '' ? undefined : value;
                                         },
-                                        per_page: ENROLLMENTS_PER_PAGE,
+                                        per_page: filters.per_page || ENROLLMENTS_PER_PAGE,
                                         status: filters.status ?? undefined,
                                         gender: filters.gender ?? undefined,
                                         class_id: filters.class_id ?? undefined,
@@ -1218,7 +1235,6 @@ export function EnrollmentList({
 
                                         visitList({
                                             academic_year_id: yearId,
-                                            page: 1,
                                         });
                                     }}
                                     label={i18n.enrollments.academicYear}
@@ -1260,7 +1276,6 @@ export function EnrollmentList({
 
                                             visitList({
                                                 gender: next === '1' || next === '2' ? Number(next) : null,
-                                                page: 1,
                                             });
                                         }}
                                         disabled={filtersBusy || isHandoffMode}
@@ -1317,7 +1332,6 @@ export function EnrollmentList({
                                                 branch_id: next === '' ? null : Number(next),
                                                 department_id: null,
                                                 specialization_id: null,
-                                                page: 1,
                                             });
                                         }}
                                         disabled={filtersBusy}
@@ -1373,7 +1387,6 @@ export function EnrollmentList({
                                             visitList({
                                                 department_id: next === '' ? null : Number(next),
                                                 specialization_id: null,
-                                                page: 1,
                                             });
                                         }}
                                         disabled={filtersBusy}
@@ -1457,7 +1470,6 @@ export function EnrollmentList({
                                             visitList({
                                                 class_id: classId,
                                                 section_id: null,
-                                                page: 1,
                                             });
                                         }}
                                         disabled={filtersBusy}
@@ -1550,7 +1562,6 @@ export function EnrollmentList({
                                             if (next === '') {
                                                 visitList({
                                                     section_id: null,
-                                                    page: 1,
                                                 });
 
                                                 return;
@@ -1575,7 +1586,6 @@ export function EnrollmentList({
 
                                             visitList({
                                                 section_id: sectionId,
-                                                page: 1,
                                             });
                                         }}
                                         disabled={filtersBusy}

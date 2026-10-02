@@ -95,10 +95,8 @@ final class PhaseUiCurCurriculumPagePostgreSqlTest extends PostgreSqlIntegration
             ->value('id');
 
         $this->assertGreaterThan(0, $curriculumId);
-        $response->assertRedirect(route('curriculum.show', [
-            'curriculum' => $curriculumId,
-            'academic_year_id' => $yearId,
-        ], absolute: false));
+        $response->assertRedirect();
+        $response->assertSessionHas('success', 'flash.curriculum.created');
 
         $this->assertDatabaseHas(SchemaHelper::qualified('curriculum', 'curriculum_subjects'), [
             'curriculum_id' => $curriculumId,

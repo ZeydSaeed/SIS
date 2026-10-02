@@ -27,6 +27,11 @@ import {
 } from '@/hooks/use-page-clipboard';
 import { togglePageTextStyle } from '@/hooks/use-page-text-style';
 import { t } from '@/i18n';
+import {
+    dispatchOpenCreateCurriculum,
+    dispatchOpenCreateSubject,
+    isCurriculumWorkspacePath,
+} from '@/lib/curriculum-create-subject-event';
 import appearance from '@/routes/appearance';
 import { edit as profileEdit } from '@/routes/profile';
 import { dashboard } from '@/routes';
@@ -99,7 +104,6 @@ const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     addSchool: '/admission',
     addTeacher: '/teachers',
     addHoliday: '/holidays',
-    addCurriculum: '/curriculum',
     addGrades: '/grades',
     addDocument: '/documents',
     addAttendance: '/attendance/create',
@@ -107,7 +111,6 @@ const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     addExam: '/exams',
     addTimetable: '/timetable',
     addSection: '/enrollments/create',
-    addSubject: '/curriculum',
 };
 
 const SETTINGS_ROUTES: Partial<Record<RibbonActionId, string>> = {
@@ -177,6 +180,34 @@ export function AppSidebarHeader({
         if (id === 'addStudent') {
             closeRibbon();
             router.visit('/admission/converted?create_student=1');
+
+            return;
+        }
+
+        if (id === 'addSubject') {
+            closeRibbon();
+            const currentUrl = page.url.split('?')[0] ?? page.url;
+            if (isCurriculumWorkspacePath(currentUrl)) {
+                dispatchOpenCreateSubject();
+
+                return;
+            }
+
+            router.visit('/curriculum?create_subject=1');
+
+            return;
+        }
+
+        if (id === 'addCurriculum') {
+            closeRibbon();
+            const currentUrl = page.url.split('?')[0] ?? page.url;
+            if (isCurriculumWorkspacePath(currentUrl)) {
+                dispatchOpenCreateCurriculum();
+
+                return;
+            }
+
+            router.visit('/curriculum?create_curriculum=1');
 
             return;
         }

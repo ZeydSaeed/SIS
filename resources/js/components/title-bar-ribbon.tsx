@@ -247,13 +247,13 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
         items: [
             { id: 'addSchool', label: 'مدرسة', icon: Building2 },
             { id: 'addSection', label: 'قسم', icon: Layers },
-            { id: 'addSubject', label: 'مادة دراسية', icon: BookMarked },
         ],
     },
     {
         id: 'academic',
         label: 'أكاديمي',
         items: [
+            { id: 'addSubject', label: 'مادة دراسية', icon: BookMarked },
             { id: 'addCurriculum', label: 'منهج', icon: BookOpen },
             { id: 'addTimetable', label: 'جدول دراسي', icon: CalendarRange },
             { id: 'addExam', label: 'امتحان', icon: NotebookPen },

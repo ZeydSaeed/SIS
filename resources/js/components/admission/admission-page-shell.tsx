@@ -77,6 +77,7 @@ function AdmissionHomeFiltersRibbon({
     periodQueryId,
     onPeriodSelect,
     searchDraftRef,
+    perPage,
 }: {
     workspace: AdmissionWorkspace;
     academicYearId: number | null;
@@ -85,6 +86,7 @@ function AdmissionHomeFiltersRibbon({
     periodQueryId: number;
     onPeriodSelect: (periodId: number) => void;
     searchDraftRef: MutableRefObject<string>;
+    perPage: number | null;
 }) {
     const i18n = t();
     const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
@@ -111,6 +113,7 @@ function AdmissionHomeFiltersRibbon({
                                             : periodQueryId > 0
                                                 ? periodQueryId
                                                 : undefined,
+                                    per_page: perPage ?? undefined,
                                 }}
                                 label={i18n.enrollments.academicYear}
                                 showLabel
@@ -134,6 +137,7 @@ function AdmissionHomeFiltersRibbon({
         i18n.admission.ribbonFilters,
         i18n.enrollments.academicYear,
         onPeriodSelect,
+        perPage,
         periodQueryId,
         searchDraftRef,
         selectedPeriodId,
@@ -176,10 +180,13 @@ function AdmissionPageShellInner({
 
     const selectedPeriodId = workspace.selected_period_id ?? null;
     const periodQueryId = selectedPeriodId ?? ADMISSION_PERIOD_FILTER_ALL;
+    const listPerPage = workspace.pagination?.per_page ?? null;
+    const listPerPageRef = useRef(listPerPage);
 
     academicYearIdRef.current = academicYearId;
     periodQueryIdRef.current = periodQueryId;
     yearFilterActionRef.current = yearFilterAction;
+    listPerPageRef.current = listPerPage;
 
     useEffect(() => {
         const [path, query = ''] = page.url.split('?');
@@ -243,6 +250,8 @@ function AdmissionPageShellInner({
                     periodQueryId,
                     null,
                     filtersQ,
+                    null,
+                    listPerPage,
                 )}`,
             ariaLabel: i18n.admission.backToAdmission,
         }),
@@ -251,6 +260,7 @@ function AdmissionPageShellInner({
             filtersQ,
             homeHref,
             i18n.admission.backToAdmission,
+            listPerPage,
             periodQueryId,
         ],
     );
@@ -265,6 +275,8 @@ function AdmissionPageShellInner({
                 periodQueryIdRef.current,
                 1,
                 query,
+                null,
+                listPerPageRef.current,
             )}`,
             {
                 preserveState: true,
@@ -304,6 +316,8 @@ function AdmissionPageShellInner({
                 next,
                 1,
                 searchDraftRef.current,
+                null,
+                listPerPage,
             )}`,
             {
                 preserveState: true,
@@ -311,7 +325,7 @@ function AdmissionPageShellInner({
                 only: ['workspace', 'filters', 'authorization', 'enrollmentFilterOptions'],
             },
         );
-    }, [academicYearId, periodQueryId, yearFilterAction]);
+    }, [academicYearId, listPerPage, periodQueryId, yearFilterAction]);
 
     const handleStageSelect = (status: number) => {
         if (status === ADMISSION_STATUS_REQUEST) {
@@ -341,6 +355,8 @@ function AdmissionPageShellInner({
             periodQueryId,
             null,
             searchDraftRef.current,
+            null,
+            listPerPage,
         );
 
         if (stagePath) {
@@ -376,6 +392,7 @@ function AdmissionPageShellInner({
                 periodQueryId={periodQueryId}
                 onPeriodSelect={handlePeriodSelect}
                 searchDraftRef={searchDraftRef}
+                perPage={listPerPage}
             />
             <div className="sis-ops-hub sis-admission-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4" dir="rtl" lang="ar">
                 <AdmissionWorkflowProgress

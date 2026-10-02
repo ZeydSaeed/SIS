@@ -31,6 +31,8 @@ import {
     useAdmissionSelection,
     useAdmissionSelectionClearer,
 } from '@/components/admission/admission-selection';
+import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageAlignment } from '@/hooks/use-page-alignment';
 import {
     ADMISSION_STATUS_ACCEPTED,
@@ -61,6 +63,8 @@ import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { t } from '@/i18n';
 
 
+
+const ADMISSION_PER_PAGE = 17;
 
 function visiblePages(current: number, totalPages: number): number[] {
     const windowSize = 5;
@@ -678,6 +682,8 @@ export function AdmissionDraftsCard({
     const selectedRowRef = useRef<DraftRowHandle>(null);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
+    const scrollerRef = useRef<HTMLDivElement>(null);
+    const fitPageSizeRef = useRef(ADMISSION_PER_PAGE);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [editing, setEditing] = useState(false);
@@ -692,11 +698,17 @@ export function AdmissionDraftsCard({
 
     const pagination = workspace.pagination ?? {
         page: 1,
-        per_page: 17,
+        per_page: ADMISSION_PER_PAGE,
         total: 0,
         total_pages: 1,
     };
     const rowOffset = (pagination.page - 1) * pagination.per_page;
+
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: ADMISSION_PER_PAGE,
+        enabled: Boolean(yearFilterAction),
+    });
+    fitPageSizeRef.current = fitPageSize;
 
     // Server already filters by stage + Active periods and sorts by applicant name.
     const rows = workspace.applications;
@@ -971,10 +983,29 @@ export function AdmissionDraftsCard({
     ]);
 
     const goPage = useCallback(
-        (page: number) => {
-            if (!yearFilterAction || page < 1 || page > pagination.total_pages || page === pagination.page) {
+        (
+            page: number,
+            options?: {
+                perPage?: number;
+                quiet?: boolean;
+            },
+        ) => {
+            if (!yearFilterAction) {
                 return;
             }
+
+            const nextPerPage = options?.perPage ?? fitPageSizeRef.current;
+            const pageUnchanged = page === pagination.page;
+            const perPageUnchanged = nextPerPage === pagination.per_page;
+            if (
+                page < 1 ||
+                (options?.perPage == null && page > pagination.total_pages) ||
+                (pageUnchanged && perPageUnchanged)
+            ) {
+                return;
+            }
+
+            writeStoredListPage('admission', page);
 
             router.visit(
                 `${yearFilterAction}${admissionWorkspaceQuery(
@@ -982,23 +1013,35 @@ export function AdmissionDraftsCard({
                     workspace.selected_period_id,
                     page,
                     searchQuery,
+                    null,
+                    nextPerPage,
                 )}`,
                 {
                     preserveScroll: true,
                     preserveState: true,
                     only: ['workspace', 'filters'],
+                    showProgress: options?.quiet !== true,
                 },
             );
         },
         [
             academicYearId,
             pagination.page,
+            pagination.per_page,
             pagination.total_pages,
             searchQuery,
             workspace.selected_period_id,
             yearFilterAction,
         ],
     );
+
+    useEffect(() => {
+        if (!yearFilterAction || fitPageSize === pagination.per_page) {
+            return;
+        }
+
+        goPage(pagination.page, { perPage: fitPageSize, quiet: true });
+    }, [fitPageSize, goPage, pagination.page, pagination.per_page, yearFilterAction]);
 
     const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
         if (!homeHref) {
@@ -1154,7 +1197,11 @@ export function AdmissionDraftsCard({
                     </div>
                 ) : null}
                 <div className="sis-admission-periods-table sis-admission-drafts-table">
-                    <div className="sis-admission-drafts-table__scroller" data-allow-x-scroll>
+                    <div
+                        className="sis-admission-drafts-table__scroller"
+                        data-allow-x-scroll
+                        ref={scrollerRef}
+                    >
                     <table ref={tableRef}>
                         <thead>
                             <tr>

@@ -3,19 +3,19 @@ import {
     Eye,
     FilterX,
     Pencil,
-    Plus,
-    Users,
+    Trash2,
     XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    CURRICULUM_DEFAULT_TABLE_VIEW,
     catalogAllSubjectTableRows,
     catalogBranches,
     catalogCurriculumTableRows,
     catalogDepartmentsForBranch,
     catalogSubjectsFor,
 } from '@/components/curriculum/curriculum-subject-catalog';
+import { CurriculumPlanSheetDialog } from '@/components/curriculum/curriculum-plan-sheet';
+import { CurriculumSubjectSheetDialog } from '@/components/curriculum/curriculum-subject-sheet';
 import {
     CURRICULUM_DISTRIBUTION_ACTIONS,
     CURRICULUM_STATUS_TABS,
@@ -30,6 +30,7 @@ import {
     formatAcademicYearOptionLabel,
     type YearOption,
 } from '@/components/sis/ops-year-filter';
+import { usePageError } from '@/components/sis/page-error-context';
 import {
     useRegisterPageRibbon,
     type PageRibbonCommand,
@@ -45,9 +46,18 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
+import {
+    SIS_OPEN_CREATE_CURRICULUM_EVENT,
+    SIS_OPEN_CREATE_SUBJECT_EVENT,
+} from '@/lib/curriculum-create-subject-event';
+import {
+    readStoredListPage,
+    writeStoredListPage,
+} from '@/lib/sis-list-page-storage';
 import {
     resolveSisClassId,
     resolveSisClassKey,
@@ -165,6 +175,7 @@ type ConfirmState =
     | { kind: 'subject-reactivate'; id: number }
     | { kind: 'link-deactivate'; id: number }
     | { kind: 'link-reactivate'; id: number }
+    | { kind: 'subjects-delete'; ids: number[]; count: number }
     | null;
 
 export function newIdempotencyKey(prefix: string): string {
@@ -217,15 +228,62 @@ export function subjectTypeLabel(
     return i18n.subjectTypeCore;
 }
 
-function subjectCodeFromName(name: string): string {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = (hash << 5) - hash + name.charCodeAt(i);
-        hash |= 0;
-    }
-    const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(0, 8);
+const CURRICULUM_FILTERS_STORAGE_KEY = 'sis.curriculum.pageFilters.v1';
 
-    return `SUB-${hex}`;
+type CurriculumStoredFilters = {
+    year: string;
+    branch: string;
+    specialization: string;
+    classKey: string;
+};
+
+function readCurriculumStoredFilters(): CurriculumStoredFilters | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const raw = window.sessionStorage.getItem(CURRICULUM_FILTERS_STORAGE_KEY);
+        if (!raw) {
+            return null;
+        }
+
+        const parsed = JSON.parse(raw) as Partial<CurriculumStoredFilters>;
+
+        return {
+            year: typeof parsed.year === 'string' ? parsed.year : '',
+            branch: typeof parsed.branch === 'string' ? parsed.branch : '',
+            specialization:
+                typeof parsed.specialization === 'string' ? parsed.specialization : '',
+            classKey: typeof parsed.classKey === 'string' ? parsed.classKey : '',
+        };
+    } catch {
+        return null;
+    }
+}
+
+function writeCurriculumStoredFilters(next: CurriculumStoredFilters): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.setItem(CURRICULUM_FILTERS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+        // Ignore quota / private-mode failures — UI still works in-memory.
+    }
+}
+
+function clearCurriculumStoredFilters(): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.removeItem(CURRICULUM_FILTERS_STORAGE_KEY);
+    } catch {
+        // Ignore storage failures.
+    }
 }
 
 function omitEmpty(
@@ -242,12 +300,79 @@ function omitEmpty(
     return out;
 }
 
+/** Rows that fill the table card — same density as students/enrollments. */
+const CURRICULUM_PER_PAGE = 17;
+
 const emptyPagination = (): CurriculumPagination => ({
     page: 1,
-    per_page: 25,
+    per_page: CURRICULUM_PER_PAGE,
     total: 0,
     last_page: 1,
 });
+
+function visiblePages(current: number, totalPages: number): number[] {
+    const windowSize = 5;
+    if (totalPages <= windowSize) {
+        return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const half = Math.floor(windowSize / 2);
+    let start = Math.max(1, current - half);
+    let end = start + windowSize - 1;
+    if (end > totalPages) {
+        end = totalPages;
+        start = Math.max(1, end - windowSize + 1);
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+type CurriculumTableFilterContextLabels = {
+    academicYear: string;
+    branch: string;
+    specialization: string;
+    gradeLevel: string;
+};
+
+function CurriculumTableFilterContext({
+    ariaLabel,
+    labels,
+    context,
+}: {
+    ariaLabel: string;
+    labels: CurriculumTableFilterContextLabels;
+    context: {
+        year: string;
+        branch: string;
+        specialization: string;
+        className: string;
+    };
+}): JSX.Element {
+    return (
+        <div className="sis-curriculum-table-context" dir="rtl" aria-label={ariaLabel}>
+            <span className="sis-curriculum-table-context__item">
+                <span className="sis-curriculum-table-context__label">{labels.academicYear}</span>
+                <span className="sis-curriculum-table-context__value">{context.year}</span>
+            </span>
+            <span className="sis-curriculum-table-context__item">
+                <span className="sis-curriculum-table-context__label">{labels.branch}</span>
+                <span className="sis-curriculum-table-context__value">{context.branch}</span>
+            </span>
+            <span className="sis-curriculum-table-context__item">
+                <span className="sis-curriculum-table-context__label">
+                    {labels.specialization}
+                </span>
+                <span className="sis-curriculum-table-context__value">
+                    {context.specialization}
+                </span>
+            </span>
+            <span className="sis-curriculum-table-context__item">
+                <span className="sis-curriculum-table-context__label">{labels.gradeLevel}</span>
+                <span className="sis-curriculum-table-context__value">{context.className}</span>
+            </span>
+        </div>
+    );
+}
 
 /** Accepts {data,pagination} or a legacy bare array so a stale build never blank-screens. */
 function normalizePagedRows<T>(
@@ -289,12 +414,12 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             branch: props.filters?.branch ?? '',
             specialization: props.filters?.specialization ?? '',
             page: props.filters?.page ?? 1,
-            per_page: props.filters?.per_page ?? 25,
+            per_page: props.filters?.per_page ?? CURRICULUM_PER_PAGE,
             subject_q: props.filters?.subject_q ?? '',
             subject_status: props.filters?.subject_status ?? null,
             subject_type: props.filters?.subject_type ?? null,
             subject_page: props.filters?.subject_page ?? 1,
-            subject_per_page: props.filters?.subject_per_page ?? 25,
+            subject_per_page: props.filters?.subject_per_page ?? CURRICULUM_PER_PAGE,
         }),
         [props.filters],
     );
@@ -309,35 +434,103 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     );
     const i18n = t();
     const c = i18n.curriculum;
-    const [planDialogOpen, setPlanDialogOpen] = useState(false);
-    const [editingPlan, setEditingPlan] = useState<CurriculumRow | null>(null);
-    const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
-    const [editingSubject, setEditingSubject] = useState<SubjectRow | null>(null);
+    const { showWarning } = usePageError();
+    const [planCreateOpen, setPlanCreateOpen] = useState(false);
+    const [planSheetPlan, setPlanSheetPlan] = useState<CurriculumRow | null>(null);
+    const [planSheetEditing, setPlanSheetEditing] = useState(false);
+    const [subjectCreateOpen, setSubjectCreateOpen] = useState(false);
+    const [subjectSheetSubjects, setSubjectSheetSubjects] = useState<SubjectRow[]>([]);
+    const [subjectSheetEditing, setSubjectSheetEditing] = useState(false);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [confirm, setConfirm] = useState<ConfirmState>(null);
     const [confirmPending, setConfirmPending] = useState(false);
-    const [activeView, setActiveView] = useState<CurriculumListView>('curricula');
+    const [activeView, setActiveView] = useState<CurriculumListView>('subjects');
     const [editFilter, setEditFilter] = useState<CurriculumEditFilter>({ kind: 'all' });
     const [selectedNames, setSelectedNames] = useState<string[]>([]);
+    const [listPage, setListPage] = useState(() => readStoredListPage('curriculum', 1));
+    const scrollerRef = useRef<HTMLDivElement>(null);
     const canManage = props.authorization?.canManage === true;
+    const pageUrl = usePage().url;
+
+    useEffect(() => {
+        if (!canManage) {
+            return;
+        }
+
+        const onOpenCreateSubject = (): void => {
+            setActiveView('subjects');
+            setSubjectCreateOpen(true);
+        };
+
+        const onOpenCreateCurriculum = (): void => {
+            setActiveView('curricula');
+            setPlanSheetPlan(null);
+            setPlanSheetEditing(false);
+            setPlanCreateOpen(true);
+        };
+
+        window.addEventListener(SIS_OPEN_CREATE_SUBJECT_EVENT, onOpenCreateSubject);
+        window.addEventListener(SIS_OPEN_CREATE_CURRICULUM_EVENT, onOpenCreateCurriculum);
+
+        return () => {
+            window.removeEventListener(SIS_OPEN_CREATE_SUBJECT_EVENT, onOpenCreateSubject);
+            window.removeEventListener(SIS_OPEN_CREATE_CURRICULUM_EVENT, onOpenCreateCurriculum);
+        };
+    }, [canManage]);
+
+    useEffect(() => {
+        const [path, query = ''] = pageUrl.split('?');
+        const params = new URLSearchParams(query);
+        const createSubject = params.get('create_subject') === '1';
+        const createCurriculum = params.get('create_curriculum') === '1';
+        if ((!createSubject && !createCurriculum) || !canManage) {
+            return;
+        }
+
+        if (createSubject) {
+            setActiveView('subjects');
+            setSubjectCreateOpen(true);
+            params.delete('create_subject');
+        }
+        if (createCurriculum) {
+            setActiveView('curricula');
+            setPlanCreateOpen(true);
+            params.delete('create_curriculum');
+        }
+        const next = params.toString();
+        router.visit(next === '' ? path : `${path}?${next}`, {
+            replace: true,
+            preserveState: true,
+            preserveScroll: true,
+            showProgress: false,
+        });
+    }, [canManage, pageUrl]);
+
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: CURRICULUM_PER_PAGE,
+        enabled: true,
+    });
 
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const yearCatalog = academicYears ?? [];
 
-    // UI filters start empty; table uses progressive auto-filter from these values.
-    // Year is local-only when empty so server-resolved current year does not fill the control.
-    const [selectedYear, setSelectedYear] = useState('');
-    const [selectedBranch, setSelectedBranch] = useState(filters.branch);
-    const [selectedSpec, setSelectedSpec] = useState(filters.specialization);
-    const [selectedClass, setSelectedClass] = useState(
-        resolveSisClassKey(filters.class_id, filterOptions.classes),
+    // Filters persist in session until the user changes or clears them.
+    const [selectedYear, setSelectedYear] = useState(() => readCurriculumStoredFilters()?.year ?? '');
+    const [selectedBranch, setSelectedBranch] = useState(
+        () => readCurriculumStoredFilters()?.branch ?? filters.branch,
     );
+    const [selectedSpec, setSelectedSpec] = useState(
+        () => readCurriculumStoredFilters()?.specialization ?? filters.specialization,
+    );
+    const [selectedClass, setSelectedClass] = useState(() => {
+        const stored = readCurriculumStoredFilters();
+        if (stored?.classKey) {
+            return stored.classKey;
+        }
 
-    useEffect(() => {
-        setSelectedBranch(filters.branch);
-        setSelectedSpec(filters.specialization);
-        setSelectedClass(resolveSisClassKey(filters.class_id, filterOptions.classes));
-    }, [filterOptions.classes, filters.branch, filters.class_id, filters.specialization]);
+        return resolveSisClassKey(filters.class_id, filterOptions.classes);
+    });
+    const filtersHydratedRef = useRef(false);
 
     const selectedPlan = useMemo(
         () => curricula.data.find((row) => row.id === filters.curriculum_id) ?? null,
@@ -407,6 +600,67 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         );
     };
 
+    // Persist UI filters so they stay until the user changes or clears them.
+    useEffect(() => {
+        writeCurriculumStoredFilters({
+            year: selectedYear,
+            branch: selectedBranch,
+            specialization: selectedSpec,
+            classKey: selectedClass,
+        });
+    }, [selectedBranch, selectedClass, selectedSpec, selectedYear]);
+
+    // On first mount, re-apply stored filters to the request if the URL lagged behind.
+    useEffect(() => {
+        if (filtersHydratedRef.current) {
+            return;
+        }
+        filtersHydratedRef.current = true;
+
+        const stored = readCurriculumStoredFilters();
+        if (!stored) {
+            return;
+        }
+
+        const hasStored =
+            stored.year !== '' ||
+            stored.branch !== '' ||
+            stored.specialization !== '' ||
+            stored.classKey !== '';
+        if (!hasStored) {
+            return;
+        }
+
+        const classId =
+            stored.classKey === ''
+                ? null
+                : resolveSisClassId(stored.classKey, filterOptions.classes);
+        const yearId =
+            stored.year !== ''
+                ? Number(stored.year)
+                : (currentYearId ?? filters.academic_year_id);
+
+        const urlMatches =
+            (stored.branch === (filters.branch ?? '')) &&
+            (stored.specialization === (filters.specialization ?? '')) &&
+            ((classId ?? null) === (filters.class_id ?? null)) &&
+            (stored.year === '' || Number(stored.year) === filters.academic_year_id);
+
+        if (urlMatches) {
+            return;
+        }
+
+        visitIndex({
+            academic_year_id: yearId,
+            branch: stored.branch,
+            specialization: stored.specialization,
+            class_id: classId,
+            grade_level_id: null,
+        });
+        // One-shot hydration only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Sticky empty years (e.g. 2025-2026) hide students/enrollments/admission — pin back to current.
     useEffect(() => {
         if (selectedYear !== '') {
@@ -421,7 +675,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return;
         }
 
-        visitIndex({ academic_year_id: currentYearId, page: 1 });
+        visitIndex({ academic_year_id: currentYearId });
         // Mount / year-catalog sync only — visitIndex closes over latest filters.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentYearId, filters.academic_year_id, selectedYear]);
@@ -432,7 +686,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             label: c.searchAria,
             placeholder: c.search,
             onCommit: (query: string) => {
-                visitIndex({ q: query, page: 1 });
+                visitIndex({ q: query });
             },
         }),
         // visitIndex reads latest filters via closure when commit fires
@@ -463,18 +717,52 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         );
     }, [c.gradeLevel, classSelectOptions, selectedClass]);
 
+    const tableFilterContext = useMemo(() => {
+        const yearLabel =
+            selectedYear === ''
+                ? c.filterDefault
+                : (() => {
+                      const match = yearCatalog.find((item) => item.id.toString() === selectedYear);
+                      return match
+                          ? formatAcademicYearOptionLabel(match.name, match.code)
+                          : c.filterDefault;
+                  })();
+        const branchLabel = selectedBranch === '' ? c.filterDefault : selectedBranch;
+        const specLabel = selectedSpec === '' ? c.filterDefault : selectedSpec;
+        const classLabel =
+            selectedClass === ''
+                ? c.filterDefault
+                : (classSelectOptions.find((item) => item.value === selectedClass)?.label ??
+                  c.filterDefault);
+
+        return {
+            year: yearLabel,
+            branch: branchLabel,
+            specialization: specLabel,
+            className: classLabel,
+        };
+    }, [
+        c.filterDefault,
+        classSelectOptions,
+        selectedBranch,
+        selectedClass,
+        selectedSpec,
+        selectedYear,
+        yearCatalog,
+    ]);
+
     const clearPageFilters = useCallback((): void => {
         setSelectedYear('');
         setSelectedBranch('');
         setSelectedSpec('');
         setSelectedClass('');
+        clearCurriculumStoredFilters();
         visitIndex({
             academic_year_id: currentYearId ?? filters.academic_year_id,
             branch: '',
             specialization: '',
             class_id: null,
             grade_level_id: null,
-            page: 1,
         });
         // visitIndex closes over latest filters/state when invoked
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -511,7 +799,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             if (next !== '') {
                                                 visitIndex({
                                                     academic_year_id: Number(next),
-                                                    page: 1,
                                                 });
                                             } else if (
                                                 currentYearId !== null &&
@@ -519,7 +806,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             ) {
                                                 visitIndex({
                                                     academic_year_id: currentYearId,
-                                                    page: 1,
                                                 });
                                             }
                                         }}
@@ -549,7 +835,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             visitIndex({
                                                 class_id: classId,
                                                 grade_level_id: null,
-                                                page: 1,
                                             });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -578,7 +863,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             visitIndex({
                                                 branch: next,
                                                 specialization: '',
-                                                page: 1,
                                             });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -605,7 +889,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             setSelectedSpec(next);
                                             visitIndex({
                                                 specialization: next,
-                                                page: 1,
                                             });
                                         }}
                                         triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -739,22 +1022,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         return rows;
     }, [selectedBranch, selectedClass, selectedSpec]);
 
-    /** Curricula tab: subjects of the filtered plan only (no branch/spec/class columns). */
+    /** Curricula tab: subjects of filtered plans (all plans when no filters). */
     const curriculumPlanSubjectRows = useMemo(() => {
-        let source = catalogCurriculumRows;
-        if (
-            selectedBranch === '' &&
-            selectedSpec === '' &&
-            selectedClass === ''
-        ) {
-            source = catalogCurriculumTableRows().filter(
-                (row) =>
-                    row.branch_name === CURRICULUM_DEFAULT_TABLE_VIEW.branch &&
-                    row.specialization_name === CURRICULUM_DEFAULT_TABLE_VIEW.specialization &&
-                    row.class_name === CURRICULUM_DEFAULT_TABLE_VIEW.className,
-            );
-        }
-
+        const source = catalogCurriculumRows;
         const seen = new Set<string>();
         const out: Array<{
             id: number | null;
@@ -781,7 +1051,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         }
 
         return out;
-    }, [catalogCurriculumRows, selectedBranch, selectedClass, selectedSpec, subjectsByName]);
+    }, [catalogCurriculumRows, subjectsByName]);
 
     const visiblePlanSubjectRows = useMemo(
         () =>
@@ -789,6 +1059,36 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 matchesCurriculumEditFilter(row, editFilter),
             ),
         [curriculumPlanSubjectRows, editFilter],
+    );
+
+    const subjectLastPage = Math.max(
+        1,
+        Math.ceil(visibleSubjectRows.length / fitPageSize),
+    );
+    const planLastPage = Math.max(
+        1,
+        Math.ceil(visiblePlanSubjectRows.length / fitPageSize),
+    );
+    const subjectPage = Math.min(listPage, subjectLastPage);
+    const planPage = Math.min(listPage, planLastPage);
+    const subjectRowOffset = (subjectPage - 1) * fitPageSize;
+    const planRowOffset = (planPage - 1) * fitPageSize;
+
+    const pagedSubjectRows = useMemo(
+        () =>
+            visibleSubjectRows.slice(
+                subjectRowOffset,
+                subjectRowOffset + fitPageSize,
+            ),
+        [fitPageSize, subjectRowOffset, visibleSubjectRows],
+    );
+    const pagedPlanSubjectRows = useMemo(
+        () =>
+            visiblePlanSubjectRows.slice(
+                planRowOffset,
+                planRowOffset + fitPageSize,
+            ),
+        [fitPageSize, planRowOffset, visiblePlanSubjectRows],
     );
 
     const hasSubjectSearch = filters.q.trim() !== '';
@@ -807,9 +1107,20 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     }, []);
 
     const selectAllVisible = useCallback((): void => {
-        const rows = activeView === 'subjects' ? visibleSubjectRows : visiblePlanSubjectRows;
+        const rows = activeView === 'subjects' ? pagedSubjectRows : pagedPlanSubjectRows;
         setSelectedNames(rows.map((row) => row.name));
-    }, [activeView, visiblePlanSubjectRows, visibleSubjectRows]);
+    }, [activeView, pagedPlanSubjectRows, pagedSubjectRows]);
+
+    const goListPage = useCallback(
+        (page: number, lastPage: number): void => {
+            if (page < 1 || page > lastPage || page === listPage) {
+                return;
+            }
+            writeStoredListPage('curriculum', page);
+            setListPage(page);
+        },
+        [listPage],
+    );
 
     const applyDistribution = useCallback(
         (apply: { kind: 'status'; value: 1 | 2 } | { kind: 'type'; value: 1 | 2 | 3 }): void => {
@@ -848,60 +1159,76 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         [canManage, clearSelection, hasSelection, selectedNames, subjectsByName],
     );
 
+    const openSelectedSubjectsSheet = useCallback(
+        (startEditing: boolean): void => {
+            const rows = selectedNames
+                .map((name) => subjectsByName.get(name))
+                .filter((row): row is SubjectRow => row !== undefined);
+
+            if (rows.length === 0) {
+                showWarning(c.subjectNotInDatabase);
+
+                return;
+            }
+
+            setSubjectSheetSubjects(rows);
+            setSubjectSheetEditing(startEditing);
+        },
+        [c.subjectNotInDatabase, selectedNames, showWarning, subjectsByName],
+    );
+
+    const requestDeleteSelected = useCallback((): void => {
+        if (!canManage || !hasSelection) {
+            return;
+        }
+
+        const activeTargets = selectedNames
+            .map((name) => subjectsByName.get(name))
+            .filter(
+                (row): row is SubjectRow =>
+                    row !== undefined && Number(row.status) === 1,
+            );
+
+        if (activeTargets.length === 0) {
+            const anyInDatabase = selectedNames.some((name) => subjectsByName.has(name));
+            showWarning(anyInDatabase ? c.deleteAlreadyInactive : c.subjectNotInDatabase);
+
+            return;
+        }
+
+        setConfirm({
+            kind: 'subjects-delete',
+            ids: activeTargets.map((row) => row.id),
+            count: activeTargets.length,
+        });
+    }, [
+        c.deleteAlreadyInactive,
+        c.subjectNotInDatabase,
+        canManage,
+        hasSelection,
+        selectedNames,
+        showWarning,
+        subjectsByName,
+    ]);
+
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const actionCommands: PageRibbonCommand[] = [
             {
                 id: 'view-subjects',
                 label: c.view,
                 icon: Eye,
-                onSelect: () => {
-                    setActiveView('subjects');
-                },
-            },
-            {
-                id: 'create-subject',
-                label: c.createSubjectAction,
-                icon: Plus,
-                tone: 'edit',
-                disabled: !canManage,
-                onSelect: () => {
-                    setEditingSubject(null);
-                    setSubjectDialogOpen(true);
-                },
-            },
-            {
-                id: 'create-plan',
-                label: c.createPlanAction,
-                icon: Plus,
-                tone: 'edit',
-                disabled: !canManage,
-                onSelect: () => {
-                    setEditingPlan(null);
-                    setPlanDialogOpen(true);
-                },
+                disabled: !hasSelection,
+                title: c.viewSubjectTitle,
+                onSelect: () => openSelectedSubjectsSheet(false),
             },
             {
                 id: 'edit-selected-subject',
                 label: i18n.common.edit,
                 icon: Pencil,
                 tone: 'edit',
-                disabled: !canManage || selectedNames.length !== 1,
+                disabled: !canManage || !hasSelection,
                 title: i18n.common.edit,
-                onSelect: () => {
-                    const name = selectedNames[0];
-                    const row = name ? subjectsByName.get(name) : undefined;
-                    if (!row) {
-                        return;
-                    }
-                    setEditingSubject(row);
-                    setSubjectDialogOpen(true);
-                },
-            },
-            {
-                id: 'select-all-visible',
-                label: c.selectAllVisible,
-                icon: Users,
-                onSelect: selectAllVisible,
+                onSelect: () => openSelectedSubjectsSheet(true),
             },
             {
                 id: 'clear-selection',
@@ -910,20 +1237,35 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 disabled: !hasSelection,
                 onSelect: clearSelection,
             },
+            {
+                id: 'delete-subject',
+                label: i18n.common.delete,
+                icon: Trash2,
+                tone: 'delete',
+                disabled: !canManage || !hasSelection,
+                title: i18n.common.delete,
+                onSelect: requestDeleteSelected,
+            },
         ];
+
+        const statusCountSource =
+            activeView === 'subjects' ? catalogSubjectRows : curriculumPlanSubjectRows;
 
         const statusCommands: PageRibbonCommand[] = CURRICULUM_STATUS_TABS.map((tab) => {
             const label = c[tab.labelKey];
+            const count = statusCountSource.filter((row) =>
+                matchesCurriculumEditFilter(row, tab.filter),
+            ).length;
 
             return {
                 id: tab.id,
                 label,
-                title: label,
+                title: `${label} (${count})`,
                 icon: tab.icon,
+                count,
                 pressed: editFilterEquals(editFilter, tab.filter),
                 onSelect: () => {
                     setEditFilter(tab.filter);
-                    setActiveView('subjects');
                 },
             };
         });
@@ -944,15 +1286,18 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         );
 
         const supersededLabel = c.ribbonSuperseded;
+        const supersededCount = statusCountSource.filter((row) =>
+            matchesCurriculumEditFilter(row, { kind: 'superseded' }),
+        ).length;
         const supersededCommand: PageRibbonCommand = {
             id: 'curriculum-superseded-action',
             label: supersededLabel,
-            title: supersededLabel,
+            title: `${supersededLabel} (${supersededCount})`,
             icon: CURRICULUM_SUPERSEDED_ICON,
+            count: supersededCount,
             pressed: editFilter.kind === 'superseded',
             onSelect: () => {
                 setEditFilter({ kind: 'superseded' });
-                setActiveView('subjects');
             },
         };
 
@@ -979,26 +1324,28 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             },
         ];
     }, [
+        activeView,
         applyDistribution,
         c,
         canManage,
+        catalogSubjectRows,
         clearSelection,
+        curriculumPlanSubjectRows,
         editFilter,
         hasSelection,
+        i18n.common.delete,
         i18n.common.edit,
-        selectAllVisible,
-        selectedNames,
-        subjectsByName,
+        openSelectedSubjectsSheet,
+        requestDeleteSelected,
     ]);
 
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const tableRef = useRef<HTMLTableElement>(null);
-    const scrollerRef = useRef<HTMLDivElement>(null);
     const tableRowCount =
         activeView === 'subjects'
-            ? visibleSubjectRows.length
-            : visiblePlanSubjectRows.length;
+            ? pagedSubjectRows.length
+            : pagedPlanSubjectRows.length;
 
     useResizableTableColumns(tableRef, {
         storageKey: activeView === 'subjects' ? 'curriculum.subjects' : 'curriculum.plans',
@@ -1042,28 +1389,61 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             case 'link-reactivate':
                 router.post(`/curriculum/curriculum-subjects/${confirm.id}/reactivate`, {}, { preserveScroll: true, headers, onFinish: done });
                 break;
+            case 'subjects-delete': {
+                const ids = confirm.ids;
+                let remaining = ids.length;
+                const finishOne = (): void => {
+                    remaining -= 1;
+                    if (remaining <= 0) {
+                        clearSelection();
+                        done();
+                    }
+                };
+
+                for (const id of ids) {
+                    router.post(
+                        `/curriculum/subjects/${id}/deactivate`,
+                        {},
+                        {
+                            preserveScroll: true,
+                            headers: { 'X-Idempotency-Key': newIdempotencyKey('curriculum') },
+                            onFinish: finishOne,
+                        },
+                    );
+                }
+                break;
+            }
         }
     };
 
     const confirmCopy = useMemo(() => {
         if (!confirm) {
-            return { title: '', description: '' };
+            return { title: '', description: '', confirmLabel: undefined as string | undefined };
         }
         switch (confirm.kind) {
             case 'plan-deactivate':
-                return { title: c.deactivate, description: c.confirmDeactivatePlan };
+                return { title: c.deactivate, description: c.confirmDeactivatePlan, confirmLabel: undefined };
             case 'plan-reactivate':
-                return { title: c.reactivate, description: c.confirmReactivatePlan };
+                return { title: c.reactivate, description: c.confirmReactivatePlan, confirmLabel: undefined };
             case 'subject-deactivate':
-                return { title: c.deactivate, description: c.confirmDeactivateSubject };
+                return { title: c.deactivate, description: c.confirmDeactivateSubject, confirmLabel: undefined };
             case 'subject-reactivate':
-                return { title: c.reactivate, description: c.confirmReactivateSubject };
+                return { title: c.reactivate, description: c.confirmReactivateSubject, confirmLabel: undefined };
             case 'link-deactivate':
-                return { title: c.deactivate, description: c.confirmDeactivateLink };
+                return { title: c.deactivate, description: c.confirmDeactivateLink, confirmLabel: undefined };
             case 'link-reactivate':
-                return { title: c.reactivate, description: c.confirmReactivateLink };
+                return { title: c.reactivate, description: c.confirmReactivateLink, confirmLabel: undefined };
+            case 'subjects-delete':
+                return {
+                    title: confirm.count > 1 ? c.deleteTitleMany : c.deleteTitle,
+                    description:
+                        confirm.count > 1
+                            ? c.deleteConfirmMany.replace(':count', String(confirm.count))
+                            : c.deleteConfirm,
+                    confirmLabel: i18n.common.delete,
+                };
         }
-    }, [c, confirm]);
+    }, [c, confirm, i18n.common.delete]);
 
     return (
         <div
@@ -1104,13 +1484,25 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                     className="sis-curriculum-table-stage"
                 >
                     {activeView === 'subjects' ? (
-                        catalogSubjectRows.length === 0 ? (
+                        <>
+                            <CurriculumTableFilterContext
+                                ariaLabel={c.tableContextAria}
+                                labels={{
+                                    academicYear: c.academicYear,
+                                    branch: c.branch,
+                                    specialization: c.specialization,
+                                    gradeLevel: c.gradeLevel,
+                                }}
+                                context={tableFilterContext}
+                            />
+                            {catalogSubjectRows.length === 0 ? (
                             <p className="text-sm px-1 py-2">
                                 {hasSubjectSearch ? c.emptySearch : c.subjectsEmptyDesc}
                             </p>
                         ) : visibleSubjectRows.length === 0 ? (
                             <p className="text-sm px-1 py-2">{c.editErrorEmpty}</p>
                         ) : (
+                            <>
                             <div className="sis-curriculum-subjects-table">
                                 <div
                                     className="sis-admission-drafts-table__scroller"
@@ -1123,14 +1515,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                     <input
                                                         type="checkbox"
                                                         checked={
-                                                            visibleSubjectRows.length > 0 &&
-                                                            visibleSubjectRows.every((row) =>
+                                                            pagedSubjectRows.length > 0 &&
+                                                            pagedSubjectRows.every((row) =>
                                                                 selectedSet.has(row.name),
                                                             )
                                                         }
                                                         onChange={() => {
                                                             if (
-                                                                visibleSubjectRows.every((row) =>
+                                                                pagedSubjectRows.every((row) =>
                                                                     selectedSet.has(row.name),
                                                                 )
                                                             ) {
@@ -1148,18 +1540,20 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                 <th className="sis-admission-drafts-table__name-head">
                                                     {c.subjectName}
                                                 </th>
-                                                <th>{c.subjectType}</th>
-                                                <th>{c.creditHours}</th>
+                                                <th className="sis-curriculum-type-col">{c.subjectType}</th>
+                                                <th className="sis-curriculum-hours-col">{c.creditHours}</th>
                                                 <th>{c.maxGrade}</th>
                                                 <th>{c.passGrade}</th>
-                                                <th>{c.prerequisitesColumn}</th>
-                                                <th>{c.subjectStatus}</th>
+                                                <th className="sis-curriculum-prereq-col">{c.prerequisitesColumn}</th>
+                                                <th className="sis-curriculum-subject-status">
+                                                    {c.subjectStatus}
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {visibleSubjectRows.map((row, index) => (
+                                            {pagedSubjectRows.map((row, index) => (
                                                 <tr
-                                                    key={`${row.name}-${index}`}
+                                                    key={`${row.name}-${subjectRowOffset + index}`}
                                                     className={
                                                         selectedSet.has(row.name)
                                                             ? 'sis-admission-periods-table__row--selected'
@@ -1177,17 +1571,17 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                         />
                                                     </td>
                                                     <td className="sis-admission-drafts-table__num">
-                                                        {index + 1}
+                                                        {subjectRowOffset + index + 1}
                                                     </td>
                                                     <td className="sis-admission-drafts-table__name sis-students-table__nowrap">
                                                         <div className="sis-students-table__cell-scroll">
                                                             {row.name}
                                                         </div>
                                                     </td>
-                                                    <td className="sis-admission-drafts-table__text">
+                                                    <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
                                                         {subjectTypeLabel(row.subject_type, c)}
                                                     </td>
-                                                    <td className="sis-admission-drafts-table__text" dir="ltr">
+                                                    <td className="sis-admission-drafts-table__text sis-curriculum-hours-col" dir="ltr">
                                                         {row.credit_hours ?? '—'}
                                                     </td>
                                                     <td className="sis-admission-drafts-table__text" dir="ltr">
@@ -1215,14 +1609,92 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                     </table>
                                 </div>
                             </div>
-                        )
-                    ) : curriculumPlanSubjectRows.length === 0 ? (
+                            {visibleSubjectRows.length > 0 ? (
+                                <nav
+                                    className="sis-admission-drafts-pagination"
+                                    aria-label={i18n.common.page}
+                                >
+                                    <ul className="sis-admission-pagination" dir="ltr">
+                                        <li className="sis-admission-pagination__item">
+                                            <button
+                                                type="button"
+                                                className="sis-admission-pagination__link"
+                                                aria-label={i18n.common.previous}
+                                                disabled={subjectPage <= 1}
+                                                onClick={() =>
+                                                    goListPage(subjectPage - 1, subjectLastPage)
+                                                }
+                                            >
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </button>
+                                        </li>
+                                        {visiblePages(subjectPage, subjectLastPage).map(
+                                            (pageNum) => (
+                                                <li
+                                                    key={pageNum}
+                                                    className="sis-admission-pagination__item"
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        className={
+                                                            pageNum === subjectPage
+                                                                ? 'sis-admission-pagination__link sis-admission-pagination__link--active'
+                                                                : 'sis-admission-pagination__link'
+                                                        }
+                                                        aria-label={`${i18n.common.page} ${pageNum}`}
+                                                        aria-current={
+                                                            pageNum === subjectPage
+                                                                ? 'page'
+                                                                : undefined
+                                                        }
+                                                        onClick={() =>
+                                                            goListPage(pageNum, subjectLastPage)
+                                                        }
+                                                    >
+                                                        {pageNum}
+                                                    </button>
+                                                </li>
+                                            ),
+                                        )}
+                                        <li className="sis-admission-pagination__item">
+                                            <button
+                                                type="button"
+                                                className="sis-admission-pagination__link"
+                                                aria-label={i18n.common.next}
+                                                disabled={subjectPage >= subjectLastPage}
+                                                onClick={() =>
+                                                    goListPage(subjectPage + 1, subjectLastPage)
+                                                }
+                                            >
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            ) : null}
+                            </>
+                        )}
+                        </>
+                    ) : (
+                        <>
+                            <CurriculumTableFilterContext
+                                ariaLabel={c.tableContextAria}
+                                labels={{
+                                    academicYear: c.academicYear,
+                                    branch: c.branch,
+                                    specialization: c.specialization,
+                                    gradeLevel: c.gradeLevel,
+                                }}
+                                context={tableFilterContext}
+                            />
+                            {curriculumPlanSubjectRows.length === 0 ? (
                         <p className="text-sm px-1 py-2">
                             {hasSubjectSearch ? c.emptySearch : c.plansEmptyDesc}
                         </p>
                     ) : visiblePlanSubjectRows.length === 0 ? (
                         <p className="text-sm px-1 py-2">{c.editErrorEmpty}</p>
                     ) : (
+                        <>
                         <div className="sis-curriculum-subjects-table">
                             <div
                                 className="sis-admission-drafts-table__scroller"
@@ -1235,14 +1707,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                 <input
                                                     type="checkbox"
                                                     checked={
-                                                        visiblePlanSubjectRows.length > 0 &&
-                                                        visiblePlanSubjectRows.every((row) =>
+                                                        pagedPlanSubjectRows.length > 0 &&
+                                                        pagedPlanSubjectRows.every((row) =>
                                                             selectedSet.has(row.name),
                                                         )
                                                     }
                                                     onChange={() => {
                                                         if (
-                                                            visiblePlanSubjectRows.every((row) =>
+                                                            pagedPlanSubjectRows.every((row) =>
                                                                 selectedSet.has(row.name),
                                                             )
                                                         ) {
@@ -1260,16 +1732,18 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             <th className="sis-admission-drafts-table__name-head">
                                                 {c.subjectName}
                                             </th>
-                                            <th>{c.subjectType}</th>
-                                            <th>{c.creditHours}</th>
+                                            <th className="sis-curriculum-type-col">{c.subjectType}</th>
+                                            <th className="sis-curriculum-hours-col">{c.creditHours}</th>
                                             <th>{c.maxGrade}</th>
-                                            <th>{c.subjectStatus}</th>
+                                            <th className="sis-curriculum-subject-status">
+                                                {c.subjectStatus}
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {visiblePlanSubjectRows.map((subject, index) => (
+                                        {pagedPlanSubjectRows.map((subject, index) => (
                                             <tr
-                                                key={`${subject.name}-${index}`}
+                                                key={`${subject.name}-${planRowOffset + index}`}
                                                 className={
                                                     selectedSet.has(subject.name)
                                                         ? 'sis-admission-periods-table__row--selected'
@@ -1287,17 +1761,17 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                     />
                                                 </td>
                                                 <td className="sis-admission-drafts-table__num">
-                                                    {index + 1}
+                                                    {planRowOffset + index + 1}
                                                 </td>
                                                 <td className="sis-admission-drafts-table__name sis-students-table__nowrap">
                                                     <div className="sis-students-table__cell-scroll">
                                                         {subject.name}
                                                     </div>
                                                 </td>
-                                                <td className="sis-admission-drafts-table__text">
+                                                <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
                                                     {subjectTypeLabel(subject.subject_type, c)}
                                                 </td>
-                                                <td className="sis-admission-drafts-table__text" dir="ltr">
+                                                <td className="sis-admission-drafts-table__text sis-curriculum-hours-col" dir="ltr">
                                                     {subject.credit_hours}
                                                 </td>
                                                 <td className="sis-admission-drafts-table__text" dir="ltr">
@@ -1319,23 +1793,110 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                 </table>
                             </div>
                         </div>
+                        {visiblePlanSubjectRows.length > 0 ? (
+                            <nav
+                                className="sis-admission-drafts-pagination"
+                                aria-label={i18n.common.page}
+                            >
+                                <ul className="sis-admission-pagination" dir="ltr">
+                                    <li className="sis-admission-pagination__item">
+                                        <button
+                                            type="button"
+                                            className="sis-admission-pagination__link"
+                                            aria-label={i18n.common.previous}
+                                            disabled={planPage <= 1}
+                                            onClick={() => goListPage(planPage - 1, planLastPage)}
+                                        >
+                                            <span aria-hidden="true">&laquo;</span>
+                                        </button>
+                                    </li>
+                                    {visiblePages(planPage, planLastPage).map((pageNum) => (
+                                        <li
+                                            key={pageNum}
+                                            className="sis-admission-pagination__item"
+                                        >
+                                            <button
+                                                type="button"
+                                                className={
+                                                    pageNum === planPage
+                                                        ? 'sis-admission-pagination__link sis-admission-pagination__link--active'
+                                                        : 'sis-admission-pagination__link'
+                                                }
+                                                aria-label={`${i18n.common.page} ${pageNum}`}
+                                                aria-current={
+                                                    pageNum === planPage ? 'page' : undefined
+                                                }
+                                                onClick={() => goListPage(pageNum, planLastPage)}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        </li>
+                                    ))}
+                                    <li className="sis-admission-pagination__item">
+                                        <button
+                                            type="button"
+                                            className="sis-admission-pagination__link"
+                                            aria-label={i18n.common.next}
+                                            disabled={planPage >= planLastPage}
+                                            onClick={() => goListPage(planPage + 1, planLastPage)}
+                                        >
+                                            <span aria-hidden="true">&raquo;</span>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        ) : null}
+                        </>
+                    )}
+                        </>
                     )}
                 </section>
             </div>
 
-            <CurriculumPlanDialog
-                open={planDialogOpen}
-                onOpenChange={setPlanDialogOpen}
-                editing={editingPlan}
-                academicYearId={filters.academic_year_id}
-                filterOptions={filterOptions}
-            />
+            {planCreateOpen ? (
+                <CurriculumPlanSheetDialog
+                    mode="create"
+                    canManage={canManage}
+                    filterOptions={filterOptions}
+                    defaultAcademicYearId={filters.academic_year_id}
+                    onClose={() => setPlanCreateOpen(false)}
+                />
+            ) : null}
 
-            <SubjectDialog
-                open={subjectDialogOpen}
-                onOpenChange={setSubjectDialogOpen}
-                editing={editingSubject}
-            />
+            {planSheetPlan !== null ? (
+                <CurriculumPlanSheetDialog
+                    mode="edit"
+                    plan={planSheetPlan}
+                    canManage={canManage}
+                    initialEditing={planSheetEditing}
+                    filterOptions={filterOptions}
+                    defaultAcademicYearId={filters.academic_year_id}
+                    onClose={() => {
+                        setPlanSheetPlan(null);
+                        setPlanSheetEditing(false);
+                    }}
+                />
+            ) : null}
+
+            {subjectCreateOpen ? (
+                <CurriculumSubjectSheetDialog
+                    mode="create"
+                    canManage={canManage}
+                    onClose={() => setSubjectCreateOpen(false)}
+                />
+            ) : null}
+
+            {subjectSheetSubjects.length > 0 ? (
+                <CurriculumSubjectSheetDialog
+                    subjects={subjectSheetSubjects}
+                    canManage={canManage}
+                    initialEditing={subjectSheetEditing}
+                    onClose={() => {
+                        setSubjectSheetSubjects([]);
+                        setSubjectSheetEditing(false);
+                    }}
+                />
+            ) : null}
 
             {selectedPlan ? (
                 <LinkSubjectDialog
@@ -1351,11 +1912,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 open={confirm !== null}
                 title={confirmCopy.title}
                 description={confirmCopy.description}
+                confirmLabel={confirmCopy.confirmLabel}
                 confirmPending={confirmPending}
                 tone={
                     confirm?.kind === 'plan-deactivate' ||
                     confirm?.kind === 'subject-deactivate' ||
-                    confirm?.kind === 'link-deactivate'
+                    confirm?.kind === 'link-deactivate' ||
+                    confirm?.kind === 'subjects-delete'
                         ? 'danger'
                         : 'default'
                 }
@@ -1367,394 +1930,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 }}
             />
         </div>
-    );
-}
-
-export function CurriculumPlanDialog({
-    open,
-    onOpenChange,
-    editing,
-    academicYearId,
-    filterOptions,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    editing: CurriculumRow | null;
-    academicYearId: number | null;
-    filterOptions: CurriculumFilterOptions;
-}) {
-    const i18n = t();
-    const c = i18n.curriculum;
-    const [name, setName] = useState('');
-    const [gradeLevelId, setGradeLevelId] = useState('');
-    const [branchId, setBranchId] = useState('');
-    const [specializationId, setSpecializationId] = useState('');
-    const [processing, setProcessing] = useState(false);
-
-    const reset = (): void => {
-        if (editing) {
-            setName(editing.name);
-            setGradeLevelId(String(editing.grade_level_id));
-            setBranchId(editing.branch_id !== null ? String(editing.branch_id) : '');
-            setSpecializationId(
-                editing.specialization_id !== null ? String(editing.specialization_id) : '',
-            );
-        } else {
-            setName('');
-            const firstClass = filterOptions.classes[0];
-            setGradeLevelId(firstClass ? String(firstClass.grade_level_id) : '');
-            setBranchId('');
-            setSpecializationId('');
-        }
-    };
-
-    const branchDepartments = useMemo(() => {
-        const bid = branchId === '' ? null : Number(branchId);
-        if (bid === null) {
-            return [];
-        }
-
-        return filterOptions.departments.filter((d) => d.branch_id === bid);
-    }, [branchId, filterOptions.departments]);
-
-    const specializationOptions = useMemo(() => {
-        const deptIds = new Set(branchDepartments.map((d) => d.id));
-        if (deptIds.size === 0) {
-            return filterOptions.specializations;
-        }
-
-        return filterOptions.specializations.filter(
-            (s) => s.department_id !== null && deptIds.has(s.department_id),
-        );
-    }, [branchDepartments, filterOptions.specializations]);
-
-    const selectedClassId = useMemo(
-        () => resolveSisClassKey(
-            filterOptions.classes.find(
-                (item) => String(item.grade_level_id) === gradeLevelId,
-            )?.id ?? null,
-            filterOptions.classes,
-        ),
-        [filterOptions.classes, gradeLevelId],
-    );
-
-    const suggestName = (
-        nextBranchId: string,
-        nextSpecId: string,
-        nextGradeId: string,
-    ): string => {
-        const branch = filterOptions.branches.find((b) => String(b.id) === nextBranchId);
-        const spec = filterOptions.specializations.find((s) => String(s.id) === nextSpecId);
-        const gradeClass = filterOptions.classes.find(
-            (item) => String(item.grade_level_id) === nextGradeId,
-        );
-        return [branch?.name, spec?.name, gradeClass?.name].filter(Boolean).join(' — ');
-    };
-
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                if (next) {
-                    reset();
-                }
-                onOpenChange(next);
-            }}
-        >
-            <DialogContent className="sis-ops-hub max-h-[90vh] overflow-y-auto sm:max-w-lg" dir="rtl" lang="ar">
-                <DialogHeader>
-                    <DialogTitle>{editing ? c.editPlan : c.createPlan}</DialogTitle>
-                    <DialogDescription>{c.description}</DialogDescription>
-                </DialogHeader>
-                <form
-                    key={editing?.id ?? 'create-plan'}
-                    className="flex flex-col gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        if (academicYearId === null && !editing) {
-                            return;
-                        }
-                        const planName =
-                            name.trim() !== ''
-                                ? name.trim()
-                                : suggestName(branchId, specializationId, gradeLevelId);
-                        if (planName === '') {
-                            return;
-                        }
-                        setProcessing(true);
-                        const finish = (): void => setProcessing(false);
-                        if (editing) {
-                            patchWithIdempotency(`/curriculum/curricula/${editing.id}`, {
-                                name: planName,
-                                specialization_id:
-                                    specializationId === '' ? null : Number(specializationId),
-                            });
-                            finish();
-                            onOpenChange(false);
-                            return;
-                        }
-                        postWithIdempotency('/curriculum/curricula', {
-                            academic_year_id: academicYearId,
-                            grade_level_id: Number(gradeLevelId),
-                            name: planName,
-                            specialization_id:
-                                specializationId === '' ? null : Number(specializationId),
-                        });
-                        finish();
-                        onOpenChange(false);
-                    }}
-                >
-                    <OpsFormField label={c.planName} name="name">
-                        <OpsTextInput
-                            name="name"
-                            required
-                            dir="rtl"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                        />
-                    </OpsFormField>
-                    {!editing ? (
-                        <OpsFormField label={c.gradeLevel} name="grade_level_id">
-                            <SisListSelect
-                                name="grade_level_id"
-                                ariaLabel={c.gradeLevel}
-                                value={selectedClassId}
-                                required
-                                onChange={(value) => {
-                                    const classId = resolveSisClassId(
-                                        value,
-                                        filterOptions.classes,
-                                    );
-                                    const selected = filterOptions.classes.find(
-                                        (item) => item.id === classId,
-                                    );
-                                    const nextGradeId = selected
-                                        ? String(selected.grade_level_id)
-                                        : '';
-                                    setGradeLevelId(nextGradeId);
-                                    if (name.trim() === '') {
-                                        setName(
-                                            suggestName(branchId, specializationId, nextGradeId),
-                                        );
-                                    }
-                                }}
-                                options={sisClassSelectOptions()}
-                            />
-                        </OpsFormField>
-                    ) : null}
-                    <OpsFormField label={c.branch} name="branch_id">
-                        <SisListSelect
-                            name="branch_id"
-                            ariaLabel={c.branch}
-                            value={branchId}
-                            includeBlank
-                            onChange={(value) => {
-                                setBranchId(value);
-                                setSpecializationId('');
-                                if (name.trim() === '' || !editing) {
-                                    setName(suggestName(value, '', gradeLevelId));
-                                }
-                            }}
-                            options={filterOptions.branches.map((b) => ({
-                                value: String(b.id),
-                                label: b.name,
-                            }))}
-                        />
-                    </OpsFormField>
-                    <OpsFormField label={c.specialization} name="specialization_id">
-                        <SisListSelect
-                            name="specialization_id"
-                            ariaLabel={c.specialization}
-                            value={specializationId}
-                            includeBlank
-                            onChange={(value) => {
-                                setSpecializationId(value);
-                                setName(suggestName(branchId, value, gradeLevelId));
-                            }}
-                            options={specializationOptions.map((s) => ({
-                                value: String(s.id),
-                                label: s.name,
-                            }))}
-                        />
-                    </OpsFormField>
-                    {!editing ? (
-                        <p className="text-muted-foreground text-xs">{c.autoLinkHint}</p>
-                    ) : null}
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            {c.cancel}
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={
-                                processing ||
-                                (name.trim() === '' &&
-                                    suggestName(branchId, specializationId, gradeLevelId) === '')
-                            }
-                        >
-                            {c.save}
-                        </Button>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-export function SubjectDialog({
-    open,
-    onOpenChange,
-    editing,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    editing: SubjectRow | null;
-}) {
-    const i18n = t();
-    const c = i18n.curriculum;
-    const [code, setCode] = useState('');
-    const [name, setName] = useState('');
-    const [subjectType, setSubjectType] = useState('1');
-    const [creditHours, setCreditHours] = useState('2');
-    const [maxGrade, setMaxGrade] = useState('100');
-    const [passGrade, setPassGrade] = useState('50');
-
-    return (
-        <Dialog
-            open={open}
-            onOpenChange={(next) => {
-                if (next) {
-                    if (editing) {
-                        setCode(editing.code);
-                        setName(editing.name);
-                        setSubjectType(String(editing.subject_type));
-                        setCreditHours(
-                            editing.credit_hours !== null ? String(editing.credit_hours) : '',
-                        );
-                        setMaxGrade(String(editing.max_grade));
-                        setPassGrade(String(editing.pass_grade));
-                    } else {
-                        setCode('');
-                        setName('');
-                        setSubjectType('1');
-                        setCreditHours('2');
-                        setMaxGrade('100');
-                        setPassGrade('50');
-                    }
-                }
-                onOpenChange(next);
-            }}
-        >
-            <DialogContent className="sis-ops-hub max-h-[90vh] overflow-y-auto sm:max-w-lg" dir="rtl" lang="ar">
-                <DialogHeader>
-                    <DialogTitle>{editing ? c.editSubject : c.createSubject}</DialogTitle>
-                    <DialogDescription>{c.codeHint}</DialogDescription>
-                </DialogHeader>
-                <form
-                    className="flex flex-col gap-3"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        if (editing) {
-                            patchWithIdempotency(`/curriculum/subjects/${editing.id}`, {
-                                name,
-                                subject_type: Number(subjectType),
-                                credit_hours: creditHours === '' ? null : Number(creditHours),
-                                max_grade: Number(maxGrade),
-                                pass_grade: Number(passGrade),
-                            });
-                        } else {
-                            postWithIdempotency('/curriculum/subjects', {
-                                code: code.trim() || subjectCodeFromName(name),
-                                name,
-                                subject_type: Number(subjectType),
-                                credit_hours: creditHours === '' ? null : Number(creditHours),
-                                max_grade: Number(maxGrade),
-                                pass_grade: Number(passGrade),
-                            });
-                        }
-                        onOpenChange(false);
-                    }}
-                >
-                    {!editing ? (
-                        <OpsFormField label={c.subjectCode} name="code" hint={c.codeHint}>
-                            <OpsTextInput
-                                name="code"
-                                dir="ltr"
-                                required
-                                defaultValue=""
-                                onChange={(e) => setCode(e.target.value)}
-                            />
-                        </OpsFormField>
-                    ) : (
-                        <OpsFormField label={c.subjectCode} name="code_ro">
-                            <span className="sis-ops-hub__link min-h-11 px-3 py-2" dir="ltr">
-                                {editing.code}
-                            </span>
-                        </OpsFormField>
-                    )}
-                    <OpsFormField label={c.subjectName} name="name">
-                        <OpsTextInput
-                            name="name"
-                            required
-                            dir="rtl"
-                            defaultValue={editing?.name ?? ''}
-                            onChange={(e) => setName(e.target.value)}
-                        />
-                    </OpsFormField>
-                    <OpsFormField label={c.subjectType} name="subject_type">
-                        <SisListSelect
-                            name="subject_type"
-                            ariaLabel={c.subjectType}
-                            value={subjectType}
-                            onChange={setSubjectType}
-                            options={[
-                                { value: '1', label: c.subjectTypeCore },
-                                { value: '2', label: c.subjectTypeElective },
-                                { value: '3', label: c.subjectTypePractical },
-                            ]}
-                        />
-                    </OpsFormField>
-                    <OpsFormField label={c.creditHours} name="credit_hours">
-                        <OpsTextInput
-                            name="credit_hours"
-                            type="number"
-                            min={0}
-                            dir="ltr"
-                            defaultValue={editing?.credit_hours ?? 2}
-                            onChange={(e) => setCreditHours(e.target.value)}
-                        />
-                    </OpsFormField>
-                    <OpsFormField label={c.maxGrade} name="max_grade">
-                        <OpsTextInput
-                            name="max_grade"
-                            type="number"
-                            min={1}
-                            dir="ltr"
-                            defaultValue={editing?.max_grade ?? 100}
-                            onChange={(e) => setMaxGrade(e.target.value)}
-                        />
-                    </OpsFormField>
-                    <OpsFormField label={c.passGrade} name="pass_grade">
-                        <OpsTextInput
-                            name="pass_grade"
-                            type="number"
-                            min={0}
-                            dir="ltr"
-                            defaultValue={editing?.pass_grade ?? 50}
-                            onChange={(e) => setPassGrade(e.target.value)}
-                        />
-                    </OpsFormField>
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            {c.cancel}
-                        </Button>
-                        <Button type="submit" disabled={name.trim() === ''}>
-                            {c.save}
-                        </Button>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
     );
 }
 

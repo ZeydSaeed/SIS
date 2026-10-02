@@ -118,13 +118,13 @@ final class CurriculumPageController extends Controller
         $specializationId = $request->filled('specialization_id') ? (int) $request->query('specialization_id') : null;
         $branchId = $request->filled('branch_id') ? (int) $request->query('branch_id') : null;
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 25)), 100);
+        $perPage = min(max(1, (int) $request->query('per_page', 17)), 100);
 
         $subjectQ = trim((string) $request->query('subject_q', ''));
         $subjectStatus = $request->filled('subject_status') ? (int) $request->query('subject_status') : null;
         $subjectType = $request->filled('subject_type') ? (int) $request->query('subject_type') : null;
         $subjectPage = max(1, (int) $request->query('subject_page', 1));
-        $subjectPerPage = min(max(1, (int) $request->query('subject_per_page', 25)), 100);
+        $subjectPerPage = min(max(1, (int) $request->query('subject_per_page', 17)), 100);
 
         $filterOptions = $enrollmentReads->listFilterOptions($schoolId, $academicYearId);
 
@@ -349,12 +349,7 @@ final class CurriculumPageController extends Controller
             ['from_idempotency' => $result->fromIdempotencyCache],
         );
 
-        return redirect()
-            ->route('curriculum.show', [
-                'curriculum' => $result->curriculumId,
-                'academic_year_id' => (int) $request->validated('academic_year_id'),
-            ])
-            ->with('success', 'flash.curriculum.created');
+        return redirect()->back()->with('success', 'flash.curriculum.created');
     }
 
     public function updateCurriculum(

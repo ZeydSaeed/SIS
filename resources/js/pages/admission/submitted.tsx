@@ -31,6 +31,8 @@ export default function AdmissionSubmitted({ workspace, filters, authorization }
         filters.application_period_id ?? workspace.selected_period_id,
         null,
         filters.q,
+        null,
+        workspace.pagination?.per_page,
     )}`;
 
     return (

@@ -1,8 +1,8 @@
 import { router, usePage } from '@inertiajs/react';
 import { BookOpen, Pencil, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { CurriculumPlanSheetDialog } from '@/components/curriculum/curriculum-plan-sheet';
 import {
-    CurriculumPlanDialog,
     LinkSubjectDialog,
     newIdempotencyKey,
     postWithIdempotency,
@@ -881,13 +881,17 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 </section>
             ) : null}
 
-            <CurriculumPlanDialog
-                open={planDialogOpen}
-                onOpenChange={setPlanDialogOpen}
-                editing={curriculum}
-                academicYearId={curriculum.academic_year_id}
-                filterOptions={filterOptions}
-            />
+            {planDialogOpen ? (
+                <CurriculumPlanSheetDialog
+                    mode="edit"
+                    plan={curriculum}
+                    canManage={canManage}
+                    initialEditing
+                    filterOptions={filterOptions}
+                    defaultAcademicYearId={curriculum.academic_year_id}
+                    onClose={() => setPlanDialogOpen(false)}
+                />
+            ) : null}
 
             <LinkSubjectDialog
                 open={linkDialogOpen}

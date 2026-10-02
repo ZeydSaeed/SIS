@@ -19,6 +19,16 @@ export default function AppSidebarLayout({
 }: AppLayoutProps) {
     const { component, url } = usePage();
     const isDashboard = component === 'dashboard';
+    const isOpsListPage =
+        component === 'admission/index' ||
+        component.startsWith('admission/') ||
+        component === 'students/index' ||
+        component.startsWith('students/') ||
+        component === 'enrollments/index' ||
+        component.startsWith('enrollments/') ||
+        component === 'curriculum/index' ||
+        component.startsWith('curriculum/');
+    const lockPageScroll = isDashboard || isOpsListPage;
 
     useEffect(() => {
         restorePageAlignments();
@@ -39,7 +49,7 @@ export default function AppSidebarLayout({
                 <div
                     className={cn(
                         'sis-page-surface min-h-0 flex-1 overscroll-x-none',
-                        isDashboard
+                        lockPageScroll
                             ? 'overflow-hidden overscroll-none'
                             : 'sis-scroll-hidden overflow-x-hidden overflow-y-auto',
                     )}

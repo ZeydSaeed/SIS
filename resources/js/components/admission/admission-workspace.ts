@@ -166,6 +166,7 @@ export function admissionWorkspaceQuery(
     page?: number | null,
     search?: string | null,
     enrollmentStatus?: string | null,
+    perPage?: number | null,
 ): string {
     const params = new URLSearchParams();
     if (academicYearId != null) {
@@ -185,6 +186,9 @@ export function admissionWorkspaceQuery(
     }
     if (enrollmentStatus === 'awaiting' || enrollmentStatus === 'completed') {
         params.set('enrollment_status', enrollmentStatus);
+    }
+    if (perPage != null && perPage > 0) {
+        params.set('per_page', String(perPage));
     }
     const query = params.toString();
 

@@ -28,6 +28,8 @@ import {
     type ReactNode,
 } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
@@ -833,6 +835,7 @@ export function StudentList({
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
+    const fitPageSizeRef = useRef(STUDENTS_PER_PAGE);
     const filtersRef = useRef(filters);
     const searchDraftRef = useRef(filters.q);
     const checkedIdsRef = useRef(checkedIds);
@@ -985,7 +988,7 @@ export function StudentList({
             {
                 q: nextQuery.trim() || undefined,
                 page: params.page ?? current.page,
-                per_page: STUDENTS_PER_PAGE,
+                per_page: params.per_page ?? fitPageSizeRef.current,
                 status: nextStatus ?? undefined,
                 student: nextStudent ?? undefined,
                 academic_year_id: nextYear ?? undefined,
@@ -1004,6 +1007,20 @@ export function StudentList({
             },
         );
     }, []);
+
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: STUDENTS_PER_PAGE,
+        enabled: true,
+    });
+    fitPageSizeRef.current = fitPageSize;
+
+    useEffect(() => {
+        if (fitPageSize === filters.per_page) {
+            return;
+        }
+
+        visitList({ per_page: fitPageSize, quiet: true });
+    }, [fitPageSize, filters.per_page, visitList]);
 
     const ensureEnrollmentFilters = useCallback(
         (then: () => void) => {
@@ -1027,7 +1044,7 @@ export function StudentList({
 
     const commitSearch = useCallback(
         (query: string) => {
-            visitList({ q: query, page: 1, student: undefined, quiet: true });
+            visitList({ q: query, student: undefined, quiet: true });
         },
         [visitList],
     );
@@ -1073,7 +1090,6 @@ export function StudentList({
             gender: null,
             enrolled: null,
             request_kind: null,
-            page: 1,
             student: undefined,
         });
     }, [visitList]);
@@ -1286,7 +1302,6 @@ export function StudentList({
 
             visitList({
                 status,
-                page: 1,
                 student: undefined,
             });
         },
@@ -1299,6 +1314,7 @@ export function StudentList({
                 return;
             }
 
+            writeStoredListPage('students', page);
             visitList({ page, student: undefined });
         },
         [pagination.last_page, pagination.page, visitList],
@@ -1408,7 +1424,7 @@ export function StudentList({
 
                                             return value === '' ? undefined : value;
                                         },
-                                        per_page: STUDENTS_PER_PAGE,
+                                        per_page: filters.per_page || STUDENTS_PER_PAGE,
                                         status: filters.status ?? undefined,
                                         gender: filters.gender ?? undefined,
                                         enrolled:
@@ -1426,7 +1442,6 @@ export function StudentList({
                                         }
                                         visitList({
                                             academic_year_id: yearId,
-                                            page: 1,
                                             student: undefined,
                                         });
                                     }}
@@ -1457,7 +1472,6 @@ export function StudentList({
                                             visitList({
                                                 gender:
                                                     next === '1' || next === '2' ? Number(next) : null,
-                                                page: 1,
                                                 student: undefined,
                                             });
                                         }}
@@ -1487,7 +1501,6 @@ export function StudentList({
                                             visitList({
                                                 enrolled:
                                                     next === '1' || next === '0' ? Number(next) : null,
-                                                page: 1,
                                                 student: undefined,
                                             });
                                         }}
@@ -1525,7 +1538,6 @@ export function StudentList({
                                                     next === '1' || next === '2'
                                                         ? Number(next)
                                                         : null,
-                                                page: 1,
                                                 student: undefined,
                                             });
                                         }}
