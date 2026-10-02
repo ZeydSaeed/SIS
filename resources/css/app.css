@@ -10941,3 +10941,57 @@ body:has([data-slot='sidebar']) .sis-student-enrollment-sheet.sis-admission-shee
 .sis-curriculum-subject-sheet.sis-admission-draft-form.sis-student-record-form .sis-admission-sheet__body {
     flex: 0 0 auto !important;
 }
+
+.sis-curriculum-subject-prereqs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+    width: 100%;
+}
+
+.sis-curriculum-subject-prereqs__hint {
+    margin: 0;
+    color: var(--sis-steel);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.sis-curriculum-subject-prereqs__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sis-curriculum-subject-prereqs__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    padding: 0.18rem 0.45rem;
+    border: 1px solid var(--sis-table-line-color, #000);
+    border-radius: 0.3rem;
+    background: color-mix(in srgb, var(--sis-mist) 35%, var(--sis-pearl));
+    color: var(--sis-night);
+    font-family: var(--sis-font-stack);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.sis-curriculum-subject-prereqs__chip:hover,
+.sis-curriculum-subject-prereqs__chip:focus-visible {
+    background: color-mix(in srgb, var(--sis-mist) 55%, var(--sis-pearl));
+    outline: none;
+}
+
+.sis-curriculum-subject-prereqs__chip > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+

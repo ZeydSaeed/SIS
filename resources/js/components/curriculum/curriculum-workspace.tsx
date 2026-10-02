@@ -103,6 +103,8 @@ export type SubjectRow = {
     max_grade: number;
     pass_grade: number;
     status: number;
+    prerequisites?: string;
+    prerequisite_subject_ids?: number[];
 };
 
 export type LinkedSubjectRow = {
@@ -1027,7 +1029,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 max_grade: fromDb?.max_grade ?? row.max_grade,
                 pass_grade: fromDb?.pass_grade ?? row.pass_grade,
                 status: fromDb?.status ?? row.status,
-                prerequisites: '',
+                prerequisites: fromDb?.prerequisites?.trim() || '',
             };
         });
 
@@ -1043,7 +1045,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 max_grade: fromDb.max_grade,
                 pass_grade: fromDb.pass_grade,
                 status: fromDb.status,
-                prerequisites: '',
+                prerequisites: fromDb.prerequisites?.trim() || '',
             });
         }
 
@@ -2014,6 +2016,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 <CurriculumSubjectSheetDialog
                     mode="create"
                     canManage={canManage}
+                    prerequisiteOptions={subjects.data
+                        .filter((row) => Number(row.status) === 1)
+                        .map((row) => ({ id: row.id, name: row.name }))}
                     onClose={() => setSubjectCreateOpen(false)}
                 />
             ) : null}
@@ -2023,6 +2028,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                     subjects={subjectSheetSubjects}
                     canManage={canManage}
                     initialEditing={subjectSheetEditing}
+                    prerequisiteOptions={subjects.data
+                        .filter((row) => Number(row.status) === 1)
+                        .map((row) => ({ id: row.id, name: row.name }))}
                     onClose={() => {
                         setSubjectSheetSubjects([]);
                         setSubjectSheetEditing(false);
