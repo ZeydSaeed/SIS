@@ -963,6 +963,139 @@ body.sis-table-col-resizing * {
     outline: none !important;
 }
 
+/* ================================================================
+   Ops pages (curriculum / students / admission / enrollments) —
+   Word-style ribbon tab strip.
+   All rules scoped to .sis-chrome--word-tabs and the per-page ribbon
+   classes; no other pages are affected.
+   - Inactive tabs: flat Pearl text on the Night strip, square corners.
+   - Active tab: full-height, square, hairline frame on top + sides,
+     filled with the curriculum ribbon surface so its open bottom edge
+     fuses seamlessly with the ribbon panel directly below.
+   - Ribbon panel: light hairline group dividers + centred group captions.
+   ================================================================ */
+
+.sis-chrome--word-tabs {
+    --sis-curriculum-tab-frame: color-mix(in srgb, var(--sis-mist) 55%, var(--sis-pearl));
+}
+
+/* Stretch the start column so the tab strip fills the full titlebar height */
+.sis-chrome--word-tabs .sis-titlebar__start {
+    align-self: stretch;
+    align-items: stretch;
+}
+
+/* Re-center the sidebar trigger — icon button should not stretch tall */
+.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__trigger,
+.sis-chrome--word-tabs .sis-titlebar [data-sidebar='trigger'] {
+    align-self: center;
+}
+
+/* Menu nav fills start height; tabs sit edge-to-edge like Word */
+.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu {
+    align-items: stretch;
+    gap: 0;
+    padding-block-start: 0.3rem;
+}
+
+body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0 0.85rem;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 0 !important;
+}
+
+/*
+ * Active tab: ribbon surface fill + steel text + open bottom = fused with ribbon.
+ * `body .sis-chrome.` outranks the system-wide button radius rule (:is(…)
+ * near "System-wide radius"), which otherwise wins once focus leaves the tab.
+ */
+body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active,
+body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:hover,
+body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:focus,
+body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:focus-visible,
+body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:active {
+    z-index: 1;
+    /* Same token as the ribbon body on these pages (.sis-ribbon--*-page). */
+    background: var(--sis-curriculum-ribbon) !important;
+    background-color: var(--sis-curriculum-ribbon) !important;
+    color: var(--sis-steel) !important;
+    border-color: var(--sis-curriculum-tab-frame);
+    border-bottom: 0;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    opacity: 1 !important;
+}
+
+/* Ribbon panel under an open tab — Word-like body */
+.sis-ribbon.sis-ribbon--curriculum-page,
+.sis-ribbon.sis-ribbon--students-page,
+.sis-ribbon.sis-ribbon--admission-page,
+.sis-ribbon.sis-ribbon--enrollments-page {
+    border-bottom: 1px solid var(--sis-curriculum-tab-frame);
+}
+
+.sis-ribbon--curriculum-page .sis-ribbon__separator,
+.sis-ribbon--students-page .sis-ribbon__separator,
+.sis-ribbon--admission-page .sis-ribbon__separator,
+.sis-ribbon--enrollments-page .sis-ribbon__separator {
+    margin-block: 0.25rem 0.35rem;
+    background: var(--sis-curriculum-tab-frame);
+}
+
+.sis-ribbon--curriculum-page .sis-ribbon__group-label,
+.sis-ribbon--students-page .sis-ribbon__group-label,
+.sis-ribbon--admission-page .sis-ribbon__group-label,
+.sis-ribbon--enrollments-page .sis-ribbon__group-label {
+    align-self: stretch;
+    text-align: center;
+    color: var(--sis-steel);
+}
+
+/*
+ * Word-tab ops pages — title bar + ribbon stay visible while sheets/forms
+ * are open. --sis-chrome-bottom (set by AppSidebarHeader) is the chrome's
+ * bottom edge; sheets centre, maximize and dim only in the area below it.
+ */
+body:has(.sis-chrome--word-tabs) :is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
+    top: var(--sis-chrome-bottom, 0px) !important;
+}
+
+body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog:not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
+    top: calc(
+        var(--sis-chrome-bottom, 0px) + (100vh - var(--sis-chrome-bottom, 0px)) / 2
+    ) !important;
+    max-height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.35rem) !important;
+}
+
+body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog):not(.sis-admission-accepted-dialog):not(.sis-student-enrollment-sheet):not(.sis-enrollment-record-sheet):not(.sis-placement-history-dialog):not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
+    min-height: min(86vh, 46rem, calc(100vh - var(--sis-chrome-bottom, 0px) - 0.35rem)) !important;
+}
+
+body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog[data-placed='true'] {
+    max-height: calc(100vh - var(--sis-chrome-bottom, 0px)) !important;
+}
+
+body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog.sis-admission-sheet-dialog--maximized {
+    top: calc(var(--sis-chrome-bottom, 0px) + 0.35rem) !important;
+    bottom: auto !important;
+    height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.7rem) !important;
+    max-height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.7rem) !important;
+    min-height: 0 !important;
+}
+
+body:has(.sis-chrome--word-tabs)
+    .sis-admission-sheet-dialog.sis-admission-sheet-dialog--maximized
+    :is(.sis-admission-sheet, .sis-admission-accepted-sheet, .sis-placement-history-sheet) {
+    max-height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.7rem) !important;
+    min-height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.7rem) !important;
+}
+
 .sis-titlebar__controls {
     background: transparent !important;
     color: var(--sis-pearl);

@@ -89,3 +89,18 @@ export function useDebouncedFitPageSync(
         };
     }, [currentPerPage, enabled, fitPageSize]);
 }
+
+/** Viewport y of the title bar + ribbon bottom edge (Word-tab ops pages only). */
+export const SIS_CHROME_BOTTOM_VAR = '--sis-chrome-bottom';
+
+/** Current chrome bottom in px, or null when the page does not reserve it. */
+export function readSisChromeBottom(): number | null {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const raw = document.documentElement.style.getPropertyValue(SIS_CHROME_BOTTOM_VAR);
+    const value = Number.parseFloat(raw);
+
+    return Number.isFinite(value) ? value : null;
+}

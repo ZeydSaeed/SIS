@@ -7,6 +7,7 @@ import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
 } from 'react';
+import { readSisChromeBottom } from '@/lib/sis-ribbon-layout';
 
 type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
@@ -75,7 +76,14 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
 
         boxRef.current = box;
         node.setAttribute('data-placed', 'true');
-        node.style.setProperty('top', `${Math.round(box.top)}px`, 'important');
+        // Word-tab pages: never slide under the title bar + ribbon (also when it grows later).
+        node.style.setProperty(
+            'top',
+            readSisChromeBottom() === null
+                ? `${Math.round(box.top)}px`
+                : `max(${Math.round(box.top)}px, var(--sis-chrome-bottom))`,
+            'important',
+        );
         node.style.setProperty('left', `${Math.round(box.left)}px`, 'important');
         node.style.setProperty('right', 'auto', 'important');
         node.style.setProperty('bottom', 'auto', 'important');
@@ -189,10 +197,15 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
                 return;
             }
 
+            const minTop = readSisChromeBottom() ?? Number.NEGATIVE_INFINITY;
+
             applyBox({
                 ...box,
                 left: dragStart.current.left + (event.clientX - dragStart.current.pointerX),
-                top: dragStart.current.top + (event.clientY - dragStart.current.pointerY),
+                top: Math.max(
+                    minTop,
+                    dragStart.current.top + (event.clientY - dragStart.current.pointerY),
+                ),
             });
         },
         [applyBox, disabled],
@@ -268,6 +281,12 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
             if (state.edge.includes('n')) {
                 height = Math.max(minSize.height, state.height - dy);
                 top = state.top + (state.height - height);
+
+                const minTop = readSisChromeBottom();
+                if (minTop !== null && top < minTop) {
+                    height -= minTop - top;
+                    top = minTop;
+                }
             }
 
             applyBox({ left, top, width, height });

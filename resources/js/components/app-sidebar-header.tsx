@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { TitleBarControls } from '@/components/title-bar-controls';
 import { TitleBarHome } from '@/components/title-bar-home';
 import { TitleBarMenu } from '@/components/title-bar-menu';
@@ -29,6 +29,7 @@ import {
 import { togglePageTextStyle } from '@/hooks/use-page-text-style';
 import {
     dispatchSisRibbonLayout,
+    SIS_CHROME_BOTTOM_VAR,
     sisRibbonLayoutSettleMs,
 } from '@/lib/sis-ribbon-layout';
 import { t } from '@/i18n';
@@ -361,17 +362,59 @@ export function AppSidebarHeader({
 
     const titlebarSearch = useTitlebarSearchSlot();
 
+    const currentPath = (page.url.split('?')[0] ?? page.url);
+    const isCurriculumPage =
+        currentPath === '/curriculum' || currentPath.startsWith('/curriculum/');
+    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments'].some(
+        (base) => currentPath === base || currentPath.startsWith(`${base}/`),
+    );
+
     const chromeClassName = [
         'sis-chrome',
         'shrink-0',
         ribbonExpanded ? 'sis-chrome--ribbon-open' : '',
         renderedRibbonTab ? 'sis-chrome--ribbon-present' : '',
+        isCurriculumPage ? 'sis-chrome--curriculum' : '',
+        hasWordTabs ? 'sis-chrome--word-tabs' : '',
     ]
         .filter(Boolean)
         .join(' ');
 
+    // Word-tab pages keep the title bar + ribbon visible above open sheets:
+    // publish the chrome's bottom edge so sheets lay out (and drag) below it.
+    const chromeRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const node = chromeRef.current;
+        const root = document.documentElement;
+
+        if (!hasWordTabs || node === null) {
+            root.style.removeProperty(SIS_CHROME_BOTTOM_VAR);
+
+            return;
+        }
+
+        const publish = () => {
+            root.style.setProperty(
+                SIS_CHROME_BOTTOM_VAR,
+                `${Math.round(node.getBoundingClientRect().bottom)}px`,
+            );
+        };
+
+        publish();
+        const observer = new ResizeObserver(publish);
+        observer.observe(node);
+        window.addEventListener('resize', publish);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', publish);
+            root.style.removeProperty(SIS_CHROME_BOTTOM_VAR);
+        };
+    }, [hasWordTabs]);
+
     return (
-        <div className={chromeClassName}>
+        <div ref={chromeRef} className={chromeClassName}>
             <header
                 className="sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3"
                 dir="rtl"
