@@ -241,7 +241,6 @@ export function AppSidebarHeader({
         }
 
         if (id === 'addSubject') {
-            closeRibbon();
             const currentUrl = page.url.split('?')[0] ?? page.url;
             if (isCurriculumWorkspacePath(currentUrl)) {
                 dispatchOpenCreateSubject();
@@ -255,7 +254,6 @@ export function AppSidebarHeader({
         }
 
         if (id === 'addCurriculum') {
-            closeRibbon();
             const currentUrl = page.url.split('?')[0] ?? page.url;
             if (isCurriculumWorkspacePath(currentUrl)) {
                 dispatchOpenCreateCurriculum();

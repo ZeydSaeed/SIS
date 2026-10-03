@@ -15,6 +15,7 @@ import type {
     CurriculumFilterOptions,
     SubjectRow,
 } from '@/components/curriculum/curriculum-workspace';
+import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { t } from '@/i18n';
 import {
@@ -264,6 +265,7 @@ export function CurriculumCreateSheetDialog({
         disabled: true,
         resizable: false,
     });
+    const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
     const [academicYearId, setAcademicYearId] = useState(
         defaultAcademicYearId ? String(defaultAcademicYearId) : '',
@@ -481,6 +483,7 @@ export function CurriculumCreateSheetDialog({
                     'sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog',
                     'sis-enrollment-record-sheet sis-curriculum-subject-sheet',
                     'sis-curriculum-create-sheet sis-curriculum-create-sheet--fixed',
+                    maximizeClassName,
                 )}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
@@ -508,8 +511,9 @@ export function CurriculumCreateSheetDialog({
                             restoreLabel={i18n.window.restore}
                             closeLabel={i18n.window.close}
                             minimizable={false}
-                            maximizable={false}
-                            maximized={false}
+                            maximizable
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
                             onClose={onClose}
                         />
                         <div className="sis-admission-sheet__hero-copy">
