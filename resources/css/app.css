@@ -74,6 +74,9 @@
     --sis-button-radius: 0.375rem;
     --sis-field-radius: 0.375rem;
     --sis-surface-radius: 0.5rem; /* dialogs, sheets, windows */
+    /* Ultra-thin chrome frame (1px black) — layout-neutral via ::after; matches table-line black. */
+    --sis-chrome-frame-width: 1px;
+    --sis-chrome-frame-color: #000000;
     --sis-table-radius: 0.65rem; /* table outer frame */
     /* Table grid + typography — system-wide SSOT */
     --sis-table-line-width: 1px;
@@ -107,6 +110,16 @@
     --sis-admission-track-gap: transparent;
     --sis-admission-pending: #e6e6e6;
     --sis-admission-page: #fffcf2;
+    /* Curriculum module page surface — light Oxford/Mist soft derivative. */
+    --sis-curriculum-page: #eaf4ff;
+    --sis-curriculum-table: #ffffff;
+    /* Curriculum chrome ribbon body — pure white surface. */
+    --sis-curriculum-ribbon: #ffffff;
+    /* Table header + tabs chrome — Oxford family navy. */
+    --sis-curriculum-chrome: #17345c;
+    --sis-curriculum-chrome-text: #ffffff;
+    /* Unselected subjects/curricula view tab fill. */
+    --sis-curriculum-tab-idle: #9db7d5;
     --sis-admission-period-card: #edf6f9;
     --sis-admission-period-input: var(--sis-hover);
     --sis-admission-period-control-h: 1.9rem;
@@ -809,7 +822,8 @@ body.sis-table-col-resizing * {
     padding-inline: 0.75rem;
     border: 1px solid color-mix(in srgb, var(--sis-mist) 50%, var(--sis-pearl));
     border-radius: 999px;
-    background: var(--sis-pearl);
+    /* Global titlebar search — same soft fill as curriculum page surface. */
+    background: var(--sis-curriculum-page);
     box-shadow: 0 0.08rem 0.4rem color-mix(in srgb, var(--sis-night) 22%, transparent);
 }
 
@@ -1337,6 +1351,15 @@ body.sis-table-col-resizing * {
     white-space: nowrap;
     line-height: 1.45;
     padding-block-end: 0.12rem;
+}
+
+/* Curriculum page only — ribbon body under Home/Edit/… tabs. */
+.sis-ribbon--curriculum-page {
+    background: var(--sis-curriculum-ribbon);
+}
+
+.sis-ribbon--curriculum-page .sis-ribbon__body {
+    background: var(--sis-curriculum-ribbon);
 }
 
 /* Curriculum edit ribbon — same single-line command layout as enrollments. */
@@ -1957,7 +1980,7 @@ body.sis-table-col-resizing * {
     table-layout: fixed;
     font-family: var(--sis-font-stack);
     font-size: 0.74rem;
-    background: var(--sis-admission-page);
+    background: var(--sis-curriculum-table);
     border: 1px solid #000000;
 }
 
@@ -1985,7 +2008,8 @@ body.sis-table-col-resizing * {
 }
 
 .sis-curriculum-page .sis-curriculum-subjects-nested thead th {
-    background: color-mix(in srgb, var(--sis-mist) 55%, var(--sis-pearl));
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
     font-weight: 600;
     box-shadow: none;
     position: static;
@@ -4020,11 +4044,18 @@ button.sis-admission-enroll-status-text:active {
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: stretch;
-    gap: 0.4rem;
+    gap: 0.35rem;
     flex-shrink: 0;
     width: 100%;
+    box-sizing: border-box;
     margin-block-start: 0.35rem;
     margin-block-end: 0.45rem;
+    padding: 0.35rem 0.55rem;
+    /* Curriculum only: flat bar — no card, no fill. */
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 .sis-curriculum-view-tabs__btn {
@@ -4033,29 +4064,30 @@ button.sis-admission-enroll-status-text:active {
     min-height: 2rem;
     padding-block: 0.25rem;
     padding-inline: 0.95rem;
-    border: 1px solid var(--sis-hover);
-    border-radius: var(--sis-button-radius) !important;
-    background: var(--sis-hover);
-    color: var(--sis-night);
+    border: 0;
+    border-radius: 0 !important;
+    background: transparent;
+    color: var(--sis-curriculum-tab-idle);
     font-family: var(--sis-font-stack);
     font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
     line-height: 1.2;
+    box-shadow: none;
 }
 
 .sis-curriculum-view-tabs__btn.is-active,
 .sis-curriculum-view-tabs__btn[aria-selected='true'] {
-    background: var(--sis-night);
-    color: var(--sis-pearl);
-    border-color: var(--sis-night);
+    background: transparent;
+    color: var(--sis-color-sidebar);
+    border: 0;
     box-shadow: none;
 }
 
 .sis-curriculum-view-tabs__btn:hover,
 .sis-curriculum-view-tabs__btn:focus-visible {
-    background: color-mix(in srgb, var(--sis-hover) 78%, var(--sis-mist));
-    color: var(--sis-night);
+    background: transparent;
+    color: var(--sis-oxford);
     outline: none;
 }
 
@@ -4063,8 +4095,8 @@ button.sis-admission-enroll-status-text:active {
 .sis-curriculum-view-tabs__btn[aria-selected='true']:hover,
 .sis-curriculum-view-tabs__btn.is-active:focus-visible,
 .sis-curriculum-view-tabs__btn[aria-selected='true']:focus-visible {
-    background: var(--sis-night);
-    color: var(--sis-pearl);
+    background: transparent;
+    color: var(--sis-color-sidebar);
 }
 
 .sis-curriculum-page-filters {
@@ -4255,9 +4287,10 @@ button.sis-admission-enroll-status-text:active {
     gap: 0.55rem 1rem;
     margin: 0 0 0.35rem;
     padding: 0.35rem 0.55rem;
-    border: var(--sis-table-line);
-    border-radius: var(--sis-field-radius);
-    background: color-mix(in srgb, var(--sis-mist) 28%, var(--sis-pearl));
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     font-family: var(--sis-table-font-family);
     font-size: var(--sis-table-font-size);
     color: var(--sis-oxford);
@@ -5202,16 +5235,651 @@ button.sis-admission-enroll-status-text:active {
 }
 
 /*
+ * Curriculum page + branches — colors only (copied from enrollment palette).
+ * Page, tables, forms, dialogs, modals. Ribbon tabs / layout / radius untouched.
+ * Enrollment / students / admission color blocks stay intact below.
+ */
+.sis-curriculum-page.sis-admission-page,
+.sis-page-surface:has(.sis-curriculum-page) {
+    background: var(--sis-curriculum-page);
+}
+
+.sis-curriculum-page .sis-admission-drafts-table,
+.sis-curriculum-page .sis-admission-periods-table,
+.sis-curriculum-page .sis-curriculum-subjects-nested {
+    background: var(--sis-curriculum-table) !important;
+}
+
+.sis-curriculum-page .sis-admission-drafts-table thead,
+.sis-curriculum-page .sis-admission-drafts-table thead th,
+.sis-curriculum-page .sis-admission-drafts-table.sis-admission-periods-table th,
+.sis-curriculum-page .sis-admission-periods-table thead,
+.sis-curriculum-page .sis-admission-periods-table thead th,
+.sis-curriculum-page .sis-curriculum-subjects-nested thead th,
+.sis-curriculum-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+:is(
+    .sis-curriculum-subject-sheet,
+    .sis-curriculum-create-sheet,
+    body:has(.sis-curriculum-page) .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-draft-dialog,
+:is(
+    .sis-curriculum-subject-sheet,
+    .sis-curriculum-create-sheet,
+    body:has(.sis-curriculum-page) .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-sheet-dialog,
+body:has(.sis-curriculum-page) .sis-confirm-dialog.sis-notice-sheet {
+    /* Forms / dialogs / sub-windows: same fill as table (#ffffff). */
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet) .sis-admission-sheet,
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    .sis-curriculum-create-sheet__form,
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    .sis-curriculum-create-sheet__pane,
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    .sis-curriculum-create-sheet__pane-body,
+body:has(.sis-curriculum-page) .sis-confirm-dialog .sis-admission-sheet {
+    --sheet-surface: var(--sis-curriculum-table);
+    --sheet-dark: var(--sis-curriculum-chrome);
+    --sheet-dark-text: var(--sis-curriculum-chrome-text);
+    --sheet-btn: var(--sis-curriculum-chrome);
+    --sheet-btn-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-btn-muted: var(--sis-curriculum-chrome);
+    --sheet-btn-muted-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-interactive: color-mix(in srgb, var(--sis-curriculum-chrome) 8%, var(--sis-curriculum-table));
+    background: var(--sheet-surface);
+}
+
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet) .sis-admission-sheet__hero,
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    .sis-student-sheet-dialog__shared-hero,
+body:has(.sis-curriculum-page) .sis-confirm-dialog .sis-admission-sheet__hero {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    :is(
+        .sis-admission-drafts-table,
+        .sis-data-table,
+        .sis-curriculum-create-sheet__table,
+        .sis-curriculum-subjects-nested
+    ) {
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    :is(
+        .sis-admission-drafts-table,
+        .sis-data-table,
+        .sis-curriculum-create-sheet__table,
+        .sis-curriculum-subjects-nested
+    )
+    thead,
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    :is(
+        .sis-admission-drafts-table,
+        .sis-data-table,
+        .sis-curriculum-create-sheet__table,
+        .sis-curriculum-subjects-nested
+    )
+    thead
+    th,
+:is(.sis-curriculum-subject-sheet, .sis-curriculum-create-sheet)
+    .sis-curriculum-create-sheet__pane-head {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+/* Create-curriculum form only: "اسم المادة" header = pager footer color. */
+.sis-curriculum-create-sheet .sis-curriculum-create-sheet__table thead th,
+.sis-curriculum-create-sheet .sis-curriculum-create-sheet__name-head {
+    background: color-mix(in srgb, var(--sis-mist) 20%, var(--sis-pearl)) !important;
+    color: var(--sis-oxford) !important;
+    box-shadow: none;
+}
+
+/*
+ * Enrollment page only — colors only (same palette as curriculum).
+ * Does not touch ribbon tabs (Home / Edit / …) or layout/radius/sizing.
+ * Enrollment dialogs reuse `.sis-enrollment-record-sheet`; exclude curriculum
+ * and student-enroll sheets that also carry that sizing class.
+ */
+.sis-enrollments-page.sis-admission-page,
+.sis-page-surface:has(.sis-enrollments-page) {
+    background: var(--sis-curriculum-page);
+}
+
+.sis-enrollments-page .sis-admission-drafts-table,
+.sis-enrollments-page .sis-admission-periods-table {
+    background: var(--sis-curriculum-table) !important;
+}
+
+.sis-enrollments-page .sis-admission-drafts-table thead,
+.sis-enrollments-page .sis-admission-drafts-table thead th,
+.sis-enrollments-page .sis-admission-drafts-table.sis-admission-periods-table th,
+.sis-enrollments-page .sis-admission-periods-table thead,
+.sis-enrollments-page .sis-admission-periods-table thead th,
+.sis-enrollments-page.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+/*
+ * Ops list pages — shared hover / selected / interactive fills (from enrollment).
+ * Palette derivatives: --sis-curriculum-page + --sis-curriculum-chrome + table white.
+ * Covers: enrollment, students, curriculum, pure admission.
+ */
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+) {
+    --sis-ops-row-hover: color-mix(
+        in srgb,
+        var(--sis-curriculum-page) 82%,
+        var(--sis-curriculum-chrome)
+    );
+    --sis-ops-row-selected: color-mix(
+        in srgb,
+        var(--sis-curriculum-chrome) 16%,
+        var(--sis-curriculum-table)
+    );
+    --sis-ops-row-selected-hover: color-mix(
+        in srgb,
+        var(--sis-curriculum-chrome) 22%,
+        var(--sis-curriculum-table)
+    );
+    --sis-ops-interactive-hover: color-mix(
+        in srgb,
+        var(--sis-curriculum-page) 70%,
+        var(--sis-curriculum-table)
+    );
+}
+
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+)
+    :is(.sis-admission-periods-table, .sis-admission-drafts-table)
+    tbody
+    tr:hover {
+    background: var(--sis-ops-row-hover);
+}
+
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+)
+    :is(.sis-admission-periods-table, .sis-admission-drafts-table)
+    tbody
+    tr.sis-admission-periods-table__row--selected,
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+)
+    :is(.sis-admission-periods-table, .sis-admission-drafts-table)
+    tbody
+    tr.sis-admission-periods-table__row--selected:hover {
+    background: var(--sis-ops-row-selected);
+}
+
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+)
+    :is(.sis-admission-periods-table, .sis-admission-drafts-table)
+    tbody
+    tr.sis-admission-periods-table__row--selected:hover {
+    background: var(--sis-ops-row-selected-hover);
+}
+
+/* Admission active-periods compact table — same interaction palette. */
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table.sis-admission-active-periods-table
+    tbody
+    tr:hover {
+    background: var(--sis-ops-row-hover);
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table.sis-admission-active-periods-table
+    tbody
+    tr.sis-admission-periods-table__row--selected,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table.sis-admission-active-periods-table
+    tbody
+    tr.sis-admission-periods-table__row--selected:hover {
+    background: var(--sis-ops-row-selected);
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table.sis-admission-active-periods-table
+    tbody
+    tr.sis-admission-periods-table__row--selected:hover {
+    background: var(--sis-ops-row-selected-hover);
+}
+
+.sis-enrollments-page .sis-enrollments-filter-clear:hover,
+.sis-enrollments-page .sis-enrollments-filter-clear:focus-visible {
+    background: var(--sis-ops-interactive-hover);
+    color: var(--sis-curriculum-chrome);
+}
+
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+)
+    .sis-ops-hub__link:hover,
+:is(
+    .sis-enrollments-page,
+    .sis-students-page,
+    .sis-curriculum-page,
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+)
+    .sis-ops-hub__link:focus-visible {
+    background: var(--sis-ops-interactive-hover);
+}
+
+/* List menus portal to body — ops list pages share the same palette. */
+body:has(.sis-admission-page) .sis-list-select__option.is-active,
+body:has(.sis-admission-page) .sis-list-select__option:hover {
+    background: color-mix(
+        in srgb,
+        var(--sis-curriculum-page) 70%,
+        var(--sis-curriculum-table)
+    );
+}
+
+body:has(.sis-admission-page) .sis-list-select__option.is-selected,
+body:has(.sis-admission-page) .sis-list-select__option.is-selected.is-active {
+    background: color-mix(
+        in srgb,
+        var(--sis-curriculum-chrome) 16%,
+        var(--sis-curriculum-table)
+    );
+    color: var(--sis-curriculum-chrome);
+}
+
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog,
+    body:has(.sis-enrollments-page) .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-draft-dialog,
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog,
+    body:has(.sis-enrollments-page) .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-sheet-dialog,
+body:has(.sis-enrollments-page) .sis-confirm-dialog.sis-notice-sheet {
+    /* Forms / dialogs / sub-windows: same fill as enrollment table (#ffffff). */
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog
+)
+    .sis-admission-sheet,
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog
+)
+    .sis-placement-history-sheet,
+body:has(.sis-enrollments-page) .sis-confirm-dialog .sis-admission-sheet {
+    --sheet-surface: var(--sis-curriculum-table);
+    --sheet-dark: var(--sis-curriculum-chrome);
+    --sheet-dark-text: var(--sis-curriculum-chrome-text);
+    --sheet-btn: var(--sis-curriculum-chrome);
+    --sheet-btn-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-btn-muted: var(--sis-curriculum-chrome);
+    --sheet-btn-muted-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-interactive: color-mix(in srgb, var(--sis-curriculum-chrome) 8%, var(--sis-curriculum-table));
+    background: var(--sheet-surface);
+}
+
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog
+)
+    .sis-admission-sheet__hero,
+body:has(.sis-enrollments-page) .sis-confirm-dialog .sis-admission-sheet__hero {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog
+)
+    :is(.sis-admission-drafts-table, .sis-data-table, table.sis-curriculum-create-sheet__table) {
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog
+)
+    :is(.sis-admission-drafts-table, .sis-data-table) thead th,
+:is(
+    .sis-enrollment-record-sheet:not(.sis-curriculum-subject-sheet):not(.sis-student-enrollment-sheet):not(
+            .sis-curriculum-create-sheet
+        ),
+    .sis-placement-history-dialog
+)
+    :is(.sis-admission-drafts-table, .sis-data-table) thead {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+/*
+ * Students page — colors only (same palette as curriculum).
+ * Does not touch ribbon tabs or layout/radius/sizing.
+ * Excludes curriculum page; leaves enrollment-specific rules intact.
+ */
+.sis-students-page.sis-admission-page:not(.sis-curriculum-page),
+.sis-page-surface:has(.sis-students-page:not(.sis-curriculum-page)):not(:has(.sis-curriculum-page)) {
+    background: var(--sis-curriculum-page);
+}
+
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-drafts-table,
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-periods-table {
+    background: var(--sis-curriculum-table) !important;
+}
+
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-drafts-table thead,
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-drafts-table thead th,
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-drafts-table.sis-admission-periods-table th,
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-periods-table thead,
+.sis-students-page:not(.sis-curriculum-page) .sis-admission-periods-table thead th {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet,
+    body:has(.sis-students-page:not(.sis-curriculum-page)):not(:has(.sis-curriculum-page))
+        .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-draft-dialog,
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet,
+    body:has(.sis-students-page:not(.sis-curriculum-page)):not(:has(.sis-curriculum-page))
+        .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-sheet-dialog,
+body:has(.sis-students-page:not(.sis-curriculum-page)):not(:has(.sis-curriculum-page))
+    .sis-confirm-dialog.sis-notice-sheet {
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet
+)
+    .sis-admission-sheet,
+body:has(.sis-students-page:not(.sis-curriculum-page)):not(:has(.sis-curriculum-page))
+    .sis-confirm-dialog
+    .sis-admission-sheet {
+    --sheet-surface: var(--sis-curriculum-table);
+    --sheet-dark: var(--sis-curriculum-chrome);
+    --sheet-dark-text: var(--sis-curriculum-chrome-text);
+    --sheet-btn: var(--sis-curriculum-chrome);
+    --sheet-btn-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-btn-muted: var(--sis-curriculum-chrome);
+    --sheet-btn-muted-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-interactive: color-mix(in srgb, var(--sis-curriculum-chrome) 8%, var(--sis-curriculum-table));
+    background: var(--sheet-surface);
+}
+
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet
+)
+    .sis-admission-sheet__hero,
+body:has(.sis-students-page:not(.sis-curriculum-page)):not(:has(.sis-curriculum-page))
+    .sis-confirm-dialog
+    .sis-admission-sheet__hero {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet
+)
+    :is(.sis-admission-drafts-table, .sis-data-table) {
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet
+)
+    :is(.sis-admission-drafts-table, .sis-data-table)
+    thead,
+:is(
+    .sis-student-sheet-dialog--fixed:not(.sis-curriculum-subject-sheet):not(.sis-curriculum-create-sheet),
+    .sis-student-enrollment-sheet
+)
+    :is(.sis-admission-drafts-table, .sis-data-table)
+    thead
+    th {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+/*
+ * Admission page only — colors only (same palette as curriculum).
+ * Does not touch ribbon tabs or layout/radius/sizing.
+ * Pure admission shell only (excludes students / enrollments / curriculum hosts).
+ */
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page),
+.sis-page-surface:has(
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+) {
+    background: var(--sis-curriculum-page);
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-drafts-table,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table {
+    background: var(--sis-curriculum-table) !important;
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-drafts-table
+    thead,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-drafts-table
+    thead
+    th,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-drafts-table.sis-admission-periods-table
+    th,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table
+    thead,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-periods-table
+    thead
+    th {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+:is(
+    .sis-admission-request-type-dialog,
+    .sis-admission-accepted-dialog,
+    body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+        .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog):not(.sis-enrollment-record-sheet):not(
+            .sis-curriculum-subject-sheet
+        ):not(.sis-curriculum-create-sheet):not(.sis-placement-history-dialog):not(.sis-student-enrollment-sheet),
+    body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+        .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-draft-dialog,
+:is(
+    .sis-admission-request-type-dialog,
+    .sis-admission-accepted-dialog,
+    body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+        .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog):not(.sis-enrollment-record-sheet):not(
+            .sis-curriculum-subject-sheet
+        ):not(.sis-curriculum-create-sheet):not(.sis-placement-history-dialog):not(.sis-student-enrollment-sheet),
+    body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+        .sis-confirm-dialog.sis-notice-sheet
+).sis-admission-sheet-dialog,
+body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+    .sis-confirm-dialog.sis-notice-sheet {
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(
+    .sis-admission-request-type-dialog,
+    .sis-admission-accepted-dialog,
+    body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+        .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog):not(.sis-enrollment-record-sheet):not(
+            .sis-curriculum-subject-sheet
+        ):not(.sis-curriculum-create-sheet):not(.sis-placement-history-dialog):not(.sis-student-enrollment-sheet)
+)
+    .sis-admission-sheet,
+:is(.sis-admission-request-type-dialog, .sis-admission-accepted-dialog) .sis-admission-accepted-sheet,
+:is(.sis-admission-request-type-dialog, .sis-admission-accepted-dialog) .sis-admission-request-type,
+body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+    .sis-confirm-dialog
+    .sis-admission-sheet {
+    --sheet-surface: var(--sis-curriculum-table);
+    --sheet-dark: var(--sis-curriculum-chrome);
+    --sheet-dark-text: var(--sis-curriculum-chrome-text);
+    --sheet-btn: var(--sis-curriculum-chrome);
+    --sheet-btn-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-btn-muted: var(--sis-curriculum-chrome);
+    --sheet-btn-muted-hover: color-mix(in srgb, var(--sis-curriculum-chrome) 82%, var(--sis-pearl));
+    --sheet-interactive: color-mix(in srgb, var(--sis-curriculum-chrome) 8%, var(--sis-curriculum-table));
+    background: var(--sheet-surface);
+}
+
+:is(
+    .sis-admission-request-type-dialog,
+    .sis-admission-accepted-dialog,
+    body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+        .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog):not(.sis-enrollment-record-sheet):not(
+            .sis-curriculum-subject-sheet
+        ):not(.sis-curriculum-create-sheet):not(.sis-placement-history-dialog):not(.sis-student-enrollment-sheet)
+)
+    .sis-admission-sheet__hero,
+body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+    .sis-confirm-dialog
+    .sis-admission-sheet__hero {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+:is(.sis-admission-request-type-dialog, .sis-admission-accepted-dialog)
+    :is(.sis-admission-drafts-table, .sis-data-table, .sis-admission-accepted-sheet__table),
+body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+    .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog)
+    :is(.sis-admission-drafts-table, .sis-data-table, .sis-admission-accepted-sheet__table) {
+    background: var(--sis-curriculum-table) !important;
+}
+
+:is(.sis-admission-request-type-dialog, .sis-admission-accepted-dialog)
+    :is(.sis-admission-drafts-table, .sis-data-table, .sis-admission-accepted-sheet__table)
+    thead,
+:is(.sis-admission-request-type-dialog, .sis-admission-accepted-dialog)
+    :is(.sis-admission-drafts-table, .sis-data-table, .sis-admission-accepted-sheet__table)
+    thead
+    th,
+body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+    .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog)
+    :is(.sis-admission-drafts-table, .sis-data-table, .sis-admission-accepted-sheet__table)
+    thead,
+body:has(.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page))
+    .sis-admission-sheet-dialog:not(.sis-student-sheet-dialog)
+    :is(.sis-admission-drafts-table, .sis-data-table, .sis-admission-accepted-sheet__table)
+    thead
+    th {
+    background: var(--sis-curriculum-chrome) !important;
+    color: var(--sis-curriculum-chrome-text) !important;
+    box-shadow: none;
+}
+
+/*
+ * Admission page only — thin black outer frame + internal grid lines.
+ * Borders/color/width only; no layout, radius, fill, or typography changes.
+ */
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    :is(.sis-admission-drafts-table, .sis-admission-periods-table) {
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: #000000 !important;
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    :is(.sis-admission-drafts-table, .sis-admission-periods-table)
+    :is(th, td) {
+    border-color: #000000 !important;
+    border-style: solid !important;
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    :is(.sis-admission-drafts-table, .sis-admission-periods-table)
+    thead
+    th {
+    box-shadow: 0 1px 0 #000000;
+}
+
+/*
  * System-wide radius for buttons, fields, dialogs/windows, and table frames.
  * Replaces the former admission sharp-corners override that forced radius: 0.
  */
 :is(
-    button,
+    button:not(.sis-admission-drafts-table__transition):not(.sis-curriculum-view-tabs__btn):not(
+            .sis-admission-progress__segment
+        ),
     [data-slot='button'],
-    [role='button'],
+    [role='button']:not(.sis-admission-drafts-table__transition):not(.sis-curriculum-view-tabs__btn):not(
+            .sis-admission-progress__segment
+        ),
     .sis-button,
     .sis-ribbon__item,
-    .sis-curriculum-view-tabs__btn,
     .sis-admission-sheet__doc-btn,
     .sis-workflow-notice__dismiss,
     .sis-desktop-shell__action,
@@ -6546,6 +7214,32 @@ button.sis-admission-enroll-status-text:active {
     color: inherit;
     cursor: pointer;
     --sis-admission-segment-bg: var(--sis-admission-pending);
+}
+
+/* Admission page only: square stage chips, no progress fill / overall bar. */
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-progress__segment,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-progress__segment--active,
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-progress__item {
+    border-radius: 0 !important;
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-progress__fill {
+    display: none !important;
+    width: 0 !important;
+}
+
+.sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-progress__overall-block {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
 }
 
 .sis-admission-progress__segment:focus-visible {
@@ -9108,7 +9802,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     margin-block-end: 0.4rem;
     overflow: hidden;
     border: 1px solid #000000;
-    border-radius: 0;
+    border-radius: 0 !important;
     background: var(--sis-admission-page);
 }
 
@@ -9122,6 +9816,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     max-height: 100%;
     padding: 0 0.55rem;
     border-inline-end: 1px solid #000000;
+    border-radius: 0 !important;
     background: color-mix(in srgb, var(--sis-mist) 42%, var(--sis-pearl));
     color: var(--sis-oxford);
     font-size: 0.84rem;
@@ -9137,16 +9832,24 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     height: 100%;
     max-height: 100%;
     overflow: hidden;
+    border-radius: 0 !important;
 }
 
-.sis-admission-drafts-transitions .sis-admission-drafts-table__transition {
+.sis-admission-drafts-transitions .sis-admission-drafts-table__transition,
+.sis-admission-drafts-transitions button.sis-admission-drafts-table__transition {
     min-height: 0;
     height: 100%;
     max-height: 100%;
     box-sizing: border-box;
+    border-radius: 0 !important;
     font-size: 0.8rem;
     font-weight: 700;
     line-height: 1.15;
+}
+
+/* Square transition chips everywhere (beats global button radius). */
+button.sis-admission-drafts-table__transition.sis-admission-drafts-table__transition {
+    border-radius: 0 !important;
 }
 
 .sis-admission-drafts-table table {
@@ -10818,7 +11521,11 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-curriculum-create-sheet__row--selected td {
-    background: color-mix(in srgb, var(--sis-hover) 55%, var(--sis-admission-page));
+    background: color-mix(
+        in srgb,
+        var(--sis-curriculum-chrome) 16%,
+        var(--sis-curriculum-table)
+    );
 }
 
 .sis-curriculum-create-sheet__row--pad {
@@ -10835,7 +11542,22 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-curriculum-create-sheet__table tbody tr:not(.sis-curriculum-create-sheet__row--pad):hover td {
-    background: color-mix(in srgb, var(--sis-hover) 35%, var(--sis-admission-page));
+    background: color-mix(
+        in srgb,
+        var(--sis-curriculum-page) 82%,
+        var(--sis-curriculum-chrome)
+    );
+}
+
+.sis-curriculum-create-sheet__table
+    tbody
+    tr.sis-curriculum-create-sheet__row--selected:not(.sis-curriculum-create-sheet__row--pad):hover
+    td {
+    background: color-mix(
+        in srgb,
+        var(--sis-curriculum-chrome) 22%,
+        var(--sis-curriculum-table)
+    );
 }
 
 .sis-curriculum-create-sheet__pager {
@@ -11088,5 +11810,48 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/*
+ * Ultra-thin black chrome frame — windows / dialogs / sheet forms.
+ * Drawn with ::after so size, padding, and layout are unchanged.
+ * Does not set position (hosts already use fixed/absolute).
+ */
+:is(
+    [data-slot='dialog-content'],
+    [data-slot='sheet-content'],
+    .sis-admission-sheet-dialog,
+    .sis-admission-draft-dialog,
+    .sis-notice-sheet,
+    .sis-confirm-dialog,
+    .sis-message-dialog,
+    .sis-window,
+    .sis-admission-status-reason-dialog,
+    .sis-student-view-dialog
+)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2147483646;
+    pointer-events: none;
+    border: var(--sis-chrome-frame-width) solid var(--sis-chrome-frame-color);
+    border-radius: inherit;
+    box-sizing: border-box;
+}
+
+/* Page-level sheet forms outside dialog chrome. */
+.sis-ops-hub > .sis-admission-draft-form.sis-student-record-form {
+    position: relative;
+}
+
+.sis-ops-hub > .sis-admission-draft-form.sis-student-record-form::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    border: var(--sis-chrome-frame-width) solid var(--sis-chrome-frame-color);
+    border-radius: inherit;
+    box-sizing: border-box;
 }
 
