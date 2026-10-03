@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoConnectIde": true,
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(php artisan architecture:validate *)",
+      "Bash(php artisan architecture:feature-check *)",
+      "Bash(php artisan architecture:graph *)",
+      "Bash(php artisan route:list *)",
+      "Bash(php artisan about *)",
+      "Bash(composer lint *)",
+      "Bash(composer test *)",
+      "Bash(composer types:check *)",
+      "Bash(npm run check *)",
+      "Bash(npm run types:check *)",
+      "Bash(npm run build *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(php artisan migrate *)",
+      "Bash(php artisan db:*)",
+      "Bash(php artisan optimize:clear *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./.env.backup)",
+      "Read(./.env.production)",
+      "Read(./auth.json)",
+      "Read(./storage/*.key)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+---
+description: Delegate code changes to Claude Code CLI (Cursor is IDE-only)
+alwaysApply: true
+---
+
+# Claude Code Bridge (Cursor = workspace only)
+
+When the user asks for **code changes, features, fixes, refactors, or implementation** in this repo:
+
+1. **Do not implement the change yourself** in Cursor Agent tools (no direct Write/StrReplace for feature work).
+2. **Execute via Claude Code CLI** from the repo root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "d:\Projects\sis\scripts\claude-bridge.ps1" -Prompt "<user task in full>"
+```
+
+3. For plan-only / impact analysis first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "d:\Projects\sis\scripts\claude-bridge.ps1" -Prompt "<task>" -PlanOnly
+```
+
+4. After Claude finishes: summarize what Claude changed, show key files, and report any failures.
+5. Keep Cursor as IDE: browse/review only. Commit/push only if the user explicitly asks.
+6. Exceptions (handle locally without Claude bridge): answering questions, explaining code, git status/diff when asked, and this bridge/setup itself.
+
+Auth: Claude Code must already be signed in (`claude auth` / Desktop login). IDE link uses `--ide` (Cursor open on `d:\Projects\sis`).
