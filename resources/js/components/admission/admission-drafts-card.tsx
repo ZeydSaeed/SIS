@@ -563,27 +563,6 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                 )}
             </td>
             <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                {editing ? (
-                    <SisListSelect
-                        value={specializationId}
-                        options={specializationOptions}
-                        includeBlank
-                        onChange={setSpecializationId}
-                        ariaLabel={i18n.specialization}
-                        className="sis-admission-drafts-table__inline-select"
-                        triggerClassName="sis-admission-accepted-sheet__edit-input"
-                    />
-                ) : (
-                    displayText(
-                        lookupName(
-                            workspace.specializations,
-                            app.specialization_id,
-                            app.specialization_name,
-                        ),
-                    )
-                )}
-            </td>
-            <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
                 {displayText(lookupName(workspace.periods, app.application_period_id))}
             </td>
             <td className="sis-admission-drafts-table__when sis-admission-drafts-table__when--submitted">
@@ -729,7 +708,7 @@ export function AdmissionDraftsCard({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'admission.drafts',
-        columnSignature: canManage ? 'manage' : 'readonly',
+        columnSignature: canManage ? 'manage-v2' : 'readonly-v2',
         enabled: rows.length > 0,
     });
 
@@ -1243,7 +1222,6 @@ export function AdmissionDraftsCard({
                                 <th className="sis-admission-drafts-table__name-head">{i18n.admission.quadName}</th>
                                 <th title={i18n.admission.gradeLevel}>{i18n.admission.gradeLevelAbbr}</th>
                                 <th title={i18n.admission.department}>{i18n.admission.departmentAbbr}</th>
-                                <th title={i18n.admission.specialization}>{i18n.admission.specializationAbbr}</th>
                                 <th title={i18n.admission.periodName}>{i18n.admission.periodNameAbbr}</th>
                                 <th className="sis-admission-drafts-table__when--submitted">{i18n.admission.submittedAt}</th>
                                 <th className="sis-admission-drafts-table__when--reviewed">{i18n.admission.reviewedAt}</th>

@@ -22,6 +22,7 @@ class CreateCurriculumRequest extends FormRequest
             'grade_level_id' => ['required', 'integer', 'min:1'],
             'name' => ['required', 'string', 'max:255'],
             'specialization_id' => ['nullable', 'integer', 'min:1'],
+            'department_id' => ['nullable', 'integer', 'min:1'],
             'subject_ids' => ['sometimes', 'array', 'max:200'],
             'subject_ids.*' => ['integer', 'min:1', 'distinct'],
             'school_id' => ['prohibited'],

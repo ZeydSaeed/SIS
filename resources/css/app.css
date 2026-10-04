@@ -12708,3 +12708,33 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     box-sizing: border-box;
 }
 
+/* ================================================================
+   Movable / resizable windows — behaviour only (no visual change).
+   Sheets marked --fixed stay identical until the user drags or resizes:
+   re-enable the invisible edge handles + the standard hero drag cursor,
+   and let a placed/resized create-curriculum sheet take the new box.
+   ================================================================ */
+.sis-student-sheet-dialog.sis-student-sheet-dialog--fixed.sis-window--movable .sis-admission-sheet-dialog__edge {
+    display: block !important;
+    pointer-events: auto !important;
+}
+
+.sis-student-sheet-dialog.sis-student-sheet-dialog--fixed.sis-window--movable .sis-admission-sheet__hero,
+.sis-student-sheet-dialog.sis-student-sheet-dialog--fixed.sis-window--movable .sis-student-sheet-dialog__shared-hero {
+    cursor: grab !important;
+}
+
+.sis-student-sheet-dialog.sis-student-sheet-dialog--fixed.sis-window--movable .sis-admission-sheet__hero:active,
+.sis-student-sheet-dialog.sis-student-sheet-dialog--fixed.sis-window--movable .sis-student-sheet-dialog__shared-hero:active {
+    cursor: grabbing !important;
+}
+
+.sis-curriculum-create-sheet.sis-curriculum-create-sheet--fixed.sis-enrollment-record-sheet.sis-admission-sheet-dialog.sis-window--movable[data-placed='true']:not(
+        .sis-admission-sheet-dialog--maximized
+    ) {
+    width: var(--sis-sheet-w, min(96vw, 72rem)) !important;
+    max-width: none !important;
+    height: var(--sis-sheet-h, fit-content) !important;
+    max-height: none !important;
+}
+

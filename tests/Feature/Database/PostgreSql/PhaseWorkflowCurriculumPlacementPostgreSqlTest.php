@@ -50,7 +50,7 @@ final class PhaseWorkflowCurriculumPlacementPostgreSqlTest extends PostgreSqlInt
     }
 
     #[Test]
-    public function specialization_curriculum_only_governs_enrollments_of_its_department(): void
+    public function department_curriculum_only_governs_enrollments_of_its_department(): void
     {
         $schoolId = $this->createSchool('SCH-WFC2', 'WFC2 School');
         $yearId = $this->createAcademicYear('AY-WFC2');
@@ -59,18 +59,8 @@ final class PhaseWorkflowCurriculumPlacementPostgreSqlTest extends PostgreSqlInt
 
         $itDept = $this->createDepartment($schoolId, 'IT-WFC2');
         $otherDept = $this->createDepartment($schoolId, 'ELEC-WFC2');
-        $itSpec = (int) DB::table(SchemaHelper::qualified('vocational', 'specializations'))->insertGetId([
-            'school_id' => $schoolId,
-            'department_id' => $itDept,
-            'code' => 'SP-WFC2',
-            'name' => 'Networks',
-            'status' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         $subject = $this->createSubject('NET-WFC2');
-        $this->createCurriculumWithSubjects($schoolId, $yearId, (int) $class->grade_level_id, [$subject], $itSpec);
+        $this->createCurriculumWithSubjects($schoolId, $yearId, (int) $class->grade_level_id, [$subject], departmentId: $itDept);
 
         $this->actAsEnrollmentManager($schoolId);
         $itEnrollment = $this->enroll(

@@ -13,7 +13,7 @@ final class UpdateCurriculumGuard
     ) {}
 
     /**
-     * @param  array{name?: string, specialization_id?: ?int}  $fields
+     * @param  array{name?: string, specialization_id?: ?int, department_id?: ?int}  $fields
      */
     public function rejectionCode(int $schoolId, int $curriculumId, array $fields): ?string
     {
@@ -25,6 +25,12 @@ final class UpdateCurriculumGuard
         }
         if (array_key_exists('name', $fields) && trim((string) $fields['name']) === '') {
             return 'curriculum.curriculum_name_invalid';
+        }
+        if (array_key_exists('department_id', $fields) && $fields['department_id'] !== null) {
+            $departmentId = (int) $fields['department_id'];
+            if ($departmentId < 1 || ! $this->curricula->departmentActiveInSchool($schoolId, $departmentId)) {
+                return 'curriculum.department_invalid';
+            }
         }
         if (array_key_exists('specialization_id', $fields) && $fields['specialization_id'] !== null) {
             $specId = (int) $fields['specialization_id'];

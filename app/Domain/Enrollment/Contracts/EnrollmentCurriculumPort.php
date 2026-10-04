@@ -6,8 +6,8 @@ namespace App\Domain\Enrollment\Contracts;
  * Read-only view of the curriculum that governs an enrollment placement.
  *
  * A curriculum governs an enrollment when it is active and shares the school,
- * academic year and class grade level; a specialization-bound curriculum also
- * requires the specialization's department to equal the enrollment department.
+ * academic year and class grade level; a curriculum bound to a الاختصاص
+ * (department) only governs enrollments of that department.
  */
 interface EnrollmentCurriculumPort
 {

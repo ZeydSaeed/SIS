@@ -560,13 +560,8 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                     {c.branch}: {curriculum.branch_name ?? '—'}
                 </span>
                 <span>
-                    {c.specialization}: {curriculum.specialization_name ?? '—'}
+                    {c.department}: {curriculum.department_name ?? '—'}
                 </span>
-                {curriculum.department_name ? (
-                    <span>
-                        {c.department}: {curriculum.department_name}
-                    </span>
-                ) : null}
                 <span>
                     {c.gradeLevel}: {curriculum.grade_level_name ?? curriculum.grade_level_id}
                 </span>
@@ -586,10 +581,6 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                         <div>
                             <dt className="text-muted-foreground text-sm">{c.planName}</dt>
                             <dd className="font-medium">{curriculum.name}</dd>
-                        </div>
-                        <div>
-                            <dt className="text-muted-foreground text-sm">{c.specialization}</dt>
-                            <dd className="font-medium">{curriculum.specialization_name ?? '—'}</dd>
                         </div>
                         <div>
                             <dt className="text-muted-foreground text-sm">{c.department}</dt>

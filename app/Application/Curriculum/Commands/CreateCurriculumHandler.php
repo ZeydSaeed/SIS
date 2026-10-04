@@ -45,6 +45,7 @@ final class CreateCurriculumHandler implements CommandHandler
             $command->gradeLevelId,
             $command->name,
             $command->specializationId,
+            $command->departmentId,
         );
         if ($error !== null) {
             return CreateCurriculumResult::failure([$error]);
@@ -69,6 +70,7 @@ final class CreateCurriculumHandler implements CommandHandler
                 $command->name,
                 $command->specializationId,
                 $createdAt,
+                $command->departmentId,
             );
 
             if ($subjectIds !== []) {

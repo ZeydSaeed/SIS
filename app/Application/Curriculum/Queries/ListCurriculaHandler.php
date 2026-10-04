@@ -27,6 +27,7 @@ final class ListCurriculaHandler
                 q: $query->q,
                 page: $query->page,
                 perPage: $query->perPage,
+                departmentId: $query->departmentId,
             );
 
             $items = array_map(
@@ -62,6 +63,7 @@ final class ListCurriculaHandler
             specializationId: $row->specializationId,
             name: $row->name,
             status: $row->status,
+            departmentId: $row->departmentId,
         );
     }
 }

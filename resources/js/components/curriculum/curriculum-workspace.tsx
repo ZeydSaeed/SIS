@@ -1080,7 +1080,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 return curricula.data.map((row) => ({
                     key: `db-${row.id}`,
                     branch_name: row.branch_name ?? '',
-                    specialization_name: row.specialization_name ?? '',
+                    specialization_name: row.department_name ?? row.specialization_name ?? '',
                     class_name: row.grade_level_name ?? '',
                     subjects: (row.subjects ?? []).map((subject) => ({
                         name: subject.name,
@@ -1107,7 +1107,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             if (selectedBranch !== '' && (row.branch_name ?? '') !== selectedBranch) {
                 return false;
             }
-            if (selectedSpec !== '' && (row.specialization_name ?? '') !== selectedSpec) {
+            if (selectedSpec !== '' && (row.department_name ?? row.specialization_name ?? '') !== selectedSpec) {
                 return false;
             }
             if (classLabel !== '') {
@@ -1130,7 +1130,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return dbMatches.map((row) => ({
                 key: `db-${row.id}`,
                 branch_name: row.branch_name ?? '',
-                specialization_name: row.specialization_name ?? '',
+                specialization_name: row.department_name ?? row.specialization_name ?? '',
                 class_name: row.grade_level_name ?? classLabel,
                 subjects: (row.subjects ?? []).map((subject) => ({
                     name: subject.name,

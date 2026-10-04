@@ -18,6 +18,7 @@ final class CreateCurriculumGuard
         int $gradeLevelId,
         string $name,
         ?int $specializationId,
+        ?int $departmentId = null,
     ): ?string {
         if (trim($name) === '') {
             return 'curriculum.curriculum_name_invalid';
@@ -27,6 +28,10 @@ final class CreateCurriculumGuard
         }
         if ($gradeLevelId < 1 || ! $this->curricula->gradeLevelExists($gradeLevelId)) {
             return 'curriculum.grade_level_invalid';
+        }
+        if ($departmentId !== null
+            && ($departmentId < 1 || ! $this->curricula->departmentActiveInSchool($schoolId, $departmentId))) {
+            return 'curriculum.department_invalid';
         }
         if ($specializationId !== null) {
             if ($specializationId < 1 || ! $this->specializations->activeInSchool($schoolId, $specializationId)) {

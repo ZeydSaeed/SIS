@@ -17,5 +17,7 @@ final readonly class CreateCurriculumCommand implements Command
         public ?int $specializationId,
         public ?string $idempotencyKey,
         public array $subjectIds = [],
+        /** الاختصاص (branch department) the curriculum belongs to. */
+        public ?int $departmentId = null,
     ) {}
 }

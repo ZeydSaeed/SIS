@@ -26,6 +26,15 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->exists();
     }
 
+    public function departmentActiveInSchool(int $schoolId, int $departmentId): bool
+    {
+        return DB::table(SchemaHelper::qualified('organization', 'departments'))
+            ->where('id', $departmentId)
+            ->where('school_id', $schoolId)
+            ->where('status', 1)
+            ->exists();
+    }
+
     public function create(
         int $schoolId,
         int $academicYearId,
@@ -33,6 +42,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         string $name,
         ?int $specializationId,
         string $createdAt,
+        ?int $departmentId = null,
     ): int {
         $this->bindSchool($schoolId);
 
@@ -41,6 +51,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             'academic_year_id' => $academicYearId,
             'grade_level_id' => $gradeLevelId,
             'specialization_id' => $specializationId,
+            'department_id' => $departmentId,
             'name' => $name,
             'status' => CurriculumStatus::Active->value,
             'created_at' => $createdAt,
@@ -56,7 +67,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('id', $curriculumId)
             ->where('school_id', $schoolId)
             ->where('status', CurriculumStatus::Active->value)
-            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
+            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'department_id', 'name', 'status']);
 
         return $row === null ? null : $this->mapCurriculum($row);
     }
@@ -69,7 +80,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('id', $curriculumId)
             ->where('school_id', $schoolId)
             ->where('status', CurriculumStatus::Inactive->value)
-            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
+            ->first(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'department_id', 'name', 'status']);
 
         return $row === null ? null : $this->mapCurriculum($row);
     }
@@ -83,7 +94,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('academic_year_id', $academicYearId)
             ->where('status', CurriculumStatus::Active->value)
             ->orderBy('id')
-            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
+            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'department_id', 'name', 'status']);
 
         return $rows->map(fn ($row): CurriculumSnapshot => $this->mapCurriculum($row))->all();
     }
@@ -97,7 +108,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('academic_year_id', $academicYearId)
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [CurriculumStatus::Active->value])
             ->orderBy('id')
-            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'name', 'status']);
+            ->get(['id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'department_id', 'name', 'status']);
 
         return $rows->map(fn ($row): CurriculumSnapshot => $this->mapCurriculum($row))->all();
     }
@@ -112,16 +123,16 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         string $q,
         int $page,
         int $perPage,
+        ?int $departmentId = null,
     ): array {
         $this->bindSchool($schoolId);
 
         $curricula = SchemaHelper::qualified('curriculum', 'curricula');
-        $specs = SchemaHelper::qualified('vocational', 'specializations');
         $departments = SchemaHelper::qualified('organization', 'departments');
 
+        // الاختصاص = the branch's department (curricula.department_id).
         $query = DB::table($curricula.' as c')
-            ->leftJoin($specs.' as sp', 'sp.id', '=', 'c.specialization_id')
-            ->leftJoin($departments.' as d', 'd.id', '=', 'sp.department_id')
+            ->leftJoin($departments.' as d', 'd.id', '=', 'c.department_id')
             ->where('c.school_id', $schoolId);
 
         if ($academicYearId !== null) {
@@ -137,6 +148,9 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         if ($specializationId !== null) {
             $query->where('c.specialization_id', $specializationId);
         }
+        if ($departmentId !== null) {
+            $query->where('c.department_id', $departmentId);
+        }
         if ($branchId !== null) {
             $query->where('d.branch_id', $branchId);
         }
@@ -146,7 +160,6 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             $like = '%'.$needle.'%';
             $query->where(function ($inner) use ($like): void {
                 $inner->where('c.name', 'ilike', $like)
-                    ->orWhere('sp.name', 'ilike', $like)
                     ->orWhere('d.name', 'ilike', $like);
             });
         }
@@ -162,7 +175,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->limit($perPage)
             ->get([
                 'c.id', 'c.school_id', 'c.academic_year_id', 'c.grade_level_id',
-                'c.specialization_id', 'c.name', 'c.status',
+                'c.specialization_id', 'c.department_id', 'c.name', 'c.status',
             ]);
 
         return [
@@ -228,6 +241,9 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         }
         if (array_key_exists('specialization_id', $fields)) {
             $payload['specialization_id'] = $fields['specialization_id'];
+        }
+        if (array_key_exists('department_id', $fields)) {
+            $payload['department_id'] = $fields['department_id'];
         }
         if (count($payload) === 1) {
             return false;
@@ -395,6 +411,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             specializationId: $row->specialization_id !== null ? (int) $row->specialization_id : null,
             name: (string) $row->name,
             status: (int) $row->status,
+            departmentId: isset($row->department_id) ? (int) $row->department_id : null,
         );
     }
 

@@ -48,7 +48,8 @@ export function useCenterNoticeOverHost(
 
         const place = () => {
             const node = nodeRef.current;
-            if (node === null) {
+            // Moved / resized by the user (useWindowMoveResize) — keep their placement.
+            if (node === null || node.dataset.userPlaced === 'true') {
                 return;
             }
 

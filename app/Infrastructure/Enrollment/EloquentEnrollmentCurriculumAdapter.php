@@ -51,15 +51,14 @@ final class EloquentEnrollmentCurriculumAdapter implements EnrollmentCurriculumP
                     ->on('c.academic_year_id', '=', 'e.academic_year_id')
                     ->on('c.school_id', '=', 'e.school_id');
             })
-            ->leftJoin(SchemaHelper::qualified('vocational', 'specializations').' as sp', 'sp.id', '=', 'c.specialization_id')
             ->where('c.id', $curriculumId)
             ->where('c.status', self::ACTIVE)
             ->where('e.school_id', $schoolId)
             ->where('e.status', EnrollmentStatus::ACTIVE)
             ->whereNull('e.effective_to')
             ->where(function (Builder $scope): void {
-                $scope->whereNull('c.specialization_id')
-                    ->orWhereColumn('sp.department_id', 'e.department_id');
+                $scope->whereNull('c.department_id')
+                    ->orWhereColumn('c.department_id', 'e.department_id');
             })
             ->orderBy('e.id')
             ->pluck('e.id')
@@ -70,8 +69,8 @@ final class EloquentEnrollmentCurriculumAdapter implements EnrollmentCurriculumP
 
     /**
      * Active subject links of every active curriculum governing the placement:
-     * same school, year and class grade level; a specialization-bound curriculum
-     * also needs its specialization's department to equal the enrollment department.
+     * same school, year and class grade level; a curriculum bound to a الاختصاص
+     * (department) only governs enrollments of that department.
      */
     private function governingSubjectsQuery(
         int $schoolId,
@@ -84,16 +83,15 @@ final class EloquentEnrollmentCurriculumAdapter implements EnrollmentCurriculumP
         return DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects').' as cs')
             ->join(SchemaHelper::qualified('curriculum', 'curricula').' as c', 'c.id', '=', 'cs.curriculum_id')
             ->join(SchemaHelper::qualified('enrollment', 'classes').' as cl', 'cl.grade_level_id', '=', 'c.grade_level_id')
-            ->leftJoin(SchemaHelper::qualified('vocational', 'specializations').' as sp', 'sp.id', '=', 'c.specialization_id')
             ->where('cl.id', $classId)
             ->where('cs.status', self::ACTIVE)
             ->where('c.status', self::ACTIVE)
             ->where('c.school_id', $schoolId)
             ->where('c.academic_year_id', $academicYearId)
             ->where(function (Builder $scope) use ($departmentId): void {
-                $scope->whereNull('c.specialization_id');
+                $scope->whereNull('c.department_id');
                 if ($departmentId !== null) {
-                    $scope->orWhere('sp.department_id', $departmentId);
+                    $scope->orWhere('c.department_id', $departmentId);
                 }
             });
     }

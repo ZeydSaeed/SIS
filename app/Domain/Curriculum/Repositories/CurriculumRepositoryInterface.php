@@ -18,7 +18,10 @@ interface CurriculumRepositoryInterface
         string $name,
         ?int $specializationId,
         string $createdAt,
+        ?int $departmentId = null,
     ): int;
+
+    public function departmentActiveInSchool(int $schoolId, int $departmentId): bool;
 
     public function findActiveInSchool(int $schoolId, int $curriculumId): ?CurriculumSnapshot;
 
@@ -45,6 +48,7 @@ interface CurriculumRepositoryInterface
         string $q,
         int $page,
         int $perPage,
+        ?int $departmentId = null,
     ): array;
 
     public function deactivate(int $schoolId, int $curriculumId): bool;

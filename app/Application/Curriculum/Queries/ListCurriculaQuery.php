@@ -16,5 +16,6 @@ final readonly class ListCurriculaQuery
         public int $page = 1,
         public int $perPage = 25,
         public bool $paginate = false,
+        public ?int $departmentId = null,
     ) {}
 }

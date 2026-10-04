@@ -32,7 +32,8 @@ type Draft = {
     academic_year_id: string;
     grade_level_id: string;
     branch_id: string;
-    specialization_id: string;
+    /** الاختصاص — department of the selected branch. */
+    department_id: string;
     status: string;
 };
 
@@ -207,8 +208,7 @@ function toDraft(plan: CurriculumRow): Draft {
             plan.academic_year_id > 0 ? String(plan.academic_year_id) : '',
         grade_level_id: plan.grade_level_id > 0 ? String(plan.grade_level_id) : '',
         branch_id: plan.branch_id !== null ? String(plan.branch_id) : '',
-        specialization_id:
-            plan.specialization_id !== null ? String(plan.specialization_id) : '',
+        department_id: plan.department_id !== null ? String(plan.department_id) : '',
         status: String(Number(plan.status) === 1 ? 1 : 2),
     };
 }
@@ -216,13 +216,11 @@ function toDraft(plan: CurriculumRow): Draft {
 function suggestPlanName(
     filterOptions: CurriculumFilterOptions,
     branchId: string,
-    specializationId: string,
+    departmentId: string,
     gradeLevelId: string,
 ): string {
     const branch = filterOptions.branches.find((item) => String(item.id) === branchId);
-    const spec = filterOptions.specializations.find(
-        (item) => String(item.id) === specializationId,
-    );
+    const spec = filterOptions.departments.find((item) => String(item.id) === departmentId);
     const gradeClass = filterOptions.classes.find(
         (item) => String(item.grade_level_id) === gradeLevelId,
     );
@@ -324,18 +322,10 @@ function CurriculumPlanRecordForm({
         return filterOptions.departments.filter((department) => department.branch_id === branchId);
     }, [draft.branch_id, filterOptions.departments]);
 
-    const specializationOptions = useMemo(() => {
-        const deptIds = new Set(branchDepartments.map((department) => department.id));
-        const list =
-            deptIds.size === 0
-                ? filterOptions.specializations
-                : filterOptions.specializations.filter(
-                      (item) =>
-                          item.department_id !== null && deptIds.has(item.department_id),
-                  );
-
-        return list.map((item) => ({ value: String(item.id), label: item.name }));
-    }, [branchDepartments, filterOptions.specializations]);
+    const departmentOptions = useMemo(
+        () => branchDepartments.map((item) => ({ value: String(item.id), label: item.name })),
+        [branchDepartments],
+    );
 
     const selectedClassKey = useMemo(
         () =>
@@ -357,7 +347,7 @@ function CurriculumPlanRecordForm({
         ) || (plan.academic_year_id > 0 ? String(plan.academic_year_id) : '—');
     const gradeDisplay = plan.grade_level_name ?? '—';
     const branchDisplay = plan.branch_name ?? '—';
-    const specializationDisplay = plan.specialization_name ?? '—';
+    const departmentDisplay = plan.department_name ?? '—';
     const schoolDisplay =
         plan.school_id !== undefined && plan.school_id !== null
             ? String(plan.school_id)
@@ -388,7 +378,7 @@ function CurriculumPlanRecordForm({
                 return {
                     ...current,
                     branch_id: nextBranchId,
-                    specialization_id: nextSpecId,
+                    department_id: nextSpecId,
                     grade_level_id: nextGradeId,
                 };
             }
@@ -396,7 +386,7 @@ function CurriculumPlanRecordForm({
             return {
                 ...current,
                 branch_id: nextBranchId,
-                specialization_id: nextSpecId,
+                department_id: nextSpecId,
                 grade_level_id: nextGradeId,
                 name: suggestPlanName(filterOptions, nextBranchId, nextSpecId, nextGradeId),
             };
@@ -410,7 +400,7 @@ function CurriculumPlanRecordForm({
                 : suggestPlanName(
                       filterOptions,
                       draft.branch_id,
-                      draft.specialization_id,
+                      draft.department_id,
                       draft.grade_level_id,
                   );
 
@@ -426,8 +416,7 @@ function CurriculumPlanRecordForm({
                 academic_year_id: Number(draft.academic_year_id),
                 grade_level_id: Number(draft.grade_level_id),
                 name: planName,
-                specialization_id:
-                    draft.specialization_id === '' ? null : Number(draft.specialization_id),
+                department_id: draft.department_id === '' ? null : Number(draft.department_id),
             },
             {
                 preserveScroll: true,
@@ -483,8 +472,7 @@ function CurriculumPlanRecordForm({
             `/curriculum/curricula/${plan.id}`,
             {
                 name: draft.name.trim(),
-                specialization_id:
-                    draft.specialization_id === '' ? null : Number(draft.specialization_id),
+                department_id: draft.department_id === '' ? null : Number(draft.department_id),
             },
             {
                 preserveScroll: true,
@@ -550,12 +538,11 @@ function CurriculumPlanRecordForm({
     };
 
     const fieldsChanged = (): boolean => {
-        const currentSpec =
-            plan.specialization_id !== null ? String(plan.specialization_id) : '';
+        const currentDepartment = plan.department_id !== null ? String(plan.department_id) : '';
 
         return (
             draft.name.trim() !== plan.name.trim() ||
-            draft.specialization_id !== currentSpec
+            draft.department_id !== currentDepartment
         );
     };
 
@@ -717,7 +704,7 @@ function CurriculumPlanRecordForm({
                                     : '';
                                 applySuggestedName(
                                     draft.branch_id,
-                                    draft.specialization_id,
+                                    draft.department_id,
                                     nextGradeId,
                                 );
                             }}
@@ -763,10 +750,10 @@ function CurriculumPlanRecordForm({
                     <SheetListField
                         label={c.specialization}
                         editing={fieldsEditable}
-                        value={draft.specialization_id}
-                        display={specializationDisplay}
+                        value={draft.department_id}
+                        display={departmentDisplay}
                         includeBlank
-                        options={specializationOptions}
+                        options={departmentOptions}
                         fieldClassName="sis-enrollment-record-sheet__field--wide"
                         onChange={(value) => {
                             applySuggestedName(

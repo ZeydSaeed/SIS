@@ -12,5 +12,6 @@ final readonly class CurriculumSnapshot
         public ?int $specializationId,
         public string $name,
         public int $status,
+        public ?int $departmentId = null,
     ) {}
 }

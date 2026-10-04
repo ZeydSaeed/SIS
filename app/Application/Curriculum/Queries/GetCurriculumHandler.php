@@ -27,6 +27,7 @@ final class GetCurriculumHandler
             specializationId: $row->specializationId,
             name: $row->name,
             status: $row->status,
+            departmentId: $row->departmentId,
         );
     }
 }

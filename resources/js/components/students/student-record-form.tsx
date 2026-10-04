@@ -1665,9 +1665,9 @@ export function StudentViewDialog({
         (count > 1
             ? `${i18n.students.viewManyTitle} (${count})`
             : i18n.students.viewTitle);
-    const { contentRef, bringToFront } = useSmoothDialogDrag(true, {
-        disabled: true,
-        resizable: false,
+    const { contentRef, bringToFront, heroDragProps, resizeHandles } = useSmoothDialogDrag(true, {
+        resizable: true,
+        minSize: { width: 640, height: 360 },
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
     const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -1694,7 +1694,7 @@ export function StudentViewDialog({
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed${maximizeClassName}${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed sis-window--movable${maximizeClassName}${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -1704,11 +1704,13 @@ export function StudentViewDialog({
                 onPointerDownOutside={(event) => event.preventDefault()}
                 onPointerDownCapture={bringToFront}
             >
+                {maximized ? null : resizeHandles}
                 <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
                 {count > 1 ? (
                     <>
                         <header
                             className="sis-admission-sheet__hero sis-student-sheet-dialog__shared-hero"
+                            {...(maximized ? {} : heroDragProps)}
                         >
                             <WindowControls
                                 className="sis-admission-sheet__window-controls"
@@ -1769,6 +1771,7 @@ export function StudentViewDialog({
                             showWindowControls
                             maximized={maximized}
                             onMaximize={toggleMaximize}
+                            heroDragProps={maximized ? undefined : heroDragProps}
                             onSaved={onSaved}
                             onProceed={onProceed}
                         />
@@ -1781,9 +1784,9 @@ export function StudentViewDialog({
 
 export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialogProps) {
     const i18n = t();
-    const { contentRef, bringToFront } = useSmoothDialogDrag(true, {
-        disabled: true,
-        resizable: false,
+    const { contentRef, bringToFront, heroDragProps, resizeHandles } = useSmoothDialogDrag(true, {
+        resizable: true,
+        minSize: { width: 640, height: 360 },
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
@@ -1799,7 +1802,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed${maximizeClassName}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed sis-window--movable${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -1809,6 +1812,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
                 onPointerDownOutside={(event) => event.preventDefault()}
                 onPointerDownCapture={bringToFront}
             >
+                {maximized ? null : resizeHandles}
                 <DialogTitle className="sr-only">{i18n.students.createTitle}</DialogTitle>
                 <StudentRecordForm
                     student={emptyStudentRecordValues()}
@@ -1820,6 +1824,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
                     showWindowControls
                     maximized={maximized}
                     onMaximize={toggleMaximize}
+                    heroDragProps={maximized ? undefined : heroDragProps}
                 />
             </DialogContent>
         </Dialog>

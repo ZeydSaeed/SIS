@@ -47,13 +47,11 @@ function newIdempotencyKey(prefix: string): string {
 function suggestCurriculumName(
     filterOptions: CurriculumFilterOptions,
     branchId: string,
-    specializationId: string,
+    departmentId: string,
     gradeLevelId: string,
 ): string {
     const branch = filterOptions.branches.find((item) => String(item.id) === branchId);
-    const spec = filterOptions.specializations.find(
-        (item) => String(item.id) === specializationId,
-    );
+    const spec = filterOptions.departments.find((item) => String(item.id) === departmentId);
     const gradeClass = filterOptions.classes.find(
         (item) => String(item.grade_level_id) === gradeLevelId,
     );
@@ -261,9 +259,9 @@ export function CurriculumCreateSheetDialog({
     const { showInertiaErrors, showSuccess, showError } = usePageError();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
-    const { contentRef, bringToFront } = useSmoothDialogDrag(true, {
-        disabled: true,
-        resizable: false,
+    const { contentRef, bringToFront, heroDragProps, resizeHandles } = useSmoothDialogDrag(true, {
+        resizable: true,
+        minSize: { width: 640, height: 420 },
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
@@ -271,7 +269,8 @@ export function CurriculumCreateSheetDialog({
         defaultAcademicYearId ? String(defaultAcademicYearId) : '',
     );
     const [branchId, setBranchId] = useState('');
-    const [specializationId, setSpecializationId] = useState('');
+    /** الاختصاص — department of the selected branch. */
+    const [departmentId, setDepartmentId] = useState('');
     const [gradeLevelId, setGradeLevelId] = useState(
         filterOptions.classes[0] ? String(filterOptions.classes[0].grade_level_id) : '',
     );
@@ -354,18 +353,10 @@ export function CurriculumCreateSheetDialog({
         return filterOptions.departments.filter((department) => department.branch_id === id);
     }, [branchId, filterOptions.departments]);
 
-    const specializationOptions = useMemo(() => {
-        const deptIds = new Set(branchDepartments.map((department) => department.id));
-        const list =
-            deptIds.size === 0
-                ? filterOptions.specializations
-                : filterOptions.specializations.filter(
-                      (item) =>
-                          item.department_id !== null && deptIds.has(item.department_id),
-                  );
-
-        return list.map((item) => ({ value: String(item.id), label: item.name }));
-    }, [branchDepartments, filterOptions.specializations]);
+    const departmentOptions = useMemo(
+        () => branchDepartments.map((item) => ({ value: String(item.id), label: item.name })),
+        [branchDepartments],
+    );
 
     const canSave =
         canManage &&
@@ -428,7 +419,7 @@ export function CurriculumCreateSheetDialog({
         const planName = suggestCurriculumName(
             filterOptions,
             branchId,
-            specializationId,
+            departmentId,
             gradeLevelId,
         );
         if (planName === '') {
@@ -444,8 +435,7 @@ export function CurriculumCreateSheetDialog({
                 academic_year_id: Number(academicYearId),
                 grade_level_id: Number(gradeLevelId),
                 name: planName,
-                specialization_id:
-                    specializationId === '' ? null : Number(specializationId),
+                department_id: departmentId === '' ? null : Number(departmentId),
                 subject_ids: plannedIds,
             },
             {
@@ -482,7 +472,7 @@ export function CurriculumCreateSheetDialog({
                 className={cn(
                     'sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog',
                     'sis-enrollment-record-sheet sis-curriculum-subject-sheet',
-                    'sis-curriculum-create-sheet sis-curriculum-create-sheet--fixed',
+                    'sis-curriculum-create-sheet sis-curriculum-create-sheet--fixed sis-window--movable',
                     maximizeClassName,
                 )}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
@@ -495,6 +485,7 @@ export function CurriculumCreateSheetDialog({
                 onPointerDownOutside={(event) => event.preventDefault()}
                 onEscapeKeyDown={(event) => event.preventDefault()}
             >
+                {maximized ? null : resizeHandles}
                 <DialogTitle className="sr-only">{c.createCurriculumTitle}</DialogTitle>
 
                 <article
@@ -502,7 +493,7 @@ export function CurriculumCreateSheetDialog({
                     dir="rtl"
                     lang="ar"
                 >
-                    <header className="sis-admission-sheet__hero">
+                    <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
                         <WindowControls
                             className="sis-admission-sheet__window-controls"
                             label={i18n.window.controls}
@@ -548,7 +539,7 @@ export function CurriculumCreateSheetDialog({
                                 }))}
                                 onChange={(next) => {
                                     setBranchId(next);
-                                    setSpecializationId('');
+                                    setDepartmentId('');
                                 }}
                                 ariaLabel={c.branch}
                                 includeBlank
@@ -560,9 +551,9 @@ export function CurriculumCreateSheetDialog({
                         <label className="sis-curriculum-create-sheet__filter">
                             <span className="sis-admission-sheet__label">{c.specialization}</span>
                             <SisListSelect
-                                value={specializationId}
-                                options={specializationOptions}
-                                onChange={setSpecializationId}
+                                value={departmentId}
+                                options={departmentOptions}
+                                onChange={setDepartmentId}
                                 ariaLabel={c.specialization}
                                 includeBlank
                                 className="sis-admission-sheet-list-select"

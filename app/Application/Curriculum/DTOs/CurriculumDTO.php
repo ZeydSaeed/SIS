@@ -12,5 +12,6 @@ final readonly class CurriculumDTO
         public ?int $specializationId,
         public string $name,
         public int $status,
+        public ?int $departmentId = null,
     ) {}
 }

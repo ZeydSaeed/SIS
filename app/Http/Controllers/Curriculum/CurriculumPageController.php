@@ -127,6 +127,9 @@ final class CurriculumPageController extends Controller
         $branchId = (! $allCurricula && $request->filled('branch_id'))
             ? (int) $request->query('branch_id')
             : null;
+        $departmentFilterId = (! $allCurricula && $request->filled('department_id'))
+            ? (int) $request->query('department_id')
+            : null;
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(max(1, (int) $request->query('per_page', $allCurricula ? 100 : 17)), 100);
 
@@ -167,6 +170,7 @@ final class CurriculumPageController extends Controller
                 page: $page,
                 perPage: $perPage,
                 paginate: true,
+                departmentId: $departmentFilterId,
             ));
             assert(isset($result['items']));
             $curriculaPayload = [
@@ -346,6 +350,9 @@ final class CurriculumPageController extends Controller
                 : null,
             idempotencyKey: $this->idempotencyKey($request),
             subjectIds: array_map(static fn (mixed $id): int => (int) $id, is_array($subjectIds) ? $subjectIds : []),
+            departmentId: $request->validated('department_id') !== null
+                ? (int) $request->validated('department_id')
+                : null,
         ));
 
         if ($result->failed()) {
@@ -378,6 +385,11 @@ final class CurriculumPageController extends Controller
         if ($request->exists('specialization_id')) {
             $fields['specialization_id'] = $request->validated('specialization_id') !== null
                 ? (int) $request->validated('specialization_id')
+                : null;
+        }
+        if ($request->exists('department_id')) {
+            $fields['department_id'] = $request->validated('department_id') !== null
+                ? (int) $request->validated('department_id')
                 : null;
         }
 
@@ -972,6 +984,12 @@ final class CurriculumPageController extends Controller
         foreach ($filterOptions['grade_levels'] ?? [] as $grade) {
             $gradeNames[(int) $grade['id']] = (string) $grade['name'];
         }
+        // Shown as الصف: prefer the school's class name for that level (الأول / الثاني / الثالث).
+        foreach ($filterOptions['classes'] ?? [] as $class) {
+            if (isset($class['grade_level_id'], $class['name'])) {
+                $gradeNames[(int) $class['grade_level_id']] = (string) $class['name'];
+            }
+        }
         $specNames = [];
         $specMeta = [];
         foreach ($filterOptions['specializations'] ?? [] as $spec) {
@@ -1062,7 +1080,9 @@ final class CurriculumPageController extends Controller
     private function mapCurriculumRow(CurriculumDTO $dto, array $meta): array
     {
         $specId = $dto->specializationId;
-        $departmentId = $specId !== null ? ($meta['specMeta'][$specId]['department_id'] ?? null) : null;
+        // الاختصاص = the branch department stored on the curriculum (legacy: via specialization).
+        $departmentId = $dto->departmentId
+            ?? ($specId !== null ? ($meta['specMeta'][$specId]['department_id'] ?? null) : null);
         $branchId = $departmentId !== null ? ($meta['departmentMeta'][$departmentId]['branch_id'] ?? null) : null;
 
         return [

@@ -694,6 +694,7 @@ trait InteractsWithSecurity
         int $gradeLevelId,
         array $requiredSubjectIds,
         ?int $specializationId = null,
+        ?int $departmentId = null,
     ): int {
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
 
@@ -702,6 +703,7 @@ trait InteractsWithSecurity
             'academic_year_id' => $academicYearId,
             'grade_level_id' => $gradeLevelId,
             'specialization_id' => $specializationId,
+            'department_id' => $departmentId,
             'name' => 'Curriculum '.uniqid(),
             'status' => 1,
             'created_at' => now(),

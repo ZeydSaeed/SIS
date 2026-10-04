@@ -748,13 +748,15 @@
 | school_id | BIGINT | FK → schools |
 | academic_year_id | BIGINT | FK → academic_years |
 | grade_level_id | SMALLINT | FK → grade_levels |
-| specialization_id | BIGINT | FK → specializations, nullable |
+| specialization_id | BIGINT | FK → specializations, nullable — legacy, no longer set by the UI |
+| department_id | BIGINT | FK → organization.departments, nullable, restrict — الاختصاص (department of the branch); 2026-10-05 |
 | name | VARCHAR(255) | NOT NULL |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)`  
+**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)` (no index on `department_id` — matching already narrows by this index)  
+**Governance (2026-10-05):** a curriculum belongs to a branch's الاختصاص via `department_id` and governs the enrollments of that department (NULL = all departments) for its year + class level. The separate vocational specialization is no longer used by the UI; columns kept (reversible).  
 **Security (CUR-U03):** FORCE RLS on `school_id`; hard DELETE rejected by trigger; soft `status`.  
 **v1 HTTP:** `POST/GET …/curriculum/curricula`; `POST …/curricula/{id}/deactivate|reactivate`.  
 **CUR-U07/U08/U09:** optional `specialization_id` on create; `PATCH …/curricula/{id}` updates `name` and/or assigns/clears specialization on active curricula. `academic_year_id` / `grade_level_id` immutable via PATCH.
