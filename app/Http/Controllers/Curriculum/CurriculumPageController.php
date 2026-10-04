@@ -45,11 +45,13 @@ use App\Application\Curriculum\Queries\ListSubjectsHandler;
 use App\Application\Curriculum\Queries\ListSubjectsQuery;
 use App\Application\Enrollment\Commands\AssignEnrollmentSubjectCommand;
 use App\Application\Enrollment\Commands\AssignEnrollmentSubjectHandler;
+use App\Application\Enrollment\Contracts\CurriculumApplicationQueue;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Enrollment\Queries\ListEnrollmentSubjectsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentSubjectsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Curriculum\AddSubjectPrerequisiteRequest;
+use App\Http\Requests\Curriculum\ApplyCurriculumToEnrollmentsRequest;
 use App\Http\Requests\Curriculum\CreateCurriculumRequest;
 use App\Http\Requests\Curriculum\CreateSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateCurriculumRequest;
@@ -432,6 +434,26 @@ final class CurriculumPageController extends Controller
         return redirect()->back()->with('success', 'flash.curriculum.deactivated');
     }
 
+    /** Queue: assign this curriculum's required subjects to every active enrollment it governs. */
+    public function applyCurriculumToEnrollments(
+        int $curriculum,
+        ApplyCurriculumToEnrollmentsRequest $request,
+        CurriculumApplicationQueue $queue,
+    ): RedirectResponse {
+        $schoolId = $this->schoolContext->requireId();
+        $queue->queueForCurriculum($schoolId, $curriculum);
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'curriculum.web.curricula.apply_to_enrollments',
+            'queued',
+            $request->user(),
+            'curriculum:'.$curriculum,
+        );
+
+        return redirect()->back()->with('success', 'flash.curriculum.appliedToEnrollmentsQueued');
+    }
+
     public function reactivateCurriculum(
         int $curriculum,
         ReactivateCurriculumRequest $request,
@@ -757,6 +779,7 @@ final class CurriculumPageController extends Controller
             specializationId: $dto->specializationId,
             branchId: $plan['branch_id'] ?? null,
             departmentId: is_int($departmentId) ? $departmentId : null,
+            gradeLevelId: $dto->gradeLevelId,
         );
 
         $selectedEnrollmentId = $request->filled('enrollment_id')
@@ -822,7 +845,7 @@ final class CurriculumPageController extends Controller
             'authorization' => [
                 'canView' => true,
                 'canManage' => $user->can('manageCurriculum'),
-                'canAssignEnrollmentSubjects' => $user->can('update', \App\Infrastructure\Persistence\Eloquent\EnrollmentRecord::class),
+                'canAssignEnrollmentSubjects' => $user->can('updateAny', \App\Infrastructure\Persistence\Eloquent\EnrollmentRecord::class),
             ],
         ]);
     }

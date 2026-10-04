@@ -24,6 +24,7 @@ final class PhaseEnrEnrollmentSubjectReactivateHttpApiPostgreSqlTest extends Pos
         $section = $this->createSectionForClass((int) $class->id);
         $student = $this->createStudentForSchool($schoolId);
         $subjectId = $this->createSubject('MATH-ENR3', 'Math');
+        $this->createCurriculumWithSubjects($schoolId, $yearId, (int) $class->grade_level_id, [$subjectId]);
 
         $user = User::factory()->create();
         app(SecurityPermissionSeeder::class)->grantEnrollmentManager($user, $schoolId);

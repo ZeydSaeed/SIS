@@ -58,6 +58,20 @@ final class EloquentEnrollmentSubjectRepository implements EnrollmentSubjectRepo
         ]);
     }
 
+    public function linkedSubjectIds(int $schoolId, int $enrollmentId): array
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('enrollment', 'enrollment_subjects').' as es')
+            ->join(SchemaHelper::qualified('enrollment', 'enrollments').' as e', 'e.id', '=', 'es.enrollment_id')
+            ->where('es.enrollment_id', $enrollmentId)
+            ->where('e.school_id', $schoolId)
+            ->pluck('es.subject_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+    }
+
     public function findActive(int $schoolId, int $linkId): ?EnrollmentSubjectSnapshot
     {
         $this->bindSchool($schoolId);

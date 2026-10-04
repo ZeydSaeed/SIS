@@ -29,6 +29,7 @@ import {
     validateEnrollmentDialog,
 } from '@/lib/enrollment-dialog-resolve';
 import { t } from '@/i18n';
+import { resolveUiMessage } from '@/lib/resolve-ui-message';
 
 export type StudentEnrollmentCandidate = {
     id: number;
@@ -41,6 +42,12 @@ export type StudentEnrollmentCandidate = {
     department_name?: string | null;
     admitted_class_name?: string | null;
     section_name?: string | null;
+};
+
+/** Server outcome of POST /enrollments/bulk (shared as flash.bulkEnroll). */
+type BulkEnrollOutcome = {
+    enrolled: number[];
+    skipped: Array<{ student_id: number; error_code: string }>;
 };
 
 type YearOption = {
@@ -373,85 +380,80 @@ export function StudentEnrollmentDialog({
         setFieldErrors({});
         const { payload } = validation;
         setSaving(true);
-        let enrolledCount = 0;
-        let failedAfterPartial = false;
+        const idempotencyKey =
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                ? crypto.randomUUID()
+                : `enroll-students-${Date.now()}`;
+        const nameById = new Map(
+            payload.eligibleStudents.map((student) => [student.id, student.full_name]),
+        );
 
         try {
-            for (const student of payload.eligibleStudents) {
-                const idempotencyKey =
-                    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-                        ? crypto.randomUUID()
-                        : `enroll-student-${student.id}-${Date.now()}`;
+            // One server call: per-student validation, capacity and outcome stay on the server.
+            const outcome = await new Promise<BulkEnrollOutcome | null>((resolve) => {
+                router.post(
+                    '/enrollments/bulk',
+                    {
+                        student_ids: payload.eligibleStudents.map((student) => student.id),
+                        academic_year_id: payload.academicYearId,
+                        class_id: payload.classId,
+                        section_id: payload.sectionId,
+                        effective_from: payload.effectiveFrom,
+                        ...(payload.branchId === null ? {} : { branch_id: payload.branchId }),
+                        ...(payload.departmentId === null
+                            ? {}
+                            : { department_id: payload.departmentId }),
+                    },
+                    {
+                        headers: { 'X-Idempotency-Key': idempotencyKey },
+                        preserveScroll: true,
+                        preserveState: true,
+                        onSuccess: (page) => {
+                            const flash = (
+                                page.props as {
+                                    flash?: {
+                                        error?: string | null;
+                                        bulkEnroll?: BulkEnrollOutcome | null;
+                                    };
+                                }
+                            ).flash;
+                            if (flash?.bulkEnroll) {
+                                resolve(flash.bulkEnroll);
+                                return;
+                            }
 
-                try {
-                    await new Promise<void>((resolve, reject) => {
-                        router.post(
-                            '/enrollments',
-                            {
-                                student_id: student.id,
-                                academic_year_id: payload.academicYearId,
-                                class_id: payload.classId,
-                                section_id: payload.sectionId,
-                                effective_from: payload.effectiveFrom,
-                                ...(payload.branchId === null
-                                    ? {}
-                                    : { branch_id: payload.branchId }),
-                                ...(payload.departmentId === null
-                                    ? {}
-                                    : { department_id: payload.departmentId }),
-                            },
-                            {
-                                headers: { 'X-Idempotency-Key': idempotencyKey },
-                                preserveScroll: true,
-                                preserveState: true,
-                                onSuccess: (page) => {
-                                    const flash = (
-                                        page.props as { flash?: { error?: string | null } }
-                                    ).flash?.error;
-                                    if (typeof flash === 'string' && flash.trim() !== '') {
-                                        const code = flash.trim();
-                                        window.setTimeout(() => {
-                                            if (code === 'enrollment.already_enrolled') {
-                                                showError({
-                                                    title: i18n.students
-                                                        .enrollAlreadyRegisteredTitle,
-                                                    description:
-                                                        i18n.students.enrollAlreadyRegisteredNamed.replace(
-                                                            '{name}',
-                                                            student.full_name,
-                                                        ),
-                                                });
-                                            } else {
-                                                showError({
-                                                    title: i18n.students.enrollDialogTitle,
-                                                    description: i18n.students.enrollServerError,
-                                                    details: [code],
-                                                });
-                                            }
-                                        }, 0);
-                                        reject(flash);
-                                        return;
-                                    }
+                            const code = typeof flash?.error === 'string' ? flash.error.trim() : '';
+                            window.setTimeout(() => {
+                                showError({
+                                    title: i18n.students.enrollDialogTitle,
+                                    description: i18n.students.enrollServerError,
+                                    details: code === '' ? [] : [resolveUiMessage(code)],
+                                });
+                            }, 0);
+                            resolve(null);
+                        },
+                        onError: (errors) => {
+                            showInertiaErrors(errors, i18n.errors.createFailed);
+                            resolve(null);
+                        },
+                    },
+                );
+            });
 
-                                    enrolledCount += 1;
-                                    resolve();
-                                },
-                                onError: (errors) => {
-                                    showInertiaErrors(errors, i18n.errors.createFailed);
-                                    reject(errors);
-                                },
-                            },
-                        );
-                    });
-                } catch {
-                    if (enrolledCount > 0) {
-                        failedAfterPartial = true;
-                    }
-                    break;
-                }
+            if (outcome === null) {
+                return;
             }
 
-            if (enrolledCount > 0 && !failedAfterPartial) {
+            const enrolledCount = outcome.enrolled.length;
+            const skippedDetails = outcome.skipped.map((item) => {
+                const name = nameById.get(item.student_id) ?? String(item.student_id);
+
+                return item.error_code === 'enrollment.already_enrolled'
+                    ? i18n.students.enrollAlreadyRegisteredNamed.replace('{name}', name)
+                    : `${name}: ${resolveUiMessage(item.error_code, i18n.students.enrollServerError)}`;
+            });
+
+            if (enrolledCount > 0 && skippedDetails.length === 0) {
                 showSuccess({
                     title: i18n.students.enrollDialogTitle,
                     description: i18n.students.enrollSuccessNamed.replace(
@@ -461,16 +463,29 @@ export function StudentEnrollmentDialog({
                 });
                 onOpenChange(false);
                 onEnrolled?.();
-            } else if (failedAfterPartial) {
+            } else if (enrolledCount > 0) {
                 showWarning({
                     title: i18n.students.enrollWarningTitle,
                     description: i18n.students.enrollPartialFailed,
                     details: [
-                        i18n.students.enrollSuccessNamed.replace(
-                            '{count}',
-                            String(enrolledCount),
-                        ),
+                        i18n.students.enrollSuccessNamed.replace('{count}', String(enrolledCount)),
+                        ...skippedDetails,
                     ],
+                });
+                onEnrolled?.();
+            } else if (
+                outcome.skipped.length === 1
+                && outcome.skipped[0].error_code === 'enrollment.already_enrolled'
+            ) {
+                showError({
+                    title: i18n.students.enrollAlreadyRegisteredTitle,
+                    description: skippedDetails[0],
+                });
+            } else {
+                showError({
+                    title: i18n.students.enrollDialogTitle,
+                    description: i18n.students.enrollServerError,
+                    details: skippedDetails,
                 });
             }
         } finally {

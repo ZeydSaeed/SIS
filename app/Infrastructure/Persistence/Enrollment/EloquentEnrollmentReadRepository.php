@@ -40,6 +40,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         ?int $specializationId = null,
         ?int $branchId = null,
         ?int $departmentId = null,
+        ?int $gradeLevelId = null,
     ): array {
         $page = max(1, $page);
         $perPage = min(max(1, $perPage), 100);
@@ -56,6 +57,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             $specializationId,
             $branchId,
             $departmentId,
+            $gradeLevelId,
         );
         // One round-trip: page rows + total via COUNT(*) OVER() (PostgreSQL).
         $rows = $query
@@ -287,6 +289,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         ?int $specializationId = null,
         ?int $branchId = null,
         ?int $departmentId = null,
+        ?int $gradeLevelId = null,
     ): Builder {
         $query = $this->baseQuery($schoolId);
 
@@ -312,6 +315,10 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
 
         if ($sectionId !== null && $sectionId > 0) {
             $query->where('e.section_id', $sectionId);
+        }
+
+        if ($gradeLevelId !== null && $gradeLevelId > 0) {
+            $query->where('c.grade_level_id', $gradeLevelId);
         }
 
         if ($branchId !== null && $branchId > 0) {

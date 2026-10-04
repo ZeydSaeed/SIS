@@ -25,6 +25,7 @@ interface EnrollmentReadRepositoryInterface
         ?int $specializationId = null,
         ?int $branchId = null,
         ?int $departmentId = null,
+        ?int $gradeLevelId = null,
     ): array;
 
     /**

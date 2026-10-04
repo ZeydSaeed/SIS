@@ -60,6 +60,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'toast' => fn () => $request->session()->get('toast'),
                 'workflow' => fn () => $request->session()->get('workflow'),
+                'bulkEnroll' => fn () => $request->session()->get('bulkEnroll'),
             ],
         ];
     }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Enrollment;
 
+use App\Application\Enrollment\Commands\BulkEnrollStudentsCommand;
+use App\Application\Enrollment\Commands\BulkEnrollStudentsHandler;
 use App\Application\Enrollment\Commands\BulkUpdateEnrollmentPlacementCommand;
 use App\Application\Enrollment\Commands\BulkUpdateEnrollmentPlacementHandler;
 use App\Application\Enrollment\Commands\ChangeEnrollmentStatusesCommand;
@@ -22,6 +24,7 @@ use App\Application\Student\Queries\GetStudentQuery;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Enrollment\BulkEnrollStudentsRequest;
 use App\Http\Requests\Enrollment\BulkUpdateEnrollmentPlacementRequest;
 use App\Http\Requests\Enrollment\ChangeEnrollmentStatusesRequest;
 use App\Http\Requests\Enrollment\EnrollStudentRequest;
@@ -429,6 +432,40 @@ final class EnrollmentPageController extends Controller
         );
 
         return redirect()->back();
+    }
+
+    /** Enroll up to 100 students into one placement; per-student outcome via flash.bulkEnroll. */
+    public function bulkStore(BulkEnrollStudentsRequest $request, BulkEnrollStudentsHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new BulkEnrollStudentsCommand(
+            schoolId: $this->schoolContext->requireId(),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            studentIds: array_map('intval', $request->validated('student_ids')),
+            classId: (int) $request->validated('class_id'),
+            sectionId: (int) $request->validated('section_id'),
+            effectiveFrom: (string) $request->validated('effective_from'),
+            branchId: $request->validated('branch_id'),
+            departmentId: $request->validated('department_id'),
+            enrolledBy: $request->user()?->id,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        $this->securityAudit->record(
+            SecurityEventType::EnrollmentDataModified,
+            'enrollments.web.bulk_store',
+            'created',
+            $request->user(),
+            'enrollment:bulk',
+            [
+                'enrolled_student_ids' => $result->enrolledStudentIds,
+                'skipped' => $result->skipped,
+            ],
+        );
+
+        return redirect()->back()->with('bulkEnroll', [
+            'enrolled' => $result->enrolledStudentIds,
+            'skipped' => $result->skipped,
+        ]);
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

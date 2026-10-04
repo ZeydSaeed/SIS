@@ -2,10 +2,14 @@
 
 namespace App\Infrastructure\Persistence\Enrollment;
 
+use App\Database\SchemaHelper;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
+use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentClassRecord;
+use App\Infrastructure\Persistence\Eloquent\EnrollmentRecord;
 use App\Infrastructure\Persistence\Eloquent\EnrollmentSectionRecord;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentEnrollmentPlacementRepository implements EnrollmentPlacementRepositoryInterface
 {
@@ -55,5 +59,43 @@ final class EloquentEnrollmentPlacementRepository implements EnrollmentPlacement
             ->value('id');
 
         return $id !== null ? (int) $id : null;
+    }
+
+    public function branchBelongsToSchool(int $branchId, int $schoolId): bool
+    {
+        return DB::table(SchemaHelper::qualified('organization', 'branches'))
+            ->where('id', $branchId)
+            ->where('school_id', $schoolId)
+            ->exists();
+    }
+
+    public function departmentBelongsToSchool(int $departmentId, int $schoolId, ?int $branchId): bool
+    {
+        return DB::table(SchemaHelper::qualified('organization', 'departments'))
+            ->where('id', $departmentId)
+            ->where('school_id', $schoolId)
+            ->when($branchId !== null, function ($query) use ($branchId): void {
+                $query->where(function ($scope) use ($branchId): void {
+                    $scope->whereNull('branch_id')->orWhere('branch_id', $branchId);
+                });
+            })
+            ->exists();
+    }
+
+    public function placementIsFull(int $classId, int $sectionId, int $academicYearId): bool
+    {
+        $classCapacity = EnrollmentClassRecord::query()->whereKey($classId)->lockForUpdate()->value('capacity');
+        $sectionCapacity = EnrollmentSectionRecord::query()->whereKey($sectionId)->lockForUpdate()->value('capacity');
+
+        $active = static fn () => EnrollmentRecord::query()
+            ->where('academic_year_id', $academicYearId)
+            ->where('status', EnrollmentStatus::ACTIVE)
+            ->whereNull('effective_to');
+
+        if ($sectionCapacity !== null && $active()->where('section_id', $sectionId)->count() >= (int) $sectionCapacity) {
+            return true;
+        }
+
+        return $classCapacity !== null && $active()->where('class_id', $classId)->count() >= (int) $classCapacity;
     }
 }

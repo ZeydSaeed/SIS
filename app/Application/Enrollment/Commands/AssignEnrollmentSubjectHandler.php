@@ -38,6 +38,7 @@ final class AssignEnrollmentSubjectHandler implements CommandHandler
             $command->schoolId,
             $command->enrollmentId,
             $command->subjectId,
+            $command->isElective,
         );
         if ($error !== null) {
             return AssignEnrollmentSubjectResult::failure([$error]);

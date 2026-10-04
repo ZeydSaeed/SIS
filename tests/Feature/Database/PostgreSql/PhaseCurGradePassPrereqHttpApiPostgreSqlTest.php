@@ -33,6 +33,7 @@ final class PhaseCurGradePassPrereqHttpApiPostgreSqlTest extends PostgreSqlInteg
             'status' => 1,
             'created_at' => now(),
         ]);
+        $this->createCurriculumWithSubjects($schoolId, $yearId, (int) $class->grade_level_id, [$mathId, $algId]);
 
         $user = User::factory()->create();
         app(SecurityPermissionSeeder::class)->grantEnrollmentManager($user, $schoolId);

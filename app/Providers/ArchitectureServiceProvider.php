@@ -10,6 +10,7 @@ use App\Application\Contracts\UnitOfWork;
 use App\Application\Attendance\Contracts\AttendanceReadRepositoryInterface;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Admission\Contracts\AdmissionReadRepositoryInterface;
+use App\Application\Enrollment\Contracts\CurriculumApplicationQueue;
 use App\Application\Exams\Contracts\ExamAdministrationAuthorityPort;
 use App\Application\Exams\Contracts\StudentGradeReadRepositoryInterface;
 use App\Application\Intelligence\Contracts\DatabaseMonitoringPort;
@@ -22,6 +23,7 @@ use App\Application\Workflow\Contracts\ApprovalEntityCompletionHookPort;
 use App\Application\Transfers\Contracts\TransferApprovalHookPort;
 use App\Application\Student\Contracts\StudentReadRepositoryInterface as StudentManagementReadRepositoryInterface;
 use App\Domain\Attendance\Repositories\AttendanceWriteRepositoryInterface;
+use App\Domain\Enrollment\Contracts\EnrollmentCurriculumPort;
 use App\Domain\Enrollment\Contracts\PrerequisiteCatalogPort;
 use App\Domain\Enrollment\Contracts\PrerequisitePassEvidencePort;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
@@ -122,6 +124,8 @@ use App\Domain\Student\Repositories\StudentDocumentRepositoryInterface;
 use App\Domain\Student\Repositories\StudentGuardianRepositoryInterface;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use App\Infrastructure\Enrollment\CurriculumPrerequisiteCatalogAdapter;
+use App\Infrastructure\Enrollment\EloquentEnrollmentCurriculumAdapter;
+use App\Infrastructure\Enrollment\QueuedCurriculumApplication;
 use App\Infrastructure\Enrollment\EloquentPrerequisitePassEvidenceAdapter;
 use App\Infrastructure\Events\EnrollmentCancelledBridgeEvent;
 use App\Infrastructure\Exams\PermissionCatalogExamAuthority;
@@ -157,6 +161,7 @@ use App\Infrastructure\Persistence\Student\EloquentStudentGuardianRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentRepository;
 use App\Listeners\Enrollment\RecordEnrollmentCancelledAudit;
 use App\Listeners\Enrollment\RecordEnrollmentPlacementUpdatedAudit;
+use App\Listeners\Enrollment\ApplyCurriculumOnStudentEnrolled;
 use App\Listeners\Enrollment\RecordStudentEnrolledAudit;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -176,6 +181,8 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(EnrollmentStructureRepositoryInterface::class, EloquentEnrollmentStructureRepository::class);
         $this->app->bind(PrerequisiteCatalogPort::class, CurriculumPrerequisiteCatalogAdapter::class);
         $this->app->bind(PrerequisitePassEvidencePort::class, EloquentPrerequisitePassEvidenceAdapter::class);
+        $this->app->bind(EnrollmentCurriculumPort::class, EloquentEnrollmentCurriculumAdapter::class);
+        $this->app->bind(CurriculumApplicationQueue::class, QueuedCurriculumApplication::class);
         $this->app->bind(EnrollmentPlacementRepositoryInterface::class, EloquentEnrollmentPlacementRepository::class);
         $this->app->bind(EnrollmentReadRepositoryInterface::class, EloquentEnrollmentReadRepository::class);
         $this->app->bind(StudentGradeRepositoryInterface::class, EloquentStudentGradeRepository::class);
@@ -246,6 +253,7 @@ class ArchitectureServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(StudentEnrolledBridgeEvent::class, RecordStudentEnrolledAudit::class);
+        Event::listen(StudentEnrolledBridgeEvent::class, ApplyCurriculumOnStudentEnrolled::class);
         Event::listen(EnrollmentCancelledBridgeEvent::class, RecordEnrollmentCancelledAudit::class);
         Event::listen(EnrollmentPlacementUpdatedBridgeEvent::class, RecordEnrollmentPlacementUpdatedAudit::class);
     }

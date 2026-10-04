@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { BookOpen, Pencil, Plus } from 'lucide-react';
+import { BookOpen, ListChecks, Pencil, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CurriculumPlanSheetDialog } from '@/components/curriculum/curriculum-plan-sheet';
 import {
@@ -256,10 +256,30 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             {
                 id: 'curriculum-show-students',
                 label: c.tabStudents,
-                commands: [],
+                commands: canAssign && curriculum.status === 1
+                    ? [
+                          {
+                              id: 'apply-curriculum-to-enrollments',
+                              label: c.applyToEnrollments,
+                              title: c.applyToEnrollmentsTitle,
+                              icon: ListChecks,
+                              onSelect: () =>
+                                  postWithIdempotency(
+                                      `/curriculum/curricula/${curriculum.id}/apply-to-enrollments`,
+                                  ),
+                          },
+                      ]
+                    : [],
             },
         ];
-    }, [c.tabStudents]);
+    }, [
+        c.applyToEnrollments,
+        c.applyToEnrollmentsTitle,
+        c.tabStudents,
+        canAssign,
+        curriculum.id,
+        curriculum.status,
+    ]);
 
     useRegisterPageRibbon('home', planRibbonGroups);
     useRegisterPageRibbon('lists', subjectsRibbonGroups);
@@ -499,14 +519,14 @@ export function CurriculumDetail(props: CurriculumShowProps) {
         }
     }, [c, confirm]);
 
-    const assignSubject = (subjectId: number): void => {
+    const assignSubject = (subjectId: number, isElective: boolean): void => {
         if (selectedEnrollmentId === null || !canAssign) {
             return;
         }
         setAssignPendingId(subjectId);
         router.post(
             `/curriculum/enrollments/${selectedEnrollmentId}/subjects`,
-            { subject_id: subjectId },
+            { subject_id: subjectId, is_elective: isElective },
             {
                 preserveScroll: true,
                 headers: { 'X-Idempotency-Key': newIdempotencyKey('curriculum-enroll-subject') },
@@ -853,7 +873,10 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                                                     }
                                                     onChange={() => {
                                                         if (!assigned) {
-                                                            assignSubject(link.subject_id);
+                                                            assignSubject(
+                                                                link.subject_id,
+                                                                !link.is_required,
+                                                            );
                                                         }
                                                     }}
                                                 />

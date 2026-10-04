@@ -16,7 +16,7 @@ final class PhaseCurEnrollmentSubjectPrereqHttpApiPostgreSqlTest extends Postgre
     use InteractsWithSecurity;
 
     #[Test]
-    public function enrollment_subject_assign_enforces_prerequisites_and_soft_deactivates(): void
+    public function enrollment_subject_assign_requires_passed_prerequisites_and_soft_deactivates(): void
     {
         $schoolId = $this->createSchool('SCH-CUR5', 'CUR5 School');
         $yearId = $this->createAcademicYear('AY-CUR5');
@@ -32,6 +32,7 @@ final class PhaseCurEnrollmentSubjectPrereqHttpApiPostgreSqlTest extends Postgre
             'status' => 1,
             'created_at' => now(),
         ]);
+        $this->createCurriculumWithSubjects($schoolId, $yearId, (int) $class->grade_level_id, [$mathId, $algId]);
 
         $user = User::factory()->create();
         app(SecurityPermissionSeeder::class)->grantEnrollmentManager($user, $schoolId);
@@ -64,15 +65,16 @@ final class PhaseCurEnrollmentSubjectPrereqHttpApiPostgreSqlTest extends Postgre
             ->assertOk()
             ->assertJsonPath('data.from_idempotency', true);
 
-        $algLinkId = (int) $this->postJson('/api/v1/enrollments/'.$enrollmentId.'/subjects', [
+        // Studying the prerequisite (history) without a passing grade does not satisfy it.
+        $this->postJson('/api/v1/enrollments/'.$enrollmentId.'/subjects', [
             'subject_id' => $algId,
-        ], ['X-Idempotency-Key' => 'cur5-alg-ok'])
-            ->assertCreated()
-            ->json('data.link_id');
+        ], ['X-Idempotency-Key' => 'cur5-alg-history-only'])
+            ->assertStatus(422)
+            ->assertJsonPath('error_code', 'enrollment.prerequisite_not_met');
 
         $this->getJson('/api/v1/enrollments/'.$enrollmentId.'/subjects')
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(1, 'data');
 
         $this->postJson('/api/v1/enrollment-subjects/'.$mathLinkId.'/deactivate', [], [
             'X-Idempotency-Key' => 'cur5-deact-math',
@@ -84,15 +86,10 @@ final class PhaseCurEnrollmentSubjectPrereqHttpApiPostgreSqlTest extends Postgre
             'id' => $mathLinkId,
             'status' => 2,
         ]);
-        $this->assertDatabaseHas(SchemaHelper::qualified('enrollment', 'enrollment_subjects'), [
-            'id' => $algLinkId,
-            'status' => 1,
+        $this->assertDatabaseMissing(SchemaHelper::qualified('enrollment', 'enrollment_subjects'), [
+            'enrollment_id' => $enrollmentId,
+            'subject_id' => $algId,
         ]);
-
-        $this->getJson('/api/v1/enrollments/'.$enrollmentId.'/subjects')
-            ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.subject_id', $algId);
     }
 
     private function createSubject(string $code, string $name): int

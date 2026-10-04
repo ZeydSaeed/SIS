@@ -682,4 +682,43 @@ trait InteractsWithSecurity
 
         return $enrollment;
     }
+
+    /**
+     * Active curriculum for (school, year, grade) with the given subjects linked.
+     *
+     * @param  list<int>  $requiredSubjectIds
+     */
+    protected function createCurriculumWithSubjects(
+        int $schoolId,
+        int $academicYearId,
+        int $gradeLevelId,
+        array $requiredSubjectIds,
+        ?int $specializationId = null,
+    ): int {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        $curriculumId = (int) DB::table(SchemaHelper::qualified('curriculum', 'curricula'))->insertGetId([
+            'school_id' => $schoolId,
+            'academic_year_id' => $academicYearId,
+            'grade_level_id' => $gradeLevelId,
+            'specialization_id' => $specializationId,
+            'name' => 'Curriculum '.uniqid(),
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($requiredSubjectIds as $order => $subjectId) {
+            DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects'))->insert([
+                'curriculum_id' => $curriculumId,
+                'subject_id' => $subjectId,
+                'is_required' => true,
+                'subject_order' => $order,
+                'status' => 1,
+                'created_at' => now(),
+            ]);
+        }
+
+        return $curriculumId;
+    }
 }

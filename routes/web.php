@@ -90,6 +90,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [EnrollmentPageController::class, 'index'])->name('index');
         Route::get('/create', [EnrollmentPageController::class, 'create'])->name('create');
         Route::post('/', [EnrollmentPageController::class, 'store'])->name('store');
+        Route::post('/bulk', [EnrollmentPageController::class, 'bulkStore'])->name('bulk-store');
         Route::post('/bulk-status', [EnrollmentPageController::class, 'bulkStatus'])->name('bulk-status');
         Route::post('/bulk-placement', [EnrollmentPageController::class, 'bulkPlacement'])->name('bulk-placement');
         Route::get('/{enrollment}', [EnrollmentPageController::class, 'show'])->name('show');
@@ -132,6 +133,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/curricula/{curriculum}/reactivate', [CurriculumPageController::class, 'reactivateCurriculum'])
             ->whereNumber('curriculum')
             ->name('curricula.reactivate');
+        Route::post('/curricula/{curriculum}/apply-to-enrollments', [CurriculumPageController::class, 'applyCurriculumToEnrollments'])
+            ->whereNumber('curriculum')
+            ->name('curricula.apply-to-enrollments');
         Route::post('/curricula/{curriculum}/subjects', [CurriculumPageController::class, 'storeCurriculumSubject'])
             ->whereNumber('curriculum')
             ->name('curriculum_subjects.store');

@@ -23,6 +23,9 @@ interface EnrollmentSubjectRepositoryInterface
     /** @return list<EnrollmentSubjectSnapshot> */
     public function listActive(int $schoolId, int $enrollmentId): array;
 
+    /** @return list<int> Subjects ever linked to the enrollment (any status). */
+    public function linkedSubjectIds(int $schoolId, int $enrollmentId): array;
+
     public function deactivate(int $schoolId, int $linkId): bool;
 
     public function reactivate(int $schoolId, int $linkId): bool;

@@ -37,6 +37,16 @@ final class EnrollmentPolicy
             && $this->schoolAccess->canAccessEnrollment($user);
     }
 
+    /**
+     * Class-level update (no specific enrollment) — e.g. bulk actions over the
+     * enrollments of the current school. Same permission + school access as update().
+     */
+    public function updateAny(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::ENROLLMENT_UPDATE)
+            && $this->schoolAccess->canAccessEnrollment($user);
+    }
+
     public function update(User $user, EnrollmentRecord|string|int|null $enrollment = null): bool
     {
         if ($enrollment === null) {
