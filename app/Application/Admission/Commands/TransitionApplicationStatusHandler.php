@@ -75,11 +75,12 @@ final class TransitionApplicationStatusHandler implements CommandHandler
             ));
         });
 
+        $convertedStudentId = null;
         if ($to === ApplicationStatus::Accepted) {
             $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
 
             try {
-                $this->convertAccepted->convert(
+                $convertedStudentId = $this->convertAccepted->convert(
                     schoolId: $command->schoolId,
                     applicationId: $command->applicationId,
                     reviewedBy: $command->reviewedBy,
@@ -111,6 +112,7 @@ final class TransitionApplicationStatusHandler implements CommandHandler
             $command->applicationId,
             $from->value,
             $to->value,
+            $convertedStudentId,
         );
     }
 }

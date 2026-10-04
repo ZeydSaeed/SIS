@@ -8,11 +8,13 @@ import {
     useState,
     type ReactNode,
 } from 'react';
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     MessageDialog,
+    type MessageDialogAction,
     type MessageDialogTone,
 } from '@/components/sis/message-dialog';
+import { resolveUiMessage } from '@/lib/resolve-ui-message';
 import {
     resolveErrorMessage,
     summarizeInertiaErrors,
@@ -25,6 +27,7 @@ type ShowMessageInput = {
     description?: string;
     details?: string[];
     tone?: MessageDialogTone;
+    action?: MessageDialogAction;
 };
 
 type PageErrorContextValue = {
@@ -43,6 +46,8 @@ type FlashProps = {
     flash?: {
         error?: string | null;
         success?: string | null;
+        /** Optional next step for flash.success: i18n label key + in-app href. */
+        successAction?: { label: string; href: string } | null;
     };
 };
 
@@ -54,6 +59,7 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
     const [title, setTitle] = useState<string | undefined>(undefined);
     const [description, setDescription] = useState('');
     const [details, setDetails] = useState<string[]>([]);
+    const [action, setAction] = useState<MessageDialogAction | undefined>(undefined);
     const lastFlashRef = useRef<string | null>(null);
 
     const openMessage = useCallback(
@@ -63,6 +69,7 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
                 setTitle(undefined);
                 setDescription(resolveErrorMessage(input));
                 setDetails([]);
+                setAction(undefined);
                 setOpen(true);
 
                 return;
@@ -72,6 +79,7 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
             setTitle(input.title);
             setDescription(resolveErrorMessage(input.description, i18n.errors.generic));
             setDetails(input.details ?? []);
+            setAction(input.action);
             setOpen(true);
         },
         [i18n.errors.generic],
@@ -147,13 +155,22 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
         }
 
         if (typeof flashSuccess === 'string' && flashSuccess.trim() !== '') {
+            const successAction = page.props.flash?.successAction;
             showSuccess({
                 description: resolveErrorMessage(flashSuccess),
+                action:
+                    successAction && successAction.href.startsWith('/')
+                        ? {
+                              label: resolveUiMessage(successAction.label),
+                              onSelect: () => router.visit(successAction.href),
+                          }
+                        : undefined,
             });
         }
     }, [
         page.props.flash?.error,
         page.props.flash?.success,
+        page.props.flash?.successAction,
         showError,
         showSuccess,
     ]);
@@ -179,6 +196,7 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
                 title={title}
                 description={description}
                 details={details}
+                action={action}
                 onOpenChange={setOpen}
             />
         </PageErrorContext.Provider>

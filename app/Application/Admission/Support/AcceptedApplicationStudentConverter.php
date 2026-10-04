@@ -22,13 +22,13 @@ class AcceptedApplicationStudentConverter
         int $applicationId,
         ?int $reviewedBy = null,
         ?string $idempotencyKey = null,
-    ): void {
-        $this->convertToStudent->handle(new ConvertApplicationToStudentCommand(
+    ): int {
+        return $this->convertToStudent->handle(new ConvertApplicationToStudentCommand(
             schoolId: $schoolId,
             applicationId: $applicationId,
             reviewedBy: $reviewedBy,
             idempotencyKey: $idempotencyKey,
-        ));
+        ))->studentId;
     }
 
     /**

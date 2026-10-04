@@ -877,7 +877,7 @@ export function AdmissionDraftsCard({
                 const isLast = index === ids.length - 1;
                 router.post(
                     `/admission/applications/${ids[index]}/convert`,
-                    {},
+                    ids.length > 1 ? { batch: 1 } : {},
                     {
                         preserveScroll: !isLast,
                         preserveState: !isLast,

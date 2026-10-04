@@ -17,7 +17,14 @@ type MessageDialogProps = {
     description: string;
     details?: string[];
     closeLabel?: string;
+    /** Optional next step (e.g. «تسجيل الآن») — same button chrome as close. */
+    action?: MessageDialogAction;
     onOpenChange: (open: boolean) => void;
+};
+
+export type MessageDialogAction = {
+    label: string;
+    onSelect: () => void;
 };
 
 function toneBannerLabel(
@@ -48,6 +55,7 @@ export function MessageDialog({
     description,
     details,
     closeLabel,
+    action,
     onOpenChange,
 }: MessageDialogProps) {
     const i18n = t();
@@ -114,6 +122,17 @@ export function MessageDialog({
                         </ul>
                     ) : null}
                     <div className="sis-admission-sheet__actions">
+                        {action ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onOpenChange(false);
+                                    action.onSelect();
+                                }}
+                            >
+                                {action.label}
+                            </button>
+                        ) : null}
                         <button
                             ref={closeRef}
                             type="button"

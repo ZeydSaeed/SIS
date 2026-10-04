@@ -68,6 +68,7 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
             }
         });
 
+        $convertedStudentIds = [];
         if ($to === ApplicationStatus::Accepted) {
             $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
 
@@ -78,7 +79,7 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
 
             foreach ($applicationIds as $applicationId) {
                 try {
-                    $this->convertAccepted->convert(
+                    $convertedStudentIds[] = $this->convertAccepted->convert(
                         schoolId: $command->schoolId,
                         applicationId: $applicationId,
                         reviewedBy: $command->reviewedBy,
@@ -109,6 +110,6 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
             ]);
         }
 
-        return BulkTransitionApplicationStatusResult::success($applicationIds, $to->value);
+        return BulkTransitionApplicationStatusResult::success($applicationIds, $to->value, $convertedStudentIds);
     }
 }

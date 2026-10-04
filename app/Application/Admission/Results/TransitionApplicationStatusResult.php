@@ -14,13 +14,19 @@ final readonly class TransitionApplicationStatusResult extends ApplicationResult
         array $errors = [],
         array $warnings = [],
         bool $fromIdempotencyCache = false,
+        /** Student created when the transition accepted (and converted) the application. */
+        public ?int $convertedStudentId = null,
     ) {
         parent::__construct($success, $errors, $warnings, $fromIdempotencyCache);
     }
 
-    public static function success(int $applicationId, int $fromStatus, int $toStatus): self
-    {
-        return new self(true, $applicationId, $fromStatus, $toStatus);
+    public static function success(
+        int $applicationId,
+        int $fromStatus,
+        int $toStatus,
+        ?int $convertedStudentId = null,
+    ): self {
+        return new self(true, $applicationId, $fromStatus, $toStatus, convertedStudentId: $convertedStudentId);
     }
 
     public static function fromIdempotency(int $applicationId, int $fromStatus, int $toStatus): self

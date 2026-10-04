@@ -606,7 +606,8 @@ final class AdmissionPageController extends Controller
 
         return redirect()
             ->back()
-            ->with('success', 'flash.admission.studentCreatedFromAdmission');
+            ->with('success', 'flash.admission.studentCreatedFromAdmission')
+            ->with('successAction', $this->enrollNowAction($result->studentId));
     }
 
     public function updateApplication(
@@ -726,9 +727,13 @@ final class AdmissionPageController extends Controller
             ? 'flash.admission.applicationAcceptedConverted'
             : 'flash.admission.applicationStatusUpdated';
 
-        return redirect()
+        $redirect = redirect()
             ->back()
             ->with('success', $success);
+
+        return $result->convertedStudentId !== null
+            ? $redirect->with('successAction', $this->enrollNowAction($result->convertedStudentId))
+            : $redirect;
     }
 
     public function bulkTransition(
@@ -766,9 +771,14 @@ final class AdmissionPageController extends Controller
                 : 'flash.admission.applicationsAcceptedConverted')
             : 'flash.admission.applicationsStatusUpdated';
 
-        return redirect()
+        $redirect = redirect()
             ->back()
             ->with('success', $success);
+
+        // One accepted → one student: offer the direct enrollment shortcut.
+        return count($result->convertedStudentIds) === 1
+            ? $redirect->with('successAction', $this->enrollNowAction($result->convertedStudentIds[0]))
+            : $redirect;
     }
 
     public function convert(
@@ -793,9 +803,25 @@ final class AdmissionPageController extends Controller
             ['student_id' => $result->studentId],
         );
 
-        return redirect()
+        $redirect = redirect()
             ->back()
             ->with('success', 'flash.admission.convertedToStudent');
+
+        // Multi-select convert posts one by one (batch=1): no per-student shortcut.
+        return $request->boolean('batch')
+            ? $redirect
+            : $redirect->with('successAction', $this->enrollNowAction($result->studentId));
+    }
+
+    /**
+     * @return array{label: string, href: string}
+     */
+    private function enrollNowAction(int $studentId): array
+    {
+        return [
+            'label' => 'workflow.enrollNow',
+            'href' => route('enrollments.create', ['student_id' => $studentId], absolute: false),
+        ];
     }
 
     public function storeDocument(

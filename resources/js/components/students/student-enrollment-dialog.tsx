@@ -16,18 +16,17 @@ import {
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
+import type { EnrollmentDialogIssue } from '@/lib/enrollment-dialog-resolve';
 import {
-    admissionBranchSelectOptions,
-    admissionClassSelectOptions,
-    admissionDepartmentSelectOptions,
-    admissionSectionSelectOptions,
-    draftPlacementFromStudents,
-    type EnrollmentDialogDraft,
-    type EnrollmentDialogFieldErrors,
-    type EnrollmentDialogFieldKey,
-    type EnrollmentDialogIssue,
-    validateEnrollmentDialog,
-} from '@/lib/enrollment-dialog-resolve';
+    placementBranchOptions,
+    placementClassOptions,
+    placementDepartmentOptions,
+    placementSectionOptions,
+    prefillPlacement,
+    validatePlacement,
+    type PlacementDraft,
+    type PlacementFieldKey,
+} from '@/lib/enrollment-placement-options';
 import { t } from '@/i18n';
 import { resolveUiMessage } from '@/lib/resolve-ui-message';
 
@@ -39,7 +38,9 @@ export type StudentEnrollmentCandidate = {
     is_enrolled?: boolean;
     branch_id?: number | null;
     branch_name?: string | null;
+    department_id?: number | null;
     department_name?: string | null;
+    grade_level_id?: number | null;
     admitted_class_name?: string | null;
     section_name?: string | null;
 };
@@ -203,13 +204,13 @@ export function StudentEnrollmentDialog({
     const years = academicYears ?? [];
     const formRef = useRef<HTMLFormElement>(null);
     const [saving, setSaving] = useState(false);
-    const [fieldErrors, setFieldErrors] = useState<EnrollmentDialogFieldErrors>({});
-    const [draft, setDraft] = useState<EnrollmentDialogDraft>(() => ({
+    const [fieldErrors, setFieldErrors] = useState<Partial<Record<PlacementFieldKey, string>>>({});
+    const [draft, setDraft] = useState<PlacementDraft>(() => ({
         academic_year_id: academicYearId && academicYearId > 0 ? String(academicYearId) : '',
-        branch_name: '',
-        department_name: '',
-        class_key: '',
-        section_code: '',
+        branch_id: '',
+        department_id: '',
+        class_id: '',
+        section_id: '',
         effective_from: todayIsoDate(),
     }));
     const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(open, {
@@ -228,17 +229,13 @@ export function StudentEnrollmentDialog({
             return;
         }
 
-        const placement = draftPlacementFromStudents(students, filterOptions.branches ?? []);
         setDraft({
             academic_year_id: academicYearId && academicYearId > 0 ? String(academicYearId) : '',
-            branch_name: placement.branch_name,
-            department_name: placement.department_name,
-            class_key: placement.class_key,
-            section_code: placement.section_code,
+            ...prefillPlacement(students, filterOptions),
             effective_from: todayIsoDate(),
         });
         setFieldErrors({});
-    }, [open, academicYearId, students, filterOptions.branches]);
+    }, [open, academicYearId, students, filterOptions]);
 
     const yearLabel = useMemo(() => {
         const year = years.find((item) => String(item.id) === draft.academic_year_id);
@@ -249,17 +246,20 @@ export function StudentEnrollmentDialog({
         return formatAcademicYearOptionLabel(year.name, year.code);
     }, [draft.academic_year_id, years]);
 
-    const branchOptions = useMemo(() => admissionBranchSelectOptions(), []);
+    const branchOptions = useMemo(() => placementBranchOptions(filterOptions), [filterOptions]);
     const departmentOptions = useMemo(
-        () => admissionDepartmentSelectOptions(draft.branch_name),
-        [draft.branch_name],
+        () => placementDepartmentOptions(filterOptions, draft.branch_id),
+        [filterOptions, draft.branch_id],
     );
-    const classOptions = useMemo(() => admissionClassSelectOptions(), []);
-    const sectionOptions = useMemo(() => admissionSectionSelectOptions(), []);
+    const classOptions = useMemo(() => placementClassOptions(filterOptions), [filterOptions]);
+    const sectionOptions = useMemo(
+        () => placementSectionOptions(filterOptions, draft.class_id),
+        [filterOptions, draft.class_id],
+    );
 
     const presentIssue = (issue: EnrollmentDialogIssue) => {
         if (issue.fieldErrors) {
-            setFieldErrors(issue.fieldErrors);
+            setFieldErrors(issue.fieldErrors as Partial<Record<PlacementFieldKey, string>>);
         }
 
         const title = i18n.students[issue.titleKey];
@@ -281,7 +281,7 @@ export function StudentEnrollmentDialog({
         showError(payload);
     };
 
-    const clearFieldErrors = (...keys: EnrollmentDialogFieldKey[]) => {
+    const clearFieldErrors = (...keys: PlacementFieldKey[]) => {
         setFieldErrors((current) => {
             let changed = false;
             const next = { ...current };
@@ -296,31 +296,31 @@ export function StudentEnrollmentDialog({
         });
     };
 
-    const patchDraft = (patch: Partial<EnrollmentDialogDraft>) => {
+    const patchDraft = (patch: Partial<PlacementDraft>) => {
         setDraft((current) => {
             const next = { ...current, ...patch };
 
-            if ('branch_name' in patch && patch.branch_name !== current.branch_name) {
-                next.department_name = '';
+            if ('branch_id' in patch && patch.branch_id !== current.branch_id) {
+                next.department_id = '';
             }
 
-            if ('class_key' in patch && patch.class_key !== current.class_key) {
-                next.section_code = '';
+            if ('class_id' in patch && patch.class_id !== current.class_id) {
+                next.section_id = '';
             }
 
             return next;
         });
 
-        const keysToClear: EnrollmentDialogFieldKey[] = [];
-        if ('branch_name' in patch) {
-            keysToClear.push('branch_name', 'department_name');
-        } else if ('department_name' in patch) {
-            keysToClear.push('department_name');
+        const keysToClear: PlacementFieldKey[] = [];
+        if ('branch_id' in patch) {
+            keysToClear.push('branch_id', 'department_id');
+        } else if ('department_id' in patch) {
+            keysToClear.push('department_id');
         }
-        if ('class_key' in patch) {
-            keysToClear.push('class_key', 'section_code');
-        } else if ('section_code' in patch) {
-            keysToClear.push('section_code');
+        if ('class_id' in patch) {
+            keysToClear.push('class_id', 'section_id');
+        } else if ('section_id' in patch) {
+            keysToClear.push('section_id');
         }
         if ('academic_year_id' in patch) {
             keysToClear.push('academic_year_id');
@@ -344,7 +344,7 @@ export function StudentEnrollmentDialog({
             return;
         }
 
-        const validation = validateEnrollmentDialog({
+        const validation = validatePlacement({
             students,
             draft,
             filterOptions,
@@ -356,19 +356,14 @@ export function StudentEnrollmentDialog({
                 emptyClass: i18n.students.enrollEmptyClass,
                 emptySection: i18n.students.enrollEmptySection,
                 emptyEffectiveFrom: i18n.students.enrollEmptyEffectiveFrom,
-                emptyFields: i18n.students.enrollEmptyFields,
                 alreadyRegistered: i18n.students.enrollAlreadyRegistered,
                 alreadyRegisteredNamed: i18n.students.enrollAlreadyRegisteredNamed,
                 classNotFound: i18n.students.enrollClassNotFound,
                 sectionNotFound: i18n.students.enrollSectionNotFound,
-                branchRequiredWithDept: i18n.students.enrollBranchRequiredWithDept,
                 branchMissingInYear: i18n.students.enrollBranchMissingInYear,
                 departmentMissingInBranch: i18n.students.enrollDepartmentMissingInBranch,
                 noClassesInYear: i18n.students.enrollNoClassesInYear,
-                noSectionsForClass: i18n.students.enrollNoSectionsForClass,
                 guideFillRequired: i18n.students.enrollGuideFillRequired,
-                classLabel: i18n.enrollments.className,
-                sectionLabel: i18n.enrollments.sectionName,
             },
         });
 
@@ -399,10 +394,8 @@ export function StudentEnrollmentDialog({
                         class_id: payload.classId,
                         section_id: payload.sectionId,
                         effective_from: payload.effectiveFrom,
-                        ...(payload.branchId === null ? {} : { branch_id: payload.branchId }),
-                        ...(payload.departmentId === null
-                            ? {}
-                            : { department_id: payload.departmentId }),
+                        branch_id: payload.branchId,
+                        department_id: payload.departmentId,
                     },
                     {
                         headers: { 'X-Idempotency-Key': idempotencyKey },
@@ -661,71 +654,71 @@ export function StudentEnrollmentDialog({
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-enrollment-record-sheet__placement-row">
                             <RequiredSheetField
                                 label={i18n.enrollments.branchName}
-                                name="branch_name"
+                                name="branch_id"
                                 fieldClassName="sis-enrollment-record-sheet__field--wide"
                             >
                                 <SheetSelect
-                                    id="branch_name"
-                                    name="branch_name"
-                                    value={draft.branch_name}
+                                    id="branch_id"
+                                    name="branch_id"
+                                    value={draft.branch_id}
                                     options={branchOptions}
                                     allowEmpty
                                     required
-                                    invalid={Boolean(fieldErrors.branch_name)}
-                                    onChange={(next) => patchDraft({ branch_name: next })}
+                                    invalid={Boolean(fieldErrors.branch_id)}
+                                    onChange={(next) => patchDraft({ branch_id: next })}
                                     ariaLabel={i18n.enrollments.branchName}
                                 />
                             </RequiredSheetField>
                             <RequiredSheetField
                                 label={i18n.enrollments.departmentName}
-                                name="department_name"
+                                name="department_id"
                                 fieldClassName="sis-enrollment-record-sheet__field--wide"
                             >
                                 <SheetSelect
-                                    id="department_name"
-                                    name="department_name"
-                                    value={draft.department_name}
+                                    id="department_id"
+                                    name="department_id"
+                                    value={draft.department_id}
                                     options={departmentOptions}
                                     allowEmpty
                                     required
-                                    invalid={Boolean(fieldErrors.department_name)}
-                                    disabled={draft.branch_name.trim() === ''}
-                                    onChange={(next) => patchDraft({ department_name: next })}
+                                    invalid={Boolean(fieldErrors.department_id)}
+                                    disabled={draft.branch_id.trim() === ''}
+                                    onChange={(next) => patchDraft({ department_id: next })}
                                     ariaLabel={i18n.enrollments.departmentName}
                                 />
                             </RequiredSheetField>
                             <RequiredSheetField
                                 label={i18n.enrollments.className}
-                                name="class_key"
+                                name="class_id"
                                 fieldClassName="sis-enrollment-record-sheet__field--narrow"
                             >
                                 <SheetSelect
-                                    id="class_key"
-                                    name="class_key"
-                                    value={draft.class_key}
+                                    id="class_id"
+                                    name="class_id"
+                                    value={draft.class_id}
                                     options={classOptions}
                                     allowEmpty
                                     required
-                                    invalid={Boolean(fieldErrors.class_key)}
-                                    onChange={(next) => patchDraft({ class_key: next })}
+                                    invalid={Boolean(fieldErrors.class_id)}
+                                    onChange={(next) => patchDraft({ class_id: next })}
                                     ariaLabel={i18n.enrollments.className}
                                 />
                             </RequiredSheetField>
                             <RequiredSheetField
                                 label={i18n.enrollments.sectionName}
-                                name="section_code"
+                                name="section_id"
                                 fieldClassName="sis-enrollment-record-sheet__field--narrow"
                             >
                                 <SheetSelect
-                                    id="section_code"
-                                    name="section_code"
-                                    value={draft.section_code}
+                                    id="section_id"
+                                    name="section_id"
+                                    value={draft.section_id}
                                     options={sectionOptions}
                                     allowEmpty
                                     required
-                                    invalid={Boolean(fieldErrors.section_code)}
+                                    invalid={Boolean(fieldErrors.section_id)}
                                     dir="ltr"
-                                    onChange={(next) => patchDraft({ section_code: next })}
+                                    onChange={(next) => patchDraft({ section_id: next })}
                                     ariaLabel={i18n.enrollments.sectionName}
                                 />
                             </RequiredSheetField>

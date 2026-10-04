@@ -54,6 +54,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'school_name',
         'branch_id',
         'department_name',
+        'department_id',
+        'grade_level_id',
 
         'father_occupation',
         'mother_occupation',
@@ -110,6 +112,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'school_name',
         'branch_id',
         'department_name',
+        'department_id',
+        'grade_level_id',
 
         'father_occupation',
         'mother_occupation',
@@ -428,6 +432,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 : null,
             status: (int) $record->status,
             isEnrolled: $isEnrolled,
+            departmentId: $record->department_id !== null ? (int) $record->department_id : null,
+            gradeLevelId: $record->grade_level_id !== null ? (int) $record->grade_level_id : null,
         );
     }
 

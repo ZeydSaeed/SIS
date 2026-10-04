@@ -48,6 +48,8 @@ class StudentRecord extends Model
             'school_name',
             'branch_id',
             'department_name',
+            'department_id',
+            'grade_level_id',
             'father_occupation',
             'mother_occupation',
             'administrative_unit',

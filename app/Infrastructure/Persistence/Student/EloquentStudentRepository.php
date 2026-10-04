@@ -14,10 +14,24 @@ use DateTimeInterface;
 
 final class EloquentStudentRepository implements StudentRepositoryInterface
 {
+    public function __construct(
+        private readonly StudentPlacementIdResolver $placementIds = new StudentPlacementIdResolver,
+    ) {}
+
     public function saveNew(CreateStudentData $data): int
     {
+        $attributes = $this->attributesFromCreate($data);
+        if ($data->schoolId !== null) {
+            $attributes = array_merge($attributes, $this->placementIds->resolve(
+                $data->schoolId,
+                $data->branchId,
+                $data->departmentName,
+                $data->admittedClassName,
+            ));
+        }
+
         $record = new StudentRecord;
-        $record->forceFill($this->attributesFromCreate($data));
+        $record->forceFill($attributes);
         $record->save();
 
         return (int) $record->getKey();
@@ -25,9 +39,20 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
 
     public function update(int $studentId, UpdateStudentData $data): void
     {
+        $attributes = $this->attributesFromUpdate($data);
+        $schoolId = StudentRecord::query()->whereKey($studentId)->value('school_id');
+        if ($schoolId !== null) {
+            $attributes = array_merge($attributes, $this->placementIds->resolve(
+                (int) $schoolId,
+                $data->branchId,
+                $data->departmentName,
+                $data->admittedClassName,
+            ));
+        }
+
         StudentRecord::query()
             ->whereKey($studentId)
-            ->update($this->attributesFromUpdate($data));
+            ->update($attributes);
     }
 
     public function findUpdateData(int $studentId, int $schoolId): ?UpdateStudentData

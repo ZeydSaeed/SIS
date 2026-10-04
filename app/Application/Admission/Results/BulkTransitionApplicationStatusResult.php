@@ -17,16 +17,19 @@ final readonly class BulkTransitionApplicationStatusResult extends ApplicationRe
         array $errors = [],
         array $warnings = [],
         bool $fromIdempotencyCache = false,
+        /** @var list<int> Students created when the transition accepted (and converted) applications. */
+        public array $convertedStudentIds = [],
     ) {
         parent::__construct($success, $errors, $warnings, $fromIdempotencyCache);
     }
 
     /**
      * @param  list<int>  $applicationIds
+     * @param  list<int>  $convertedStudentIds
      */
-    public static function success(array $applicationIds, int $toStatus): self
+    public static function success(array $applicationIds, int $toStatus, array $convertedStudentIds = []): self
     {
-        return new self(true, $applicationIds, $toStatus, count($applicationIds));
+        return new self(true, $applicationIds, $toStatus, count($applicationIds), convertedStudentIds: $convertedStudentIds);
     }
 
     /**

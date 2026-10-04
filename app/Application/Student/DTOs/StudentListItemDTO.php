@@ -57,6 +57,8 @@ final readonly class StudentListItemDTO
         public bool $isEnrolled = false,
         /** @var list<array{id: int, document_type: int, file_name: string}> */
         public array $documents = [],
+        public ?int $departmentId = null,
+        public ?int $gradeLevelId = null,
     ) {}
 
     /**
@@ -116,6 +118,8 @@ final readonly class StudentListItemDTO
             status: $this->status,
             isEnrolled: $this->isEnrolled,
             documents: $documents,
+            departmentId: $this->departmentId,
+            gradeLevelId: $this->gradeLevelId,
         );
     }
 
@@ -162,6 +166,8 @@ final readonly class StudentListItemDTO
             'branch_id' => $this->branchId,
             'branch_name' => $this->branchName,
             'department_name' => $this->departmentName,
+            'department_id' => $this->departmentId,
+            'grade_level_id' => $this->gradeLevelId,
 
             'father_occupation' => $this->fatherOccupation,
             'mother_occupation' => $this->motherOccupation,

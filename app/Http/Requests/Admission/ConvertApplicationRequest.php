@@ -18,6 +18,7 @@ final class ConvertApplicationRequest extends FormRequest
     {
         return [
             'stay' => ['sometimes', 'boolean'],
+            'batch' => ['sometimes', 'boolean'],
         ];
     }
 

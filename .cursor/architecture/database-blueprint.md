@@ -286,6 +286,7 @@
 | id | BIGINT | PK |
 | school_id | BIGINT | FK → organization.schools, nullable |
 | branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
+| department_id | BIGINT | FK → organization.departments, nullable, restrict — القسم المهيكل (A1؛ يُشتق من department_name) |
 | public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
 | student_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
@@ -316,6 +317,7 @@
 | transfer_document_date | DATE | تاريخ وثيقة النقل |
 | school_start_date | DATE | تاريخ ابتداء الدوام |
 | admitted_class_name | VARCHAR(100) | الصف الذي قُبل فيه / المستوى الدراسي من القبول |
+| grade_level_id | SMALLINT | FK → academic.grade_levels, nullable, restrict — المرحلة المهيكلة (A1؛ من صف المدرسة بنفس الاسم) |
 | admitted_academic_year_id | BIGINT | FK → academic.academic_years, nullable — سنة القبول المحفوظة بعد التحويل |
 | notes | TEXT | الملاحظات |
 | mobile | VARCHAR(30) | رقم موبايل الطالب (PII) |
@@ -341,6 +343,9 @@
 - `BTREE(school_id)`
 - `BTREE(branch_id)`
 - `BTREE(admitted_academic_year_id)` — student list year filter
+- (no index on `department_id` / `grade_level_id` — not filtered or joined yet; add per indexing governance when a query needs it)
+
+**Workflow A1 (2026-10-04):** `department_id` / `grade_level_id` are kept in sync by the student repository on every create/update (exact names within the school; `branch_id` filled from the department when missing). Text columns stay as the admission snapshot. Backfill existing rows per school: `php artisan sis:backfill-student-placement-ids [--school=] [--dry-run]` (RLS-safe, fills NULLs only).
 - `UNIQUE(student_code)`
 - `UNIQUE(national_id)` (partial: WHERE national_id IS NOT NULL)
 - `PARTIAL(status) WHERE status = 1` — active students
