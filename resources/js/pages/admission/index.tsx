@@ -36,6 +36,7 @@ export default function AdmissionIndex({ workspace, filters, authorization }: Pa
                 periodCounts={workspace.period_counts ?? {}}
                 academicYearId={filters.academic_year_id}
                 canManage={authorization.can_manage}
+                schoolOptions={workspace.school_options ?? []}
             />
         </AdmissionPageShell>
     );

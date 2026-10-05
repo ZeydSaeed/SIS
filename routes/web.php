@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admission\AdmissionPageController;
+use App\Http\Controllers\Admission\ApplicationTransferPageController;
 use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
@@ -226,7 +227,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('require.school.context')->group(function (): void {
         Route::get('/guardians', [OpsModulePageController::class, 'guardians'])->name('guardians.index');
         Route::get('/promotion', [OpsModulePageController::class, 'promotion'])->name('promotion.index');
-        Route::get('/transfers', [OpsModulePageController::class, 'transfers'])->name('transfers.index');
+        // النقل — the only place an application's school / request kind / academic year changes.
+        Route::get('/transfers', [ApplicationTransferPageController::class, 'index'])->name('transfers.index');
+        Route::post('/transfers/applications/{application}', [ApplicationTransferPageController::class, 'store'])
+            ->whereNumber('application')
+            ->name('transfers.applications.store');
         Route::get('/graduation', [OpsModulePageController::class, 'graduation'])->name('graduation.index');
         Route::get('/certificates', [OpsModulePageController::class, 'certificates'])->name('certificates.index');
         Route::get('/finance', [OpsModulePageController::class, 'finance'])->name('finance.index');

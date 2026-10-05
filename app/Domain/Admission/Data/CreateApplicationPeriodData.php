@@ -13,5 +13,7 @@ final readonly class CreateApplicationPeriodData
         public ?string $endDate,
         public ?int $maxApplications,
         public int $status,
+        /** The directorate whose schools file applications in this period (fixed at creation). */
+        public ?int $directorateId = null,
     ) {}
 }

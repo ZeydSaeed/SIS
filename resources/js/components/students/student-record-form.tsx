@@ -1111,7 +1111,8 @@ export function StudentRecordForm({
                     ) : (
                         <AcademicYearListField
                             label={i18n.students.academicYear}
-                            editing={fieldsEditable}
+                            /* Academic year changes only through the transfers page (النقل). */
+                            editing={false}
                             value={draft.academic_year_id}
                             student={student}
                             onChange={(value) => setField('academic_year_id', value)}
@@ -1119,7 +1120,8 @@ export function StudentRecordForm({
                     )}
                     <DraftListSelect
                         label={i18n.students.schoolName}
-                        editing={fieldsEditable}
+                        /* School changes only through the transfers page (النقل). */
+                        editing={false}
                         value={draft.school_name}
                         display={displayValue(student.school_name)}
                         options={schoolOptions}

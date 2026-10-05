@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Database\PostgreSql;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
@@ -15,7 +16,7 @@ class AdmissionCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationTestCa
 
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('admission.application_periods')->insert([
             'academic_year_id' => $yearId,
             'school_id' => $schoolId,
@@ -37,6 +38,7 @@ class AdmissionCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationTestCa
         try {
             DB::table('admission.applications')->insert([
                 'application_period_id' => $periodId,
+                'school_id' => $schoolId,
                 'application_number' => 'BAD-STATUS',
                 'first_name' => 'A',
                 'last_name' => 'B',
@@ -48,13 +50,14 @@ class AdmissionCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationTestCa
                 'updated_at' => now(),
             ]);
             $this->fail('Expected status CHECK to reject status=99');
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             $this->assertTrue(true);
         }
 
         try {
             DB::table('admission.applications')->insert([
                 'application_period_id' => $periodId,
+                'school_id' => $schoolId,
                 'application_number' => 'BAD-GENDER',
                 'first_name' => 'A',
                 'last_name' => 'B',
@@ -66,7 +69,7 @@ class AdmissionCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationTestCa
                 'updated_at' => now(),
             ]);
             $this->fail('Expected gender CHECK to reject gender=9');
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             $this->assertTrue(true);
         }
     }
@@ -79,6 +82,7 @@ class AdmissionCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationTestCa
 
         $id = DB::table('admission.applications')->insertGetId([
             'application_period_id' => $periodId,
+            'school_id' => $schoolId,
             'application_number' => 'OK-1',
             'first_name' => 'Sara',
             'last_name' => 'Test',

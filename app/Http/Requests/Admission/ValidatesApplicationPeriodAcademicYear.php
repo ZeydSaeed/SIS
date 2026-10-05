@@ -51,8 +51,6 @@ trait ValidatesApplicationPeriodAcademicYear
         return [
             'academic_year_id.required' => 'السنة الدراسية مطلوبة.',
             'academic_year_id.exists' => 'السنة الدراسية غير موجودة.',
-            'school_id.required' => 'المدرسة مطلوبة.',
-            'school_id.in' => 'المدرسة المختارة غير مسموحة.',
         ];
     }
 

@@ -60,6 +60,7 @@ final class OpenApplicationPeriodHandler implements CommandHandler
                 startDate: $command->startDate,
                 endDate: $command->endDate,
                 maxApplications: $command->maxApplications,
+                directorateId: $command->directorateId,
                 status: ApplicationPeriodStatus::Active->value,
             ));
 

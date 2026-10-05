@@ -18,7 +18,7 @@ class ChangeApplicationPeriodStatusHandlerTest extends TestCase
     public function test_changes_status_and_stages_outbox_event(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn($this->periodRow(ApplicationPeriodStatus::Active->value));
+        $admission->method('findPeriod')->willReturn($this->periodRow(ApplicationPeriodStatus::Active->value));
         $admission->expects($this->once())->method('updatePeriodStatus')->with(4, ApplicationPeriodStatus::Archived->value);
 
         $outbox = $this->createMock(OutboxRepository::class);
@@ -39,7 +39,7 @@ class ChangeApplicationPeriodStatusHandlerTest extends TestCase
     public function test_same_status_skips_write(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn($this->periodRow(ApplicationPeriodStatus::Active->value));
+        $admission->method('findPeriod')->willReturn($this->periodRow(ApplicationPeriodStatus::Active->value));
         $admission->expects($this->never())->method('updatePeriodStatus');
 
         $result = $this->handler($admission)->handle(new ChangeApplicationPeriodStatusCommand(
@@ -57,7 +57,7 @@ class ChangeApplicationPeriodStatusHandlerTest extends TestCase
     public function test_rejects_unknown_period(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn(null);
+        $admission->method('findPeriod')->willReturn(null);
 
         $this->expectException(ApplicationPeriodNotFoundException::class);
         $this->handler($admission)->handle(new ChangeApplicationPeriodStatusCommand(

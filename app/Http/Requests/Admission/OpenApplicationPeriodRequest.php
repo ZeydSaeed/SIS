@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Admission;
 
-use App\Security\Context\SchoolContext;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 final class OpenApplicationPeriodRequest extends FormRequest
 {
-    use ValidatesApplicationPeriodAcademicYear;
+    use ValidatesApplicationDirectorate;
+    use ValidatesApplicationPeriodAcademicYear {
+        messages as academicYearMessages;
+    }
 
     public function authorize(): bool
     {
@@ -20,16 +21,24 @@ final class OpenApplicationPeriodRequest extends FormRequest
      */
     public function rules(): array
     {
-        $schoolId = app(SchoolContext::class)->id();
-
         return [
-            // The X-School-Id header already switched the context to an allowed school; the field must agree with it.
-            'school_id' => ['required', 'integer', Rule::in($schoolId === null ? [] : [$schoolId])],
+            // Periods belong to the academic year and are shared by every school.
+            'school_id' => ['prohibited'],
             'academic_year_id' => $this->academicYearIdRule(),
+            // The period belongs to the year and a directorate; only its schools apply in it.
+            'directorate_id' => $this->applicationDirectorateRule(),
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'max_applications' => ['nullable', 'integer', 'min:1'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return array_merge($this->academicYearMessages(), $this->applicationDirectorateMessages());
     }
 }

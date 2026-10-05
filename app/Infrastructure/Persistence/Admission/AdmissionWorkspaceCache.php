@@ -20,6 +20,7 @@ final class AdmissionWorkspaceCache
 
     /**
      * @template T
+     *
      * @param  callable(): T  $resolver
      * @return T
      */
@@ -30,6 +31,7 @@ final class AdmissionWorkspaceCache
 
     /**
      * @template T
+     *
      * @param  callable(): T  $resolver
      * @return T
      */
@@ -44,6 +46,7 @@ final class AdmissionWorkspaceCache
 
     /**
      * @template T
+     *
      * @param  callable(): T  $resolver
      * @return T
      */
@@ -58,6 +61,7 @@ final class AdmissionWorkspaceCache
 
     /**
      * @template T
+     *
      * @param  callable(): T  $resolver
      * @return T
      */
@@ -72,6 +76,7 @@ final class AdmissionWorkspaceCache
 
     /**
      * @template T
+     *
      * @param  callable(): T  $resolver
      * @return T
      */
@@ -102,6 +107,12 @@ final class AdmissionWorkspaceCache
         Cache::forget($this->periodCountsKey($schoolId, $academicYearId));
     }
 
+    /** Periods are shared by all schools in the academic year. */
+    public function forgetPeriods(int $academicYearId): void
+    {
+        Cache::forget($this->periodsKey(0, $academicYearId));
+    }
+
     public function forgetSchoolRefs(int $schoolId): void
     {
         Cache::forget("admission:refs:{$schoolId}");
@@ -109,18 +120,24 @@ final class AdmissionWorkspaceCache
 
     public function forgetForPeriodId(int $periodId): void
     {
-        $row = DB::table(SchemaHelper::qualified('admission', 'application_periods'))
+        $yearId = DB::table(SchemaHelper::qualified('admission', 'application_periods'))
             ->where('id', $periodId)
-            ->first(['school_id', 'academic_year_id']);
+            ->value('academic_year_id');
 
-        if ($row === null) {
+        if ($yearId === null) {
             return;
         }
 
-        $schoolId = (int) $row->school_id;
-        $yearId = (int) $row->academic_year_id;
-        $this->forgetSchoolYear($schoolId, $yearId);
-        $this->forgetStatusForPeriod($schoolId, $yearId, $periodId);
+        // Counts are per school: clear them for every school with applications in the period.
+        $this->forgetPeriods((int) $yearId);
+        $schoolIds = DB::table(SchemaHelper::qualified('admission', 'applications'))
+            ->where('application_period_id', $periodId)
+            ->distinct()
+            ->pluck('school_id');
+        foreach ($schoolIds as $schoolId) {
+            $this->forgetSchoolYear((int) $schoolId, (int) $yearId);
+            $this->forgetStatusForPeriod((int) $schoolId, (int) $yearId, $periodId);
+        }
     }
 
     public function forgetForApplicationId(int $applicationId): void
@@ -134,7 +151,7 @@ final class AdmissionWorkspaceCache
             )
             ->where('apps.id', $applicationId)
             ->first([
-                'periods.school_id',
+                'apps.school_id',
                 'periods.academic_year_id',
                 'apps.application_period_id',
             ]);
@@ -152,7 +169,9 @@ final class AdmissionWorkspaceCache
 
     private function periodsKey(int $schoolId, int $academicYearId): string
     {
-        return "admission:periods:{$schoolId}:{$academicYearId}";
+        unset($schoolId);
+
+        return "admission:periods:{$academicYearId}";
     }
 
     private function periodCountsKey(int $schoolId, int $academicYearId): string

@@ -1,9 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import {
-    ADMISSION_BRANCH_OPTIONS,
-    departmentsForBranch,
-} from '@/components/admission/admission-branch-catalog';
 import AppLogo from '@/components/app-logo';
 import { OpsTextInput } from '@/components/sis/ops-form-field';
 import {
@@ -22,6 +18,7 @@ import {
 import { WindowControls } from '@/components/window-controls';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
+import { dispatchAdmissionSchoolSelected } from '@/lib/organization-registry-event';
 import { sisClassLabel, sisClassSelectOptions } from '@/lib/sis-class-section-options';
 import { t } from '@/i18n';
 
@@ -29,12 +26,16 @@ export type DraftPeriodOption = {
     id: number;
     name: string;
     status: number;
-    school_id?: number;
+    /** Only this directorate's schools apply in the period (null = every school). */
+    directorate_id?: number | null;
 };
 
 export type DraftSchoolOption = {
     id: number;
     name: string;
+    directorate_id?: number;
+    /** School → branches (الفرع) → departments (الاختصاص), from the database. */
+    branches?: { id: number; name: string; departments: { id: number; name: string }[] }[];
 };
 
 export type DraftNamedOption = {
@@ -48,7 +49,10 @@ type Props = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     periods: DraftPeriodOption[];
+    /** Schools the application may be filed in (the user's active linked schools). */
     schools: DraftSchoolOption[];
+    /** Pre-selected school (current school context). */
+    defaultSchoolId?: number | null;
     gradeLevels: DraftNamedOption[];
     branches: DraftNamedOption[];
     departments: DraftNamedOption[];
@@ -150,6 +154,7 @@ export function AdmissionApplicationDraftDialog({
     onOpenChange,
     periods,
     schools,
+    defaultSchoolId = null,
     gradeLevels,
     branches,
     departments: _departments,
@@ -166,7 +171,9 @@ export function AdmissionApplicationDraftDialog({
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
 
     const isCreateStudent = mode === 'createStudent';
-    const isAcademicTransfer = mode === 'academicTransfer';
+    const initialRequestKind = mode === 'academicTransfer' ? '1' : '2';
+    const [requestKind, setRequestKind] = useState<string>(initialRequestKind);
+    const isAcademicTransfer = requestKind === '1';
     const formAction = isCreateStudent
         ? '/admission/applications/register-student'
         : '/admission/applications';
@@ -183,19 +190,26 @@ export function AdmissionApplicationDraftDialog({
         () => periods.filter((period) => period.status === 1),
         [periods],
     );
-    const defaultPeriodId = activePeriods[0]?.id ?? '';
-    const schoolIdForPeriod = (periodKey: string): string => {
-        const period = periods.find((item) => String(item.id) === periodKey);
-        if (period?.school_id != null && period.school_id > 0) {
-            return String(period.school_id);
+    /** Open period for the school: its directorate's period first, else a legacy shared one. */
+    const periodForSchool = (schoolKey: string): string => {
+        const directorateId = schools.find((school) => String(school.id) === schoolKey)?.directorate_id ?? null;
+        const own = activePeriods.find(
+            (period) => directorateId !== null && (period.directorate_id ?? null) === directorateId,
+        );
+        const shared = activePeriods.find((period) => (period.directorate_id ?? null) === null);
+
+        return String((own ?? shared)?.id ?? '');
+    };
+    const initialSchoolId = (): string => {
+        if (defaultSchoolId !== null && schools.some((school) => school.id === defaultSchoolId)) {
+            return String(defaultSchoolId);
         }
 
         return String(schools[0]?.id ?? '');
     };
-    const defaultSchoolId = schoolIdForPeriod(String(defaultPeriodId));
 
-    const [periodId, setPeriodId] = useState<string>(String(defaultPeriodId));
-    const [schoolId, setSchoolId] = useState(defaultSchoolId);
+    const [schoolId, setSchoolId] = useState(initialSchoolId);
+    const [periodId, setPeriodId] = useState<string>(() => periodForSchool(initialSchoolId()));
     const [branchName, setBranchName] = useState('');
     const [departmentName, setDepartmentName] = useState('');
     const [classKey, setClassKey] = useState('');
@@ -249,21 +263,48 @@ export function AdmissionApplicationDraftDialog({
         ],
     );
 
-    const branchOptions = useMemo(
+    const schoolOptions = useMemo(
         (): DraftSelectOption[] =>
-            ADMISSION_BRANCH_OPTIONS.map((name) => ({ value: name, label: name })),
-        [],
+            schools.map((school) => ({ value: String(school.id), label: school.name })),
+        [schools],
     );
 
-    const departmentOptions = useMemo(
-        (): DraftSelectOption[] =>
-            departmentsForBranch(branchName).map((name) => ({ value: name, label: name })),
-        [branchName],
+    const requestKindOptions = useMemo(
+        (): DraftSelectOption[] => [
+            { value: '2', label: i18n.admission.requestTypeVocational },
+            { value: '1', label: i18n.admission.requestTypeAcademicTransfer },
+        ],
+        [i18n.admission.requestTypeAcademicTransfer, i18n.admission.requestTypeVocational],
     );
+
+    /** Branches of the selected school, and the departments of the selected branch — from the database only. */
+    const schoolBranches = useMemo(
+        () => schools.find((school) => String(school.id) === schoolId)?.branches ?? [],
+        [schoolId, schools],
+    );
+
+    const branchOptions = useMemo(
+        (): DraftSelectOption[] => schoolBranches.map((branch) => ({ value: branch.name, label: branch.name })),
+        [schoolBranches],
+    );
+
+    const departmentOptions = useMemo((): DraftSelectOption[] => {
+        const branch = schoolBranches.find((item) => item.name === branchName);
+
+        return (branch?.departments ?? []).map((department) => ({
+            value: department.name,
+            label: department.name,
+        }));
+    }, [branchName, schoolBranches]);
 
     const matchedBranchId = useMemo(() => {
         if (branchName === '') {
             return '';
+        }
+
+        const ownBranch = schoolBranches.find((branch) => branch.name === branchName);
+        if (ownBranch !== undefined) {
+            return String(ownBranch.id);
         }
 
         const exact = branches.find((branch) => branch.name.trim() === branchName.trim());
@@ -285,7 +326,7 @@ export function AdmissionApplicationDraftDialog({
         });
 
         return loose !== undefined ? String(loose.id) : '';
-    }, [branchName, branches]);
+    }, [branchName, branches, schoolBranches]);
 
     const classOptions = useMemo((): DraftSelectOption[] => sisClassSelectOptions(), []);
 
@@ -315,9 +356,10 @@ export function AdmissionApplicationDraftDialog({
             return;
         }
 
-        const nextPeriodId = String(activePeriods[0]?.id ?? '');
-        setPeriodId(nextPeriodId);
-        setSchoolId(schoolIdForPeriod(nextPeriodId));
+        const nextSchoolId = initialSchoolId();
+        setSchoolId(nextSchoolId);
+        setPeriodId(periodForSchool(nextSchoolId));
+        setRequestKind(initialRequestKind);
         setBranchName('');
         setDepartmentName('');
         setClassKey('');
@@ -404,11 +446,6 @@ export function AdmissionApplicationDraftDialog({
                                     <input type="hidden" name="academic_year_id" value={academicYearId} />
                                 ) : null}
                                 <input type="hidden" name="application_period_id" value={periodId} />
-                                <input
-                                    type="hidden"
-                                    name="request_kind"
-                                    value={isAcademicTransfer ? '1' : '2'}
-                                />
 
                                 <header className="sis-admission-sheet__hero" {...(maximized ? {} : heroDragProps)}>
                                     <WindowControls
@@ -433,9 +470,6 @@ export function AdmissionApplicationDraftDialog({
                                 </header>
 
                                 <SheetSection title={i18n.admission.sheetRegistrationInfo} tone="accent">
-                                    {schoolId !== '' ? (
-                                        <input type="hidden" name="target_school_id" value={schoolId} />
-                                    ) : null}
                                     <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                                         <div className="sis-admission-sheet__field">
                                             <span className="sis-admission-sheet__label">
@@ -448,18 +482,27 @@ export function AdmissionApplicationDraftDialog({
                                                 {academicYearDisplay}
                                             </div>
                                         </div>
-                                        <div className="sis-admission-sheet__field">
-                                            <span className="sis-admission-sheet__label">
-                                                {i18n.students.schoolName}
-                                            </span>
-                                            <div
-                                                className="sis-admission-sheet__control sis-admission-draft-field--filled"
-                                                aria-readonly="true"
-                                            >
-                                                {schools.find((school) => String(school.id) === schoolId)?.name
-                                                    ?? '—'}
-                                            </div>
-                                        </div>
+                                        <SheetField
+                                            label={i18n.students.schoolName}
+                                            name="target_school_id"
+                                            error={errors.target_school_id}
+                                        >
+                                            <DraftSheetSelect
+                                                name="target_school_id"
+                                                required
+                                                value={schoolId}
+                                                allowEmpty
+                                                options={schoolOptions}
+                                                onChange={(next) => {
+                                                    setSchoolId(next);
+                                                    setPeriodId(periodForSchool(next));
+                                                    setBranchName('');
+                                                    setDepartmentName('');
+                                                    dispatchAdmissionSchoolSelected(next === '' ? null : Number(next));
+                                                }}
+                                                ariaLabel={i18n.students.schoolName}
+                                            />
+                                        </SheetField>
                                         <SheetField
                                             label={i18n.admission.branch}
                                             name="branch_name"
@@ -498,16 +541,17 @@ export function AdmissionApplicationDraftDialog({
                                         </SheetField>
                                         <SheetField
                                             label={i18n.admission.requestTypeTitle}
-                                            name="request_kind_display"
+                                            name="request_kind"
+                                            error={errors.request_kind}
                                         >
-                                            <div
-                                                className="sis-admission-sheet__control sis-admission-draft-field--filled"
-                                                aria-readonly="true"
-                                            >
-                                                {isAcademicTransfer
-                                                    ? i18n.admission.requestTypeAcademicTransfer
-                                                    : i18n.admission.requestTypeVocational}
-                                            </div>
+                                            <DraftSheetSelect
+                                                name="request_kind"
+                                                required
+                                                value={requestKind}
+                                                options={requestKindOptions}
+                                                onChange={setRequestKind}
+                                                ariaLabel={i18n.admission.requestTypeTitle}
+                                            />
                                         </SheetField>
                                     </div>
                                     <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-admission-sheet__row--after-gap">
@@ -1035,7 +1079,7 @@ export function AdmissionApplicationDraftDialog({
                                     >
                                         {i18n.dialog.cancel}
                                     </Button>
-                                    <Button type="submit" disabled={processing || schools.length === 0}>
+                                    <Button type="submit" disabled={processing || schools.length === 0 || periodId === ''}>
                                         {submitLabel}
                                     </Button>
                                 </div>

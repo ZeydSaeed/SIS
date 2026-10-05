@@ -80,6 +80,7 @@ final class AdmissionConvertWorkflowUiTest extends TestCase
     ): int {
         return (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
             'application_period_id' => $periodId,
+            'school_id' => $schoolId,
             'application_number' => $number,
             'first_name' => 'Hassan',
             'father_name' => 'Ali',

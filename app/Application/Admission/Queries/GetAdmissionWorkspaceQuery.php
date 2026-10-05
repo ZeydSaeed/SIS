@@ -17,5 +17,7 @@ final readonly class GetAdmissionWorkspaceQuery implements Query
         public ?string $search = null,
         public ?string $enrollmentStatus = null,
         public bool $includeAcceptedStudents = false,
+        /** Schools the user is linked to — choices for the application's school. */
+        public array $allowedSchoolIds = [],
     ) {}
 }

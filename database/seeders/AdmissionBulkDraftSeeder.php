@@ -379,6 +379,7 @@ class AdmissionBulkDraftSeeder extends Seeder
     ): int {
         return (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
             'application_period_id' => $periodId,
+            'school_id' => $schoolId,
             'application_number' => $number,
             'first_name' => $applicant['first_name'],
             'father_name' => $applicant['father_name'],

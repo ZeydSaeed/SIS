@@ -567,7 +567,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                         ->from($applicationsTable)
                         ->join($periodsTable, $periodsTable.'.id', '=', $applicationsTable.'.application_period_id')
                         ->whereColumn($applicationsTable.'.student_id', $studentsTable.'.id')
-                        ->where($periodsTable.'.school_id', $schoolId)
+                        ->where($applicationsTable.'.school_id', $schoolId)
                         ->where($periodsTable.'.academic_year_id', $academicYearId);
                 });
         });

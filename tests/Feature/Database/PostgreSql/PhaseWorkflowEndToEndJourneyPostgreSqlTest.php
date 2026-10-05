@@ -160,6 +160,7 @@ final class PhaseWorkflowEndToEndJourneyPostgreSqlTest extends PostgreSqlIntegra
 
         return (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
             'application_period_id' => $periodId,
+            'school_id' => $schoolId,
             'application_number' => 'APP-E2E-1',
             'first_name' => 'Hassan',
             'father_name' => 'Ali',

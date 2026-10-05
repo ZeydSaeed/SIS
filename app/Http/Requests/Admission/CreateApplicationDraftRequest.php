@@ -6,6 +6,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 final class CreateApplicationDraftRequest extends FormRequest
 {
+    use ValidatesApplicationPlacement;
+    use ValidatesApplicationSchool;
+
     public function authorize(): bool
     {
         return $this->user()?->can('manageAdmission') ?? false;
@@ -29,9 +32,9 @@ final class CreateApplicationDraftRequest extends FormRequest
             'birth_date' => ['required', 'date'],
             'birth_place' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'integer', 'in:1,2'],
-            'target_school_id' => ['required', 'integer', 'min:1'],
+            'target_school_id' => $this->applicationSchoolRule(),
             'intended_grade_name' => ['required', 'string', 'max:100'],
-            'request_kind' => ['nullable', 'integer', 'in:1,2'],
+            'request_kind' => ['required', 'integer', 'in:1,2'],
             'grade_level_id' => ['nullable', 'integer', 'min:1'],
             'branch_id' => ['nullable', 'integer', 'min:1'],
             'branch_name' => ['required', 'string', 'max:100'],
@@ -54,5 +57,13 @@ final class CreateApplicationDraftRequest extends FormRequest
             'previous_study_track' => ['nullable', 'integer', 'in:1,2,3,4,5,6'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->applicationSchoolMessages();
     }
 }

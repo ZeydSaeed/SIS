@@ -609,6 +609,12 @@ trait InteractsWithSecurity
         ]);
     }
 
+    /** The directorate (المديرية) a school belongs to. */
+    protected function directorateOfSchool(int $schoolId): int
+    {
+        return (int) DB::table(SchemaHelper::qualified('organization', 'schools'))->where('id', $schoolId)->value('directorate_id');
+    }
+
     /** Grade level with a class label as its name (الأول، الثاني، ...), created on first use. */
     protected function gradeLevelNamed(string $name): int
     {

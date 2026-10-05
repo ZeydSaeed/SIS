@@ -15,5 +15,7 @@ final readonly class OpenApplicationPeriodCommand implements Command
         public ?string $endDate,
         public ?int $maxApplications = null,
         public ?string $idempotencyKey = null,
+        /** المديرية: only its schools file applications in the period. */
+        public ?int $directorateId = null,
     ) {}
 }

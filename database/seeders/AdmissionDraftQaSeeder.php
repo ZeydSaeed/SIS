@@ -270,6 +270,7 @@ class AdmissionDraftQaSeeder extends Seeder
     ): int {
         $payload = [
             'application_period_id' => $periodId,
+            'school_id' => $schoolId,
             'first_name' => $applicant['first_name'],
             'father_name' => $applicant['father_name'],
             'grandfather_name' => $applicant['grandfather_name'],

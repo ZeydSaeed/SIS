@@ -39,15 +39,6 @@ final class OpsModulePageController extends Controller
         );
     }
 
-    public function transfers(): Response
-    {
-        return $this->shell(
-            'transfers',
-            'النقل',
-            'طلبات وسجلات النقل بين المدارس — مخطط transfers (API جاهز).',
-        );
-    }
-
     public function graduation(): Response
     {
         return $this->shell(

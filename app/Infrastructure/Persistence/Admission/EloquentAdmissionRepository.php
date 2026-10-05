@@ -6,6 +6,7 @@ use App\Database\SchemaHelper;
 use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
+use App\Domain\Admission\Data\TransferApplicationData;
 use App\Domain\Admission\Data\UpdateApplicationDraftData;
 use App\Domain\Admission\Data\UpdateApplicationFollowUpData;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
@@ -23,7 +24,9 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
     {
         $id = (int) DB::table(SchemaHelper::qualified('admission', 'application_periods'))->insertGetId([
             'academic_year_id' => $data->academicYearId,
-            'school_id' => $data->schoolId,
+            // Periods are shared by the directorate's schools in the academic year.
+            'school_id' => null,
+            'directorate_id' => $data->directorateId,
             'name' => $data->name,
             'start_date' => $data->startDate,
             'end_date' => $data->endDate,
@@ -31,7 +34,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'status' => $data->status,
             'created_at' => now(),
         ]);
-        $this->workspaceCache->forgetSchoolYear($data->schoolId, $data->academicYearId);
+        $this->workspaceCache->forgetPeriods($data->academicYearId);
 
         return $id;
     }
@@ -42,6 +45,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
 
         $id = (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
             'application_period_id' => $data->applicationPeriodId,
+            'school_id' => $data->targetSchoolId,
             'application_number' => $data->applicationNumber,
             'first_name' => $data->firstName,
             'father_name' => $data->fatherName,
@@ -101,7 +105,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 '=',
                 'apps.application_period_id',
             )
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->where('periods.academic_year_id', $academicYearId)
             ->where('apps.application_number', 'like', $prefix.'%')
             ->orderByDesc('apps.id')
@@ -115,15 +119,14 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         return $prefix.str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }
 
-    public function findPeriodForSchool(int $periodId, int $schoolId): ?array
+    public function findPeriod(int $periodId): ?array
     {
         $row = DB::table(SchemaHelper::qualified('admission', 'application_periods'))
             ->where('id', $periodId)
-            ->where('school_id', $schoolId)
             ->first([
                 'id',
-                'school_id',
                 'academic_year_id',
+                'directorate_id',
                 'name',
                 'status',
                 'start_date',
@@ -137,8 +140,8 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
 
         return [
             'id' => (int) $row->id,
-            'school_id' => (int) $row->school_id,
             'academic_year_id' => (int) $row->academic_year_id,
+            'directorate_id' => $row->directorate_id !== null ? (int) $row->directorate_id : null,
             'name' => (string) $row->name,
             'status' => (int) $row->status,
             'start_date' => (string) $row->start_date,
@@ -147,11 +150,18 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         ];
     }
 
+    public function schoolDirectorateId(int $schoolId): ?int
+    {
+        $id = DB::table(SchemaHelper::qualified('organization', 'schools'))->where('id', $schoolId)->value('directorate_id');
+
+        return $id !== null ? (int) $id : null;
+    }
+
     public function updatePeriod(UpdateApplicationPeriodData $data): void
     {
         $existing = DB::table(SchemaHelper::qualified('admission', 'application_periods'))
             ->where('id', $data->periodId)
-            ->first(['school_id', 'academic_year_id']);
+            ->first(['academic_year_id']);
 
         DB::table(SchemaHelper::qualified('admission', 'application_periods'))
             ->where('id', $data->periodId)
@@ -164,10 +174,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             ]);
 
         if ($existing !== null) {
-            $this->workspaceCache->forgetSchoolYear(
-                (int) $existing->school_id,
-                (int) $existing->academic_year_id,
-            );
+            $this->workspaceCache->forgetPeriods((int) $existing->academic_year_id);
         }
 
         $this->workspaceCache->forgetForPeriodId($data->periodId);
@@ -183,10 +190,11 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         $this->workspaceCache->forgetForPeriodId($periodId);
     }
 
-    public function countApplicationsInPeriod(int $periodId): int
+    public function countApplicationsInPeriod(int $periodId, int $schoolId): int
     {
         return (int) DB::table(SchemaHelper::qualified('admission', 'applications'))
             ->where('application_period_id', $periodId)
+            ->where('school_id', $schoolId)
             ->count();
     }
 
@@ -206,13 +214,13 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'apps.target_school_id',
             )
             ->join(
-                SchemaHelper::qualified('organization', 'schools').' as period_schools',
-                'period_schools.id',
+                SchemaHelper::qualified('organization', 'schools').' as app_schools',
+                'app_schools.id',
                 '=',
-                'periods.school_id',
+                'apps.school_id',
             )
             ->where('apps.id', $applicationId)
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->first([
                 'apps.id',
                 'apps.application_period_id',
@@ -254,10 +262,10 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'apps.status',
                 'apps.notes',
                 'apps.student_id',
-                'periods.school_id',
+                'apps.school_id',
                 'periods.academic_year_id',
                 'target_schools.name as target_school_name',
-                'period_schools.name as period_school_name',
+                'app_schools.name as app_school_name',
             ]);
 
         if ($row === null) {
@@ -307,7 +315,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'mathematics_grade' => $row->mathematics_grade !== null ? (float) $row->mathematics_grade : null,
             'physics_grade' => $row->physics_grade !== null ? (float) $row->physics_grade : null,
             'request_kind' => (int) ($row->request_kind ?? 2),
-            'school_name' => $this->nullableString($row->target_school_name ?? $row->period_school_name),
+            'school_name' => $this->nullableString($row->app_school_name ?? $row->target_school_name),
             'status' => (int) $row->status,
             'notes' => $this->nullableString($row->notes),
             'student_id' => $row->student_id !== null ? (int) $row->student_id : null,
@@ -377,7 +385,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 '=',
                 'apps.application_period_id',
             )
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->where('apps.status', ApplicationStatus::Accepted->value)
             ->whereNull('apps.student_id')
             ->orderBy('apps.id')
@@ -486,6 +494,50 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'updated_at' => now(),
             ]);
         $this->workspaceCache->forgetForApplicationId($applicationId);
+    }
+
+    public function transferApplication(TransferApplicationData $data): void
+    {
+        $apps = SchemaHelper::qualified('admission', 'applications');
+
+        if (SchemaHelper::isPostgreSql()) {
+            // RLS policy admission_applications_transfer: the moved row may land in this school.
+            // Transaction-local (is_local = true) — cleared on commit/rollback.
+            DB::statement(
+                "SELECT set_config('app.transfer_target_school_id', ?, true)",
+                [(string) $data->toSchoolId],
+            );
+        }
+
+        DB::table($apps)
+            ->where('id', $data->applicationId)
+            ->update([
+                'school_id' => $data->toSchoolId,
+                'target_school_id' => $data->toSchoolId,
+                'request_kind' => $data->toRequestKind,
+                'application_period_id' => $data->toPeriodId,
+                // Placement belongs to the old school's branches — chosen again in the new one.
+                'branch_id' => $data->toSchoolId === $data->fromSchoolId ? DB::raw('branch_id') : null,
+                'updated_at' => now(),
+            ]);
+
+        DB::table(SchemaHelper::qualified('admission', 'application_transfers'))->insert([
+            'application_id' => $data->applicationId,
+            'from_school_id' => $data->fromSchoolId,
+            'to_school_id' => $data->toSchoolId,
+            'from_request_kind' => $data->fromRequestKind,
+            'to_request_kind' => $data->toRequestKind,
+            'from_period_id' => $data->fromPeriodId,
+            'to_period_id' => $data->toPeriodId,
+            'reason' => $data->reason,
+            'transferred_by' => $data->transferredBy,
+            'created_at' => now(),
+        ]);
+
+        $this->workspaceCache->forgetStatusForPeriod($data->fromSchoolId, $data->fromAcademicYearId, $data->fromPeriodId);
+        $this->workspaceCache->forgetSchoolYear($data->fromSchoolId, $data->fromAcademicYearId);
+        $this->workspaceCache->forgetStatusForPeriod($data->toSchoolId, $data->toAcademicYearId, $data->toPeriodId);
+        $this->workspaceCache->forgetSchoolYear($data->toSchoolId, $data->toAcademicYearId);
     }
 
     public function registerDocument(RegisterApplicationDocumentData $data): int

@@ -22,6 +22,7 @@ final readonly class AdmissionWorkspaceDTO
      * @param  array<int, list<int>>  $statusTransitions
      * @param  list<array{id:int, full_name:string, academic_year_name:string, period_name:string, academic_year_id:int, period_id:int, request_kind:int, status:int, notes:?string, rejection_reason:?string, withdrawal_reason:?string}>  $acceptedStudents
      * @param  array<int, array{total:int, submitted:int}>  $periodCounts
+     * @param  list<array<string, mixed>>  $schoolOptions  Schools (→ branches → departments) for a new application.
      */
     public function __construct(
         public array $periods,
@@ -46,6 +47,7 @@ final readonly class AdmissionWorkspaceDTO
         public array $acceptedStudents = [],
         public array $periodCounts = [],
         public bool $acceptedStudentsIncluded = false,
+        public array $schoolOptions = [],
     ) {}
 
     /**
@@ -59,6 +61,7 @@ final readonly class AdmissionWorkspaceDTO
             'documents' => $this->documents,
             'grade_levels' => $this->gradeLevels,
             'schools' => $this->schools,
+            'school_options' => $this->schoolOptions,
             'branches' => $this->branches,
             'departments' => $this->departments,
             'specializations' => $this->specializations,

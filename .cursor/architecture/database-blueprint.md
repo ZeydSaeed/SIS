@@ -1,11 +1,11 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
-> **Target:** **95** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
+> **Target:** **96** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -463,17 +463,20 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | academic_year_id | BIGINT | FK → academic_years |
-| school_id | BIGINT | FK → schools |
+| school_id | BIGINT | FK → schools, **nullable — legacy; NULL for all periods since 2026-10-06** (periods are shared by every school in the academic year) |
+| directorate_id | BIGINT | FK → organization.directorates, nullable, restrict — **المديرية** (2026-10-06): only the directorate's schools file applications in the period; required for new periods, fixed after creation; NULL = legacy period shared by every school |
 | name | VARCHAR(255) | NOT NULL |
 | start_date | TIMESTAMPTZ | NOT NULL |
 | end_date | TIMESTAMPTZ | NULL — open-ended period when NULL (2026-10-05) |
-| max_applications | INTEGER | nullable; CHECK NULL OR > 0 |
+| max_applications | INTEGER | nullable; CHECK NULL OR > 0 — capacity **per school** in the shared period (2026-10-06) |
 | status | SMALLINT | NOT NULL DEFAULT 1; CHECK IN (0,1,2) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(academic_year_id, school_id)`, `BTREE(school_id, academic_year_id, status)` — Active-period stage filter
+**Indexes:** `BTREE(academic_year_id, school_id)`, `BTREE(school_id, academic_year_id, status)` (legacy), `BTREE(academic_year_id, status)` — shared period list per year
 
-**RLS:** Fail-closed on `school_id` (Phase 2).
+**RLS (2026-10-06):** `admission_periods_context` — readable/writable inside **any** school context; fail-closed without one. Periods belong to the academic year, not a school.
+
+**Directorate (2026-10-06, migration `2026_10_06_120000`):** backfilled from the single directorate of a period's applications' schools (or the only active directorate for a period without applications). Enforced in `CreateApplicationDraftGuard` / `TransferApplicationGuard` (`admission.period_directorate_mismatch`); a period's directorate must be one of the user's schools' active directorates (`ValidatesApplicationDirectorate`). No index — periods are listed per year (`academic_year_id, status`) and filtered by the user's directorates in memory. Applications: the branch must belong to the chosen school and the department to that branch (`ValidatesApplicationPlacement`).
 
 **CHECK:** `end_date >= start_date` (passes when end_date IS NULL)
 
@@ -483,6 +486,7 @@
 |--------|------|-------------|
 | id | BIGINT | PK |
 | application_period_id | BIGINT | FK → application_periods |
+| school_id | BIGINT | FK → organization.schools, **NOT NULL** (2026-10-06) — tenant: the school chosen on the application |
 | application_number | VARCHAR(50) | UNIQUE NOT NULL |
 | first_name | VARCHAR(100) | NOT NULL — اسم الطالب |
 | father_name | VARCHAR(100) | nullable — اسم الأب (مطلوب عند الإنشاء) |
@@ -496,7 +500,7 @@
 | birth_date | DATE | NOT NULL — التولد |
 | birth_place | VARCHAR(255) | nullable — محل الولادة |
 | gender | SMALLINT | NOT NULL; CHECK IN (1, 2) |
-| target_school_id | BIGINT | FK → organization.schools, nullable — المدرسة المراد التقديم عليها |
+| target_school_id | BIGINT | FK → organization.schools, nullable — mirror of `school_id` (kept for existing readers) |
 | branch_id | BIGINT | FK → organization.branches, nullable — الفرع (عند الربط بالمؤسسة) |
 | branch_name | VARCHAR(100) | nullable — اسم الفرع من قائمة القبول الثابتة |
 | grade_level_id | SMALLINT | FK → grade_levels, **nullable** (قائمة المراحل لاحقاً) |
@@ -533,7 +537,31 @@
 
 **Identity rule:** Applicant PII lives on the application until conversion. Do **not** create `admission.students`. Waitlist = status 5; interviews/status_history tables deferred (not in 87 SSOT).
 
-**RLS:** Fail-closed via parent `application_periods.school_id` (Phase 2).
+**Indexes (2026-10-06):** `BTREE(school_id, application_period_id, status)` — per-school stage lists in shared periods.
+
+**RLS (2026-10-06):** `admission_applications_school_isolation` — `school_id = app.current_school_id` (fail-closed). `admission_applications_transfer` (FOR UPDATE) — row visible in the source school; the new row must equal transaction-local `app.transfer_target_school_id` (set only by the transfer handler after authorization). School, request kind and period (academic year) change **only** through the transfers page (`/transfers`).
+
+### `admission.application_transfers` (2026-10-06)
+
+History of moves made on the transfers page (append-only — UPDATE/DELETE rejected by trigger).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| application_id | BIGINT | FK → applications |
+| from_school_id | BIGINT | FK → organization.schools |
+| to_school_id | BIGINT | FK → organization.schools |
+| from_request_kind | SMALLINT | NOT NULL; CHECK IN (1, 2) |
+| to_request_kind | SMALLINT | NOT NULL; CHECK IN (1, 2) |
+| from_period_id | BIGINT | FK → application_periods |
+| to_period_id | BIGINT | FK → application_periods |
+| reason | TEXT | nullable |
+| transferred_by | BIGINT | FK → public.users, nullable (SET NULL) |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
+
+**Indexes:** `BTREE(application_id)`
+**Checks:** at least one of school / request kind / period changes.
+**RLS:** FORCE — `app.current_school_id IN (from_school_id, to_school_id)`.
 
 ### `admission.application_documents`
 
@@ -549,7 +577,7 @@
 
 **Indexes:** `BTREE(application_id)`
 
-**RLS:** Fail-closed via application → period.school_id (Phase 2).
+**RLS (2026-10-06):** Fail-closed via parent `applications.school_id`.
 
 ---
 

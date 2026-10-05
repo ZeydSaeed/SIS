@@ -2,12 +2,12 @@
 
 namespace App\Application\Admission\Commands;
 
+use App\Application\Admission\Results\ChangeApplicationPeriodStatusResult;
 use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
-use App\Application\Admission\Results\ChangeApplicationPeriodStatusResult;
 use App\Domain\Admission\Events\ApplicationPeriodStatusChanged;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
@@ -44,7 +44,7 @@ final class ChangeApplicationPeriodStatusHandler implements CommandHandler
             throw new \DomainException('Application period status must be 0, 1, or 2.');
         }
 
-        $period = $this->admission->findPeriodForSchool($command->periodId, $command->schoolId);
+        $period = $this->admission->findPeriod($command->periodId);
         if ($period === null || $period['academic_year_id'] !== $command->academicYearId) {
             throw ApplicationPeriodNotFoundException::forId($command->periodId);
         }

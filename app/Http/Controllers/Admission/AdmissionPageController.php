@@ -18,14 +18,15 @@ use App\Application\Admission\Commands\RegisterStudentViaAdmissionCommand;
 use App\Application\Admission\Commands\RegisterStudentViaAdmissionHandler;
 use App\Application\Admission\Commands\TransitionApplicationStatusCommand;
 use App\Application\Admission\Commands\TransitionApplicationStatusHandler;
-use App\Application\Admission\Commands\UpdateApplicationFollowUpCommand;
-use App\Application\Admission\Commands\UpdateApplicationFollowUpHandler;
 use App\Application\Admission\Commands\UpdateApplicationDraftCommand;
 use App\Application\Admission\Commands\UpdateApplicationDraftHandler;
+use App\Application\Admission\Commands\UpdateApplicationFollowUpCommand;
+use App\Application\Admission\Commands\UpdateApplicationFollowUpHandler;
 use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
 use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
+use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Organization\Queries\ListDirectorateRegistryHandler;
 use App\Application\Organization\Queries\ListDirectorateRegistryQuery;
 use App\Application\Organization\Queries\ListSchoolRegistryHandler;
@@ -46,11 +47,11 @@ use App\Http\Requests\Admission\UpdateApplicationDraftRequest;
 use App\Http\Requests\Admission\UpdateApplicationFollowUpRequest;
 use App\Http\Requests\Admission\UpdateApplicationPeriodRequest;
 use App\Http\Support\AcademicYearContextResolver;
-use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
+use App\Security\Context\SchoolContextScope;
 use App\Security\Policies\StudentPolicy;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
@@ -68,6 +69,7 @@ final class AdmissionPageController extends Controller
         private readonly ListSchoolRegistryHandler $schoolRegistry,
         private readonly ListDirectorateRegistryHandler $directorateRegistry,
         private readonly SchoolScopeService $schoolScope,
+        private readonly SchoolContextScope $contextScope,
     ) {}
 
     public function index(Request $request, GetAdmissionWorkspaceHandler $handler): Response
@@ -265,6 +267,7 @@ final class AdmissionPageController extends Controller
             search: $search,
             enrollmentStatus: $enrollmentStatus,
             includeAcceptedStudents: $request->boolean('include_accepted_roster'),
+            allowedSchoolIds: $this->schoolScope->allowedSchoolIds($user),
         ));
 
         $this->securityAudit->record(
@@ -334,6 +337,7 @@ final class AdmissionPageController extends Controller
             endDate: $request->filled('end_date') ? (string) $request->validated('end_date') : null,
             maxApplications: $request->validated('max_applications'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            directorateId: (int) $request->validated('directorate_id'),
         ));
 
         $this->securityAudit->record(
@@ -449,8 +453,9 @@ final class AdmissionPageController extends Controller
         CreateApplicationDraftHandler $handler,
         TransitionApplicationStatusHandler $transitionHandler,
     ): RedirectResponse {
-        $schoolId = $this->schoolContext->requireId();
-        $result = $handler->handle(new CreateApplicationDraftCommand(
+        // The application belongs to the school chosen on the form (validated: linked + active).
+        $schoolId = (int) $request->validated('target_school_id');
+        $result = $this->contextScope->run($schoolId, fn () => $handler->handle(new CreateApplicationDraftCommand(
             schoolId: $schoolId,
             applicationPeriodId: (int) $request->validated('application_period_id'),
             firstName: (string) $request->validated('first_name'),
@@ -513,7 +518,7 @@ final class AdmissionPageController extends Controller
                 : null,
             notes: $request->validated('notes'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
-        ));
+        )));
 
         $this->securityAudit->record(
             SecurityEventType::AdmissionDataModified,
@@ -524,7 +529,7 @@ final class AdmissionPageController extends Controller
         );
 
         // Ribbon has no Draft stage — move new طلب قبول straight to مُرسل.
-        $transitionHandler->handle(new TransitionApplicationStatusCommand(
+        $this->contextScope->run($schoolId, fn () => $transitionHandler->handle(new TransitionApplicationStatusCommand(
             schoolId: $schoolId,
             applicationId: $result->applicationId,
             toStatus: ApplicationStatus::Submitted->value,
@@ -533,7 +538,7 @@ final class AdmissionPageController extends Controller
             idempotencyKey: $request->header('X-Idempotency-Key') !== null
                 ? $request->header('X-Idempotency-Key').':submit'
                 : null,
-        ));
+        )));
 
         $academicYearId = $request->input('academic_year_id')
             ?? $request->query('academic_year_id');
@@ -549,8 +554,9 @@ final class AdmissionPageController extends Controller
         RegisterStudentViaAdmissionRequest $request,
         RegisterStudentViaAdmissionHandler $handler,
     ): RedirectResponse {
-        $schoolId = $this->schoolContext->requireId();
-        $result = $handler->handle(new RegisterStudentViaAdmissionCommand(
+        // Application + student are filed in the school chosen on the form (validated: linked + active).
+        $schoolId = (int) $request->validated('target_school_id');
+        $result = $this->contextScope->run($schoolId, fn () => $handler->handle(new RegisterStudentViaAdmissionCommand(
             schoolId: $schoolId,
             applicationPeriodId: (int) $request->validated('application_period_id'),
             firstName: (string) $request->validated('first_name'),
@@ -614,7 +620,7 @@ final class AdmissionPageController extends Controller
             notes: $request->validated('notes'),
             reviewedBy: $request->user()?->id,
             idempotencyKey: $request->header('X-Idempotency-Key'),
-        ));
+        )));
 
         $this->securityAudit->record(
             SecurityEventType::AdmissionDataModified,

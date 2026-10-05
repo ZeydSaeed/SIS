@@ -42,6 +42,10 @@ type Props = {
     loading?: boolean;
     defaultAcademicYearId?: number | null;
     canManage?: boolean;
+    /** The user's schools — the roster lists the students of each school. */
+    schools?: { id: number; name: string }[];
+    /** Pre-selected school (current school context). */
+    defaultSchoolId?: number | null;
 };
 
 /** 1 = academic→vocational transfer, 2 = vocational school intake */
@@ -287,10 +291,13 @@ export function AdmissionAcceptedStudentsDialog({
     loading = false,
     defaultAcademicYearId = null,
     canManage = false,
+    schools = [],
+    defaultSchoolId = null,
 }: Props) {
     const i18n = t();
     const admission = i18n.admission;
     const { showInertiaErrors } = usePageError();
+    const [schoolId, setSchoolId] = useState<string>('');
     const [yearId, setYearId] = useState<string>('');
     const [periodId, setPeriodId] = useState<string>('');
     const [editing, setEditing] = useState(false);
@@ -333,9 +340,22 @@ export function AdmissionAcceptedStudentsDialog({
                 : (yearOptions[0]?.value ?? '');
         setYearId(preferred);
         setPeriodId('');
+        setSchoolId(
+            defaultSchoolId != null && schools.some((school) => school.id === defaultSchoolId)
+                ? String(defaultSchoolId)
+                : '',
+        );
         setEditing(false);
         setDrafts({});
-    }, [open, defaultAcademicYearId, yearOptions]);
+    }, [open, defaultAcademicYearId, yearOptions, defaultSchoolId, schools]);
+
+    const schoolOptions = useMemo(
+        () => [
+            { value: '', label: admission.allSchools },
+            ...schools.map((school) => ({ value: String(school.id), label: school.name })),
+        ],
+        [schools, admission.allSchools],
+    );
 
     const periodOptions = useMemo(() => {
         const map = new Map<number, string>();
@@ -358,6 +378,9 @@ export function AdmissionAcceptedStudentsDialog({
 
     const filteredByYearPeriod = useMemo(() => {
         return students.filter((student) => {
+            if (schoolId !== '' && student.school_id !== Number(schoolId)) {
+                return false;
+            }
             if (yearId !== '' && student.academic_year_id !== Number(yearId)) {
                 return false;
             }
@@ -367,7 +390,7 @@ export function AdmissionAcceptedStudentsDialog({
 
             return true;
         });
-    }, [students, yearId, periodId]);
+    }, [students, schoolId, yearId, periodId]);
 
     const beginEdit = useCallback(() => {
         const next: Record<number, EditDraft> = {};
@@ -494,6 +517,8 @@ export function AdmissionAcceptedStudentsDialog({
             '/admission/applications/follow-up',
             { updates },
             {
+                // Saved inside the selected school's context (editing needs one school).
+                headers: { 'X-School-Id': schoolId },
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
@@ -511,6 +536,7 @@ export function AdmissionAcceptedStudentsDialog({
         filteredByYearPeriod,
         i18n.errors.saveFailed,
         saving,
+        schoolId,
         showInertiaErrors,
     ]);
 
@@ -729,6 +755,25 @@ export function AdmissionAcceptedStudentsDialog({
 
                     <SheetSection title={admission.sheetAcceptedFilters}>
                         <div className="sis-admission-sheet__row sis-admission-accepted-sheet__filters-row">
+                            <SheetField label={admission.filterBySchool}>
+                                <SisListSelect
+                                    value={schoolId}
+                                    options={schoolOptions}
+                                    onChange={(next) => {
+                                        setSchoolId(next);
+                                        setPeriodId('');
+                                        setEditing(false);
+                                        setDrafts({});
+                                    }}
+                                    dir="rtl"
+                                    ariaLabel={admission.filterBySchool}
+                                    className={`sis-admission-sheet-list-select${schoolId !== '' ? ' sis-admission-draft-field--filled' : ''}`}
+                                    triggerClassName={`sis-admission-sheet__control sis-admission-draft-select${schoolId !== '' ? ' sis-admission-draft-field--filled' : ''}`}
+                                    menuClassName="sis-admission-sheet-list-select__menu"
+                                />
+                            </SheetField>
+                        </div>
+                        <div className="sis-admission-sheet__row sis-admission-accepted-sheet__filters-row">
                             <SheetField label={admission.academicYear}>
                                 <SisListSelect
                                     value={yearId}
@@ -770,7 +815,7 @@ export function AdmissionAcceptedStudentsDialog({
                                 >
                                     <Button
                                         type="button"
-                                        disabled={editing || tableRows.length === 0 || saving}
+                                        disabled={editing || tableRows.length === 0 || saving || schoolId === ''}
                                         onClick={beginEdit}
                                     >
                                         {i18n.common.edit}

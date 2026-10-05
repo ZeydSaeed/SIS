@@ -5,8 +5,11 @@ namespace Tests\Unit\Student;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
+use App\Application\Enrollment\Services\ApplyStudentEnrollmentStatusSync;
 use App\Application\Student\Commands\ChangeStudentStatusesCommand;
 use App\Application\Student\Commands\ChangeStudentStatusesHandler;
+use App\Domain\Enrollment\Repositories\EnrollmentRepositoryInterface;
+use App\Domain\Enrollment\Services\StudentEnrollmentStatusSyncPolicy;
 use App\Domain\Shared\Exceptions\SisDomainException;
 use App\Domain\Student\Entities\Student;
 use App\Domain\Student\Events\StudentStatusChanged;
@@ -87,6 +90,12 @@ class ChangeStudentStatusesHandlerTest extends TestCase
             $students,
             $outbox ?? $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            // Real sync service (final); no operable enrollments → no enrollment writes.
+            new ApplyStudentEnrollmentStatusSync(
+                $this->createMock(EnrollmentRepositoryInterface::class),
+                $students,
+                new StudentEnrollmentStatusSyncPolicy,
+            ),
         );
     }
 }

@@ -29,8 +29,8 @@ final class AdmissionOpenPeriodHttpPostgreSqlTest extends PostgreSqlIntegrationT
 
         $this->withHeader('X-School-Id', (string) $schoolId)
             ->post('/admission/periods', [
-                'school_id' => $schoolId,
                 'academic_year_id' => $yearId,
+                'directorate_id' => $this->directorateOfSchool($schoolId),
                 'name' => 'فترة التقديم الأولى',
                 'start_date' => '2026-09-05 08:00',
                 'end_date' => '2026-10-05 14:00',
@@ -40,7 +40,6 @@ final class AdmissionOpenPeriodHttpPostgreSqlTest extends PostgreSqlIntegrationT
             ->assertRedirect();
 
         $this->assertDatabaseHas(SchemaHelper::qualified('admission', 'application_periods'), [
-            'school_id' => $schoolId,
             'academic_year_id' => $yearId,
             'name' => 'فترة التقديم الأولى',
         ]);
@@ -54,15 +53,15 @@ final class AdmissionOpenPeriodHttpPostgreSqlTest extends PostgreSqlIntegrationT
         $this->actingAsAdmissionManager($schoolId);
 
         $this->post('/admission/periods', [
-            'school_id' => $schoolId,
             'academic_year_id' => $yearId,
+            'directorate_id' => $this->directorateOfSchool($schoolId),
             'name' => 'فترة مفتوحة',
             'start_date' => '2026-09-05 08:00',
             'end_date' => null,
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $periodId = (int) DB::table(SchemaHelper::qualified('admission', 'application_periods'))
-            ->where('school_id', $schoolId)->where('name', 'فترة مفتوحة')->whereNull('end_date')->value('id');
+            ->where('name', 'فترة مفتوحة')->whereNull('end_date')->value('id');
         $this->assertGreaterThan(0, $periodId);
 
         $this->travelTo('2026-12-01 10:00');
@@ -78,7 +77,6 @@ final class AdmissionOpenPeriodHttpPostgreSqlTest extends PostgreSqlIntegrationT
 
         $this->from('/admission')
             ->post('/admission/periods', [
-                'school_id' => $schoolId,
                 'academic_year_id' => 999999,
                 'name' => 'فترة',
                 'start_date' => null,
@@ -90,7 +88,7 @@ final class AdmissionOpenPeriodHttpPostgreSqlTest extends PostgreSqlIntegrationT
     }
 
     #[Test]
-    public function rejects_a_school_other_than_the_request_context(): void
+    public function periods_are_shared_by_every_school_and_take_no_school(): void
     {
         $schoolId = $this->createSchool('SCH-OPS', 'Context School');
         $otherSchoolId = $this->createSchool('SCH-OPO', 'Other School');
@@ -106,6 +104,26 @@ final class AdmissionOpenPeriodHttpPostgreSqlTest extends PostgreSqlIntegrationT
                 'end_date' => '2026-10-05 14:00',
             ])
             ->assertSessionHasErrors(['school_id']);
+
+        $this->post('/admission/periods', [
+            'academic_year_id' => $yearId,
+            'directorate_id' => $this->directorateOfSchool($schoolId),
+            'name' => 'فترة مشتركة',
+            'start_date' => '2026-09-05 08:00',
+            'end_date' => null,
+        ])->assertSessionHasNoErrors();
+
+        $period = DB::table(SchemaHelper::qualified('admission', 'application_periods'))
+            ->where('name', 'فترة مشتركة')->first(['id', 'school_id']);
+        $this->assertNotNull($period);
+        $this->assertNull($period->school_id);
+
+        // The other school's admission page sees the same period.
+        $this->travelTo('2026-12-01 10:00');
+        $this->assertSame(
+            $yearId,
+            app(CreateApplicationDraftGuard::class)->assertOpenPeriod((int) $period->id, $otherSchoolId, 1)['academic_year_id'],
+        );
     }
 
     private function actingAsAdmissionManager(int $schoolId): void

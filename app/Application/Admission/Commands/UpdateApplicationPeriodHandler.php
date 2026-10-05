@@ -46,7 +46,7 @@ final class UpdateApplicationPeriodHandler implements CommandHandler
             throw new DomainException('max_applications must be null or greater than zero.');
         }
 
-        $period = $this->admission->findPeriodForSchool($command->periodId, $command->schoolId);
+        $period = $this->admission->findPeriod($command->periodId);
         if ($period === null) {
             throw ApplicationPeriodNotFoundException::forId($command->periodId);
         }

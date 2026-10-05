@@ -22,7 +22,7 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
     public function test_updates_period_and_stages_outbox_event(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn($this->periodRow());
+        $admission->method('findPeriod')->willReturn($this->periodRow());
         $admission->expects($this->once())
             ->method('updatePeriod')
             ->with($this->callback(fn (UpdateApplicationPeriodData $data): bool => $data->periodId === 4
@@ -53,7 +53,7 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
     public function test_rejects_unknown_period(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn(null);
+        $admission->method('findPeriod')->willReturn(null);
 
         $this->expectException(ApplicationPeriodNotFoundException::class);
         $this->handler($admission)->handle(new UpdateApplicationPeriodCommand(
@@ -84,7 +84,7 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
     public function test_rejects_dates_outside_academic_year(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn($this->periodRow());
+        $admission->method('findPeriod')->willReturn($this->periodRow());
 
         $this->expectException(DomainException::class);
         $this->handler($admission)->handle(new UpdateApplicationPeriodCommand(

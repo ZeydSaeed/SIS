@@ -6,6 +6,8 @@ use App\Application\Admission\Contracts\AdmissionReadRepositoryInterface;
 use App\Database\SchemaHelper;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
+use App\Security\Context\SchoolContextScope;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +22,30 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
 
     public function __construct(
         private readonly AdmissionWorkspaceCache $cache,
+        private readonly SchoolContextScope $schoolScope,
     ) {}
+
+    public function acceptedRoster(array $schoolIds, int $academicYearId): array
+    {
+        if ($schoolIds === []) {
+            return [];
+        }
+
+        $names = DB::table(SchemaHelper::qualified('organization', 'schools'))
+            ->whereIn('id', $schoolIds)
+            ->pluck('name', 'id');
+
+        $roster = [];
+        foreach (array_values(array_unique($schoolIds)) as $schoolId) {
+            // Each school's applications are read inside that school's context (RLS stays fail-closed).
+            $rows = $this->schoolScope->run($schoolId, fn (): array => $this->loadAcceptedStudents($schoolId, $academicYearId, null));
+            foreach ($rows as $row) {
+                $roster[] = $row + ['school_id' => $schoolId, 'school_name' => (string) ($names[$schoolId] ?? '')];
+            }
+        }
+
+        return $roster;
+    }
 
     public function periodShell(int $schoolId, int $academicYearId): array
     {
@@ -36,6 +61,183 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 fn (): array => $this->loadPeriodApplicationCounts($schoolId, $academicYearId),
             ),
         ];
+    }
+
+    public function schoolOptions(array $schoolIds): array
+    {
+        if ($schoolIds === []) {
+            return [];
+        }
+
+        $schools = DB::table(SchemaHelper::qualified('organization', 'schools').' as s')
+            ->join(SchemaHelper::qualified('organization', 'directorates').' as d', 'd.id', '=', 's.directorate_id')
+            ->whereIn('s.id', $schoolIds)
+            ->where('s.status', 1)
+            ->orderBy('s.name')
+            ->get(['s.id', 's.name', 's.directorate_id', 'd.name as directorate_name', 'd.status as directorate_status']);
+        $ids = $schools->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+        if ($ids === []) {
+            return [];
+        }
+
+        $branches = DB::table(SchemaHelper::qualified('organization', 'branches'))
+            ->whereIn('school_id', $ids)
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'school_id', 'name']);
+        $departments = DB::table(SchemaHelper::qualified('organization', 'departments'))
+            ->whereIn('school_id', $ids)
+            ->whereNotNull('branch_id')
+            ->where('status', 1)
+            ->orderBy('name')
+            ->get(['id', 'branch_id', 'name']);
+
+        $departmentsByBranch = [];
+        foreach ($departments as $row) {
+            $departmentsByBranch[(int) $row->branch_id][] = ['id' => (int) $row->id, 'name' => (string) $row->name];
+        }
+        $branchesBySchool = [];
+        foreach ($branches as $row) {
+            $branchesBySchool[(int) $row->school_id][] = [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'departments' => $departmentsByBranch[(int) $row->id] ?? [],
+            ];
+        }
+
+        return $schools->map(static fn ($row): array => [
+            'id' => (int) $row->id,
+            'name' => (string) $row->name,
+            // المديرية → its schools (admission page) and the period's directorate check (new application).
+            'directorate_id' => (int) $row->directorate_id,
+            'directorate_name' => (string) $row->directorate_name,
+            'directorate_active' => (int) $row->directorate_status === 1,
+            'branches' => $branchesBySchool[(int) $row->id] ?? [],
+        ])->values()->all();
+    }
+
+    public function transferableApplications(int $schoolId, ?string $search, int $page, int $perPage): array
+    {
+        $query = DB::table(SchemaHelper::qualified('admission', 'applications').' as apps')
+            ->join(SchemaHelper::qualified('admission', 'application_periods').' as periods', 'periods.id', '=', 'apps.application_period_id')
+            ->join(SchemaHelper::qualified('academic', 'academic_years').' as years', 'years.id', '=', 'periods.academic_year_id')
+            ->join(SchemaHelper::qualified('organization', 'schools').' as schools', 'schools.id', '=', 'apps.school_id')
+            ->where('apps.school_id', $schoolId)
+            ->whereNull('apps.student_id')
+            ->where('apps.status', '<>', ApplicationStatus::Converted->value);
+
+        if ($search !== null && $search !== '') {
+            $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+            $query->where(function ($inner) use ($like): void {
+                $inner->where('apps.application_number', 'ilike', $like)
+                    ->orWhere('apps.first_name', 'ilike', $like)
+                    ->orWhere('apps.father_name', 'ilike', $like)
+                    ->orWhere('apps.last_name', 'ilike', $like);
+            });
+        }
+
+        $total = (clone $query)->count();
+        $rows = $query
+            ->orderByDesc('apps.id')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get([
+                'apps.id',
+                'apps.application_number',
+                'apps.first_name',
+                'apps.father_name',
+                'apps.grandfather_name',
+                'apps.last_name',
+                'apps.request_kind',
+                'apps.status',
+                'apps.school_id',
+                'schools.name as school_name',
+                'periods.id as period_id',
+                'periods.name as period_name',
+                'years.id as academic_year_id',
+                'years.name as academic_year_name',
+            ])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'application_number' => (string) $row->application_number,
+                'full_name' => trim(implode(' ', array_filter([
+                    (string) $row->first_name,
+                    (string) ($row->father_name ?? ''),
+                    (string) ($row->grandfather_name ?? ''),
+                    (string) $row->last_name,
+                ], static fn (string $part): bool => trim($part) !== ''))),
+                'request_kind' => (int) $row->request_kind,
+                'status' => (int) $row->status,
+                'school_id' => (int) $row->school_id,
+                'school_name' => (string) $row->school_name,
+                'period_id' => (int) $row->period_id,
+                'period_name' => (string) $row->period_name,
+                'academic_year_id' => (int) $row->academic_year_id,
+                'academic_year_name' => (string) $row->academic_year_name,
+            ])
+            ->all();
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    public function transferHistory(int $schoolId, int $limit): array
+    {
+        // Only transfer + reference tables: a moved-out application is hidden by RLS in this school.
+        return DB::table(SchemaHelper::qualified('admission', 'application_transfers').' as t')
+            ->join(SchemaHelper::qualified('organization', 'schools').' as from_school', 'from_school.id', '=', 't.from_school_id')
+            ->join(SchemaHelper::qualified('organization', 'schools').' as to_school', 'to_school.id', '=', 't.to_school_id')
+            ->join(SchemaHelper::qualified('admission', 'application_periods').' as from_period', 'from_period.id', '=', 't.from_period_id')
+            ->join(SchemaHelper::qualified('admission', 'application_periods').' as to_period', 'to_period.id', '=', 't.to_period_id')
+            ->leftJoin('users as users', 'users.id', '=', 't.transferred_by')
+            ->where(function ($inner) use ($schoolId): void {
+                $inner->where('t.from_school_id', $schoolId)->orWhere('t.to_school_id', $schoolId);
+            })
+            ->orderByDesc('t.id')
+            ->limit($limit)
+            ->get([
+                't.id',
+                't.application_id',
+                't.from_request_kind',
+                't.to_request_kind',
+                't.reason',
+                't.created_at',
+                'from_school.name as from_school_name',
+                'to_school.name as to_school_name',
+                'from_period.name as from_period_name',
+                'to_period.name as to_period_name',
+                'users.name as transferred_by_name',
+            ])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'application_id' => (int) $row->application_id,
+                'from_school_name' => (string) $row->from_school_name,
+                'to_school_name' => (string) $row->to_school_name,
+                'from_request_kind' => (int) $row->from_request_kind,
+                'to_request_kind' => (int) $row->to_request_kind,
+                'from_period_name' => (string) $row->from_period_name,
+                'to_period_name' => (string) $row->to_period_name,
+                'reason' => $row->reason !== null ? (string) $row->reason : null,
+                'transferred_by_name' => $row->transferred_by_name !== null ? (string) $row->transferred_by_name : null,
+                'created_at' => (string) $row->created_at,
+            ])
+            ->all();
+    }
+
+    public function activePeriodsWithYears(): array
+    {
+        return DB::table(SchemaHelper::qualified('admission', 'application_periods').' as periods')
+            ->join(SchemaHelper::qualified('academic', 'academic_years').' as years', 'years.id', '=', 'periods.academic_year_id')
+            ->where('periods.status', ApplicationPeriodStatus::Active->value)
+            ->orderByDesc('years.start_date')
+            ->orderBy('periods.name')
+            ->get(['periods.id', 'periods.name', 'years.id as academic_year_id', 'years.name as academic_year_name'])
+            ->map(static fn ($row): array => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'academic_year_id' => (int) $row->academic_year_id,
+                'academic_year_name' => (string) $row->academic_year_name,
+            ])
+            ->all();
     }
 
     public function workspace(
@@ -177,7 +379,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         $query = DB::table($apps.' as apps')
             ->join($periods.' as periods', 'periods.id', '=', 'apps.application_period_id')
             ->join($years.' as years', 'years.id', '=', 'periods.academic_year_id')
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->whereIn('apps.status', $rosterStatuses)
             ->select([
                 'apps.id',
@@ -206,32 +408,32 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             ->limit(1000)
             ->get()
             ->map(static function ($row): array {
-            $parts = array_filter([
-                (string) $row->first_name,
-                $row->father_name !== null ? (string) $row->father_name : null,
-                $row->grandfather_name !== null ? (string) $row->grandfather_name : null,
-                $row->great_grandfather_name !== null ? (string) $row->great_grandfather_name : null,
-                (string) $row->last_name,
-            ], static fn (?string $part): bool => $part !== null && trim($part) !== '');
+                $parts = array_filter([
+                    (string) $row->first_name,
+                    $row->father_name !== null ? (string) $row->father_name : null,
+                    $row->grandfather_name !== null ? (string) $row->grandfather_name : null,
+                    $row->great_grandfather_name !== null ? (string) $row->great_grandfather_name : null,
+                    (string) $row->last_name,
+                ], static fn (?string $part): bool => $part !== null && trim($part) !== '');
 
-            $notes = $row->notes !== null ? trim((string) $row->notes) : '';
-            $rejectionReason = $row->rejection_reason !== null ? trim((string) $row->rejection_reason) : '';
-            $withdrawalReason = $row->withdrawal_reason !== null ? trim((string) $row->withdrawal_reason) : '';
+                $notes = $row->notes !== null ? trim((string) $row->notes) : '';
+                $rejectionReason = $row->rejection_reason !== null ? trim((string) $row->rejection_reason) : '';
+                $withdrawalReason = $row->withdrawal_reason !== null ? trim((string) $row->withdrawal_reason) : '';
 
-            return [
-                'id' => (int) $row->id,
-                'full_name' => implode(' ', $parts),
-                'academic_year_id' => (int) $row->academic_year_id,
-                'academic_year_name' => (string) $row->academic_year_name,
-                'period_id' => (int) $row->period_id,
-                'period_name' => (string) $row->period_name,
-                'request_kind' => (int) ($row->request_kind ?? 2),
-                'status' => (int) $row->status,
-                'notes' => $notes !== '' ? $notes : null,
-                'rejection_reason' => $rejectionReason !== '' ? $rejectionReason : null,
-                'withdrawal_reason' => $withdrawalReason !== '' ? $withdrawalReason : null,
-            ];
-        })->all();
+                return [
+                    'id' => (int) $row->id,
+                    'full_name' => implode(' ', $parts),
+                    'academic_year_id' => (int) $row->academic_year_id,
+                    'academic_year_name' => (string) $row->academic_year_name,
+                    'period_id' => (int) $row->period_id,
+                    'period_name' => (string) $row->period_name,
+                    'request_kind' => (int) ($row->request_kind ?? 2),
+                    'status' => (int) $row->status,
+                    'notes' => $notes !== '' ? $notes : null,
+                    'rejection_reason' => $rejectionReason !== '' ? $rejectionReason : null,
+                    'withdrawal_reason' => $withdrawalReason !== '' ? $withdrawalReason : null,
+                ];
+            })->all();
     }
 
     /**
@@ -253,25 +455,30 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
      */
     private function loadPeriods(int $schoolId, int $academicYearId): array
     {
-        return DB::table(SchemaHelper::qualified('admission', 'application_periods'))
-            ->where('school_id', $schoolId)
-            ->where('academic_year_id', $academicYearId)
-            ->orderByDesc('id')
+        unset($schoolId);
+
+        // Shared by the directorate's schools in the academic year (filtered per user by the query handler).
+        return DB::table(SchemaHelper::qualified('admission', 'application_periods').' as p')
+            ->leftJoin(SchemaHelper::qualified('organization', 'directorates').' as d', 'd.id', '=', 'p.directorate_id')
+            ->where('p.academic_year_id', $academicYearId)
+            ->orderByDesc('p.id')
             ->get([
-                'id',
-                'academic_year_id',
-                'school_id',
-                'name',
-                'start_date',
-                'end_date',
-                'max_applications',
-                'status',
-                'created_at',
+                'p.id',
+                'p.academic_year_id',
+                'p.directorate_id',
+                'd.name as directorate_name',
+                'p.name',
+                'p.start_date',
+                'p.end_date',
+                'p.max_applications',
+                'p.status',
+                'p.created_at',
             ])
             ->map(static fn ($row): array => [
                 'id' => (int) $row->id,
                 'academic_year_id' => (int) $row->academic_year_id,
-                'school_id' => (int) $row->school_id,
+                'directorate_id' => $row->directorate_id !== null ? (int) $row->directorate_id : null,
+                'directorate_name' => $row->directorate_name !== null ? (string) $row->directorate_name : null,
                 'name' => (string) $row->name,
                 'start_date' => (string) $row->start_date,
                 'end_date' => $row->end_date !== null ? (string) $row->end_date : null,
@@ -297,7 +504,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 '=',
                 'apps.application_period_id',
             )
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->where('periods.academic_year_id', $academicYearId)
             ->where('periods.status', ApplicationPeriodStatus::Active->value);
 
@@ -337,7 +544,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
      * awaiting = has gaps → UI «متابعة الملف»
      * completed = no gaps → UI «مستوفي»
      *
-     * @param  \Illuminate\Database\Query\Builder  $query
+     * @param  Builder  $query
      */
     private function applyEnrollmentStatusFilter(
         $query,
@@ -586,7 +793,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 '=',
                 'apps.application_period_id',
             )
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->where('periods.academic_year_id', $academicYearId)
             ->groupBy('apps.application_period_id')
             ->select('apps.application_period_id')
@@ -623,7 +830,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 '=',
                 'apps.application_period_id',
             )
-            ->where('periods.school_id', $schoolId)
+            ->where('apps.school_id', $schoolId)
             ->where('periods.academic_year_id', $academicYearId)
             ->where('periods.status', ApplicationPeriodStatus::Active->value);
 

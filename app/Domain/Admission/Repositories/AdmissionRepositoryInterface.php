@@ -5,6 +5,7 @@ namespace App\Domain\Admission\Repositories;
 use App\Domain\Admission\Data\CreateApplicationDraftData;
 use App\Domain\Admission\Data\CreateApplicationPeriodData;
 use App\Domain\Admission\Data\RegisterApplicationDocumentData;
+use App\Domain\Admission\Data\TransferApplicationData;
 use App\Domain\Admission\Data\UpdateApplicationDraftData;
 use App\Domain\Admission\Data\UpdateApplicationFollowUpData;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
@@ -18,10 +19,12 @@ interface AdmissionRepositoryInterface
     public function generateApplicationNumber(int $schoolId, int $academicYearId): string;
 
     /**
+     * Periods are shared by the schools of their directorate (directorate_id NULL = legacy, every school).
+     *
      * @return array{
      *     id:int,
-     *     school_id:int,
      *     academic_year_id:int,
+     *     directorate_id:?int,
      *     name:string,
      *     status:int,
      *     start_date:string,
@@ -29,13 +32,17 @@ interface AdmissionRepositoryInterface
      *     max_applications:?int
      * }|null
      */
-    public function findPeriodForSchool(int $periodId, int $schoolId): ?array;
+    public function findPeriod(int $periodId): ?array;
+
+    /** The directorate (المديرية) a school belongs to. */
+    public function schoolDirectorateId(int $schoolId): ?int;
 
     public function updatePeriod(UpdateApplicationPeriodData $data): void;
 
     public function updatePeriodStatus(int $periodId, int $status): void;
 
-    public function countApplicationsInPeriod(int $periodId): int;
+    /** Applications of one school in a (shared) period — max_applications applies per school. */
+    public function countApplicationsInPeriod(int $periodId, int $schoolId): int;
 
     /**
      * @return array{
@@ -109,4 +116,7 @@ interface AdmissionRepositoryInterface
     public function markConverted(int $applicationId, int $studentId, ?int $reviewedBy): void;
 
     public function registerDocument(RegisterApplicationDocumentData $data): int;
+
+    /** Move the application and append the transfer history row (caller binds the RLS transfer target). */
+    public function transferApplication(TransferApplicationData $data): void;
 }

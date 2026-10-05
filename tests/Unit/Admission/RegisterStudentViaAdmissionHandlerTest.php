@@ -21,7 +21,7 @@ class RegisterStudentViaAdmissionHandlerTest extends TestCase
     public function test_creates_application_student_and_marks_converted(): void
     {
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
-        $admission->method('findPeriodForSchool')->willReturn([
+        $admission->method('findPeriod')->willReturn([
             'id' => 3,
             'school_id' => 9,
             'academic_year_id' => 12,

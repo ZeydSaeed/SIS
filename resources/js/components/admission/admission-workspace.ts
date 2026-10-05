@@ -1,7 +1,19 @@
+export type AdmissionSchoolOption = {
+    id: number;
+    name: string;
+    /** المديرية the school belongs to. */
+    directorate_id: number;
+    directorate_name: string;
+    directorate_active: boolean;
+    branches: { id: number; name: string; departments: { id: number; name: string }[] }[];
+};
+
 export type AdmissionPeriod = {
     id: number;
     academic_year_id: number;
-    school_id: number;
+    /** المديرية whose schools apply in the period (null = legacy period shared by every school). */
+    directorate_id?: number | null;
+    directorate_name?: string | null;
     name: string;
     start_date: string;
     end_date: string | null;
@@ -107,6 +119,9 @@ export type AdmissionAcceptedStudent = {
     notes: string | null;
     rejection_reason: string | null;
     withdrawal_reason: string | null;
+    /** The school whose applicant this is (the roster spans the user's schools). */
+    school_id: number;
+    school_name: string;
 };
 
 export type AdmissionPeriodCounts = Record<number, { total: number; submitted: number }>;
@@ -117,6 +132,8 @@ export type AdmissionWorkspace = {
     documents: AdmissionDocumentRow[];
     grade_levels: AdmissionNamedOption[];
     schools: AdmissionNamedOption[];
+    /** Schools a new application may be filed in → branches → departments (الاختصاص). */
+    school_options?: AdmissionSchoolOption[];
     branches: AdmissionNamedOption[];
     departments: AdmissionNamedOption[];
     specializations: AdmissionNamedOption[];

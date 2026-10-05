@@ -420,7 +420,10 @@ function AdmissionPageShellInner({
                             open={draftOpen}
                             onOpenChange={handleDraftOpenChange}
                             periods={workspace.periods}
-                            schools={workspace.schools}
+                            schools={workspace.school_options ?? []}
+                            defaultSchoolId={
+                                (page.props.schoolContext as { schoolId?: number | null } | undefined)?.schoolId ?? null
+                            }
                             gradeLevels={workspace.grade_levels}
                             branches={workspace.branches ?? []}
                             departments={workspace.departments}
@@ -456,6 +459,10 @@ function AdmissionPageShellInner({
                             loading={acceptedRosterLoading && workspace.accepted_students_included !== true}
                             defaultAcademicYearId={academicYearId}
                             canManage={authorization.can_manage}
+                            schools={workspace.school_options ?? []}
+                            defaultSchoolId={
+                                (page.props.schoolContext as { schoolId?: number | null } | undefined)?.schoolId ?? null
+                            }
                         />
                     </Suspense>
                 ) : null}

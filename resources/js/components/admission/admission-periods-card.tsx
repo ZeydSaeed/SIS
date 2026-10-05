@@ -36,6 +36,7 @@ import {
     admissionQueryMatches,
     admissionSearchSegments,
 } from '@/components/admission/admission-workspace';
+import type { AdmissionSchoolOption } from '@/components/admission/admission-workspace';
 import { t } from '@/i18n';
 import { dispatchAdmissionSchoolSelected } from '@/lib/organization-registry-event';
 
@@ -43,6 +44,9 @@ export type AdmissionPeriodRow = {
     id: number;
     academic_year_id: number;
     school_id?: number;
+    /** المديرية (fixed at creation); null = legacy period shared by every school. */
+    directorate_id?: number | null;
+    directorate_name?: string | null;
     name: string;
     start_date: string;
     end_date: string | null;
@@ -80,6 +84,8 @@ type Props = {
     periodCounts?: Record<number, { total: number; submitted: number }>;
     academicYearId: number | null;
     canManage: boolean;
+    /** The user's schools with their directorate (المديرية → المدارس). */
+    schoolOptions?: AdmissionSchoolOption[];
 };
 
 function periodStatusLabel(status: number): string {
@@ -271,6 +277,9 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                 <span dir="ltr">{serial}</span>
             </td>
             <td className="sis-admission-periods-table__year">
+                <span>{period.directorate_name ?? i18n.allDirectorates}</span>
+            </td>
+            <td className="sis-admission-periods-table__year">
                 {editing ? (
                     <SisListSelect
                         value={String(academicYearId)}
@@ -392,6 +401,7 @@ export function AdmissionPeriodsCard({
     periodCounts = {},
     academicYearId,
     canManage,
+    schoolOptions = [],
 }: Props) {
     const i18n = t();
     const { showInertiaErrors } = usePageError();
@@ -400,10 +410,32 @@ export function AdmissionPeriodsCard({
     const { hasTableSelection, clearSelection: clearPageSelection } = useAdmissionSelection();
     const { academicYears, schoolContext } = usePage().props as {
         academicYears?: YearOption[];
-        schoolContext?: { schoolId: number | null; schools: { id: number; name: string; code: string }[] };
+        schoolContext?: { schoolId?: number | null };
     };
-    const schools = schoolContext?.schools ?? [];
-    const [createSchoolId, setCreateSchoolId] = useState<number | null>(schoolContext?.schoolId ?? null);
+    // المديرية → its schools (active directorates of the user's schools).
+    const directorateOptions = useMemo(() => {
+        const byId = new Map<number, string>();
+        for (const school of schoolOptions) {
+            if (school.directorate_active && !byId.has(school.directorate_id)) {
+                byId.set(school.directorate_id, school.directorate_name);
+            }
+        }
+
+        return [...byId.entries()].map(([id, name]) => ({ value: String(id), label: name }));
+    }, [schoolOptions]);
+    const contextDirectorateId =
+        schoolOptions.find((school) => school.id === schoolContext?.schoolId)?.directorate_id ?? null;
+    const [createDirectorateId, setCreateDirectorateId] = useState<string>(
+        String(contextDirectorateId ?? directorateOptions[0]?.value ?? ''),
+    );
+    const [directorateSchoolId, setDirectorateSchoolId] = useState<string>('');
+    const directorateSchools = useMemo(
+        () =>
+            schoolOptions
+                .filter((school) => String(school.directorate_id) === createDirectorateId)
+                .map((school) => ({ value: String(school.id), label: school.name })),
+        [createDirectorateId, schoolOptions],
+    );
     const years = useMemo(() => {
         const all = academicYears ?? [];
         const catalog = catalogAcademicYears(all);
@@ -450,7 +482,7 @@ export function AdmissionPeriodsCard({
 
     useResizableTableColumns(tableRef, {
         storageKey: 'admission.periods',
-        columnSignature: 'v1',
+        columnSignature: 'v2',
         enabled: visible.length > 0,
     });
 
@@ -589,34 +621,27 @@ export function AdmissionPeriodsCard({
                         method="post"
                         className="sis-admission-period-create"
                         options={{ preserveScroll: true }}
-                        headers={
-                            createSchoolId === null ? undefined : { 'X-School-Id': String(createSchoolId) }
-                        }
                         onError={(errors) => showInertiaErrors(errors, i18n.errors.createFailed)}
                     >
                         {({ errors, processing }) => (
                             <>
                                 <OpsFormField
-                                    label={i18n.context.school}
-                                    name="school_id"
-                                    error={errors.school_id}
+                                    label={i18n.admission.directorate}
+                                    name="directorate_id"
+                                    error={errors.directorate_id}
                                 >
                                     <SisListSelect
-                                        name="school_id"
+                                        name="directorate_id"
                                         required
-                                        value={createSchoolId === null ? '' : String(createSchoolId)}
-                                        options={schools.map((school) => ({
-                                            value: String(school.id),
-                                            label: school.name,
-                                        }))}
+                                        value={createDirectorateId}
+                                        options={directorateOptions}
                                         onChange={(next) => {
-                                            const schoolId = next === '' ? null : Number(next);
-                                            setCreateSchoolId(schoolId);
-                                            dispatchAdmissionSchoolSelected(schoolId);
+                                            setCreateDirectorateId(next);
+                                            setDirectorateSchoolId('');
                                         }}
                                         triggerClassName="sis-ops-hub__link"
                                         dir="rtl"
-                                        ariaLabel={i18n.context.school}
+                                        ariaLabel={i18n.admission.directorate}
                                     />
                                 </OpsFormField>
                                 <OpsFormField
@@ -638,6 +663,23 @@ export function AdmissionPeriodsCard({
                                         triggerClassName="sis-ops-hub__link"
                                         dir="ltr"
                                         ariaLabel={i18n.admission.academicYear}
+                                    />
+                                </OpsFormField>
+                                <OpsFormField
+                                    label={i18n.admission.directorateSchools}
+                                    name="directorate_school"
+                                >
+                                    {/* The directorate's schools (not submitted — the period serves all of them). */}
+                                    <SisListSelect
+                                        value={directorateSchoolId}
+                                        options={directorateSchools}
+                                        onChange={(next) => {
+                                            setDirectorateSchoolId(next);
+                                            dispatchAdmissionSchoolSelected(next === '' ? null : Number(next));
+                                        }}
+                                        triggerClassName="sis-ops-hub__link"
+                                        dir="rtl"
+                                        ariaLabel={i18n.admission.directorateSchools}
                                     />
                                 </OpsFormField>
                                 <OpsFormField
@@ -691,7 +733,7 @@ export function AdmissionPeriodsCard({
                                         type="submit"
                                         size="sm"
                                         className="sis-admission-period-submit"
-                                        disabled={processing || createYearId === null || createSchoolId === null}
+                                        disabled={processing || createYearId === null || createDirectorateId === ''}
                                     >
                                         {i18n.admission.openPeriod}
                                     </Button>
@@ -712,6 +754,7 @@ export function AdmissionPeriodsCard({
                                 <thead>
                                     <tr>
                                         <th className="sis-admission-periods-table__num">#</th>
+                                        <th>{i18n.admission.directorate}</th>
                                         <th>{i18n.admission.academicYear}</th>
                                         <th>{i18n.admission.periodName}</th>
                                         <th>{i18n.admission.startDate}</th>

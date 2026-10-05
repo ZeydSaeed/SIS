@@ -18,6 +18,12 @@ final class UpdateApplicationDraftRequest extends FormRequest
     {
         return [
             'notes' => ['nullable', 'string', 'max:5000'],
+            // School, request kind and academic year change only through the transfers page.
+            'target_school_id' => ['prohibited'],
+            'school_id' => ['prohibited'],
+            'request_kind' => ['prohibited'],
+            'application_period_id' => ['prohibited'],
+            'academic_year_id' => ['prohibited'],
             'reviewed_at' => ['nullable', 'date'],
             'update_placement' => ['sometimes', 'boolean'],
             'branch_id' => ['nullable', 'integer', 'min:1'],

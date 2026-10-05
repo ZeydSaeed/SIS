@@ -7,6 +7,7 @@ use App\Application\Admission\DTOs\AdmissionWorkspaceDTO;
 use App\Application\Contracts\Query;
 use App\Application\Contracts\QueryHandler;
 use App\Domain\Admission\Services\ActiveAdmissionPeriodSummarizer;
+use App\Domain\Admission\Services\AdmissionPeriodDirectorateScope;
 use App\Domain\Admission\Services\AdmissionWorkflowProgressCalculator;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 
@@ -16,15 +17,18 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
         private readonly AdmissionReadRepositoryInterface $admission,
         private readonly AdmissionWorkflowProgressCalculator $progress,
         private readonly ActiveAdmissionPeriodSummarizer $activePeriods,
+        private readonly AdmissionPeriodDirectorateScope $directorates,
     ) {}
 
     public function handle(Query $query): AdmissionWorkspaceDTO
     {
         assert($query instanceof GetAdmissionWorkspaceQuery);
 
+        $schoolOptions = $this->admission->schoolOptions($query->allowedSchoolIds);
         $shell = $this->admission->periodShell($query->schoolId, $query->academicYearId);
+        // The current school applies only in its directorate's periods (NULL = legacy shared period).
         $summaries = $this->activePeriods->summarize(
-            $shell['periods'],
+            $this->directorates->periodsOfSchool($shell['periods'], $schoolOptions, $query->schoolId),
             $shell['period_counts'] ?? [],
         );
 
@@ -47,11 +51,12 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
             $statusScopePeriodId,
             $query->search,
             $query->enrollmentStatus,
-            $query->includeAcceptedStudents,
+            false,
         );
 
         return new AdmissionWorkspaceDTO(
-            periods: $workspace['periods'],
+            // The periods table: every directorate of the user's schools.
+            periods: $this->directorates->periodsOf($workspace['periods'], $this->directorates->directoratesOf($schoolOptions)),
             applications: $workspace['applications'],
             documents: $workspace['documents'],
             gradeLevels: $workspace['grade_levels'],
@@ -74,9 +79,14 @@ final class GetAdmissionWorkspaceHandler implements QueryHandler
                 'total_pages' => 1,
             ],
             statusTransitions: $this->statusTransitions(),
-            acceptedStudents: $workspace['accepted_students'] ?? [],
+            // Students of every school of the user, each row tagged with its school.
+            acceptedStudents: $this->admission->acceptedRoster(
+                $this->directorates->rosterSchoolIds($schoolOptions, $query->schoolId, $query->includeAcceptedStudents),
+                $query->academicYearId,
+            ),
             periodCounts: $workspace['period_counts'] ?? [],
             acceptedStudentsIncluded: $query->includeAcceptedStudents,
+            schoolOptions: $schoolOptions,
         );
     }
 
