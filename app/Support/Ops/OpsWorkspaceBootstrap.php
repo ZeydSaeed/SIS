@@ -38,6 +38,7 @@ final class OpsWorkspaceBootstrap
         'hr_manager',
         'vocational_manager',
         'curriculum_manager',
+        'school_manager',
     ];
 
     /**

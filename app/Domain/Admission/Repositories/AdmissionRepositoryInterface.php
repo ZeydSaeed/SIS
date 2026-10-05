@@ -25,7 +25,7 @@ interface AdmissionRepositoryInterface
      *     name:string,
      *     status:int,
      *     start_date:string,
-     *     end_date:string,
+     *     end_date:?string,
      *     max_applications:?int
      * }|null
      */

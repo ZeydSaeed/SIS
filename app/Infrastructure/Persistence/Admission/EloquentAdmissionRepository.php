@@ -142,7 +142,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'name' => (string) $row->name,
             'status' => (int) $row->status,
             'start_date' => (string) $row->start_date,
-            'end_date' => (string) $row->end_date,
+            'end_date' => $row->end_date !== null ? (string) $row->end_date : null,
             'max_applications' => $row->max_applications !== null ? (int) $row->max_applications : null,
         ];
     }

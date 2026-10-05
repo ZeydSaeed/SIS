@@ -55,4 +55,5 @@ enum SecurityEventType: string
     case AcademicDataModified = 'SEC_ACADEMIC_DATA_MODIFIED';
     case AuditTrailDataAccess = 'SEC_AUDIT_TRAIL_DATA_ACCESS';
     case AuditTrailDataModified = 'SEC_AUDIT_TRAIL_DATA_MODIFIED';
+    case OrganizationDataModified = 'SEC_ORGANIZATION_DATA_MODIFIED';
 }

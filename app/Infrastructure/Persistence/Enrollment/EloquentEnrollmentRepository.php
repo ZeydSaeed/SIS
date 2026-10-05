@@ -100,7 +100,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             ->where('id', $classId)
             ->value('name');
         if (is_string($className) && $className !== '') {
-            // Keep admitted_class_name as admission grade; do not overwrite from enrollment.
+            // Keep the student's grade_level_id as the admission grade; do not overwrite from enrollment.
         }
 
         $sectionName = DB::table(SchemaHelper::qualified('enrollment', 'sections'))
@@ -114,13 +114,9 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             $studentFill['branch_id'] = $branchId;
         }
 
+        // The student keeps placement as ids (its department label is read from the id).
         if ($departmentId !== null) {
-            $departmentName = DB::table(SchemaHelper::qualified('organization', 'departments'))
-                ->where('id', $departmentId)
-                ->value('name');
-            $studentFill['department_name'] = is_string($departmentName) && $departmentName !== ''
-                ? $departmentName
-                : null;
+            $studentFill['department_id'] = $departmentId;
         }
 
         if ($specializationId !== null) {
@@ -175,16 +171,7 @@ final class EloquentEnrollmentRepository implements EnrollmentRepositoryInterfac
             $studentFill['branch_id'] = $branchId;
         }
         if ($syncStudentLabels || $departmentId !== null) {
-            if ($departmentId !== null) {
-                $departmentName = DB::table(SchemaHelper::qualified('organization', 'departments'))
-                    ->where('id', $departmentId)
-                    ->value('name');
-                $studentFill['department_name'] = is_string($departmentName) && $departmentName !== ''
-                    ? $departmentName
-                    : null;
-            } else {
-                $studentFill['department_name'] = null;
-            }
+            $studentFill['department_id'] = $departmentId;
         }
 
         if ($studentFill !== []) {

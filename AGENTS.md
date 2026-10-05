@@ -15,8 +15,8 @@
 | Priority | File                                                                   | Purpose                                            |
 | -------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
 | 0        | `.cursor/architecture/SIS-CONSTITUTION.md`                             | **Permanent Engineering Constitution v2.0**        |
-| 0b       | `.cursor/rules/00-SIS-CONSTITUTION.mdc`                                | Constitution index (always applied)                |
-| 0b2      | `.cursor/rules/01-ARCHITECTURE.mdc`                                    | Mandatory architecture principles (always applied) |
+| 0b       | `.cursor/rules/00-SIS-CONSTITUTION.mdc`                                | Constitution index — global governance (must follow) |
+| 0b2      | `.cursor/rules/01-ARCHITECTURE.mdc`                                    | Architecture principles — global governance (must follow) |
 | 0c       | `.cursor/architecture/GOVERNANCE-MAP.md`                               | Constitution → rules/docs map                      |
 | 1        | `.cursor/architecture/README.md`                                       | Full document index                                |
 | 2        | `.cursor/architecture/WORK-PLAN.md`                                    | Phase A–F guide                                    |
@@ -103,11 +103,18 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 | Four approved fonts | Segoe UI, Tahoma, Calibri, Aptos — no Google Fonts |
 | Legacy baseline | `app.css` shadcn/Instrument Sans — migrate on touch; do not extend on new UI |
 
-## Cursor Rules
+## GLOBAL GOVERNANCE RULES — MUST BE READ AND FOLLOWED BY ALL AI AGENTS
 
-**Always applied:** `00-SIS-CONSTITUTION.mdc`, `01-ARCHITECTURE.mdc`, `sis-core.mdc`, `11-change-control.mdc`, `15-ui-optimization-governance.mdc`, `17-color-typography-governance.mdc`
+These are **project policy**, not Cursor-only auto-injection. Claude Code and any other agent must read and follow them on every implementation task (do not assume they are injected automatically):
 
-**Path-scoped (see GOVERNANCE-MAP.md for full inventory):**
+- `00-SIS-CONSTITUTION.mdc`
+- `01-ARCHITECTURE.mdc`
+- `sis-core.mdc`
+- `11-change-control.mdc`
+- `15-ui-optimization-governance.mdc`
+- `17-color-typography-governance.mdc`
+
+**Task / path-scoped (load only when applicable — see GOVERNANCE-MAP.md for full inventory):**
 
 - `10-MODULES.mdc` — module boundaries
 - `12-DOCUMENTATION.mdc` — documentation when contracts change
@@ -119,6 +126,8 @@ Never auto-execute schema changes (DROP INDEX, ALTER TABLE, disable RLS).
 - `query-optimization.mdc` — app/**
 - `react-inertia.mdc` — resources/js/** (implementation; UX principles in `02-ui-ux.mdc`)
 - `16-desktop-ui-governance.mdc` — `clients/sis-desktop/**` (Blazor Hybrid — **FUTURE / ADR required**)
+
+**Load model for agents outside Cursor:** classify the task → read global governance → read only matching skills/rules/architecture docs → then implement.
 
 ## Desktop UI (Future)
 

@@ -7,6 +7,7 @@ use App\Infrastructure\Persistence\Student\StudentPlacementIdResolver;
 use App\Security\Context\SchoolContextScope;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Workflow A1 backfill — fill students.department_id / grade_level_id (and a missing
@@ -27,6 +28,13 @@ class BackfillStudentPlacementIdsCommand extends Command
     public function handle(SchoolContextScope $scope, StudentPlacementIdResolver $resolver): int
     {
         $students = SchemaHelper::qualified('students', 'students');
+        // The names were dropped once every student carried ids — nothing left to backfill.
+        if (! Schema::hasColumn($students, 'department_name') || ! Schema::hasColumn($students, 'admitted_class_name')) {
+            $this->components->info('Placement names are no longer stored on students — nothing to backfill.');
+
+            return self::SUCCESS;
+        }
+
         $schoolIds = DB::table(SchemaHelper::qualified('organization', 'schools'))
             ->when($this->option('school') !== null, fn ($query) => $query->where('id', (int) $this->option('school')))
             ->orderBy('id')

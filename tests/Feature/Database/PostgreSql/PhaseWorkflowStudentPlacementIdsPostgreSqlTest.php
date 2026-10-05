@@ -7,6 +7,7 @@ use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Models\User;
 use Database\Seeders\SecurityPermissionSeeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
@@ -65,35 +66,13 @@ final class PhaseWorkflowStudentPlacementIdsPostgreSqlTest extends PostgreSqlInt
     }
 
     #[Test]
-    public function backfill_command_fills_missing_ids_only(): void
+    public function backfill_command_is_a_no_op_once_placement_names_are_dropped(): void
     {
-        [$schoolId, , $branchId, $departmentId, $gradeLevelId] = $this->placementCatalog('WFP3');
-        $student = $this->createStudentForSchool($schoolId);
+        // The student keeps placement as ids only (names dropped 2026-10-05).
+        $this->assertFalse(Schema::hasColumn(SchemaHelper::qualified('students', 'students'), 'department_name'));
+        $this->assertFalse(Schema::hasColumn(SchemaHelper::qualified('students', 'students'), 'admitted_class_name'));
 
-        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
-        DB::table(SchemaHelper::qualified('students', 'students'))->where('id', $student->id)->update([
-            'branch_id' => null,
-            'department_id' => null,
-            'grade_level_id' => null,
-            'department_name' => 'كهرباء',
-            'admitted_class_name' => 'الأول',
-        ]);
-
-        $this->artisan('sis:backfill-student-placement-ids', ['--school' => $schoolId, '--dry-run' => true])
-            ->assertSuccessful();
-        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
-            'id' => $student->id,
-            'department_id' => null,
-        ]);
-
-        $this->artisan('sis:backfill-student-placement-ids', ['--school' => $schoolId])->assertSuccessful();
-
-        $this->assertDatabaseHas(SchemaHelper::qualified('students', 'students'), [
-            'id' => $student->id,
-            'branch_id' => $branchId,
-            'department_id' => $departmentId,
-            'grade_level_id' => $gradeLevelId,
-        ]);
+        $this->artisan('sis:backfill-student-placement-ids')->assertSuccessful();
     }
 
     /**

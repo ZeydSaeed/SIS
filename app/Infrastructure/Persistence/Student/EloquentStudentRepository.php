@@ -2,15 +2,19 @@
 
 namespace App\Infrastructure\Persistence\Student;
 
+use App\Database\SchemaHelper;
 use App\Domain\Student\Data\CreateStudentData;
 use App\Domain\Student\Data\UpdateStudentData;
 use App\Domain\Student\Entities\Student;
+use App\Domain\Student\Exceptions\InvalidStudentPlacementException;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use App\Domain\Student\ValueObjects\StudentCode;
 use App\Domain\Student\ValueObjects\StudentReligion;
 use App\Domain\Student\ValueObjects\StudentStatus;
 use App\Infrastructure\Persistence\Eloquent\StudentRecord;
 use DateTimeInterface;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 final class EloquentStudentRepository implements StudentRepositoryInterface
 {
@@ -22,11 +26,12 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
     {
         $attributes = $this->attributesFromCreate($data);
         if ($data->schoolId !== null) {
-            $attributes = array_merge($attributes, $this->placementIds->resolve(
+            $attributes = array_merge($attributes, $this->placementAttributes(
                 $data->schoolId,
                 $data->branchId,
                 $data->departmentName,
                 $data->admittedClassName,
+                null,
             ));
         }
 
@@ -40,13 +45,14 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
     public function update(int $studentId, UpdateStudentData $data): void
     {
         $attributes = $this->attributesFromUpdate($data);
-        $schoolId = StudentRecord::query()->whereKey($studentId)->value('school_id');
-        if ($schoolId !== null) {
-            $attributes = array_merge($attributes, $this->placementIds->resolve(
-                (int) $schoolId,
+        $current = $this->placementQuery()->where('s.id', $studentId)->first();
+        if ($current !== null) {
+            $attributes = array_merge($attributes, $this->placementAttributes(
+                (int) $current->school_id,
                 $data->branchId,
                 $data->departmentName,
                 $data->admittedClassName,
+                $current,
             ));
         }
 
@@ -65,6 +71,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         if ($record === null) {
             return null;
         }
+        $placement = $this->placementQuery()->where('s.id', $studentId)->first();
 
         return new UpdateStudentData(
             firstName: (string) $record->first_name,
@@ -96,14 +103,14 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
                 : null,
             transferDocumentDate: $this->dateString($record->transfer_document_date),
             schoolStartDate: $this->dateString($record->school_start_date),
-            admittedClassName: $record->admitted_class_name,
+            admittedClassName: $placement?->grade_level_name,
             notes: $record->notes,
             mobile: $record->mobile,
             guardianMobile: $record->guardian_mobile,
             email: $record->email,
             schoolName: $record->school_name,
             branchId: $record->branch_id !== null ? (int) $record->branch_id : null,
-            departmentName: $record->department_name,
+            departmentName: $placement?->department_name,
             fatherOccupation: $record->father_occupation,
             motherOccupation: $record->mother_occupation,
             administrativeUnit: $record->administrative_unit !== null ? (int) $record->administrative_unit : null,
@@ -116,6 +123,18 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
                 ? (int) $record->admitted_academic_year_id
                 : null,
         );
+    }
+
+    public function placementIds(int $studentId): array
+    {
+        $row = StudentRecord::query()->whereKey($studentId)->first(['school_id', 'branch_id', 'department_id', 'grade_level_id']);
+
+        return [
+            'school_id' => $row?->school_id !== null ? (int) $row->school_id : null,
+            'branch_id' => $row?->branch_id !== null ? (int) $row->branch_id : null,
+            'department_id' => $row?->department_id !== null ? (int) $row->department_id : null,
+            'grade_level_id' => $row?->grade_level_id !== null ? (int) $row->grade_level_id : null,
+        ];
     }
 
     public function findById(int $studentId): ?Student
@@ -181,6 +200,75 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         return sprintf('STU-%06d', $next);
     }
 
+    /**
+     * Placement is stored as ids only; names come back through these joins.
+     */
+    private function placementQuery(): Builder
+    {
+        return DB::table(SchemaHelper::qualified('students', 'students').' as s')
+            ->leftJoin(SchemaHelper::qualified('organization', 'departments').' as dep', 'dep.id', '=', 's.department_id')
+            ->leftJoin(SchemaHelper::qualified('academic', 'grade_levels').' as gl', 'gl.id', '=', 's.grade_level_id')
+            ->select([
+                's.school_id',
+                's.branch_id',
+                's.department_id',
+                's.grade_level_id',
+                'dep.name as department_name',
+                'gl.name as grade_level_name',
+            ]);
+    }
+
+    /**
+     * Names in (forms / admission) → ids out. An unchanged name keeps its current id
+     * (no round-trip through the catalog); a new name must exist in the catalog.
+     *
+     * @return array{branch_id: int|null, department_id: int|null, grade_level_id: int|null}
+     */
+    private function placementAttributes(
+        int $schoolId,
+        ?int $branchId,
+        ?string $departmentName,
+        ?string $gradeName,
+        ?object $current,
+    ): array {
+        $departmentName = trim((string) $departmentName);
+        $gradeName = trim((string) $gradeName);
+
+        $departmentId = null;
+        $departmentBranchId = null;
+        if ($departmentName !== '') {
+            if ($current !== null && $current->department_id !== null && $departmentName === trim((string) $current->department_name)) {
+                $departmentId = (int) $current->department_id;
+                $departmentBranchId = DB::table(SchemaHelper::qualified('organization', 'departments'))
+                    ->where('id', $departmentId)->value('branch_id');
+                $departmentBranchId = $departmentBranchId !== null ? (int) $departmentBranchId : null;
+            } else {
+                $department = $this->placementIds->findDepartment($schoolId, $branchId, $departmentName)
+                    ?? throw InvalidStudentPlacementException::unknownDepartment($departmentName);
+                $departmentId = $department['id'];
+                $departmentBranchId = $department['branch_id'];
+            }
+
+            if ($branchId !== null && $departmentBranchId !== null && $branchId !== $departmentBranchId) {
+                throw InvalidStudentPlacementException::departmentOutsideBranch($departmentName);
+            }
+        }
+
+        $gradeLevelId = null;
+        if ($gradeName !== '') {
+            $gradeLevelId = $current !== null && $current->grade_level_id !== null && $gradeName === trim((string) $current->grade_level_name)
+                ? (int) $current->grade_level_id
+                : ($this->placementIds->findGradeLevelId($schoolId, $gradeName)
+                    ?? throw InvalidStudentPlacementException::unknownGradeLevel($gradeName));
+        }
+
+        return [
+            'branch_id' => $branchId ?? $departmentBranchId,
+            'department_id' => $departmentId,
+            'grade_level_id' => $gradeLevelId,
+        ];
+    }
+
     private function dateString(mixed $value): ?string
     {
         if ($value === null || $value === '') {
@@ -243,14 +331,12 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'transfer_document_number' => $data->transferDocumentNumber,
             'transfer_document_date' => $data->transferDocumentDate,
             'school_start_date' => $data->schoolStartDate,
-            'admitted_class_name' => $data->admittedClassName,
             'notes' => $data->notes,
             'mobile' => $data->mobile,
             'guardian_mobile' => $data->guardianMobile,
             'email' => $data->email,
             'school_name' => $data->schoolName,
             'branch_id' => $data->branchId,
-            'department_name' => $data->departmentName,
             'father_occupation' => $data->fatherOccupation,
             'mother_occupation' => $data->motherOccupation,
             'administrative_unit' => $data->administrativeUnit,
@@ -270,7 +356,7 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
      */
     private function attributesFromUpdate(UpdateStudentData $data): array
     {
-        return [
+        $attributes = [
             'national_id' => $data->nationalId,
             'first_name' => $data->firstName,
             'middle_name' => $data->middleName,
@@ -298,14 +384,12 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
             'transfer_document_number' => $data->transferDocumentNumber,
             'transfer_document_date' => $data->transferDocumentDate,
             'school_start_date' => $data->schoolStartDate,
-            'admitted_class_name' => $data->admittedClassName,
             'notes' => $data->notes,
             'mobile' => $data->mobile,
             'guardian_mobile' => $data->guardianMobile,
             'email' => $data->email,
             'school_name' => $data->schoolName,
             'branch_id' => $data->branchId,
-            'department_name' => $data->departmentName,
             'father_occupation' => $data->fatherOccupation,
             'mother_occupation' => $data->motherOccupation,
             'administrative_unit' => $data->administrativeUnit,

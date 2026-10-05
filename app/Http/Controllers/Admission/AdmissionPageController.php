@@ -26,6 +26,10 @@ use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
 use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
+use App\Application\Organization\Queries\ListDirectorateRegistryHandler;
+use App\Application\Organization\Queries\ListDirectorateRegistryQuery;
+use App\Application\Organization\Queries\ListSchoolRegistryHandler;
+use App\Application\Organization\Queries\ListSchoolRegistryQuery;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Http\Controllers\Controller;
@@ -45,6 +49,7 @@ use App\Http\Support\AcademicYearContextResolver;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
+use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
 use App\Security\Policies\StudentPolicy;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -60,6 +65,9 @@ final class AdmissionPageController extends Controller
         private readonly SecurityAuditLoggerInterface $securityAudit,
         private readonly AcademicYearContextResolver $academicYears,
         private readonly StudentPolicy $studentPolicy,
+        private readonly ListSchoolRegistryHandler $schoolRegistry,
+        private readonly ListDirectorateRegistryHandler $directorateRegistry,
+        private readonly SchoolScopeService $schoolScope,
     ) {}
 
     public function index(Request $request, GetAdmissionWorkspaceHandler $handler): Response
@@ -286,7 +294,20 @@ final class AdmissionPageController extends Controller
                 'can_manage' => $user->can('manageAdmission'),
                 'can_update_student' => $this->studentPolicy->updateAny($user),
                 'can_view_student_pii' => $this->studentPolicy->viewPii($user),
+                'can_manage_schools' => $user->can('manageSchools'),
+                'can_manage_directorates' => $user->can('manageDirectorates'),
             ],
+            // Loaded only when the school registry sheet asks for it (partial reload).
+            'schoolRegistry' => Inertia::optional(fn (): ?array => $user->can('manageSchools')
+                ? $this->schoolRegistry->handle(new ListSchoolRegistryQuery(
+                    allowedSchoolIds: $this->schoolScope->allowedSchoolIds($user),
+                ))->toArray()
+                : null),
+            'directorateRegistry' => Inertia::optional(fn (): ?array => $user->can('manageDirectorates')
+                ? $this->directorateRegistry->handle(new ListDirectorateRegistryQuery(
+                    allowedSchoolIds: $this->schoolScope->allowedSchoolIds($user),
+                ))
+                : null),
             'enrollmentFilterOptions' => $statusFilter === ApplicationStatus::Converted->value
                 ? app(EnrollmentReadRepositoryInterface::class)->listFilterOptions($schoolId, $academicYearId)
                 : [
@@ -310,7 +331,7 @@ final class AdmissionPageController extends Controller
             academicYearId: (int) $request->validated('academic_year_id'),
             name: (string) $request->validated('name'),
             startDate: (string) $request->validated('start_date'),
-            endDate: (string) $request->validated('end_date'),
+            endDate: $request->filled('end_date') ? (string) $request->validated('end_date') : null,
             maxApplications: $request->validated('max_applications'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));
@@ -341,7 +362,7 @@ final class AdmissionPageController extends Controller
             periodId: $period,
             name: (string) $request->validated('name'),
             startDate: (string) $request->validated('start_date'),
-            endDate: (string) $request->validated('end_date'),
+            endDate: $request->filled('end_date') ? (string) $request->validated('end_date') : null,
             maxApplications: $request->validated('max_applications'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
         ));

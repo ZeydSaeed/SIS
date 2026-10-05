@@ -12,7 +12,8 @@ final readonly class UpdateApplicationPeriodCommand implements Command
         public int $periodId,
         public string $name,
         public string $startDate,
-        public string $endDate,
+        /** Null = open-ended period. */
+        public ?string $endDate,
         public ?int $maxApplications = null,
         public ?string $idempotencyKey = null,
     ) {}

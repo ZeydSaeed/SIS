@@ -286,7 +286,7 @@
 | id | BIGINT | PK |
 | school_id | BIGINT | FK → organization.schools, nullable |
 | branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
-| department_id | BIGINT | FK → organization.departments, nullable, restrict — القسم المهيكل (A1؛ يُشتق من department_name) |
+| department_id | BIGINT | FK → organization.departments, nullable, restrict — القسم / الاختصاص (المصدر الوحيد؛ الاسم يُقرأ من الجدول) |
 | public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
 | student_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
@@ -316,15 +316,13 @@
 | transfer_document_number | BIGINT | رقم وثيقة النقل |
 | transfer_document_date | DATE | تاريخ وثيقة النقل |
 | school_start_date | DATE | تاريخ ابتداء الدوام |
-| admitted_class_name | VARCHAR(100) | الصف الذي قُبل فيه / المستوى الدراسي من القبول |
-| grade_level_id | SMALLINT | FK → academic.grade_levels, nullable, restrict — المرحلة المهيكلة (A1؛ من صف المدرسة بنفس الاسم) |
+| grade_level_id | SMALLINT | FK → academic.grade_levels, nullable, restrict — صف القبول (المصدر الوحيد؛ الاسم يُقرأ من grade_levels.name) |
 | admitted_academic_year_id | BIGINT | FK → academic.academic_years, nullable — سنة القبول المحفوظة بعد التحويل |
 | notes | TEXT | الملاحظات |
 | mobile | VARCHAR(30) | رقم موبايل الطالب (PII) |
 | guardian_mobile | VARCHAR(30) | رقم موبايل ولي الأمر (PII) |
 | email | VARCHAR(255) | البريد الإلكتروني (PII) |
 | school_name | VARCHAR(255) | المدرسة (تسمية سجل؛ school_id يبقى سياق المستأجر) |
-| department_name | VARCHAR(100) | القسم / الاختصاص (نص القبول) |
 | father_occupation | VARCHAR(100) | وظيفة الأب — nullable |
 | mother_occupation | VARCHAR(100) | وظيفة الأم — nullable |
 | administrative_unit | SMALLINT | الوحدة الإدارية — nullable; CHECK IN (1,2,3) |
@@ -343,9 +341,13 @@
 - `BTREE(school_id)`
 - `BTREE(branch_id)`
 - `BTREE(admitted_academic_year_id)` — student list year filter
-- (no index on `department_id` / `grade_level_id` — not filtered or joined yet; add per indexing governance when a query needs it)
+- (no index on `department_id` / `grade_level_id` — reads join out to the catalogs' primary keys; the enrollments department filter uses it only as the fallback for enrollments without a department; add per indexing governance when a query needs it)
 
-**Workflow A1 (2026-10-04):** `department_id` / `grade_level_id` are kept in sync by the student repository on every create/update (exact names within the school; `branch_id` filled from the department when missing). Text columns stay as the admission snapshot. Backfill existing rows per school: `php artisan sis:backfill-student-placement-ids [--school=] [--dry-run]` (RLS-safe, fills NULLs only).
+**Workflow A1 (2026-10-04):** `department_id` / `grade_level_id` are kept in sync by the student repository on every create/update (exact names within the school; `branch_id` filled from the department when missing). Backfill existing rows per school: `php artisan sis:backfill-student-placement-ids [--school=] [--dry-run]` (RLS-safe, fills NULLs only; a no-op once the names are dropped).
+
+**Placement ids only (2026-10-05, user-approved):** `department_name` / `admitted_class_name` dropped (migration `2026_10_05_130000`, refuses while any name lacks its id; `down()` re-adds and refills from the ids). Writes still accept the names from forms/admission and store ids (`StudentPlacementIdResolver`; an unchanged name keeps its id; an unknown name or a department outside the chosen branch is rejected — `student.placement.*`). Reads expose the same keys (`department_name`, `admitted_class_name`) joined from `organization.departments` / `academic.grade_levels`.
+
+**Student ↔ enrollment sync (2026-10-05):** identity fields are read live by the enrollments page. A branch/department change on the student page moves the active enrollment through `ApplyEnrollmentPlacementChange` (same class/section; history; curriculum re-applied from the outbox via `ApplyCurriculumOnEnrollmentPlacementUpdated`) — port `StudentEnrollmentPlacementPort`. A placement change on the enrollments page writes `branch_id` / `department_id` back to the student. The grade of an enrolled student is changed on the enrollments page only (`student.placement.grade_locked`).
 - `UNIQUE(student_code)`
 - `UNIQUE(national_id)` (partial: WHERE national_id IS NOT NULL)
 - `PARTIAL(status) WHERE status = 1` — active students
@@ -464,7 +466,7 @@
 | school_id | BIGINT | FK → schools |
 | name | VARCHAR(255) | NOT NULL |
 | start_date | TIMESTAMPTZ | NOT NULL |
-| end_date | TIMESTAMPTZ | NOT NULL |
+| end_date | TIMESTAMPTZ | NULL — open-ended period when NULL (2026-10-05) |
 | max_applications | INTEGER | nullable; CHECK NULL OR > 0 |
 | status | SMALLINT | NOT NULL DEFAULT 1; CHECK IN (0,1,2) |
 | created_at | TIMESTAMPTZ | NOT NULL |
@@ -473,7 +475,7 @@
 
 **RLS:** Fail-closed on `school_id` (Phase 2).
 
-**CHECK:** `end_date >= start_date`
+**CHECK:** `end_date >= start_date` (passes when end_date IS NULL)
 
 ### `admission.applications`
 

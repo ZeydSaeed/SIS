@@ -71,6 +71,9 @@ export type StudentRecordFormValues = {
     branch_id?: number | null;
     branch_name?: string | null;
     department_name?: string | null;
+    /** Active enrollment: the class is changed there (it needs a class and section). */
+    active_enrollment_id?: number | null;
+    enrollment_grade_name?: string | null;
     academic_year_id?: number | null;
     academic_year_name?: string | null;
     academic_year_code?: string | null;
@@ -675,6 +678,7 @@ export function StudentRecordForm({
     const [draft, setDraft] = useState<DraftState>(() => draftFromStudent(student));
     const pageProps = usePage().props as {
         enrollmentFilterOptions?: EnrollmentFormFilterOptions;
+        schoolContext?: { schools?: { id: number; name: string }[] };
     };
     const orgBranches = pageProps.enrollmentFilterOptions?.branches ?? [];
 
@@ -715,6 +719,17 @@ export function StudentRecordForm({
         [draft.branch_name],
     );
     const classOptions = useMemo(() => admissionClassSelectOptions(), []);
+    // School name is picked from the user's schools; an older free-text value stays selectable.
+    const schoolNames = pageProps.schoolContext?.schools ?? [];
+    const schoolOptions = useMemo(() => {
+        const options = schoolNames.map((school) => ({ value: school.name, label: school.name }));
+        const current = (student.school_name ?? '').trim();
+        if (current !== '' && !options.some((option) => option.value === current)) {
+            options.unshift({ value: current, label: current });
+        }
+
+        return options;
+    }, [schoolNames, student.school_name]);
 
     const setField = <K extends keyof DraftState>(key: K, value: DraftState[K]) => {
         setDraft((current) => ({ ...current, [key]: value }));
@@ -1102,11 +1117,12 @@ export function StudentRecordForm({
                             onChange={(value) => setField('academic_year_id', value)}
                         />
                     )}
-                    <DraftField
+                    <DraftListSelect
                         label={i18n.students.schoolName}
                         editing={fieldsEditable}
                         value={draft.school_name}
                         display={displayValue(student.school_name)}
+                        options={schoolOptions}
                         onChange={(value) => setField('school_name', value)}
                     />
                     <DraftListSelect
@@ -1138,20 +1154,46 @@ export function StudentRecordForm({
                     />
                 </div>
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
-                    <DraftListSelect
-                        label={i18n.admission.gradeLevel}
-                        editing={fieldsEditable}
-                        value={draft.class_key}
-                        display={displayValue(student.admitted_class_name)}
-                        options={classOptions}
-                        onChange={(next) => {
-                            setDraft((current) => ({
-                                ...current,
-                                class_key: next,
-                                admitted_class_name: sisClassLabel(next) || current.admitted_class_name,
-                            }));
-                        }}
-                    />
+                    {student.active_enrollment_id ? (
+                        <>
+                            <DraftDisplayField
+                                label={i18n.admission.gradeLevel}
+                                display={displayValue(student.enrollment_grade_name ?? student.admitted_class_name)}
+                            />
+                            <div className="sis-admission-sheet__field">
+                                <span className="sis-admission-sheet__label">{i18n.students.placementFromEnrollment}</span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        // Enrollments page filtered to this student (search by code, same year).
+                                        const params = new URLSearchParams({ q: student.student_code });
+                                        if (student.academic_year_id) {
+                                            params.set('academic_year_id', String(student.academic_year_id));
+                                        }
+                                        router.visit(`/enrollments?${params.toString()}`);
+                                    }}
+                                >
+                                    {i18n.students.changePlacement}
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <DraftListSelect
+                            label={i18n.admission.gradeLevel}
+                            editing={fieldsEditable}
+                            value={draft.class_key}
+                            display={displayValue(student.admitted_class_name)}
+                            options={classOptions}
+                            onChange={(next) => {
+                                setDraft((current) => ({
+                                    ...current,
+                                    class_key: next,
+                                    admitted_class_name: sisClassLabel(next) || current.admitted_class_name,
+                                }));
+                            }}
+                        />
+                    )}
                     <DraftField
                         label={i18n.students.schoolStartDate}
                         editing={fieldsEditable}
@@ -1694,7 +1736,7 @@ export function StudentViewDialog({
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed sis-window--movable${maximizeClassName}${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed sis-student-info-sheet sis-window--movable${maximizeClassName}${count > 1 ? ' sis-student-sheet-dialog--many' : ''}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
@@ -1802,7 +1844,7 @@ export function StudentCreateDialog({ canViewPii, onClose }: StudentCreateDialog
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed sis-window--movable${maximizeClassName}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-sheet-dialog--fixed sis-student-info-sheet sis-window--movable${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"

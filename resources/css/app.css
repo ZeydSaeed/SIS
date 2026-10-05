@@ -5936,7 +5936,8 @@ body:has(.sis-curriculum-page) .sis-confirm-dialog .sis-admission-sheet {
     .sis-enrollments-page,
     .sis-students-page,
     .sis-curriculum-page,
-    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page)
+    .sis-admission-page:not(.sis-students-page):not(.sis-enrollments-page):not(.sis-curriculum-page),
+    .sis-registry-sheet
 ) {
     --sis-ops-row-hover: color-mix(
         in srgb,
@@ -6002,6 +6003,19 @@ body:has(.sis-curriculum-page) .sis-confirm-dialog .sis-admission-sheet {
     :is(.sis-admission-periods-table, .sis-admission-drafts-table)
     tbody
     tr.sis-admission-periods-table__row--selected:hover {
+    background: var(--sis-ops-row-selected-hover);
+}
+
+/* Organization registry sheets (schools / directorates) — same row interaction palette. */
+.sis-registry-sheet .sis-data-table tbody tr.cursor-pointer:hover {
+    background: var(--sis-ops-row-hover);
+}
+
+.sis-registry-sheet .sis-data-table tbody tr.sis-data-table__row--selected {
+    background: var(--sis-ops-row-selected);
+}
+
+.sis-registry-sheet .sis-data-table tbody tr.sis-data-table__row--selected:hover {
     background: var(--sis-ops-row-selected-hover);
 }
 
@@ -7026,13 +7040,18 @@ body:has(.sis-curriculum-page) .sis-confirm-dialog.sis-notice-sheet {
     overflow: hidden !important;
 }
 
-/* Fullscreen / maximized surfaces stay flush to the viewport. */
+/* Maximized surfaces keep the same rounded frame — no square outer frame behind the sheet. */
 :is(
     .sis-admission-sheet-dialog--maximized,
     .sis-admission-accepted-dialog.sis-admission-sheet-dialog--maximized,
     .sis-placement-history-dialog.sis-admission-sheet-dialog--maximized
 ) {
-    border-radius: 0 !important;
+    border-radius: var(--sis-surface-radius) !important;
+}
+
+/* No square dimmed band around a maximized sheet — only its rounded frame shows. */
+body:has(.sis-admission-sheet-dialog--maximized) :is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
+    background: transparent !important;
 }
 
 .sis-page-surface:has(.sis-admission-page) {
@@ -9419,7 +9438,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
     min-height: 0 !important;
     margin: 0 !important;
     transform: none !important;
-    border-radius: 0 !important;
+    border-radius: var(--sis-surface-radius) !important;
 }
 
 .sis-admission-accepted-dialog.sis-admission-sheet-dialog--maximized .sis-admission-accepted-sheet,
@@ -9948,9 +9967,14 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 }
 
 @media (min-width: 48rem) {
+    /* Row 1: school + academic year. Row 2: name, start, end, max applications, submit. */
     .sis-admission-period-create {
-        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr) max-content;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr) max-content;
         align-items: end;
+    }
+
+    .sis-admission-period-create > label:has(input[name='name']) {
+        grid-column-start: 1;
     }
 }
 
@@ -10190,8 +10214,13 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 }
 
 .sis-admission-datetime__period {
+    min-width: 2.6rem;
     max-width: 4.2rem;
     padding-inline: 0.1rem;
+    border: 0;
+    background: transparent;
+    font-size: 0.75rem;
+    white-space: nowrap;
 }
 
 .sis-admission-datetime input:focus-visible,
@@ -12044,7 +12073,7 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     min-height: 0 !important;
     margin: 0 !important;
     transform: none !important;
-    border-radius: 0 !important;
+    border-radius: var(--sis-surface-radius) !important;
 }
 
 .sis-placement-history-dialog .sis-placement-history-sheet {
@@ -12738,3 +12767,34 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     max-height: none !important;
 }
 
+/* Student info / create sheet: fits the screen, body scrolls, hero stays on top,
+   close / edit / save stay visible at the bottom. */
+.sis-student-sheet-dialog.sis-student-info-sheet .sis-admission-draft-form.sis-admission-sheet.sis-student-record-form {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: auto;
+}
+
+.sis-student-sheet-dialog.sis-student-sheet-dialog--fixed.sis-student-info-sheet .sis-student-record-form > .sis-admission-sheet__hero {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 4;
+}
+
+.sis-student-sheet-dialog.sis-student-info-sheet .sis-student-record-form > .sis-admission-sheet__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    margin-top: auto;
+    margin-bottom: 0;
+}
+
+/* Period status dropdown in the table: no frame in any state (cell keeps its colour).
+   Repeated classes outrank the admission-page hairline rule for inputs / list triggers. */
+.sis-admission-page .sis-admission-periods-table.sis-admission-periods-table td.sis-admission-periods-table__status .sis-list-select__trigger.sis-admission-periods-table__status-select.sis-admission-periods-table__status-select,
+.sis-admission-page .sis-admission-periods-table.sis-admission-periods-table td.sis-admission-periods-table__status .sis-list-select__trigger.sis-admission-periods-table__status-select.sis-admission-periods-table__status-select:is(:hover, :focus, :focus-visible, :active, [aria-expanded='true']) {
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+}

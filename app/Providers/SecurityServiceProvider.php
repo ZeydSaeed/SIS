@@ -38,6 +38,8 @@ use App\Security\Policies\GradePolicy;
 use App\Security\Policies\PortalResultsPolicy;
 use App\Security\Policies\PortalScopesPolicy;
 use App\Security\Policies\PromotionPolicy;
+use App\Security\Policies\SchoolRegistryPolicy;
+use App\Security\Policies\DirectorateRegistryPolicy;
 use App\Security\Policies\ResultsPolicy;
 use App\Security\Policies\StudentPolicy;
 use App\Security\Policies\TeacherPolicy;
@@ -183,6 +185,18 @@ class SecurityServiceProvider extends ServiceProvider
 
         Gate::define('manageCurriculum', function (User $user): bool {
             return app(CurriculumPolicy::class)->manage($user);
+        });
+
+        Gate::define('manageSchools', function (User $user): bool {
+            return app(SchoolRegistryPolicy::class)->manage($user);
+        });
+
+        Gate::define('updateSchool', function (User $user, int $schoolId): bool {
+            return app(SchoolRegistryPolicy::class)->update($user, $schoolId);
+        });
+
+        Gate::define('manageDirectorates', function (User $user): bool {
+            return app(DirectorateRegistryPolicy::class)->manage($user);
         });
 
         Gate::define('viewAudit', function (User $user): bool {

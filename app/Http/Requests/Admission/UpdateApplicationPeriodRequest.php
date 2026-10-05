@@ -22,7 +22,7 @@ final class UpdateApplicationPeriodRequest extends FormRequest
             'academic_year_id' => $this->academicYearIdRule(),
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'max_applications' => ['nullable', 'integer', 'min:1'],
         ];
     }

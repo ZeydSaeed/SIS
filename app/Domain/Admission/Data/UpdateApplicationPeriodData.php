@@ -9,7 +9,8 @@ final readonly class UpdateApplicationPeriodData
         public int $academicYearId,
         public string $name,
         public string $startDate,
-        public string $endDate,
+        /** Null = open-ended period. */
+        public ?string $endDate,
         public ?int $maxApplications,
     ) {}
 }

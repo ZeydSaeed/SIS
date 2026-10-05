@@ -24,6 +24,8 @@ use App\Application\Transfers\Contracts\TransferApprovalHookPort;
 use App\Application\Student\Contracts\StudentReadRepositoryInterface as StudentManagementReadRepositoryInterface;
 use App\Domain\Attendance\Repositories\AttendanceWriteRepositoryInterface;
 use App\Domain\Enrollment\Contracts\EnrollmentCurriculumPort;
+use App\Domain\Student\Contracts\StudentEnrollmentPlacementPort;
+use App\Infrastructure\Student\EloquentStudentEnrollmentPlacementAdapter;
 use App\Domain\Enrollment\Contracts\PrerequisiteCatalogPort;
 use App\Domain\Enrollment\Contracts\PrerequisitePassEvidencePort;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
@@ -35,6 +37,14 @@ use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Organization\Repositories\BranchRepositoryInterface;
 use App\Domain\Organization\Repositories\DepartmentRepositoryInterface;
 use App\Domain\Organization\Repositories\RoomRepositoryInterface;
+use App\Domain\Organization\Repositories\SchoolRepositoryInterface;
+use App\Domain\Organization\Repositories\DirectorateRepositoryInterface;
+use App\Infrastructure\Persistence\Organization\EloquentDirectorateRepository;
+use App\Application\Organization\Contracts\SchoolMembershipPort;
+use App\Application\Organization\Contracts\SchoolRegistryReadRepositoryInterface;
+use App\Infrastructure\Organization\EloquentSchoolMembershipAdapter;
+use App\Infrastructure\Persistence\Organization\EloquentSchoolRegistryReadRepository;
+use App\Infrastructure\Persistence\Organization\EloquentSchoolRepository;
 use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
 use App\Domain\Academic\Repositories\GradeLevelRepositoryInterface;
 use App\Domain\Academic\Repositories\HolidayRepositoryInterface;
@@ -161,6 +171,7 @@ use App\Infrastructure\Persistence\Student\EloquentStudentGuardianRepository;
 use App\Infrastructure\Persistence\Student\EloquentStudentRepository;
 use App\Listeners\Enrollment\RecordEnrollmentCancelledAudit;
 use App\Listeners\Enrollment\RecordEnrollmentPlacementUpdatedAudit;
+use App\Listeners\Enrollment\ApplyCurriculumOnEnrollmentPlacementUpdated;
 use App\Listeners\Enrollment\ApplyCurriculumOnStudentEnrolled;
 use App\Listeners\Enrollment\RecordStudentEnrolledAudit;
 use Illuminate\Support\Facades\Event;
@@ -182,6 +193,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(PrerequisiteCatalogPort::class, CurriculumPrerequisiteCatalogAdapter::class);
         $this->app->bind(PrerequisitePassEvidencePort::class, EloquentPrerequisitePassEvidenceAdapter::class);
         $this->app->bind(EnrollmentCurriculumPort::class, EloquentEnrollmentCurriculumAdapter::class);
+        $this->app->bind(StudentEnrollmentPlacementPort::class, EloquentStudentEnrollmentPlacementAdapter::class);
         $this->app->bind(CurriculumApplicationQueue::class, QueuedCurriculumApplication::class);
         $this->app->bind(EnrollmentPlacementRepositoryInterface::class, EloquentEnrollmentPlacementRepository::class);
         $this->app->bind(EnrollmentReadRepositoryInterface::class, EloquentEnrollmentReadRepository::class);
@@ -236,6 +248,10 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(RoomRepositoryInterface::class, EloquentRoomRepository::class);
         $this->app->bind(BranchRepositoryInterface::class, EloquentBranchRepository::class);
         $this->app->bind(DepartmentRepositoryInterface::class, EloquentDepartmentRepository::class);
+        $this->app->bind(SchoolRepositoryInterface::class, EloquentSchoolRepository::class);
+        $this->app->bind(DirectorateRepositoryInterface::class, EloquentDirectorateRepository::class);
+        $this->app->bind(SchoolRegistryReadRepositoryInterface::class, EloquentSchoolRegistryReadRepository::class);
+        $this->app->bind(SchoolMembershipPort::class, EloquentSchoolMembershipAdapter::class);
         $this->app->bind(StudentReadRepositoryInterface::class, EloquentStudentReadRepository::class);
         $this->app->bind(StudentManagementReadRepositoryInterface::class, EloquentStudentManagementReadRepository::class);
         $this->app->bind(HttpWorkloadReadRepositoryInterface::class, EloquentHttpWorkloadReadRepository::class);
@@ -256,5 +272,6 @@ class ArchitectureServiceProvider extends ServiceProvider
         Event::listen(StudentEnrolledBridgeEvent::class, ApplyCurriculumOnStudentEnrolled::class);
         Event::listen(EnrollmentCancelledBridgeEvent::class, RecordEnrollmentCancelledAudit::class);
         Event::listen(EnrollmentPlacementUpdatedBridgeEvent::class, RecordEnrollmentPlacementUpdatedAudit::class);
+        Event::listen(EnrollmentPlacementUpdatedBridgeEvent::class, ApplyCurriculumOnEnrollmentPlacementUpdated::class);
     }
 }

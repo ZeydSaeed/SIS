@@ -7,6 +7,7 @@ use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Student\Results\UpdateStudentResult;
+use App\Application\Student\Services\StudentEnrollmentPlacementSync;
 use App\Application\Student\Support\StudentNameFormatter;
 use App\Domain\Student\Data\UpdateStudentData;
 use App\Domain\Student\Events\StudentProfileUpdated;
@@ -20,6 +21,7 @@ final class UpdateStudentHandler implements CommandHandler
         private readonly UnitOfWork $unitOfWork,
         private readonly StudentRepositoryInterface $students,
         private readonly OutboxRepository $outbox,
+        private readonly StudentEnrollmentPlacementSync $placementSync,
     ) {}
 
     public function handle(Command $command): UpdateStudentResult
@@ -44,7 +46,18 @@ final class UpdateStudentHandler implements CommandHandler
             middleName: $command->middleName,
         );
 
-        $this->unitOfWork->transaction(function () use ($command, $fullName): void {
+        $schoolId = $this->students->placementIds($command->studentId)['school_id'];
+        $placement = null;
+        if ($schoolId !== null) {
+            $placement = $this->placementSync->prepare(
+                $command->studentId,
+                $schoolId,
+                $this->students->findUpdateData($command->studentId, $schoolId)?->admittedClassName,
+                $command->admittedClassName,
+            );
+        }
+
+        $this->unitOfWork->transaction(function () use ($command, $fullName, $schoolId, $placement): void {
             $this->students->update($command->studentId, new UpdateStudentData(
                 firstName: $command->firstName,
                 middleName: $command->middleName,
@@ -90,6 +103,10 @@ final class UpdateStudentHandler implements CommandHandler
                 mathematicsGrade: $command->mathematicsGrade,
                 physicsGrade: $command->physicsGrade,
             ));
+
+            if ($schoolId !== null && $placement !== null) {
+                $this->placementSync->afterSave($command->studentId, $schoolId, $placement);
+            }
 
             $this->outbox->stage(new StudentProfileUpdated(
                 studentId: $command->studentId,

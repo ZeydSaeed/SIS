@@ -328,25 +328,23 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             });
         }
 
+        // Enrollment department first; an enrollment without one falls back to the student's.
         if ($departmentId !== null && $departmentId > 0) {
-            $departmentsTable = SchemaHelper::qualified('organization', 'departments');
-            $departmentNameFromId = DB::table($departmentsTable)
-                ->where('id', $departmentId)
-                ->value('name');
-            $departmentNameFromId = is_string($departmentNameFromId)
-                ? trim($departmentNameFromId)
-                : '';
-
-            $query->where(function (Builder $builder) use ($departmentId, $departmentNameFromId): void {
-                $builder->where('e.department_id', $departmentId);
-                if ($departmentNameFromId !== '') {
-                    $builder->orWhere('s.department_name', $departmentNameFromId);
-                }
+            $query->where(function (Builder $builder) use ($departmentId): void {
+                $builder->where('e.department_id', $departmentId)
+                    ->orWhere(fn (Builder $fallback) => $fallback
+                        ->whereNull('e.department_id')
+                        ->where('s.department_id', $departmentId));
             });
         } else {
             $department = trim((string) ($departmentName ?? ''));
             if ($department !== '') {
-                $query->where('s.department_name', $department);
+                $query->where(function (Builder $builder) use ($department): void {
+                    $builder->where('dep.name', $department)
+                        ->orWhere(fn (Builder $fallback) => $fallback
+                            ->whereNull('e.department_id')
+                            ->where('sdep.name', $department));
+                });
             }
         }
 
@@ -415,6 +413,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             ->leftJoin($schools.' as sch', 'sch.id', '=', 'e.school_id')
             ->leftJoin($branches.' as br', 'br.id', '=', 'e.branch_id')
             ->leftJoin($departments.' as dep', 'dep.id', '=', 'e.department_id')
+            ->leftJoin($departments.' as sdep', 'sdep.id', '=', 's.department_id')
             ->where('e.school_id', $schoolId)
             ->select([
                 'e.id',
@@ -442,7 +441,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
                 's.birth_date as student_birth_date',
                 's.status as student_status',
                 's.school_name as student_school_name',
-                's.department_name',
+                'sdep.name as department_name',
                 'y.name as academic_year_name',
                 'y.code as academic_year_code',
                 'c.code as class_code',

@@ -23,7 +23,7 @@ final class CreateApplicationDraftGuard
      *     name:string,
      *     status:int,
      *     start_date:string,
-     *     end_date:string,
+     *     end_date:?string,
      *     max_applications:?int
      * }
      */
@@ -43,7 +43,10 @@ final class CreateApplicationDraftGuard
         }
 
         $now = time();
-        if ($now < strtotime($period['start_date']) || $now > strtotime($period['end_date'])) {
+        if (
+            $now < strtotime($period['start_date'])
+            || ($period['end_date'] !== null && $now > strtotime($period['end_date']))
+        ) {
             throw ApplicationPeriodClosedException::forPeriod($periodId);
         }
 

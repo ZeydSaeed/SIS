@@ -4,7 +4,7 @@ export type AdmissionPeriod = {
     school_id: number;
     name: string;
     start_date: string;
-    end_date: string;
+    end_date: string | null;
     max_applications: number | null;
     status: number;
     created_at: string;
@@ -137,6 +137,8 @@ export type AdmissionPageAuthorization = {
     can_manage: boolean;
     can_update_student?: boolean;
     can_view_student_pii?: boolean;
+    can_manage_schools?: boolean;
+    can_manage_directorates?: boolean;
 };
 
 export const ADMISSION_STATUS_DRAFT = 1;

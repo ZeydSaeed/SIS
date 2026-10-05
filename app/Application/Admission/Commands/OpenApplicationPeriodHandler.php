@@ -38,7 +38,7 @@ final class OpenApplicationPeriodHandler implements CommandHandler
             }
         }
 
-        if (strtotime($command->endDate) < strtotime($command->startDate)) {
+        if ($command->endDate !== null && strtotime($command->endDate) < strtotime($command->startDate)) {
             throw new DomainException('Application period end_date must be on or after start_date.');
         }
 

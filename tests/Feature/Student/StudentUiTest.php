@@ -455,8 +455,8 @@ final class StudentUiTest extends TestCase
             'governorate' => 'البصرة',
             'neighborhood' => 'العشار',
             'school_name' => 'Demo Vocational School',
-            'admitted_class_name' => 'الثالث',
-            'department_name' => 'صناعي',
+            'grade_level_id' => $this->gradeLevelNamed('الثالث'),
+            'department_id' => $this->createDepartmentForSchool($schoolId, 'صناعي'),
         ]);
 
         $this->get('/students')
@@ -565,9 +565,11 @@ final class StudentUiTest extends TestCase
             'full_name' => 'Old Name',
             'national_id' => 'NAT-KEEP-001',
             'mother_name' => 'Original Mother',
-            'department_name' => 'صناعي',
+            'department_id' => $this->createDepartmentForSchool($schoolId, 'صناعي'),
             'birth_date' => '2012-05-01',
         ]);
+        $electricity = $this->createDepartmentForSchool($schoolId, 'كهرباء');
+        $third = $this->gradeLevelNamed('الثالث');
 
         $this->put("/students/{$student->id}", [
             'first_name' => 'New',
@@ -582,8 +584,8 @@ final class StudentUiTest extends TestCase
             'id' => $student->id,
             'first_name' => 'New',
             'father_name' => 'Father',
-            'department_name' => 'كهرباء',
-            'admitted_class_name' => 'الثالث',
+            'department_id' => $electricity,
+            'grade_level_id' => $third,
             'national_id' => 'NAT-KEEP-001',
             'mother_name' => 'Original Mother',
         ]);
@@ -607,9 +609,10 @@ final class StudentUiTest extends TestCase
             'birth_date' => '2012-05-01',
             'governorate' => 'بغداد',
             'neighborhood' => 'الكرادة',
-            'admitted_class_name' => 'الأول',
+            'grade_level_id' => $this->gradeLevelNamed('الأول'),
             'mobile' => '07700000000',
         ]);
+        $second = $this->gradeLevelNamed('الثاني');
 
         $this->put("/students/{$student->id}", [
             'first_name' => 'Visible',
@@ -632,7 +635,7 @@ final class StudentUiTest extends TestCase
             'governorate' => 'النجف',
             'neighborhood' => 'المركز',
             'gender' => 2,
-            'admitted_class_name' => 'الثاني',
+            'grade_level_id' => $second,
             'previous_school_name' => 'مدرسة الرافدين',
             'mobile' => '07811111111',
             'national_id' => 'NAT-VIS-001',

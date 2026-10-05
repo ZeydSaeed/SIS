@@ -63,4 +63,12 @@ final readonly class UpdateStudentListRowCommand implements Command
     {
         return in_array($field, $this->presentFields, true);
     }
+
+    /** The grade (class) this request asks for, or null when it does not touch it. */
+    public function requestedAdmittedClassName(): ?string
+    {
+        return $this->presentFields === [] || $this->has('admitted_class_name')
+            ? $this->admittedClassName
+            : null;
+    }
 }

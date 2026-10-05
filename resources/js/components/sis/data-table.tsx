@@ -27,6 +27,8 @@ type DataTableProps<T> = {
     caption?: string;
     /** When false, omits the column header row (cells still render). */
     showHeader?: boolean;
+    /** Marks the row as the current selection (highlight + aria-selected). */
+    isRowSelected?: (row: T) => boolean;
 };
 
 export function DataTable<T>({
@@ -42,6 +44,7 @@ export function DataTable<T>({
     mobileCard,
     caption,
     showHeader = true,
+    isRowSelected,
 }: DataTableProps<T>) {
     const isMobile = useIsMobile();
 
@@ -112,7 +115,11 @@ export function DataTable<T>({
                         rows.map((row) => (
                             <tr
                                 key={rowKey(row)}
-                                className={cn(onRowClick && 'cursor-pointer')}
+                                className={cn(
+                                    onRowClick && 'cursor-pointer',
+                                    isRowSelected?.(row) && 'sis-data-table__row--selected',
+                                )}
+                                aria-selected={isRowSelected ? isRowSelected(row) : undefined}
                                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                                 onKeyDown={
                                     onRowClick

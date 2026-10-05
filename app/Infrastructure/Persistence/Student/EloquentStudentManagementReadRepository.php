@@ -46,14 +46,12 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'transfer_document_number',
         'transfer_document_date',
         'school_start_date',
-        'admitted_class_name',
         'notes',
         'mobile',
         'guardian_mobile',
         'email',
         'school_name',
         'branch_id',
-        'department_name',
         'department_id',
         'grade_level_id',
 
@@ -104,14 +102,12 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         'transfer_document_number',
         'transfer_document_date',
         'school_start_date',
-        'admitted_class_name',
         'notes',
         'mobile',
         'guardian_mobile',
         'email',
         'school_name',
         'branch_id',
-        'department_name',
         'department_id',
         'grade_level_id',
 
@@ -142,6 +138,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 self::DETAIL_COLUMNS,
             ))
             ->addSelect('br.name as branch_name')
+            ->tap(fn (Builder $query) => $this->joinPlacementNames($query))
             ->where('s.id', $studentId)
             ->where('s.school_id', $schoolId)
             ->first();
@@ -150,9 +147,12 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             return null;
         }
 
+        $year = $this->resolveAcademicYearContext($studentId, $schoolId, $academicYearId);
+
         return $this->mapDetail(
             $record,
-            $this->resolveAcademicYearContext($studentId, $schoolId, $academicYearId),
+            $year,
+            $this->activeEnrollmentStudentIds([$studentId], $schoolId, $year['id'])[$studentId] ?? null,
         );
     }
 
@@ -237,6 +237,18 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         return $this->paginateQuery($query, $page, $perPage, $schoolId, $academicYearId);
     }
 
+    /**
+     * The student keeps placement as ids; the department / grade labels the UI shows
+     * (department_name, admitted_class_name) are read from the catalogs.
+     */
+    private function joinPlacementNames(Builder $query): void
+    {
+        $query
+            ->leftJoin(SchemaHelper::qualified('organization', 'departments').' as sdep', 'sdep.id', '=', 's.department_id')
+            ->leftJoin(SchemaHelper::qualified('academic', 'grade_levels').' as sgl', 'sgl.id', '=', 's.grade_level_id')
+            ->addSelect(['sdep.name as department_name', 'sgl.name as admitted_class_name']);
+    }
+
     private function baseListQuery(int $schoolId): Builder
     {
         $studentsTable = SchemaHelper::qualified('students', 'students');
@@ -250,6 +262,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 self::LIST_COLUMNS,
             ))
             ->addSelect('br.name as branch_name')
+            ->tap(fn (Builder $query) => $this->joinPlacementNames($query))
             ->where('s.school_id', $schoolId)
             ->orderBy('s.full_name')
             ->orderBy('s.id');
@@ -313,7 +326,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         $items = array_map(
             fn (StudentRecord $record): StudentListItemDTO => $this->mapListItem(
                 $record,
-                isset($enrolledIds[(int) $record->getKey()]),
+                $enrolledIds[(int) $record->getKey()] ?? null,
             ),
             $records,
         );
@@ -373,7 +386,10 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         return $map;
     }
 
-    private function mapListItem(StudentRecord $record, bool $isEnrolled = false): StudentListItemDTO
+    /**
+     * @param  array{id: int, grade_name: string|null}|null  $enrollment
+     */
+    private function mapListItem(StudentRecord $record, ?array $enrollment = null): StudentListItemDTO
     {
         return new StudentListItemDTO(
             id: (int) $record->getKey(),
@@ -431,7 +447,9 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
                 ? (int) $record->admitted_academic_year_id
                 : null,
             status: (int) $record->status,
-            isEnrolled: $isEnrolled,
+            isEnrolled: $enrollment !== null,
+            activeEnrollmentId: $enrollment['id'] ?? null,
+            enrollmentGradeName: $enrollment['grade_name'] ?? null,
             departmentId: $record->department_id !== null ? (int) $record->department_id : null,
             gradeLevelId: $record->grade_level_id !== null ? (int) $record->grade_level_id : null,
         );
@@ -439,8 +457,9 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
 
     /**
      * @param  array{id: int|null, name: string|null, code: string|null}  $year
+     * @param  array{id: int, grade_name: string|null}|null  $enrollment
      */
-    private function mapDetail(StudentRecord $record, array $year): StudentDetailDTO
+    private function mapDetail(StudentRecord $record, array $year, ?array $enrollment = null): StudentDetailDTO
     {
         return new StudentDetailDTO(
             id: (int) $record->getKey(),
@@ -502,6 +521,8 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
             status: (int) $record->status,
             createdAt: $record->created_at->toIso8601String(),
             updatedAt: $record->updated_at->toIso8601String(),
+            activeEnrollmentId: $enrollment['id'] ?? null,
+            enrollmentGradeName: $enrollment['grade_name'] ?? null,
         );
     }
 
@@ -616,7 +637,7 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
 
     /**
      * @param  list<int>  $studentIds
-     * @return array<int, true>
+     * @return array<int, array{id: int, grade_name: string|null}>
      */
     private function activeEnrollmentStudentIds(array $studentIds, int $schoolId, ?int $academicYearId): array
     {
@@ -625,18 +646,23 @@ final class EloquentStudentManagementReadRepository implements StudentReadReposi
         }
 
         $enrollmentsTable = SchemaHelper::qualified('enrollment', 'enrollments');
-        $rows = DB::table($enrollmentsTable)
-            ->where('school_id', $schoolId)
-            ->where('academic_year_id', $academicYearId)
-            ->where('status', EnrollmentStatus::ACTIVE)
-            ->whereNull('effective_to')
-            ->whereIn('student_id', $studentIds)
-            ->distinct()
-            ->pluck('student_id');
+        $rows = DB::table($enrollmentsTable.' as e')
+            ->join(SchemaHelper::qualified('enrollment', 'classes').' as c', 'c.id', '=', 'e.class_id')
+            ->leftJoin(SchemaHelper::qualified('academic', 'grade_levels').' as g', 'g.id', '=', 'c.grade_level_id')
+            ->where('e.school_id', $schoolId)
+            ->where('e.academic_year_id', $academicYearId)
+            ->where('e.status', EnrollmentStatus::ACTIVE)
+            ->whereNull('e.effective_to')
+            ->whereIn('e.student_id', $studentIds)
+            ->orderBy('e.id')
+            ->get(['e.id', 'e.student_id', 'g.name as grade_name']);
 
         $set = [];
-        foreach ($rows as $studentId) {
-            $set[(int) $studentId] = true;
+        foreach ($rows as $row) {
+            $set[(int) $row->student_id] = [
+                'id' => (int) $row->id,
+                'grade_name' => $row->grade_name !== null ? (string) $row->grade_name : null,
+            ];
         }
 
         return $set;

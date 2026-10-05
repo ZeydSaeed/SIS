@@ -9,7 +9,8 @@ final readonly class CreateApplicationPeriodData
         public int $schoolId,
         public string $name,
         public string $startDate,
-        public string $endDate,
+        /** Null = open-ended period. */
+        public ?string $endDate,
         public ?int $maxApplications,
         public int $status,
     ) {}

@@ -609,6 +609,39 @@ trait InteractsWithSecurity
         ]);
     }
 
+    /** Grade level with a class label as its name (الأول، الثاني، ...), created on first use. */
+    protected function gradeLevelNamed(string $name): int
+    {
+        $table = SchemaHelper::qualified('academic', 'grade_levels');
+        $existing = DB::table($table)->where('name', $name)->value('id');
+        if ($existing !== null) {
+            return (int) $existing;
+        }
+
+        return (int) DB::table($table)->insertGetId([
+            'code' => 'GL'.substr(md5($name), 0, 8),
+            'name' => $name,
+            'level_order' => 1,
+            'education_stage' => 3,
+            'status' => 1,
+        ]);
+    }
+
+    /** Department (الاختصاص) of a school; students and enrollments reference it by id. */
+    protected function createDepartmentForSchool(int $schoolId, string $name, ?int $branchId = null): int
+    {
+        return (int) DB::table(SchemaHelper::qualified('organization', 'departments'))->insertGetId([
+            'school_id' => $schoolId,
+            'branch_id' => $branchId,
+            'code' => 'DEP-'.substr(md5($schoolId.'|'.$name.'|'.$branchId), 0, 12),
+            'name' => $name,
+            'department_type' => 1,
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     protected function createClassForSchool(int $schoolId, int $academicYearId, ?int $gradeLevelId = null): EnrollmentClassRecord
     {
         $gradeLevelId ??= $this->createGradeLevel();

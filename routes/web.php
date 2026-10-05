@@ -9,6 +9,8 @@ use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Ops\OpsModulePageController;
+use App\Http\Controllers\Organization\DirectorateRegistryController;
+use App\Http\Controllers\Organization\SchoolRegistryController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
 use App\Http\Controllers\SchoolContextController;
@@ -42,6 +44,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('student')
             ->name('documents.upload');
         Route::get('/{student}', [StudentPageController::class, 'show'])->name('show');
+    });
+
+    Route::prefix('organization')->name('organization.')->middleware('require.school.context')->group(function (): void {
+        Route::post('/schools', [SchoolRegistryController::class, 'store'])->name('schools.store');
+        Route::patch('/schools/{school}', [SchoolRegistryController::class, 'update'])
+            ->whereNumber('school')
+            ->name('schools.update');
+        Route::post('/schools/{school}/deactivate', [SchoolRegistryController::class, 'deactivate'])
+            ->whereNumber('school')
+            ->name('schools.deactivate');
+        Route::post('/schools/{school}/reactivate', [SchoolRegistryController::class, 'reactivate'])
+            ->whereNumber('school')
+            ->name('schools.reactivate');
+        Route::post('/directorates', [DirectorateRegistryController::class, 'store'])->name('directorates.store');
+        Route::patch('/directorates/{directorate}', [DirectorateRegistryController::class, 'update'])
+            ->whereNumber('directorate')
+            ->name('directorates.update');
+        Route::post('/directorates/{directorate}/deactivate', [DirectorateRegistryController::class, 'deactivate'])
+            ->whereNumber('directorate')
+            ->name('directorates.deactivate');
+        Route::post('/directorates/{directorate}/reactivate', [DirectorateRegistryController::class, 'reactivate'])
+            ->whereNumber('directorate')
+            ->name('directorates.reactivate');
     });
 
     Route::prefix('admission')->name('admission.')->middleware('require.school.context')->group(function (): void {

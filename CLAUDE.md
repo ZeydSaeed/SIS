@@ -3,13 +3,13 @@
 Enterprise Student Information System.  
 **Stack:** Laravel 13 + Inertia/React 19 + PostgreSQL + Redis  
 **Workspace:** `d:\Projects\sis`  
-**Agent index:** `AGENTS.md` (also loaded by Claude Code)
+**Governance index:** `AGENTS.md` (must be read before implementation; do not assume automatic Cursor rule injection)
 
 ## Tooling split (mandatory)
 
 | Tool | Role |
 |------|------|
-| **Claude Code Desktop / CLI** | AI coding agent — edits, commands, tests, commits |
+| **Claude Code Desktop / CLI** | Primary coding agent — edits, commands, tests, commits |
 | **Cursor** | IDE only — browse, review, search. Do not rely on Cursor Agent for feature work |
 
 Open the same folder in both. Prefer Cursor via **Your IDE** / `/ide` (CLI: `claude --ide`).
@@ -24,20 +24,52 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\claude-bridge.ps1" -Prompt "
 
 Plan only: add `-PlanOnly`. See `.cursor/rules/claude-code-bridge.mdc`.
 
-## Before you code
+## Governance load model
+
+```text
+CLAUDE.md (global contract)
+    ↓
+AGENTS.md (governance index)
+    ↓
+Classify task → load ONLY applicable:
+    .cursor/rules/*.mdc
+    .cursor/skills/*/SKILL.md
+    .cursor/architecture/*
+    ↓
+UNDERSTAND → INSPECT → IMPACT → PLAN → IMPLEMENT → TEST → VALIDATE → REPORT
+```
+
+Do **not** assume `.cursor/rules/*.mdc` are auto-applied the way Cursor applies them.  
+Do **not** read every rule file on every task — classify first, then load what matches.
+
+## MANDATORY PRE-IMPLEMENTATION GATE
+
+Do not modify project files until you have:
+
+1. Identified the change category (app feature / database / UI / architecture / docs-only / ops).
+2. Read `CLAUDE.md` and `AGENTS.md`.
+3. Read the matching `.cursor/skills/*/SKILL.md` when a skill applies.
+4. Read the **applicable** `.cursor/rules/*.mdc` files for that category/path (not the entire rules tree).
+5. Read the applicable architecture/governance documents.
+6. Inspected the existing implementation.
+7. Produced an implementation plan (impact + files + risks + STOP checks).
+
+Then follow:
 
 ```text
 UNDERSTAND → INSPECT → IMPACT → PLAN → IMPLEMENT → TEST → VALIDATE → REPORT
 ```
 
-Read the matching skill/rules first:
+### Category → read first
 
 | Change type | Read first |
 |-------------|------------|
-| Any app feature | `.cursor/skills/application-feature/SKILL.md` + `.cursor/architecture/ARCHITECTURE-STACK.md` |
-| Database / migrations | `.cursor/skills/database-change/SKILL.md` + blueprint checklist |
-| UI (`resources/js/**`) | `UI-CONTRACT.md`, `02-ui-ux.mdc`, `react-inertia.mdc`, color/typography governance |
-| Architecture-sensitive | `.cursor/architecture/SIS-CONSTITUTION.md`, `GOVERNANCE-MAP.md` |
+| Any app feature | `.cursor/skills/application-feature/SKILL.md` + `.cursor/architecture/ARCHITECTURE-STACK.md` + `clean-architecture.mdc` |
+| Database / migrations | `.cursor/skills/database-change/SKILL.md` + blueprint checklist + `database-changes-mandatory.mdc` |
+| UI (`resources/js/**`) | `UI-CONTRACT.md`, `02-ui-ux.mdc`, `react-inertia.mdc`, `17-color-typography-governance.mdc` |
+| Architecture-sensitive | `.cursor/architecture/SIS-CONSTITUTION.md`, `GOVERNANCE-MAP.md`, `01-ARCHITECTURE.mdc` |
+
+Global governance files listed in `AGENTS.md` under **GLOBAL GOVERNANCE RULES** must be followed on every implementation task (read if not already loaded this session).
 
 ## Non-negotiables
 
@@ -124,6 +156,8 @@ For significant work, include an **SIS CHANGE REPORT** (see Constitution §81 / 
 
 ## Do not
 
+- Bypass project governance or invent architecture
+- Assume Cursor auto-applies `.mdc` rules for Claude Code
 - Put business logic in React, controllers, or platform adapters
 - Hard-delete academic history
 - Skip database-change skill for schema work

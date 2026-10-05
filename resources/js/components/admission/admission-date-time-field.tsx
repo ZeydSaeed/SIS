@@ -284,20 +284,27 @@ export function AdmissionDateTimeField({
                             }}
                         />
                     </div>
-                    <select
-                        className="sis-admission-datetime__period"
-                        dir="rtl"
-                        value={period}
-                        aria-label={i18n.dayPeriod}
-                        onChange={(event) => {
-                            const next = event.target.value as DayPeriod;
-                            setPeriod(next);
-                            emit(day, month, year, hour, minute, next);
-                        }}
-                    >
-                        <option value="am">{i18n.timeAm}</option>
-                        <option value="pm">{i18n.timePm}</option>
-                    </select>
+                    <span className="sis-admission-datetime__unit sis-admission-datetime__period">
+                        <span className="sis-admission-datetime__face" aria-hidden="true">
+                            {period === 'pm' ? i18n.timePm : i18n.timeAm}
+                        </span>
+                        <SisListSelect
+                            variant="overlay"
+                            value={period}
+                            options={[
+                                { value: 'am', label: i18n.timeAm },
+                                { value: 'pm', label: i18n.timePm },
+                            ]}
+                            includeBlank={false}
+                            dir="rtl"
+                            ariaLabel={i18n.dayPeriod}
+                            onChange={(next) => {
+                                const nextPeriod: DayPeriod = next === 'pm' ? 'pm' : 'am';
+                                setPeriod(nextPeriod);
+                                emit(day, month, year, hour, minute, nextPeriod);
+                            }}
+                        />
+                    </span>
                 </div>
             )}
         </div>

@@ -24,4 +24,6 @@ powershell -ExecutionPolicy Bypass -File "d:\Projects\sis\scripts\claude-bridge.
 5. Keep Cursor as IDE: browse/review only. Commit/push only if the user explicitly asks.
 6. Exceptions (handle locally without Claude bridge): answering questions, explaining code, git status/diff when asked, and this bridge/setup itself.
 
+The bridge injects a mandatory pre-implementation gate (read CLAUDE.md / AGENTS.md / applicable `.cursor` rules & skills, then plan) before the user task. Do not weaken that prompt when editing `scripts/claude-bridge.ps1`.
+
 Auth: Claude Code must already be signed in (`claude auth` / Desktop login). IDE link uses `--ide` (Cursor open on `d:\Projects\sis`).

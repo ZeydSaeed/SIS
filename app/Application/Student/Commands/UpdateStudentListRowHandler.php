@@ -7,6 +7,7 @@ use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Student\Results\UpdateStudentListRowResult;
+use App\Application\Student\Services\StudentEnrollmentPlacementSync;
 use App\Application\Student\Support\StudentNameFormatter;
 use App\Domain\Student\Data\UpdateStudentData;
 use App\Domain\Student\Events\StudentProfileUpdated;
@@ -19,6 +20,7 @@ final class UpdateStudentListRowHandler implements CommandHandler
         private readonly UnitOfWork $unitOfWork,
         private readonly StudentRepositoryInterface $students,
         private readonly OutboxRepository $outbox,
+        private readonly StudentEnrollmentPlacementSync $placementSync,
     ) {}
 
     public function handle(Command $command): UpdateStudentListRowResult
@@ -46,8 +48,16 @@ final class UpdateStudentListRowHandler implements CommandHandler
             middleName: $current->middleName,
         );
 
-        $this->unitOfWork->transaction(function () use ($command, $current, $fullName): void {
+        $placement = $this->placementSync->prepare(
+            $command->studentId,
+            $command->schoolId,
+            $current->admittedClassName,
+            $command->requestedAdmittedClassName(),
+        );
+
+        $this->unitOfWork->transaction(function () use ($command, $current, $fullName, $placement): void {
             $this->students->update($command->studentId, $this->mergedData($command, $current, $fullName));
+            $this->placementSync->afterSave($command->studentId, $command->schoolId, $placement);
             $this->outbox->stage(new StudentProfileUpdated(
                 studentId: $command->studentId,
                 fullName: $fullName,

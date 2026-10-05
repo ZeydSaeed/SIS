@@ -60,6 +60,9 @@ final readonly class StudentDetailDTO
         public int $status,
         public string $createdAt,
         public string $updatedAt,
+        /** Active enrollment (resolved year): its placement is the student's current one. */
+        public ?int $activeEnrollmentId = null,
+        public ?string $enrollmentGradeName = null,
     ) {}
 
     /**
@@ -123,6 +126,8 @@ final readonly class StudentDetailDTO
             'status' => $this->status,
             'created_at' => $this->createdAt,
             'updated_at' => $this->updatedAt,
+            'active_enrollment_id' => $this->activeEnrollmentId,
+            'enrollment_grade_name' => $this->enrollmentGradeName,
         ];
     }
 }

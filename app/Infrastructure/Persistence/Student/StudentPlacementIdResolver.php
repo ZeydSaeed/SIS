@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
  *
  * - department_id: department named department_name (same branch preferred);
  * - branch_id: kept when given, else taken from the resolved department;
- * - grade_level_id: grade level of the school's class named admitted_class_name.
+ * - grade_level_id: grade level with that name, else of the school's class with that name.
+ *
+ * The names are no longer stored on the student: they are read back from the ids.
  */
 final class StudentPlacementIdResolver
 {
@@ -28,6 +30,27 @@ final class StudentPlacementIdResolver
             'department_id' => $department['id'],
             'grade_level_id' => $this->gradeLevelId($schoolId, $admittedClassName),
         ];
+    }
+
+    /**
+     * Strict lookup for writes: the school's department with this name (the given
+     * branch preferred), or null when the name is not in the catalog.
+     *
+     * @return array{id: int, branch_id: int|null}|null
+     */
+    public function findDepartment(int $schoolId, ?int $branchId, string $name): ?array
+    {
+        $department = $this->department($schoolId, $branchId, $name);
+
+        return $department['id'] !== null
+            ? ['id' => $department['id'], 'branch_id' => $department['branch_id']]
+            : null;
+    }
+
+    /** Strict lookup for writes: grade level by its own name, else by a class of that name. */
+    public function findGradeLevelId(int $schoolId, string $name): ?int
+    {
+        return $this->gradeLevelId($schoolId, $name);
     }
 
     /**
@@ -71,6 +94,17 @@ final class StudentPlacementIdResolver
         $name = trim((string) $className);
         if ($name === '') {
             return null;
+        }
+
+        // Grade levels are a global catalog whose names are the class labels (الأول، الثاني، ...).
+        $levels = DB::table(SchemaHelper::qualified('academic', 'grade_levels'))
+            ->orderBy('level_order')
+            ->orderBy('id')
+            ->get(['id', 'name']);
+        $level = $levels->first(fn ($item) => trim((string) $item->name) === $name)
+            ?? $levels->first(fn ($item) => self::normalize((string) $item->name) === self::normalize($name));
+        if ($level !== null) {
+            return (int) $level->id;
         }
 
         if (SchemaHelper::isPostgreSql()) {

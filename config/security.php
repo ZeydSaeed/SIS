@@ -75,6 +75,8 @@ return [
         'audit.view' => 'View domain audit logs for the current school',
         'audit.manage' => 'Register domain audit log entries for the current school',
         'security.manage_users' => 'Manage users and security settings',
+        'organization.schools.manage' => 'Add and edit schools linked to the user (creator is linked to new schools)',
+        'organization.directorates.manage' => 'Add and edit directorates (shared reference data for schools)',
     ],
 
     'roles' => [
@@ -268,6 +270,10 @@ return [
         'curriculum_manager' => [
             'curriculum.view',
             'curriculum.manage',
+        ],
+        'school_manager' => [
+            'organization.schools.manage',
+            'organization.directorates.manage',
         ],
     ],
 

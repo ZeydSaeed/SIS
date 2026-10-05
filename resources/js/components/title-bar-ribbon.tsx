@@ -10,6 +10,7 @@ import {
     BookOpen,
     Briefcase,
     Building2,
+    Landmark,
     CalendarCheck,
     CalendarDays,
     CalendarRange,
@@ -102,6 +103,7 @@ export type HomeRibbonActionId =
 
 export type AddRibbonActionId =
     | 'addSchool'
+    | 'addDirectorate'
     | 'addStudent'
     | 'addTeacher'
     | 'addHoliday'
@@ -243,9 +245,10 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
     },
     {
         id: 'school',
-        label: 'المدرسة',
+        label: 'المدرسة والمديرية',
         items: [
             { id: 'addSchool', label: 'مدرسة', icon: Building2 },
+            { id: 'addDirectorate', label: 'مديرية', icon: Landmark },
             { id: 'addSection', label: 'قسم', icon: Layers },
         ],
     },

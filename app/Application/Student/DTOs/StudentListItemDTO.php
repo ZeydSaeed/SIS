@@ -59,6 +59,9 @@ final readonly class StudentListItemDTO
         public array $documents = [],
         public ?int $departmentId = null,
         public ?int $gradeLevelId = null,
+        /** Active enrollment (selected year): its placement is the student's current one. */
+        public ?int $activeEnrollmentId = null,
+        public ?string $enrollmentGradeName = null,
     ) {}
 
     /**
@@ -120,6 +123,8 @@ final readonly class StudentListItemDTO
             documents: $documents,
             departmentId: $this->departmentId,
             gradeLevelId: $this->gradeLevelId,
+            activeEnrollmentId: $this->activeEnrollmentId,
+            enrollmentGradeName: $this->enrollmentGradeName,
         );
     }
 
@@ -181,6 +186,8 @@ final readonly class StudentListItemDTO
             'academic_year_id' => $this->academicYearId,
             'status' => $this->status,
             'is_enrolled' => $this->isEnrolled,
+            'active_enrollment_id' => $this->activeEnrollmentId,
+            'enrollment_grade_name' => $this->enrollmentGradeName,
             'documents' => $this->documents,
         ];
     }

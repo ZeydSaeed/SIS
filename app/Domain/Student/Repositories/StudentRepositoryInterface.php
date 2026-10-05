@@ -14,6 +14,13 @@ interface StudentRepositoryInterface
 
     public function findUpdateData(int $studentId, int $schoolId): ?UpdateStudentData;
 
+    /**
+     * Structured placement stored on the student (names are derived from these ids).
+     *
+     * @return array{school_id: int|null, branch_id: int|null, department_id: int|null, grade_level_id: int|null}
+     */
+    public function placementIds(int $studentId): array;
+
     public function findById(int $studentId): ?Student;
 
     public function findByIdForSchool(int $studentId, int $schoolId): ?Student;

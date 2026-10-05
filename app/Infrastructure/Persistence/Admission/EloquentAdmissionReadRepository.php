@@ -274,7 +274,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'school_id' => (int) $row->school_id,
                 'name' => (string) $row->name,
                 'start_date' => (string) $row->start_date,
-                'end_date' => (string) $row->end_date,
+                'end_date' => $row->end_date !== null ? (string) $row->end_date : null,
                 'max_applications' => $row->max_applications !== null ? (int) $row->max_applications : null,
                 'status' => (int) $row->status,
                 'created_at' => (string) $row->created_at,
@@ -386,8 +386,8 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 ->whereRaw($textFilled('school_name'))
                 ->whereNotNull('stu.admitted_academic_year_id')
                 ->whereNotNull('stu.branch_id')
-                ->whereRaw($textFilled('department_name'))
-                ->whereRaw($textFilled('admitted_class_name'))
+                ->whereNotNull('stu.department_id')
+                ->whereNotNull('stu.grade_level_id')
                 ->whereNotNull('stu.school_start_date')
                 ->whereRaw($textFilled('guardian_triple_name'))
                 ->whereRaw($textFilled('father_occupation'))
@@ -768,47 +768,49 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         }
 
         $students = SchemaHelper::qualified('students', 'students');
-        $rows = DB::table($students)
-            ->whereIn('id', $studentIds)
+        // Placement labels come from the ids (the student no longer stores the names).
+        $rows = DB::table($students.' as stu')
+            ->leftJoin(SchemaHelper::qualified('organization', 'departments').' as sdep', 'sdep.id', '=', 'stu.department_id')
+            ->leftJoin(SchemaHelper::qualified('academic', 'grade_levels').' as sgl', 'sgl.id', '=', 'stu.grade_level_id')
+            ->whereIn('stu.id', $studentIds)
             ->get([
-                'id',
-                'student_code',
-                'first_name',
-                'father_name',
-                'grandfather_name',
-                'great_grandfather_name',
-                'last_name',
-                'mother_name',
-                'maternal_father_name',
-                'maternal_grandfather_name',
-                'guardian_triple_name',
-                'governorate',
-                'neighborhood',
-                'locality',
-                'house_number',
-                'birth_date',
-                'birth_place',
-                'registration_place',
-                'gender',
-                'nationality',
-                'religion',
-                'mawalid_date',
-                'national_id',
-                'previous_school_name',
-                'transfer_document_number',
-                'transfer_document_date',
-                'school_start_date',
-                'admitted_class_name',
-                'notes',
-                'mobile',
-                'guardian_mobile',
-                'email',
-                'school_name',
-                'branch_id',
-                'department_name',
-
-                'admitted_academic_year_id',
-                'status',
+                'stu.id',
+                'stu.student_code',
+                'stu.first_name',
+                'stu.father_name',
+                'stu.grandfather_name',
+                'stu.great_grandfather_name',
+                'stu.last_name',
+                'stu.mother_name',
+                'stu.maternal_father_name',
+                'stu.maternal_grandfather_name',
+                'stu.guardian_triple_name',
+                'stu.governorate',
+                'stu.neighborhood',
+                'stu.locality',
+                'stu.house_number',
+                'stu.birth_date',
+                'stu.birth_place',
+                'stu.registration_place',
+                'stu.gender',
+                'stu.nationality',
+                'stu.religion',
+                'stu.mawalid_date',
+                'stu.national_id',
+                'stu.previous_school_name',
+                'stu.transfer_document_number',
+                'stu.transfer_document_date',
+                'stu.school_start_date',
+                'sgl.name as admitted_class_name',
+                'stu.notes',
+                'stu.mobile',
+                'stu.guardian_mobile',
+                'stu.email',
+                'stu.school_name',
+                'stu.branch_id',
+                'sdep.name as department_name',
+                'stu.admitted_academic_year_id',
+                'stu.status',
             ]);
 
         $map = [];

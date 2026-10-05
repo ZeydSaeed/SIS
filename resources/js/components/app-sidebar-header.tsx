@@ -38,6 +38,13 @@ import {
     dispatchOpenCreateSubject,
     isCurriculumWorkspacePath,
 } from '@/lib/curriculum-create-subject-event';
+import {
+    DIRECTORATE_REGISTRY_QUERY_FLAG,
+    dispatchOpenDirectorateRegistry,
+    dispatchOpenSchoolRegistry,
+    isAdmissionWorkspacePath,
+    SCHOOL_REGISTRY_QUERY_FLAG,
+} from '@/lib/organization-registry-event';
 import appearance from '@/routes/appearance';
 import { edit as profileEdit } from '@/routes/profile';
 import { dashboard } from '@/routes';
@@ -107,7 +114,6 @@ function findAndReplace(): void {
 }
 
 const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
-    addSchool: '/admission',
     addTeacher: '/teachers',
     addHoliday: '/holidays',
     addGrades: '/grades',
@@ -250,6 +256,24 @@ export function AppSidebarHeader({
             }
 
             router.visit('/curriculum?create_subject=1');
+
+            return;
+        }
+
+        // Organization registry sheets keep the ribbon open — the user collapses it.
+        if (id === 'addSchool' || id === 'addDirectorate') {
+            if (isAdmissionWorkspacePath(page.url)) {
+                if (id === 'addSchool') {
+                    dispatchOpenSchoolRegistry();
+                } else {
+                    dispatchOpenDirectorateRegistry();
+                }
+
+                return;
+            }
+
+            const flag = id === 'addSchool' ? SCHOOL_REGISTRY_QUERY_FLAG : DIRECTORATE_REGISTRY_QUERY_FLAG;
+            router.visit(`/admission?${flag}=1`);
 
             return;
         }

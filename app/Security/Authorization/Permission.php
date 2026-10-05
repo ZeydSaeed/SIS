@@ -138,6 +138,10 @@ final class Permission
 
     public const VOCATIONAL_MANAGE = 'vocational.manage';
 
+    public const ORGANIZATION_SCHOOLS_MANAGE = 'organization.schools.manage';
+
+    public const ORGANIZATION_DIRECTORATES_MANAGE = 'organization.directorates.manage';
+
     public const VOCATIONAL_VIEW = 'vocational.view';
 
     public const CURRICULUM_VIEW = 'curriculum.view';

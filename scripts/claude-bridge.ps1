@@ -42,8 +42,39 @@ if ($Model) {
 }
 
 $fullPrompt = @"
-You are working in the SIS repository at $repoRoot.
-Cursor is the IDE only. Apply the change in this repo following CLAUDE.md and AGENTS.md.
+You are the primary coding agent for the SIS repository.
+
+Repository:
+$repoRoot
+
+Tooling contract:
+- Claude Code is the primary implementation agent.
+- Cursor is IDE-only.
+- Do not rely on Cursor Agent for implementation.
+- Do not assume .cursor/rules/*.mdc are auto-applied like Cursor Rules. You must open and follow applicable files yourself.
+
+MANDATORY:
+Before modifying files:
+1. Read CLAUDE.md.
+2. Read AGENTS.md.
+3. Identify the task category.
+4. Read GLOBAL GOVERNANCE RULES listed in AGENTS.md.
+5. Read only the applicable .cursor/rules/*.mdc files for this task (not the entire tree).
+6. Read the applicable .cursor/skills/*/SKILL.md when a skill applies.
+7. Read the relevant architecture/governance documents.
+8. Inspect the existing implementation.
+9. Determine impact and produce a plan.
+
+Then:
+UNDERSTAND → INSPECT → IMPACT → PLAN → IMPLEMENT → TEST → VALIDATE → REPORT
+
+Do not:
+- bypass project governance
+- invent architecture
+- modify unrelated code
+- commit unless explicitly requested
+- perform destructive/irreversible changes without human approval
+
 Task:
 $Prompt
 "@

@@ -35,7 +35,7 @@ final class EnrollmentUiTest extends TestCase
             'full_name' => 'Hassan Ali Kadhim',
             'gender' => 1,
             'birth_date' => '2012-03-15',
-            'department_name' => 'علمي',
+            'department_id' => $this->createDepartmentForSchool($schoolId, 'علمي'),
         ]);
         $this->createActiveEnrollmentForSchool($schoolId, $yearId, $student);
 

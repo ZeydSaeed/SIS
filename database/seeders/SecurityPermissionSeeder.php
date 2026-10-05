@@ -294,4 +294,10 @@ class SecurityPermissionSeeder extends Seeder
         $this->run();
         $this->assignRole($user, 'curriculum_viewer', $schoolId);
     }
+
+    public function grantSchoolManager(User $user, ?int $schoolId = null): void
+    {
+        $this->run();
+        $this->assignRole($user, 'school_manager', $schoolId);
+    }
 }
