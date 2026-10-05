@@ -1,7 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import {
     ArrowLeftRight,
-    BookOpen,
+    CheckCircle2,
+    CircleSlash,
+    Eye,
+    Layers,
+    Save,
+    XCircle,
     Building2,
     ChevronDown,
     ChevronUp,
@@ -18,6 +23,8 @@ import {
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { useRegisterPageRibbon, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { usePageError } from '@/components/sis/page-error-context';
 import {
     blankToNull,
@@ -347,6 +354,174 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
 
     const selectedActive = selected?.status === ACTIVE;
 
+    // «تحرير» ribbon (same mechanism as the students page): actions on the selected directorate,
+    // status tabs with counts, management commands, completion; titlebar search filters the list.
+    const r = i18n.orgRibbon;
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [query, setQuery] = useState('');
+    const activeCount = activeDirectorates.length;
+    const visibleDirectorates = useMemo(() => {
+        const q = query.trim();
+
+        return directorates.filter((item) => {
+            if (statusFilter === 'active' && item.status !== ACTIVE) return false;
+            if (statusFilter === 'inactive' && item.status === ACTIVE) return false;
+
+            return q === '' || item.name.includes(q) || item.schools.some((school) => school.name.includes(q));
+        });
+    }, [directorates, query, statusFilter]);
+    const schoolsWithBranches = allSchools.filter((school) => school.branches.length > 0).length;
+    const schoolsPercent = allSchools.length === 0 ? 0 : Math.round((schoolsWithBranches / allSchools.length) * 100);
+
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        const noSelection = selected === null;
+        const groups: PageRibbonGroup[] = [
+            {
+                id: 'org-directorate-actions',
+                label: i18n.common.actions,
+                commands: [
+                    {
+                        id: 'org-directorate-view',
+                        label: i18n.common.view,
+                        icon: Eye,
+                        title: noSelection ? r.needsSelection : i18n.common.view,
+                        disabled: noSelection,
+                        onSelect: () => setCollapsed(false),
+                    },
+                    ...(canManageDirectorates
+                        ? [
+                              {
+                                  id: 'org-directorate-edit',
+                                  label: i18n.common.edit,
+                                  icon: Pencil,
+                                  tone: 'edit' as const,
+                                  disabled: noSelection || saving,
+                                  onSelect: () => setCollapsed(false),
+                              },
+                              {
+                                  id: 'org-directorate-save',
+                                  label: i18n.common.save,
+                                  icon: Save,
+                                  tone: 'save' as const,
+                                  disabled: !directorateDirty || saving || directorateName.trim() === '',
+                                  onSelect: () => void saveDirectorate(),
+                              },
+                          ]
+                        : []),
+                    {
+                        id: 'org-directorate-cancel',
+                        label: i18n.common.cancel,
+                        icon: XCircle,
+                        disabled: noSelection || saving,
+                        onSelect: () => {
+                            setDirectorateName(selected?.name ?? '');
+                            setDirectorateRegion(selected?.region ?? '');
+                            setCollapsed(true);
+                        },
+                    },
+                    ...(canManageDirectorates
+                        ? [
+                              {
+                                  id: 'org-directorate-delete',
+                                  label: i18n.common.delete,
+                                  icon: Trash2,
+                                  tone: 'delete' as const,
+                                  disabled: noSelection || saving || !selectedActive,
+                                  onSelect: () => selected && setDeleteDirectorate(selected),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+            {
+                id: 'org-directorate-status',
+                label: r.status,
+                commands: [
+                    { key: 'all' as const, label: r.all, icon: Layers, count: directorates.length },
+                    { key: 'active' as const, label: r.active, icon: CheckCircle2, count: activeCount },
+                    { key: 'inactive' as const, label: r.inactive, icon: CircleSlash, count: directorates.length - activeCount },
+                ].map((tab) => ({
+                    id: `org-directorate-status-${tab.key}`,
+                    label: tab.label,
+                    title: `${tab.label} (${tab.count})`,
+                    icon: tab.icon,
+                    count: tab.count,
+                    pressed: statusFilter === tab.key,
+                    onSelect: () => setStatusFilter(statusFilter === tab.key && tab.key !== 'all' ? 'all' : tab.key),
+                })),
+            },
+        ];
+        const manage = [
+            ...(canManageDirectorates
+                ? [{ id: 'org-directorate-add', label: d.addDirectorate, icon: PlusCircle, onSelect: () => setAddDirectorateOpen(true) }]
+                : []),
+            ...(canManageSchools
+                ? [
+                      {
+                          id: 'org-school-add',
+                          label: d.addSchool,
+                          icon: Building2,
+                          disabled: activeDirectorates.length === 0,
+                          onSelect: () => openAddSchool(selectedId),
+                      },
+                  ]
+                : []),
+            ...(canManageDirectorates
+                ? [
+                      {
+                          id: 'org-schools-manage',
+                          label: d.manageTitle,
+                          icon: ArrowLeftRight,
+                          disabled: noSelection,
+                          onSelect: () => selected && openManage(selected.id),
+                      },
+                  ]
+                : []),
+        ];
+        if (manage.length > 0) {
+            groups.push({ id: 'org-directorate-manage', label: r.manage, commands: manage });
+        }
+        groups.push({
+            id: 'org-directorate-progress',
+            label: r.progress,
+            commands: [],
+            custom: (
+                <div
+                    className="sis-ribbon__progress-track"
+                    role="progressbar"
+                    aria-label={r.schoolsProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={schoolsPercent}
+                    data-contrast={schoolsPercent >= 45 ? 'light' : 'dark'}
+                    dir="rtl"
+                    title={`${r.schoolsProgress}: ${schoolsPercent}%`}
+                >
+                    <span className="sis-ribbon__progress-fill" style={{ width: `${schoolsPercent}%` }} />
+                    <span className="sis-ribbon__progress-value" dir="ltr">
+                        {schoolsPercent}%
+                    </span>
+                </div>
+            ),
+        });
+
+        return groups;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeCount, canManageDirectorates, canManageSchools, directorateDirty, directorateName, directorates, i18n, saving, schoolsPercent, selected, selectedActive, selectedId, statusFilter]);
+    useRegisterPageRibbon('edit', editRibbonGroups);
+
+    const titlebarSearch = useMemo(
+        () => ({
+            committedQuery: query,
+            label: r.searchDirectorates,
+            placeholder: r.searchDirectorates,
+            onDraftChange: setQuery,
+            onCommit: setQuery,
+        }),
+        [query, r.searchDirectorates],
+    );
+    useRegisterPageTitlebarSearch(titlebarSearch);
+
     return (
         <>
             <Head title={d.title} />
@@ -392,15 +567,15 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                 <span className="sis-org-head-title">
                                     {d.directorate}
                                     <span className="sis-branches-count" dir="ltr">
-                                        {directorates.length}
+                                        {visibleDirectorates.length}
                                     </span>
                                 </span>
                             </div>
                             <ul className="sis-branches-list__items">
-                                {directorates.length === 0 ? (
+                                {visibleDirectorates.length === 0 ? (
                                     <li className="sis-branches-empty">{d.noDirectorates}</li>
                                 ) : (
-                                    directorates.map((item) => {
+                                    visibleDirectorates.map((item) => {
                                         const active = item.status === ACTIVE;
 
                                         return (
@@ -657,28 +832,29 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                                                 {school.branches.length === 0 ? (
                                                                     <p className="sis-branches-empty">{d.noBranches}</p>
                                                                 ) : (
-                                                                    <ul className="sis-org-branches__list">
+                                                                    <div className="sis-branches-table sis-org-branches__table" role="table" aria-label={`${d.branches}: ${school.name}`}>
+                                                                        <div className="sis-branches-table__row sis-branches-table__row--head" role="row">
+                                                                            <span role="columnheader" className="sis-org-branches__col-branch">{d.branch}</span>
+                                                                            <span role="columnheader" className="sis-org-branches__col-departments">{d.departments}</span>
+                                                                            <span role="columnheader" className="sis-org-branches__col-count">{d.count}</span>
+                                                                        </div>
                                                                         {school.branches.map((branch) => (
-                                                                            <li key={branch.id} className="sis-org-branches__item">
-                                                                                <span className="sis-org-branches__branch">
-                                                                                    <GitBranch aria-hidden />
+                                                                            <div key={branch.id} className="sis-branches-table__row" role="row">
+                                                                                <span role="cell" className="sis-branches-table__name sis-org-branches__col-branch">
+                                                                                    <GitBranch aria-hidden className="sis-branches-table__icon" />
                                                                                     {branch.name}
                                                                                 </span>
-                                                                                <span className="sis-org-branches__departments">
-                                                                                    {branch.departments.length === 0 ? (
-                                                                                        <span className="sis-org-branches__none">{d.noDepartments}</span>
-                                                                                    ) : (
-                                                                                        branch.departments.map((department) => (
-                                                                                            <span key={department.id} className="sis-org-chip">
-                                                                                                <BookOpen aria-hidden />
-                                                                                                {department.name}
-                                                                                            </span>
-                                                                                        ))
-                                                                                    )}
+                                                                                <span role="cell" className="sis-org-branches__col-departments">
+                                                                                    {branch.departments.length === 0
+                                                                                        ? <span className="sis-org-branches__none">{d.noDepartments}</span>
+                                                                                        : branch.departments.map((department) => department.name).join('، ')}
                                                                                 </span>
-                                                                            </li>
+                                                                                <span role="cell" className="sis-org-branches__col-count" dir="ltr">
+                                                                                    {branch.departments.length}
+                                                                                </span>
+                                                                            </div>
                                                                         ))}
-                                                                    </ul>
+                                                                    </div>
                                                                 )}
                                                                 <button
                                                                     type="button"

@@ -365,7 +365,7 @@ export function AppSidebarHeader({
     const currentPath = (page.url.split('?')[0] ?? page.url);
     const isCurriculumPage =
         currentPath === '/curriculum' || currentPath.startsWith('/curriculum/');
-    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments'].some(
+    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments', '/organization'].some(
         (base) => currentPath === base || currentPath.startsWith(`${base}/`),
     );
 

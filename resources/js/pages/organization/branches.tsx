@@ -3,6 +3,13 @@ import {
     Atom,
     BookMarked,
     BookOpen,
+    CheckCircle2,
+    CircleSlash,
+    Eye,
+    FolderTree,
+    Layers,
+    Save,
+    XCircle,
     Calculator,
     ChevronUp,
     ConciergeBell,
@@ -22,9 +29,11 @@ import {
     Trash2,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { useRegisterPageRibbon, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import {
     blankToNull,
     RegistryListField,
@@ -166,7 +175,21 @@ function BranchesPage({ branches, authorization }: Props) {
         setBranchDescription(selected?.description ?? '');
     }, [selected?.id, selected?.name, selected?.description]);
 
-    const visibleBranches = branches;
+    // «تحرير» ribbon filter tabs + titlebar search (same mechanism as the students page).
+    const [filterKey, setFilterKey] = useState<'all' | 'with' | 'without'>('all');
+    const [query, setQuery] = useState('');
+    const nameInputRef = useRef<HTMLInputElement | null>(null);
+    const withCount = branches.filter((branch) => branch.departments.length > 0).length;
+    const visibleBranches = useMemo(() => {
+        const q = query.trim();
+
+        return branches.filter((branch) => {
+            if (filterKey === 'with' && branch.departments.length === 0) return false;
+            if (filterKey === 'without' && branch.departments.length > 0) return false;
+
+            return q === '' || branch.name.includes(q) || branch.departments.some((department) => department.name.includes(q));
+        });
+    }, [branches, filterKey, query]);
 
     const branchOptions = branches.map((branch) => ({ value: String(branch.id), label: branch.name }));
     const branchDirty =
@@ -253,6 +276,153 @@ function BranchesPage({ branches, authorization }: Props) {
         (department) => manageSearch.trim() === '' || department.name.includes(manageSearch.trim()),
     );
 
+    const r = i18n.orgRibbon;
+    const branchesPercent = branches.length === 0 ? 0 : Math.round((withCount / branches.length) * 100);
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        const noSelection = selected === null;
+        const groups: PageRibbonGroup[] = [
+            {
+                id: 'org-branch-actions',
+                label: i18n.common.actions,
+                commands: [
+                    {
+                        id: 'org-branch-view',
+                        label: i18n.common.view,
+                        icon: Eye,
+                        title: noSelection ? r.needsSelection : i18n.common.view,
+                        disabled: noSelection,
+                        onSelect: () => setCollapsed(false),
+                    },
+                    ...(canManage
+                        ? [
+                              {
+                                  id: 'org-branch-edit',
+                                  label: i18n.common.edit,
+                                  icon: Pencil,
+                                  tone: 'edit' as const,
+                                  disabled: noSelection || saving,
+                                  onSelect: () => {
+                                      setCollapsed(false);
+                                      window.requestAnimationFrame(() => nameInputRef.current?.focus());
+                                  },
+                              },
+                              {
+                                  id: 'org-branch-save',
+                                  label: i18n.common.save,
+                                  icon: Save,
+                                  tone: 'save' as const,
+                                  disabled: !branchDirty || saving || branchName.trim() === '',
+                                  onSelect: () => void saveBranch(),
+                              },
+                          ]
+                        : []),
+                    {
+                        id: 'org-branch-cancel',
+                        label: i18n.common.cancel,
+                        icon: XCircle,
+                        disabled: noSelection || saving,
+                        onSelect: () => {
+                            setBranchName(selected?.name ?? '');
+                            setBranchDescription(selected?.description ?? '');
+                            setCollapsed(true);
+                        },
+                    },
+                    ...(canManage
+                        ? [
+                              {
+                                  id: 'org-branch-delete',
+                                  label: i18n.common.delete,
+                                  icon: Trash2,
+                                  tone: 'delete' as const,
+                                  disabled: noSelection || saving,
+                                  onSelect: () => selected && setDeleteBranch(selected),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+            {
+                id: 'org-branch-filters',
+                label: r.departments,
+                commands: [
+                    { key: 'all' as const, label: r.all, icon: Layers, count: branches.length },
+                    { key: 'with' as const, label: r.withDepartments, icon: CheckCircle2, count: withCount },
+                    { key: 'without' as const, label: r.withoutDepartments, icon: CircleSlash, count: branches.length - withCount },
+                ].map((tab) => ({
+                    id: `org-branch-filter-${tab.key}`,
+                    label: tab.label,
+                    title: `${tab.label} (${tab.count})`,
+                    icon: tab.icon,
+                    count: tab.count,
+                    pressed: filterKey === tab.key,
+                    onSelect: () => setFilterKey(filterKey === tab.key && tab.key !== 'all' ? 'all' : tab.key),
+                })),
+            },
+        ];
+        if (canManage) {
+            groups.push({
+                id: 'org-branch-manage',
+                label: r.manage,
+                commands: [
+                    { id: 'org-branch-add', label: b.addBranch, icon: PlusCircle, onSelect: () => setAddBranchOpen(true) },
+                    {
+                        id: 'org-department-add',
+                        label: b.addDepartment,
+                        icon: BookOpen,
+                        disabled: branches.length === 0,
+                        onSelect: () => openAddDepartment(selectedId),
+                    },
+                    {
+                        id: 'org-departments-manage',
+                        label: b.manageTitle,
+                        icon: FolderTree,
+                        disabled: noSelection,
+                        onSelect: () => selected && openManage(selected.id),
+                    },
+                ],
+            });
+        }
+        groups.push({
+            id: 'org-branch-progress',
+            label: r.progress,
+            commands: [],
+            custom: (
+                <div
+                    className="sis-ribbon__progress-track"
+                    role="progressbar"
+                    aria-label={r.branchesProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={branchesPercent}
+                    data-contrast={branchesPercent >= 45 ? 'light' : 'dark'}
+                    dir="rtl"
+                    title={`${r.branchesProgress}: ${branchesPercent}%`}
+                >
+                    <span className="sis-ribbon__progress-fill" style={{ width: `${branchesPercent}%` }} />
+                    <span className="sis-ribbon__progress-value" dir="ltr">
+                        {branchesPercent}%
+                    </span>
+                </div>
+            ),
+        });
+
+        return groups;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branchDirty, branchName, branches, branchesPercent, canManage, filterKey, i18n, saving, selected, selectedId, withCount]);
+    useRegisterPageRibbon('edit', editRibbonGroups);
+
+    const titlebarSearch = useMemo(
+        () => ({
+            committedQuery: query,
+            label: r.searchBranches,
+            placeholder: r.searchBranches,
+            onDraftChange: setQuery,
+            onCommit: setQuery,
+        }),
+        [query, r.searchBranches],
+    );
+    useRegisterPageTitlebarSearch(titlebarSearch);
+
     return (
         <>
             <Head title={b.title} />
@@ -305,7 +475,7 @@ function BranchesPage({ branches, authorization }: Props) {
                             {visibleBranches.length === 0 ? (
                                 <div className="sis-branches-table__row" role="row">
                                     <span role="cell" className="sis-branches-empty">
-                                        {b.noBranches}
+                                        {branches.length === 0 ? b.noBranches : b.noSearchResult}
                                     </span>
                                 </div>
                             ) : (
@@ -418,6 +588,7 @@ function BranchesPage({ branches, authorization }: Props) {
                                     <div className="sis-branches-detail__form">
                                         <RegistryTextField
                                             label={b.branchName}
+                                            inputRef={nameInputRef}
                                             editing={canManage}
                                             required
                                             value={branchName}

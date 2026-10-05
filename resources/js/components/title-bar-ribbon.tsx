@@ -657,13 +657,15 @@ export function TitleBarRibbon({
     const isEnrollmentsRibbon = groups.some((group) =>
         group.id.startsWith('enrollment-'),
     );
-    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-'));
+    // Organization pages (المديريات والمدارس / الفروع والاختصاصات) share the students edit ribbon look.
+    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-') || group.id.startsWith('org-'));
     const isCurriculumRibbon = groups.some((group) => group.id.startsWith('curriculum-'));
     const isCurriculumPage =
         path === '/curriculum' || path.startsWith('/curriculum/');
     const isEnrollmentsPage =
         path === '/enrollments' || path.startsWith('/enrollments/');
-    const isStudentsPage = path === '/students' || path.startsWith('/students/');
+    const isStudentsPage =
+        path === '/students' || path.startsWith('/students/') || path.startsWith('/organization/');
     const isAdmissionPage =
         path === '/admission' || path.startsWith('/admission/');
     const isAdmissionRibbon = groups.some(

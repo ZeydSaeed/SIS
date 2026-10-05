@@ -13634,58 +13634,28 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     padding: 0.6rem 0.75rem 0.7rem;
 }
 
-.sis-org-branches__list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.sis-org-branches__item {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 0.6rem;
-    padding: 0.35rem 0.5rem;
-    border: 1px solid var(--branches-line);
-    border-radius: var(--sis-field-radius);
+.sis-org-page .sis-org-branches__table {
     background: var(--sis-curriculum-table);
 }
 
-.sis-org-branches__branch {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-width: 7rem;
+.sis-org-page .sis-org-branches__table .sis-branches-table__row {
+    justify-content: flex-start;
+}
+
+.sis-org-branches__col-branch {
+    flex: 0 0 9rem;
+    min-width: 0;
     font-weight: 700;
-    color: var(--sis-oxford);
 }
 
-.sis-org-branches__branch svg,
-.sis-org-chip svg {
-    width: 0.9rem;
-    height: 0.9rem;
-    color: var(--sis-curriculum-chrome);
-}
-
-.sis-org-branches__departments {
-    display: flex;
+.sis-org-branches__col-departments {
     flex: 1 1 auto;
-    flex-wrap: wrap;
-    gap: 0.3rem;
+    min-width: 0;
 }
 
-.sis-org-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--sis-mist) 14%, var(--sis-curriculum-table));
-    color: var(--sis-oxford);
-    font-size: 0.78rem;
+.sis-org-branches__col-count {
+    flex: 0 0 3.5rem;
+    text-align: center;
 }
 
 .sis-org-branches__none {
@@ -13760,4 +13730,95 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-org-page .sis-branches-page__actions button.sis-org-head-btn:hover,
 .sis-org-page .sis-branches-page__actions button.sis-org-head-btn:focus-visible {
     background: color-mix(in srgb, var(--sis-curriculum-chrome) 10%, var(--sis-curriculum-page));
+}
+
+/* School branches table (directorate card): internal grid lines between columns, full row height. */
+.sis-org-page .sis-org-branches__table .sis-branches-table__row {
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+}
+
+.sis-org-page .sis-org-branches__table .sis-branches-table__row > * {
+    display: flex;
+    align-items: center;
+    padding: 0.35rem 0.6rem;
+}
+
+.sis-org-page .sis-org-branches__table .sis-branches-table__row > * + * {
+    border-inline-start: 1px solid var(--branches-line);
+}
+
+.sis-org-page .sis-org-branches__table .sis-branches-table__row--head > * + * {
+    border-inline-start-color: color-mix(in srgb, var(--sis-curriculum-chrome-text) 35%, transparent);
+}
+
+.sis-org-page .sis-org-branches__table .sis-org-branches__col-count {
+    justify-content: center;
+}
+
+.sis-org-page .sis-org-branches__table .sis-branches-table__name {
+    gap: 0.5rem;
+}
+
+/* Organization «تحرير» ribbons — coloured outline icons by state / kind (existing ops accent tokens). */
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-view'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-view'] {
+    color: var(--sis-ribbon-accent-view); /* عرض */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-edit'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-edit'] {
+    color: var(--sis-ribbon-accent-edit); /* تعديل */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-save'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-save'] {
+    color: var(--sis-ribbon-accent-save); /* حفظ */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-cancel'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-cancel'] {
+    color: var(--sis-ribbon-accent-cancel); /* إلغاء */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-delete'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-delete'] {
+    color: var(--sis-ribbon-accent-delete); /* حذف */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-filter-all'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-status-all'] {
+    color: var(--sis-student-status-all); /* الكل */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-filter-with'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-status-active'] {
+    color: var(--sis-student-status-1); /* لها اختصاصات / النشطة */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-filter-without'] {
+    color: var(--sis-student-status-4); /* بدون اختصاصات (تحتاج إكمالاً) */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-status-inactive'] {
+    color: color-mix(in srgb, var(--sis-student-status-0) 42%, var(--sis-oxford)); /* المعطلة */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-branch-add'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-add'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-school-add'] {
+    color: var(--sis-ribbon-accent-new); /* إضافة فرع / مديرية / مدرسة */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-department-add'] {
+    color: var(--sis-ribbon-accent-academic); /* إضافة اختصاص */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-departments-manage'] {
+    color: var(--sis-ribbon-accent-ops); /* إدارة اختصاصات الفرع */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-schools-manage'] {
+    color: var(--sis-ribbon-accent-transfer); /* إدارة/نقل مدارس المديرية */
 }
