@@ -12798,3 +12798,966 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     box-shadow: none !important;
     background-color: transparent !important;
 }
+
+/* «متابعة طلبات التقديم»: school · academic year · period filters + actions on one line. */
+.sis-admission-accepted-sheet .sis-admission-sheet__body > .sis-admission-accepted-sheet__filters-row.sis-admission-accepted-sheet__filters-row--with-school {
+    grid-template-columns: minmax(9rem, 1.1fr) minmax(7.5rem, 0.9fr) minmax(11rem, 1.45fr) auto;
+}
+
+@media (max-width: 40rem) {
+    .sis-admission-accepted-sheet .sis-admission-sheet__body > .sis-admission-accepted-sheet__filters-row.sis-admission-accepted-sheet__filters-row--with-school {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        row-gap: 0.35rem;
+    }
+}
+
+/* Ribbon «المديرية والمدرسة»: a distinct outline colour per meaning (existing system tokens). */
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-authority {
+    color: var(--sis-curriculum-chrome); /* المديرية — administration */
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-education {
+    color: var(--sis-admission-status-0); /* المدرسة — learning */
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-growth {
+    color: var(--sis-admission-status-4); /* الفروع والاختصاصات — branching / growth */
+}
+
+/* ================================================================
+   «الفروع والاختصاصات» page — layout of the design, system tokens only
+   (palette, status tokens, radii, table font). RTL.
+   ================================================================ */
+.sis-page-surface:has(.sis-branches-page) {
+    background: var(--sis-curriculum-page);
+    scrollbar-width: none;
+}
+
+.sis-page-surface:has(.sis-branches-page)::-webkit-scrollbar,
+.sis-branches-page::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.sis-branches-page {
+    /* Same surfaces as the admission page: page background + table (card) background. */
+    background: var(--sis-curriculum-page);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    --branches-line: color-mix(in srgb, var(--sis-steel) 22%, transparent);
+    --branches-soft: color-mix(in srgb, var(--sis-mist) 10%, var(--sis-curriculum-table));
+    --branches-selected: color-mix(in srgb, var(--sis-hover) 55%, var(--sis-curriculum-table));
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    padding: 0.9rem 1rem 1rem;
+    color: var(--sis-oxford);
+    font-family: var(--sis-font-stack);
+}
+
+.sis-branches-page__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.sis-branches-page__title {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-branches-page__subtitle,
+.sis-branches-page__notice {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+    color: var(--sis-steel);
+}
+
+.sis-branches-page__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.sis-branches-page__actions button {
+    gap: 0.4rem;
+}
+
+.sis-branches-page__actions button:not([data-variant='outline']):first-child {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-page__grid {
+    display: grid;
+    grid-template-columns: minmax(17rem, 0.9fr) minmax(0, 1.35fr);
+    gap: 1rem;
+    align-items: start;
+    min-height: 0;
+}
+
+@media (max-width: 64rem) {
+    .sis-branches-page__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.sis-branches-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    min-width: 0;
+    padding: 0.85rem;
+    background: var(--sis-curriculum-table);
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-surface-radius);
+}
+
+.sis-branches-card__head {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.sis-branches-card__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-branches-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding-inline: 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-mist) 18%, var(--sis-curriculum-table));
+    color: var(--sis-oxford);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.sis-branches-card__head > .sis-branches-count {
+    margin-inline-start: auto;
+}
+
+.sis-branches-list__tools {
+    display: flex;
+    gap: 0.45rem;
+}
+
+.sis-branches-search {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    min-width: 0;
+}
+
+.sis-branches-search__icon {
+    position: absolute;
+    inset-inline-end: 0.6rem;
+    width: 1rem;
+    height: 1rem;
+    color: var(--sis-mist);
+    pointer-events: none;
+}
+
+.sis-branches-search__input {
+    width: 100%;
+    height: 2.25rem;
+    padding-inline: 0.7rem 2rem;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-field-radius);
+    background: var(--sis-curriculum-table);
+    color: var(--sis-oxford);
+    font: inherit;
+    font-size: 0.875rem;
+}
+
+.sis-branches-search__input:focus-visible {
+    outline: 2px solid var(--sis-mist);
+    outline-offset: 0;
+}
+
+.sis-branches-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-curriculum-table);
+    color: var(--sis-steel);
+    cursor: pointer;
+}
+
+.sis-branches-icon-btn svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.sis-branches-icon-btn[aria-pressed='true'] {
+    background: var(--branches-selected);
+    color: var(--sis-oxford);
+}
+
+.sis-branches-icon-btn--plain {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-color: transparent;
+    background: transparent;
+}
+
+.sis-branches-icon-btn:hover,
+.sis-branches-icon-btn:focus-visible {
+    background: var(--branches-soft);
+    color: var(--sis-oxford);
+    outline: none;
+}
+
+.sis-branches-icon-btn--danger {
+    color: var(--sis-admission-status-7);
+}
+
+.sis-branches-icon-btn--danger:hover,
+.sis-branches-icon-btn--danger:focus-visible {
+    color: var(--sis-admission-status-7);
+}
+
+.sis-branches-list__items,
+.sis-branches-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sis-branches-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-surface-radius);
+    background: var(--sis-curriculum-table);
+    cursor: pointer;
+}
+
+.sis-branches-item:hover {
+    background: var(--branches-soft);
+}
+
+.sis-branches-item.is-selected {
+    background: var(--branches-selected);
+    border-color: var(--sis-mist);
+}
+
+.sis-branches-item:focus-visible {
+    outline: 2px solid var(--sis-mist);
+    outline-offset: 1px;
+}
+
+.sis-branches-item__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.sis-branches-item__name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-branches-item__meta {
+    font-size: 0.78rem;
+    color: var(--sis-steel);
+}
+
+.sis-branches-item__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+/* Branch tiles — existing system tones (curriculum chrome / status tokens / palette). */
+.sis-branches-tile {
+    --tile: var(--sis-steel);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: var(--sis-surface-radius);
+    background: color-mix(in srgb, var(--tile) 14%, var(--sis-curriculum-table));
+    color: var(--tile);
+}
+
+.sis-branches-tile svg {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+
+.sis-branches-tile--lg {
+    width: 2.4rem;
+    height: 2.4rem;
+    background: var(--tile);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-tile--industrial {
+    --tile: var(--sis-curriculum-chrome);
+}
+
+.sis-branches-tile--agricultural {
+    --tile: var(--sis-admission-status-4);
+}
+
+.sis-branches-tile--commercial {
+    --tile: var(--sis-admission-status-5);
+}
+
+.sis-branches-tile--hospitality {
+    --tile: var(--sis-admission-status-0);
+}
+
+.sis-branches-tile--health {
+    --tile: var(--sis-steel);
+}
+
+.sis-branches-tile--scientific {
+    --tile: var(--sis-oxford);
+}
+
+.sis-branches-tile--literary {
+    --tile: var(--sis-admission-status-1);
+}
+
+.sis-branches-tile--religious {
+    --tile: var(--sis-admission-status-6);
+}
+
+.sis-branches-tile--arts {
+    --tile: var(--sis-admission-status-7);
+}
+
+.sis-branches-tile--computing {
+    --tile: var(--sis-night);
+}
+
+.sis-branches-tile--home {
+    --tile: var(--sis-admission-status-1);
+}
+
+.sis-branches-tile--default {
+    --tile: var(--sis-mist);
+}
+
+.sis-branches-detail__head .sis-branches-card__title {
+    flex: 1 1 auto;
+}
+
+.sis-branches-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-admission-status-4) 16%, var(--sis-curriculum-table));
+    color: var(--sis-admission-status-6);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.sis-branches-detail__toggle svg {
+    transition: transform 160ms ease;
+}
+
+.sis-branches-detail__toggle svg.is-collapsed {
+    transform: rotate(180deg);
+}
+
+.sis-branches-detail__form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-surface-radius);
+    background: var(--branches-soft);
+}
+
+.sis-branches-page .sis-branches-field--wide {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+.sis-branches-textarea {
+    min-height: 4.5rem;
+    resize: vertical;
+    font: inherit;
+    line-height: 1.5;
+}
+
+.sis-branches-detail__buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sis-branches-detail__departments-head {
+    margin-top: 0.2rem;
+}
+
+.sis-branches-table {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-table-radius);
+    font-family: var(--sis-table-font-family);
+    font-size: var(--sis-table-font-size);
+}
+
+.sis-branches-table__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2.4rem;
+    padding: 0.3rem 0.75rem;
+    border-top: 1px solid var(--branches-line);
+}
+
+.sis-branches-table__row:first-child {
+    border-top: 0;
+}
+
+.sis-branches-table__row--head {
+    min-height: 2.1rem;
+    background: color-mix(in srgb, var(--sis-mist) 14%, var(--sis-curriculum-table));
+    font-weight: var(--sis-table-header-weight);
+    color: var(--sis-oxford);
+}
+
+.sis-branches-table__row:not(.sis-branches-table__row--head):hover {
+    background: var(--branches-soft);
+}
+
+.sis-branches-table__name {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sis-branches-table__icon {
+    width: 1rem;
+    height: 1rem;
+    color: var(--sis-curriculum-chrome);
+}
+
+.sis-branches-table__actions {
+    display: inline-flex;
+    gap: 0.1rem;
+    min-width: 4rem;
+    justify-content: flex-end;
+}
+
+.sis-branches-add-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-surface-radius);
+    background: var(--sis-curriculum-table);
+    color: var(--sis-curriculum-chrome);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sis-branches-add-row svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.sis-branches-add-row:hover,
+.sis-branches-add-row:focus-visible {
+    background: var(--branches-soft);
+    outline: none;
+}
+
+.sis-branches-empty {
+    margin: 0;
+    padding: 0.6rem 0.2rem;
+    font-size: 0.85rem;
+    color: var(--sis-steel);
+}
+
+/* Dialogs (system registry sheets) — compact: width fits the fields. */
+.sis-admission-sheet-dialog.sis-branches-sheet {
+    --sis-sheet-w: min(94vw, 26rem);
+}
+
+
+.sis-branches-sheet .sis-branches-field--wide {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+.sis-branches-checklist {
+    max-height: 14rem;
+    overflow: auto;
+    padding: 0.4rem;
+    border: 1px solid var(--branches-line, color-mix(in srgb, var(--sis-steel) 22%, transparent));
+    border-radius: var(--sis-surface-radius);
+}
+
+.sis-branches-checklist__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.35rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.sis-branches-sheet .sis-branches-delete-btn {
+    gap: 0.4rem;
+    background: var(--sis-admission-status-7);
+    color: var(--sis-admission-status-text-dark);
+}
+
+.sis-branches-sheet .sis-admission-sheet__control,
+.sis-branches-sheet .sis-branches-textarea,
+.sis-branches-sheet .sis-branches-search,
+.sis-branches-sheet .sis-branches-checklist {
+    width: 100%;
+    max-width: 22rem;
+}
+
+.sis-branches-sheet .sis-admission-sheet-list-select {
+    max-width: 22rem;
+}
+
+.sis-branches-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+/* «إدارة اختصاصات الفرع» — guide, select-all bar, clear rows. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-branches-manage {
+    --sis-sheet-w: min(94vw, 30rem);
+}
+
+
+.sis-branches-checklist-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    max-width: 22rem;
+    padding: 0.25rem 0.4rem;
+    border-radius: var(--sis-field-radius);
+    background: color-mix(in srgb, var(--sis-mist) 12%, var(--sis-curriculum-table));
+}
+
+.sis-branches-checklist-bar__count {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--sis-steel);
+}
+
+.sis-branches-checklist__item--all {
+    font-weight: 700;
+}
+
+.sis-branches-checklist__item {
+    border-radius: var(--sis-field-radius);
+}
+
+.sis-branches-checklist__item:hover {
+    background: color-mix(in srgb, var(--sis-mist) 10%, var(--sis-curriculum-table));
+}
+
+.sis-branches-checklist__item.is-checked {
+    background: color-mix(in srgb, var(--sis-admission-status-7) 8%, var(--sis-curriculum-table));
+}
+
+.sis-branches-checklist__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.sis-branches-checklist__name {
+    font-weight: 600;
+}
+
+.sis-branches-checklist__desc {
+    font-size: 0.75rem;
+    color: var(--sis-steel);
+}
+
+.sis-branches-sheet .sis-admission-sheet__actions button {
+    gap: 0.35rem;
+}
+
+/* Card title bars + departments table header: same chrome as table headers on every page. */
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child {
+    margin: -0.85rem -0.85rem 0;
+    padding: 0.55rem 0.85rem;
+    border-radius: var(--sis-surface-radius) var(--sis-surface-radius) 0 0;
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-card__title {
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-count {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome-text) 18%, transparent);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-icon-btn {
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-icon-btn:hover,
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-icon-btn:focus-visible {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome-text) 16%, transparent);
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-tile--lg {
+    background: var(--sis-curriculum-table);
+    color: var(--tile);
+}
+
+.sis-branches-page .sis-branches-table__row--head {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+.sis-branches-page .sis-branches-detail > .sis-branches-empty:first-child {
+    padding-top: 0;
+}
+
+/* Sheet rows are flattened into the 120-column sheet grid: list / bar span the full width. */
+.sis-branches-sheet .sis-admission-sheet__row > .sis-branches-field--wide {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+}
+
+.sis-branches-sheet .sis-branches-checklist {
+    min-height: 6rem;
+}
+
+/* Card frames in the title-bar colour. */
+.sis-branches-page .sis-branches-card {
+    border-color: var(--sis-curriculum-chrome);
+}
+
+/* Equal title bars on both cards (list + branch details). */
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child {
+    box-sizing: border-box;
+    height: 3.1rem;
+    min-height: 3.1rem;
+    padding-block: 0;
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-tile--lg {
+    width: 2rem;
+    height: 2rem;
+}
+
+.sis-branches-page .sis-branches-card > .sis-branches-card__head:first-child .sis-branches-tile--lg svg {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+/* «إضافة اختصاص لهذا الفرع»: page background colour, title-bar (navy) text and frame. */
+.sis-branches-page .sis-branches-add-row {
+    background: var(--sis-curriculum-page);
+    border-color: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome);
+}
+
+.sis-branches-page .sis-branches-add-row:hover,
+.sis-branches-page .sis-branches-add-row:focus-visible {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome) 10%, var(--sis-curriculum-page));
+}
+
+/* Branches card = same mechanism / look as «اختصاصات الفرع»; sub-header rows aligned on both cards. */
+.sis-branches-page .sis-branches-subhead {
+    box-sizing: border-box;
+    height: 2.5rem;
+    min-height: 2.5rem;
+    margin: 0;
+    align-items: center;
+}
+
+.sis-branches-page .sis-branches-detail__departments-head {
+    margin-top: 0;
+}
+
+.sis-branches-page .sis-branches-table__row--branch {
+    min-height: 3.1rem;
+    cursor: pointer;
+}
+
+.sis-branches-page .sis-branches-table__row--branch.is-selected,
+.sis-branches-page .sis-branches-table__row--branch.is-selected:hover {
+    background: var(--branches-selected);
+    box-shadow: inset -3px 0 0 var(--sis-curriculum-chrome);
+}
+
+.sis-branches-page .sis-branches-table__row--branch:focus-visible {
+    outline: 2px solid var(--sis-mist);
+    outline-offset: -2px;
+}
+
+.sis-branches-page .sis-branches-table--branches .sis-branches-table__actions {
+    min-width: 6rem;
+}
+
+/* Top «إضافة اختصاص جديد»: same background as «إضافة اختصاص لهذا الفرع». */
+.sis-branches-page .sis-branches-page__actions button.sis-branches-soft-btn {
+    background: var(--sis-curriculum-page);
+    border-color: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome);
+}
+
+.sis-branches-page .sis-branches-page__actions button.sis-branches-soft-btn:hover,
+.sis-branches-page .sis-branches-page__actions button.sis-branches-soft-btn:focus-visible {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome) 10%, var(--sis-curriculum-page));
+}
+
+/* Search placeholder fully visible (smaller font, no clipped descenders). */
+.sis-branches-search__input {
+    padding-block: 0;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.sis-branches-search__input::placeholder {
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+
+/* ================================================================
+   «المديريات والمدارس» — same layout as «الفروع والاختصاصات» (sis-branches-*);
+   only the school → branches panel and status tags are added. System tokens only.
+   ================================================================ */
+.sis-org-page .sis-org-schools__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.sis-org-page .sis-org-schools__meta {
+    flex: 0 0 auto;
+    min-width: 8.5rem;
+    color: var(--sis-steel);
+    font-size: 0.8rem;
+}
+
+.sis-org-page .sis-branches-table__row--head .sis-org-schools__meta {
+    color: inherit;
+    font-size: inherit;
+}
+
+.sis-org-page .sis-org-schools .sis-branches-table__actions {
+    min-width: 6rem;
+}
+
+.sis-org-page .sis-branches-table__row.is-expanded {
+    background: var(--branches-selected);
+}
+
+.sis-org-status--inactive {
+    background: color-mix(in srgb, var(--sis-steel) 14%, var(--sis-curriculum-table));
+    color: var(--sis-steel);
+}
+
+.sis-org-item--inactive .sis-branches-item__name,
+.sis-org-item--inactive .sis-org-schools__name > span:first-of-type {
+    color: var(--sis-steel);
+}
+
+.sis-org-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-curriculum-chrome) 12%, var(--sis-curriculum-table));
+    color: var(--sis-curriculum-chrome);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.sis-org-tag--muted {
+    background: color-mix(in srgb, var(--sis-steel) 14%, var(--sis-curriculum-table));
+    color: var(--sis-steel);
+}
+
+.sis-org-branches {
+    border-top: 1px solid var(--branches-line);
+    background: var(--branches-soft);
+}
+
+.sis-org-branches__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem 0.7rem;
+}
+
+.sis-org-branches__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sis-org-branches__item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--branches-line);
+    border-radius: var(--sis-field-radius);
+    background: var(--sis-curriculum-table);
+}
+
+.sis-org-branches__branch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 7rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-org-branches__branch svg,
+.sis-org-chip svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    color: var(--sis-curriculum-chrome);
+}
+
+.sis-org-branches__departments {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.sis-org-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-mist) 14%, var(--sis-curriculum-table));
+    color: var(--sis-oxford);
+    font-size: 0.78rem;
+}
+
+.sis-org-branches__none {
+    font-size: 0.78rem;
+    color: var(--sis-steel);
+}
+
+.sis-org-page .sis-org-branches__manage {
+    width: auto;
+    align-self: flex-start;
+}
+
+.sis-org-page .sis-branches-add-row:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.sis-org-checklist--inside {
+    opacity: 0.75;
+    cursor: default;
+}
+
+.sis-branches-checklist__item.sis-org-checklist--move {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome) 8%, var(--sis-curriculum-table));
+}
+
+.sis-branches-page__subtitle a {
+    color: var(--sis-curriculum-chrome);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* «الاختصاص» table header: the count in a badge on the navy bar. */
+.sis-branches-page .sis-branches-table__heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.sis-branches-page .sis-branches-table__row--head .sis-branches-count {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome-text) 18%, transparent);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+/* «المديريات والمدارس»: directorates in a framed list whose header bar lines up with the schools header bar. */
+.sis-org-page .sis-org-directorates .sis-branches-list__items {
+    padding: 0.5rem;
+}
+
+.sis-org-page .sis-org-head-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sis-org-page .sis-branches-table__row--head .sis-branches-count {
+    min-width: 1.4rem;
+    height: 1.4rem;
+    background: color-mix(in srgb, var(--sis-curriculum-chrome-text) 18%, transparent);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+/* Top buttons: same look as «إضافة مدرسة لهذه المديرية». */
+.sis-org-page .sis-branches-page__actions button.sis-org-head-btn {
+    border: 1px solid var(--sis-curriculum-chrome);
+    background: var(--sis-curriculum-page);
+    color: var(--sis-curriculum-chrome);
+    font-weight: 700;
+}
+
+.sis-org-page .sis-branches-page__actions button.sis-org-head-btn:hover,
+.sis-org-page .sis-branches-page__actions button.sis-org-head-btn:focus-visible {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome) 10%, var(--sis-curriculum-page));
+}

@@ -1,9 +1,8 @@
 import { router } from '@inertiajs/react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, type ReactNode, type RefObject } from 'react';
 import { usePageError } from '@/components/sis/page-error-context';
 import AppLogo from '@/components/app-logo';
 import { SisListSelect } from '@/components/sis/sis-list-select';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
@@ -11,11 +10,9 @@ import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { t } from '@/i18n';
 
 /**
- * Organization registry sheets (schools, directorates) — SSOT for chrome, fields,
- * actions and list/form editing. Same classes as the curriculum subject sheet.
+ * Organization sheets («المديريات والمدارس», «الفروع والاختصاصات») — SSOT for
+ * window chrome, fields and requests. Same classes as the curriculum subject sheet.
  */
-
-export type RegistryMode = 'view' | 'edit' | 'create';
 
 export function newIdempotencyKey(prefix: string): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -49,11 +46,6 @@ export function useRegistryRequest(reloadProps: string[]) {
                 onSuccess: () => resolve(true),
             });
         });
-}
-
-/** URL that moves a registry row to the chosen status ('1' active, '2' inactive). */
-export function statusUrl(base: string, id: number, status: string): string {
-    return `${base}/${id}/${status === '1' ? 'reactivate' : 'deactivate'}`;
 }
 
 export function blankToNull(value: string): string | null {
@@ -191,6 +183,14 @@ export function RegistrySheetDialog({
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
 
+    // The portal mounts the content after the first commit — raise the new window once it exists,
+    // so a sheet opened from another sheet appears above it.
+    useEffect(() => {
+        const frame = requestAnimationFrame(bringToFront);
+
+        return () => cancelAnimationFrame(frame);
+    }, [bringToFront]);
+
     return (
         <Dialog
             open
@@ -247,200 +247,4 @@ export function RegistrySheetDialog({
             </DialogContent>
         </Dialog>
     );
-}
-
-export function RegistryActions({
-    canManage,
-    editing,
-    saving,
-    canSave,
-    canEdit,
-    loading,
-    onCancel,
-    onAdd,
-    onEdit,
-    onSave,
-}: {
-    canManage: boolean;
-    editing: boolean;
-    saving: boolean;
-    canSave: boolean;
-    canEdit: boolean;
-    loading: boolean;
-    onCancel: () => void;
-    onAdd: () => void;
-    onEdit: () => void;
-    onSave: () => void;
-}) {
-    const i18n = t();
-
-    return (
-        <div className="sis-admission-sheet__actions">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
-                {i18n.dialog.cancel}
-            </Button>
-            {canManage ? (
-                <>
-                    <Button type="button" variant="outline" disabled={editing || loading} onClick={onAdd}>
-                        {i18n.organizationRegistry.add}
-                    </Button>
-                    <Button type="button" variant="outline" disabled={editing || !canEdit} onClick={onEdit}>
-                        {i18n.common.edit}
-                    </Button>
-                    <Button type="button" disabled={!canSave} onClick={onSave}>
-                        {saving ? i18n.common.saving : i18n.common.save}
-                    </Button>
-                </>
-            ) : null}
-        </div>
-    );
-}
-
-/**
- * List + form editing state: selected row, view/edit/create mode, draft.
- * After a create + reload, the row that was not in the list before is selected.
- */
-export function useRegistryEditor<T extends { id: number }, D>({
-    rows,
-    loading,
-    canManage,
-    toDraft,
-    blankDraft,
-    initialId = null,
-    initialMode = 'view',
-}: {
-    rows: T[];
-    loading: boolean;
-    canManage: boolean;
-    toDraft: (row: T) => D;
-    blankDraft: () => D;
-    initialId?: number | null;
-    initialMode?: 'view' | 'edit';
-}) {
-    const [selectedId, setSelectedId] = useState<number | null>(null);
-    const [mode, setMode] = useState<RegistryMode>('view');
-    const [draft, setDraft] = useState<D>(blankDraft);
-    const [saving, setSaving] = useState(false);
-    const nameInputRef = useRef<HTMLInputElement | null>(null);
-    const knownIdsRef = useRef<Set<number> | null>(null);
-    const initializedRef = useRef(false);
-    const toDraftRef = useRef(toDraft);
-    const blankDraftRef = useRef(blankDraft);
-    toDraftRef.current = toDraft;
-    blankDraftRef.current = blankDraft;
-
-    const selected = useMemo(() => rows.find((row) => row.id === selectedId) ?? null, [rows, selectedId]);
-    const editing = mode !== 'view' && canManage;
-
-    const focusName = useCallback(() => {
-        requestAnimationFrame(() => {
-            nameInputRef.current?.focus();
-            nameInputRef.current?.select();
-        });
-    }, []);
-
-    // First load: requested row (optionally straight into edit), else the first row; empty → create.
-    useEffect(() => {
-        if (loading || initializedRef.current) {
-            return;
-        }
-        initializedRef.current = true;
-        const target = rows.find((row) => row.id === initialId) ?? rows[0] ?? null;
-        if (target !== null) {
-            setSelectedId(target.id);
-            setDraft(toDraftRef.current(target));
-            if (initialMode === 'edit' && canManage && target.id === initialId) {
-                setMode('edit');
-                focusName();
-            }
-        } else if (canManage) {
-            setDraft(blankDraftRef.current());
-            setMode('create');
-            focusName();
-        }
-    }, [canManage, focusName, initialId, initialMode, loading, rows]);
-
-    // After create + reload: select the new row.
-    useEffect(() => {
-        const known = knownIdsRef.current;
-        if (known === null || mode !== 'view') {
-            return;
-        }
-        const created = rows.find((row) => !known.has(row.id));
-        if (created) {
-            knownIdsRef.current = null;
-            setSelectedId(created.id);
-            setDraft(toDraftRef.current(created));
-        }
-    }, [mode, rows]);
-
-    // Keep the readonly form in sync with the refreshed list.
-    useEffect(() => {
-        if (mode === 'view' && selected !== null) {
-            setDraft(toDraftRef.current(selected));
-        }
-    }, [mode, selected]);
-
-    const select = (row: T): void => {
-        if (editing) {
-            return;
-        }
-        setSelectedId(row.id);
-        setDraft(toDraft(row));
-    };
-
-    const startCreate = (): void => {
-        setDraft(blankDraft());
-        setMode('create');
-        focusName();
-    };
-
-    const startEdit = (): void => {
-        if (selected === null) {
-            return;
-        }
-        setDraft(toDraft(selected));
-        setMode('edit');
-        focusName();
-    };
-
-    /** Returns true when the sheet should close (nothing being edited). */
-    const cancel = (): boolean => {
-        if (!editing) {
-            return true;
-        }
-        setMode('view');
-        setDraft(selected !== null ? toDraft(selected) : blankDraft());
-
-        return false;
-    };
-
-    const markSaved = (): void => {
-        if (mode === 'create') {
-            knownIdsRef.current = new Set(rows.map((row) => row.id));
-        }
-        setMode('view');
-    };
-
-    const setField = <K extends keyof D>(key: K, value: D[K]): void => {
-        setDraft((current) => ({ ...current, [key]: value }));
-    };
-
-    return {
-        selected,
-        selectedId,
-        mode,
-        editing,
-        isCreate: mode === 'create',
-        draft,
-        setField,
-        saving,
-        setSaving,
-        nameInputRef,
-        select,
-        startCreate,
-        startEdit,
-        cancel,
-        markSaved,
-    };
 }

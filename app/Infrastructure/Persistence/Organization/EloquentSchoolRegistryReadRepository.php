@@ -78,17 +78,4 @@ final class EloquentSchoolRegistryReadRepository implements SchoolRegistryReadRe
             ))
             ->all();
     }
-
-    public function listActiveDirectorates(): array
-    {
-        return DB::table(SchemaHelper::qualified('organization', 'directorates'))
-            ->where('status', 1)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(static fn ($row): array => [
-                'id' => (int) $row->id,
-                'name' => (string) $row->name,
-            ])
-            ->all();
-    }
 }

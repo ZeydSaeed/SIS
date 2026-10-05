@@ -9,7 +9,7 @@ use Tests\Support\Database\PostgreSqlIntegrationTestCase;
 
 /**
  * Every workflow page (admission → transfers → students → enrollments → curriculum)
- * renders for an ops manager, including the on-demand organization registries.
+ * renders for an ops manager, including «المديريات والمدارس».
  */
 final class OpsWorkflowPagesSmokePostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
@@ -27,22 +27,19 @@ final class OpsWorkflowPagesSmokePostgreSqlTest extends PostgreSqlIntegrationTes
         ]);
 
         $first = $this->get('/admission');
-        $version = (string) ($first->viewData('page')['version'] ?? '');
         $first->assertOk()->assertInertia(fn ($page) => $page
             ->component('admission/index')
             ->where('authorization.can_manage_schools', true)
-            ->where('authorization.can_manage_directorates', true)
             ->has('workspace.school_options', 1)
             ->has('workspace.school_options.0.branches'));
 
-        // Optional props load only on a partial reload (the registry sheets).
-        $this->get('/admission', [
-            'X-Inertia' => 'true',
-            'X-Inertia-Version' => $version,
-            'X-Inertia-Partial-Component' => 'admission/index',
-            'X-Inertia-Partial-Data' => 'schoolRegistry,directorateRegistry',
-        ])->assertOk()->assertJsonPath('props.schoolRegistry.schools.0.id', $context['school_id'])
-            ->assertJsonStructure(['props' => ['directorateRegistry' => ['directorates', 'schools']]]);
+        // «المديريات والمدارس»: directorates → the user's schools → branches.
+        $this->get('/organization/directorates-schools')->assertOk()->assertInertia(fn ($page) => $page
+            ->component('organization/directorates-schools')
+            ->where('authorization.can_manage_directorates', true)
+            ->where('directorates', fn ($directorates) => collect($directorates)
+                ->flatMap(fn ($directorate) => collect($directorate['schools'])->pluck('id'))
+                ->contains($context['school_id'])));
 
         foreach (['/admission/submitted', '/transfers', '/students', '/enrollments', '/curriculum'] as $path) {
             $this->get($path)->assertOk();

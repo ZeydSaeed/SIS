@@ -1,23 +1,10 @@
 /**
- * Chrome Add → مدرسة / مديرية and Edit → تعديل المدرسة open the organization
- * registry sheets on admission pages (instantly when already there; via query flag otherwise).
+ * Edit → تعديل المدرسة on admission pages opens the school chosen on the page
+ * in «المديريات والمدارس».
  */
 
-export const SIS_OPEN_SCHOOL_REGISTRY_EVENT = 'sis:open-school-registry';
-export const SIS_OPEN_DIRECTORATE_REGISTRY_EVENT = 'sis:open-directorate-registry';
 /** A school was picked on the admission page — the Edit tab edits that school. */
 export const SIS_ADMISSION_SCHOOL_SELECTED_EVENT = 'sis:admission-school-selected';
-
-export const SCHOOL_REGISTRY_QUERY_FLAG = 'manage_schools';
-export const DIRECTORATE_REGISTRY_QUERY_FLAG = 'manage_directorates';
-
-export function dispatchOpenSchoolRegistry(): void {
-    window.dispatchEvent(new CustomEvent(SIS_OPEN_SCHOOL_REGISTRY_EVENT));
-}
-
-export function dispatchOpenDirectorateRegistry(): void {
-    window.dispatchEvent(new CustomEvent(SIS_OPEN_DIRECTORATE_REGISTRY_EVENT));
-}
 
 export function dispatchAdmissionSchoolSelected(schoolId: number | null): void {
     window.dispatchEvent(
@@ -25,8 +12,10 @@ export function dispatchAdmissionSchoolSelected(schoolId: number | null): void {
     );
 }
 
-export function isAdmissionWorkspacePath(url: string): boolean {
-    const path = url.split('?')[0] ?? url;
+export function directorateSchoolsUrl(schoolId: number | null, edit = false): string {
+    if (schoolId === null) {
+        return '/organization/directorates-schools';
+    }
 
-    return path === '/admission' || path.startsWith('/admission/');
+    return `/organization/directorates-schools?school=${schoolId}${edit ? '&edit=1' : ''}`;
 }

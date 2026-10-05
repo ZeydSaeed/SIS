@@ -20,7 +20,7 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
-import { OrganizationRegistryHost } from '@/components/organization/organization-registry-host';
+import { SchoolEditRibbon } from '@/components/organization/school-edit-ribbon';
 import { sisSmoothMutation, sisToggleQueryFlag } from '@/lib/sis-ui-perf';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -466,10 +466,7 @@ function AdmissionPageShellInner({
                         />
                     </Suspense>
                 ) : null}
-                <OrganizationRegistryHost
-                    canManageSchools={authorization.can_manage_schools === true}
-                    canManageDirectorates={authorization.can_manage_directorates === true}
-                />
+                <SchoolEditRibbon canManageSchools={authorization.can_manage_schools === true} />
                 <div className="sis-admission-page-body">
                     <AdmissionSearchProvider value={filtersQ}>{children}</AdmissionSearchProvider>
                 </div>

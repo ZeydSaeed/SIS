@@ -10,7 +10,9 @@ use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Ops\OpsModulePageController;
+use App\Http\Controllers\Organization\BranchStructurePageController;
 use App\Http\Controllers\Organization\DirectorateRegistryController;
+use App\Http\Controllers\Organization\DirectorateSchoolPageController;
 use App\Http\Controllers\Organization\SchoolRegistryController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
@@ -48,6 +50,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::prefix('organization')->name('organization.')->middleware('require.school.context')->group(function (): void {
+        // «المديريات والمدارس» — directorates → schools → branches (writes below; delete = deactivate).
+        Route::get('/directorates-schools', [DirectorateSchoolPageController::class, 'index'])->name('directorates-schools.index');
         Route::post('/schools', [SchoolRegistryController::class, 'store'])->name('schools.store');
         Route::patch('/schools/{school}', [SchoolRegistryController::class, 'update'])
             ->whereNumber('school')
@@ -68,6 +72,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/directorates/{directorate}/reactivate', [DirectorateRegistryController::class, 'reactivate'])
             ->whereNumber('directorate')
             ->name('directorates.reactivate');
+
+        // «الفروع والاختصاصات» — branches and departments of the current school (delete = deactivate).
+        Route::get('/branches', [BranchStructurePageController::class, 'index'])->name('branches.index');
+        Route::post('/branches', [BranchStructurePageController::class, 'storeBranch'])->name('branches.store');
+        Route::patch('/branches/{branch}', [BranchStructurePageController::class, 'updateBranch'])
+            ->whereNumber('branch')
+            ->name('branches.update');
+        Route::post('/branches/{branch}/delete', [BranchStructurePageController::class, 'destroyBranch'])
+            ->whereNumber('branch')
+            ->name('branches.delete');
+        Route::post('/departments', [BranchStructurePageController::class, 'storeDepartment'])->name('departments.store');
+        Route::patch('/departments/{department}', [BranchStructurePageController::class, 'updateDepartment'])
+            ->whereNumber('department')
+            ->name('departments.update');
+        Route::post('/departments/delete', [BranchStructurePageController::class, 'destroyDepartments'])
+            ->name('departments.delete');
     });
 
     Route::prefix('admission')->name('admission.')->middleware('require.school.context')->group(function (): void {

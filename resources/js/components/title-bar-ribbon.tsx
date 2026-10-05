@@ -10,6 +10,7 @@ import {
     BookOpen,
     Briefcase,
     Building2,
+    GitBranch,
     Landmark,
     CalendarCheck,
     CalendarDays,
@@ -102,8 +103,7 @@ export type HomeRibbonActionId =
     | 'findReplace';
 
 export type AddRibbonActionId =
-    | 'addSchool'
-    | 'addDirectorate'
+    | 'directoratesSchools'
     | 'addStudent'
     | 'addTeacher'
     | 'addHoliday'
@@ -114,7 +114,7 @@ export type AddRibbonActionId =
     | 'addGuardian'
     | 'addExam'
     | 'addTimetable'
-    | 'addSection'
+    | 'branchesDepartments'
     | 'addSubject';
 
 export type SettingsRibbonActionId =
@@ -180,8 +180,11 @@ type RibbonItem = {
     title?: string;
     count?: number;
     tone?: 'edit' | 'save' | 'delete';
+    /** Outline colour by meaning: authority (المديرية), education (المدرسة), growth (الفروع والاختصاصات). */
+    iconTone?: 'authority' | 'education' | 'growth';
     onSelect?: () => void;
 };
+
 
 type RibbonGroup = {
     id: string;
@@ -245,11 +248,10 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
     },
     {
         id: 'school',
-        label: 'المدرسة والمديرية',
+        label: 'المديريات والمدارس',
         items: [
-            { id: 'addSchool', label: 'مدرسة', icon: Building2 },
-            { id: 'addDirectorate', label: 'مديرية', icon: Landmark },
-            { id: 'addSection', label: 'قسم', icon: Layers },
+            { id: 'directoratesSchools', label: 'المديريات والمدارس', icon: Landmark, iconTone: 'authority' },
+            { id: 'branchesDepartments', label: 'الفروع والاختصاصات', icon: GitBranch, iconTone: 'growth' },
         ],
     },
     {
@@ -774,7 +776,11 @@ export function TitleBarRibbon({
                                                       </span>
                                                   ) : null}
                                                   <Icon
-                                                      className="sis-ribbon__icon"
+                                                      className={
+                                                          item.iconTone
+                                                              ? `sis-ribbon__icon sis-ribbon__icon--tone-${item.iconTone}`
+                                                              : 'sis-ribbon__icon'
+                                                      }
                                                       aria-hidden
                                                   />
                                                   <span className="sis-ribbon__label">

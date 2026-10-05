@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Student;
 
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
+use App\Application\Organization\Queries\GetBranchStructureHandler;
+use App\Application\Organization\Queries\GetBranchStructureQuery;
 use App\Application\Student\Commands\ChangeStudentStatusesCommand;
 use App\Application\Student\Commands\ChangeStudentStatusesHandler;
 use App\Application\Student\Commands\CreateStudentHandler;
@@ -140,6 +142,8 @@ final class StudentPageController extends Controller
             ],
             'authorization' => $authorization,
             'enrollmentFilterOptions' => $enrollmentFilterOptions,
+            // The school's own branches → departments for the student form lists.
+            'schoolBranches' => fn (): array => $this->schoolBranches(),
         ]);
     }
 
@@ -319,7 +323,20 @@ final class StudentPageController extends Controller
         return Inertia::render('students/show', [
             'student' => $this->sanitizer->sanitizeDetail($detail, $user),
             'authorization' => $this->recordAuthorization($user, $student),
+            'schoolBranches' => fn (): array => $this->schoolBranches(),
         ]);
+    }
+
+    /**
+     * Active branches (الفروع) of the current school with their active departments (الاختصاصات).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function schoolBranches(): array
+    {
+        return app(GetBranchStructureHandler::class)->handle(
+            new GetBranchStructureQuery($this->schoolContext->requireId()),
+        );
     }
 
     public function uploadDocument(

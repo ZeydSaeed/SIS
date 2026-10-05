@@ -66,12 +66,15 @@
 | school_id | BIGINT | FK → schools |
 | code | VARCHAR(20) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
+| description | TEXT | nullable — الوصف (2026-10-06, «الفروع والاختصاصات») |
 | address | TEXT | |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
+
+**Status (2026-10-06):** 1 = active; 2 = deleted on the «الفروع والاختصاصات» page (deactivated, never hard-deleted — referenced by applications / students / enrollments). New codes `BR-0001…` (`OrganizationCodeSequence`). A branch is deleted only without active departments or active enrollments.
 
 ### `organization.departments`
 
@@ -82,12 +85,15 @@
 | branch_id | BIGINT | FK → branches, nullable |
 | code | VARCHAR(20) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
+| description | TEXT | nullable — الوصف (2026-10-06) |
 | department_type | SMALLINT | NOT NULL |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `BTREE(school_id)`, `BTREE(branch_id)`
+
+**Status (2026-10-06):** 1 = active; 2 = deleted (deactivated) on the «الفروع والاختصاصات» page. New codes `DEP-0001…`. A department used by active enrollments or active curricula is neither deleted nor moved to another branch.
 
 ### `organization.rooms`
 

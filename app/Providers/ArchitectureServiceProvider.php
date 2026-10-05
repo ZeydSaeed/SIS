@@ -35,6 +35,8 @@ use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Repositories\EnrollmentSubjectRepositoryInterface;
 use App\Domain\Enrollment\Repositories\StudentReadRepositoryInterface;
 use App\Domain\Organization\Repositories\BranchRepositoryInterface;
+use App\Domain\Organization\Repositories\BranchStructureRepositoryInterface;
+use App\Infrastructure\Persistence\Organization\EloquentBranchStructureRepository;
 use App\Domain\Organization\Repositories\DepartmentRepositoryInterface;
 use App\Domain\Organization\Repositories\RoomRepositoryInterface;
 use App\Domain\Organization\Repositories\SchoolRepositoryInterface;
@@ -247,6 +249,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(StudentGuardianRepositoryInterface::class, EloquentStudentGuardianRepository::class);
         $this->app->bind(RoomRepositoryInterface::class, EloquentRoomRepository::class);
         $this->app->bind(BranchRepositoryInterface::class, EloquentBranchRepository::class);
+        $this->app->bind(BranchStructureRepositoryInterface::class, EloquentBranchStructureRepository::class);
         $this->app->bind(DepartmentRepositoryInterface::class, EloquentDepartmentRepository::class);
         $this->app->bind(SchoolRepositoryInterface::class, EloquentSchoolRepository::class);
         $this->app->bind(DirectorateRepositoryInterface::class, EloquentDirectorateRepository::class);

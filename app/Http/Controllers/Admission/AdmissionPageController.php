@@ -27,10 +27,6 @@ use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
-use App\Application\Organization\Queries\ListDirectorateRegistryHandler;
-use App\Application\Organization\Queries\ListDirectorateRegistryQuery;
-use App\Application\Organization\Queries\ListSchoolRegistryHandler;
-use App\Application\Organization\Queries\ListSchoolRegistryQuery;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Http\Controllers\Controller;
@@ -66,8 +62,6 @@ final class AdmissionPageController extends Controller
         private readonly SecurityAuditLoggerInterface $securityAudit,
         private readonly AcademicYearContextResolver $academicYears,
         private readonly StudentPolicy $studentPolicy,
-        private readonly ListSchoolRegistryHandler $schoolRegistry,
-        private readonly ListDirectorateRegistryHandler $directorateRegistry,
         private readonly SchoolScopeService $schoolScope,
         private readonly SchoolContextScope $contextScope,
     ) {}
@@ -300,17 +294,6 @@ final class AdmissionPageController extends Controller
                 'can_manage_schools' => $user->can('manageSchools'),
                 'can_manage_directorates' => $user->can('manageDirectorates'),
             ],
-            // Loaded only when the school registry sheet asks for it (partial reload).
-            'schoolRegistry' => Inertia::optional(fn (): ?array => $user->can('manageSchools')
-                ? $this->schoolRegistry->handle(new ListSchoolRegistryQuery(
-                    allowedSchoolIds: $this->schoolScope->allowedSchoolIds($user),
-                ))->toArray()
-                : null),
-            'directorateRegistry' => Inertia::optional(fn (): ?array => $user->can('manageDirectorates')
-                ? $this->directorateRegistry->handle(new ListDirectorateRegistryQuery(
-                    allowedSchoolIds: $this->schoolScope->allowedSchoolIds($user),
-                ))
-                : null),
             'enrollmentFilterOptions' => $statusFilter === ApplicationStatus::Converted->value
                 ? app(EnrollmentReadRepositoryInterface::class)->listFilterOptions($schoolId, $academicYearId)
                 : [

@@ -754,7 +754,7 @@ export function AdmissionAcceptedStudentsDialog({
                     </header>
 
                     <SheetSection title={admission.sheetAcceptedFilters}>
-                        <div className="sis-admission-sheet__row sis-admission-accepted-sheet__filters-row">
+                        <div className="sis-admission-sheet__row sis-admission-accepted-sheet__filters-row sis-admission-accepted-sheet__filters-row--with-school">
                             <SheetField label={admission.filterBySchool}>
                                 <SisListSelect
                                     value={schoolId}
@@ -772,8 +772,6 @@ export function AdmissionAcceptedStudentsDialog({
                                     menuClassName="sis-admission-sheet-list-select__menu"
                                 />
                             </SheetField>
-                        </div>
-                        <div className="sis-admission-sheet__row sis-admission-accepted-sheet__filters-row">
                             <SheetField label={admission.academicYear}>
                                 <SisListSelect
                                     value={yearId}

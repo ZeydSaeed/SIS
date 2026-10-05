@@ -10,10 +10,6 @@ import {
     useState,
     type ReactNode,
 } from 'react';
-import {
-    ADMISSION_BRANCH_OPTIONS,
-    departmentsForBranch,
-} from '@/components/admission/admission-branch-catalog';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
 import { AdmissionStatusReasonDialog } from '@/components/admission/admission-status-reason-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
@@ -303,13 +299,25 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
     const hasNotes = (app.notes?.trim() ?? '') !== '' || (editing && notes.trim() !== '');
     const hasDocuments = documentLabels.length > 0;
 
+    // The application's own school: its branches → the chosen branch's departments (database).
+    const schoolCatalog = useMemo(
+        () => (workspace.school_options ?? []).find((school) => school.id === app.target_school_id)?.branches ?? [],
+        [app.target_school_id, workspace.school_options],
+    );
     const branchOptions = useMemo(
-        () => ADMISSION_BRANCH_OPTIONS.map((name) => ({ value: name, label: name })),
-        [],
+        () => [...new Set(schoolCatalog.map((branch) => branch.name))].map((name) => ({ value: name, label: name })),
+        [schoolCatalog],
     );
     const departmentOptions = useMemo(
-        () => departmentsForBranch(branchName).map((name) => ({ value: name, label: name })),
-        [branchName],
+        () =>
+            [
+                ...new Set(
+                    schoolCatalog
+                        .filter((branch) => branch.name === branchName)
+                        .flatMap((branch) => branch.departments.map((department) => department.name)),
+                ),
+            ].map((name) => ({ value: name, label: name })),
+        [branchName, schoolCatalog],
     );
     const classOptions = useMemo(() => sisClassSelectOptions(), []);
     const specializationOptions = useMemo(

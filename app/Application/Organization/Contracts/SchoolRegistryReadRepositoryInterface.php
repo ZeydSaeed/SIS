@@ -14,11 +14,6 @@ interface SchoolRegistryReadRepositoryInterface
     public function listSchools(array $schoolIds): array;
 
     /**
-     * @return list<array{id: int, name: string}>
-     */
-    public function listActiveDirectorates(): array;
-
-    /**
      * All directorates with the number of the given schools in each.
      *
      * @param  list<int>  $schoolIds

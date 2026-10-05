@@ -24,9 +24,7 @@ import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { t } from '@/i18n';
 import {
-    admissionBranchSelectOptions,
     admissionClassSelectOptions,
-    admissionDepartmentSelectOptions,
     classKeyFromAdmittedClassName,
     resolveBranchIdByName,
 } from '@/lib/enrollment-dialog-resolve';
@@ -171,6 +169,25 @@ type DraftState = {
     mathematics_grade: string;
     physics_grade: string;
 };
+
+/** Distinct names as list options (duplicate branch names of a school collapse). */
+function distinctNames(names: string[]): Array<{ value: string; label: string }> {
+    return [...new Set(names.map((name) => name.trim()).filter((name) => name !== ''))].map((name) => ({
+        value: name,
+        label: name,
+    }));
+}
+
+function withCurrentOption(
+    options: Array<{ value: string; label: string }>,
+    current: string | null | undefined,
+): Array<{ value: string; label: string }> {
+    const value = (current ?? '').trim();
+
+    return value === '' || options.some((option) => option.value === value)
+        ? options
+        : [{ value, label: value }, ...options];
+}
 
 function emptyToNull(value: string): string | null {
     const trimmed = value.trim();
@@ -679,6 +696,8 @@ export function StudentRecordForm({
     const pageProps = usePage().props as {
         enrollmentFilterOptions?: EnrollmentFormFilterOptions;
         schoolContext?: { schools?: { id: number; name: string }[] };
+        /** The current school's branches → departments (database, not a fixed list). */
+        schoolBranches?: { id: number; name: string; departments: { id: number; name: string }[] }[];
     };
     const orgBranches = pageProps.enrollmentFilterOptions?.branches ?? [];
 
@@ -713,10 +732,23 @@ export function StudentRecordForm({
                 : i18n.students.religion;
     const fieldsEditable = isCreate || editing;
 
-    const branchOptions = useMemo(() => admissionBranchSelectOptions(), []);
+    // The school's own branches / departments; a saved value outside the list stays selectable.
+    const schoolBranches = pageProps.schoolBranches ?? [];
+    const branchOptions = useMemo(
+        () => withCurrentOption(distinctNames(schoolBranches.map((branch) => branch.name)), student.branch_name),
+        [schoolBranches, student.branch_name],
+    );
     const departmentOptions = useMemo(
-        () => admissionDepartmentSelectOptions(draft.branch_name),
-        [draft.branch_name],
+        () =>
+            withCurrentOption(
+                distinctNames(
+                    schoolBranches
+                        .filter((branch) => branch.name === draft.branch_name)
+                        .flatMap((branch) => branch.departments.map((department) => department.name)),
+                ),
+                draft.branch_name === (student.branch_name ?? '') ? student.department_name : null,
+            ),
+        [draft.branch_name, schoolBranches, student.branch_name, student.department_name],
     );
     const classOptions = useMemo(() => admissionClassSelectOptions(), []);
     // School name is picked from the user's schools; an older free-text value stays selectable.
