@@ -95,7 +95,7 @@ export function RegistryTextField({
     onChange: (value: string) => void;
     dir?: 'rtl' | 'ltr';
     required?: boolean;
-    type?: 'text' | 'email' | 'tel';
+    type?: 'text' | 'email' | 'tel' | 'date';
     fieldClassName?: string;
     inputRef?: RefObject<HTMLInputElement | null>;
 }) {

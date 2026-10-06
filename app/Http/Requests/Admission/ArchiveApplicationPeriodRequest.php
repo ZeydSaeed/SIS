@@ -6,6 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 final class ArchiveApplicationPeriodRequest extends FormRequest
 {
+    use ValidatesApplicationDirectorate;
+
     public function authorize(): bool
     {
         return $this->user()?->can('manageAdmission') ?? false;

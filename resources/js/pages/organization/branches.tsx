@@ -47,17 +47,38 @@ import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
-type Department = { id: number; code: string; name: string; description: string | null };
-type Branch = { id: number; code: string; name: string; description: string | null; departments: Department[] };
+type Department = { id: number; code: string; name: string; description: string | null; status: number };
+type Branch = { id: number; code: string; name: string; description: string | null; status: number; departments: Department[] };
 
 type Props = {
     branches: Branch[];
     authorization: { can_manage: boolean };
 };
 
-type DepartmentDraft = { id: number | null; name: string; description: string; branch_id: string };
+type DepartmentDraft = { id: number | null; name: string; description: string; branch_id: string; status: string; viewOnly?: boolean };
 
 const RELOAD_PROPS = ['branches', 'flash'];
+
+/** 1 نشط · 2 غير نشط · 3 مؤرشف (schools, directorates, branches, departments). */
+function statusOptions(): Array<{ value: string; label: string }> {
+    const r = t().orgRibbon;
+
+    return [
+        { value: '1', label: r.statusActive },
+        { value: '2', label: r.statusInactive },
+        { value: '3', label: r.statusArchived },
+    ];
+}
+
+function statusLabel(status: number): string {
+    return statusOptions().find((option) => option.value === String(status))?.label ?? String(status);
+}
+
+function StatusPill({ status }: { status: number }) {
+    const tone = status === 1 ? '' : status === 3 ? ' sis-org-status--archived' : ' sis-org-status--inactive';
+
+    return <span className={`sis-branches-status${tone}`}>{statusLabel(status)}</span>;
+}
 
 /**
  * Branch tile icon + tone by the branch's academic field (name). First match wins, so
@@ -148,10 +169,11 @@ function BranchesPage({ branches, authorization }: Props) {
     const [collapsed, setCollapsed] = useState(true);
     const [branchName, setBranchName] = useState('');
     const [branchDescription, setBranchDescription] = useState('');
+    const [branchStatus, setBranchStatus] = useState('1');
     const [saving, setSaving] = useState(false);
 
     const [addBranchOpen, setAddBranchOpen] = useState(false);
-    const [newBranch, setNewBranch] = useState({ name: '', description: '' });
+    const [newBranch, setNewBranch] = useState({ name: '', description: '', status: '1' });
     const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft | null>(null);
     const [manageOpen, setManageOpen] = useState(false);
     const [manageBranchId, setManageBranchId] = useState('');
@@ -162,6 +184,13 @@ function BranchesPage({ branches, authorization }: Props) {
     const [deleteDepartment, setDeleteDepartment] = useState<Department | null>(null);
 
     const selected = branches.find((branch) => branch.id === selectedId) ?? null;
+    /** A department row of the selected branch; when set, the «تحرير» actions target it. */
+    const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+    const selectedDepartment = selected?.departments.find((department) => department.id === selectedDepartmentId) ?? null;
+    const selectBranch = (branchId: number) => {
+        setSelectedId(branchId);
+        setSelectedDepartmentId(null);
+    };
 
     // Keep a valid selection after reloads (create / delete).
     useEffect(() => {
@@ -173,7 +202,8 @@ function BranchesPage({ branches, authorization }: Props) {
     useEffect(() => {
         setBranchName(selected?.name ?? '');
         setBranchDescription(selected?.description ?? '');
-    }, [selected?.id, selected?.name, selected?.description]);
+        setBranchStatus(String(selected?.status ?? 1));
+    }, [selected?.id, selected?.name, selected?.description, selected?.status]);
 
     // «تحرير» ribbon filter tabs + titlebar search (same mechanism as the students page).
     const [filterKey, setFilterKey] = useState<'all' | 'with' | 'without'>('all');
@@ -194,7 +224,9 @@ function BranchesPage({ branches, authorization }: Props) {
     const branchOptions = branches.map((branch) => ({ value: String(branch.id), label: branch.name }));
     const branchDirty =
         selected !== null &&
-        (branchName.trim() !== selected.name || (branchDescription.trim() || null) !== (selected.description ?? null));
+        (branchName.trim() !== selected.name
+            || (branchDescription.trim() || null) !== (selected.description ?? null)
+            || Number(branchStatus) !== selected.status);
 
     const run = async (action: () => Promise<boolean>, after?: () => void): Promise<void> => {
         if (saving) {
@@ -216,6 +248,7 @@ function BranchesPage({ branches, authorization }: Props) {
             request('patch', `/organization/branches/${selected.id}`, {
                 name: branchName.trim(),
                 description: blankToNull(branchDescription),
+                status: Number(branchStatus),
             }),
         );
 
@@ -225,10 +258,11 @@ function BranchesPage({ branches, authorization }: Props) {
                 request('post', '/organization/branches', {
                     name: newBranch.name.trim(),
                     description: blankToNull(newBranch.description),
+                    status: Number(newBranch.status),
                 }),
             () => {
                 setAddBranchOpen(false);
-                setNewBranch({ name: '', description: '' });
+                setNewBranch({ name: '', description: '', status: '1' });
             },
         );
 
@@ -240,6 +274,7 @@ function BranchesPage({ branches, authorization }: Props) {
             name: departmentDraft.name.trim(),
             description: blankToNull(departmentDraft.description),
             branch_id: Number(departmentDraft.branch_id),
+            status: Number(departmentDraft.status),
         };
         void run(
             () =>
@@ -254,14 +289,16 @@ function BranchesPage({ branches, authorization }: Props) {
         run(() => request('post', '/organization/departments/delete', { department_ids: ids }), after);
 
     const openAddDepartment = (branchId: number | null) =>
-        setDepartmentDraft({ id: null, name: '', description: '', branch_id: branchId === null ? '' : String(branchId) });
+        setDepartmentDraft({ id: null, name: '', description: '', branch_id: branchId === null ? '' : String(branchId), status: '1' });
 
-    const openEditDepartment = (department: Department, branchId: number) =>
+    const openEditDepartment = (department: Department, branchId: number, viewOnly = false) =>
         setDepartmentDraft({
             id: department.id,
             name: department.name,
             description: department.description ?? '',
             branch_id: String(branchId),
+            status: String(department.status),
+            viewOnly,
         });
 
     const openManage = (branchId: number) => {
@@ -278,6 +315,8 @@ function BranchesPage({ branches, authorization }: Props) {
 
     const r = i18n.orgRibbon;
     const branchesPercent = branches.length === 0 ? 0 : Math.round((withCount / branches.length) * 100);
+    const departmentEditable = departmentDraft !== null && departmentDraft.viewOnly !== true
+        && departmentDraft.name.trim() !== '' && departmentDraft.branch_id !== '';
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const noSelection = selected === null;
         const groups: PageRibbonGroup[] = [
@@ -291,7 +330,14 @@ function BranchesPage({ branches, authorization }: Props) {
                         icon: Eye,
                         title: noSelection ? r.needsSelection : i18n.common.view,
                         disabled: noSelection,
-                        onSelect: () => setCollapsed(false),
+                        onSelect: () => {
+                            if (selectedDepartment !== null && selected !== null) {
+                                openEditDepartment(selectedDepartment, selected.id, true);
+
+                                return;
+                            }
+                            setCollapsed(false);
+                        },
                     },
                     ...(canManage
                         ? [
@@ -302,6 +348,11 @@ function BranchesPage({ branches, authorization }: Props) {
                                   tone: 'edit' as const,
                                   disabled: noSelection || saving,
                                   onSelect: () => {
+                                      if (selectedDepartment !== null && selected !== null) {
+                                          openEditDepartment(selectedDepartment, selected.id);
+
+                                          return;
+                                      }
                                       setCollapsed(false);
                                       window.requestAnimationFrame(() => nameInputRef.current?.focus());
                                   },
@@ -311,8 +362,15 @@ function BranchesPage({ branches, authorization }: Props) {
                                   label: i18n.common.save,
                                   icon: Save,
                                   tone: 'save' as const,
-                                  disabled: !branchDirty || saving || branchName.trim() === '',
-                                  onSelect: () => void saveBranch(),
+                                  disabled: saving || !(departmentEditable || (branchDirty && branchName.trim() !== '')),
+                                  onSelect: () => {
+                                      if (departmentEditable) {
+                                          saveDepartment();
+
+                                          return;
+                                      }
+                                      void saveBranch();
+                                  },
                               },
                           ]
                         : []),
@@ -322,8 +380,14 @@ function BranchesPage({ branches, authorization }: Props) {
                         icon: XCircle,
                         disabled: noSelection || saving,
                         onSelect: () => {
+                            if (selectedDepartmentId !== null) {
+                                setSelectedDepartmentId(null);
+
+                                return;
+                            }
                             setBranchName(selected?.name ?? '');
                             setBranchDescription(selected?.description ?? '');
+                            setBranchStatus(String(selected?.status ?? 1));
                             setCollapsed(true);
                         },
                     },
@@ -335,7 +399,16 @@ function BranchesPage({ branches, authorization }: Props) {
                                   icon: Trash2,
                                   tone: 'delete' as const,
                                   disabled: noSelection || saving,
-                                  onSelect: () => selected && setDeleteBranch(selected),
+                                  onSelect: () => {
+                                      if (selectedDepartment !== null) {
+                                          setDeleteDepartment(selectedDepartment);
+
+                                          return;
+                                      }
+                                      if (selected !== null) {
+                                          setDeleteBranch(selected);
+                                      }
+                                  },
                               },
                           ]
                         : []),
@@ -408,7 +481,7 @@ function BranchesPage({ branches, authorization }: Props) {
 
         return groups;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [branchDirty, branchName, branches, branchesPercent, canManage, filterKey, i18n, saving, selected, selectedId, withCount]);
+    }, [branchDirty, branchName, branches, branchesPercent, canManage, departmentDraft, departmentEditable, filterKey, i18n, saving, selected, selectedDepartment, selectedDepartmentId, selectedId, withCount]);
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const titlebarSearch = useMemo(
@@ -428,33 +501,22 @@ function BranchesPage({ branches, authorization }: Props) {
             <Head title={b.title} />
             <div className="sis-ops-hub sis-branches-page" dir="rtl" lang="ar">
                 <header className="sis-branches-page__head">
-                    <div className="sis-branches-page__heading">
-                        <h1 className="sis-branches-page__title">{b.heading}</h1>
-                        {schoolName !== null ? (
-                            <p className="sis-branches-page__subtitle">
-                                {b.school}:{' '}
-                                <Link href={`/organization/directorates-schools?school=${schoolContext?.schoolId ?? ''}`}>{schoolName}</Link>
-                            </p>
-                        ) : null}
+                    <div className="sis-branches-page__heading sis-branches-page__heading--centered">
+                        <h1 className="sis-branches-page__title">
+                            {b.heading}
+                            {schoolName !== null ? (
+                                <>
+                                    <span className="sis-branches-page__title-sep" aria-hidden="true">
+                                        {' · '}
+                                    </span>
+                                    <span className="sis-branches-page__title-school">
+                                        {b.school}:{' '}
+                                        <Link href={`/organization/directorates-schools?school=${schoolContext?.schoolId ?? ''}`}>{schoolName}</Link>
+                                    </span>
+                                </>
+                            ) : null}
+                        </h1>
                     </div>
-                    {canManage ? (
-                        <div className="sis-branches-page__actions">
-                            <Button type="button" variant="outline" className="sis-branches-soft-btn" onClick={() => setAddBranchOpen(true)}>
-                                <PlusCircle aria-hidden />
-                                {b.addBranch}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="sis-branches-soft-btn"
-                                onClick={() => openAddDepartment(selectedId)}
-                                disabled={branches.length === 0}
-                            >
-                                <BookOpen aria-hidden />
-                                {b.addDepartment}
-                            </Button>
-                        </div>
-                    ) : null}
                 </header>
                 {canManage ? null : <p className="sis-branches-page__notice">{b.readOnly}</p>}
 
@@ -484,22 +546,25 @@ function BranchesPage({ branches, authorization }: Props) {
                                         key={branch.id}
                                         className={`sis-branches-table__row sis-branches-table__row--branch${
                                             branch.id === selectedId ? ' is-selected' : ''
-                                        }`}
+                                        }${branch.status === 1 ? '' : ' sis-org-item--inactive'}`}
                                         role="row"
                                         tabIndex={0}
                                         aria-selected={branch.id === selectedId}
-                                        onClick={() => setSelectedId(branch.id)}
+                                        onClick={() => selectBranch(branch.id)}
                                         onKeyDown={(event) => {
                                             if (event.key === 'Enter' || event.key === ' ') {
                                                 event.preventDefault();
-                                                setSelectedId(branch.id);
+                                                selectBranch(branch.id);
                                             }
                                         }}
                                     >
                                         <span role="cell" className="sis-branches-table__name">
                                             <BranchTile name={branch.name} />
                                             <span className="sis-branches-item__text">
-                                                <span className="sis-branches-item__name">{branch.name}</span>
+                                                <span className="sis-branches-item__name">
+                                                    {branch.name}
+                                                    {branch.status === 1 ? null : <StatusPill status={branch.status} />}
+                                                </span>
                                                 <span className="sis-branches-item__meta">
                                                     {branch.departments.length} {b.departmentsCount}
                                                 </span>
@@ -508,31 +573,6 @@ function BranchesPage({ branches, authorization }: Props) {
                                         <span role="cell" className="sis-branches-table__actions">
                                             {canManage ? (
                                                 <>
-                                                    <button
-                                                        type="button"
-                                                        className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                        title={b.editBranch}
-                                                        aria-label={`${b.editBranch}: ${branch.name}`}
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            setSelectedId(branch.id);
-                                                            setCollapsed(false);
-                                                        }}
-                                                    >
-                                                        <Pencil aria-hidden />
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-icon-btn--danger"
-                                                        title={b.deleteBranch}
-                                                        aria-label={`${b.deleteBranch}: ${branch.name}`}
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            setDeleteBranch(branch);
-                                                        }}
-                                                    >
-                                                        <Trash2 aria-hidden />
-                                                    </button>
                                                     <button
                                                         type="button"
                                                         className="sis-branches-icon-btn sis-branches-icon-btn--plain"
@@ -571,7 +611,7 @@ function BranchesPage({ branches, authorization }: Props) {
                                     <h2 className="sis-branches-card__title">
                                         {b.branchPrefix} {selected.name}
                                     </h2>
-                                    <span className="sis-branches-status">{b.active}</span>
+                                    <StatusPill status={selected.status} />
                                     <button
                                         type="button"
                                         className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-detail__toggle"
@@ -602,6 +642,16 @@ function BranchesPage({ branches, authorization }: Props) {
                                             onChange={setBranchDescription}
                                             disabled={!canManage}
                                         />
+                                        <RegistryListField
+                                            label={i18n.orgRibbon.statusLabel}
+                                            editing={canManage}
+                                            required
+                                            value={branchStatus}
+                                            display={statusLabel(Number(branchStatus))}
+                                            options={statusOptions()}
+                                            onChange={setBranchStatus}
+                                            fieldClassName="sis-branches-field--wide"
+                                        />
                                         {canManage ? (
                                             <div className="sis-branches-detail__buttons">
                                                 <Button type="button" disabled={!branchDirty || saving || branchName.trim() === ''} onClick={() => void saveBranch()}>
@@ -614,6 +664,7 @@ function BranchesPage({ branches, authorization }: Props) {
                                                     onClick={() => {
                                                         setBranchName(selected.name);
                                                         setBranchDescription(selected.description ?? '');
+                                                        setBranchStatus(String(selected.status));
                                                     }}
                                                 >
                                                     {b.cancel}
@@ -631,7 +682,6 @@ function BranchesPage({ branches, authorization }: Props) {
                                                 {selected.departments.length}
                                             </span>
                                         </span>
-                                        <span role="columnheader" className="sis-branches-table__actions" />
                                     </div>
                                     {selected.departments.length === 0 ? (
                                         <div className="sis-branches-table__row" role="row">
@@ -641,34 +691,26 @@ function BranchesPage({ branches, authorization }: Props) {
                                         </div>
                                     ) : (
                                         selected.departments.map((department) => (
-                                            <div key={department.id} className="sis-branches-table__row" role="row">
+                                            <div
+                                                key={department.id}
+                                                className={`sis-branches-table__row sis-branches-table__row--selectable${
+                                                    department.id === selectedDepartmentId ? ' is-selected' : ''
+                                                }${department.status === 1 ? '' : ' sis-org-item--inactive'}`}
+                                                role="row"
+                                                tabIndex={0}
+                                                aria-selected={department.id === selectedDepartmentId}
+                                                onClick={() => setSelectedDepartmentId(department.id)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        setSelectedDepartmentId(department.id);
+                                                    }
+                                                }}
+                                            >
                                                 <span role="cell" className="sis-branches-table__name">
                                                     <BookOpen aria-hidden className="sis-branches-table__icon" />
                                                     {department.name}
-                                                </span>
-                                                <span role="cell" className="sis-branches-table__actions">
-                                                    {canManage ? (
-                                                        <>
-                                                            <button
-                                                                type="button"
-                                                                className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                                title={b.editDepartment}
-                                                                aria-label={`${b.editDepartment}: ${department.name}`}
-                                                                onClick={() => openEditDepartment(department, selected.id)}
-                                                            >
-                                                                <Pencil aria-hidden />
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-icon-btn--danger"
-                                                                title={b.deleteDepartment}
-                                                                aria-label={`${b.deleteDepartment}: ${department.name}`}
-                                                                onClick={() => setDeleteDepartment(department)}
-                                                            >
-                                                                <Trash2 aria-hidden />
-                                                            </button>
-                                                        </>
-                                                    ) : null}
+                                                    {department.status === 1 ? null : <StatusPill status={department.status} />}
                                                 </span>
                                             </div>
                                         ))
@@ -705,6 +747,16 @@ function BranchesPage({ branches, authorization }: Props) {
                                 placeholder={b.branchDescriptionPlaceholder}
                                 onChange={(description) => setNewBranch((current) => ({ ...current, description }))}
                             />
+                            <RegistryListField
+                                label={i18n.orgRibbon.statusLabel}
+                                editing
+                                required
+                                value={newBranch.status}
+                                display={statusLabel(Number(newBranch.status))}
+                                options={statusOptions()}
+                                onChange={(status) => setNewBranch((current) => ({ ...current, status }))}
+                                fieldClassName="sis-branches-field--wide"
+                            />
                         </div>
                     </SheetSection>
                     <div className="sis-admission-sheet__actions">
@@ -721,15 +773,18 @@ function BranchesPage({ branches, authorization }: Props) {
             {/* 2) Add department · 3) Edit department */}
             {departmentDraft !== null ? (
                 <RegistrySheetDialog
-                    title={departmentDraft.id === null ? b.addDepartment : b.editDepartment}
+                    title={departmentDraft.id === null ? b.addDepartment : departmentDraft.viewOnly ? b.viewDepartment : b.editDepartment}
                     className="sis-branches-sheet"
                     onClose={() => setDepartmentDraft(null)}
                 >
-                    <SheetSection id="branches-department" title={departmentDraft.id === null ? b.addDepartment : b.editDepartment}>
+                    <SheetSection
+                        id="branches-department"
+                        title={departmentDraft.id === null ? b.addDepartment : departmentDraft.viewOnly ? b.viewDepartment : b.editDepartment}
+                    >
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                             <RegistryTextField
                                 label={b.departmentName}
-                                editing
+                                editing={departmentDraft.viewOnly !== true}
                                 required
                                 value={departmentDraft.name}
                                 onChange={(name) => setDepartmentDraft((current) => (current === null ? current : { ...current, name }))}
@@ -739,13 +794,14 @@ function BranchesPage({ branches, authorization }: Props) {
                                 label={b.description}
                                 value={departmentDraft.description}
                                 placeholder={b.departmentDescriptionPlaceholder}
+                                disabled={departmentDraft.viewOnly === true}
                                 onChange={(description) =>
                                     setDepartmentDraft((current) => (current === null ? current : { ...current, description }))
                                 }
                             />
                             <RegistryListField
                                 label={b.branch}
-                                editing
+                                editing={departmentDraft.viewOnly !== true}
                                 required
                                 value={departmentDraft.branch_id}
                                 display={branches.find((branch) => String(branch.id) === departmentDraft.branch_id)?.name ?? '—'}
@@ -755,19 +811,40 @@ function BranchesPage({ branches, authorization }: Props) {
                                 }
                                 fieldClassName="sis-branches-field--wide"
                             />
+                            <RegistryListField
+                                label={i18n.orgRibbon.statusLabel}
+                                editing={departmentDraft.viewOnly !== true}
+                                required
+                                value={departmentDraft.status}
+                                display={statusLabel(Number(departmentDraft.status))}
+                                options={statusOptions()}
+                                onChange={(status) => setDepartmentDraft((current) => (current === null ? current : { ...current, status }))}
+                                fieldClassName="sis-branches-field--wide"
+                            />
                         </div>
                     </SheetSection>
                     <div className="sis-admission-sheet__actions">
                         <Button type="button" variant="outline" disabled={saving} onClick={() => setDepartmentDraft(null)}>
                             {b.cancel}
                         </Button>
-                        <Button
-                            type="button"
-                            disabled={saving || departmentDraft.name.trim() === '' || departmentDraft.branch_id === ''}
-                            onClick={saveDepartment}
-                        >
-                            {saving ? i18n.common.saving : departmentDraft.id === null ? b.add : b.saveChanges}
-                        </Button>
+                        {departmentDraft.viewOnly ? (
+                            canManage ? (
+                                <Button
+                                    type="button"
+                                    onClick={() => setDepartmentDraft((current) => (current === null ? current : { ...current, viewOnly: false }))}
+                                >
+                                    {i18n.common.edit}
+                                </Button>
+                            ) : null
+                        ) : (
+                            <Button
+                                type="button"
+                                disabled={saving || departmentDraft.name.trim() === '' || departmentDraft.branch_id === ''}
+                                onClick={saveDepartment}
+                            >
+                                {saving ? i18n.common.saving : departmentDraft.id === null ? b.add : b.saveChanges}
+                            </Button>
+                        )}
                     </div>
                 </RegistrySheetDialog>
             ) : null}
@@ -943,7 +1020,13 @@ function BranchesPage({ branches, authorization }: Props) {
                 confirmLabel={b.deleteDepartment}
                 tone="danger"
                 confirmPending={saving}
-                onConfirm={() => deleteDepartment && void deleteDepartments([deleteDepartment.id], () => setDeleteDepartment(null))}
+                onConfirm={() =>
+                    deleteDepartment &&
+                    void deleteDepartments([deleteDepartment.id], () => {
+                        setDeleteDepartment(null);
+                        setSelectedDepartmentId(null);
+                    })
+                }
                 onOpenChange={(open) => {
                     if (!open && !saving) {
                         setDeleteDepartment(null);

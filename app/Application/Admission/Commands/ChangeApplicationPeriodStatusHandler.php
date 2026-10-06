@@ -11,6 +11,7 @@ use App\Application\Contracts\UnitOfWork;
 use App\Domain\Admission\Events\ApplicationPeriodStatusChanged;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
+use App\Domain\Admission\Services\ApplicationPeriodManagementGuard;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 
 final class ChangeApplicationPeriodStatusHandler implements CommandHandler
@@ -22,6 +23,7 @@ final class ChangeApplicationPeriodStatusHandler implements CommandHandler
         private readonly AdmissionRepositoryInterface $admission,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplicationPeriodManagementGuard $periodGuard,
     ) {}
 
     public function handle(Command $command): ChangeApplicationPeriodStatusResult
@@ -48,6 +50,8 @@ final class ChangeApplicationPeriodStatusHandler implements CommandHandler
         if ($period === null || $period['academic_year_id'] !== $command->academicYearId) {
             throw ApplicationPeriodNotFoundException::forId($command->periodId);
         }
+
+        $this->periodGuard->assertManageable($period, $command->allowedDirectorateIds);
 
         $from = ApplicationPeriodStatus::from($period['status']);
 

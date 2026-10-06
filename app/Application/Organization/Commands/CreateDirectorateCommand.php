@@ -16,5 +16,7 @@ final readonly class CreateDirectorateCommand implements Command
         public array $schoolIds,
         public array $allowedSchoolIds,
         public ?string $idempotencyKey,
+        /** نشط / غير نشط / مؤرشف (DirectorateStatus). */
+        public int $status = 1,
     ) {}
 }

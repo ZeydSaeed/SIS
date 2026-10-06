@@ -20,6 +20,6 @@ final class GetBranchStructureHandler implements QueryHandler
     {
         assert($query instanceof GetBranchStructureQuery);
 
-        return $this->structure->structure($query->schoolId);
+        return $this->structure->structure($query->schoolId, $query->activeOnly);
     }
 }

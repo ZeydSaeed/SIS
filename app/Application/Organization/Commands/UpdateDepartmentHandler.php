@@ -35,14 +35,14 @@ final class UpdateDepartmentHandler implements CommandHandler
             return UpdateDepartmentResult::fromIdempotency((int) $cached['id']);
         }
 
-        $error = $this->guard->updateDepartmentRejection($command->schoolId, $command->departmentId, $command->branchId, $command->name);
+        $error = $this->guard->updateDepartmentRejection($command->schoolId, $command->departmentId, $command->branchId, $command->name, $command->status);
         if ($error !== null) {
             return UpdateDepartmentResult::failure([$error]);
         }
 
         $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
             $id = $command->departmentId;
-            $this->structure->updateDepartment($id, $command->branchId, trim($command->name), $command->description);
+            $this->structure->updateDepartment($id, $command->branchId, trim($command->name), $command->description, $command->status);
             $this->outbox->stage(new DepartmentChanged($id, $command->schoolId, 'updated', new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['id' => $id]);
 

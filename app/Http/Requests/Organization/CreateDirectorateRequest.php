@@ -4,6 +4,7 @@ namespace App\Http\Requests\Organization;
 
 use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
 
 class CreateDirectorateRequest extends FormRequest
 {
@@ -26,10 +27,15 @@ class CreateDirectorateRequest extends FormRequest
         return array_merge([
             'name' => ['required', 'string', 'max:255'],
             'region' => ['nullable', 'string', 'max:100'],
+            'status' => ['sometimes', 'integer', 'in:1,2,3'],
             'school_ids' => ['sometimes', 'array', 'max:500'],
             'school_ids.*' => ['integer', 'min:1', 'distinct'],
             'code' => ['prohibited'],
             'ministry_id' => ['prohibited'],
-        ], SecuritySensitiveFieldGuard::prohibitedRules());
+        ],
+            // «الحالة» (نشط / غير نشط / مؤرشف) is part of this form: validated above (in:1,2,3) and
+            // checked by the domain guard — every other sensitive field stays prohibited.
+            Arr::except(SecuritySensitiveFieldGuard::prohibitedRules(), ['status']),
+        );
     }
 }

@@ -34,6 +34,7 @@ final class DirectorateRegistryController extends Controller
             schoolIds: $this->schoolIds($request->validated('school_ids', [])),
             allowedSchoolIds: $this->allowedSchoolIds($request),
             idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+            status: (int) $request->validated('status', DirectorateStatus::Active->value),
         ));
 
         if ($result->failed()) {
@@ -88,6 +89,11 @@ final class DirectorateRegistryController extends Controller
         return $this->changeStatus($directorate, DirectorateStatus::Active, $request, $handler);
     }
 
+    public function archive(int $directorate, ChangeDirectorateStatusRequest $request, ChangeDirectorateStatusHandler $handler): RedirectResponse
+    {
+        return $this->changeStatus($directorate, DirectorateStatus::Archived, $request, $handler);
+    }
+
     private function changeStatus(
         int $directorate,
         DirectorateStatus $status,
@@ -106,18 +112,14 @@ final class DirectorateRegistryController extends Controller
             ]);
         }
 
-        $deactivated = $status === DirectorateStatus::Inactive;
-        $this->audit(
-            $request,
-            $deactivated ? 'organization.web.directorates.deactivate' : 'organization.web.directorates.reactivate',
-            $deactivated ? 'deactivated' : 'reactivated',
-            $directorate,
-        );
+        [$action, $outcome, $flash] = match ($status) {
+            DirectorateStatus::Active => ['reactivate', 'reactivated', 'flash.organization.directorateReactivated'],
+            DirectorateStatus::Inactive => ['deactivate', 'deactivated', 'flash.organization.directorateDeactivated'],
+            DirectorateStatus::Archived => ['archive', 'archived', 'flash.organization.directorateArchived'],
+        };
+        $this->audit($request, 'organization.web.directorates.'.$action, $outcome, $directorate);
 
-        return redirect()->back()->with(
-            'success',
-            $deactivated ? 'flash.organization.directorateDeactivated' : 'flash.organization.directorateReactivated',
-        );
+        return redirect()->back()->with('success', $flash);
     }
 
     /** @return list<int> */

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 final class UpdateApplicationPeriodRequest extends FormRequest
 {
+    use ValidatesApplicationDirectorate;
     use ValidatesApplicationPeriodAcademicYear;
 
     public function authorize(): bool

@@ -13822,3 +13822,57 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-schools-manage'] {
     color: var(--sis-ribbon-accent-transfer); /* إدارة/نقل مدارس المديرية */
 }
+
+/* Selectable rows (departments / schools): the selected row is highlighted, like the branches table. */
+.sis-branches-page .sis-branches-table__row--selectable {
+    cursor: pointer;
+}
+
+.sis-branches-page .sis-branches-table__row--selectable.is-selected,
+.sis-branches-page .sis-branches-table__row--selectable.is-selected:hover {
+    background: var(--branches-selected);
+    box-shadow: inset -3px 0 0 var(--sis-curriculum-chrome);
+}
+
+.sis-branches-page .sis-branches-table__row--selectable:focus-visible {
+    outline: 2px solid var(--sis-mist);
+    outline-offset: -2px;
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-reactivate'] {
+    color: var(--sis-ribbon-accent-save); /* تفعيل */
+}
+
+/* Status badges (نشط / غير نشط / مؤرشف) + single centred heading on the branches page. */
+.sis-branches-page .sis-org-status--archived {
+    background: color-mix(in srgb, var(--sis-steel) 16%, var(--sis-curriculum-table));
+    color: var(--sis-steel);
+}
+
+.sis-branches-page .sis-branches-item__name .sis-branches-status,
+.sis-branches-page .sis-branches-table__name .sis-branches-status {
+    margin-inline-start: 0.45rem;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.72rem;
+}
+
+.sis-branches-page .sis-branches-page__head:has(.sis-branches-page__heading--centered) {
+    justify-content: center;
+}
+
+.sis-branches-page .sis-branches-page__heading--centered {
+    text-align: center;
+}
+
+.sis-branches-page .sis-branches-page__title-school {
+    font-weight: 700;
+}
+
+.sis-branches-page .sis-branches-page__title-sep {
+    color: var(--sis-steel);
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='org-directorate-status-archived'] {
+    color: var(--sis-steel); /* المؤرشفة */
+}
+

@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentBranchStructureRepository implements BranchStructureRepositoryInterface
 {
-    public function structure(int $schoolId): array
+    public function structure(int $schoolId, bool $activeOnly = true): array
     {
-        return $this->structureBySchool([$schoolId])[$schoolId] ?? [];
+        return $this->structureBySchool([$schoolId], $activeOnly)[$schoolId] ?? [];
     }
 
-    public function structureBySchool(array $schoolIds): array
+    public function structureBySchool(array $schoolIds, bool $activeOnly = true): array
     {
         if ($schoolIds === []) {
             return [];
@@ -22,9 +22,9 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
 
         $branches = DB::table($this->branches())
             ->whereIn('school_id', $schoolIds)
-            ->where('status', self::ACTIVE)
+            ->when($activeOnly, fn (Builder $query) => $query->where('status', self::ACTIVE))
             ->orderBy('id')
-            ->get(['id', 'school_id', 'code', 'name', 'description']);
+            ->get(['id', 'school_id', 'code', 'name', 'description', 'status']);
         if ($branches->isEmpty()) {
             return [];
         }
@@ -32,9 +32,9 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
         $departments = DB::table($this->departments())
             ->whereIn('school_id', $schoolIds)
             ->whereIn('branch_id', $branches->pluck('id'))
-            ->where('status', self::ACTIVE)
+            ->when($activeOnly, fn (Builder $query) => $query->where('status', self::ACTIVE))
             ->orderBy('id')
-            ->get(['id', 'branch_id', 'code', 'name', 'description']);
+            ->get(['id', 'branch_id', 'code', 'name', 'description', 'status']);
 
         $byBranch = [];
         foreach ($departments as $row) {
@@ -43,6 +43,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
                 'code' => (string) $row->code,
                 'name' => (string) $row->name,
                 'description' => $row->description !== null ? (string) $row->description : null,
+                'status' => (int) $row->status,
             ];
         }
 
@@ -53,6 +54,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
                 'code' => (string) $row->code,
                 'name' => (string) $row->name,
                 'description' => $row->description !== null ? (string) $row->description : null,
+                'status' => (int) $row->status,
                 'departments' => $byBranch[(int) $row->id] ?? [],
             ];
         }
@@ -91,7 +93,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
     {
         return DB::table($this->branches())
             ->where('school_id', $schoolId)
-            ->where('status', self::ACTIVE)
+            ->where('status', '<>', self::ARCHIVED)
             ->whereRaw('trim(name) = ?', [$name])
             ->when($exceptBranchId !== null, fn (Builder $query) => $query->where('id', '<>', $exceptBranchId))
             ->exists();
@@ -101,7 +103,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
     {
         return DB::table($this->departments())
             ->where('branch_id', $branchId)
-            ->where('status', self::ACTIVE)
+            ->where('status', '<>', self::ARCHIVED)
             ->whereRaw('trim(name) = ?', [$name])
             ->when($exceptDepartmentId !== null, fn (Builder $query) => $query->where('id', '<>', $exceptDepartmentId))
             ->exists();
@@ -126,23 +128,23 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
                 ->exists();
     }
 
-    public function createBranch(int $schoolId, string $name, ?string $description): int
+    public function createBranch(int $schoolId, string $name, ?string $description, int $status = self::ACTIVE): int
     {
         return (int) DB::table($this->branches())->insertGetId([
             'school_id' => $schoolId,
             'code' => OrganizationCodeSequence::next($this->branches(), 'BR'),
             'name' => $name,
             'description' => $description,
-            'status' => self::ACTIVE,
+            'status' => $status,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
     }
 
-    public function updateBranch(int $branchId, string $name, ?string $description): void
+    public function updateBranch(int $branchId, string $name, ?string $description, int $status): void
     {
         DB::table($this->branches())->where('id', $branchId)
-            ->update(['name' => $name, 'description' => $description, 'updated_at' => now()]);
+            ->update(['name' => $name, 'description' => $description, 'status' => $status, 'updated_at' => now()]);
     }
 
     public function setBranchStatus(int $branchId, int $status): void
@@ -150,7 +152,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
         DB::table($this->branches())->where('id', $branchId)->update(['status' => $status, 'updated_at' => now()]);
     }
 
-    public function createDepartment(int $schoolId, int $branchId, string $name, ?string $description): int
+    public function createDepartment(int $schoolId, int $branchId, string $name, ?string $description, int $status = self::ACTIVE): int
     {
         return (int) DB::table($this->departments())->insertGetId([
             'school_id' => $schoolId,
@@ -160,16 +162,16 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
             'description' => $description,
             // Same type as the seeded catalog (vocational department).
             'department_type' => 1,
-            'status' => self::ACTIVE,
+            'status' => $status,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
     }
 
-    public function updateDepartment(int $departmentId, int $branchId, string $name, ?string $description): void
+    public function updateDepartment(int $departmentId, int $branchId, string $name, ?string $description, int $status): void
     {
         DB::table($this->departments())->where('id', $departmentId)
-            ->update(['branch_id' => $branchId, 'name' => $name, 'description' => $description, 'updated_at' => now()]);
+            ->update(['branch_id' => $branchId, 'name' => $name, 'description' => $description, 'status' => $status, 'updated_at' => now()]);
     }
 
     public function setDepartmentStatus(int $departmentId, int $status): void

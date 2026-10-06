@@ -13,6 +13,7 @@ use App\Domain\Organization\Events\SchoolCreated;
 use App\Domain\Organization\Repositories\SchoolRepositoryInterface;
 use App\Domain\Organization\Services\SchoolRegistryGuard;
 use App\Domain\Organization\Support\OrganizationIdempotencyGuard;
+use App\Domain\Organization\ValueObjects\SchoolStatus;
 use App\Domain\Organization\ValueObjects\SchoolType;
 
 final class CreateSchoolHandler implements CommandHandler
@@ -63,6 +64,9 @@ final class CreateSchoolHandler implements CommandHandler
                 $now->format('Y-m-d'),
             );
 
+            if ($command->status !== SchoolStatus::Active->value) {
+                $this->schools->setStatus($id, $command->status, $now->format(\DateTimeInterface::ATOM));
+            }
             $this->outbox->stage(new SchoolCreated($id, $command->createdByUserId, $now));
             $this->idempotency->store($key, self::COMMAND_NAME, ['school_id' => $id]);
 

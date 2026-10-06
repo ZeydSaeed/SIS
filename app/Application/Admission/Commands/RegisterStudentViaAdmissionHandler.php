@@ -50,7 +50,6 @@ final class RegisterStudentViaAdmissionHandler implements CommandHandler
             throw DuplicateNationalIdException::forNationalId($command->nationalId);
         }
 
-        $studentCode = $this->students->generateStudentCode();
         $fullName = StudentNameFormatter::fullName(
             firstName: $command->firstName,
             lastName: $command->lastName,
@@ -60,7 +59,12 @@ final class RegisterStudentViaAdmissionHandler implements CommandHandler
         );
 
         $result = $this->unitOfWork->transaction(
-            fn (): array => $this->persist->execute($command, $period, $studentCode, $fullName),
+            fn (): array => $this->persist->execute(
+                $command,
+                $period,
+                $this->students->generateStudentCode(),
+                $fullName,
+            ),
         );
 
         if ($command->idempotencyKey !== null) {

@@ -123,6 +123,7 @@ export function getSisSidebarSections(): SisNavSection[] {
                 moduleItem('students'),
                 moduleItem('enrollments'),
                 moduleItem('curriculum'),
+                moduleItem('teachers'),
                 moduleItem('attendance'),
                 moduleItem('holidays'),
             ],
@@ -154,7 +155,6 @@ export function getSisSidebarSections(): SisNavSection[] {
             titleAr: 'الكادر التدريسي',
             titleEn: 'Staff & Faculty',
             items: [
-                moduleItem('teachers'),
                 moduleItem('hr'),
                 moduleItem('promotion'),
                 moduleItem('finance'),

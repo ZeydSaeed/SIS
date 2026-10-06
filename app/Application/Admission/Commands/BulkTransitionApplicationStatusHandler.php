@@ -49,7 +49,13 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
         $to = $this->guard->requireManualTarget($command->toStatus);
         $prepared = $this->guard->prepare($applicationIds, $command->schoolId, $to);
 
-        $this->unitOfWork->transaction(function () use ($command, $to, $prepared): void {
+        if ($to === ApplicationStatus::Accepted) {
+            $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
+        }
+
+        // All-or-nothing: one failed conversion rolls back every status change in the batch.
+        /** @var list<int> $convertedStudentIds */
+        $convertedStudentIds = $this->unitOfWork->transaction(function () use ($command, $to, $prepared, $applicationIds): array {
             foreach ($prepared as $item) {
                 $this->admission->transitionApplicationStatus(
                     $item['id'],
@@ -66,42 +72,25 @@ final class BulkTransitionApplicationStatusHandler implements CommandHandler
                     occurredAt: new \DateTimeImmutable,
                 ));
             }
-        });
 
-        $convertedStudentIds = [];
-        if ($to === ApplicationStatus::Accepted) {
-            $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
-
-            $fromById = [];
-            foreach ($prepared as $item) {
-                $fromById[$item['id']] = $item['from'];
+            if ($to !== ApplicationStatus::Accepted) {
+                return [];
             }
 
+            $studentIds = [];
             foreach ($applicationIds as $applicationId) {
-                try {
-                    $convertedStudentIds[] = $this->convertAccepted->convert(
-                        schoolId: $command->schoolId,
-                        applicationId: $applicationId,
-                        reviewedBy: $command->reviewedBy,
-                        idempotencyKey: $command->idempotencyKey !== null
-                            ? $command->idempotencyKey.':convert:'.$applicationId
-                            : null,
-                    );
-                } catch (\Throwable $exception) {
-                    $from = $fromById[$applicationId] ?? null;
-                    if ($from instanceof ApplicationStatus) {
-                        $this->admission->transitionApplicationStatus(
-                            $applicationId,
-                            $from->value,
-                            $command->reviewedBy,
-                            $command->notes,
-                        );
-                    }
-
-                    throw $exception;
-                }
+                $studentIds[] = $this->convertAccepted->convert(
+                    schoolId: $command->schoolId,
+                    applicationId: $applicationId,
+                    reviewedBy: $command->reviewedBy,
+                    idempotencyKey: $command->idempotencyKey !== null
+                        ? $command->idempotencyKey.':convert:'.$applicationId
+                        : null,
+                );
             }
-        }
+
+            return $studentIds;
+        });
 
         if ($command->idempotencyKey !== null) {
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [

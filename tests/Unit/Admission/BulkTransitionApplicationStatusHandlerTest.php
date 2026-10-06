@@ -75,14 +75,14 @@ class BulkTransitionApplicationStatusHandlerTest extends TestCase
         $this->assertSame(ApplicationStatus::Accepted->value, $result->toStatus);
     }
 
-    public function test_accept_reverts_status_when_convert_fails(): void
+    public function test_accept_propagates_convert_failure_inside_the_transaction(): void
     {
         $calls = [];
         $admission = $this->createMock(AdmissionRepositoryInterface::class);
         $admission->method('findApplicationForSchool')->willReturn(
             $this->applicationRow(11, ApplicationStatus::UnderReview->value),
         );
-        $admission->expects($this->exactly(2))->method('transitionApplicationStatus')->willReturnCallback(
+        $admission->expects($this->once())->method('transitionApplicationStatus')->willReturnCallback(
             function (int $id, int $status) use (&$calls): void {
                 $calls[] = [$id, $status];
             },
@@ -105,10 +105,8 @@ class BulkTransitionApplicationStatusHandlerTest extends TestCase
             $this->assertSame('تعذر التحويل', $exception->getMessage());
         }
 
-        $this->assertSame([
-            [11, ApplicationStatus::Accepted->value],
-            [11, ApplicationStatus::UnderReview->value],
-        ], $calls);
+        // No manual revert: the surrounding database transaction rolls the Accept back.
+        $this->assertSame([[11, ApplicationStatus::Accepted->value]], $calls);
     }
 
     public function test_rejects_empty_selection(): void

@@ -12,8 +12,11 @@ use App\Domain\Academic\Data\AcademicYearSnapshot;
 use App\Domain\Academic\Repositories\AcademicYearRepositoryInterface;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Events\ApplicationPeriodUpdated;
+use App\Domain\Admission\Exceptions\ApplicationPeriodAcademicYearLockedException;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
+use App\Domain\Admission\Exceptions\ApplicationPeriodOutOfScopeException;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
+use App\Domain\Admission\Services\ApplicationPeriodManagementGuard;
 use DomainException;
 use PHPUnit\Framework\TestCase;
 
@@ -64,6 +67,60 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
             startDate: '2026-09-01T08:00',
             endDate: '2026-09-30T16:00',
         ));
+    }
+
+    public function test_rejects_changing_the_academic_year_of_an_existing_period(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findPeriod')->willReturn($this->periodRow());
+        $admission->expects($this->never())->method('updatePeriod');
+
+        $this->expectException(ApplicationPeriodAcademicYearLockedException::class);
+        $this->handler($admission)->handle(new UpdateApplicationPeriodCommand(
+            schoolId: 1,
+            academicYearId: 10,
+            periodId: 4,
+            name: 'فترة',
+            startDate: '2026-09-01T08:00',
+            endDate: '2026-09-30T16:00',
+        ));
+    }
+
+    public function test_rejects_period_of_a_directorate_outside_the_users_scope(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findPeriod')->willReturn(['directorate_id' => 5] + $this->periodRow());
+        $admission->expects($this->never())->method('updatePeriod');
+
+        $this->expectException(ApplicationPeriodOutOfScopeException::class);
+        $this->handler($admission)->handle(new UpdateApplicationPeriodCommand(
+            schoolId: 1,
+            academicYearId: 9,
+            periodId: 4,
+            name: 'فترة',
+            startDate: '2026-09-01T08:00',
+            endDate: '2026-09-30T16:00',
+            allowedDirectorateIds: [2, 3],
+        ));
+    }
+
+    public function test_allows_legacy_shared_period_without_directorate(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findPeriod')->willReturn(['directorate_id' => null] + $this->periodRow());
+        $admission->expects($this->once())->method('updatePeriod');
+
+        $result = $this->handler($admission)->handle(new UpdateApplicationPeriodCommand(
+            schoolId: 1,
+            academicYearId: 9,
+            periodId: 4,
+            name: 'فترة',
+            startDate: '2026-09-01T08:00',
+            endDate: '2026-09-30T16:00',
+            allowedDirectorateIds: [2],
+        ));
+
+        $this->assertTrue($result->success);
     }
 
     public function test_rejects_end_before_start(): void
@@ -149,6 +206,7 @@ class UpdateApplicationPeriodHandlerTest extends TestCase
             $outbox ?? $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
             new ApplicationPeriodAcademicYearGuard($years),
+            new ApplicationPeriodManagementGuard,
         );
     }
 }

@@ -352,6 +352,7 @@ final class AdmissionPageController extends Controller
             endDate: $request->filled('end_date') ? (string) $request->validated('end_date') : null,
             maxApplications: $request->validated('max_applications'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            allowedDirectorateIds: $request->userDirectorateIds(),
         ));
 
         $this->securityAudit->record(
@@ -380,6 +381,7 @@ final class AdmissionPageController extends Controller
             periodId: $period,
             status: (int) $request->validated('status'),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            allowedDirectorateIds: $request->userDirectorateIds(),
         ));
 
         $this->securityAudit->record(
@@ -412,6 +414,7 @@ final class AdmissionPageController extends Controller
             periodId: $period,
             status: ApplicationPeriodStatus::Archived->value,
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            allowedDirectorateIds: $request->userDirectorateIds(),
         ));
 
         $this->securityAudit->record(

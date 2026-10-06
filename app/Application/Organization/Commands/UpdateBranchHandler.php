@@ -35,14 +35,14 @@ final class UpdateBranchHandler implements CommandHandler
             return UpdateBranchResult::fromIdempotency((int) $cached['id']);
         }
 
-        $error = $this->guard->updateBranchRejection($command->schoolId, $command->branchId, $command->name);
+        $error = $this->guard->updateBranchRejection($command->schoolId, $command->branchId, $command->name, $command->status);
         if ($error !== null) {
             return UpdateBranchResult::failure([$error]);
         }
 
         $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
             $id = $command->branchId;
-            $this->structure->updateBranch($id, trim($command->name), $command->description);
+            $this->structure->updateBranch($id, trim($command->name), $command->description, $command->status);
             $this->outbox->stage(new BranchChanged($id, $command->schoolId, 'updated', new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['id' => $id]);
 

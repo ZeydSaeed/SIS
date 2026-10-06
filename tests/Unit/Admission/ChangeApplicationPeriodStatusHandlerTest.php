@@ -9,7 +9,9 @@ use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Domain\Admission\Events\ApplicationPeriodStatusChanged;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
+use App\Domain\Admission\Exceptions\ApplicationPeriodOutOfScopeException;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
+use App\Domain\Admission\Services\ApplicationPeriodManagementGuard;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use PHPUnit\Framework\TestCase;
 
@@ -52,6 +54,24 @@ class ChangeApplicationPeriodStatusHandlerTest extends TestCase
         $this->assertTrue($result->success);
         $this->assertSame(ApplicationPeriodStatus::Active->value, $result->fromStatus);
         $this->assertSame(ApplicationPeriodStatus::Active->value, $result->toStatus);
+    }
+
+    public function test_rejects_period_of_a_directorate_outside_the_users_scope(): void
+    {
+        $admission = $this->createMock(AdmissionRepositoryInterface::class);
+        $admission->method('findPeriod')->willReturn(
+            ['directorate_id' => 5] + $this->periodRow(ApplicationPeriodStatus::Active->value),
+        );
+        $admission->expects($this->never())->method('updatePeriodStatus');
+
+        $this->expectException(ApplicationPeriodOutOfScopeException::class);
+        $this->handler($admission)->handle(new ChangeApplicationPeriodStatusCommand(
+            schoolId: 1,
+            academicYearId: 9,
+            periodId: 4,
+            status: ApplicationPeriodStatus::Archived->value,
+            allowedDirectorateIds: [2],
+        ));
     }
 
     public function test_rejects_unknown_period(): void
@@ -106,6 +126,7 @@ class ChangeApplicationPeriodStatusHandlerTest extends TestCase
             $admission,
             $outbox ?? $this->createMock(OutboxRepository::class),
             $this->createMock(IdempotencyStore::class),
+            new ApplicationPeriodManagementGuard,
         );
     }
 }

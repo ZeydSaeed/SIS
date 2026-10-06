@@ -193,8 +193,16 @@ final class EloquentStudentRepository implements StudentRepositoryInterface
         return $id !== null ? (int) $id : null;
     }
 
+    /**
+     * Must run inside the creating transaction: the advisory lock serializes concurrent
+     * creators until commit, so two inserts cannot pick the same next code.
+     */
     public function generateStudentCode(): string
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['students.students.student_code']);
+        }
+
         $next = ((int) StudentRecord::query()->max('id')) + 1;
 
         return sprintf('STU-%06d', $next);

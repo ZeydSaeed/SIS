@@ -13,6 +13,7 @@ use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Events\ApplicationPeriodUpdated;
 use App\Domain\Admission\Exceptions\ApplicationPeriodNotFoundException;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
+use App\Domain\Admission\Services\ApplicationPeriodManagementGuard;
 use DomainException;
 
 final class UpdateApplicationPeriodHandler implements CommandHandler
@@ -25,6 +26,7 @@ final class UpdateApplicationPeriodHandler implements CommandHandler
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
         private readonly ApplicationPeriodAcademicYearGuard $academicYearGuard,
+        private readonly ApplicationPeriodManagementGuard $periodGuard,
     ) {}
 
     public function handle(Command $command): UpdateApplicationPeriodResult
@@ -50,6 +52,9 @@ final class UpdateApplicationPeriodHandler implements CommandHandler
         if ($period === null) {
             throw ApplicationPeriodNotFoundException::forId($command->periodId);
         }
+
+        $this->periodGuard->assertManageable($period, $command->allowedDirectorateIds);
+        $this->periodGuard->assertAcademicYearUnchanged($period, $command->academicYearId);
 
         $this->academicYearGuard->assertDatesFit(
             $command->academicYearId,

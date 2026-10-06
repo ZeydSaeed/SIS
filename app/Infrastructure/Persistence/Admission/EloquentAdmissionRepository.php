@@ -98,6 +98,11 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
     public function generateApplicationNumber(int $schoolId, int $academicYearId): string
     {
         $prefix = sprintf('APP-%d-%d-', $schoolId, $academicYearId);
+
+        // Runs inside the creating transaction: serialize creators of the same school/year sequence.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['admission.applications.'.$prefix]);
+        }
         $latest = DB::table(SchemaHelper::qualified('admission', 'applications').' as apps')
             ->join(
                 SchemaHelper::qualified('admission', 'application_periods').' as periods',

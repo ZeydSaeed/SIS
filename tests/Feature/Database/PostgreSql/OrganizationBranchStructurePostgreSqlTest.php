@@ -91,7 +91,7 @@ final class OrganizationBranchStructurePostgreSqlTest extends PostgreSqlIntegrat
 
         $empty = $this->createBranch('الفندقي والسياحي');
         $this->send('post', "/organization/branches/{$empty}/delete")->assertSessionHasNoErrors();
-        $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'branches'), ['id' => $empty, 'status' => 2]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'branches'), ['id' => $empty, 'status' => 3]);
         // A deleted branch name can be reused.
         $this->createBranch('الفندقي والسياحي');
 
@@ -134,7 +134,7 @@ final class OrganizationBranchStructurePostgreSqlTest extends PostgreSqlIntegrat
             ->assertSessionHasNoErrors();
 
         $this->send('post', '/organization/departments/delete', ['department_ids' => [$electricity]])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'departments'), ['id' => $electricity, 'status' => 2]);
+        $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'departments'), ['id' => $electricity, 'status' => 3]);
         // The used branch cannot be deleted either.
         $this->send('post', '/organization/departments/delete', ['department_ids' => []])->assertSessionHasErrors(['department_ids']);
     }

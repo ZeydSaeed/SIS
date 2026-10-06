@@ -13,7 +13,7 @@ use App\Domain\Organization\Repositories\BranchStructureRepositoryInterface;
 use App\Domain\Organization\Services\BranchStructureGuard;
 use App\Domain\Organization\Support\OrganizationIdempotencyGuard;
 
-/** Delete a branch = deactivate (status 2); its rows stay for history. */
+/** Delete a branch = archive (status 3, مؤرشف); its rows stay for history. */
 final class DeleteBranchHandler implements CommandHandler
 {
     private const COMMAND_NAME = 'DeleteBranch';
@@ -42,7 +42,7 @@ final class DeleteBranchHandler implements CommandHandler
 
         $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
             $id = $command->branchId;
-            $this->structure->setBranchStatus($id, BranchStructureRepositoryInterface::DELETED);
+            $this->structure->setBranchStatus($id, BranchStructureRepositoryInterface::ARCHIVED);
             $this->outbox->stage(new BranchChanged($id, $command->schoolId, 'deleted', new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['id' => $id]);
 

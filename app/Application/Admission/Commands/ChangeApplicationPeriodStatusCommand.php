@@ -12,5 +12,7 @@ final readonly class ChangeApplicationPeriodStatusCommand implements Command
         public int $periodId,
         public int $status,
         public ?string $idempotencyKey = null,
+        /** @var list<int>|null Directorates the user may manage periods of; null = unrestricted (system callers). */
+        public ?array $allowedDirectorateIds = null,
     ) {}
 }

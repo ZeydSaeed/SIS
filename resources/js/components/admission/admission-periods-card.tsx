@@ -280,21 +280,8 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                 <span>{period.directorate_name ?? i18n.allDirectorates}</span>
             </td>
             <td className="sis-admission-periods-table__year">
-                {editing ? (
-                    <SisListSelect
-                        value={String(academicYearId)}
-                        options={years.map((year) => ({
-                            value: String(year.id),
-                            label: formatAcademicYearOptionLabel(year.name, year.code),
-                        }))}
-                        onChange={(next) => setAcademicYearId(Number(next))}
-                        triggerClassName="sis-ops-hub__link"
-                        dir="ltr"
-                        ariaLabel={i18n.academicYear}
-                    />
-                ) : (
-                    <span dir="ltr">{yearLabel}</span>
-                )}
+                {/* The year is fixed once the period exists: applications inherit it from the period. */}
+                <span dir="ltr">{yearLabel}</span>
             </td>
             <td>
                 {editing ? (

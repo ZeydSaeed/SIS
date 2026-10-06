@@ -35,13 +35,13 @@ final class CreateDepartmentHandler implements CommandHandler
             return CreateDepartmentResult::fromIdempotency((int) $cached['id']);
         }
 
-        $error = $this->guard->createDepartmentRejection($command->schoolId, $command->branchId, $command->name);
+        $error = $this->guard->createDepartmentRejection($command->schoolId, $command->branchId, $command->name, $command->status);
         if ($error !== null) {
             return CreateDepartmentResult::failure([$error]);
         }
 
         $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
-            $id = $this->structure->createDepartment($command->schoolId, $command->branchId, trim($command->name), $command->description);
+            $id = $this->structure->createDepartment($command->schoolId, $command->branchId, trim($command->name), $command->description, $command->status);
             $this->outbox->stage(new DepartmentChanged($id, $command->schoolId, 'created', new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['id' => $id]);
 

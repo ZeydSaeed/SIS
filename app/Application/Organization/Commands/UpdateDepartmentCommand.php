@@ -13,5 +13,7 @@ final readonly class UpdateDepartmentCommand implements Command
         public string $name,
         public ?string $description,
         public ?string $idempotencyKey,
+        /** 1 نشط · 2 غير نشط · 3 مؤرشف */
+        public int $status = 1,
     ) {}
 }

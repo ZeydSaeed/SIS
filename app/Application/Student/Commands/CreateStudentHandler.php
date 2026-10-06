@@ -40,9 +40,8 @@ final class CreateStudentHandler implements CommandHandler
             }
         }
 
-        $studentCode = $command->studentCode ?? $this->students->generateStudentCode();
-        if ($this->students->existsByCode($studentCode)) {
-            throw StudentCodeAlreadyExistsException::forCode($studentCode);
+        if ($command->studentCode !== null && $this->students->existsByCode($command->studentCode)) {
+            throw StudentCodeAlreadyExistsException::forCode($command->studentCode);
         }
 
         if ($command->nationalId !== null && $this->students->existsByNationalId($command->nationalId)) {
@@ -58,7 +57,9 @@ final class CreateStudentHandler implements CommandHandler
             middleName: $command->middleName,
         );
 
-        $result = $this->unitOfWork->transaction(function () use ($command, $studentCode, $fullName): array {
+        $result = $this->unitOfWork->transaction(function () use ($command, $fullName): array {
+            // Generated inside the transaction so the code sequence lock is held until commit.
+            $studentCode = $command->studentCode ?? $this->students->generateStudentCode();
             $studentId = $this->students->saveNew(new CreateStudentData(
                 studentCode: $studentCode,
                 firstName: $command->firstName,

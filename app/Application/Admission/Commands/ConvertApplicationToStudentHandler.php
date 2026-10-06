@@ -83,7 +83,6 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
             }
         }
 
-        $studentCode = $this->students->generateStudentCode();
         $fullName = StudentNameFormatter::fullName(
             firstName: $application['first_name'],
             lastName: $application['last_name'],
@@ -99,11 +98,11 @@ final class ConvertApplicationToStudentHandler implements CommandHandler
         $studentId = $this->unitOfWork->transaction(function () use (
             $command,
             $application,
-            $studentCode,
             $fullName,
             $birthDate,
             $admittedAcademicYearId,
         ): int {
+            $studentCode = $this->students->generateStudentCode();
             $intendedGrade = isset($application['intended_grade_name']) && is_string($application['intended_grade_name'])
                 ? trim($application['intended_grade_name'])
                 : '';

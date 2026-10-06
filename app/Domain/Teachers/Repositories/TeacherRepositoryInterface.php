@@ -128,6 +128,13 @@ interface TeacherRepositoryInterface
      */
     public function listSubjectAssignments(int $teacherId, int $schoolId, int $academicYearId): array;
 
+    /**
+     * Subject assignments of every teacher in the school for the year (one query — roster page).
+     *
+     * @return list<TeacherSubjectSnapshot>
+     */
+    public function listSubjectAssignmentsForSchool(int $schoolId, int $academicYearId): array;
+
     public function findSubjectAssignmentById(
         int $teacherId,
         int $schoolId,

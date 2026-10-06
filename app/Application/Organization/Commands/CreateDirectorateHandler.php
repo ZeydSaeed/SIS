@@ -13,6 +13,7 @@ use App\Domain\Organization\Events\DirectorateCreated;
 use App\Domain\Organization\Repositories\DirectorateRepositoryInterface;
 use App\Domain\Organization\Services\DirectorateRegistryGuard;
 use App\Domain\Organization\Support\OrganizationIdempotencyGuard;
+use App\Domain\Organization\ValueObjects\DirectorateStatus;
 
 final class CreateDirectorateHandler implements CommandHandler
 {
@@ -37,6 +38,12 @@ final class CreateDirectorateHandler implements CommandHandler
         }
 
         $ministryId = $this->directorates->defaultMinistryId();
+        if (DirectorateStatus::tryFrom($command->status) === null) {
+            return CreateDirectorateResult::failure(['organization.directorate_status_invalid']);
+        }
+        if ($command->status !== DirectorateStatus::Active->value && $command->schoolIds !== []) {
+            return CreateDirectorateResult::failure(['organization.directorate_has_schools']);
+        }
         $error = $this->guard->createRejectionCode(
             $command->name,
             $ministryId,
@@ -57,6 +64,9 @@ final class CreateDirectorateHandler implements CommandHandler
                 $now->format(\DateTimeInterface::ATOM),
             );
             $this->placement->place($id, $command->schoolIds, $now);
+            if ($command->status !== DirectorateStatus::Active->value) {
+                $this->directorates->setStatus($id, $command->status, $now->format(\DateTimeInterface::ATOM));
+            }
             $this->outbox->stage(new DirectorateCreated($id, $now));
             $this->idempotency->store($key, self::COMMAND_NAME, ['directorate_id' => $id]);
 

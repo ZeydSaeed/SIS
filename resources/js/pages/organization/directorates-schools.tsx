@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import {
+    Archive,
     ArrowLeftRight,
     CheckCircle2,
     CircleSlash,
@@ -62,6 +63,9 @@ type Props = {
 
 type SchoolDraft = {
     id: number | null;
+    status: string;
+    /** «عرض» from the ribbon: read-only until «تعديل». */
+    viewOnly?: boolean;
     name: string;
     directorate_id: string;
     phone: string;
@@ -70,6 +74,32 @@ type SchoolDraft = {
 };
 
 const ACTIVE = 1;
+
+/** 1 نشط · 2 غير نشط · 3 مؤرشف (schools, directorates, branches, departments). */
+function statusOptions(): Array<{ value: string; label: string }> {
+    const r = t().orgRibbon;
+
+    return [
+        { value: '1', label: r.statusActive },
+        { value: '2', label: r.statusInactive },
+        { value: '3', label: r.statusArchived },
+    ];
+}
+
+function statusLabel(status: number): string {
+    return statusOptions().find((option) => option.value === String(status))?.label ?? String(status);
+}
+
+function StatusPill({ status }: { status: number }) {
+    const tone = status === 1 ? '' : status === 3 ? ' sis-org-status--archived' : ' sis-org-status--inactive';
+
+    return <span className={`sis-branches-status${tone}`}>{statusLabel(status)}</span>;
+}
+
+/** Status route: reactivate / deactivate / archive. */
+function statusAction(status: number): string {
+    return status === 1 ? 'reactivate' : status === 3 ? 'archive' : 'deactivate';
+}
 
 /** The school switcher (schoolContext) lists new / renamed schools too. */
 const RELOAD_PROPS = ['directorates', 'schoolContext', 'flash'];
@@ -89,11 +119,6 @@ function DirectorateTile({ active, large = false }: { active: boolean; large?: b
     );
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-    const d = t().directorateSchools;
-
-    return <span className={`sis-branches-status${active ? '' : ' sis-org-status--inactive'}`}>{active ? d.active : d.inactive}</span>;
-}
 
 export default function OrganizationDirectoratesSchools(props: Props) {
     const breadcrumbs: BreadcrumbItem[] = [{ title: t().directorateSchools.title, href: '/organization/directorates-schools' }];
@@ -137,7 +162,8 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
     );
 
     const [addDirectorateOpen, setAddDirectorateOpen] = useState(false);
-    const [newDirectorate, setNewDirectorate] = useState({ name: '', region: '' });
+    const [newDirectorate, setNewDirectorate] = useState({ name: '', region: '', status: '1' });
+    const [directorateStatus, setDirectorateStatus] = useState('1');
     const [schoolDraft, setSchoolDraft] = useState<SchoolDraft | null>(null);
     const [manageOpen, setManageOpen] = useState(false);
     const [manageDirectorateId, setManageDirectorateId] = useState('');
@@ -149,6 +175,12 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
     const knownDirectoratesRef = useRef<Set<number> | null>(null);
 
     const selected = directorates.find((item) => item.id === selectedId) ?? null;
+    /** A school row of the selected directorate; when set, the «تحرير» actions target it. */
+    const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+    const selectedSchool = selected?.schools.find((school) => school.id === selectedSchoolId) ?? null;
+    useEffect(() => {
+        setSelectedSchoolId(null);
+    }, [selectedId]);
     const allSchools = useMemo(
         () => directorates.flatMap((item) => item.schools.map((school) => ({ ...school, directorate: item }))),
         [directorates],
@@ -173,7 +205,8 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
     useEffect(() => {
         setDirectorateName(selected?.name ?? '');
         setDirectorateRegion(selected?.region ?? '');
-    }, [selected?.id, selected?.name, selected?.region]);
+        setDirectorateStatus(String(selected?.status ?? 1));
+    }, [selected?.status, selected?.id, selected?.name, selected?.region]);
 
     // Edit → تعديل المدرسة (admission page): open that school's form once.
     const focusHandledRef = useRef(false);
@@ -191,7 +224,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
 
     const directorateDirty =
         selected !== null &&
-        (directorateName.trim() !== selected.name || blankToNull(directorateRegion) !== (selected.region ?? null));
+        (directorateName.trim() !== selected.name || blankToNull(directorateRegion) !== (selected.region ?? null)) || (selected !== null && Number(directorateStatus) !== selected.status);
 
     const run = async (action: () => Promise<boolean>, after?: () => void): Promise<void> => {
         if (saving) {
@@ -209,12 +242,23 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
 
     const saveDirectorate = () =>
         selected &&
-        run(() =>
-            request('patch', `/organization/directorates/${selected.id}`, {
-                name: directorateName.trim(),
-                region: blankToNull(directorateRegion),
-            }),
-        );
+        run(async () => {
+            const fieldsChanged = directorateName.trim() !== selected.name || blankToNull(directorateRegion) !== (selected.region ?? null);
+            if (
+                fieldsChanged
+                && !(await request('patch', `/organization/directorates/${selected.id}`, {
+                    name: directorateName.trim(),
+                    region: blankToNull(directorateRegion),
+                }))
+            ) {
+                return false;
+            }
+            const status = Number(directorateStatus);
+
+            return status === selected.status
+                ? true
+                : request('post', `/organization/directorates/${selected.id}/${statusAction(status)}`);
+        });
 
     const createDirectorate = () =>
         run(
@@ -223,6 +267,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                 const created = await request('post', '/organization/directorates', {
                     name: newDirectorate.name.trim(),
                     region: blankToNull(newDirectorate.region),
+                    status: Number(newDirectorate.status),
                 });
                 if (!created) {
                     knownDirectoratesRef.current = null;
@@ -232,7 +277,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
             },
             () => {
                 setAddDirectorateOpen(false);
-                setNewDirectorate({ name: '', region: '' });
+                setNewDirectorate({ name: '', region: '', status: '1' });
             },
         );
 
@@ -240,6 +285,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
         const target = directorates.find((item) => item.id === directorateId && item.status === ACTIVE) ?? activeDirectorates[0];
         setSchoolDraft({
             id: null,
+            status: '1',
             name: '',
             directorate_id: target ? String(target.id) : '',
             phone: '',
@@ -248,9 +294,11 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
         });
     };
 
-    function openEditSchool(school: School, directorateId: number) {
+    function openEditSchool(school: School, directorateId: number, viewOnly = false) {
         setSchoolDraft({
             id: school.id,
+            status: String(school.status),
+            viewOnly,
             name: school.name,
             directorate_id: String(directorateId),
             phone: school.phone ?? '',
@@ -272,8 +320,9 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
             email: blankToNull(schoolDraft.email),
             address: blankToNull(schoolDraft.address),
         };
+        const status = Number(schoolDraft.status);
         if (schoolDraft.id === null) {
-            void run(() => request('post', '/organization/schools', payload), () => setSchoolDraft(null));
+            void run(() => request('post', '/organization/schools', { ...payload, status }), () => setSchoolDraft(null));
 
             return;
         }
@@ -287,16 +336,27 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
         if (payload.phone !== editedSchool.phone) changed.phone = payload.phone;
         if (payload.email !== editedSchool.email) changed.email = payload.email;
         if (payload.address !== editedSchool.address) changed.address = payload.address;
-        if (Object.keys(changed).length === 0) {
+        const statusChanged = status !== editedSchool.status;
+        if (Object.keys(changed).length === 0 && !statusChanged) {
             setSchoolDraft(null);
 
             return;
         }
-        void run(() => request('patch', `/organization/schools/${editedSchool.id}`, changed), () => setSchoolDraft(null));
+        void run(
+            async () => {
+                if (Object.keys(changed).length > 0 && !(await request('patch', `/organization/schools/${editedSchool.id}`, changed))) {
+                    return false;
+                }
+
+                return statusChanged ? request('post', `/organization/schools/${editedSchool.id}/${statusAction(status)}`) : true;
+            },
+            () => setSchoolDraft(null),
+        );
     };
 
-    const setStatus = (kind: 'schools' | 'directorates', id: number, active: boolean, after?: () => void) =>
-        run(() => request('post', `/organization/${kind}/${id}/${active ? 'reactivate' : 'deactivate'}`), after);
+    /** 1 نشط · 2 غير نشط · 3 مؤرشف («حذف» archives). */
+    const setStatus = (kind: 'schools' | 'directorates', id: number, status: number, after?: () => void) =>
+        run(() => request('post', `/organization/${kind}/${id}/${statusAction(status)}`), after);
 
     const toggleSchool = (schoolId: number) =>
         setExpandedSchools((current) =>
@@ -357,7 +417,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
     // «تحرير» ribbon (same mechanism as the students page): actions on the selected directorate,
     // status tabs with counts, management commands, completion; titlebar search filters the list.
     const r = i18n.orgRibbon;
-    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'archived'>('all');
     const [query, setQuery] = useState('');
     const activeCount = activeDirectorates.length;
     const visibleDirectorates = useMemo(() => {
@@ -365,7 +425,8 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
 
         return directorates.filter((item) => {
             if (statusFilter === 'active' && item.status !== ACTIVE) return false;
-            if (statusFilter === 'inactive' && item.status === ACTIVE) return false;
+            if (statusFilter === 'inactive' && item.status !== 2) return false;
+            if (statusFilter === 'archived' && item.status !== 3) return false;
 
             return q === '' || item.name.includes(q) || item.schools.some((school) => school.name.includes(q));
         });
@@ -373,6 +434,11 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
     const schoolsWithBranches = allSchools.filter((school) => school.branches.length > 0).length;
     const schoolsPercent = allSchools.length === 0 ? 0 : Math.round((schoolsWithBranches / allSchools.length) * 100);
 
+    const schoolEditable = schoolDraft !== null && schoolDraft.viewOnly !== true
+        && schoolDraft.name.trim() !== '' && schoolDraft.directorate_id !== '';
+    // A selected school is managed with the school permission; a directorate with the directorate one.
+    const canEditTarget = selectedSchool !== null ? canManageSchools : canManageDirectorates;
+    const targetActive = selectedSchool !== null ? selectedSchool.status === ACTIVE : selectedActive;
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const noSelection = selected === null;
         const groups: PageRibbonGroup[] = [
@@ -386,9 +452,16 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                         icon: Eye,
                         title: noSelection ? r.needsSelection : i18n.common.view,
                         disabled: noSelection,
-                        onSelect: () => setCollapsed(false),
+                        onSelect: () => {
+                            if (selectedSchool !== null && selected !== null) {
+                                openEditSchool(selectedSchool, selected.id, true);
+
+                                return;
+                            }
+                            setCollapsed(false);
+                        },
                     },
-                    ...(canManageDirectorates
+                    ...(canEditTarget
                         ? [
                               {
                                   id: 'org-directorate-edit',
@@ -396,15 +469,29 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                   icon: Pencil,
                                   tone: 'edit' as const,
                                   disabled: noSelection || saving,
-                                  onSelect: () => setCollapsed(false),
+                                  onSelect: () => {
+                                      if (selectedSchool !== null && selected !== null) {
+                                          openEditSchool(selectedSchool, selected.id);
+
+                                          return;
+                                      }
+                                      setCollapsed(false);
+                                  },
                               },
                               {
                                   id: 'org-directorate-save',
                                   label: i18n.common.save,
                                   icon: Save,
                                   tone: 'save' as const,
-                                  disabled: !directorateDirty || saving || directorateName.trim() === '',
-                                  onSelect: () => void saveDirectorate(),
+                                  disabled: saving || !(schoolEditable || (directorateDirty && directorateName.trim() !== '')),
+                                  onSelect: () => {
+                                      if (schoolEditable) {
+                                          saveSchool();
+
+                                          return;
+                                      }
+                                      void saveDirectorate();
+                                  },
                               },
                           ]
                         : []),
@@ -414,20 +501,51 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                         icon: XCircle,
                         disabled: noSelection || saving,
                         onSelect: () => {
+                            if (selectedSchoolId !== null) {
+                                setSelectedSchoolId(null);
+
+                                return;
+                            }
                             setDirectorateName(selected?.name ?? '');
                             setDirectorateRegion(selected?.region ?? '');
+                            setDirectorateStatus(String(selected?.status ?? 1));
                             setCollapsed(true);
                         },
                     },
-                    ...(canManageDirectorates
+                    ...(canEditTarget
                         ? [
                               {
                                   id: 'org-directorate-delete',
                                   label: i18n.common.delete,
                                   icon: Trash2,
                                   tone: 'delete' as const,
-                                  disabled: noSelection || saving || !selectedActive,
-                                  onSelect: () => selected && setDeleteDirectorate(selected),
+                                  disabled: noSelection || saving || !targetActive,
+                                  onSelect: () => {
+                                      if (selectedSchool !== null) {
+                                          setDeleteSchool(selectedSchool);
+
+                                          return;
+                                      }
+                                      if (selected !== null) {
+                                          setDeleteDirectorate(selected);
+                                      }
+                                  },
+                              },
+                              {
+                                  id: 'org-directorate-reactivate',
+                                  label: r.reactivate,
+                                  icon: RotateCcw,
+                                  disabled: noSelection || saving || targetActive,
+                                  onSelect: () => {
+                                      if (selectedSchool !== null) {
+                                          void setStatus('schools', selectedSchool.id, 1);
+
+                                          return;
+                                      }
+                                      if (selected !== null) {
+                                          void setStatus('directorates', selected.id, 1);
+                                      }
+                                  },
                               },
                           ]
                         : []),
@@ -439,7 +557,8 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                 commands: [
                     { key: 'all' as const, label: r.all, icon: Layers, count: directorates.length },
                     { key: 'active' as const, label: r.active, icon: CheckCircle2, count: activeCount },
-                    { key: 'inactive' as const, label: r.inactive, icon: CircleSlash, count: directorates.length - activeCount },
+                    { key: 'inactive' as const, label: r.inactive, icon: CircleSlash, count: directorates.filter((item) => item.status === 2).length },
+                    { key: 'archived' as const, label: r.archived, icon: Archive, count: directorates.filter((item) => item.status === 3).length },
                 ].map((tab) => ({
                     id: `org-directorate-status-${tab.key}`,
                     label: tab.label,
@@ -507,7 +626,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
 
         return groups;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeCount, canManageDirectorates, canManageSchools, directorateDirty, directorateName, directorates, i18n, saving, schoolsPercent, selected, selectedActive, selectedId, statusFilter]);
+    }, [activeCount, canEditTarget, canManageDirectorates, canManageSchools, directorateDirty, directorateName, directorates, i18n, saving, schoolDraft, schoolEditable, schoolsPercent, selected, selectedActive, selectedId, selectedSchool, selectedSchoolId, statusFilter, targetActive]);
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const titlebarSearch = useMemo(
@@ -530,29 +649,6 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                     <div className="sis-branches-page__heading">
                         <h1 className="sis-branches-page__title">{d.heading}</h1>
                     </div>
-                    {canManageDirectorates || canManageSchools ? (
-                        <div className="sis-branches-page__actions">
-                            {canManageDirectorates ? (
-                                <Button type="button" className="sis-org-head-btn" onClick={() => setAddDirectorateOpen(true)}>
-                                    <PlusCircle aria-hidden />
-                                    {d.addDirectorate}
-                                </Button>
-                            ) : null}
-                            {canManageSchools ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="sis-org-head-btn"
-                                    onClick={() => openAddSchool(selectedId)}
-                                    disabled={activeDirectorates.length === 0}
-                                    title={activeDirectorates.length === 0 ? d.noActiveDirectorates : undefined}
-                                >
-                                    <Building2 aria-hidden />
-                                    {d.addSchool}
-                                </Button>
-                            ) : null}
-                        </div>
-                    ) : null}
                 </header>
                 {canManageDirectorates || canManageSchools ? null : <p className="sis-branches-page__notice">{d.readOnly}</p>}
 
@@ -607,47 +703,6 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                                             <button
                                                                 type="button"
                                                                 className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                                title={d.editDirectorate}
-                                                                aria-label={`${d.editDirectorate}: ${item.name}`}
-                                                                onClick={(event) => {
-                                                                    event.stopPropagation();
-                                                                    setSelectedId(item.id);
-                                                                    setCollapsed(false);
-                                                                }}
-                                                            >
-                                                                <Pencil aria-hidden />
-                                                            </button>
-                                                            {active ? (
-                                                                <button
-                                                                    type="button"
-                                                                    className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-icon-btn--danger"
-                                                                    title={d.deleteDirectorate}
-                                                                    aria-label={`${d.deleteDirectorate}: ${item.name}`}
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation();
-                                                                        setDeleteDirectorate(item);
-                                                                    }}
-                                                                >
-                                                                    <Trash2 aria-hidden />
-                                                                </button>
-                                                            ) : (
-                                                                <button
-                                                                    type="button"
-                                                                    className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                                    title={d.reactivateDirectorate}
-                                                                    aria-label={`${d.reactivateDirectorate}: ${item.name}`}
-                                                                    disabled={saving}
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation();
-                                                                        void setStatus('directorates', item.id, true);
-                                                                    }}
-                                                                >
-                                                                    <RotateCcw aria-hidden />
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                type="button"
-                                                                className="sis-branches-icon-btn sis-branches-icon-btn--plain"
                                                                 title={d.manageTitle}
                                                                 aria-label={`${d.more}: ${item.name}`}
                                                                 onClick={(event) => {
@@ -679,7 +734,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                     <h2 className="sis-branches-card__title">
                                         {d.directoratePrefix} {selected.name}
                                     </h2>
-                                    <StatusBadge active={selectedActive} />
+                                    <StatusPill status={selected.status} />
                                     <button
                                         type="button"
                                         className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-detail__toggle"
@@ -709,6 +764,16 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                             onChange={setDirectorateRegion}
                                             fieldClassName="sis-branches-field--wide"
                                         />
+                                        <RegistryListField
+                                            label={r.statusLabel}
+                                            editing={canManageDirectorates}
+                                            required
+                                            value={directorateStatus}
+                                            display={statusLabel(Number(directorateStatus))}
+                                            options={statusOptions()}
+                                            onChange={setDirectorateStatus}
+                                            fieldClassName="sis-branches-field--wide"
+                                        />
                                         {canManageDirectorates ? (
                                             <div className="sis-branches-detail__buttons">
                                                 <Button
@@ -725,6 +790,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                                     onClick={() => {
                                                         setDirectorateName(selected.name);
                                                         setDirectorateRegion(selected.region ?? '');
+                                                        setDirectorateStatus(String(selected.status));
                                                     }}
                                                 >
                                                     {d.cancel}
@@ -762,8 +828,19 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                             return (
                                                 <Fragment key={school.id}>
                                                     <div
-                                                        className={`sis-branches-table__row${expanded ? ' is-expanded' : ''}${schoolActive ? '' : ' sis-org-item--inactive'}`}
+                                                        className={`sis-branches-table__row sis-branches-table__row--selectable${expanded ? ' is-expanded' : ''}${
+                                                            school.id === selectedSchoolId ? ' is-selected' : ''
+                                                        }${schoolActive ? '' : ' sis-org-item--inactive'}`}
                                                         role="row"
+                                                        tabIndex={0}
+                                                        aria-selected={school.id === selectedSchoolId}
+                                                        onClick={() => setSelectedSchoolId(school.id)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                                                                event.preventDefault();
+                                                                setSelectedSchoolId(school.id);
+                                                            }
+                                                        }}
                                                     >
                                                         <span role="cell" className="sis-branches-table__name sis-org-schools__name">
                                                             <Building2 aria-hidden className="sis-branches-table__icon" />
@@ -785,45 +862,13 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                                                 aria-controls={panelId}
                                                                 title={expanded ? d.hideBranches : d.showBranches}
                                                                 aria-label={`${expanded ? d.hideBranches : d.showBranches}: ${school.name}`}
-                                                                onClick={() => toggleSchool(school.id)}
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    toggleSchool(school.id);
+                                                                }}
                                                             >
                                                                 <ChevronDown aria-hidden className={expanded ? 'is-collapsed' : undefined} />
                                                             </button>
-                                                            {canManageSchools ? (
-                                                                <>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                                        title={d.editSchool}
-                                                                        aria-label={`${d.editSchool}: ${school.name}`}
-                                                                        onClick={() => openEditSchool(school, selected.id)}
-                                                                    >
-                                                                        <Pencil aria-hidden />
-                                                                    </button>
-                                                                    {schoolActive ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-icon-btn--danger"
-                                                                            title={d.deleteSchool}
-                                                                            aria-label={`${d.deleteSchool}: ${school.name}`}
-                                                                            onClick={() => setDeleteSchool(school)}
-                                                                        >
-                                                                            <Trash2 aria-hidden />
-                                                                        </button>
-                                                                    ) : (
-                                                                        <button
-                                                                            type="button"
-                                                                            className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                                            title={d.reactivateSchool}
-                                                                            aria-label={`${d.reactivateSchool}: ${school.name}`}
-                                                                            disabled={saving}
-                                                                            onClick={() => void setStatus('schools', school.id, true)}
-                                                                        >
-                                                                            <RotateCcw aria-hidden />
-                                                                        </button>
-                                                                    )}
-                                                                </>
-                                                            ) : null}
                                                         </span>
                                                     </div>
                                                     {expanded ? (
@@ -840,8 +885,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                                                         </div>
                                                                         {school.branches.map((branch) => (
                                                                             <div key={branch.id} className="sis-branches-table__row" role="row">
-                                                                                <span role="cell" className="sis-branches-table__name sis-org-branches__col-branch">
-                                                                                    <GitBranch aria-hidden className="sis-branches-table__icon" />
+                                                                                <span role="cell" className="sis-org-branches__col-branch">
                                                                                     {branch.name}
                                                                                 </span>
                                                                                 <span role="cell" className="sis-org-branches__col-departments">
@@ -912,6 +956,16 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                 onChange={(region) => setNewDirectorate((current) => ({ ...current, region }))}
                                 fieldClassName="sis-branches-field--wide"
                             />
+                            <RegistryListField
+                                label={r.statusLabel}
+                                editing
+                                required
+                                value={newDirectorate.status}
+                                display={statusLabel(Number(newDirectorate.status))}
+                                options={statusOptions()}
+                                onChange={(status) => setNewDirectorate((current) => ({ ...current, status }))}
+                                fieldClassName="sis-branches-field--wide"
+                            />
                         </div>
                     </SheetSection>
                     <div className="sis-admission-sheet__actions">
@@ -928,15 +982,15 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
             {/* 2) Add school · 3) Edit school */}
             {schoolDraft !== null ? (
                 <RegistrySheetDialog
-                    title={schoolDraft.id === null ? d.addSchool : d.editSchool}
+                    title={schoolDraft.id === null ? d.addSchool : schoolDraft.viewOnly ? r.viewSchool : d.editSchool}
                     className="sis-branches-sheet"
                     onClose={() => setSchoolDraft(null)}
                 >
-                    <SheetSection id="org-school" title={schoolDraft.id === null ? d.addSchool : d.editSchool}>
+                    <SheetSection id="org-school" title={schoolDraft.id === null ? d.addSchool : schoolDraft.viewOnly ? r.viewSchool : d.editSchool}>
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                             <RegistryTextField
                                 label={d.schoolName}
-                                editing
+                                editing={schoolDraft.viewOnly !== true}
                                 required
                                 value={schoolDraft.name}
                                 onChange={(name) => setSchoolDraft((current) => (current === null ? current : { ...current, name }))}
@@ -944,7 +998,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                             />
                             <RegistryListField
                                 label={d.directorate}
-                                editing
+                                editing={schoolDraft.viewOnly !== true}
                                 required
                                 value={schoolDraft.directorate_id}
                                 display={directorates.find((item) => String(item.id) === schoolDraft.directorate_id)?.name ?? '—'}
@@ -956,7 +1010,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                             />
                             <RegistryTextField
                                 label={d.phone}
-                                editing
+                                editing={schoolDraft.viewOnly !== true}
                                 type="tel"
                                 dir="ltr"
                                 value={schoolDraft.phone}
@@ -965,7 +1019,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                             />
                             <RegistryTextField
                                 label={d.email}
-                                editing
+                                editing={schoolDraft.viewOnly !== true}
                                 type="email"
                                 dir="ltr"
                                 value={schoolDraft.email}
@@ -974,9 +1028,19 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                             />
                             <RegistryTextField
                                 label={d.address}
-                                editing
+                                editing={schoolDraft.viewOnly !== true}
                                 value={schoolDraft.address}
                                 onChange={(address) => setSchoolDraft((current) => (current === null ? current : { ...current, address }))}
+                                fieldClassName="sis-branches-field--wide"
+                            />
+                            <RegistryListField
+                                label={r.statusLabel}
+                                editing={schoolDraft.viewOnly !== true}
+                                required
+                                value={schoolDraft.status}
+                                display={statusLabel(Number(schoolDraft.status))}
+                                options={statusOptions()}
+                                onChange={(status) => setSchoolDraft((current) => (current === null ? current : { ...current, status }))}
                                 fieldClassName="sis-branches-field--wide"
                             />
                         </div>
@@ -985,13 +1049,24 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                         <Button type="button" variant="outline" disabled={saving} onClick={() => setSchoolDraft(null)}>
                             {d.cancel}
                         </Button>
-                        <Button
-                            type="button"
-                            disabled={saving || schoolDraft.name.trim() === '' || schoolDraft.directorate_id === ''}
-                            onClick={saveSchool}
-                        >
-                            {saving ? i18n.common.saving : schoolDraft.id === null ? d.add : d.saveChanges}
-                        </Button>
+                        {schoolDraft.viewOnly ? (
+                            canManageSchools ? (
+                                <Button
+                                    type="button"
+                                    onClick={() => setSchoolDraft((current) => (current === null ? current : { ...current, viewOnly: false }))}
+                                >
+                                    {i18n.common.edit}
+                                </Button>
+                            ) : null
+                        ) : (
+                            <Button
+                                type="button"
+                                disabled={saving || schoolDraft.name.trim() === '' || schoolDraft.directorate_id === ''}
+                                onClick={saveSchool}
+                            >
+                                {saving ? i18n.common.saving : schoolDraft.id === null ? d.add : d.saveChanges}
+                            </Button>
+                        )}
                     </div>
                 </RegistrySheetDialog>
             ) : null}
@@ -1130,7 +1205,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                 tone="danger"
                 confirmPending={saving}
                 onConfirm={() =>
-                    deleteDirectorate && void setStatus('directorates', deleteDirectorate.id, false, () => setDeleteDirectorate(null))
+                    deleteDirectorate && void setStatus('directorates', deleteDirectorate.id, 3, () => setDeleteDirectorate(null))
                 }
                 onOpenChange={(open) => {
                     if (!open && !saving) {
@@ -1145,7 +1220,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                 confirmLabel={d.deleteSchool}
                 tone="danger"
                 confirmPending={saving}
-                onConfirm={() => deleteSchool && void setStatus('schools', deleteSchool.id, false, () => setDeleteSchool(null))}
+                onConfirm={() => deleteSchool && void setStatus('schools', deleteSchool.id, 3, () => setDeleteSchool(null))}
                 onOpenChange={(open) => {
                     if (!open && !saving) {
                         setDeleteSchool(null);

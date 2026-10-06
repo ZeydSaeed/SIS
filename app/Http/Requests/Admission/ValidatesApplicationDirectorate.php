@@ -16,9 +16,20 @@ trait ValidatesApplicationDirectorate
     /** @return list<mixed> */
     protected function applicationDirectorateRule(): array
     {
+        return ['required', 'integer', Rule::in($this->userDirectorateIds())];
+    }
+
+    /**
+     * Active directorates of the user's linked, active schools (periods the user may manage).
+     *
+     * @return list<int>
+     */
+    public function userDirectorateIds(): array
+    {
         $user = $this->user();
         $schoolIds = $user === null ? [] : app(SchoolScopeService::class)->allowedSchoolIds($user);
-        $directorateIds = $schoolIds === []
+
+        return $schoolIds === []
             ? []
             : DB::table(SchemaHelper::qualified('organization', 'schools').' as s')
                 ->join(SchemaHelper::qualified('organization', 'directorates').' as d', 'd.id', '=', 's.directorate_id')
@@ -28,9 +39,8 @@ trait ValidatesApplicationDirectorate
                 ->distinct()
                 ->pluck('d.id')
                 ->map(static fn ($id): int => (int) $id)
+                ->values()
                 ->all();
-
-        return ['required', 'integer', Rule::in($directorateIds)];
     }
 
     /** @return array<string, string> */

@@ -44,7 +44,7 @@ final class BranchStructurePageController extends Controller
         abort_unless($user !== null && ($user->can('manageSchools') || $user->can('viewAdmission')), 403);
 
         return Inertia::render('organization/branches', [
-            'branches' => $handler->handle(new GetBranchStructureQuery($this->schoolContext->requireId())),
+            'branches' => $handler->handle(new GetBranchStructureQuery($this->schoolContext->requireId(), activeOnly: false)),
             'authorization' => ['can_manage' => $user->can('manageSchools')],
         ]);
     }
@@ -57,6 +57,7 @@ final class BranchStructurePageController extends Controller
                 name: (string) $request->validated('name'),
                 description: $this->nullableText($request->validated('description')),
                 idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+                status: (int) $request->validated('status', 1),
             ),
         ));
     }
@@ -70,6 +71,7 @@ final class BranchStructurePageController extends Controller
                 name: (string) $request->validated('name'),
                 description: $this->nullableText($request->validated('description')),
                 idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+                status: (int) $request->validated('status', 1),
             ),
         ));
     }
@@ -94,6 +96,7 @@ final class BranchStructurePageController extends Controller
                 name: (string) $request->validated('name'),
                 description: $this->nullableText($request->validated('description')),
                 idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+                status: (int) $request->validated('status', 1),
             ),
         ));
     }
@@ -108,6 +111,7 @@ final class BranchStructurePageController extends Controller
                 name: (string) $request->validated('name'),
                 description: $this->nullableText($request->validated('description')),
                 idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+                status: (int) $request->validated('status', 1),
             ),
         ));
     }

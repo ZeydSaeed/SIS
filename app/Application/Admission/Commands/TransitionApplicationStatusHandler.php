@@ -57,7 +57,12 @@ final class TransitionApplicationStatusHandler implements CommandHandler
             throw InvalidApplicationTransitionException::fromTo($application['status'], $command->toStatus);
         }
 
-        $this->unitOfWork->transaction(function () use ($command, $from, $to): void {
+        if ($to === ApplicationStatus::Accepted) {
+            $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
+        }
+
+        // Accept and student conversion commit together: a failed conversion rolls back the status change.
+        $convertedStudentId = $this->unitOfWork->transaction(function () use ($command, $from, $to): ?int {
             $this->admission->transitionApplicationStatus(
                 $command->applicationId,
                 $to->value,
@@ -73,32 +78,20 @@ final class TransitionApplicationStatusHandler implements CommandHandler
                 reviewedBy: $command->reviewedBy,
                 occurredAt: new \DateTimeImmutable,
             ));
-        });
 
-        $convertedStudentId = null;
-        if ($to === ApplicationStatus::Accepted) {
-            $this->convertAccepted->repairOrphans($command->schoolId, $command->reviewedBy);
-
-            try {
-                $convertedStudentId = $this->convertAccepted->convert(
-                    schoolId: $command->schoolId,
-                    applicationId: $command->applicationId,
-                    reviewedBy: $command->reviewedBy,
-                    idempotencyKey: $command->idempotencyKey !== null
-                        ? $command->idempotencyKey.':convert'
-                        : null,
-                );
-            } catch (\Throwable $exception) {
-                $this->admission->transitionApplicationStatus(
-                    $command->applicationId,
-                    $from->value,
-                    $command->reviewedBy,
-                    $command->notes,
-                );
-
-                throw $exception;
+            if ($to !== ApplicationStatus::Accepted) {
+                return null;
             }
-        }
+
+            return $this->convertAccepted->convert(
+                schoolId: $command->schoolId,
+                applicationId: $command->applicationId,
+                reviewedBy: $command->reviewedBy,
+                idempotencyKey: $command->idempotencyKey !== null
+                    ? $command->idempotencyKey.':convert'
+                    : null,
+            );
+        });
 
         if ($command->idempotencyKey !== null) {
             $this->idempotency->store($command->idempotencyKey, self::COMMAND_NAME, [

@@ -18,5 +18,7 @@ final readonly class CreateSchoolCommand implements Command
         public ?string $phone,
         public ?string $email,
         public ?string $idempotencyKey,
+        /** نشط / غير نشط / مؤرشف (SchoolStatus). */
+        public int $status = 1,
     ) {}
 }

@@ -62,6 +62,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/schools/{school}/reactivate', [SchoolRegistryController::class, 'reactivate'])
             ->whereNumber('school')
             ->name('schools.reactivate');
+        Route::post('/schools/{school}/archive', [SchoolRegistryController::class, 'archive'])
+            ->whereNumber('school')
+            ->name('schools.archive');
         Route::post('/directorates', [DirectorateRegistryController::class, 'store'])->name('directorates.store');
         Route::patch('/directorates/{directorate}', [DirectorateRegistryController::class, 'update'])
             ->whereNumber('directorate')
@@ -72,6 +75,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/directorates/{directorate}/reactivate', [DirectorateRegistryController::class, 'reactivate'])
             ->whereNumber('directorate')
             ->name('directorates.reactivate');
+        Route::post('/directorates/{directorate}/archive', [DirectorateRegistryController::class, 'archive'])
+            ->whereNumber('directorate')
+            ->name('directorates.archive');
 
         // «الفروع والاختصاصات» — branches and departments of the current school (delete = deactivate).
         Route::get('/branches', [BranchStructurePageController::class, 'index'])->name('branches.index');
@@ -157,6 +163,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('teachers')->name('teachers.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [TeacherPageController::class, 'index'])->name('index');
         Route::get('/{teacher}', [TeacherPageController::class, 'show'])->whereNumber('teacher')->name('show');
+        Route::post('/', [TeacherPageController::class, 'store'])->name('store');
+        Route::patch('/{teacher}', [TeacherPageController::class, 'update'])->whereNumber('teacher')->name('update');
+        Route::post('/{teacher}/deactivate', [TeacherPageController::class, 'deactivate'])->whereNumber('teacher')->name('deactivate');
+        Route::post('/{teacher}/reactivate', [TeacherPageController::class, 'reactivate'])->whereNumber('teacher')->name('reactivate');
+        Route::post('/{teacher}/subjects', [TeacherPageController::class, 'assignSubject'])->whereNumber('teacher')->name('subjects.assign');
+        Route::post('/{teacher}/subjects/unlink', [TeacherPageController::class, 'unlinkSubject'])->whereNumber('teacher')->name('subjects.unlink');
     });
 
     Route::prefix('timetable')->name('timetable.')->middleware('require.school.context')->group(function (): void {

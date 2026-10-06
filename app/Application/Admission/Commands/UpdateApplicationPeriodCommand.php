@@ -16,5 +16,7 @@ final readonly class UpdateApplicationPeriodCommand implements Command
         public ?string $endDate,
         public ?int $maxApplications = null,
         public ?string $idempotencyKey = null,
+        /** @var list<int>|null Directorates the user may manage periods of; null = unrestricted (system callers). */
+        public ?array $allowedDirectorateIds = null,
     ) {}
 }

@@ -39,6 +39,7 @@ final class SchoolRegistryController extends Controller
             phone: $this->nullableText($request->validated('phone')),
             email: $this->nullableText($request->validated('email')),
             idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+            status: (int) $request->validated('status', SchoolStatus::Active->value),
         ));
 
         if ($result->failed()) {
@@ -106,6 +107,11 @@ final class SchoolRegistryController extends Controller
         return $this->changeStatus($school, SchoolStatus::Active, $request, $handler);
     }
 
+    public function archive(int $school, ChangeSchoolStatusRequest $request, ChangeSchoolStatusHandler $handler): RedirectResponse
+    {
+        return $this->changeStatus($school, SchoolStatus::Archived, $request, $handler);
+    }
+
     private function changeStatus(
         int $school,
         SchoolStatus $status,
@@ -124,19 +130,20 @@ final class SchoolRegistryController extends Controller
             ]);
         }
 
-        $deactivated = $status === SchoolStatus::Inactive;
+        [$action, $outcome, $flash] = match ($status) {
+            SchoolStatus::Active => ['reactivate', 'reactivated', 'flash.organization.schoolReactivated'],
+            SchoolStatus::Inactive => ['deactivate', 'deactivated', 'flash.organization.schoolDeactivated'],
+            SchoolStatus::Archived => ['archive', 'archived', 'flash.organization.schoolArchived'],
+        };
         $this->securityAudit->record(
             SecurityEventType::OrganizationDataModified,
-            $deactivated ? 'organization.web.schools.deactivate' : 'organization.web.schools.reactivate',
-            $deactivated ? 'deactivated' : 'reactivated',
+            'organization.web.schools.'.$action,
+            $outcome,
             $request->user(),
             'school:'.$school,
         );
 
-        return redirect()->back()->with(
-            'success',
-            $deactivated ? 'flash.organization.schoolDeactivated' : 'flash.organization.schoolReactivated',
-        );
+        return redirect()->back()->with('success', $flash);
     }
 
     private function nullableText(mixed $value): ?string

@@ -58,6 +58,8 @@
 
 **Indexes:** `BTREE(directorate_id)`, `BTREE(status)`, `UNIQUE(code)`
 
+**Schools / directorates status (2026-10-06):** 1 = نشط, 2 = غير نشط, 3 = مؤرشف (`SchoolStatus` / `DirectorateStatus::Archived`, routes `…/archive`); set on add (create handlers apply it in the same transaction) and edit (status routes). A directorate leaves «نشط» only without active schools.
+
 ### `organization.branches`
 
 | Column | Type | Constraints |
@@ -74,7 +76,7 @@
 
 **Indexes:** `BTREE(school_id)`, `UNIQUE(school_id, code)`
 
-**Status (2026-10-06):** 1 = active; 2 = deleted on the «الفروع والاختصاصات» page (deactivated, never hard-deleted — referenced by applications / students / enrollments). New codes `BR-0001…` (`OrganizationCodeSequence`). A branch is deleted only without active departments or active enrollments.
+**Status (2026-10-06):** 1 = نشط, 2 = غير نشط, 3 = مؤرشف — set on add / edit; «حذف» archives (never hard-deleted — referenced by applications / students / enrollments). Legacy 0 → 2 (migration `2026_10_06_140000`). New codes `BR-0001…` (`OrganizationCodeSequence`). A branch leaves «نشط» only without active departments or active enrollments; names are unique among non-archived branches of the school. Operational lists (admission, students, enrollment) use status 1 only.
 
 ### `organization.departments`
 
@@ -93,7 +95,7 @@
 
 **Indexes:** `BTREE(school_id)`, `BTREE(branch_id)`
 
-**Status (2026-10-06):** 1 = active; 2 = deleted (deactivated) on the «الفروع والاختصاصات» page. New codes `DEP-0001…`. A department used by active enrollments or active curricula is neither deleted nor moved to another branch.
+**Status (2026-10-06):** 1 = نشط, 2 = غير نشط, 3 = مؤرشف — set on add / edit; «حذف» archives. New codes `DEP-0001…`. A department used by active enrollments or active curricula neither leaves «نشط» nor moves to another branch; an active department needs an active branch; names unique among non-archived departments of the branch.
 
 ### `organization.rooms`
 
@@ -359,6 +361,8 @@
 - `PARTIAL(status) WHERE status = 1` — active students
 - `INCLUDE(student_code, full_name) ON (status)` — covering for lists
 
+
+**Integrity (2026-10-06, migration `2026_10_06_150000`):** hard DELETE is forbidden (trigger `students_students_reject_hard_delete`) — change status instead. `student_code` (`STU-%06d`) is generated inside the creating transaction under `pg_advisory_xact_lock`. **RLS: not enabled** — tenant isolation is by `school_id` filters in repositories (see TECHNICAL DEBT in the change report).
 ### `students.student_contacts`
 
 | Column | Type | Constraints |
@@ -486,6 +490,8 @@
 
 **CHECK:** `end_date >= start_date` (passes when end_date IS NULL)
 
+**Integrity (2026-10-06, migration `2026_10_06_150000`):** `academic_year_id` is fixed after insert (trigger `admission_application_periods_lock_academic_year`) — applications inherit their year from the period. Edit / status / archive require the period's directorate to be one of the user's directorates (`ApplicationPeriodManagementGuard`; legacy periods without a directorate stay editable). Error codes `admission.period_academic_year_locked`, `admission.period_out_of_scope`.
+
 ### `admission.applications`
 
 | Column | Type | Constraints |
@@ -546,6 +552,8 @@
 **Indexes (2026-10-06):** `BTREE(school_id, application_period_id, status)` — per-school stage lists in shared periods.
 
 **RLS (2026-10-06):** `admission_applications_school_isolation` — `school_id = app.current_school_id` (fail-closed). `admission_applications_transfer` (FOR UPDATE) — row visible in the source school; the new row must equal transaction-local `app.transfer_target_school_id` (set only by the transfer handler after authorization). School, request kind and period (academic year) change **only** through the transfers page (`/transfers`).
+
+**Integrity (2026-10-06, migration `2026_10_06_150000`):** a row with `student_id` set cannot be deleted (trigger `admission_applications_reject_converted_delete`). Accept → student conversion is one transaction (single + bulk): a failed conversion rolls back the status change. `application_number` is generated under `pg_advisory_xact_lock` per `APP-{school}-{year}-` prefix.
 
 ### `admission.application_transfers` (2026-10-06)
 

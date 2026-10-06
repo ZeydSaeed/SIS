@@ -35,13 +35,13 @@ final class CreateBranchHandler implements CommandHandler
             return CreateBranchResult::fromIdempotency((int) $cached['id']);
         }
 
-        $error = $this->guard->createBranchRejection($command->schoolId, $command->name);
+        $error = $this->guard->createBranchRejection($command->schoolId, $command->name, $command->status);
         if ($error !== null) {
             return CreateBranchResult::failure([$error]);
         }
 
         $id = $this->unitOfWork->transaction(function () use ($command, $key): int {
-            $id = $this->structure->createBranch($command->schoolId, trim($command->name), $command->description);
+            $id = $this->structure->createBranch($command->schoolId, trim($command->name), $command->description, $command->status);
             $this->outbox->stage(new BranchChanged($id, $command->schoolId, 'created', new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['id' => $id]);
 

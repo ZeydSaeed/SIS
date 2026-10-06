@@ -7,6 +7,8 @@ use Illuminate\Validation\Rule;
 
 final class ChangeApplicationPeriodStatusRequest extends FormRequest
 {
+    use ValidatesApplicationDirectorate;
+
     public function authorize(): bool
     {
         return $this->user()?->can('manageAdmission') ?? false;

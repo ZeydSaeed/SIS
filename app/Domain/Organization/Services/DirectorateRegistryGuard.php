@@ -75,7 +75,7 @@ final class DirectorateRegistryGuard
         if ($this->directorates->find($directorateId) === null) {
             return 'organization.directorate_not_found';
         }
-        if ($status === DirectorateStatus::Inactive->value
+        if ($status !== DirectorateStatus::Active->value
             && $this->directorates->activeSchoolCount($directorateId) > 0) {
             return 'organization.directorate_has_schools';
         }
