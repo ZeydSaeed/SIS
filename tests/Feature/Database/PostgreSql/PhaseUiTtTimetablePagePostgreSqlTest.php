@@ -27,7 +27,10 @@ final class PhaseUiTtTimetablePagePostgreSqlTest extends PostgreSqlIntegrationTe
             ->assertSuccessful()
             ->assertInertia(fn ($page) => $page
                 ->component('timetable/index')
-                ->has('schedules.data')
+                ->has('schedules')
+                ->has('periods')
+                ->has('sections')
+                ->has('lessons')
                 ->has('filters'));
     }
 }

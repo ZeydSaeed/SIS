@@ -36,6 +36,13 @@ final class TimetablePolicy
             && $this->schoolAccess->canAccessTimetable($user);
     }
 
+    /** «توقيت الحصص» — same holders as schedule editing (no separate permission). */
+    public function managePeriods(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::TIMETABLE_SCHEDULE_UPDATE)
+            && $this->schoolAccess->canAccessTimetable($user);
+    }
+
     public function cancelSchedule(User $user, mixed $schedule = null): bool
     {
         return $this->authorization->userHasPermission($user, Permission::TIMETABLE_SCHEDULE_CANCEL)

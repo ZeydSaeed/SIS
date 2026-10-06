@@ -8,6 +8,7 @@ final class ScheduleValidationException extends SisDomainException
 {
     public static function withReason(string $code): self
     {
-        return new self($code);
+        // The reason is also the error code, so web pages flash a translatable key (not «domain.error»).
+        return new self($code, $code);
     }
 }

@@ -889,6 +889,8 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 **RLS:** ENABLE + FORCE (`periods_school_isolation`)  
 **Triggers:** `periods_reject_delete`
 
+**«توقيت الحصص» writes (2026-10-06, no schema change):** web `POST/PATCH /timetable/periods` (CreatePeriod / UpdatePeriod, policy `managePeriods` = `timetable.schedule.update`). `period_type`: 1 = lesson, 2 = break. Domain `PeriodTimeGuard`: start < end, unique number (1–20), no overlapping minutes. A break holds no schedules (`timetable.period_not_lesson`); a period with active schedules cannot become a break (`timetable.period_has_lessons`). Periods are re-timed, never deleted.
+
 ### `timetable.schedules`
 
 > **Phase TV-U02:** Operational capacity schedule rows — **not** grade/result SSOT.  
@@ -913,6 +915,8 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 **Indexes:** partial UNIQUE active section/teacher/room slots; BTREE school/year, section/year  
 **RLS:** ENABLE + FORCE  
 **Triggers:** reject hard DELETE
+
+**Builder writes (2026-10-06, no schema change):** web `POST /timetable/schedules/{id}/swap` («استبدال», same section), `POST …/{id}/shift` («زحف» ±1 period, the adjacent block slides to the first free period), `POST /timetable/schedules/auto-place` («توزيع تلقائي», Domain `TimetableAutoPlacer`). Multi-row moves use `relocate()`: inside one transaction the moved rows step aside (lifecycle 2 + `cancelled_at`, so the active-slot partial uniques never collide), then land one by one with the section/teacher conflict checks and return to lifecycle 1 — the final state is all-active. «تدقيق الجدول» (Domain `TimetableAuditor`) is computed on read; nothing is stored. Rules: teacher ≤ 6 lessons a day, subject ≤ 2 a day per section, practical (`subject_type` 3) as doubles — two consecutive lessons with a changeover ≤ 10 minutes (the main 15-minute break splits a double). `POST /timetable/periods/arrange` («توزيع الاستراحات تلقائياً», Domain `SchoolDayPlanner`) re-times the day with the same lesson periods (ids kept, so placed lessons stay): breaks 5 · 5 · 15 (middle) · 5 · 10 · 5 …; renumbering parks numbers at +100 inside the transaction. Section ↔ branch / department for the builder's filters and «عرض الكل» split = students' placement (active `enrollment.enrollments`); a mixed section appears under each department it serves.
 
 **Teacher binding (2026-10-06, G5):** create / update require `teachers.teacher_subjects` (teacher, subject, school, year) — error `timetable.teacher_not_assigned_subject`. Subject ∈ section curriculum is **not** enforced yet (sections may mix departments; department-bound curricula).
 

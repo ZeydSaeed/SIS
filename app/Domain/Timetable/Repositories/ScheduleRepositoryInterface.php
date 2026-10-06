@@ -32,4 +32,12 @@ interface ScheduleRepositoryInterface
     public function cancel(int $schoolId, int $scheduleId, string $cancelledAt): void;
 
     public function reactivate(int $schoolId, int $scheduleId, string $reactivatedAt): void;
+
+    /**
+     * Moves several active lessons at once (swap two lessons, slide a block). Each lands only on a
+     * slot free for its section and teacher once the others have left theirs. Call inside a transaction.
+     *
+     * @param  list<array{schedule_id: int, day: int, period_id: int}>  $moves
+     */
+    public function relocate(int $schoolId, array $moves, string $at): void;
 }

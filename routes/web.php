@@ -192,6 +192,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('timetable')->name('timetable.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [TimetablePageController::class, 'index'])->name('index');
         Route::get('/{schedule}', [TimetablePageController::class, 'show'])->whereNumber('schedule')->name('show');
+        Route::post('/periods', [TimetablePageController::class, 'storePeriod'])->name('periods.store');
+        Route::post('/periods/arrange', [TimetablePageController::class, 'arrangeDay'])->name('periods.arrange');
+        Route::patch('/periods/{period}', [TimetablePageController::class, 'updatePeriod'])->whereNumber('period')->name('periods.update');
+        Route::post('/schedules', [TimetablePageController::class, 'storeSchedule'])->name('schedules.store');
+        Route::patch('/schedules/{schedule}', [TimetablePageController::class, 'updateSchedule'])->whereNumber('schedule')->name('schedules.update');
+        Route::post('/schedules/{schedule}/cancel', [TimetablePageController::class, 'cancelSchedule'])->whereNumber('schedule')->name('schedules.cancel');
+        Route::post('/schedules/{schedule}/swap', [TimetablePageController::class, 'swapSchedules'])->whereNumber('schedule')->name('schedules.swap');
+        Route::post('/schedules/{schedule}/shift', [TimetablePageController::class, 'shiftSchedule'])->whereNumber('schedule')->name('schedules.shift');
+        Route::post('/schedules/auto-place', [TimetablePageController::class, 'autoPlace'])->name('schedules.auto');
     });
 
     Route::prefix('curriculum')->name('curriculum.')->middleware('require.school.context')->group(function (): void {

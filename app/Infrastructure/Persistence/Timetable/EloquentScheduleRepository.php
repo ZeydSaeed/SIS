@@ -11,6 +11,7 @@ use App\Domain\Timetable\Exceptions\ScheduleNotFoundException;
 use App\Domain\Timetable\Exceptions\ScheduleSlotConflictException;
 use App\Domain\Timetable\Exceptions\ScheduleValidationException;
 use App\Domain\Timetable\Repositories\ScheduleRepositoryInterface;
+use App\Domain\Timetable\ValueObjects\PeriodType;
 use App\Domain\Timetable\ValueObjects\ScheduleLifecycleStatus;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -33,12 +34,17 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             throw ScheduleValidationException::withReason('timetable.section_not_in_school_year');
         }
 
-        $periodOk = DB::table(SchemaHelper::qualified('timetable', 'periods'))
+        $periodType = DB::table(SchemaHelper::qualified('timetable', 'periods'))
             ->where('id', $data->periodId)
             ->where('school_id', $data->schoolId)
-            ->exists();
-        if (! $periodOk) {
+            ->value('period_type');
+        if ($periodType === null) {
             throw ScheduleValidationException::withReason('timetable.period_not_in_school');
+        }
+
+        // Breaks («استراحة») hold no lessons.
+        if ((int) $periodType !== PeriodType::Lesson->value) {
+            throw ScheduleValidationException::withReason('timetable.period_not_lesson');
         }
 
         $subjectOk = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
@@ -307,6 +313,61 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
                 ]);
         } catch (UniqueConstraintViolationException) {
             throw ScheduleSlotConflictException::fromDatabase();
+        }
+    }
+
+    public function relocate(int $schoolId, array $moves, string $at): void
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+        $table = SchemaHelper::qualified('timetable', 'schedules');
+
+        $current = [];
+        foreach ($moves as $move) {
+            $snapshot = $this->findById($schoolId, $move['schedule_id']);
+            if ($snapshot === null) {
+                throw ScheduleNotFoundException::forId($move['schedule_id']);
+            }
+            if ($snapshot->lifecycleStatus !== ScheduleLifecycleStatus::Active->value) {
+                throw ScheduleNotActiveException::forId($move['schedule_id']);
+            }
+            $current[$move['schedule_id']] = $snapshot;
+        }
+
+        // Step aside first (the active-slot unique indexes are checked row by row), then land one by one.
+        DB::table($table)->where('school_id', $schoolId)->whereIn('id', array_keys($current))->update([
+            'lifecycle_status' => ScheduleLifecycleStatus::Cancelled->value,
+            'cancelled_at' => $at,
+        ]);
+
+        foreach ($moves as $move) {
+            $snapshot = $current[$move['schedule_id']];
+            $data = new PersistScheduleData(
+                schoolId: $schoolId,
+                sectionId: $snapshot->sectionId,
+                academicYearId: $snapshot->academicYearId,
+                dayOfWeek: $move['day'],
+                periodId: $move['period_id'],
+                subjectId: $snapshot->subjectId,
+                teacherId: $snapshot->teacherId,
+                roomId: $snapshot->roomId,
+                at: $at,
+                correlationId: null,
+                createdBy: null,
+            );
+            $this->assertWritableRefs($data);
+            $this->assertNoActiveSlotConflicts($data, $snapshot->id);
+
+            try {
+                DB::table($table)->where('school_id', $schoolId)->where('id', $snapshot->id)->update([
+                    'day_of_week' => $move['day'],
+                    'period_id' => $move['period_id'],
+                    'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
+                    'cancelled_at' => null,
+                    'updated_at' => $at,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                throw ScheduleSlotConflictException::fromDatabase();
+            }
         }
     }
 }

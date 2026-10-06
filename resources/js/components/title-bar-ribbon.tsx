@@ -608,6 +608,8 @@ export function TitleBarRibbon({
     const { url } = usePage();
     const path = url.split('?')[0] ?? url;
     const isOpsAccentPage = isTitlebarOpsAccentPath(path);
+    // «الجدول الدراسي»: no «النمط» group, so the home strip fits without a horizontal scroll.
+    const isTimetablePage = path === '/timetable' || path.startsWith('/timetable/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
     const pageOwnsContentTab =
@@ -633,7 +635,7 @@ export function TitleBarRibbon({
                       ? REPORTS_RIBBON_GROUPS
                       : tab === 'help'
                         ? HELP_RIBBON_GROUPS
-                        : buildHomeGroups();
+                        : buildHomeGroups().filter((group) => !(isTimetablePage && group.id === 'style'));
     const groups: RibbonGroup[] = [
         ...pageGroups.map(
             (group): RibbonGroup => ({
@@ -693,6 +695,7 @@ export function TitleBarRibbon({
                 isAdmissionPage ? 'sis-ribbon--admission-page' : '',
                 isAdmissionRibbon ? 'sis-ribbon--admission' : '',
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
+                isTimetablePage ? 'sis-ribbon--timetable-page' : '',
             ]
                 .filter(Boolean)
                 .join(' ')}
