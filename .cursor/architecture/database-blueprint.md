@@ -5,7 +5,7 @@
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**; +1 `teachers.teaching_assignments` (2026-10-06) → **97**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -615,6 +615,8 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 **Indexes:** `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, academic_year_id, code)`  
 **Security (ENR-U02):** FORCE RLS school isolation on `school_id`. Hard DELETE rejected by trigger.
 
+**Writes (2026-10-06, «الصفوف والشعب» `/organization/classes-sections`):** create / edit via `CreateClassHandler` / `UpdateClassHandler` (`EnrollmentStructureGuard`); codes `CLS-n` generated per school/year under `pg_advisory_xact_lock`. Name unique per school/year (app-level), capacity 1…500 and ≥ active enrollments, `grade_level_id` changes only while the class has no active enrollments (curriculum matches by grade). Delete = deactivate (status 2). No schema change.
+
 ### `enrollment.sections`
 
 | Column | Type | Constraints |
@@ -631,6 +633,8 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 
 **Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`  
 **Security (ENR-U02):** FORCE RLS via parent `classes.school_id`. Hard DELETE rejected by trigger.
+
+**Writes (2026-10-06):** `CreateSectionHandler` / `UpdateSectionHandler`; codes `SEC-n` per class under advisory lock; name unique per class; capacity ≥ active enrollments. `homeroom_teacher_id` (رائد الصف) must be an active teacher of the school in the class's year (`HomeroomTeacherPort` → Teachers repository); an unchanged homeroom stays valid. No schema change.
 
 ### `enrollment.enrollments`
 
@@ -698,9 +702,11 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 | employee_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
 | first_name | VARCHAR(100) | NOT NULL |
-| last_name | VARCHAR(100) | NOT NULL |
-| full_name | VARCHAR(255) | NOT NULL |
-| specialization_field | VARCHAR(255) | |
+| father_name | VARCHAR(100) | nullable — اسم الأب (2026-10-06) |
+| grandfather_name | VARCHAR(100) | nullable — اسم الجد (2026-10-06) |
+| last_name | VARCHAR(100) | NOT NULL — اللقب |
+| full_name | VARCHAR(255) | NOT NULL — first · father · grandfather · last |
+| specialization_field | VARCHAR(255) | تخصص الشهادة (certificate), not the branch department |
 | hire_date | DATE | |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
@@ -719,6 +725,7 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 | school_id | BIGINT | FK → schools |
 | academic_year_id | BIGINT | FK → academic_years |
 | is_primary | BOOLEAN | NOT NULL DEFAULT true |
+| employment_type | SMALLINT | nullable, CHECK 1–5 — نوع التعيين in this school/year: 1 ملاك · 2 مكلف · 3 تنسيب · 4 محاضر · 5 عقد (2026-10-06) |
 | left_at | TIMESTAMPTZ | nullable — set on soft leave (**8.6-U01**); active = `NULL` |
 | created_at | TIMESTAMPTZ | NOT NULL |
 
@@ -739,6 +746,30 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 
 **Indexes:** `BTREE(teacher_id, academic_year_id)`, `UNIQUE(teacher_id, subject_id, academic_year_id, school_id)`  
 **Security (Phase 8-U01/U02):** FORCE RLS school isolation on `school_id`. Assignment DELETE allowed for unlink (U02); teacher identity DELETE remains forbidden.
+
+### `teachers.teaching_assignments` (2026-10-06, migration `2026_10_06_160000`)
+
+Where a teacher teaches a subject: branch (الفرع) → optional department (الاختصاص), optional class (الصف) → section (الشعبة), per school and academic year. A teacher may hold many rows (several subjects, departments, branches, classes, schools).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| teacher_id | BIGINT | FK → teachers (restrict) |
+| school_id | BIGINT | FK → schools (restrict) |
+| academic_year_id | BIGINT | FK → academic_years (restrict) |
+| subject_id | BIGINT | FK → curriculum.subjects (restrict) |
+| branch_id | BIGINT | FK → organization.branches (restrict) |
+| department_id | BIGINT | FK → organization.departments, nullable — NULL = كل اختصاصات الفرع |
+| class_id | BIGINT | FK → enrollment.classes, nullable — NULL = كل الصفوف |
+| section_id | BIGINT | FK → enrollment.sections, nullable; CHECK section ⇒ class |
+| status | SMALLINT | NOT NULL DEFAULT 1, CHECK (1 active, 2 ended) |
+| effective_from | DATE | NOT NULL |
+| effective_to | DATE | nullable, CHECK ≥ effective_from — set when ended |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id, academic_year_id)` (roster read), partial `UNIQUE(teacher_id, academic_year_id, subject_id, branch_id, COALESCE(department_id,0), COALESCE(class_id,0), COALESCE(section_id,0)) WHERE status = 1`.
+**Security:** FORCE RLS school isolation on `school_id`; hard DELETE rejected by trigger (end = status 2 + effective_to).
+**Rules (`TeachingAssignmentGuard`):** branch of the school, department of the branch, class of the school/year, section of the class (all active); the subject is in an active curriculum of the school/year for the department (or of any department of the branch when branch-wide, or a general curriculum). Adding an assignment also inserts `teacher_subjects` (المواد المسندة) in the same transaction; unlinking a subject ends its active assignments.
 
 ### `teachers.teacher_qualifications`
 
@@ -882,6 +913,8 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 **Indexes:** partial UNIQUE active section/teacher/room slots; BTREE school/year, section/year  
 **RLS:** ENABLE + FORCE  
 **Triggers:** reject hard DELETE
+
+**Teacher binding (2026-10-06, G5):** create / update require `teachers.teacher_subjects` (teacher, subject, school, year) — error `timetable.teacher_not_assigned_subject`. Subject ∈ section curriculum is **not** enforced yet (sections may mix departments; department-bound curricula).
 
 ### `timetable.schedule_exceptions`
 

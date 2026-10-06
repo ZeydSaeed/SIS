@@ -7,8 +7,10 @@ use App\Domain\Teachers\Data\TeacherQualificationSnapshot;
 use App\Domain\Teachers\Data\TeacherSchoolMembershipSnapshot;
 use App\Domain\Teachers\Data\TeacherSnapshot;
 use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
+use App\Domain\Teachers\Data\TeachingAssignmentData;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\ValueObjects\QualificationStatus;
+use App\Domain\Teachers\ValueObjects\TeachingAssignmentStatus;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentTeacherRepository implements TeacherRepositoryInterface
@@ -39,12 +41,16 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         ?string $hireDate,
         int $status,
         string $createdAt,
+        ?string $fatherName = null,
+        ?string $grandfatherName = null,
     ): int {
         return (int) DB::table(SchemaHelper::qualified('teachers', 'teachers'))->insertGetId([
             'user_id' => $userId,
             'employee_code' => $employeeCode,
             'national_id' => $nationalId,
             'first_name' => $firstName,
+            'father_name' => $fatherName,
+            'grandfather_name' => $grandfatherName,
             'last_name' => $lastName,
             'full_name' => $fullName,
             'specialization_field' => $specializationField,
@@ -61,6 +67,7 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         int $academicYearId,
         bool $isPrimary,
         string $createdAt,
+        ?int $employmentType = null,
     ): int {
         $this->bindSchool($schoolId);
 
@@ -73,10 +80,9 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         if ($existing !== null) {
             DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
                 ->where('id', (int) $existing->id)
-                ->update([
-                    'left_at' => null,
-                    'is_primary' => $isPrimary,
-                ]);
+                ->update($employmentType === null
+                    ? ['left_at' => null, 'is_primary' => $isPrimary]
+                    : ['left_at' => null, 'is_primary' => $isPrimary, 'employment_type' => $employmentType]);
 
             return (int) $existing->id;
         }
@@ -86,9 +92,115 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             'school_id' => $schoolId,
             'academic_year_id' => $academicYearId,
             'is_primary' => $isPrimary,
+            'employment_type' => $employmentType,
             'left_at' => null,
             'created_at' => $createdAt,
         ]);
+    }
+
+    public function setEmploymentType(int $teacherId, int $schoolId, int $academicYearId, ?int $employmentType): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('left_at')
+            ->update(['employment_type' => $employmentType]);
+    }
+
+    public function activeTeachingAssignmentExists(TeachingAssignmentData $data): bool
+    {
+        $this->bindSchool($data->schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('teacher_id', $data->teacherId)
+            ->where('academic_year_id', $data->academicYearId)
+            ->where('subject_id', $data->subjectId)
+            ->where('branch_id', $data->branchId)
+            ->where('status', TeachingAssignmentStatus::Active)
+            ->when($data->departmentId === null, fn ($q) => $q->whereNull('department_id'), fn ($q) => $q->where('department_id', $data->departmentId))
+            ->when($data->classId === null, fn ($q) => $q->whereNull('class_id'), fn ($q) => $q->where('class_id', $data->classId))
+            ->when($data->sectionId === null, fn ($q) => $q->whereNull('section_id'), fn ($q) => $q->where('section_id', $data->sectionId))
+            ->exists();
+    }
+
+    public function addTeachingAssignment(TeachingAssignmentData $data): int
+    {
+        $this->bindSchool($data->schoolId);
+
+        return (int) DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))->insertGetId([
+            'teacher_id' => $data->teacherId,
+            'school_id' => $data->schoolId,
+            'academic_year_id' => $data->academicYearId,
+            'subject_id' => $data->subjectId,
+            'branch_id' => $data->branchId,
+            'department_id' => $data->departmentId,
+            'class_id' => $data->classId,
+            'section_id' => $data->sectionId,
+            'status' => TeachingAssignmentStatus::Active,
+            'effective_from' => $data->effectiveFrom,
+            'effective_to' => null,
+            'created_at' => $data->at,
+            'updated_at' => $data->at,
+        ]);
+    }
+
+    public function findTeachingAssignment(int $schoolId, int $assignmentId): ?array
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('id', $assignmentId)
+            ->where('school_id', $schoolId)
+            ->first(['teacher_id', 'subject_id', 'status']);
+
+        return $row === null ? null : [
+            'teacher_id' => (int) $row->teacher_id,
+            'subject_id' => (int) $row->subject_id,
+            'status' => (int) $row->status,
+        ];
+    }
+
+    public function endTeachingAssignment(int $schoolId, int $assignmentId, string $effectiveTo, string $at): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('id', $assignmentId)
+            ->where('school_id', $schoolId)
+            ->where('status', TeachingAssignmentStatus::Active)
+            ->update($this->endedFields($effectiveTo, $at)) > 0;
+    }
+
+    public function endTeachingAssignmentsForSubject(
+        int $teacherId,
+        int $schoolId,
+        int $academicYearId,
+        int $subjectId,
+        string $effectiveTo,
+        string $at,
+    ): int {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('subject_id', $subjectId)
+            ->where('status', TeachingAssignmentStatus::Active)
+            ->update($this->endedFields($effectiveTo, $at));
+    }
+
+    /** @return array<string, mixed> */
+    private function endedFields(string $effectiveTo, string $at): array
+    {
+        return [
+            'status' => TeachingAssignmentStatus::Ended,
+            'effective_to' => $effectiveTo,
+            'updated_at' => $at,
+        ];
     }
 
     public function leaveSchool(int $teacherId, int $schoolId, int $academicYearId, string $leftAt): void

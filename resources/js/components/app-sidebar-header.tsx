@@ -117,6 +117,7 @@ const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     addTimetable: '/timetable',
     directoratesSchools: '/organization/directorates-schools',
     branchesDepartments: '/organization/branches',
+    classesSections: '/organization/classes-sections',
 };
 
 const SETTINGS_ROUTES: Partial<Record<RibbonActionId, string>> = {
@@ -139,7 +140,7 @@ const LISTS_ROUTES: Partial<Record<RibbonActionId, string>> = {
     listCommunications: '/communication',
     listSchools: '/admission',
     listDepartments: '/curriculum',
-    listSections: '/enrollments',
+    listSections: '/organization/classes-sections',
     listWorkshops: '/hr',
     listEmployees: '/hr',
     listTeachers: '/teachers',

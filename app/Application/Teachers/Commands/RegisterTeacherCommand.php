@@ -17,5 +17,9 @@ final readonly class RegisterTeacherCommand implements Command
         public ?string $hireDate,
         public ?int $userId,
         public ?string $idempotencyKey,
+        public ?string $fatherName = null,
+        public ?string $grandfatherName = null,
+        /** نوع التعيين in the registering school (TeacherEmploymentType); null = not set. */
+        public ?int $employmentType = null,
     ) {}
 }

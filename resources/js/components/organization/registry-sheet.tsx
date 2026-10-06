@@ -95,7 +95,7 @@ export function RegistryTextField({
     onChange: (value: string) => void;
     dir?: 'rtl' | 'ltr';
     required?: boolean;
-    type?: 'text' | 'email' | 'tel' | 'date';
+    type?: 'text' | 'email' | 'tel' | 'date' | 'number';
     fieldClassName?: string;
     inputRef?: RefObject<HTMLInputElement | null>;
 }) {
@@ -186,10 +186,19 @@ export function RegistrySheetDialog({
     // The portal mounts the content after the first commit — raise the new window once it exists,
     // so a sheet opened from another sheet appears above it.
     useEffect(() => {
-        const frame = requestAnimationFrame(bringToFront);
+        let frame = 0;
+        let attempts = 0;
+        const raise = () => {
+            bringToFront();
+            attempts += 1;
+            if (contentRef.current === null && attempts < 10) {
+                frame = requestAnimationFrame(raise);
+            }
+        };
+        frame = requestAnimationFrame(raise);
 
         return () => cancelAnimationFrame(frame);
-    }, [bringToFront]);
+    }, [bringToFront, contentRef]);
 
     return (
         <Dialog

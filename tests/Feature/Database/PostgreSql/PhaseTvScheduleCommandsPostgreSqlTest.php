@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
+use Tests\Support\Database\TimetableTeachingFixture;
 
 final class PhaseTvScheduleCommandsPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
@@ -117,6 +118,46 @@ final class PhaseTvScheduleCommandsPostgreSqlTest extends PostgreSqlIntegrationT
         ));
     }
 
+    #[Test]
+    public function create_rejects_teacher_who_does_not_teach_the_subject(): void
+    {
+        $ctx = $this->seedScheduleContext('U04C');
+        // A school teacher seeded after the fixture: member of the school/year, but no subject assigned.
+        $teacherId = (int) DB::table(SchemaHelper::qualified('teachers', 'teachers'))->insertGetId([
+            'employee_code' => 'TN'.substr(uniqid(), -10),
+            'first_name' => 'No',
+            'last_name' => 'Subject',
+            'full_name' => 'No Subject',
+            'status' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school_id']]);
+        DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))->insert([
+            'teacher_id' => $teacherId,
+            'school_id' => $ctx['school_id'],
+            'academic_year_id' => $ctx['year_id'],
+            'is_primary' => true,
+            'created_at' => now(),
+        ]);
+
+        try {
+            $this->app->make(CreateScheduleHandler::class)->handle(new CreateScheduleCommand(
+                schoolId: $ctx['school_id'],
+                sectionId: $ctx['section_id'],
+                academicYearId: $ctx['year_id'],
+                dayOfWeek: 4,
+                periodId: $ctx['period_id'],
+                subjectId: $ctx['subject_id'],
+                teacherId: $teacherId,
+                idempotencyKey: 'tv-u04-no-subject',
+            ));
+            $this->fail('Expected ScheduleValidationException was not thrown.');
+        } catch (ScheduleValidationException $exception) {
+            $this->assertSame('timetable.teacher_not_assigned_subject', $exception->getMessage());
+        }
+    }
+
     /**
      * @return array{school_id:int,year_id:int,section_id:int,period_id:int,subject_id:int,teacher_id:int,room_id:int}
      */
@@ -179,6 +220,8 @@ final class PhaseTvScheduleCommandsPostgreSqlTest extends PostgreSqlIntegrationT
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        TimetableTeachingFixture::assignSubjectsToTeachers($schoolId, $yearId);
 
         return [
             'school_id' => $schoolId,

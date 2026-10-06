@@ -27,6 +27,9 @@ const RESIZE_EDGES: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
 const DEFAULT_MIN: MinSize = { width: 420, height: 280 };
 
+/** Pointer travel (px) before a title-bar press becomes a drag — a plain click never moves or resizes. */
+const DRAG_THRESHOLD = 3;
+
 /** Above chrome/titlebar, ribbons, taskbar, windows, and list-select (≤110000). */
 const ADMISSION_SHEET_Z_FLOOR = 200000;
 let admissionSheetZCursor = ADMISSION_SHEET_Z_FLOOR;
@@ -49,6 +52,8 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
     const boxRef = useRef<Box | null>(null);
     const dragStart = useRef({ pointerX: 0, pointerY: 0, left: 0, top: 0 });
     const dragging = useRef(false);
+    /** Title bar pressed but not moved yet — the window is pinned only once a real drag starts. */
+    const pendingDrag = useRef(false);
     const resizeRef = useRef<{
         edge: ResizeEdge;
         pointerX: number;
@@ -96,6 +101,7 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
     const clearPlacement = useCallback(() => {
         boxRef.current = null;
         dragging.current = false;
+        pendingDrag.current = false;
         resizeRef.current = null;
         const node = contentRef.current;
         if (node === null) {
@@ -127,16 +133,17 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
         }
 
         const rect = node.getBoundingClientRect();
+        // Exact on-screen size: pinning must never grow/shrink the window (minSize applies to resize only).
         const box: Box = {
             left: rect.left,
             top: rect.top,
-            width: Math.max(minSize.width, rect.width),
-            height: Math.max(minSize.height, rect.height),
+            width: rect.width,
+            height: rect.height,
         };
         applyBox(box);
 
         return box;
-    }, [applyBox, minSize.height, minSize.width]);
+    }, [applyBox]);
 
     useLayoutEffect(() => {
         if (!open) {
@@ -167,28 +174,47 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
                 return;
             }
 
-            const box = pinFromVisualRect();
-            if (box === null) {
+            if (contentRef.current === null) {
                 return;
             }
 
-            dragging.current = true;
+            pendingDrag.current = true;
             dragStart.current = {
                 pointerX: event.clientX,
                 pointerY: event.clientY,
-                left: box.left,
-                top: box.top,
+                left: 0,
+                top: 0,
             };
-            contentRef.current?.setAttribute('data-dragging', 'true');
             event.currentTarget.setPointerCapture(event.pointerId);
             event.preventDefault();
         },
-        [bringToFront, disabled, pinFromVisualRect],
+        [bringToFront, disabled],
     );
 
     const onHeroPointerMove = useCallback(
         (event: ReactPointerEvent<HTMLElement>) => {
-            if (!dragging.current || disabled) {
+            if (disabled) {
+                return;
+            }
+
+            if (pendingDrag.current) {
+                const moved = Math.hypot(event.clientX - dragStart.current.pointerX, event.clientY - dragStart.current.pointerY);
+                if (moved < DRAG_THRESHOLD) {
+                    return;
+                }
+
+                const pinned = pinFromVisualRect();
+                pendingDrag.current = false;
+                if (pinned === null) {
+                    return;
+                }
+
+                dragging.current = true;
+                dragStart.current = { ...dragStart.current, left: pinned.left, top: pinned.top };
+                contentRef.current?.setAttribute('data-dragging', 'true');
+            }
+
+            if (!dragging.current) {
                 return;
             }
 
@@ -208,14 +234,15 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
                 ),
             });
         },
-        [applyBox, disabled],
+        [applyBox, disabled, pinFromVisualRect],
     );
 
     const endDrag = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-        if (!dragging.current) {
+        if (!dragging.current && !pendingDrag.current) {
             return;
         }
 
+        pendingDrag.current = false;
         dragging.current = false;
         contentRef.current?.setAttribute('data-dragging', 'false');
         try {

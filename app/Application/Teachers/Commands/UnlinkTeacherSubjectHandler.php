@@ -28,6 +28,16 @@ final class UnlinkTeacherSubjectHandler implements CommandHandler
 
         $wasPresent = false;
         $this->unitOfWork->transaction(function () use ($command, &$wasPresent): void {
+            // The teacher no longer teaches the subject anywhere in the school this year.
+            $today = (new \DateTimeImmutable)->format('Y-m-d');
+            $this->teachers->endTeachingAssignmentsForSubject(
+                $command->teacherId,
+                $command->schoolId,
+                $command->academicYearId,
+                $command->subjectId,
+                $today,
+                (new \DateTimeImmutable)->format('Y-m-d H:i:s'),
+            );
             $wasPresent = $this->teachers->unlinkSubject(
                 $command->teacherId,
                 $command->subjectId,

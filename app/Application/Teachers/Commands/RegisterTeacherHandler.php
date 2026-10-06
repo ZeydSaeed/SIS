@@ -11,6 +11,8 @@ use App\Application\Teachers\Results\RegisterTeacherResult;
 use App\Domain\Teachers\Events\TeacherRegistered;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
+use App\Application\Teachers\Support\TeacherNameFormatter;
+use App\Domain\Teachers\ValueObjects\TeacherEmploymentType;
 use App\Domain\Teachers\ValueObjects\TeacherStatus;
 
 final class RegisterTeacherHandler implements CommandHandler
@@ -47,10 +49,16 @@ final class RegisterTeacherHandler implements CommandHandler
             return RegisterTeacherResult::failure(['teachers.name_required']);
         }
 
-        $at = (new \DateTimeImmutable)->format('Y-m-d H:i:s');
-        $fullName = trim($first.' '.$last);
+        if (! TeacherEmploymentType::isValid($command->employmentType)) {
+            return RegisterTeacherResult::failure(['teachers.employment_type_invalid']);
+        }
 
-        $teacherId = $this->unitOfWork->transaction(function () use ($command, $key, $code, $first, $last, $fullName, $at): int {
+        $at = (new \DateTimeImmutable)->format('Y-m-d H:i:s');
+        $father = TeacherNameFormatter::blankToNull($command->fatherName);
+        $grandfather = TeacherNameFormatter::blankToNull($command->grandfatherName);
+        $fullName = TeacherNameFormatter::fullName($first, $father, $grandfather, $last);
+
+        $teacherId = $this->unitOfWork->transaction(function () use ($command, $key, $code, $first, $last, $father, $grandfather, $fullName, $at): int {
             $teacherId = $this->teachers->createTeacher(
                 $command->userId,
                 $code,
@@ -64,6 +72,8 @@ final class RegisterTeacherHandler implements CommandHandler
                 $command->hireDate,
                 TeacherStatus::Active,
                 $at,
+                $father,
+                $grandfather,
             );
             $this->teachers->assignSchool(
                 $teacherId,
@@ -71,6 +81,7 @@ final class RegisterTeacherHandler implements CommandHandler
                 $command->academicYearId,
                 true,
                 $at,
+                $command->employmentType,
             );
             $this->outbox->stage(new TeacherRegistered(
                 $teacherId,

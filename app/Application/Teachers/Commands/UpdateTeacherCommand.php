@@ -16,5 +16,10 @@ final readonly class UpdateTeacherCommand implements Command
         public ?string $hireDate,
         public ?int $userId,
         public ?string $idempotencyKey,
+        public ?string $fatherName = null,
+        public ?string $grandfatherName = null,
+        /** When set, نوع التعيين of the membership in this school/year is updated too. */
+        public ?int $academicYearId = null,
+        public ?int $employmentType = null,
     ) {}
 }

@@ -6,28 +6,44 @@ use App\Application\Curriculum\DTOs\SubjectDTO;
 use App\Application\Curriculum\Queries\ListSubjectsHandler;
 use App\Application\Curriculum\Queries\ListSubjectsQuery;
 use App\Application\Shared\Results\ApplicationResult;
+use App\Application\Enrollment\DTOs\SectionDTO;
+use App\Application\Enrollment\Queries\GetClassStructureHandler;
+use App\Application\Enrollment\Queries\GetClassStructureQuery;
+use App\Application\Organization\Queries\GetBranchStructureHandler;
+use App\Application\Organization\Queries\GetBranchStructureQuery;
+use App\Application\Teachers\Commands\AddTeachingAssignmentCommand;
+use App\Application\Teachers\Commands\AddTeachingAssignmentHandler;
 use App\Application\Teachers\Commands\AssignTeacherSubjectCommand;
 use App\Application\Teachers\Commands\AssignTeacherSubjectHandler;
+use App\Application\Teachers\Commands\ChangeTeachersStatusCommand;
+use App\Application\Teachers\Commands\ChangeTeachersStatusHandler;
 use App\Application\Teachers\Commands\DeactivateTeacherCommand;
 use App\Application\Teachers\Commands\DeactivateTeacherHandler;
 use App\Application\Teachers\Commands\ReactivateTeacherCommand;
 use App\Application\Teachers\Commands\ReactivateTeacherHandler;
+use App\Application\Teachers\Commands\EndTeachingAssignmentCommand;
+use App\Application\Teachers\Commands\EndTeachingAssignmentHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
 use App\Application\Teachers\Commands\RegisterTeacherHandler;
+use App\Application\Teachers\Commands\SetTeachersEmploymentTypeCommand;
+use App\Application\Teachers\Commands\SetTeachersEmploymentTypeHandler;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectCommand;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectHandler;
 use App\Application\Teachers\Commands\UpdateTeacherCommand;
 use App\Application\Teachers\Commands\UpdateTeacherHandler;
-use App\Application\Teachers\DTOs\TeacherDTO;
 use App\Application\Teachers\Queries\GetTeacherHandler;
 use App\Application\Teachers\Queries\GetTeacherQuery;
 use App\Application\Teachers\Queries\GetTeacherRosterHandler;
 use App\Application\Teachers\Queries\GetTeacherRosterQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Teachers\AddTeachingAssignmentRequest;
 use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
+use App\Http\Requests\Teachers\ChangeTeachersStatusRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
+use App\Http\Requests\Teachers\EndTeachingAssignmentRequest;
 use App\Http\Requests\Teachers\ReactivateTeacherRequest;
 use App\Http\Requests\Teachers\RegisterTeacherRequest;
+use App\Http\Requests\Teachers\SetTeachersEmploymentTypeRequest;
 use App\Http\Requests\Teachers\UnlinkTeacherSubjectRequest;
 use App\Http\Requests\Teachers\UpdateTeacherRequest;
 use App\Http\Support\AcademicYearContextResolver;
@@ -46,6 +62,9 @@ use Inertia\Response;
  */
 final class TeacherPageController extends Controller
 {
+    /** Active status of classes / sections (EnrollmentStructureStatus::Active). */
+    private const ACTIVE = 1;
+
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
@@ -56,6 +75,8 @@ final class TeacherPageController extends Controller
         Request $request,
         GetTeacherRosterHandler $roster,
         ListSubjectsHandler $subjects,
+        GetBranchStructureHandler $branches,
+        GetClassStructureHandler $classes,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -72,25 +93,34 @@ final class TeacherPageController extends Controller
 
         $teachers = [];
         $total = 0;
+        $curriculumSubjects = ['general' => [], 'by_department' => []];
+        $classOptions = [];
         if ($academicYearId !== null) {
             $result = $roster->handle(new GetTeacherRosterQuery($schoolId, $academicYearId));
             $total = $result->total;
+            $curriculumSubjects = $result->curriculumSubjects;
             $teachers = array_map(
-                static fn (TeacherDTO $t): array => [
-                    'id' => $t->id,
-                    'employee_code' => $t->employeeCode,
-                    'first_name' => $t->firstName,
-                    'last_name' => $t->lastName,
-                    'full_name' => $t->fullName,
-                    'national_id' => $t->nationalId,
-                    'specialization_field' => $t->specializationField,
-                    'hire_date' => $t->hireDate,
-                    'status' => $t->status,
-                    'is_primary' => $t->isPrimary,
-                    'subject_ids' => $result->subjectIdsByTeacher[$t->id] ?? [],
+                static fn (array $t): array => $t + [
+                    'subject_ids' => $result->subjectIdsByTeacher[$t['id']] ?? [],
+                    'assignments' => $result->assignmentsByTeacher[$t['id']] ?? [],
                 ],
                 $result->teachers,
             );
+
+            $structure = $classes->handle(new GetClassStructureQuery($schoolId, $academicYearId));
+            foreach ($structure->classes as $class) {
+                if ($class->status !== self::ACTIVE) {
+                    continue;
+                }
+                $classOptions[] = [
+                    'id' => $class->id,
+                    'name' => $class->name,
+                    'sections' => array_values(array_map(
+                        static fn (SectionDTO $s): array => ['id' => $s->id, 'code' => $s->code, 'name' => $s->name],
+                        array_filter($structure->sectionsByClass[$class->id] ?? [], static fn (SectionDTO $s): bool => $s->status === self::ACTIVE),
+                    )),
+                ];
+            }
         }
 
         $this->securityAudit->record(
@@ -109,6 +139,16 @@ final class TeacherPageController extends Controller
                 static fn (SubjectDTO $s): array => ['id' => $s->id, 'code' => $s->code, 'name' => $s->name],
                 $subjects->handle(new ListSubjectsQuery),
             ),
+            'branches' => array_map(
+                static fn (array $b): array => [
+                    'id' => $b['id'],
+                    'name' => $b['name'],
+                    'departments' => array_map(static fn (array $d): array => ['id' => $d['id'], 'name' => $d['name']], $b['departments']),
+                ],
+                $branches->handle(new GetBranchStructureQuery($schoolId)),
+            ),
+            'classes' => $classOptions,
+            'curriculumSubjects' => $curriculumSubjects,
             'filters' => ['academic_year_id' => $academicYearId],
             'authorization' => ['can_manage' => $user->can('manageTeachers')],
         ]);
@@ -178,6 +218,9 @@ final class TeacherPageController extends Controller
             hireDate: $request->validated('hire_date'),
             userId: null,
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            fatherName: $request->validated('father_name'),
+            grandfatherName: $request->validated('grandfather_name'),
+            employmentType: $this->nullableInt($request->validated('employment_type')),
         ));
 
         return $this->respond($request, $result, 'teachers.web.register', 'created', 'teacher:'.($result->teacherId ?? 0), 'flash.teachers.registered');
@@ -195,6 +238,10 @@ final class TeacherPageController extends Controller
             hireDate: $request->validated('hire_date'),
             userId: null,
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            fatherName: $request->validated('father_name'),
+            grandfatherName: $request->validated('grandfather_name'),
+            academicYearId: $this->nullableInt($request->validated('academic_year_id')),
+            employmentType: $this->nullableInt($request->validated('employment_type')),
         ));
 
         return $this->respond($request, $result, 'teachers.web.update', 'updated', 'teacher:'.$teacher, 'flash.teachers.updated');
@@ -245,6 +292,64 @@ final class TeacherPageController extends Controller
         ));
 
         return $this->respond($request, $result, 'teachers.web.subject.unlink', 'unlinked', 'teacher:'.$teacher, 'flash.teachers.subjectUnlinked');
+    }
+
+    public function bulkStatus(ChangeTeachersStatusRequest $request, ChangeTeachersStatusHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new ChangeTeachersStatusCommand(
+            schoolId: $this->schoolContext->requireId(),
+            teacherIds: array_map('intval', (array) $request->validated('teacher_ids')),
+            status: (int) $request->validated('teacher_status'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.bulk_status', 'updated', 'teachers:'.implode(',', $result->teacherIds), 'flash.teachers.statusChanged');
+    }
+
+    public function bulkEmploymentType(SetTeachersEmploymentTypeRequest $request, SetTeachersEmploymentTypeHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new SetTeachersEmploymentTypeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            teacherIds: array_map('intval', (array) $request->validated('teacher_ids')),
+            employmentType: (int) $request->validated('employment_type'),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.bulk_employment_type', 'updated', 'teachers:'.implode(',', $result->teacherIds), 'flash.teachers.employmentTypeChanged');
+    }
+
+    public function addAssignment(int $teacher, AddTeachingAssignmentRequest $request, AddTeachingAssignmentHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new AddTeachingAssignmentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            teacherId: $teacher,
+            subjectId: (int) $request->validated('subject_id'),
+            branchId: (int) $request->validated('branch_id'),
+            departmentId: $this->nullableInt($request->validated('department_id')),
+            classId: $this->nullableInt($request->validated('class_id')),
+            sectionId: $this->nullableInt($request->validated('section_id')),
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.assignment.add', 'assigned', 'teacher:'.$teacher, 'flash.teachers.assignmentAdded');
+    }
+
+    public function endAssignment(int $teacher, int $assignment, EndTeachingAssignmentRequest $request, EndTeachingAssignmentHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new EndTeachingAssignmentCommand(
+            schoolId: $this->schoolContext->requireId(),
+            teacherId: $teacher,
+            assignmentId: $assignment,
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.assignment.end', 'ended', 'teacher:'.$teacher, 'flash.teachers.assignmentEnded');
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
     }
 
     private function respond(

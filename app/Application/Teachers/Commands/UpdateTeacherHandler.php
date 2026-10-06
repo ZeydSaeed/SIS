@@ -10,7 +10,9 @@ use App\Application\Contracts\UnitOfWork;
 use App\Application\Teachers\Results\UpdateTeacherResult;
 use App\Domain\Teachers\Events\TeacherUpdated;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
+use App\Application\Teachers\Support\TeacherNameFormatter;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
+use App\Domain\Teachers\ValueObjects\TeacherEmploymentType;
 
 final class UpdateTeacherHandler implements CommandHandler
 {
@@ -42,12 +44,20 @@ final class UpdateTeacherHandler implements CommandHandler
             return UpdateTeacherResult::failure(['teachers.name_required']);
         }
 
+        if (! TeacherEmploymentType::isValid($command->employmentType)) {
+            return UpdateTeacherResult::failure(['teachers.employment_type_invalid']);
+        }
+
         $at = (new \DateTimeImmutable)->format('Y-m-d H:i:s');
-        $this->unitOfWork->transaction(function () use ($command, $key, $first, $last, $at): void {
+        $father = TeacherNameFormatter::blankToNull($command->fatherName);
+        $grandfather = TeacherNameFormatter::blankToNull($command->grandfatherName);
+        $this->unitOfWork->transaction(function () use ($command, $key, $first, $last, $father, $grandfather, $at): void {
             $fields = [
                 'first_name' => $first,
+                'father_name' => $father,
+                'grandfather_name' => $grandfather,
                 'last_name' => $last,
-                'full_name' => trim($first.' '.$last),
+                'full_name' => TeacherNameFormatter::fullName($first, $father, $grandfather, $last),
                 'national_id' => $command->nationalId !== null && trim($command->nationalId) !== ''
                     ? trim($command->nationalId)
                     : null,
@@ -61,6 +71,14 @@ final class UpdateTeacherHandler implements CommandHandler
                 $fields['user_id'] = $command->userId;
             }
             $this->teachers->updateTeacher($command->teacherId, $fields);
+            if ($command->academicYearId !== null) {
+                $this->teachers->setEmploymentType(
+                    $command->teacherId,
+                    $command->schoolId,
+                    $command->academicYearId,
+                    $command->employmentType,
+                );
+            }
             $this->outbox->stage(new TeacherUpdated(
                 $command->teacherId,
                 $command->schoolId,

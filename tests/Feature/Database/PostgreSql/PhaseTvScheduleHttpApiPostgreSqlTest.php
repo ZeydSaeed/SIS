@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
+use Tests\Support\Database\TimetableTeachingFixture;
 
 final class PhaseTvScheduleHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
@@ -182,6 +183,8 @@ final class PhaseTvScheduleHttpApiPostgreSqlTest extends PostgreSqlIntegrationTe
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        TimetableTeachingFixture::assignSubjectsToTeachers($schoolId, $yearId);
 
         return [
             'school_id' => $schoolId,

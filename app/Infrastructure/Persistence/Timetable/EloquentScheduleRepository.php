@@ -57,6 +57,17 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             throw ScheduleValidationException::withReason('timetable.teacher_not_in_school_year');
         }
 
+        // G5 teacher binding: a teacher is scheduled only for subjects assigned to them (teachers page) in that year.
+        $teachesSubject = DB::table(SchemaHelper::qualified('teachers', 'teacher_subjects'))
+            ->where('teacher_id', $data->teacherId)
+            ->where('subject_id', $data->subjectId)
+            ->where('school_id', $data->schoolId)
+            ->where('academic_year_id', $data->academicYearId)
+            ->exists();
+        if (! $teachesSubject) {
+            throw ScheduleValidationException::withReason('timetable.teacher_not_assigned_subject');
+        }
+
         if ($data->roomId !== null) {
             $roomOk = DB::table(SchemaHelper::qualified('organization', 'rooms').' as r')
                 ->join(SchemaHelper::qualified('organization', 'branches').' as b', 'b.id', '=', 'r.branch_id')

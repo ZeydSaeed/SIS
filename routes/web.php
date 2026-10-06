@@ -4,6 +4,7 @@ use App\Http\Controllers\Admission\AdmissionPageController;
 use App\Http\Controllers\Admission\ApplicationTransferPageController;
 use App\Http\Controllers\Attendance\AttendancePageController;
 use App\Http\Controllers\Curriculum\CurriculumPageController;
+use App\Http\Controllers\Enrollment\ClassSectionPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
 use App\Http\Controllers\Grades\GradesPageController;
@@ -81,6 +82,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // «الفروع والاختصاصات» — branches and departments of the current school (delete = deactivate).
         Route::get('/branches', [BranchStructurePageController::class, 'index'])->name('branches.index');
+        // «الصفوف والشعب» — classes / sections of the year with capacity and homeroom teacher (delete = deactivate).
+        Route::get('/classes-sections', [ClassSectionPageController::class, 'index'])->name('classes-sections.index');
+        Route::post('/classes', [ClassSectionPageController::class, 'storeClass'])->name('classes.store');
+        Route::patch('/classes/{class}', [ClassSectionPageController::class, 'updateClass'])->whereNumber('class')->name('classes.update');
+        Route::post('/classes/{class}/deactivate', [ClassSectionPageController::class, 'deactivateClass'])->whereNumber('class')->name('classes.deactivate');
+        Route::post('/classes/{class}/reactivate', [ClassSectionPageController::class, 'reactivateClass'])->whereNumber('class')->name('classes.reactivate');
+        Route::post('/sections', [ClassSectionPageController::class, 'storeSection'])->name('sections.store');
+        Route::patch('/sections/{section}', [ClassSectionPageController::class, 'updateSection'])->whereNumber('section')->name('sections.update');
+        Route::post('/sections/{section}/deactivate', [ClassSectionPageController::class, 'deactivateSection'])->whereNumber('section')->name('sections.deactivate');
+        Route::post('/sections/{section}/reactivate', [ClassSectionPageController::class, 'reactivateSection'])->whereNumber('section')->name('sections.reactivate');
         Route::post('/branches', [BranchStructurePageController::class, 'storeBranch'])->name('branches.store');
         Route::patch('/branches/{branch}', [BranchStructurePageController::class, 'updateBranch'])
             ->whereNumber('branch')
@@ -169,6 +180,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{teacher}/reactivate', [TeacherPageController::class, 'reactivate'])->whereNumber('teacher')->name('reactivate');
         Route::post('/{teacher}/subjects', [TeacherPageController::class, 'assignSubject'])->whereNumber('teacher')->name('subjects.assign');
         Route::post('/{teacher}/subjects/unlink', [TeacherPageController::class, 'unlinkSubject'])->whereNumber('teacher')->name('subjects.unlink');
+        Route::post('/bulk-status', [TeacherPageController::class, 'bulkStatus'])->name('bulk-status');
+        Route::post('/bulk-employment-type', [TeacherPageController::class, 'bulkEmploymentType'])->name('bulk-employment-type');
+        Route::post('/{teacher}/assignments', [TeacherPageController::class, 'addAssignment'])->whereNumber('teacher')->name('assignments.add');
+        Route::post('/{teacher}/assignments/{assignment}/end', [TeacherPageController::class, 'endAssignment'])
+            ->whereNumber('teacher')
+            ->whereNumber('assignment')
+            ->name('assignments.end');
     });
 
     Route::prefix('timetable')->name('timetable.')->middleware('require.school.context')->group(function (): void {

@@ -6,6 +6,7 @@ use App\Domain\Teachers\Data\TeacherQualificationSnapshot;
 use App\Domain\Teachers\Data\TeacherSchoolMembershipSnapshot;
 use App\Domain\Teachers\Data\TeacherSnapshot;
 use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
+use App\Domain\Teachers\Data\TeachingAssignmentData;
 
 interface TeacherRepositoryInterface
 {
@@ -24,6 +25,8 @@ interface TeacherRepositoryInterface
         ?string $hireDate,
         int $status,
         string $createdAt,
+        ?string $fatherName = null,
+        ?string $grandfatherName = null,
     ): int;
 
     public function assignSchool(
@@ -32,6 +35,32 @@ interface TeacherRepositoryInterface
         int $academicYearId,
         bool $isPrimary,
         string $createdAt,
+        ?int $employmentType = null,
+    ): int;
+
+    /** نوع التعيين of the active membership in the school/year (null clears it). */
+    public function setEmploymentType(int $teacherId, int $schoolId, int $academicYearId, ?int $employmentType): void;
+
+    public function activeTeachingAssignmentExists(TeachingAssignmentData $data): bool;
+
+    public function addTeachingAssignment(TeachingAssignmentData $data): int;
+
+    /**
+     * @return array{teacher_id:int, subject_id:int, status:int}|null
+     */
+    public function findTeachingAssignment(int $schoolId, int $assignmentId): ?array;
+
+    /** Ends an active assignment (status 2 + effective_to). False when not active in the school. */
+    public function endTeachingAssignment(int $schoolId, int $assignmentId, string $effectiveTo, string $at): bool;
+
+    /** Ends every active assignment of the teacher for the subject in the school/year. */
+    public function endTeachingAssignmentsForSubject(
+        int $teacherId,
+        int $schoolId,
+        int $academicYearId,
+        int $subjectId,
+        string $effectiveTo,
+        string $at,
     ): int;
 
     public function leaveSchool(int $teacherId, int $schoolId, int $academicYearId, string $leftAt): void;

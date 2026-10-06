@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
+use Tests\Support\Database\TimetableTeachingFixture;
 
 final class PhaseTvScheduleExceptionCommandsPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
@@ -157,6 +158,8 @@ final class PhaseTvScheduleExceptionCommandsPostgreSqlTest extends PostgreSqlInt
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        TimetableTeachingFixture::assignSubjectsToTeachers($schoolId, $yearId);
 
         return [
             'school_id' => $schoolId,

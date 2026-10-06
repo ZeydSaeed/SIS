@@ -13876,3 +13876,280 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     color: var(--sis-steel); /* المؤرشفة */
 }
 
+
+/* «المعلمون» table — one line per teaching assignment (subject — branch › department · class/section). */
+.sis-teachers-page .sis-teachers-table__teaching {
+    display: block;
+    white-space: nowrap;
+}
+
+.sis-teachers-page .sis-teachers-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+
+/* «المعلمون» — assigned subjects collapse to one line; expand shows where each is taught. */
+.sis-teachers-page .sis-teachers-subjects {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.sis-teachers-page .sis-teachers-subjects__toggle {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--sis-button-radius);
+    background: transparent;
+    color: var(--sis-steel);
+    cursor: pointer;
+}
+
+.sis-teachers-page .sis-teachers-subjects__toggle:hover,
+.sis-teachers-page .sis-teachers-subjects__toggle:focus-visible {
+    background: var(--sis-hover);
+    color: var(--sis-oxford);
+}
+
+.sis-teachers-page .sis-teachers-subjects__toggle:focus-visible {
+    outline: 2px solid var(--sis-mist);
+    outline-offset: 1px;
+}
+
+.sis-teachers-page .sis-teachers-subjects__toggle svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.sis-teachers-page .sis-teachers-subjects__line {
+    display: flex;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    mask-image: linear-gradient(to left, #000 88%, transparent);
+}
+
+.sis-teachers-page .sis-teachers-subjects__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+/* One unique colour per subject (hue/lightness set per subject from the page): background only, no side bar.
+   Light tints keep Oxford text readable. Unscoped so the teacher sheet (portal) shows the same chips. */
+.sis-teachers-subject {
+    display: inline-block;
+    flex: 0 0 auto;
+    padding: 0 0.45rem;
+    border: 0;
+    border-radius: var(--sis-button-radius);
+    background: hsl(var(--subject-hue, 205) 72% var(--subject-light, 86%));
+    color: var(--sis-oxford);
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+/* Teacher sheet — «المواد المسندة»: chips + «تدريس المعلم» opens the teaching window. */
+.sis-teachers-sheet-subjects {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    height: auto !important;
+    min-height: 2rem;
+}
+
+.sis-teachers-sheet-subjects__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+/* Card shrink-wraps its chips (wraps onto more lines only when the row is full). */
+.sis-teachers-sheet .sis-teachers-sheet-subjects .sis-teachers-sheet-subjects__card {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    height: auto !important;
+    min-height: 0 !important;
+    padding-block: 0.25rem;
+}
+
+/* «تدريس المعلم»: beside the subjects card, same fill as the cancel button. */
+.sis-teachers-sheet-subjects .sis-teachers-sheet-subjects__open {
+    flex: 0 0 auto;
+    align-self: center;
+    height: 1.6rem;
+    min-height: 1.45rem;
+    padding-block: 0;
+    padding-inline: 0.65rem;
+    border-radius: var(--sis-button-radius) !important;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1;
+    background: var(--sheet-btn) !important;
+    color: var(--sheet-dark-text) !important;
+    border: 1px solid color-mix(in srgb, var(--sheet-dark) 70%, #000000) !important;
+}
+
+.sis-teachers-sheet-subjects .sis-teachers-sheet-subjects__open:hover,
+.sis-teachers-sheet-subjects .sis-teachers-sheet-subjects__open:focus-visible {
+    background: var(--sheet-btn-hover) !important;
+    color: var(--sheet-dark-text) !important;
+}
+
+/* «تحرير» ribbon of «المعلمون»: every group on one line, same item size → a consistent bar. */
+.sis-ribbon--fit .sis-ribbon__body:has(.sis-ribbon__group[data-group-id^='teachers-']) {
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='teachers-'] .sis-ribbon__items {
+    flex-wrap: nowrap;
+    max-width: none;
+    gap: 0.15rem;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='teachers-'] .sis-ribbon__item {
+    flex: 0 0 auto;
+    min-width: 3.3rem;
+    max-width: 4.6rem;
+    padding-inline: 0.2rem;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='teachers-'] .sis-ribbon__icon {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='teachers-'] .sis-ribbon__label {
+    white-space: nowrap;
+}
+
+/* «الصفحة الرئيسية» filters: year · specialization · branch · department · subject (3 × 2 grid). */
+.sis-ribbon__filters-stack--curriculum.sis-ribbon__filters-stack--teachers {
+    grid-template-columns: repeat(3, 8.75rem);
+}
+
+/* «المعلمون» ribbon — every icon coloured by meaning (existing ops accent tokens). */
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-view'] {
+    color: var(--sis-ribbon-accent-view); /* عرض */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-edit'] {
+    color: var(--sis-ribbon-accent-edit); /* تعديل */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-cancel'] {
+    color: var(--sis-ribbon-accent-cancel); /* إلغاء */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-delete'] {
+    color: var(--sis-ribbon-accent-delete); /* حذف (إيقاف) */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-all'] {
+    color: var(--sis-student-status-all); /* الكل */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-active'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-active'] {
+    color: var(--sis-student-status-1); /* نشط / تفعيل */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-inactive'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-inactive'] {
+    color: color-mix(in srgb, var(--sis-student-status-0) 42%, var(--sis-oxford)); /* موقوف / إيقاف */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-type-1'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-type-1'] {
+    color: var(--sis-admission-status-6); /* ملاك — permanent */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-type-2'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-type-2'] {
+    color: var(--sis-ribbon-accent-edit); /* مكلف — assigned task */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-type-3'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-type-3'] {
+    color: var(--sis-ribbon-accent-transfer); /* تنسيب — seconded */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-type-4'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-type-4'] {
+    color: var(--sis-curriculum-chrome); /* محاضر — lecturer */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filter-type-5'],
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-set-type-5'] {
+    color: var(--sis-admission-status-1); /* عقد — signed contract */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-add'] {
+    color: var(--sis-ribbon-accent-new); /* إضافة معلم جديد */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-teaching-open'] {
+    color: var(--sis-ribbon-accent-academic); /* تدريس المعلم */
+}
+
+.sis-ribbon--ops-accent .sis-ribbon__item[data-item-id='teachers-filters-clear'] {
+    color: var(--sis-ribbon-accent-cut); /* إلغاء الفلترة */
+}
+
+/* «بيانات المعلم» / «تعديل بيانات المعلم» / «تدريس المعلم»: fields in three columns. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-teachers-sheet {
+    --sis-sheet-w: min(94vw, 43rem);
+}
+
+/* Window height follows its content (scrolls only when the viewport is shorter). */
+.sis-teachers-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) {
+    height: var(--sis-sheet-h, fit-content) !important;
+    min-height: 0 !important;
+    max-height: var(--sis-sheet-h, min(92vh, 100%)) !important;
+}
+
+/* Width follows the fields: three 13.5rem columns + 2 gaps (0.55rem) + body padding (2 × 0.55rem). */
+.sis-teachers-sheet .sis-admission-draft-form .sis-admission-sheet__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sis-teachers-sheet .sis-admission-sheet__row--full > .sis-admission-sheet__field:not(.sis-branches-field--wide) {
+    grid-column: span 1;
+}
+
+.sis-teachers-sheet .sis-admission-sheet__row--full > .sis-branches-checklist__desc.sis-branches-field--wide {
+    grid-column: 1 / -1;
+}
+
+/* Walking a selection: «السابق · n / m · التالي» at the start of the actions bar. */
+.sis-teachers-sheet .sis-teachers-sheet__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-inline-end: auto;
+}
+
+.sis-teachers-sheet .sis-teachers-sheet__counter {
+    min-width: 3rem;
+    color: var(--sis-oxford);
+    font-weight: 700;
+    text-align: center;
+}

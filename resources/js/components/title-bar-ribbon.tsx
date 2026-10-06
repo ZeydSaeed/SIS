@@ -12,6 +12,7 @@ import {
     Building2,
     GitBranch,
     Landmark,
+    LayoutGrid,
     CalendarCheck,
     CalendarDays,
     CalendarRange,
@@ -115,6 +116,7 @@ export type AddRibbonActionId =
     | 'addExam'
     | 'addTimetable'
     | 'branchesDepartments'
+    | 'classesSections'
     | 'addSubject';
 
 export type SettingsRibbonActionId =
@@ -252,6 +254,7 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
         items: [
             { id: 'directoratesSchools', label: 'المديريات والمدارس', icon: Landmark, iconTone: 'authority' },
             { id: 'branchesDepartments', label: 'الفروع والاختصاصات', icon: GitBranch, iconTone: 'growth' },
+            { id: 'classesSections', label: 'الصفوف والشعب', icon: LayoutGrid, iconTone: 'education' },
         ],
     },
     {
@@ -605,13 +608,13 @@ export function TitleBarRibbon({
     const { url } = usePage();
     const path = url.split('?')[0] ?? url;
     const isOpsAccentPage = isTitlebarOpsAccentPath(path);
-    // Pages may own any chrome tab via registration (SSOT). home/edit merge with
+    // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
     const pageOwnsContentTab =
         tabGroups.length > 0
         && (tab === 'lists' || tab === 'tools' || tab === 'reports');
     const pageGroups =
-        tab === 'home' || tab === 'edit' || pageOwnsContentTab ? tabGroups : [];
+        tab === 'home' || tab === 'edit' || tab === 'add' || pageOwnsContentTab ? tabGroups : [];
     const staticGroups = pageOwnsContentTab
         ? []
         : tab === 'file'

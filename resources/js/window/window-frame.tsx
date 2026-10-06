@@ -64,13 +64,6 @@ export function WindowFrame({ window: win }: Props) {
         }
     }, []);
 
-    const onTitleDoubleClick = useCallback(() => {
-        if (win.maximizable === false) {
-            return;
-        }
-        wm.maximize(win.instanceId);
-    }, [wm, win.instanceId, win.maximizable]);
-
     const onResizePointerDown = useCallback(
         (edge: ResizeEdge) => (event: ReactPointerEvent<HTMLDivElement>) => {
             if (win.maximized || win.resizable === false) {
@@ -172,7 +165,6 @@ export function WindowFrame({ window: win }: Props) {
                 onPointerDown={onTitlePointerDown}
                 onPointerMove={onTitlePointerMove}
                 onPointerUp={onTitlePointerUp}
-                onDoubleClick={onTitleDoubleClick}
             >
                 <h2 id={`sis-window-title-${win.instanceId}`} className="sis-window__title">
                     {win.title}

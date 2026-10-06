@@ -19,6 +19,7 @@ export const TITLEBAR_OPS_ACCENT_PREFIXES = [
     '/enrollments',
     '/curriculum',
     '/organization',
+    '/teachers',
 ] as const;
 
 /** Colored outline ribbon icons (ops accent) for student-management surfaces. */
