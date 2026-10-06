@@ -149,12 +149,12 @@ function subjectTones(subjectIds: number[]): Map<number, SubjectTone> {
     return new Map(subjectIds.map((id, index) => [id, { hue: Math.round(index * step), light: index % 2 === 0 ? 82 : 90 }]));
 }
 
-function SubjectChip({ tone, name }: { tone: SubjectTone | undefined; name: string }) {
+function SubjectChip({ tone, name, query = '' }: { tone: SubjectTone | undefined; name: string; query?: string }) {
     const style = tone === undefined ? undefined : ({ '--subject-hue': tone.hue, '--subject-light': `${tone.light}%` } as CSSProperties);
 
     return (
         <span className="sis-teachers-subject" style={style}>
-            {name}
+            <HighlightedText text={name} query={query} />
         </span>
     );
 }
@@ -232,6 +232,53 @@ function assignmentPlace(assignment: Assignment): string {
 
 function CellScroll({ children }: { children: ReactNode }) {
     return <div className="sis-students-table__cell-scroll">{children}</div>;
+}
+
+/** Search words (any order): a teacher matches when every word is found in one of its fields. */
+function searchTokens(query: string): string[] {
+    return query
+        .trim()
+        .split(/\s+/)
+        .filter((token) => token !== '')
+        .map((token) => token.toLocaleLowerCase('ar'));
+}
+
+function matchesSearch(teacher: Teacher, tokens: string[]): boolean {
+    const fields = [
+        teacher.full_name,
+        teacher.employee_code,
+        teacher.specialization_field ?? '',
+        ...teacher.assignments.flatMap((a) => [a.subject_name, a.branch_name, a.department_name ?? '']),
+    ].map((value) => value.toLocaleLowerCase('ar'));
+
+    return tokens.every((token) => fields.some((value) => value.includes(token)));
+}
+
+/** Same yellow hit marks as the other rosters («الطلاب», «التسجيل»). */
+function HighlightedText({ text, query }: { text: string; query: string }) {
+    const tokens = searchTokens(query);
+    if (text === '' || tokens.length === 0) {
+        return <>{text}</>;
+    }
+
+    const matcher = new RegExp(`(${tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'giu');
+
+    return (
+        <>
+            {text
+                .split(matcher)
+                .filter((part) => part !== '')
+                .map((part, index) =>
+                    tokens.includes(part.toLocaleLowerCase('ar')) ? (
+                        <mark key={`hit-${index}`} className="sis-admission-search-hit">
+                            {part}
+                        </mark>
+                    ) : (
+                        <span key={`plain-${index}`}>{part}</span>
+                    ),
+                )}
+        </>
+    );
 }
 
 function StatusCell({ teacher }: { teacher: Teacher }) {
@@ -314,17 +361,11 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
     const [endTarget, setEndTarget] = useState<Assignment | null>(null);
 
     const filteredRows = useMemo(() => {
-        const q = query.trim();
+        const tokens = searchTokens(query);
 
         return teachers.filter(
             (teacher) =>
-                matchesFilter(teacher, filterKey)
-                && matchesRosterFilters(teacher, rosterFilters)
-                && (q === ''
-                    || teacher.full_name.includes(q)
-                    || teacher.employee_code.includes(q)
-                    || (teacher.specialization_field ?? '').includes(q)
-                    || teacher.assignments.some((a) => a.subject_name.includes(q) || a.branch_name.includes(q) || (a.department_name ?? '').includes(q))),
+                matchesFilter(teacher, filterKey) && matchesRosterFilters(teacher, rosterFilters) && (tokens.length === 0 || matchesSearch(teacher, tokens)),
         );
     }, [teachers, filterKey, rosterFilters, query]);
 
@@ -896,7 +937,7 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                                         subjectsById.get(subjectId)?.name
                                                         ?? row.assignments.find((a) => a.subject_id === subjectId)?.subject_name
                                                         ?? `#${subjectId}`;
-                                                    const subjectChip = (subjectId: number) => <SubjectChip tone={subjectTone.get(subjectId)} name={subjectName(subjectId)} />;
+                                                    const subjectChip = (subjectId: number) => <SubjectChip tone={subjectTone.get(subjectId)} name={subjectName(subjectId)} query={query} />;
 
                                                     return (
                                                         <tr
@@ -926,13 +967,19 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                                                 <span dir="ltr">{rowOffset + index + 1}</span>
                                                             </td>
                                                             <td className="sis-admission-drafts-table__name">
-                                                                <CellScroll>{row.full_name}</CellScroll>
+                                                                <CellScroll>
+                                                                    <HighlightedText text={row.full_name} query={query} />
+                                                                </CellScroll>
                                                             </td>
                                                             <td>
-                                                                <span dir="ltr">{row.employee_code}</span>
+                                                                <span dir="ltr">
+                                                                    <HighlightedText text={row.employee_code} query={query} />
+                                                                </span>
                                                             </td>
                                                             <td>
-                                                                <CellScroll>{row.specialization_field ?? '—'}</CellScroll>
+                                                                <CellScroll>
+                                                                    <HighlightedText text={row.specialization_field ?? '—'} query={query} />
+                                                                </CellScroll>
                                                             </td>
                                                             <td>
                                                                 <span dir="ltr">{row.subject_ids.length}</span>
