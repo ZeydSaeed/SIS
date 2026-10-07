@@ -3,7 +3,6 @@
 namespace App\Domain\Timetable\Services;
 
 use App\Domain\Timetable\Data\TimetableBoard;
-use App\Domain\Timetable\Support\SchoolWeek;
 
 /**
  * «تدقيق الجدول»: reviews the whole school-year grid and lists what is wrong, worst first.
@@ -39,24 +38,61 @@ final class TimetableAuditor
         return $issues;
     }
 
-    /** Two lessons of one teacher (or one section) in the same slot — only possible through old data. */
+    /**
+     * Two lessons of one teacher (lead or co-teacher) in the same slot and week, or two lessons of one
+     * section that cannot share the slot (not different groups of one division). Joined-class rows keep
+     * their teacher busy once, on the lead row.
+     */
     private function doubleBookings(TimetableBoard $board): array
     {
         $issues = [];
-        foreach (['teacher_id' => 'teacher_double_booked', 'section_id' => 'section_double_booked'] as $field => $code) {
-            $bySlot = [];
-            foreach ($board->schedules as $s) {
-                $bySlot[$s[$field].':'.$s['day_of_week'].':'.$s['period_id']][] = $s;
+
+        $byTeacherSlot = [];
+        foreach ($board->schedules as $s) {
+            foreach (TimetableBoard::busyTeachers($s) as $teacherId) {
+                $byTeacherSlot[$teacherId.':'.$s['day_of_week'].':'.$s['period_id']][] = $s + ['busy_teacher' => $teacherId];
             }
-            foreach ($bySlot as $group) {
-                if (count($group) > 1) {
-                    $first = $group[0];
-                    $issues[] = self::issue('error', $code, $first, ['schedule_ids' => array_column($group, 'id')]);
-                }
+        }
+        foreach ($byTeacherSlot as $group) {
+            $clash = $this->clashing($group, static fn (array $a, array $b): bool => TimetableBoard::weeksMeet($a['week_no'] ?? null, $b['week_no'] ?? null));
+            if ($clash !== []) {
+                $issues[] = self::issue('error', 'teacher_double_booked', ['teacher_id' => $group[0]['busy_teacher']] + $group[0], ['schedule_ids' => $clash]);
+            }
+        }
+
+        $bySectionSlot = [];
+        foreach ($board->schedules as $s) {
+            $bySectionSlot[$s['section_id'].':'.$s['day_of_week'].':'.$s['period_id']][] = $s;
+        }
+        foreach ($bySectionSlot as $group) {
+            $clash = $this->clashing($group, static fn (array $a, array $b): bool => $board->sectionLessonsClash($a, $b));
+            if ($clash !== []) {
+                $issues[] = self::issue('error', 'section_double_booked', $group[0], ['schedule_ids' => $clash]);
             }
         }
 
         return $issues;
+    }
+
+    /**
+     * Ids of the lessons of one slot that clash with another lesson of the same slot.
+     *
+     * @param  list<array<string, mixed>>  $group
+     * @return list<int>
+     */
+    private function clashing(array $group, callable $clash): array
+    {
+        $ids = [];
+        for ($i = 0, $n = count($group); $i < $n; $i++) {
+            for ($j = $i + 1; $j < $n; $j++) {
+                if ($clash($group[$i], $group[$j])) {
+                    $ids[$group[$i]['id']] = true;
+                    $ids[$group[$j]['id']] = true;
+                }
+            }
+        }
+
+        return array_keys($ids);
     }
 
     /** Lessons whose teacher is gone / no longer teaches the subject, or that sit in a break. */
@@ -106,49 +142,77 @@ final class TimetableAuditor
         return $issues;
     }
 
-    /** Overloaded teacher days and long waits between a teacher's lessons. */
+    /**
+     * Overloaded teacher days and long waits between a teacher's lessons — per week of the cycle, counting
+     * lead and co-teacher lessons once (joined-class rows excluded).
+     */
     private function teacherDays(TimetableBoard $board): array
     {
         $byTeacherDay = [];
         foreach ($board->schedules as $s) {
-            $byTeacherDay[$s['teacher_id'].':'.$s['day_of_week']][] = $s;
+            foreach (TimetableBoard::busyTeachers($s) as $teacherId) {
+                foreach ($board->settings->weeksOf($s['week_no'] ?? null) as $week) {
+                    $byTeacherDay[$teacherId.':'.$s['day_of_week'].':'.$week][] = array_merge($s, ['teacher_id' => $teacherId]);
+                }
+            }
         }
 
         $issues = [];
+        $reported = [];
         foreach ($byTeacherDay as $lessons) {
             $first = $lessons[0];
+            // A lesson every week shows in each week's count — report a teacher-day once.
+            if (isset($reported[$first['teacher_id'].':'.$first['day_of_week']])) {
+                continue;
+            }
             $where = ['teacher_id' => $first['teacher_id'], 'day_of_week' => $first['day_of_week'], 'section_id' => null, 'subject_id' => null, 'period_id' => null, 'id' => null];
-            if (count($lessons) > SchoolWeek::MAX_TEACHER_LESSONS_PER_DAY) {
+            $before = count($issues);
+            if (count($lessons) > $board->settings->maxTeacherPerDay) {
                 $issues[] = self::issue('warning', 'teacher_day_overload', $where, ['schedule_ids' => array_column($lessons, 'id'), 'count' => count($lessons)]);
             }
             $longest = $this->longestGap($board, array_column($lessons, 'period_id'));
             if ($longest >= 2) {
                 $issues[] = self::issue('info', 'teacher_gap', $where, ['count' => $longest]);
             }
+            if (count($issues) > $before) {
+                $reported[$first['teacher_id'].':'.$first['day_of_week']] = true;
+            }
         }
 
         return $issues;
     }
 
-    /** A subject repeated too often in a section's day, idle periods inside the day, practicals not taught as doubles. */
+    /**
+     * A subject repeated too often in a section's day, idle periods inside the day, practicals not taught as
+     * doubles — per week of the cycle; parallel groups in one period count as one lesson of the day.
+     */
     private function sectionDays(TimetableBoard $board): array
     {
         $bySectionDay = [];
         foreach ($board->schedules as $s) {
-            $bySectionDay[$s['section_id'].':'.$s['day_of_week']][] = $s;
+            foreach ($board->settings->weeksOf($s['week_no'] ?? null) as $week) {
+                $bySectionDay[$s['section_id'].':'.$s['day_of_week'].':'.$week][] = $s;
+            }
         }
 
         $issues = [];
+        $reported = [];
         foreach ($bySectionDay as $lessons) {
             $first = $lessons[0];
+            $dayKey = $first['section_id'].':'.$first['day_of_week'];
+            if (isset($reported[$dayKey])) {
+                continue;
+            }
+            $before = count($issues);
             $bySubject = [];
             foreach ($lessons as $s) {
                 $bySubject[$s['subject_id']][] = $s;
             }
             foreach ($bySubject as $subjectId => $same) {
                 $where = ['section_id' => $first['section_id'], 'day_of_week' => $first['day_of_week'], 'subject_id' => $subjectId, 'teacher_id' => $same[0]['teacher_id'], 'period_id' => null, 'id' => null];
-                if (count($same) > SchoolWeek::MAX_SUBJECT_LESSONS_PER_DAY) {
-                    $issues[] = self::issue('warning', 'subject_day_repeat', $where, ['schedule_ids' => array_column($same, 'id'), 'count' => count($same)]);
+                $periods = count(array_unique(array_column($same, 'period_id')));
+                if ($periods > $board->settings->maxSubjectPerDay) {
+                    $issues[] = self::issue('warning', 'subject_day_repeat', $where, ['schedule_ids' => array_column($same, 'id'), 'count' => $periods]);
                 }
                 if ($board->isPractical($subjectId) && ! $this->taughtAsDoubles($board, array_column($same, 'period_id'))) {
                     $issues[] = self::issue('info', 'practical_split', $where, ['schedule_ids' => array_column($same, 'id')]);
@@ -158,6 +222,9 @@ final class TimetableAuditor
             $gaps = $this->longestGap($board, array_column($lessons, 'period_id'));
             if ($gaps >= 1) {
                 $issues[] = self::issue('warning', 'section_day_gap', ['section_id' => $first['section_id'], 'day_of_week' => $first['day_of_week'], 'teacher_id' => null, 'subject_id' => null, 'period_id' => null, 'id' => null], ['count' => $gaps]);
+            }
+            if (count($issues) > $before) {
+                $reported[$dayKey] = true;
             }
         }
 

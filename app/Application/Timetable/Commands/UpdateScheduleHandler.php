@@ -58,6 +58,11 @@ final class UpdateScheduleHandler implements CommandHandler
             at: $at,
             correlationId: $command->correlationId,
             createdBy: $command->createdBy,
+            // A moved lesson keeps its group, week and co-teacher (checked against them, not as a whole-class lesson).
+            groupId: $current->groupId,
+            weekNo: $current->weekNo,
+            coTeacherId: $current->coTeacherId,
+            activityId: $current->activityId,
         );
 
         $this->unitOfWork->transaction(function () use ($command, $data, $idempotencyKey): void {

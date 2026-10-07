@@ -41,6 +41,10 @@ return [
         'timetable.schedule.cancel' => 'Cancel active timetable schedules',
         'timetable.exception.create' => 'Create timetable schedule exceptions',
         'timetable.exception.update' => 'Update timetable schedule exceptions',
+        'timetable.constraints.manage' => 'Configure the timetable engine (settings, activities, groups, availability, rules)',
+        'timetable.generate' => 'Generate, apply and discard timetable generation runs',
+        'timetable.approve' => 'Approve or reject timetable versions (with the workflow role)',
+        'timetable.publish' => 'Snapshot, submit, publish, archive and restore timetable versions',
         'results.view' => 'View official results, GPA, ranking, and issued transcript metadata',
         'results.calculate' => 'Calculate operational term/annual/GPA results',
         'results.finalize' => 'Finalize official term/annual/GPA results',
@@ -170,6 +174,16 @@ return [
             'timetable.schedule.cancel',
             'timetable.exception.create',
             'timetable.exception.update',
+            'timetable.constraints.manage',
+            'timetable.generate',
+            'timetable.publish',
+        ],
+        // Approves timetable versions: holds the permission and is the role of the default «timetable_version» workflow step.
+        'timetable_approver' => [
+            'timetable.view',
+            'timetable.approve',
+            'workflow.view',
+            'workflow.decide',
         ],
         'results_viewer' => [
             'results.view',

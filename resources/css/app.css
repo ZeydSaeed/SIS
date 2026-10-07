@@ -15477,6 +15477,210 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     line-height: 1.45;
 }
 
+/* Ribbon icons that tell a state (any page command with `iconTone`) — existing status tokens only. */
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-ok {
+    color: var(--sis-admission-status-4); /* ready / clean / published */
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-warning {
+    color: var(--sis-admission-status-5); /* needs attention / waiting */
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-danger {
+    color: var(--sis-ribbon-accent-delete); /* errors / blocked / failed */
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-active {
+    color: var(--sis-admission-status-0); /* working now */
+    animation: sis-ribbon-icon-spin 1.1s linear infinite;
+}
+
+/* Colour per command (existing palette tokens only). */
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-sky {
+    color: var(--sis-admission-status-0);
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-amber {
+    color: var(--sis-admission-status-5);
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-rose {
+    color: var(--sis-admission-status-1);
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-forest {
+    color: var(--sis-admission-status-6);
+}
+
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-steel {
+    color: var(--sis-steel);
+}
+
+/* «الجدول الدراسي» › «تحرير»: coloured icons — outline in the command colour, a soft tint inside. */
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'] {
+    fill: color-mix(in srgb, currentColor 18%, transparent);
+    stroke-width: 2;
+}
+
+.sis-ribbon .sis-ribbon__item:disabled .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'] {
+    color: inherit;
+    animation: none;
+}
+
+@keyframes sis-ribbon-icon-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sis-ribbon .sis-ribbon__item .sis-ribbon__icon.sis-ribbon__icon--tone-active {
+        animation: none;
+    }
+}
+
+/* «الجدول الدراسي» › «تحرير»: every command on one line, same width each, label on one line. */
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__body {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__items {
+    flex-wrap: nowrap;
+    max-width: none;
+    gap: 0.15rem;
+    justify-content: flex-start;
+}
+
+/* The button grows with its label: the words under the icon are always shown in full. */
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__item {
+    width: auto;
+    min-width: 4.4rem;
+    max-width: none;
+    padding-inline: 0.4rem;
+    overflow: visible;
+}
+
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__label {
+    display: block;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    line-height: 1.45;
+}
+
+/* Timetable engine windows: sized to what each one shows, so forms and tables are fully visible. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--settings {
+    --sis-sheet-w: min(96vw, 48rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--readiness,
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--availability {
+    --sis-sheet-w: min(96vw, 62rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--generate,
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--constraints {
+    --sis-sheet-w: min(96vw, 66rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities,
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--versions {
+    --sis-sheet-w: min(96vw, 72rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-lesson-sheet {
+    --sis-sheet-w: min(96vw, 44rem);
+}
+
+/* Timetable windows show their whole content: no inner list scroll. The window grows with the content;
+   only when it would pass the screen height does the window body scroll (title bar and buttons stay). */
+.sis-timetable-audit-sheet .sis-timetable-audit__list {
+    max-height: none;
+    overflow: visible;
+}
+
+.sis-timetable-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) > .sis-admission-sheet {
+    max-height: calc(92vh - 0.5rem);
+    overflow-x: hidden;
+    overflow-y: auto; /* appears only when the content is taller than the screen */
+    scrollbar-width: thin;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__section,
+.sis-timetable-sheet .sis-admission-sheet__body {
+    overflow: visible;
+}
+
+/* «إعدادات الجدول»: the seven days on one line, the limits two per line — all visible at once. */
+.sis-timetable-engine-sheet--settings .sis-timetable-audit__bar {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+}
+
+/* Tables in timetable windows fit the window (the shared drafts table asks for 64rem). */
+.sis-timetable-sheet .sis-admission-drafts-table table {
+    min-width: 0;
+    width: 100%;
+}
+
+/* «الإتاحة»: a narrow day column; the lesson columns share the rest, so every column is visible. */
+.sis-timetable-availability table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.sis-timetable-availability .sis-timetable-availability__day {
+    width: 5.25rem;
+}
+
+.sis-timetable-availability th,
+.sis-timetable-availability td {
+    padding-inline: 0.15rem;
+    text-align: center;
+    white-space: normal;
+}
+
+.sis-timetable-availability td .sis-timetable-badge {
+    display: block;
+    width: 100%;
+    min-height: 1.6rem;
+    padding: 0.1rem 0.15rem;
+    font-size: 0.68rem;
+    line-height: 1.2;
+    white-space: normal;
+    cursor: pointer;
+}
+
+/* Tables inside the windows: full width, no horizontal scroll when the window is wide enough. */
+.sis-timetable-engine-sheet .sis-admission-drafts-table__scroller {
+    overflow-x: auto;
+    overflow-y: visible;
+    max-height: none;
+}
+
+/* Engine form rows: fields side by side (five per line on the sheet grid), a button closes the row. */
+.sis-timetable-sheet .sis-branches-sheet__row > button {
+    grid-column: span 24;
+    align-self: end;
+    justify-self: start;
+}
+
+.sis-timetable-engine-sheet .sis-timetable-audit__item > span:last-child:not(.sis-timetable-audit__text) {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+}
+
+.sis-timetable-engine-sheet .sis-timetable-audit__item > span:last-child input[type='date'] {
+    width: auto;
+}
+
 /* Preview: same line / heading tokens as the page, so tables keep their borders. */
 .sis-timetable-preview {
     --sis-timetable-line: var(--sis-curriculum-chrome);

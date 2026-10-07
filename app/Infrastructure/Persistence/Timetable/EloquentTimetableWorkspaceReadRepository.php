@@ -68,7 +68,8 @@ final class EloquentTimetableWorkspaceReadRepository implements TimetableWorkspa
             ->where('academic_year_id', $academicYearId)
             ->where('lifecycle_status', ScheduleLifecycleStatus::Active->value)
             ->orderBy('id')
-            ->get(['id', 'section_id', 'day_of_week', 'period_id', 'subject_id', 'teacher_id', 'room_id'])
+            ->get(['id', 'section_id', 'day_of_week', 'period_id', 'subject_id', 'teacher_id', 'room_id',
+                'group_id', 'week_no', 'co_teacher_id', 'joined_to_schedule_id', 'locked_at', 'activity_id'])
             ->map(static fn (object $r): array => [
                 'id' => (int) $r->id,
                 'section_id' => (int) $r->section_id,
@@ -77,6 +78,12 @@ final class EloquentTimetableWorkspaceReadRepository implements TimetableWorkspa
                 'subject_id' => (int) $r->subject_id,
                 'teacher_id' => (int) $r->teacher_id,
                 'room_id' => $r->room_id !== null ? (int) $r->room_id : null,
+                'group_id' => $r->group_id !== null ? (int) $r->group_id : null,
+                'week_no' => $r->week_no !== null ? (int) $r->week_no : null,
+                'co_teacher_id' => $r->co_teacher_id !== null ? (int) $r->co_teacher_id : null,
+                'joined_to' => $r->joined_to_schedule_id !== null ? (int) $r->joined_to_schedule_id : null,
+                'locked' => $r->locked_at !== null,
+                'activity_id' => $r->activity_id !== null ? (int) $r->activity_id : null,
             ])
             ->all();
     }

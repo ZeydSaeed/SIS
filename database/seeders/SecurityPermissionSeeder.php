@@ -133,6 +133,12 @@ class SecurityPermissionSeeder extends Seeder
         $this->assignRole($user, 'timetable_manager', $schoolId);
     }
 
+    public function grantTimetableApprover(User $user, ?int $schoolId = null): void
+    {
+        $this->run();
+        $this->assignRole($user, 'timetable_approver', $schoolId);
+    }
+
     public function grantResultsViewer(User $user, ?int $schoolId = null): void
     {
         $this->run();

@@ -62,6 +62,9 @@ class HandleInertiaRequests extends Middleware
                 'workflow' => fn () => $request->session()->get('workflow'),
                 'bulkEnroll' => fn () => $request->session()->get('bulkEnroll'),
                 'successAction' => fn () => $request->session()->get('successAction'),
+                // Timetable engine: what the last write did (id), and the advisor blockers that stopped a generation.
+                'engineResult' => fn () => $request->session()->get('engineResult'),
+                'engineBlockers' => fn () => $request->session()->get('engineBlockers'),
             ],
         ];
     }

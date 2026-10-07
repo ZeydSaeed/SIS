@@ -20,6 +20,7 @@ use App\Http\Controllers\Results\ResultsPageController;
 use App\Http\Controllers\SchoolContextController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
+use App\Http\Controllers\Timetable\TimetableEngineController;
 use App\Http\Controllers\Timetable\TimetablePageController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -201,6 +202,31 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/schedules/{schedule}/swap', [TimetablePageController::class, 'swapSchedules'])->whereNumber('schedule')->name('schedules.swap');
         Route::post('/schedules/{schedule}/shift', [TimetablePageController::class, 'shiftSchedule'])->whereNumber('schedule')->name('schedules.shift');
         Route::post('/schedules/auto-place', [TimetablePageController::class, 'autoPlace'])->name('schedules.auto');
+        // Timetable engine (docs/timetable): configuration, generation runs, locks, versions, student view, export.
+        Route::post('/schedules/lock', [TimetableEngineController::class, 'lockSchedules'])->name('schedules.lock');
+        Route::post('/schedules/{schedule}/substitute', [TimetablePageController::class, 'storeException'])->whereNumber('schedule')->name('schedules.substitute');
+        Route::post('/settings', [TimetableEngineController::class, 'saveSettings'])->name('settings.save');
+        Route::post('/activities', [TimetableEngineController::class, 'storeActivity'])->name('activities.store');
+        Route::post('/activities/sync', [TimetableEngineController::class, 'syncActivities'])->name('activities.sync');
+        Route::patch('/activities/{activity}', [TimetableEngineController::class, 'updateActivity'])->whereNumber('activity')->name('activities.update');
+        Route::post('/activities/{activity}/end', [TimetableEngineController::class, 'endActivity'])->whereNumber('activity')->name('activities.end');
+        Route::post('/divisions', [TimetableEngineController::class, 'storeDivision'])->name('divisions.store');
+        Route::post('/divisions/{division}/end', [TimetableEngineController::class, 'endDivision'])->whereNumber('division')->name('divisions.end');
+        Route::post('/availability', [TimetableEngineController::class, 'saveAvailability'])->name('availability.save');
+        Route::post('/rules', [TimetableEngineController::class, 'storeRule'])->name('rules.store');
+        Route::post('/rules/{rule}/end', [TimetableEngineController::class, 'endRule'])->whereNumber('rule')->name('rules.end');
+        Route::post('/runs', [TimetableEngineController::class, 'storeRun'])->name('runs.store');
+        Route::post('/runs/{run}/cancel', [TimetableEngineController::class, 'cancelRun'])->whereNumber('run')->name('runs.cancel');
+        Route::post('/runs/{run}/apply', [TimetableEngineController::class, 'applyRun'])->whereNumber('run')->name('runs.apply');
+        Route::post('/runs/{run}/discard', [TimetableEngineController::class, 'discardRun'])->whereNumber('run')->name('runs.discard');
+        Route::post('/versions', [TimetableEngineController::class, 'storeVersion'])->name('versions.store');
+        Route::post('/versions/{version}/submit', [TimetableEngineController::class, 'submitVersion'])->whereNumber('version')->name('versions.submit');
+        Route::post('/versions/{version}/decide', [TimetableEngineController::class, 'decideVersion'])->whereNumber('version')->name('versions.decide');
+        Route::post('/versions/{version}/publish', [TimetableEngineController::class, 'publishVersion'])->whereNumber('version')->name('versions.publish');
+        Route::post('/versions/{version}/archive', [TimetableEngineController::class, 'archiveVersion'])->whereNumber('version')->name('versions.archive');
+        Route::post('/versions/{version}/restore', [TimetableEngineController::class, 'restoreVersion'])->whereNumber('version')->name('versions.restore');
+        Route::get('/students/{student}', [TimetablePageController::class, 'student'])->whereNumber('student')->name('students.show');
+        Route::get('/export', [TimetablePageController::class, 'export'])->name('export');
     });
 
     Route::prefix('curriculum')->name('curriculum.')->middleware('require.school.context')->group(function (): void {

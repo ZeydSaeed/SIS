@@ -870,7 +870,7 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 
 ---
 
-## Schema: `timetable` (3 tables)
+## Schema: `timetable` (14 tables — engine 2026-10-07: ADR-021 / ADR-022)
 
 ### `timetable.periods`
 
@@ -920,6 +920,10 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 
 **Teacher binding (2026-10-06, G5):** create / update require `teachers.teacher_subjects` (teacher, subject, school, year) — error `timetable.teacher_not_assigned_subject`. Subject ∈ section curriculum is **not** enforced yet (sections may mix departments; department-bound curricula).
 
+**Readiness / workload / quality (2026-10-07, no schema change):** «الجاهزية والجودة» on `GET /timetable` — Domain `TimetableAdvisor` (ready / blocked before placing), `TeacherWorkloadAnalyzer`, `TimetableQualityScorer`, computed on read from the same board as the audit; nothing stored.
+
+**Engine columns (2026-10-07, migration `2026_10_07_100200`, additive):** `activity_id` (FK activities), `group_id` (FK division_groups, NULL = whole section), `week_no` (1–4, NULL = every week), `co_teacher_id` (FK teachers, CHECK ≠ teacher_id), `joined_to_schedule_id` (FK self — joined classes: other sections' rows point at the lead row), `locked_at` / `locked_by`. Partial uniques re-keyed (same names): section `(section, year, day, period, COALESCE(group,0), COALESCE(week,0))`; teacher / room per week on lead rows only (`joined_to_schedule_id IS NULL`); new `schedules_co_teacher_slot_active_uidx`. Division compatibility and week overlap enforced in Domain (`TimetableBoard::sectionLessonsClash`). Locked lessons refuse manual move / cancel (`timetable.schedule_locked`).
+
 ### `timetable.schedule_exceptions`
 
 > **Phase TV-U03:** Per-date substitute teacher/room for a schedule. FORCE RLS; reject hard DELETE.
@@ -939,6 +943,27 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 **Indexes:** `UNIQUE(schedule_id, exception_date)`, `BTREE(exception_date)`, `BTREE(school_id)`  
 **RLS:** ENABLE + FORCE  
 **Triggers:** reject hard DELETE
+
+### Timetable engine tables (2026-10-07 — migrations `2026_10_07_100000`, `2026_10_07_100100`)
+
+All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` on `app.current_school_id`, trigger `{table}_reject_delete` (function `timetable.reject_engine_delete()` — rows end by status), FKs `ON DELETE RESTRICT`. Design: `docs/timetable/TIMETABLE-DOMAIN-SPECIFICATION.md`.
+
+| Table | Columns (beyond id, school_id, timestamps) | Constraints / indexes |
+|-------|--------------------------------------------|-----------------------|
+| `timetable.configs` | academic_year_id, working_days JSONB, cycle_weeks, max_teacher_per_day, max_subject_per_day, double_changeover_minutes, weights JSONB, updated_by | UNIQUE(school_id, academic_year_id); CHECKs on ranges, working_days array 1–7 |
+| `timetable.divisions` | academic_year_id, section_id, name, status | BTREE(school_id, academic_year_id), BTREE(section_id) |
+| `timetable.division_groups` | division_id, name, student_count, status | BTREE(division_id) |
+| `timetable.group_members` | group_id, enrollment_id, status, effective_from/to | partial UNIQUE(group_id, enrollment_id) WHERE status=1; BTREE(enrollment_id) |
+| `timetable.activities` | academic_year_id, subject_id, activity_type 1–17, weekly_count 1–40, block_length 1–6, distribution ('2+2+1', regex), distribution_fixed, room_id, room_type, workshop_id, week_pattern 0–4, term_id, note, status, effective_from/to, created_by | CHECK ended ⇒ effective_to; BTREE(school_id, academic_year_id, status) |
+| `timetable.activity_sections` | activity_id, section_id, group_id | UNIQUE(activity_id, section_id, COALESCE(group_id,0)); BTREE(section_id) |
+| `timetable.activity_teachers` | activity_id, teacher_id, role (1 lead · 2 co · 3 assistant), sessions | UNIQUE(activity_id, teacher_id); partial UNIQUE(activity_id) WHERE role=1; BTREE(teacher_id) |
+| `timetable.availability` | academic_year_id, teacher_id / room_id / section_id / workshop_id (exactly one — `num_nonnulls = 1`), day_of_week, period_id (FK periods with school), week_no, kind (1 unavailable · 2 avoid · 3 preferred), reason, status, created_by | partial UNIQUE per target-slot WHERE status=1; BTREE(school_id, academic_year_id, status) |
+| `timetable.constraint_rules` | academic_year_id, rule_type, priority 1–6, explicit scope FKs (branch, department, grade_level, class, section, teacher, subject, room, activity, other_activity), params JSONB object, source, reason, status, effective_from/to, created_by | BTREE(school_id, academic_year_id, status) — rule semantics in `ConstraintRuleCatalogue` |
+| `timetable.generation_runs` | academic_year_id, mode 1–5, status 1–7, is_what_if, scope / options / progress / input_snapshot / result / quality JSONB, solver, cancel_requested, input_fingerprint, hard_violations, soft_penalty, activities_total, placed, unplaced, error, requested_by, applied_by, started/finished/applied_at | **partial UNIQUE(school_id, academic_year_id) WHERE status IN (1,2)** — one active run; BTREE(school_id, academic_year_id, created_at DESC) |
+| `timetable.versions` | academic_year_id, version_no, parent_version_id, name, reason, status 1–7, source_fingerprint, entries_count, quality JSONB, generation_run_id, approval_request_id (FK workflow.approval_requests), created_by, decided_by/at, published_by/at, effective_from/to | UNIQUE(school_id, academic_year_id, version_no); UNIQUE(id, school_id); CHECK published ⇒ dates; BTREE(school_id, academic_year_id, status) |
+| `timetable.version_entries` | version_id (FK with school), section_id, group_id, day_of_week, period_id (FK with school), week_no, subject_id, teacher_id, co_teacher_id, room_id, activity_id, source_schedule_id | **immutable** (reject UPDATE + DELETE); BTREE(version_id, section_id), BTREE(version_id, teacher_id) |
+
+**Writes:** web `/timetable/{settings, activities, divisions, availability, rules, runs, versions, schedules/lock, schedules/{id}/substitute}` (TimetableEngineController / TimetablePageController), policies `manageConstraints` · `generate` · `publish` · `approve` · `lockSchedules` (`timetable.constraints.manage`, `timetable.generate`, `timetable.publish`, `timetable.approve`). Reads: `GET /api/v1/timetable/effective`, `GET /api/v1/timetable/students/{id}`, `GET /timetable/export`.
 
 ---
 
@@ -2096,7 +2121,7 @@ curriculum.subjects
 | enrollment | 4 |
 | teachers | 4 |
 | curriculum | 4 |
-| timetable | 3 |
+| timetable | 14 |
 | attendance | 3 |
 | exams | 5 |
 | results | 6 |
@@ -2112,7 +2137,7 @@ curriculum.subjects
 | security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **94** |
+| **Total** | **105** |
 
 ## Partition Strategy (⚡)
 

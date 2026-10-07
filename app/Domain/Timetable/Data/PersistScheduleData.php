@@ -2,6 +2,9 @@
 
 namespace App\Domain\Timetable\Data;
 
+/**
+ * A lesson to write. The engine fields default to «whole section, every week, one teacher, placed by hand».
+ */
 final readonly class PersistScheduleData
 {
     public function __construct(
@@ -16,5 +19,9 @@ final readonly class PersistScheduleData
         public string $at,
         public ?string $correlationId,
         public ?int $createdBy,
+        public ?int $groupId = null,
+        public ?int $weekNo = null,
+        public ?int $coTeacherId = null,
+        public ?int $activityId = null,
     ) {}
 }

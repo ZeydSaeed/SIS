@@ -182,8 +182,11 @@ type RibbonItem = {
     title?: string;
     count?: number;
     tone?: 'edit' | 'save' | 'delete';
-    /** Outline colour by meaning: authority (المديرية), education (المدرسة), growth (الفروع والاختصاصات). */
-    iconTone?: 'authority' | 'education' | 'growth';
+    /**
+     * Outline colour by meaning: authority (المديرية), education (المدرسة), growth (الفروع والاختصاصات);
+     * by state (page commands): ok, warning, danger, active (working — spins).
+     */
+    iconTone?: 'authority' | 'education' | 'growth' | 'ok' | 'warning' | 'danger' | 'active' | 'sky' | 'amber' | 'rose' | 'forest' | 'steel';
     onSelect?: () => void;
 };
 
@@ -653,6 +656,7 @@ export function TitleBarRibbon({
                           title: command.title,
                           count: command.count,
                           tone: command.tone,
+                          iconTone: command.iconTone,
                           onSelect: command.onSelect,
                       })),
             }),

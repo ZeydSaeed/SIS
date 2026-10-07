@@ -82,6 +82,15 @@ final class Permission
 
     public const TIMETABLE_EXCEPTION_UPDATE = 'timetable.exception.update';
 
+    /** Timetable engine (decision D3): configure, generate, approve, publish. */
+    public const TIMETABLE_CONSTRAINTS_MANAGE = 'timetable.constraints.manage';
+
+    public const TIMETABLE_GENERATE = 'timetable.generate';
+
+    public const TIMETABLE_APPROVE = 'timetable.approve';
+
+    public const TIMETABLE_PUBLISH = 'timetable.publish';
+
     public const RESULTS_VIEW = 'results.view';
 
     public const RESULTS_CALCULATE = 'results.calculate';
@@ -197,6 +206,10 @@ final class Permission
             self::TIMETABLE_SCHEDULE_CANCEL,
             self::TIMETABLE_EXCEPTION_CREATE,
             self::TIMETABLE_EXCEPTION_UPDATE,
+            self::TIMETABLE_CONSTRAINTS_MANAGE,
+            self::TIMETABLE_GENERATE,
+            self::TIMETABLE_APPROVE,
+            self::TIMETABLE_PUBLISH,
             self::RESULTS_VIEW,
             self::RESULTS_CALCULATE,
             self::RESULTS_FINALIZE,

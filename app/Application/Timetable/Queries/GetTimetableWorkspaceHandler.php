@@ -7,7 +7,10 @@ use App\Application\Timetable\DTOs\TimetableWorkspaceDTO;
 use App\Application\Timetable\Support\TimetableBoardLoader;
 use App\Domain\Timetable\Data\PeriodSnapshot;
 use App\Domain\Timetable\Repositories\TimetableWorkspaceReadRepositoryInterface;
+use App\Domain\Timetable\Services\TeacherWorkloadAnalyzer;
+use App\Domain\Timetable\Services\TimetableAdvisor;
 use App\Domain\Timetable\Services\TimetableAuditor;
+use App\Domain\Timetable\Services\TimetableQualityScorer;
 
 final class GetTimetableWorkspaceHandler
 {
@@ -15,6 +18,9 @@ final class GetTimetableWorkspaceHandler
         private readonly TimetableWorkspaceReadRepositoryInterface $workspace,
         private readonly TimetableBoardLoader $boards,
         private readonly TimetableAuditor $auditor,
+        private readonly TimetableAdvisor $advisor,
+        private readonly TeacherWorkloadAnalyzer $workloads,
+        private readonly TimetableQualityScorer $quality,
     ) {}
 
     public function handle(GetTimetableWorkspaceQuery $query): TimetableWorkspaceDTO
@@ -23,6 +29,7 @@ final class GetTimetableWorkspaceHandler
         $schedules = $this->workspace->activeSchedules($query->schoolId, $query->academicYearId);
         $teachers = $this->workspace->teachers($query->schoolId, $query->academicYearId);
         $board = $this->boards->load($query->schoolId, $query->academicYearId, $lessons, $schedules, $teachers);
+        $issues = $this->auditor->audit($board);
 
         return new TimetableWorkspaceDTO(
             periods: array_map(
@@ -45,8 +52,12 @@ final class GetTimetableWorkspaceHandler
                 return ['teacher_id' => (int) $teacherId, 'subject_id' => (int) $subjectId];
             }, array_keys($board->teacherSubjects)),
             practicalSubjectIds: $board->practicalSubjectIds,
-            issues: $this->auditor->audit($board),
+            issues: $issues,
             placements: $this->workspace->sectionPlacements($query->schoolId, $query->academicYearId),
+            advice: $this->advisor->advise($board),
+            workload: $this->workloads->analyze($board),
+            quality: $this->quality->score($board, $issues),
+            board: $board,
         );
     }
 }

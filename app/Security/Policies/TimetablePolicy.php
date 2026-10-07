@@ -60,4 +60,40 @@ final class TimetablePolicy
         return $this->authorization->userHasPermission($user, Permission::TIMETABLE_EXCEPTION_UPDATE)
             && $this->schoolAccess->canAccessTimetable($user);
     }
+
+    /** Engine configuration: settings, activities, groups, availability, constraint rules. */
+    public function manageConstraints(User $user): bool
+    {
+        return $this->allows($user, Permission::TIMETABLE_CONSTRAINTS_MANAGE);
+    }
+
+    /** Queue, cancel, apply, discard generation runs (what-if included). */
+    public function generate(User $user): bool
+    {
+        return $this->allows($user, Permission::TIMETABLE_GENERATE);
+    }
+
+    /** Lock / unlock lessons — same holders as lesson editing. */
+    public function lockSchedules(User $user): bool
+    {
+        return $this->allows($user, Permission::TIMETABLE_SCHEDULE_UPDATE);
+    }
+
+    /** Snapshot, submit, publish, archive, restore versions. */
+    public function publish(User $user): bool
+    {
+        return $this->allows($user, Permission::TIMETABLE_PUBLISH);
+    }
+
+    /** Decide a version in review (the workflow step role is checked again by the workflow). */
+    public function approve(User $user): bool
+    {
+        return $this->allows($user, Permission::TIMETABLE_APPROVE);
+    }
+
+    private function allows(User $user, string $permission): bool
+    {
+        return $this->authorization->userHasPermission($user, $permission)
+            && $this->schoolAccess->canAccessTimetable($user);
+    }
 }

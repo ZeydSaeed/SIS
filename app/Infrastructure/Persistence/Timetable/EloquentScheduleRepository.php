@@ -86,6 +86,11 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
         }
     }
 
+    /**
+     * The slot must be free for the lesson's section (another group of the same division may share it),
+     * its teacher and co-teacher (lead or co elsewhere; joined-class rows count once, on the lead row) and its
+     * room — in the weeks the lessons meet (a lesson every week meets every week).
+     */
     public function assertNoActiveSlotConflicts(PersistScheduleData $data, ?int $excludeScheduleId = null): void
     {
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $data->schoolId]);
@@ -99,19 +104,38 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
 
         if ($excludeScheduleId !== null) {
             $base->where('id', '!=', $excludeScheduleId);
+            $base->where(static fn ($q) => $q->whereNull('joined_to_schedule_id')->orWhere('joined_to_schedule_id', '!=', $excludeScheduleId));
+        }
+        if ($data->weekNo !== null) {
+            $base->where(static fn ($q) => $q->whereNull('week_no')->orWhere('week_no', $data->weekNo));
         }
 
-        if ((clone $base)->where('section_id', $data->sectionId)->exists()) {
-            throw ScheduleSlotConflictException::forSection();
+        foreach ((clone $base)->where('section_id', $data->sectionId)->get(['group_id']) as $other) {
+            if ($this->sectionLanesClash($data->groupId, $other->group_id !== null ? (int) $other->group_id : null)) {
+                throw ScheduleSlotConflictException::forSection();
+            }
         }
 
-        if ((clone $base)->where('teacher_id', $data->teacherId)->exists()) {
+        $teachers = array_values(array_filter([$data->teacherId, $data->coTeacherId]));
+        $leadRows = (clone $base)->whereNull('joined_to_schedule_id');
+        if ((clone $leadRows)->where(static fn ($q) => $q->whereIn('teacher_id', $teachers)->orWhereIn('co_teacher_id', $teachers))->exists()) {
             throw ScheduleSlotConflictException::forTeacher();
         }
 
-        if ($data->roomId !== null && (clone $base)->where('room_id', $data->roomId)->exists()) {
+        if ($data->roomId !== null && (clone $leadRows)->where('room_id', $data->roomId)->exists()) {
             throw ScheduleSlotConflictException::forRoom();
         }
+    }
+
+    /** Two lessons of one section can share a slot only as different groups of one division. */
+    private function sectionLanesClash(?int $groupA, ?int $groupB): bool
+    {
+        if ($groupA === null || $groupB === null || $groupA === $groupB) {
+            return true;
+        }
+        $divisions = DB::table(SchemaHelper::qualified('timetable', 'division_groups'))->whereIn('id', [$groupA, $groupB])->pluck('division_id', 'id');
+
+        return ! isset($divisions[$groupA], $divisions[$groupB]) || (int) $divisions[$groupA] !== (int) $divisions[$groupB];
     }
 
     public function insertActive(PersistScheduleData $data): int
@@ -130,6 +154,10 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
                 'subject_id' => $data->subjectId,
                 'teacher_id' => $data->teacherId,
                 'room_id' => $data->roomId,
+                'group_id' => $data->groupId,
+                'week_no' => $data->weekNo,
+                'co_teacher_id' => $data->coTeacherId,
+                'activity_id' => $data->activityId,
                 'lifecycle_status' => ScheduleLifecycleStatus::Active->value,
                 'cancelled_at' => null,
                 'correlation_id' => $data->correlationId,
@@ -142,19 +170,24 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
         }
     }
 
+    private const SNAPSHOT_COLUMNS = [
+        'id', 'school_id', 'section_id', 'academic_year_id', 'day_of_week', 'period_id', 'subject_id', 'teacher_id', 'room_id',
+        'lifecycle_status', 'group_id', 'week_no', 'co_teacher_id', 'joined_to_schedule_id', 'locked_at', 'activity_id',
+    ];
+
     public function findById(int $schoolId, int $scheduleId): ?ScheduleSnapshot
     {
         $row = DB::table(SchemaHelper::qualified('timetable', 'schedules'))
             ->where('school_id', $schoolId)
             ->where('id', $scheduleId)
-            ->first([
-                'id', 'school_id', 'section_id', 'academic_year_id', 'day_of_week',
-                'period_id', 'subject_id', 'teacher_id', 'room_id', 'lifecycle_status',
-            ]);
+            ->first(self::SNAPSHOT_COLUMNS);
 
-        if ($row === null) {
-            return null;
-        }
+        return $row === null ? null : self::snapshot($row);
+    }
+
+    private static function snapshot(object $row): ScheduleSnapshot
+    {
+        $nullable = static fn ($v): ?int => $v !== null ? (int) $v : null;
 
         return new ScheduleSnapshot(
             id: (int) $row->id,
@@ -165,9 +198,69 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             periodId: (int) $row->period_id,
             subjectId: (int) $row->subject_id,
             teacherId: (int) $row->teacher_id,
-            roomId: $row->room_id !== null ? (int) $row->room_id : null,
+            roomId: $nullable($row->room_id),
             lifecycleStatus: (int) $row->lifecycle_status,
+            groupId: $nullable($row->group_id),
+            weekNo: $nullable($row->week_no),
+            coTeacherId: $nullable($row->co_teacher_id),
+            joinedTo: $nullable($row->joined_to_schedule_id),
+            locked: $row->locked_at !== null,
+            activityId: $nullable($row->activity_id),
         );
+    }
+
+    /** A locked lesson stays where it is until it is unlocked. */
+    private function assertNotLocked(int $schoolId, int $scheduleId): void
+    {
+        if ($this->findById($schoolId, $scheduleId)?->locked === true) {
+            throw ScheduleValidationException::withReason('timetable.schedule_locked');
+        }
+    }
+
+    public function setLocked(int $schoolId, array $scheduleIds, ?string $lockedAt, ?int $userId): int
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+
+        return DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+            ->where('school_id', $schoolId)->whereIn('id', $scheduleIds)->whereNull('cancelled_at')
+            ->update(['locked_at' => $lockedAt, 'locked_by' => $lockedAt === null ? null : $userId, 'updated_at' => now()]);
+    }
+
+    public function replaceGrid(int $schoolId, int $academicYearId, array $cancelIds, array $rows, string $at, ?int $userId, ?string $correlationId): int
+    {
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+        $table = SchemaHelper::qualified('timetable', 'schedules');
+        foreach (array_chunk($cancelIds, 500) as $chunk) {
+            DB::table($table)->where('school_id', $schoolId)->whereIn('id', $chunk)->whereNull('locked_at')->whereNull('cancelled_at')
+                ->update(['lifecycle_status' => ScheduleLifecycleStatus::Cancelled->value, 'cancelled_at' => $at, 'updated_at' => $at]);
+        }
+
+        $base = static fn (array $r): array => [
+            'school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'section_id' => $r['section_id'], 'group_id' => $r['group_id'],
+            'day_of_week' => $r['day_of_week'], 'period_id' => $r['period_id'], 'week_no' => $r['week_no'], 'subject_id' => $r['subject_id'],
+            'teacher_id' => $r['teacher_id'], 'co_teacher_id' => $r['co_teacher_id'], 'room_id' => $r['room_id'], 'activity_id' => $r['activity_id'],
+            'lifecycle_status' => ScheduleLifecycleStatus::Active->value, 'correlation_id' => $correlationId, 'created_by' => $userId,
+            'created_at' => $at, 'updated_at' => $at,
+        ];
+        $leadIds = [];
+        try {
+            foreach (array_filter($rows, static fn (array $r): bool => $r['is_lead']) as $row) {
+                $leadIds[$row['lead_key']] = (int) DB::table($table)->insertGetId($base($row));
+            }
+            $joined = [];
+            foreach ($rows as $row) {
+                if (! $row['is_lead']) {
+                    $joined[] = $base($row) + ['joined_to_schedule_id' => $leadIds[$row['lead_key']] ?? null];
+                }
+            }
+            foreach (array_chunk($joined, 500) as $chunk) {
+                DB::table($table)->insert($chunk);
+            }
+        } catch (UniqueConstraintViolationException) {
+            throw ScheduleSlotConflictException::fromDatabase();
+        }
+
+        return count($rows);
     }
 
     public function listForSchoolYear(
@@ -197,25 +290,11 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             ->orderBy('period_id')
             ->orderBy('id')
             ->forPage($page, $perPage)
-            ->get([
-                'id', 'school_id', 'section_id', 'academic_year_id', 'day_of_week',
-                'period_id', 'subject_id', 'teacher_id', 'room_id', 'lifecycle_status',
-            ]);
+            ->get(self::SNAPSHOT_COLUMNS);
 
         $items = [];
         foreach ($rows as $row) {
-            $items[] = new ScheduleSnapshot(
-                id: (int) $row->id,
-                schoolId: (int) $row->school_id,
-                sectionId: (int) $row->section_id,
-                academicYearId: (int) $row->academic_year_id,
-                dayOfWeek: (int) $row->day_of_week,
-                periodId: (int) $row->period_id,
-                subjectId: (int) $row->subject_id,
-                teacherId: (int) $row->teacher_id,
-                roomId: $row->room_id !== null ? (int) $row->room_id : null,
-                lifecycleStatus: (int) $row->lifecycle_status,
-            );
+            $items[] = self::snapshot($row);
         }
 
         return ['items' => $items, 'total' => $total];
@@ -223,6 +302,7 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
 
     public function updateActive(int $scheduleId, PersistScheduleData $data): void
     {
+        $this->assertNotLocked($data->schoolId, $scheduleId);
         $this->assertWritableRefs($data);
         $this->assertNoActiveSlotConflicts($data, $scheduleId);
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $data->schoolId]);
@@ -251,6 +331,19 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
         if ($updated === 0) {
             throw ScheduleNotActiveException::forId($scheduleId);
         }
+        try {
+            $this->moveJoinedRows($data->schoolId, $scheduleId, $data->dayOfWeek, $data->periodId, $data->at);
+        } catch (UniqueConstraintViolationException) {
+            throw ScheduleSlotConflictException::fromDatabase();
+        }
+    }
+
+    /** Joined classes: the other sections' rows follow their lead row's slot. */
+    private function moveJoinedRows(int $schoolId, int $leadId, int $day, int $periodId, string $at): void
+    {
+        DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+            ->where('school_id', $schoolId)->where('joined_to_schedule_id', $leadId)->whereNull('cancelled_at')
+            ->update(['day_of_week' => $day, 'period_id' => $periodId, 'updated_at' => $at]);
     }
 
     public function cancel(int $schoolId, int $scheduleId, string $cancelledAt): void
@@ -264,10 +357,14 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
         if ($current->lifecycleStatus !== ScheduleLifecycleStatus::Active->value) {
             throw ScheduleNotActiveException::forId($scheduleId);
         }
+        if ($current->locked) {
+            throw ScheduleValidationException::withReason('timetable.schedule_locked');
+        }
 
         DB::table(SchemaHelper::qualified('timetable', 'schedules'))
-            ->where('id', $scheduleId)
             ->where('school_id', $schoolId)
+            ->where(static fn ($q) => $q->where('id', $scheduleId)->orWhere('joined_to_schedule_id', $scheduleId))
+            ->whereNull('cancelled_at')
             ->update([
                 'lifecycle_status' => ScheduleLifecycleStatus::Cancelled->value,
                 'cancelled_at' => $cancelledAt,
@@ -330,6 +427,9 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             if ($snapshot->lifecycleStatus !== ScheduleLifecycleStatus::Active->value) {
                 throw ScheduleNotActiveException::forId($move['schedule_id']);
             }
+            if ($snapshot->locked) {
+                throw ScheduleValidationException::withReason('timetable.schedule_locked');
+            }
             $current[$move['schedule_id']] = $snapshot;
         }
 
@@ -353,6 +453,10 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
                 at: $at,
                 correlationId: null,
                 createdBy: null,
+                groupId: $snapshot->groupId,
+                weekNo: $snapshot->weekNo,
+                coTeacherId: $snapshot->coTeacherId,
+                activityId: $snapshot->activityId,
             );
             $this->assertWritableRefs($data);
             $this->assertNoActiveSlotConflicts($data, $snapshot->id);
@@ -365,6 +469,7 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
                     'cancelled_at' => null,
                     'updated_at' => $at,
                 ]);
+                $this->moveJoinedRows($schoolId, $snapshot->id, $move['day'], $move['period_id'], $at);
             } catch (UniqueConstraintViolationException) {
                 throw ScheduleSlotConflictException::fromDatabase();
             }

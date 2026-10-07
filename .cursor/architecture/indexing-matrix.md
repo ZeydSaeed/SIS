@@ -108,6 +108,31 @@
 | school_id | B-Tree | RLS policy support |
 | (user_id, role_id) | COMPOSITE | Permission checks |
 
+### `timetable.schedules` (re-keyed 2026-10-07)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (section, year, day, period, COALESCE(group,0), COALESCE(week,0)) WHERE active | partial UNIQUE | One lesson per section lane / group / week (groups of one division share a slot) |
+| (teacher, year, day, period, COALESCE(week,0)) WHERE active AND lead row | partial UNIQUE | Teacher never double-booked; joined-class rows excluded |
+| (co_teacher, year, day, period, COALESCE(week,0)) WHERE active AND lead row | partial UNIQUE | Co-teacher never double-booked |
+| (room, year, day, period, COALESCE(week,0)) WHERE active AND room AND lead row | partial UNIQUE | Room never double-booked |
+
+### `timetable` engine tables (2026-10-07)
+
+| Table · column(s) | Type | Reason (query pattern) |
+|-------------------|------|------------------------|
+| configs · (school, year) | UNIQUE | One settings row read per board load |
+| activities · (school, year, status) | B-Tree | Board load: active activities of the school-year |
+| activity_sections · section_id / activity_teachers · teacher_id | B-Tree | Activities of a section / teacher (sheets, rule scope) |
+| availability · (school, year, status) | B-Tree | Board load; partial UNIQUE per target-slot prevents duplicates |
+| constraint_rules · (school, year, status) | B-Tree | Board load of active rules |
+| divisions · (school, year), section_id; division_groups · division_id | B-Tree | Groups of the school-year / of a section |
+| group_members · enrollment_id; (group, enrollment) WHERE active | B-Tree; partial UNIQUE | Student timetable (groups of an enrollment); no duplicate membership |
+| generation_runs · (school, year) WHERE status IN (1,2) | partial UNIQUE | Concurrency guard — one active run per school-year |
+| generation_runs · (school, year, created_at DESC) | B-Tree | «عمليات التوليد» list (latest first) |
+| versions · (school, year, version_no) / (school, year, status) | UNIQUE / B-Tree | Numbering; version list, current published |
+| version_entries · (version, section) / (version, teacher) | B-Tree | Version view, student / effective timetable by section or teacher |
+
 ## PostgreSQL Index Examples
 
 ```sql

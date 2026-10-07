@@ -10,7 +10,6 @@ use App\Application\Contracts\UnitOfWork;
 use App\Application\Timetable\Results\AutoPlaceSectionResult;
 use App\Application\Timetable\Support\TimetableBoardLoader;
 use App\Domain\Timetable\Data\PersistScheduleData;
-use App\Domain\Timetable\Data\TimetableBoard;
 use App\Domain\Timetable\Events\ScheduleCreated;
 use App\Domain\Timetable\Repositories\ScheduleRepositoryInterface;
 use App\Domain\Timetable\Services\TimetableAutoPlacer;
@@ -61,7 +60,7 @@ final class AutoPlaceSectionHandler implements CommandHandler
                 $planned[] = ['section_id' => $sectionId] + $p;
                 $new[] = ['id' => 0, 'section_id' => $sectionId, 'day_of_week' => $p['day'], 'period_id' => $p['period_id'], 'subject_id' => $p['subject_id'], 'teacher_id' => $p['teacher_id']];
             }
-            $board = new TimetableBoard($board->periods, [...$board->schedules, ...$new], $board->requirements, $board->teacherSubjects, $board->activeTeacherIds, $board->practicalSubjectIds);
+            $board = $board->withSchedules([...$board->schedules, ...$new]);
         }
 
         $this->unitOfWork->transaction(function () use ($command, $planned, $unplaced, $key): void {

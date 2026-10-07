@@ -24,6 +24,8 @@
 | [ADR-018](./ADR-018-autonomous-optimization-engine.md) | Autonomous optimization engine | Accepted |
 | [ADR-019](./ADR-019-self-healing-performance-engine.md) | Self-healing performance engine | Accepted |
 | [ADR-020](./ADR-020-phase-1-database-architecture.md) | Phase 1 DB architecture decision lock (D1–D6) | Accepted |
+| [ADR-021](./ADR-021-timetable-solver-port.md) | Timetable solver port + PHP heuristic solver | Accepted |
+| [ADR-022](./ADR-022-timetable-versioning-approval.md) | Timetable versions as snapshots, workflow approval | Accepted |
 
 ## When to Create New ADR
 

@@ -1,38 +1,40 @@
 <?php
 
 use App\Http\Controllers\Api\AcademicController;
-use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\ApprovalFlowController;
+use App\Http\Controllers\Api\ApprovalRequestController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\CurriculumController;
+use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\EnrollmentStructureController;
 use App\Http\Controllers\Api\ExamController;
+use App\Http\Controllers\Api\FeeTypeController;
+use App\Http\Controllers\Api\FinanceTransactionController;
 use App\Http\Controllers\Api\GradeController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\HrController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MetricsController;
+use App\Http\Controllers\Api\NotificationJobController;
+use App\Http\Controllers\Api\NotificationTemplateController;
 use App\Http\Controllers\Api\OrganizationController;
-use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\PortalResultsController;
 use App\Http\Controllers\Api\PortalScopesController;
 use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\ResultsController;
-use App\Http\Controllers\Api\ApprovalFlowController;
-use App\Http\Controllers\Api\ApprovalRequestController;
-use App\Http\Controllers\Api\DocumentController;
-use App\Http\Controllers\Api\FeeTypeController;
-use App\Http\Controllers\Api\FinanceTransactionController;
-use App\Http\Controllers\Api\MessageController;
-use App\Http\Controllers\Api\NotificationJobController;
-use App\Http\Controllers\Api\NotificationTemplateController;
-use App\Http\Controllers\Api\PaymentController;
-use App\Http\Controllers\Api\StudentFeeController;
-use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\ResultsWriteController;
-use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\StudentController;
-use App\Http\Controllers\Api\HrController;
+use App\Http\Controllers\Api\StudentFeeController;
+use App\Http\Controllers\Api\TeacherController;
+use App\Http\Controllers\Api\TimetableEngineApiController;
+use App\Http\Controllers\Api\TransferController;
 use App\Http\Controllers\Api\VocationalController;
+use App\Http\Middleware\MetricsTokenMiddleware;
 use App\Security\Middleware\RequireSchoolContextMiddleware;
 use App\Security\Middleware\SchoolContextMiddleware;
 use Illuminate\Http\Request;
@@ -42,7 +44,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', [HealthController::class, 'show'])->name('api.health');
     Route::get('/metrics', [MetricsController::class, 'show'])
-        ->middleware(\App\Http\Middleware\MetricsTokenMiddleware::class)
+        ->middleware(MetricsTokenMiddleware::class)
         ->name('api.metrics');
 
     Route::middleware([
@@ -283,6 +285,11 @@ Route::prefix('v1')->group(function (): void {
         Route::get('timetable/periods/{period}', [PeriodController::class, 'show'])
             ->whereNumber('period')
             ->name('api.timetable.periods.show');
+        Route::get('timetable/effective', [TimetableEngineApiController::class, 'effective'])
+            ->name('api.timetable.effective.show');
+        Route::get('timetable/students/{student}', [TimetableEngineApiController::class, 'student'])
+            ->whereNumber('student')
+            ->name('api.timetable.students.show');
 
         Route::get('results/term', [ResultsController::class, 'officialTerm'])
             ->name('api.results.term.show');

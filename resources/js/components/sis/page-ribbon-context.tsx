@@ -23,6 +23,11 @@ export type PageRibbonCommand = {
     /** Optional count shown above the icon (e.g. status tallies). */
     count?: number;
     tone?: 'edit' | 'save' | 'delete';
+    /**
+     * Icon outline colour: by state (ok / warning / danger / active = working, spins) or by meaning
+     * (authority = the system chrome colour, education, growth).
+     */
+    iconTone?: 'ok' | 'warning' | 'danger' | 'active' | 'authority' | 'education' | 'growth' | 'sky' | 'amber' | 'rose' | 'forest' | 'steel';
     onSelect: () => void;
 };
 

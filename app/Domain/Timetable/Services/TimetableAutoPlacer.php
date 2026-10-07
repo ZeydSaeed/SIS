@@ -3,14 +3,13 @@
 namespace App\Domain\Timetable\Services;
 
 use App\Domain\Timetable\Data\TimetableBoard;
-use App\Domain\Timetable\Support\SchoolWeek;
 
 /**
  * «توزيع تلقائي»: places a section's remaining lessons on free cells.
  *
  * Rules (the same the audit checks): the section and the teacher are free in the slot; a teacher
- * teaches at most {@see SchoolWeek::MAX_TEACHER_LESSONS_PER_DAY} lessons a day; a subject appears at
- * most {@see SchoolWeek::MAX_SUBJECT_LESSONS_PER_DAY} times a day; practical subjects go in adjacent
+ * teaches at most the daily limit of the settings (default 6) lessons a day; a subject appears at
+ * most the subject daily limit (default 2) times a day; practical subjects go in adjacent
  * pairs (a lone one only when an odd count is left).
  *
  * 1. Cell by cell: each day's next cell (right after its last lesson) takes a lesson whose teacher is
@@ -37,6 +36,13 @@ final class TimetableAutoPlacer
 
     /** @var array<int, int> day → lessons of the section */
     private array $sectionDay = [];
+
+    /** @var list<int> working days of the settings */
+    private array $days = [];
+
+    private int $maxTeacher = 0;
+
+    private int $maxSubject = 0;
 
     /**
      * @return array{placements: list<array{subject_id: int, teacher_id: int, day: int, period_id: int}>, unplaced: int}
@@ -68,10 +74,15 @@ final class TimetableAutoPlacer
 
     private function load(TimetableBoard $board, int $sectionId): void
     {
+        $this->days = $board->settings->days;
+        $this->maxTeacher = $board->settings->maxTeacherPerDay;
+        $this->maxSubject = $board->settings->maxSubjectPerDay;
         $this->sectionBusy = $this->teacherBusy = $this->teacherDay = $this->subjectDay = $this->sectionDay = [];
         foreach ($board->schedules as $s) {
-            $this->teacherBusy[$s['teacher_id'].':'.$s['day_of_week'].':'.$s['period_id']] = true;
-            $this->teacherDay[$s['teacher_id'].':'.$s['day_of_week']] = ($this->teacherDay[$s['teacher_id'].':'.$s['day_of_week']] ?? 0) + 1;
+            foreach (TimetableBoard::busyTeachers($s) as $teacherId) {
+                $this->teacherBusy[$teacherId.':'.$s['day_of_week'].':'.$s['period_id']] = true;
+                $this->teacherDay[$teacherId.':'.$s['day_of_week']] = ($this->teacherDay[$teacherId.':'.$s['day_of_week']] ?? 0) + 1;
+            }
             if ($s['section_id'] === $sectionId) {
                 $this->sectionBusy[$s['day_of_week'].':'.$s['period_id']] = true;
                 $this->subjectDay[$s['subject_id'].':'.$s['day_of_week']] = ($this->subjectDay[$s['subject_id'].':'.$s['day_of_week']] ?? 0) + 1;
@@ -111,7 +122,7 @@ final class TimetableAutoPlacer
         $closed = [];
         do {
             $progress = false;
-            $days = array_values(array_filter(SchoolWeek::DAYS, static fn (int $day): bool => ! isset($closed[$day])));
+            $days = array_values(array_filter($this->days, static fn (int $day): bool => ! isset($closed[$day])));
             usort($days, fn (int $a, int $b): int => [$this->sectionDay[$a] ?? 0, $a] <=> [$this->sectionDay[$b] ?? 0, $b]);
 
             foreach ($days as $day) {
@@ -164,7 +175,7 @@ final class TimetableAutoPlacer
     /** Step 2: any free cell of an allowed day (lightest day for the subject first). */
     private function anyFreeSlot(TimetableBoard $board, array $lesson, int $size): ?array
     {
-        $days = array_values(array_filter(SchoolWeek::DAYS, fn (int $day): bool => $this->allowed($lesson, $day, $size)));
+        $days = array_values(array_filter($this->days, fn (int $day): bool => $this->allowed($lesson, $day, $size)));
         usort($days, fn (int $a, int $b): int => [$this->subjectDay[$lesson['subject_id'].':'.$a] ?? 0, $this->sectionDay[$a] ?? 0, $a]
             <=> [$this->subjectDay[$lesson['subject_id'].':'.$b] ?? 0, $this->sectionDay[$b] ?? 0, $b]);
 
@@ -182,8 +193,8 @@ final class TimetableAutoPlacer
 
     private function allowed(array $lesson, int $day, int $size): bool
     {
-        return ($this->subjectDay[$lesson['subject_id'].':'.$day] ?? 0) + $size <= SchoolWeek::MAX_SUBJECT_LESSONS_PER_DAY
-            && ($this->teacherDay[$lesson['teacher_id'].':'.$day] ?? 0) + $size <= SchoolWeek::MAX_TEACHER_LESSONS_PER_DAY;
+        return ($this->subjectDay[$lesson['subject_id'].':'.$day] ?? 0) + $size <= $this->maxSubject
+            && ($this->teacherDay[$lesson['teacher_id'].':'.$day] ?? 0) + $size <= $this->maxTeacher;
     }
 
     /** @return list<int>|null  the period (or the adjacent pair) starting at `index` */
@@ -239,7 +250,7 @@ final class TimetableAutoPlacer
         $periods = $board->lessonPeriodIds;
         $position = array_flip($periods);
 
-        foreach (SchoolWeek::DAYS as $day) {
+        foreach ($this->days as $day) {
             $moved = true;
             while ($moved) {
                 $moved = false;
@@ -286,7 +297,7 @@ final class TimetableAutoPlacer
             if ($p['day'] !== $day || $p['period_id'] !== $lastPeriod || $this->inDouble($board, $placements, $p)) {
                 continue;
             }
-            foreach (SchoolWeek::DAYS as $other) {
+            foreach ($this->days as $other) {
                 $index = $other === $day ? null : $this->packedIndex($board, $other);
                 if ($index === null) {
                     continue;
@@ -327,8 +338,8 @@ final class TimetableAutoPlacer
             return false;
         }
 
-        return ($this->subjectDay[$p['subject_id'].':'.$day] ?? 0) < SchoolWeek::MAX_SUBJECT_LESSONS_PER_DAY
-            && ($this->teacherDay[$p['teacher_id'].':'.$day] ?? 0) < SchoolWeek::MAX_TEACHER_LESSONS_PER_DAY;
+        return ($this->subjectDay[$p['subject_id'].':'.$day] ?? 0) < $this->maxSubject
+            && ($this->teacherDay[$p['teacher_id'].':'.$day] ?? 0) < $this->maxTeacher;
     }
 
     /**

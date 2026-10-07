@@ -1,13 +1,22 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { CalendarClock, ChevronsLeft, ChevronsRight, Clock, FilterX, LayoutGrid, LayoutList, ListChecks, Maximize2, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement } from 'react';
+import { BadgeCheck, Boxes, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Maximize2, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement, type ReactNode } from 'react';
 import { RegistryListField, RegistrySheetDialog, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
-import { useRegisterPageRibbon, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { dayOfWeekLabel } from '@/components/sis/status-chip';
+import { ActivitiesSheet } from '@/components/timetable/engine/activities-sheet';
+import { AvailabilitySheet } from '@/components/timetable/engine/availability-sheet';
+import { ConstraintsSheet } from '@/components/timetable/engine/constraints-sheet';
+import type { EngineContext } from '@/components/timetable/engine/engine-context';
+import type { Comparison, Engine, MoveSuggestions, RunDetail, Substitutes } from '@/components/timetable/engine/engine-types';
+import { GenerateSheet } from '@/components/timetable/engine/generate-sheet';
+import { LessonEngineTools } from '@/components/timetable/engine/lesson-engine-tools';
+import { SettingsSheet } from '@/components/timetable/engine/settings-sheet';
+import { VersionsSheet } from '@/components/timetable/engine/versions-sheet';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { resolveSisSectionCode, sisSectionSelectOptions } from '@/lib/sis-class-section-options';
@@ -27,7 +36,21 @@ type Lesson = {
     section_id: number | null;
     weekly_hours: number | null;
 };
-type Schedule = { id: number; section_id: number; day_of_week: number; period_id: number; subject_id: number; teacher_id: number; room_id: number | null };
+type Schedule = {
+    id: number;
+    section_id: number;
+    day_of_week: number;
+    period_id: number;
+    subject_id: number;
+    teacher_id: number;
+    room_id: number | null;
+    group_id?: number | null;
+    week_no?: number | null;
+    co_teacher_id?: number | null;
+    joined_to?: number | null;
+    locked?: boolean;
+    activity_id?: number | null;
+};
 type Severity = 'error' | 'warning' | 'info';
 type Issue = {
     severity: Severity;
@@ -41,6 +64,39 @@ type Issue = {
     count: number | null;
 };
 type Teacher = { id: number; full_name: string; short_name: string };
+type FindingSeverity = 'blocker' | 'warning' | 'info';
+/** «جاهزية الجدول» (Domain `TimetableAdvisor`): can these lessons fit the week at all? */
+type Advice = {
+    verdict: 'ready' | 'blocked';
+    findings: Array<{ severity: FindingSeverity; code: string; section_id: number | null; teacher_id: number | null; subject_id: number | null; count: number | null; limit: number | null }>;
+    readiness: { overall: number; school_day: number; weekly_loads: number | null; qualified: number | null; sections: number | null; capacity: number | null };
+    totals: { sections: number; teachers: number; requirements: number; weekly_lessons: number; lesson_periods: number; slots_per_week: number };
+};
+/** «عبء المدرسين» (Domain `TeacherWorkloadAnalyzer`). */
+type WorkloadRow = {
+    teacher_id: number;
+    required: number;
+    placed: number;
+    practical: number;
+    theory: number;
+    sections: number;
+    by_day: Record<string, number>;
+    max_day: number;
+    gaps: number;
+    max_consecutive: number;
+    capacity: number;
+    status: 'over' | 'incomplete' | 'ok';
+};
+/** «جودة الجدول» (Domain `TimetableQualityScorer`). */
+type Quality = {
+    feasible: boolean;
+    grade: 'infeasible' | 'incomplete' | 'complete';
+    overall: number | null;
+    errors: number;
+    warnings: number;
+    metrics: Record<string, number | null>;
+    counts: { required: number; placed: number; teacher_gaps: number; section_gaps: number };
+};
 type Props = {
     periods: Period[];
     sections: Section[];
@@ -52,9 +108,28 @@ type Props = {
     teacherSubjects: Array<{ teacher_id: number; subject_id: number }>;
     practicalSubjectIds: number[];
     issues: Issue[];
+    advice: Advice | null;
+    workload: WorkloadRow[];
+    quality: Quality | null;
     subjects: Array<{ id: number; name: string }>;
     filters: { academic_year_id: number | null };
-    authorization: { can_create: boolean; can_update: boolean; can_cancel: boolean; can_manage_periods: boolean };
+    engine: Engine | null;
+    viewingVersion: { id: number; version_no: number; name: string } | null;
+    runDetail?: RunDetail | null;
+    comparison?: Comparison | null;
+    moveSuggestions?: MoveSuggestions | null;
+    substitutes?: Substitutes | null;
+    authorization: {
+        can_create: boolean;
+        can_update: boolean;
+        can_cancel: boolean;
+        can_manage_periods: boolean;
+        can_manage_constraints: boolean;
+        can_generate: boolean;
+        can_publish: boolean;
+        can_approve: boolean;
+        can_substitute: boolean;
+    };
 };
 
 /** A lesson of a section: one subject taught by one teacher, `required` times a week (null = not set in the curriculum). */
@@ -72,9 +147,11 @@ type GridGroup = { key: string; title: string; sections: Array<{ section: Sectio
 
 const LESSON = 1;
 /** School week: الأحد → الخميس (`day_of_week` 1–5). */
-const DAYS = [1, 2, 3, 4, 5];
-const SCHEDULE_RELOAD = ['schedules', 'issues', 'flash'];
-const PERIOD_RELOAD = ['periods', 'issues', 'flash'];
+const DEFAULT_DAYS = [1, 2, 3, 4, 5];
+const SCHEDULE_RELOAD = ['schedules', 'issues', 'advice', 'workload', 'quality', 'engine', 'flash'];
+const PERIOD_RELOAD = ['periods', 'issues', 'advice', 'workload', 'quality', 'flash'];
+const FINDING_SEVERITIES: FindingSeverity[] = ['blocker', 'warning', 'info'];
+const QUALITY_METRICS = ['completeness', 'teacher_compactness', 'section_compactness', 'distribution', 'practical_doubles', 'workload_balance'] as const;
 const SEVERITIES: Severity[] = ['error', 'warning', 'info'];
 const SEVERITY_RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
 const NO_FILTERS: GridFilters = { branch: '', department: '', class: '', section: '' };
@@ -135,18 +212,32 @@ function TimetablePage({
     teacherSubjects,
     practicalSubjectIds,
     issues,
+    advice,
+    workload,
+    quality,
     subjects,
     filters,
+    engine,
+    viewingVersion,
+    runDetail = null,
+    comparison = null,
+    moveSuggestions = null,
+    substitutes = null,
     authorization,
 }: Props) {
     const i18n = t();
     const tt = i18n.timetable;
+    const et = tt.engine;
     const yearId = filters.academic_year_id;
     const scheduleRequest = useRegistryRequest(SCHEDULE_RELOAD);
     const page = usePage().props as { academicYears?: YearOption[] };
     const years = page.academicYears ?? [];
+    /** Working days of the school (settings), Sunday–Thursday by default. */
+    const DAYS = engine?.settings.working_days ?? DEFAULT_DAYS;
 
-    const [view, setView] = useState<'section' | 'teacher'>('section');
+    const [view, setView] = useState<'section' | 'teacher' | 'room'>('section');
+    const [roomId, setRoomId] = useState<number | null>(engine?.rooms[0]?.id ?? null);
+    const [engineSheet, setEngineSheet] = useState<'generate' | 'activities' | 'constraints' | 'availability' | 'versions' | 'settings' | null>(null);
     const [gridFilters, setGridFilters] = useState<GridFilters>(NO_FILTERS);
     const [focusId, setFocusId] = useState<number | null>(null);
     const [teacherId, setTeacherId] = useState<number | null>(teachers[0]?.id ?? null);
@@ -157,13 +248,15 @@ function TimetablePage({
     const [swapPair, setSwapPair] = useState<{ from: number; to: number } | null>(null);
     const [periodsOpen, setPeriodsOpen] = useState(false);
     const [auditOpen, setAuditOpen] = useState(false);
+    const [readinessOpen, setReadinessOpen] = useState(false);
     const [highlight, setHighlight] = useState<number[]>([]);
     const [preview, setPreview] = useState(false);
     const [previewA3, setPreviewA3] = useState(false);
     const previewRef = useRef<HTMLDivElement | null>(null);
     const [saving, setSaving] = useState(false);
 
-    const canPlace = authorization.can_create && yearId !== null;
+    // A version on the grid is history: read-only.
+    const canPlace = authorization.can_create && yearId !== null && viewingVersion === null;
     const activeTeacherId = teachers.some((x) => x.id === teacherId) ? teacherId : (teachers[0]?.id ?? null);
     const sortedPeriods = useMemo(() => [...periods].sort((a, b) => a.period_number - b.period_number), [periods]);
     const lessonPeriods = sortedPeriods.filter((p) => p.period_type === LESSON);
@@ -269,10 +362,28 @@ function TimetablePage({
 
         return bySection;
     }, [schedules]);
+    /** The teacher's week: lead or co-teacher; a joined lesson once (its lead row). */
     const teacherCells = useMemo(
-        () => new Map(schedules.filter((s) => s.teacher_id === activeTeacherId).map((s) => [cellKey(s.day_of_week, s.period_id), s])),
+        () => new Map(schedules.filter((s) => (s.teacher_id === activeTeacherId || s.co_teacher_id === activeTeacherId) && (s.joined_to ?? null) === null).map((s) => [cellKey(s.day_of_week, s.period_id), s])),
         [schedules, activeTeacherId],
     );
+    /** «حسب القاعة»: the room's week (lead rows hold the room). */
+    const activeRoomId = engine?.rooms.some((r) => r.id === roomId) ? roomId : (engine?.rooms[0]?.id ?? null);
+    const roomCells = useMemo(
+        () => new Map(schedules.filter((s) => s.room_id !== null && s.room_id === activeRoomId && (s.joined_to ?? null) === null).map((s) => [cellKey(s.day_of_week, s.period_id), s])),
+        [schedules, activeRoomId],
+    );
+    /** Lessons sharing a section cell (parallel groups of one division): the cell shows the first and «+n». */
+    const sharedCells = useMemo(() => {
+        const count = new Map<string, number>();
+        for (const s of schedules) {
+            const key = `${s.section_id}:${cellKey(s.day_of_week, s.period_id)}`;
+            count.set(key, (count.get(key) ?? 0) + 1);
+        }
+
+        return count;
+    }, [schedules]);
+    const groupNames = useMemo(() => new Map((engine?.groups ?? []).map((g) => [g.id, g.name])), [engine]);
 
     const lessonSeverity = useMemo(() => {
         const worst = new Map<number, Severity>();
@@ -463,6 +574,30 @@ function TimetablePage({
 
         return p === undefined ? '' : p.period_type === LESSON ? `${tt.periodLabel} ${lessonNumber.get(p.id) ?? ''}` : tt.breakLabel;
     };
+    /** What the engine sheets read (names resolved once; permissions from the server). */
+    const engineCtx: EngineContext | null =
+        engine === null || yearId === null
+            ? null
+            : {
+                  engine,
+                  yearId,
+                  lessonPeriods: lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0, label: periodLabel(p.id) })),
+                  days: DAYS,
+                  dayLabel: dayOfWeekLabel,
+                  sections: sections.map((s) => ({ id: s.id, label: `${s.class_name} — ${s.name}`, classId: s.class_id })),
+                  teachers: teachers.map((x) => ({ id: x.id, name: x.short_name })),
+                  subjects,
+                  branches,
+                  sectionLabel,
+                  teacherName: (id) => (id === null ? '' : (teacherNames.get(id) ?? `#${id}`)),
+                  subjectName: (id) => (id === null ? '' : (subjectNames.get(id) ?? `#${id}`)),
+                  can: {
+                      manage: authorization.can_manage_constraints,
+                      generate: authorization.can_generate,
+                      publish: authorization.can_publish,
+                      approve: authorization.can_approve,
+                  },
+              };
     const issueText = (issue: Issue) =>
         ((tt.issues as Record<string, string>)[issue.code] ?? issue.code)
             .replace('{section}', sectionLabel(issue.section_id))
@@ -526,6 +661,7 @@ function TimetablePage({
                 commands: [
                     { id: 'timetable-view-section', label: tt.bySection, icon: LayoutGrid, pressed: view === 'section', onSelect: () => setView('section') },
                     { id: 'timetable-view-teacher', label: tt.byTeacher, icon: UserRound, pressed: view === 'teacher', onSelect: () => setView('teacher') },
+                    { id: 'timetable-view-room', label: et.byRoom, icon: DoorOpen, pressed: view === 'room', disabled: (engine?.rooms.length ?? 0) === 0, onSelect: () => setView('room') },
                 ],
             },
             {
@@ -543,6 +679,8 @@ function TimetablePage({
                                     {field(gridFilters.class, tt.class, classOptions, (next) => setFilter({ class: next }))}
                                     {field(gridFilters.section, tt.section, sectionOptions, (next) => setFilter({ section: next }))}
                                 </>
+                            ) : view === 'room' ? (
+                                field(activeRoomId === null ? '' : String(activeRoomId), et.room, (engine?.rooms ?? []).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` })), (next) => setRoomId(Number(next)))
                             ) : (
                                 field(activeTeacherId === null ? '' : String(activeTeacherId), tt.teacher, teacherOptions, (next) => setTeacherId(Number(next)))
                             )}
@@ -582,12 +720,72 @@ function TimetablePage({
             },
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [i18n, years, sections, branches, teachers, view, yearId, gridFilters, activeTeacherId, issueCounts, canPlace, saving, lessonPeriods.length, visibleSectionIds]);
+    }, [i18n, years, sections, branches, teachers, view, yearId, gridFilters, activeTeacherId, activeRoomId, engine, issueCounts, canPlace, saving, lessonPeriods.length, visibleSectionIds]);
     useRegisterPageRibbon('home', homeRibbonGroups);
 
-    // «تحرير»: the building tools.
-    const editRibbonGroups = useMemo(
-        (): PageRibbonGroup[] => [
+    // «تحرير»: one line of commands — building tools · checks · engine. Each icon is its own command and its
+    // shape / colour tells the state (errors, blocked, a run working, a version waiting for approval …).
+    const activeRun = engine?.runs.find((r) => r.status === 1 || r.status === 2) ?? null;
+    const lastRun = engine?.runs[0] ?? null;
+    const reviewVersions = engine?.versions.filter((v) => v.status === 2).length ?? 0;
+    const blockers = advice?.findings.filter((f) => f.severity === 'blocker').length ?? 0;
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        const noData = engine === null;
+        const audit: Pick<PageRibbonCommand, 'icon' | 'iconTone' | 'count'> =
+            issueCounts.error > 0
+                ? { icon: ShieldAlert, iconTone: 'danger', count: issueCounts.error }
+                : issueCounts.warning > 0
+                  ? { icon: TriangleAlert, iconTone: 'warning', count: issueCounts.warning }
+                  : { icon: ShieldCheck, iconTone: 'ok' };
+        const readiness: Pick<PageRibbonCommand, 'icon' | 'iconTone' | 'count'> =
+            advice === null
+                ? { icon: Gauge }
+                : advice.verdict === 'blocked'
+                  ? { icon: OctagonX, iconTone: 'danger', count: blockers }
+                  : quality?.grade === 'complete'
+                    ? { icon: BadgeCheck, iconTone: 'ok' }
+                    : quality?.grade === 'infeasible'
+                      ? { icon: CircleAlert, iconTone: 'danger' }
+                      : { icon: Gauge, iconTone: 'warning' };
+        const generate: Pick<PageRibbonCommand, 'icon' | 'iconTone' | 'count'> =
+            activeRun !== null
+                ? {
+                      icon: LoaderCircle,
+                      iconTone: 'active',
+                      count: activeRun.progress && activeRun.progress.total > 0 ? Math.round((100 * activeRun.progress.placed) / activeRun.progress.total) : undefined,
+                  }
+                : lastRun?.status === 3
+                  ? { icon: WandSparkles, iconTone: 'warning' }
+                  : lastRun?.status === 4
+                    ? { icon: Wand2, iconTone: 'danger' }
+                    : { icon: Wand2 };
+        const versions: Pick<PageRibbonCommand, 'icon' | 'iconTone' | 'count'> =
+            engine?.status.stale
+                ? { icon: FileWarning, iconTone: 'warning' }
+                : reviewVersions > 0
+                  ? { icon: FileClock, iconTone: 'warning', count: reviewVersions }
+                  : engine?.status.effective_version_id
+                    ? { icon: FileCheck, iconTone: 'ok' }
+                    : { icon: History };
+
+        // Every icon has a coloured outline: its state colour, else the system chrome colour.
+        // Each command has its own colour; a state colour (ok / warning / danger / working) replaces it.
+        const COLOURS: Record<string, PageRibbonCommand['iconTone']> = {
+            'timetable-auto-place': 'amber',
+            'timetable-preview': 'steel',
+            'timetable-audit': 'forest',
+            'timetable-readiness': 'sky',
+            'timetable-engine-generate': 'forest',
+            'timetable-engine-activities': 'authority',
+            'timetable-engine-constraints': 'rose',
+            'timetable-engine-availability': 'sky',
+            'timetable-engine-versions': 'growth',
+            'timetable-engine-settings': 'steel',
+        };
+        const outlined = (groups: PageRibbonGroup[]): PageRibbonGroup[] =>
+            groups.map((group) => ({ ...group, commands: group.commands.map((command) => ({ ...command, iconTone: command.iconTone ?? COLOURS[command.id] ?? 'authority' })) }));
+
+        return outlined([
             {
                 id: 'timetable-tools',
                 label: tt.ribbonTools,
@@ -611,25 +809,85 @@ function TimetablePage({
                 ],
             },
             {
-                id: 'timetable-audit-group',
-                label: tt.audit,
-                commands: [],
-                custom: (
-                    <button type="button" className="sis-ribbon__item sis-timetable-ribbon-audit" data-item-id="timetable-audit" title={tt.auditHint} onClick={() => setAuditOpen(true)}>
-                        <ListChecks className="sis-ribbon__icon" aria-hidden />
-                        <span className="sis-ribbon__label">{tt.audit}</span>
-                        <span className="sis-timetable-ribbon-audit__counts">
-                            <span className="sis-timetable-badge sis-timetable-badge--error" title={tt.auditErrors}>{issueCounts.error}</span>
-                            <span className="sis-timetable-badge sis-timetable-badge--warning" title={tt.auditWarnings}>{issueCounts.warning}</span>
-                            <span className="sis-timetable-badge sis-timetable-badge--info" title={tt.auditInfo}>{issueCounts.info}</span>
-                        </span>
-                    </button>
-                ),
+                id: 'timetable-checks',
+                label: et.ribbonChecks,
+                commands: [
+                    {
+                        id: 'timetable-audit',
+                        label: tt.audit,
+                        ...audit,
+                        title: `${tt.auditHint} — ${tt.auditErrors} ${issueCounts.error} · ${tt.auditWarnings} ${issueCounts.warning} · ${tt.auditInfo} ${issueCounts.info}`,
+                        onSelect: () => setAuditOpen(true),
+                    },
+                    {
+                        id: 'timetable-readiness',
+                        label: tt.readiness,
+                        ...readiness,
+                        title: advice === null ? tt.readinessHint : `${advice.verdict === 'ready' ? tt.readinessReady : tt.readinessBlocked} — ${tt.readinessHint}`,
+                        disabled: advice === null,
+                        onSelect: () => setReadinessOpen(true),
+                    },
+                ],
             },
-        ],
+            {
+                id: 'timetable-engine',
+                label: et.ribbonEngine,
+                commands: [
+                    {
+                        id: 'timetable-engine-generate',
+                        label: et.generate,
+                        ...generate,
+                        title: activeRun !== null ? et.runStatus[activeRun.status] : lastRun?.status === 3 ? et.runAwaitingReview : et.generateHint,
+                        disabled: noData || lessonPeriods.length === 0,
+                        onSelect: () => setEngineSheet('generate'),
+                    },
+                    {
+                        id: 'timetable-engine-activities',
+                        label: et.activities,
+                        icon: Boxes,
+                        count: engine !== null && engine.activities.length > 0 ? engine.activities.length : undefined,
+                        title: et.activitiesHint,
+                        disabled: noData,
+                        onSelect: () => setEngineSheet('activities'),
+                    },
+                    {
+                        id: 'timetable-engine-constraints',
+                        label: et.constraints,
+                        icon: Scale,
+                        count: engine !== null && engine.rules.length > 0 ? engine.rules.length : undefined,
+                        title: et.constraintsHint,
+                        disabled: noData,
+                        onSelect: () => setEngineSheet('constraints'),
+                    },
+                    {
+                        id: 'timetable-engine-availability',
+                        label: et.availability,
+                        icon: CalendarX,
+                        title: et.availabilityHint,
+                        disabled: noData || lessonPeriods.length === 0,
+                        onSelect: () => setEngineSheet('availability'),
+                    },
+                    {
+                        id: 'timetable-engine-versions',
+                        label: et.versions,
+                        ...versions,
+                        title: engine?.status.stale ? et.staleBanner : reviewVersions > 0 ? et.versionsAwaiting : et.versionsHint,
+                        disabled: noData,
+                        onSelect: () => setEngineSheet('versions'),
+                    },
+                    {
+                        id: 'timetable-engine-settings',
+                        label: et.settings,
+                        icon: Settings2,
+                        title: et.settingsHint,
+                        disabled: noData || !authorization.can_manage_constraints,
+                        onSelect: () => setEngineSheet('settings'),
+                    },
+                ],
+            },
+        ]);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tt, canPlace, view, visibleSectionIds, lessonPeriods.length, saving, issueCounts],
-    );
+    }, [tt, canPlace, view, visibleSectionIds, lessonPeriods.length, saving, issueCounts, advice, quality, engine]);
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const addRibbonGroups = useMemo(
@@ -650,9 +908,18 @@ function TimetablePage({
     // ── Grid ─────────────────────────────────────────────────────────────────
     const lessonCard = (s: Schedule, line: string, interactive: boolean) => {
         const severity = lessonSeverity.get(s.id);
+        // A locked lesson opens (to unlock) but is not dragged.
+        const draggable = interactive && s.locked !== true;
+        const shared = (sharedCells.get(`${s.section_id}:${cellKey(s.day_of_week, s.period_id)}`) ?? 1) - 1;
+        const markers = [
+            s.group_id ? groupNames.get(s.group_id) ?? et.group : null,
+            s.co_teacher_id ? `+ ${teacherNames.get(s.co_teacher_id) ?? ''}` : null,
+            s.week_no ? `${et.week} ${s.week_no}` : null,
+            shared > 0 ? `+${shared}` : null,
+        ].filter((m): m is string => m !== null);
         const className = [
             'sis-timetable-card',
-            interactive ? 'sis-timetable-card--draggable' : '',
+            draggable ? 'sis-timetable-card--draggable' : '',
             severity !== undefined ? `sis-timetable-card--${severity}` : '',
             highlight.includes(s.id) ? 'sis-timetable-card--highlight' : '',
         ]
@@ -664,20 +931,21 @@ function TimetablePage({
             <div
                 className={className}
                 style={subjectStyles.get(s.subject_id)}
-                title={`${subjectName} — ${line}`}
-                draggable={interactive}
-                onDragStart={interactive ? (event) => startDrag(event, { sectionId: s.section_id, subjectId: s.subject_id, teacherId: s.teacher_id, scheduleId: s.id }) : undefined}
+                title={`${subjectName} — ${line}${markers.length > 0 ? ` — ${markers.join(' · ')}` : ''}${s.locked ? ` — ${et.locked}` : ''}`}
+                draggable={draggable}
+                onDragStart={draggable ? (event) => startDrag(event, { sectionId: s.section_id, subjectId: s.subject_id, teacherId: s.teacher_id, scheduleId: s.id }) : undefined}
                 onDragEnd={endDrag}
             >
                 <span className="sis-timetable-card__subject">
+                    {s.locked ? <Lock aria-label={et.locked} width={11} height={11} /> : null}
                     {subjectName}
                     {practical.has(s.subject_id) ? <span className="sis-timetable-card__badge">{tt.practical}</span> : null}
                 </span>
-                <span className="sis-timetable-card__line">{line}</span>
+                <span className="sis-timetable-card__line">{markers.length > 0 ? `${line} · ${markers.join(' · ')}` : line}</span>
                 {interactive ? (
                     <button type="button" className="sis-timetable-card__open" aria-label={`${tt.editLesson}: ${subjectName}`} onClick={() => setEditId(s.id)} />
                 ) : null}
-                {interactive && authorization.can_cancel ? (
+                {draggable && authorization.can_cancel ? (
                     <button type="button" className="sis-timetable-card__remove" aria-label={tt.removeLesson} title={tt.removeLesson} disabled={saving} onClick={() => void unplace(s.id)}>
                         <X aria-hidden />
                     </button>
@@ -1007,12 +1275,48 @@ function TimetablePage({
         </div>
     );
 
+    const activeRoom = engine?.rooms.find((r) => r.id === activeRoomId) ?? null;
+    const roomView = (
+        <div className="sis-timetable-layout sis-timetable-layout--wide">
+            <div className="sis-timetable-boards sis-timetable-boards--single">
+                <section className="sis-timetable-board" aria-busy={saving}>
+                    <header className="sis-timetable-board__head">
+                        <span className="sis-timetable-board__title">{activeRoom === null ? et.noRooms : `${activeRoom.code} — ${activeRoom.name}`}</span>
+                        <span className="sis-timetable-board__meta">
+                            <bdi dir="ltr">{roomCells.size}</bdi> {tt.lessonsUnit}
+                        </span>
+                    </header>
+                    <div className="sis-timetable-grid">
+                        {gridTable((day, period) => {
+                            const placed = roomCells.get(cellKey(day, period.id));
+
+                            return (
+                                <td key={cellKey(day, period.id)} className="sis-timetable-cell">
+                                    {placed !== undefined ? lessonCard(placed, `${sectionLabel(placed.section_id)} · ${teacherNames.get(placed.teacher_id) ?? ''}`, false) : null}
+                                </td>
+                            );
+                        }, false)}
+                    </div>
+                </section>
+            </div>
+        </div>
+    );
+
     return (
         <>
             <Head title={tt.title} />
             <div className="sis-ops-hub sis-admission-page sis-timetable-page flex h-full min-h-0 flex-col overflow-hidden pb-4" dir="rtl" lang="ar">
                 {authorization.can_create ? null : <p className="sis-branches-page__notice">{tt.readOnly}</p>}
                 {yearId === null ? <p className="sis-branches-page__notice">{tt.noYear}</p> : null}
+                {viewingVersion !== null ? (
+                    <p className="sis-branches-page__notice">
+                        {et.viewingVersion.replace('{no}', String(viewingVersion.version_no)).replace('{name}', viewingVersion.name)}{' '}
+                        <button type="button" className="sis-ops-hub__link" onClick={() => router.get('/timetable', { academic_year_id: yearId }, { preserveScroll: true })}>
+                            {et.backToWorking}
+                        </button>
+                    </p>
+                ) : null}
+                {engine?.status.stale ? <p className="sis-branches-page__notice">{et.staleBanner}</p> : null}
 
                 <div className="sis-admission-page-body sis-timetable-body">
                     {yearId === null ? null : lessonPeriods.length === 0 ? notice(tt.noPeriodsTitle, tt.noPeriodsHint) : (
@@ -1027,7 +1331,7 @@ function TimetablePage({
                                     <span className="sis-timetable-toolbar__meta">{tt.saving}</span>
                                 ) : null}
                             </div>
-                            {view === 'section' ? sectionView : teacherView}
+                            {view === 'section' ? sectionView : view === 'room' ? roomView : teacherView}
                         </>
                     )}
                 </div>
@@ -1187,11 +1491,70 @@ function TimetablePage({
                         }
                     }}
                     onClose={() => setEditId(null)}
+                    extra={
+                        engineCtx !== null ? (
+                            <LessonEngineTools
+                                ctx={engineCtx}
+                                lesson={editing}
+                                suggestions={moveSuggestions}
+                                substitutes={substitutes}
+                                periodLabel={periodLabel}
+                                canLock={authorization.can_update}
+                                canSubstitute={authorization.can_substitute}
+                                onMove={async (day, periodId) => {
+                                    if (await run('patch', `/timetable/schedules/${editing.id}`, lessonBody({ ...editing, day_of_week: day, period_id: periodId }))) {
+                                        setEditId(null);
+                                    }
+                                }}
+                                onSwap={async (withId) => {
+                                    if (await run('post', `/timetable/schedules/${editing.id}/swap`, { with_schedule_id: withId })) {
+                                        setEditId(null);
+                                    }
+                                }}
+                            />
+                        ) : null
+                    }
                 />
             ) : null}
 
+            {engineCtx !== null && engineSheet === 'generate' ? (
+                <GenerateSheet
+                    ctx={engineCtx}
+                    visibleSectionIds={visibleSectionIds}
+                    focusSectionId={view === 'section' ? focusSectionId : null}
+                    focusTeacherId={view === 'teacher' ? activeTeacherId : null}
+                    preview={{
+                        sections: advice?.totals.sections ?? sections.length,
+                        teachers: advice?.totals.teachers ?? teachers.length,
+                        lessons: advice?.totals.weekly_lessons ?? 0,
+                        locked: schedules.filter((s) => s.locked === true).length,
+                    }}
+                    runDetail={runDetail}
+                    onClose={() => setEngineSheet(null)}
+                />
+            ) : null}
+            {engineCtx !== null && engineSheet === 'activities' ? (
+                <ActivitiesSheet ctx={engineCtx} sectionId={view === 'section' ? focusSectionId : null} onClose={() => setEngineSheet(null)} />
+            ) : null}
+            {engineCtx !== null && engineSheet === 'constraints' ? <ConstraintsSheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
+            {engineCtx !== null && engineSheet === 'availability' ? <AvailabilitySheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
+            {engineCtx !== null && engineSheet === 'versions' ? <VersionsSheet ctx={engineCtx} comparison={comparison} onClose={() => setEngineSheet(null)} /> : null}
+            {engineCtx !== null && engineSheet === 'settings' ? <SettingsSheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
+
             {auditOpen ? (
                 <AuditSheet issues={issues} sectionId={view === 'section' ? focusSectionId : null} text={issueText} onGo={goToIssue} onClose={() => setAuditOpen(false)} />
+            ) : null}
+
+            {readinessOpen && advice !== null && quality !== null ? (
+                <ReadinessSheet
+                    advice={advice}
+                    quality={quality}
+                    workload={workload}
+                    sectionLabel={sectionLabel}
+                    teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
+                    subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
+                    onClose={() => setReadinessOpen(false)}
+                />
             ) : null}
 
             <ConfirmDialog
@@ -1237,6 +1600,7 @@ function LessonSheet({
     onShift,
     onDelete,
     onClose,
+    extra = null,
 }: {
     lesson: Schedule;
     when: string;
@@ -1250,6 +1614,8 @@ function LessonSheet({
     onShift: (direction: 1 | -1) => void;
     onDelete: () => void;
     onClose: () => void;
+    /** Engine tools (lock, move suggestions, substitutes) under the lesson fields. */
+    extra?: ReactNode;
 }) {
     const tt = t().timetable;
     const [subjectId, setSubjectId] = useState(String(lesson.subject_id));
@@ -1294,6 +1660,7 @@ function LessonSheet({
                     <p className="sis-timetable-sheet__hint sis-branches-field--wide">{tt.shiftHint}</p>
                 </div>
             </SheetSection>
+            {extra}
             <div className="sis-admission-sheet__actions">
                 <Button type="button" variant="outline" onClick={onClose}>
                     {tt.close}
@@ -1379,6 +1746,162 @@ function AuditSheet({
                         );
                     })
                 )}
+            </div>
+            <div className="sis-admission-sheet__actions">
+                <Button type="button" variant="outline" onClick={onClose}>
+                    {tt.close}
+                </Button>
+            </div>
+        </RegistrySheetDialog>
+    );
+}
+
+/**
+ * «الجاهزية والجودة»: before placing — can the lessons fit the week (ready / blocked and why); after —
+ * how good the grid is (valid ≠ complete ≠ good) and each teacher's load. Computed on the server.
+ */
+function ReadinessSheet({
+    advice,
+    quality,
+    workload,
+    sectionLabel,
+    teacherName,
+    subjectName,
+    onClose,
+}: {
+    advice: Advice;
+    quality: Quality;
+    workload: WorkloadRow[];
+    sectionLabel: (id: number | null) => string;
+    teacherName: (id: number) => string;
+    subjectName: (id: number) => string;
+    onClose: () => void;
+}) {
+    const tt = t().timetable;
+    const titles: Record<FindingSeverity, string> = { blocker: tt.readinessBlockers, warning: tt.auditWarnings, info: tt.auditInfo };
+    const percent = (value: number | null) => (value === null ? '—' : `${value}%`);
+    const findingText = (f: Advice['findings'][number]) =>
+        ((tt.findings as Record<string, string>)[f.code] ?? f.code)
+            .replace('{section}', sectionLabel(f.section_id))
+            .replace('{teacher}', f.teacher_id === null ? '' : teacherName(f.teacher_id))
+            .replace('{subject}', f.subject_id === null ? '' : subjectName(f.subject_id))
+            .replace('{count}', String(f.count ?? ''))
+            .replace('{limit}', String(f.limit ?? ''));
+    const readinessRows: Array<[string, number | null]> = [
+        [tt.readinessSchoolDay, advice.readiness.school_day],
+        [tt.readinessWeeklyLoads, advice.readiness.weekly_loads],
+        [tt.readinessQualified, advice.readiness.qualified],
+        [tt.readinessSections, advice.readiness.sections],
+        [tt.readinessCapacity, advice.readiness.capacity],
+    ];
+
+    return (
+        <RegistrySheetDialog title={tt.readiness} className="sis-branches-sheet sis-timetable-sheet sis-timetable-audit-sheet sis-timetable-engine-sheet sis-timetable-engine-sheet--readiness" onClose={onClose}>
+            <div className="sis-timetable-audit__bar">
+                <span className={`sis-timetable-badge sis-timetable-badge--${advice.verdict === 'ready' ? 'info' : 'error'}`}>
+                    {advice.verdict === 'ready' ? tt.readinessReady : tt.readinessBlocked}
+                </span>
+                <span className="sis-timetable-badge sis-timetable-badge--info">
+                    {tt.readinessOverall}: <bdi dir="ltr">{percent(advice.readiness.overall)}</bdi>
+                </span>
+                <span className={`sis-timetable-badge sis-timetable-badge--${quality.feasible ? 'info' : 'error'}`}>
+                    {(tt.qualityGrades as Record<string, string>)[quality.grade]} · {tt.qualityOverall}: <bdi dir="ltr">{percent(quality.overall)}</bdi>
+                </span>
+            </div>
+            <div className="sis-timetable-audit__list">
+                <SheetSection id="timetable-readiness-summary" title={tt.readinessSummary}>
+                    <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                        {readinessRows.map(([label, value]) => (
+                            <li key={label} className="sis-timetable-audit__item">
+                                <span className="sis-timetable-audit__text">{label}</span>
+                                <bdi dir="ltr">{percent(value)}</bdi>
+                            </li>
+                        ))}
+                        <li className="sis-timetable-audit__item">
+                            <span className="sis-timetable-audit__text">
+                                {tt.readinessTotals
+                                    .replace('{sections}', String(advice.totals.sections))
+                                    .replace('{teachers}', String(advice.totals.teachers))
+                                    .replace('{lessons}', String(advice.totals.weekly_lessons))
+                                    .replace('{slots}', String(advice.totals.slots_per_week))}
+                            </span>
+                        </li>
+                    </ul>
+                </SheetSection>
+
+                {FINDING_SEVERITIES.map((severity) => {
+                    const group = advice.findings.filter((f) => f.severity === severity);
+
+                    return group.length === 0 ? null : (
+                        <SheetSection key={severity} id={`timetable-readiness-${severity}`} title={`${titles[severity]} (${group.length})`}>
+                            <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                                {group.map((f, index) => (
+                                    <li key={`${f.code}-${index}`} className={`sis-timetable-audit__item sis-timetable-audit__item--${severity === 'blocker' ? 'error' : severity}`}>
+                                        <span className="sis-timetable-audit__text">{findingText(f)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </SheetSection>
+                    );
+                })}
+
+                <SheetSection id="timetable-quality" title={tt.quality}>
+                    <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                        {QUALITY_METRICS.map((metric) => (
+                            <li key={metric} className="sis-timetable-audit__item">
+                                <span className="sis-timetable-audit__text">{(tt.qualityMetrics as Record<string, string>)[metric]}</span>
+                                <bdi dir="ltr">{percent(quality.metrics[metric] ?? null)}</bdi>
+                            </li>
+                        ))}
+                    </ul>
+                </SheetSection>
+
+                <SheetSection id="timetable-workload" title={tt.workload}>
+                    {workload.length === 0 ? (
+                        <p className="sis-timetable-audit__clean">{tt.workloadEmpty}</p>
+                    ) : (
+                        <div className="sis-admission-periods-table sis-admission-drafts-table sis-branches-field--wide">
+                            <div className="sis-admission-drafts-table__scroller" data-allow-x-scroll>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>{tt.teacher}</th>
+                                            <th className="sis-admission-drafts-table__num">{tt.workloadRequired}</th>
+                                            <th className="sis-admission-drafts-table__num">{tt.workloadPlaced}</th>
+                                            <th className="sis-admission-drafts-table__num">{tt.practical}</th>
+                                            <th className="sis-admission-drafts-table__num">{tt.workloadMaxDay}</th>
+                                            <th className="sis-admission-drafts-table__num">{tt.workloadGaps}</th>
+                                            <th className="sis-admission-drafts-table__num">{tt.workloadConsecutive}</th>
+                                            <th>{tt.workloadStatus}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {workload.map((row) => (
+                                            <tr key={row.teacher_id}>
+                                                <td>{teacherName(row.teacher_id)}</td>
+                                                <td className="sis-admission-drafts-table__num">
+                                                    <bdi dir="ltr">
+                                                        {row.required}/{row.capacity}
+                                                    </bdi>
+                                                </td>
+                                                <td className="sis-admission-drafts-table__num">{row.placed}</td>
+                                                <td className="sis-admission-drafts-table__num">{row.practical}</td>
+                                                <td className="sis-admission-drafts-table__num">{row.max_day}</td>
+                                                <td className="sis-admission-drafts-table__num">{row.gaps}</td>
+                                                <td className="sis-admission-drafts-table__num">{row.max_consecutive}</td>
+                                                <td>
+                                                    <span className={`sis-timetable-badge sis-timetable-badge--${row.status === 'over' ? 'error' : row.status === 'incomplete' ? 'warning' : 'info'}`}>
+                                                        {(tt.workloadStatuses as Record<string, string>)[row.status]}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </SheetSection>
             </div>
             <div className="sis-admission-sheet__actions">
                 <Button type="button" variant="outline" onClick={onClose}>

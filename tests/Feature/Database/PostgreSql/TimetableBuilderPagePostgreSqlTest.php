@@ -151,6 +151,12 @@ final class TimetableBuilderPagePostgreSqlTest extends PostgreSqlIntegrationTest
                 ->has('issues')
                 ->where('teacherSubjects.0.teacher_id', $ctx['teacher'])
                 ->where('practicalSubjectIds', [])
+                // «الجاهزية والجودة»: the lessons fit the week, the grid stands, the teacher holds 4 lessons.
+                ->where('advice.verdict', 'ready')
+                ->where('advice.totals.slots_per_week', 15)
+                ->where('quality.feasible', true)
+                ->where('workload.0.teacher_id', $ctx['teacher'])
+                ->where('workload.0.placed', 4)
                 ->etc());
     }
 

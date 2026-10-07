@@ -4,22 +4,26 @@ namespace App\Application\Timetable\Support;
 
 use App\Domain\Timetable\Data\TimetableBoard;
 use App\Domain\Timetable\Repositories\PeriodRepositoryInterface;
+use App\Domain\Timetable\Repositories\TimetableEngineReadRepositoryInterface;
 use App\Domain\Timetable\Repositories\TimetableWorkspaceReadRepositoryInterface;
 
 /**
- * Loads one school-year timetable as a {@see TimetableBoard}. A section's lessons are the active
- * teaching assignments naming the section, or its class without a section (weekly = curriculum hours).
+ * Loads one school-year timetable as a {@see TimetableBoard} — the single projection every timetable service
+ * reads. A section's requirements are the active teaching assignments naming the section, or its class without
+ * a section (weekly = curriculum hours); the engine side adds settings, activities, groups, availability, rules
+ * (effective today), rooms, workshops and per-section context.
  */
 final class TimetableBoardLoader
 {
     public function __construct(
         private readonly PeriodRepositoryInterface $periods,
         private readonly TimetableWorkspaceReadRepositoryInterface $workspace,
+        private readonly TimetableEngineReadRepositoryInterface $engine,
     ) {}
 
     /**
      * @param  list<array{teacher_id: int, subject_id: int, class_id: int, section_id: int|null, weekly_hours: int|null}>|null  $lessons  already loaded lessons (avoids a second read)
-     * @param  list<array{id: int, section_id: int, day_of_week: int, period_id: int, subject_id: int, teacher_id: int, room_id: int|null}>|null  $schedules
+     * @param  list<array<string, mixed>>|null  $schedules
      * @param  list<array{id: int, full_name: string}>|null  $teachers
      */
     public function load(int $schoolId, int $academicYearId, ?array $lessons = null, ?array $schedules = null, ?array $teachers = null): TimetableBoard
@@ -33,13 +37,24 @@ final class TimetableBoardLoader
             $teacherSubjects[$row['teacher_id'].':'.$row['subject_id']] = true;
         }
 
+        $sections = $this->workspace->sections($schoolId, $academicYearId);
+
         return new TimetableBoard(
             periods: $this->periods->listForSchool($schoolId),
             schedules: $schedules,
-            requirements: self::requirements($this->workspace->sections($schoolId, $academicYearId), $lessons),
+            requirements: self::requirements($sections, $lessons),
             teacherSubjects: $teacherSubjects,
             activeTeacherIds: array_column($teachers, 'id'),
             practicalSubjectIds: $this->workspace->practicalSubjectIds(),
+            sectionIds: array_column($sections, 'id'),
+            settings: $this->engine->settings($schoolId, $academicYearId),
+            activities: $this->engine->activities($schoolId, $academicYearId),
+            groups: $this->engine->groups($schoolId, $academicYearId),
+            availability: $this->engine->availability($schoolId, $academicYearId),
+            rules: $this->engine->rules($schoolId, $academicYearId, (new \DateTimeImmutable)->format('Y-m-d')),
+            rooms: $this->engine->rooms($schoolId),
+            workshops: $this->engine->workshops($schoolId),
+            sectionInfo: $this->engine->sectionInfo($schoolId, $academicYearId),
         );
     }
 
