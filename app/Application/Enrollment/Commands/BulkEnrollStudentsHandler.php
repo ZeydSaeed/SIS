@@ -24,16 +24,18 @@ final class BulkEnrollStudentsHandler implements CommandHandler
 
         $enrolled = [];
         $skipped = [];
+        $warnings = [];
         foreach (array_values(array_unique($command->studentIds)) as $studentId) {
             try {
-                $this->enroll->handle($this->singleCommand($command, $studentId));
+                $one = $this->enroll->handle($this->singleCommand($command, $studentId));
+                $warnings = array_values(array_unique([...$warnings, ...$one->warnings]));
                 $enrolled[] = $studentId;
             } catch (SisDomainException $e) {
                 $skipped[] = ['student_id' => $studentId, 'error_code' => $e->errorCode()];
             }
         }
 
-        return BulkEnrollStudentsResult::completed($enrolled, $skipped);
+        return BulkEnrollStudentsResult::completed($enrolled, $skipped, $warnings);
     }
 
     private function singleCommand(BulkEnrollStudentsCommand $command, int $studentId): EnrollStudentCommand

@@ -13,7 +13,7 @@ interface TeacherRosterReadRepositoryInterface
      *     items: list<array{id:int, employee_code:string, first_name:string, father_name:?string,
      *         grandfather_name:?string, last_name:string, full_name:string, national_id:?string,
      *         specialization_field:?string, hire_date:?string, status:int, is_primary:bool,
-     *         employment_type:?int}>,
+     *         employment_type:?int, weekly_lessons_min:?int, weekly_lessons_max:?int, daily_lessons_max:?int}>,
      *     total: int
      * }
      */

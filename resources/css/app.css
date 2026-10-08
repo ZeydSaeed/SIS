@@ -15582,6 +15582,10 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     --sis-sheet-w: min(96vw, 62rem);
 }
 
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--places {
+    --sis-sheet-w: min(96vw, 62rem); /* a place's full description on one line, the form two fields a line */
+}
+
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--availability {
     --sis-sheet-w: min(96vw, 80rem); /* day column + every lesson column with its full label */
 }

@@ -15,6 +15,19 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentTeacherRepository implements TeacherRepositoryInterface
 {
+    public function academicYearExists(int $academicYearId): bool
+    {
+        return DB::table(SchemaHelper::qualified('academic', 'academic_years'))->where('id', $academicYearId)->exists();
+    }
+
+    public function nationalIdTaken(string $nationalId, ?int $exceptTeacherId = null): bool
+    {
+        return DB::table(SchemaHelper::qualified('teachers', 'teachers'))
+            ->where('national_id', $nationalId)
+            ->when($exceptTeacherId !== null, fn ($q) => $q->where('id', '<>', $exceptTeacherId))
+            ->exists();
+    }
+
     public function employeeCodeExists(string $employeeCode): bool
     {
         return DB::table(SchemaHelper::qualified('teachers', 'teachers'))
@@ -108,6 +121,33 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ->where('academic_year_id', $academicYearId)
             ->whereNull('left_at')
             ->update(['employment_type' => $employmentType]);
+    }
+
+    public function setWorkloadLimits(int $teacherId, int $schoolId, int $academicYearId, ?int $weeklyMin, ?int $weeklyMax, ?int $dailyMax): void
+    {
+        $this->bindSchool($schoolId);
+
+        DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('teacher_id', $teacherId)
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('left_at')
+            ->update([
+                'weekly_lessons_min' => $weeklyMin,
+                'weekly_lessons_max' => $weeklyMax,
+                'daily_lessons_max' => $dailyMax,
+            ]);
+    }
+
+    public function activeLessonCount(array $teacherIds, int $schoolId): int
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+            ->where('school_id', $schoolId)
+            ->where('lifecycle_status', 1)
+            ->where(fn ($q) => $q->whereIn('teacher_id', $teacherIds)->orWhereIn('co_teacher_id', $teacherIds))
+            ->count();
     }
 
     public function activeTeachingAssignmentExists(TeachingAssignmentData $data): bool

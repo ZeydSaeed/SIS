@@ -12,6 +12,7 @@ use App\Domain\Admission\Data\UpdateApplicationFollowUpData;
 use App\Domain\Admission\Data\UpdateApplicationPeriodData;
 use App\Domain\Admission\Repositories\AdmissionRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
+use App\Infrastructure\Persistence\Student\StudentPlacementIdResolver;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
@@ -66,6 +67,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'branch_id' => $data->branchId,
             'branch_name' => $data->branchName,
             'department_name' => $data->departmentName,
+            'department_id' => $this->departmentIdFor($data->targetSchoolId, $data->branchId, $data->departmentName),
             'specialization_id' => $data->specializationId,
             'specialization_name' => $data->specializationName,
             'governorate' => $data->governorate,
@@ -224,6 +226,8 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 '=',
                 'apps.school_id',
             )
+            ->leftJoin(SchemaHelper::qualified('organization', 'departments').' as dep', 'dep.id', '=', 'apps.department_id')
+            ->leftJoin(SchemaHelper::qualified('organization', 'branches').' as br', 'br.id', '=', 'apps.branch_id')
             ->where('apps.id', $applicationId)
             ->where('apps.school_id', $schoolId)
             ->first([
@@ -244,10 +248,11 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
                 'apps.gender',
                 'apps.target_school_id',
                 'apps.branch_id',
-                'apps.branch_name',
+                DB::raw('COALESCE(br.name, apps.branch_name) as branch_name'),
                 'apps.grade_level_id',
                 'apps.intended_grade_name',
-                'apps.department_name',
+                DB::raw('COALESCE(dep.name, apps.department_name) as department_name'),
+                'apps.department_id',
                 'apps.specialization_id',
                 'apps.specialization_name',
                 'apps.governorate',
@@ -304,6 +309,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
             'intended_grade_name' => $this->nullableString($row->intended_grade_name),
             'department_name' => $this->nullableString($row->department_name),
+            'department_id' => $row->department_id !== null ? (int) $row->department_id : null,
             'specialization_id' => $row->specialization_id !== null ? (int) $row->specialization_id : null,
             'specialization_name' => $this->nullableString($row->specialization_name),
             'governorate' => $this->nullableString($row->governorate),
@@ -346,6 +352,19 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             ->all();
     }
 
+    /**
+     * The department a placement names, resolved once at write time (exact name inside the school, the given branch
+     * preferred) — from then on the application points at the row instead of repeating its name.
+     */
+    private function departmentIdFor(?int $schoolId, ?int $branchId, ?string $departmentName): ?int
+    {
+        if ($schoolId === null || $departmentName === null || trim($departmentName) === '') {
+            return null;
+        }
+
+        return (new StudentPlacementIdResolver)->findDepartment($schoolId, $branchId, $departmentName)['id'] ?? null;
+    }
+
     private function resolveBranchIdForSchool(int $schoolId, string $branchName): ?int
     {
         $name = trim($branchName);
@@ -368,17 +387,12 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             ->where('status', 1)
             ->get(['id', 'name']);
 
-        foreach ($rows as $candidate) {
-            $candidateName = trim((string) $candidate->name);
-            if ($candidateName === '') {
-                continue;
-            }
-            if (mb_stripos($candidateName, $name) !== false || mb_stripos($name, $candidateName) !== false) {
-                return (int) $candidate->id;
-            }
-        }
+        // Equality only — after the same Arabic normalization the UI uses. Never "contains": «الصناعي» must not
+        // match «الصناعات …», and an ambiguous name resolves to nothing rather than to a guess.
+        $wanted = StudentPlacementIdResolver::normalize($name);
+        $matches = $rows->filter(fn ($candidate): bool => StudentPlacementIdResolver::normalize((string) $candidate->name) === $wanted);
 
-        return null;
+        return $matches->count() === 1 ? (int) $matches->first()->id : null;
     }
 
     public function findAcceptedApplicationIdsWithoutStudent(int $schoolId): array
@@ -413,6 +427,10 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             $payload['branch_id'] = $data->branchId;
             $payload['branch_name'] = $data->branchName;
             $payload['department_name'] = $data->departmentName;
+            $schoolId = DB::table(SchemaHelper::qualified('admission', 'applications'))->where('id', $data->applicationId)->value('school_id');
+            $payload['department_id'] = $schoolId !== null
+                ? $this->departmentIdFor((int) $schoolId, $data->branchId, $data->departmentName)
+                : null;
             $payload['grade_level_id'] = $data->gradeLevelId;
             $payload['intended_grade_name'] = $data->intendedGradeName;
             $payload['specialization_id'] = $data->specializationId;

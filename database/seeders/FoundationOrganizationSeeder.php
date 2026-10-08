@@ -14,12 +14,12 @@ class FoundationOrganizationSeeder extends Seeder
     {
         $now = now();
 
-        $ministryId = $this->upsertReturningId(
+        $ministryId = $this->createOnce(
             'organization',
             'ministries',
             ['code' => FoundationReference::MINISTRY_CODE],
             [
-                'name' => 'Ministry of Education',
+                'name' => 'وزارة التربية',
                 'name_en' => 'Ministry of Education',
                 'status' => 1,
                 'created_at' => $now,
@@ -27,31 +27,31 @@ class FoundationOrganizationSeeder extends Seeder
             ],
         );
 
-        $directorateId = $this->upsertReturningId(
+        $directorateId = $this->createOnce(
             'organization',
             'directorates',
             ['code' => FoundationReference::DIRECTORATE_CODE],
             [
                 'ministry_id' => $ministryId,
-                'name' => 'Demo Directorate',
-                'region' => 'Demo Region',
+                'name' => 'مديرية التربية',
+                'region' => 'كربلاء',
                 'status' => 1,
                 'created_at' => $now,
                 'updated_at' => $now,
             ],
         );
 
-        $schoolId = $this->upsertReturningId(
+        $schoolId = $this->createOnce(
             'organization',
             'schools',
             ['code' => FoundationReference::SCHOOL_CODE],
             [
                 'directorate_id' => $directorateId,
-                'name' => 'Demo Vocational School',
+                'name' => FoundationReference::SCHOOL_NAME,
                 'school_type' => 2,
-                'address' => 'Demo Address',
+                'address' => 'كربلاء',
                 'phone' => '+964-000-000-0000',
-                'email' => 'demo-school@sis.local',
+                'email' => 'school@sis.local',
                 'status' => 1,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -69,7 +69,8 @@ class FoundationOrganizationSeeder extends Seeder
                 ['school_id' => $schoolId, 'code' => $code],
                 [
                     'name' => $branchName,
-                    'address' => $branchName.' Campus',
+                    'address' => 'مبنى فرع '.$branchName,
+                    'description' => 'فرع '.$branchName.' في '.FoundationReference::SCHOOL_NAME,
                     'status' => 1,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -91,30 +92,69 @@ class FoundationOrganizationSeeder extends Seeder
                         'branch_id' => $branchId,
                         'name' => $departmentName,
                         'department_type' => 1,
+                        'description' => 'اختصاص '.$departmentName.' — فرع '.$branchName,
                         'status' => 1,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ],
                 );
-
-                // Legacy code DEP-VOC → كهرباء (admission catalog SSOT).
-                if ($branchName === 'الصناعي' && $departmentName === 'كهرباء') {
-                    $this->upsertReturningId(
-                        'organization',
-                        'departments',
-                        ['school_id' => $schoolId, 'code' => FoundationReference::DEPARTMENT_CODE],
-                        [
-                            'branch_id' => $branchId,
-                            'name' => 'كهرباء',
-                            'department_type' => 1,
-                            'status' => 1,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ],
-                    );
-                }
             }
         }
+
+        $this->seedSecondSchool($directorateId, $now);
+    }
+
+    /**
+     * The second school of the demo (teachers who teach in two schools): one branch and one department,
+     * named exactly like the first school's so the catalogue has a single spelling.
+     */
+    private function seedSecondSchool(int $directorateId, mixed $now): void
+    {
+        $schoolId = $this->createOnce(
+            'organization',
+            'schools',
+            ['code' => FoundationReference::SECOND_SCHOOL_CODE],
+            [
+                'directorate_id' => $directorateId,
+                'name' => FoundationReference::SECOND_SCHOOL_NAME,
+                'school_type' => 2,
+                'address' => 'كربلاء',
+                'status' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        );
+
+        $branch = 'الحاسوب وتقنية المعلومات';
+        $branchId = $this->upsertReturningId(
+            'organization',
+            'branches',
+            ['school_id' => $schoolId, 'code' => AdmissionCatalogReference::branchCode($branch)],
+            ['name' => $branch, 'address' => 'مبنى فرع '.$branch, 'description' => 'فرع '.$branch.' في '.FoundationReference::SECOND_SCHOOL_NAME, 'status' => 1, 'created_at' => $now, 'updated_at' => $now],
+        );
+        $department = 'تجميع وصيانة الحاسوب';
+        $this->upsertReturningId(
+            'organization',
+            'departments',
+            ['school_id' => $schoolId, 'code' => AdmissionCatalogReference::departmentCode($branch, $department)],
+            ['branch_id' => $branchId, 'name' => $department, 'department_type' => 1, 'description' => 'اختصاص '.$department.' — فرع '.$branch, 'status' => 1, 'created_at' => $now, 'updated_at' => $now],
+        );
+    }
+
+    /**
+     * Creates the row once; later runs return the existing id without touching it (names are edited in the app).
+     *
+     * @param  array<string, mixed>  $unique
+     * @param  array<string, mixed>  $values
+     */
+    private function createOnce(string $schema, string $table, array $unique, array $values): int
+    {
+        $qualified = SchemaHelper::qualified($schema, $table);
+        $existing = DB::table($qualified)->where($unique)->first();
+
+        return $existing !== null
+            ? (int) $existing->id
+            : (int) DB::table($qualified)->insertGetId(array_merge($unique, $values));
     }
 
     /**

@@ -77,6 +77,9 @@ type Teacher = {
     status: number;
     is_primary: boolean;
     employment_type: number | null;
+    weekly_lessons_min: number | null;
+    weekly_lessons_max: number | null;
+    daily_lessons_max: number | null;
     subject_ids: number[];
     assignments: Assignment[];
 };
@@ -104,6 +107,9 @@ type TeacherForm = {
     last_name: string;
     specialization_field: string;
     employment_type: string;
+    weekly_lessons_min: string;
+    weekly_lessons_max: string;
+    daily_lessons_max: string;
     status: string;
     national_id: string;
     hire_date: string;
@@ -167,6 +173,9 @@ const EMPTY_FORM: TeacherForm = {
     last_name: '',
     specialization_field: '',
     employment_type: '',
+    weekly_lessons_min: '',
+    weekly_lessons_max: '',
+    daily_lessons_max: '',
     status: String(ACTIVE),
     national_id: '',
     hire_date: '',
@@ -183,6 +192,9 @@ function formOf(teacher: Teacher): TeacherForm {
         last_name: teacher.last_name,
         specialization_field: teacher.specialization_field ?? '',
         employment_type: teacher.employment_type === null ? '' : String(teacher.employment_type),
+        weekly_lessons_min: teacher.weekly_lessons_min === null ? '' : String(teacher.weekly_lessons_min),
+        weekly_lessons_max: teacher.weekly_lessons_max === null ? '' : String(teacher.weekly_lessons_max),
+        daily_lessons_max: teacher.daily_lessons_max === null ? '' : String(teacher.daily_lessons_max),
         status: String(teacher.status === ACTIVE ? ACTIVE : INACTIVE),
         national_id: teacher.national_id ?? '',
         hire_date: teacher.hire_date ?? '',
@@ -468,7 +480,12 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 if (teacherId === null) {
                     return request('post', '/teachers', { ...payload, employee_code: f.employee_code.trim() });
                 }
-                if (!(await request('patch', `/teachers/${teacherId}`, payload))) {
+                const workload = {
+                    weekly_lessons_min: f.weekly_lessons_min === '' ? null : Number(f.weekly_lessons_min),
+                    weekly_lessons_max: f.weekly_lessons_max === '' ? null : Number(f.weekly_lessons_max),
+                    daily_lessons_max: f.daily_lessons_max === '' ? null : Number(f.daily_lessons_max),
+                };
+                if (!(await request('patch', `/teachers/${teacherId}`, { ...payload, ...workload }))) {
                     return false;
                 }
 
@@ -1135,6 +1152,16 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                             <RegistryTextField label={tc.hireDate} editing={sheetEditing} type="date" dir="ltr" value={sheet.form.hire_date} onChange={setSheetField('hire_date')} />
                         </div>
                     </SheetSection>
+                    {sheet.id !== null ? (
+                        <SheetSection id="teacher-workload" title={tc.workloadGroup}>
+                            <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                                <RegistryTextField label={tc.weeklyMax} editing={sheetEditing} type="number" dir="ltr" value={sheet.form.weekly_lessons_max} onChange={setSheetField('weekly_lessons_max')} />
+                                <RegistryTextField label={tc.weeklyMin} editing={sheetEditing} type="number" dir="ltr" value={sheet.form.weekly_lessons_min} onChange={setSheetField('weekly_lessons_min')} />
+                                <RegistryTextField label={tc.dailyMax} editing={sheetEditing} type="number" dir="ltr" value={sheet.form.daily_lessons_max} onChange={setSheetField('daily_lessons_max')} />
+                            </div>
+                            <p className="sis-admission-sheet__hint text-muted-foreground mt-2 text-xs">{tc.workloadHint}</p>
+                        </SheetSection>
+                    ) : null}
                     {sheetTeacher !== null ? (
                         <SheetSection id="teacher-subjects" title={tc.subjectsColumn}>
                             <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">

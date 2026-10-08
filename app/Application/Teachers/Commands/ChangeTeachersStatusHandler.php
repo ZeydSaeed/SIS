@@ -63,6 +63,8 @@ final class ChangeTeachersStatusHandler implements CommandHandler
             $this->idempotency->store($key, self::COMMAND_NAME, ['teacher_ids' => $ids]);
         });
 
-        return ChangeTeachersStatusResult::success($ids);
+        $lessons = $command->status === TeacherStatus::Inactive ? $this->teachers->activeLessonCount($ids, $command->schoolId) : 0;
+
+        return ChangeTeachersStatusResult::success($ids, false, $lessons > 0 ? ['teachers.deactivated_with_lessons?count='.$lessons] : []);
     }
 }

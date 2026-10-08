@@ -8,6 +8,8 @@ use App\Application\Timetable\Commands\ArchiveTimetableVersionCommand;
 use App\Application\Timetable\Commands\ArchiveTimetableVersionHandler;
 use App\Application\Timetable\Commands\CancelTimetableGenerationCommand;
 use App\Application\Timetable\Commands\CancelTimetableGenerationHandler;
+use App\Application\Timetable\Commands\ChangeTimetablePlaceStatusCommand;
+use App\Application\Timetable\Commands\ChangeTimetablePlaceStatusHandler;
 use App\Application\Timetable\Commands\CreateTimetableActivityCommand;
 use App\Application\Timetable\Commands\CreateTimetableActivityHandler;
 use App\Application\Timetable\Commands\CreateTimetableVersionCommand;
@@ -30,9 +32,13 @@ use App\Application\Timetable\Commands\QueueTimetableGenerationCommand;
 use App\Application\Timetable\Commands\QueueTimetableGenerationHandler;
 use App\Application\Timetable\Commands\RestoreTimetableVersionCommand;
 use App\Application\Timetable\Commands\RestoreTimetableVersionHandler;
+use App\Application\Timetable\Commands\SaveTimetableRoomCommand;
+use App\Application\Timetable\Commands\SaveTimetableRoomHandler;
 use App\Application\Timetable\Commands\SaveTimetableRuleCommand;
 use App\Application\Timetable\Commands\SaveTimetableRuleHandler;
 use App\Application\Timetable\Commands\SaveTimetableSettingsCommand;
+use App\Application\Timetable\Commands\SaveTimetableWorkshopCommand;
+use App\Application\Timetable\Commands\SaveTimetableWorkshopHandler;
 use App\Application\Timetable\Commands\SaveTimetableSettingsHandler;
 use App\Application\Timetable\Commands\SetTimetableAvailabilityCommand;
 use App\Application\Timetable\Commands\SetTimetableAvailabilityHandler;
@@ -68,6 +74,57 @@ final class TimetableEngineController extends Controller
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
     ) {}
+
+    // ── Places: rooms and workshops («الأماكن») ──────────────────────────────
+
+    public function storeRoom(ManageTimetableEngineRequest $request, SaveTimetableRoomHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new SaveTimetableRoomCommand(
+            $this->school(), null, (int) $v['branch_id'], (string) $v['code'], (string) $v['name'], self::int($v['capacity'] ?? null),
+            (int) $v['room_type'], $request->user()?->id, $request->idempotencyKey(),
+        )), 'places.rooms.store', 'flash.timetable.engine.placeSaved');
+    }
+
+    public function updateRoom(int $room, ManageTimetableEngineRequest $request, SaveTimetableRoomHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new SaveTimetableRoomCommand(
+            $this->school(), $room, 0, '', (string) $v['name'], self::int($v['capacity'] ?? null),
+            (int) $v['room_type'], $request->user()?->id, $request->idempotencyKey(),
+        )), 'places.rooms.update', 'flash.timetable.engine.placeSaved');
+    }
+
+    public function storeWorkshop(ManageTimetableEngineRequest $request, SaveTimetableWorkshopHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new SaveTimetableWorkshopCommand(
+            $this->school(), null, (string) $v['code'], (string) $v['name'], (int) $v['capacity'], (int) $v['safety_capacity'],
+            self::int($v['room_id'] ?? null), $request->user()?->id, $request->idempotencyKey(),
+        )), 'places.workshops.store', 'flash.timetable.engine.placeSaved');
+    }
+
+    public function updateWorkshop(int $workshop, ManageTimetableEngineRequest $request, SaveTimetableWorkshopHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new SaveTimetableWorkshopCommand(
+            $this->school(), $workshop, '', (string) $v['name'], (int) $v['capacity'], (int) $v['safety_capacity'],
+            self::int($v['room_id'] ?? null), $request->user()?->id, $request->idempotencyKey(),
+        )), 'places.workshops.update', 'flash.timetable.engine.placeSaved');
+    }
+
+    public function changePlaceStatus(ManageTimetableEngineRequest $request, ChangeTimetablePlaceStatusHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new ChangeTimetablePlaceStatusCommand(
+            $this->school(), (string) $v['kind'], (int) $v['id'], (int) $v['active'] === 1 ? 1 : 2, $request->user()?->id, $request->idempotencyKey(),
+        )), 'places.status', (int) $v['active'] === 1 ? 'flash.timetable.engine.placeEnabled' : 'flash.timetable.engine.placeDisabled');
+    }
 
     // ── Configuration ────────────────────────────────────────────────────────
 

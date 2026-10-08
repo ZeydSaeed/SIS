@@ -11,6 +11,7 @@ use App\Application\Student\Services\StudentEnrollmentPlacementSync;
 use App\Application\Student\Support\StudentNameFormatter;
 use App\Domain\Student\Data\UpdateStudentData;
 use App\Domain\Student\Events\StudentProfileUpdated;
+use App\Domain\Student\Exceptions\DuplicateNationalIdException;
 use App\Domain\Student\Exceptions\StudentNotFoundException;
 use App\Domain\Student\Repositories\StudentRepositoryInterface;
 
@@ -55,8 +56,14 @@ final class UpdateStudentListRowHandler implements CommandHandler
             $command->requestedAdmittedClassName(),
         );
 
-        $this->unitOfWork->transaction(function () use ($command, $current, $fullName, $placement): void {
-            $this->students->update($command->studentId, $this->mergedData($command, $current, $fullName));
+        $data = $this->mergedData($command, $current, $fullName);
+        if ($data->nationalId !== null && $data->nationalId !== $current->nationalId
+            && $this->students->existsByNationalId($data->nationalId, $command->studentId)) {
+            throw DuplicateNationalIdException::forNationalId($data->nationalId);
+        }
+
+        $this->unitOfWork->transaction(function () use ($command, $data, $fullName, $placement): void {
+            $this->students->update($command->studentId, $data);
             $this->placementSync->afterSave($command->studentId, $command->schoolId, $placement);
             $this->outbox->stage(new StudentProfileUpdated(
                 studentId: $command->studentId,

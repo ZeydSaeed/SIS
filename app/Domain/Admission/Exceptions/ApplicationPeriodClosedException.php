@@ -2,12 +2,12 @@
 
 namespace App\Domain\Admission\Exceptions;
 
-use DomainException;
+use App\Domain\Shared\Exceptions\SisDomainException;
 
-final class ApplicationPeriodClosedException extends DomainException
+final class ApplicationPeriodClosedException extends SisDomainException
 {
     public static function forPeriod(int $periodId): self
     {
-        return new self("Application period {$periodId} is not open for new applications.");
+        return new self("Application period {$periodId} is not open for new applications.", 'admission.period_closed');
     }
 }

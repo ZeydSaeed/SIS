@@ -103,14 +103,23 @@ final class TimetableAdvisor
             }
         }
 
-        $teacherCapacity = min($slots, $days * $board->settings->maxTeacherPerDay);
         $teachersOver = 0;
         foreach ($teacherLoad as $teacherId => $load) {
-            if ($slots > 0 && $load > $teacherCapacity) {
+            $weekCapacity = min($slots, $days * $board->dailyLimit($teacherId));
+            $teacherCapacity = $board->weeklyCapacity($teacherId);
+            $personalMax = $board->teacherLimits[$teacherId]['weekly_max'] ?? null;
+            $personalMin = $board->teacherLimits[$teacherId]['weekly_min'] ?? null;
+            if ($slots > 0 && $load > $weekCapacity) {
                 $teachersOver++;
-                $findings[] = self::finding('blocker', 'teacher_overbooked', ['teacher_id' => $teacherId], $load, $teacherCapacity);
+                $findings[] = self::finding('blocker', 'teacher_overbooked', ['teacher_id' => $teacherId], $load, $weekCapacity);
+            } elseif ($personalMax !== null && $load > $personalMax) {
+                // The personal quota is a school policy, not physics: the timetable can still be built.
+                $findings[] = self::finding('warning', 'teacher_over_quota', ['teacher_id' => $teacherId], $load, $personalMax);
             } elseif ($teacherCapacity > 0 && $load >= self::TIGHT_SHARE * $teacherCapacity) {
                 $findings[] = self::finding('info', 'teacher_tight', ['teacher_id' => $teacherId], $load, $teacherCapacity);
+            }
+            if ($personalMin !== null && $load < $personalMin) {
+                $findings[] = self::finding('info', 'teacher_under_quota', ['teacher_id' => $teacherId], $load, $personalMin);
             }
         }
 

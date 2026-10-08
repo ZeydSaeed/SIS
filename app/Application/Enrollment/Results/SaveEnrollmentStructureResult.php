@@ -13,13 +13,15 @@ abstract readonly class SaveEnrollmentStructureResult extends ApplicationResult
         public ?int $id = null,
         array $errors = [],
         bool $fromIdempotencyCache = false,
+        array $warnings = [],
     ) {
-        parent::__construct($success, $errors, [], $fromIdempotencyCache);
+        parent::__construct($success, $errors, $warnings, $fromIdempotencyCache);
     }
 
-    public static function success(int $id): static
+    /** @param  list<string>  $warnings */
+    public static function success(int $id, array $warnings = []): static
     {
-        return new static(true, $id);
+        return new static(true, $id, warnings: $warnings);
     }
 
     public static function fromIdempotency(int $id): static

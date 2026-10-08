@@ -259,7 +259,9 @@ final class ClassSectionPageController extends Controller
             ['from_idempotency' => $result->fromIdempotencyCache],
         );
 
-        return redirect()->back()->with('success', $flash);
+        $redirect = redirect()->back()->with('success', $flash);
+
+        return $result->warnings === [] ? $redirect : $redirect->with('toast', ['type' => 'warning', 'message' => $result->warnings[0]]);
     }
 
     private function nullableInt(mixed $value): ?int

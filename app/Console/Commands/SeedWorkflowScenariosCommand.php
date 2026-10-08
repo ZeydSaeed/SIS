@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Dev-only: wipe admission → student → enrollment → curriculum data and seed the
- * scenario set (130 applicants, 100 students) through the real handlers.
+ * scenario set (230 applicants, 200 students) through the real handlers.
  *
  * --truncate really deletes rows (TRUNCATE … CASCADE bypasses the row-level
  * hard-delete triggers). Take a pg_dump first. Refused in production.
@@ -21,7 +21,7 @@ class SeedWorkflowScenariosCommand extends Command
     protected $signature = 'sis:seed-workflow-scenarios
                             {--truncate : Delete existing workflow data first (dev only, irreversible)}';
 
-    protected $description = 'Seed admission → student → enrollment → curriculum scenarios (100 students)';
+    protected $description = 'Seed admission → student → enrollment → curriculum scenarios (200 students)';
 
     /** Roots; CASCADE also clears every table referencing them (grades, results, fees, …). */
     private const TRUNCATE_ROOTS = [

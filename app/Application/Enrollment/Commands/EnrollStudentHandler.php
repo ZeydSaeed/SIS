@@ -63,6 +63,7 @@ final class EnrollStudentHandler implements CommandHandler
         }
 
         $this->assertValidPlacement($command);
+        (new EnrollmentPlacementGuard($this->placement))->assertDateWithinYear($command->academicYearId, $command->effectiveFrom);
 
         $result = $this->unitOfWork->transaction(function () use ($command): array {
             if ($this->placement->placementIsFull($command->classId, $command->sectionId, $command->academicYearId)) {
@@ -110,7 +111,12 @@ final class EnrollStudentHandler implements CommandHandler
             ]);
         }
 
-        return EnrollStudentResult::success($result['id'], $result['enrollment_number']);
+        $warnings = $command->departmentId !== null
+            && ! $this->placement->hasActiveCurriculum($command->departmentId, $command->classId, $command->academicYearId)
+            ? ['enrollment.no_curriculum_for_placement']
+            : [];
+
+        return EnrollStudentResult::success($result['id'], $result['enrollment_number'], $warnings);
     }
 
     private function assertValidPlacement(EnrollStudentCommand $command): void

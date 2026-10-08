@@ -107,6 +107,27 @@ final class EloquentTimetableWorkspaceReadRepository implements TimetableWorkspa
             ->all();
     }
 
+    public function teacherLimits(int $schoolId, int $academicYearId): array
+    {
+        $this->bindSchool($schoolId);
+
+        $limits = [];
+        foreach (DB::table(SchemaHelper::qualified('teachers', 'teacher_schools'))
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->whereNull('left_at')
+            ->where(fn ($q) => $q->whereNotNull('weekly_lessons_min')->orWhereNotNull('weekly_lessons_max')->orWhereNotNull('daily_lessons_max'))
+            ->get(['teacher_id', 'weekly_lessons_min', 'weekly_lessons_max', 'daily_lessons_max']) as $row) {
+            $limits[(int) $row->teacher_id] = [
+                'weekly_min' => $row->weekly_lessons_min !== null ? (int) $row->weekly_lessons_min : null,
+                'weekly_max' => $row->weekly_lessons_max !== null ? (int) $row->weekly_lessons_max : null,
+                'daily_max' => $row->daily_lessons_max !== null ? (int) $row->daily_lessons_max : null,
+            ];
+        }
+
+        return $limits;
+    }
+
     public function sectionPlacements(int $schoolId, int $academicYearId): array
     {
         $this->bindSchool($schoolId);

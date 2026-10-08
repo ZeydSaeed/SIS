@@ -127,4 +127,84 @@ final class PhaseUiTeachTeachersPagePostgreSqlTest extends PostgreSqlIntegration
             ->assertRedirect('/teachers')
             ->assertSessionHasErrors(['teacher' => 'teachers.employee_code_taken']);
     }
+
+    #[Test]
+    public function personal_lesson_limits_are_saved_exposed_kept_and_validated(): void
+    {
+        $schoolId = $this->createSchool('SCH-TCH-UI-L', 'Teachers UI limits');
+        $yearId = $this->createAcademicYear();
+        $this->actingAsTeachersManagerForSchool($schoolId);
+
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-l-1')->post('/teachers', [
+            'academic_year_id' => $yearId, 'employee_code' => 'EMP-L-1', 'first_name' => 'Ali', 'last_name' => 'Hassan',
+        ]);
+        $teacherId = (int) \DB::table('teachers.teachers')->where('employee_code', 'EMP-L-1')->value('id');
+        $base = ['first_name' => 'Ali', 'last_name' => 'Hassan', 'academic_year_id' => $yearId];
+
+        // Saved and exposed to the page.
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-l-2')
+            ->patch('/teachers/'.$teacherId, $base + ['weekly_lessons_min' => 10, 'weekly_lessons_max' => 20, 'daily_lessons_max' => 5])
+            ->assertSessionHas('success', 'flash.teachers.updated');
+        $this->get('/teachers?academic_year_id='.$yearId)->assertInertia(fn ($page) => $page
+            ->where('teachers.0.weekly_lessons_min', 10)
+            ->where('teachers.0.weekly_lessons_max', 20)
+            ->where('teachers.0.daily_lessons_max', 5)
+            ->etc());
+
+        // An update that does not mention the limits keeps them.
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-l-3')
+            ->patch('/teachers/'.$teacherId, $base + ['specialization_field' => 'Physics']);
+        $this->get('/teachers?academic_year_id='.$yearId)->assertInertia(fn ($page) => $page
+            ->where('teachers.0.weekly_lessons_max', 20)->etc());
+
+        // Incoherent limits are refused with a domain code and change nothing.
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-l-4')
+            ->patch('/teachers/'.$teacherId, $base + ['weekly_lessons_min' => 15, 'weekly_lessons_max' => 10, 'daily_lessons_max' => null])
+            ->assertSessionHasErrors(['teacher' => 'teachers.workload_min_above_max']);
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-l-5')
+            ->patch('/teachers/'.$teacherId, $base + ['weekly_lessons_min' => null, 'weekly_lessons_max' => 4, 'daily_lessons_max' => 6])
+            ->assertSessionHasErrors(['teacher' => 'teachers.workload_daily_above_weekly']);
+        $this->get('/teachers?academic_year_id='.$yearId)->assertInertia(fn ($page) => $page
+            ->where('teachers.0.weekly_lessons_max', 20)->where('teachers.0.daily_lessons_max', 5)->etc());
+
+        // Empty values clear the limits.
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-l-6')
+            ->patch('/teachers/'.$teacherId, $base + ['weekly_lessons_min' => null, 'weekly_lessons_max' => null, 'daily_lessons_max' => null]);
+        $this->get('/teachers?academic_year_id='.$yearId)->assertInertia(fn ($page) => $page
+            ->where('teachers.0.weekly_lessons_max', null)->where('teachers.0.daily_lessons_max', null)->etc());
+    }
+
+    #[Test]
+    public function deactivating_a_teacher_with_lessons_warns_how_many_stay_on_the_grid(): void
+    {
+        $schoolId = $this->createSchool('SCH-TCH-UI-LS', 'Teachers UI lessons');
+        $yearId = $this->createAcademicYear();
+        $this->actingAsTeachersManagerForSchool($schoolId);
+
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-ls-1')->post('/teachers', [
+            'academic_year_id' => $yearId, 'employee_code' => 'EMP-LS-1', 'first_name' => 'Ali', 'last_name' => 'Hassan',
+        ]);
+        $teacherId = (int) \DB::table('teachers.teachers')->where('employee_code', 'EMP-LS-1')->value('id');
+        $class = $this->createClassForSchool($schoolId, $yearId);
+        $section = $this->createSectionForClass((int) $class->id);
+        $subjectId = (int) \DB::table('curriculum.subjects')->insertGetId([
+            'code' => 'SUB-LS', 'name' => 'Subject LS', 'subject_type' => 1, 'max_grade' => 100, 'pass_grade' => 50, 'status' => 1,
+        ]);
+        \DB::statement("SELECT set_config('app.current_school_id', ?, false)", [(string) $schoolId]);
+        foreach ([1, 2] as $n) {
+            $periodId = (int) \DB::table('timetable.periods')->insertGetId([
+                'school_id' => $schoolId, 'period_number' => $n, 'start_time' => sprintf('0%d:00', 7 + $n), 'end_time' => sprintf('0%d:45', 7 + $n), 'period_type' => 1,
+            ]);
+            \DB::table('timetable.schedules')->insert([
+                'school_id' => $schoolId, 'section_id' => $section->id, 'academic_year_id' => $yearId, 'day_of_week' => 1,
+                'period_id' => $periodId, 'subject_id' => $subjectId, 'teacher_id' => $teacherId, 'lifecycle_status' => 1,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $this->from('/teachers')->withHeader('X-Idempotency-Key', 'ui-teach-ls-2')
+            ->post('/teachers/'.$teacherId.'/deactivate')
+            ->assertSessionHas('success', 'flash.teachers.deactivated')
+            ->assertSessionHas('toast', ['type' => 'warning', 'message' => 'teachers.deactivated_with_lessons?count=2']);
+    }
 }

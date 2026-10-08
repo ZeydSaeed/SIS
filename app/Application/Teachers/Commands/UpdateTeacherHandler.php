@@ -12,7 +12,9 @@ use App\Domain\Teachers\Events\TeacherUpdated;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Application\Teachers\Support\TeacherNameFormatter;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
+use App\Domain\Teachers\Services\TeacherIdentityGuard;
 use App\Domain\Teachers\ValueObjects\TeacherEmploymentType;
+use App\Domain\Teachers\ValueObjects\TeacherWorkloadLimits;
 
 final class UpdateTeacherHandler implements CommandHandler
 {
@@ -23,6 +25,7 @@ final class UpdateTeacherHandler implements CommandHandler
         private readonly TeacherRepositoryInterface $teachers,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly TeacherIdentityGuard $identity,
     ) {}
 
     public function handle(Command $command): UpdateTeacherResult
@@ -38,6 +41,11 @@ final class UpdateTeacherHandler implements CommandHandler
             return UpdateTeacherResult::failure(['teachers.not_found']);
         }
 
+        $identityError = $this->identity->rejectionCode($command->academicYearId, $command->nationalId, $command->teacherId);
+        if ($identityError !== null) {
+            return UpdateTeacherResult::failure([$identityError]);
+        }
+
         $first = trim($command->firstName);
         $last = trim($command->lastName);
         if ($first === '' || $last === '') {
@@ -46,6 +54,17 @@ final class UpdateTeacherHandler implements CommandHandler
 
         if (! TeacherEmploymentType::isValid($command->employmentType)) {
             return UpdateTeacherResult::failure(['teachers.employment_type_invalid']);
+        }
+
+        $workloadError = TeacherWorkloadLimits::errorForUpdate(
+            $command->updateWorkload,
+            $command->academicYearId,
+            $command->weeklyLessonsMin,
+            $command->weeklyLessonsMax,
+            $command->dailyLessonsMax,
+        );
+        if ($workloadError !== null) {
+            return UpdateTeacherResult::failure([$workloadError]);
         }
 
         $at = (new \DateTimeImmutable)->format('Y-m-d H:i:s');
@@ -58,12 +77,8 @@ final class UpdateTeacherHandler implements CommandHandler
                 'grandfather_name' => $grandfather,
                 'last_name' => $last,
                 'full_name' => TeacherNameFormatter::fullName($first, $father, $grandfather, $last),
-                'national_id' => $command->nationalId !== null && trim($command->nationalId) !== ''
-                    ? trim($command->nationalId)
-                    : null,
-                'specialization_field' => $command->specializationField !== null && trim($command->specializationField) !== ''
-                    ? trim($command->specializationField)
-                    : null,
+                'national_id' => TeacherNameFormatter::blankToNull($command->nationalId),
+                'specialization_field' => TeacherNameFormatter::blankToNull($command->specializationField),
                 'hire_date' => $command->hireDate,
                 'updated_at' => $at,
             ];
@@ -77,6 +92,16 @@ final class UpdateTeacherHandler implements CommandHandler
                     $command->schoolId,
                     $command->academicYearId,
                     $command->employmentType,
+                );
+            }
+            if ($command->updateWorkload) {
+                $this->teachers->setWorkloadLimits(
+                    $command->teacherId,
+                    $command->schoolId,
+                    (int) $command->academicYearId,
+                    $command->weeklyLessonsMin,
+                    $command->weeklyLessonsMax,
+                    $command->dailyLessonsMax,
                 );
             }
             $this->outbox->stage(new TeacherUpdated(

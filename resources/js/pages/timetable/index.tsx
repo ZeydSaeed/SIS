@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { BadgeCheck, Boxes, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Maximize2, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { BadgeCheck, Boxes, Building2, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Maximize2, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement, type ReactNode } from 'react';
 import { RegistryListField, RegistrySheetDialog, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
@@ -14,6 +14,7 @@ import { ConstraintsSheet } from '@/components/timetable/engine/constraints-shee
 import type { EngineContext } from '@/components/timetable/engine/engine-context';
 import type { Comparison, Engine, MoveSuggestions, RunDetail, Substitutes } from '@/components/timetable/engine/engine-types';
 import { GenerateSheet } from '@/components/timetable/engine/generate-sheet';
+import { PlacesSheet } from '@/components/timetable/engine/places-sheet';
 import { MasterTimetable, type MasterColumn } from '@/components/timetable/master-timetable';
 import { loadPrintSettings, pageRule, PrintSettingsPanel, savePrintSettings, TimetablePaper, type PrintSettings } from '@/components/timetable/print-paper';
 import { LessonEngineTools } from '@/components/timetable/engine/lesson-engine-tools';
@@ -236,7 +237,7 @@ function TimetablePage({
 
     const [view, setView] = useState<'section' | 'teacher' | 'room'>('section');
     const [roomId, setRoomId] = useState<number | null>(engine?.rooms[0]?.id ?? null);
-    const [engineSheet, setEngineSheet] = useState<'generate' | 'activities' | 'constraints' | 'availability' | 'versions' | 'settings' | null>(null);
+    const [engineSheet, setEngineSheet] = useState<'generate' | 'activities' | 'constraints' | 'availability' | 'places' | 'versions' | 'settings' | null>(null);
     const [gridFilters, setGridFilters] = useState<GridFilters>(NO_FILTERS);
     const [focusId, setFocusId] = useState<number | null>(null);
     const [teacherId, setTeacherId] = useState<number | null>(teachers[0]?.id ?? null);
@@ -887,6 +888,15 @@ function TimetablePage({
                         onSelect: () => setEngineSheet('availability'),
                     },
                     {
+                        id: 'timetable-engine-places',
+                        label: et.places,
+                        icon: Building2,
+                        count: engine !== null && engine.places.rooms.length + engine.places.workshops.length > 0 ? engine.places.rooms.length + engine.places.workshops.length : undefined,
+                        title: et.placesHint,
+                        disabled: noData,
+                        onSelect: () => setEngineSheet('places'),
+                    },
+                    {
                         id: 'timetable-engine-versions',
                         label: et.versions,
                         ...versions,
@@ -1334,36 +1344,62 @@ function TimetablePage({
     // What the full-screen preview shows — and, in «تخطيط الطباعة», what lies on the sheet and prints.
     const previewContent =
         view === 'teacher' ? (
-                        <section className="sis-timetable-board">
-                            <header className="sis-timetable-board__head">
-                                <span className="sis-timetable-board__title">{teacherNames.get(activeTeacherId ?? 0) ?? ''}</span>
-                            </header>
-                            <div className="sis-timetable-grid">
-                                {gridTable((day, period) => {
-                                    const placed = teacherCells.get(cellKey(day, period.id));
-
-                                    return (
-                                        <td key={cellKey(day, period.id)} className="sis-timetable-cell">
-                                            {placed !== undefined ? lessonCard(placed, sectionLabel(placed.section_id), false) : null}
-                                        </td>
-                                    );
-                                }, false)}
-                            </div>
+                        <section className="sis-timetable-board">
+
+                            <header className="sis-timetable-board__head">
+
+                                <span className="sis-timetable-board__title">{teacherNames.get(activeTeacherId ?? 0) ?? ''}</span>
+
+                            </header>
+
+                            <div className="sis-timetable-grid">
+
+                                {gridTable((day, period) => {
+
+                                    const placed = teacherCells.get(cellKey(day, period.id));
+
+
+
+                                    return (
+
+                                        <td key={cellKey(day, period.id)} className="sis-timetable-cell">
+
+                                            {placed !== undefined ? lessonCard(placed, sectionLabel(placed.section_id), false) : null}
+
+                                        </td>
+
+                                    );
+
+                                }, false)}
+
+                            </div>
+
                         </section>
         ) : view === 'room' ? (
             roomView
         ) : (
-                        <MasterTimetable
-                            columns={masterColumns}
-                            days={DAYS}
-                            dayLabel={dayOfWeekLabel}
-                            periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0 }))}
-                            lessons={schedules}
-                            subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
-                            teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
-                            groupName={(id) => groupNames.get(id) ?? ''}
-                            subjectStyle={(id) => subjectStyles.get(id)}
-                            heading={{ title: tt.master.title, school: schoolName, year: yearName, stage: masterStage, effectiveFrom: effectiveVersion?.effective_from ?? null }}
+                        <MasterTimetable
+
+                            columns={masterColumns}
+
+                            days={DAYS}
+
+                            dayLabel={dayOfWeekLabel}
+
+                            periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0 }))}
+
+                            lessons={schedules}
+
+                            subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
+
+                            teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
+
+                            groupName={(id) => groupNames.get(id) ?? ''}
+
+                            subjectStyle={(id) => subjectStyles.get(id)}
+
+                            heading={{ title: tt.master.title, school: schoolName, year: yearName, stage: masterStage, effectiveFrom: effectiveVersion?.effective_from ?? null }}
+
                         />
         );
     const printDate = new Date().toLocaleDateString('ar', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -1607,6 +1643,7 @@ function TimetablePage({
             ) : null}
             {engineCtx !== null && engineSheet === 'constraints' ? <ConstraintsSheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
             {engineCtx !== null && engineSheet === 'availability' ? <AvailabilitySheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
+            {engineCtx !== null && engineSheet === 'places' ? <PlacesSheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
             {engineCtx !== null && engineSheet === 'versions' ? <VersionsSheet ctx={engineCtx} comparison={comparison} onClose={() => setEngineSheet(null)} /> : null}
             {engineCtx !== null && engineSheet === 'settings' ? <SettingsSheet ctx={engineCtx} onClose={() => setEngineSheet(null)} /> : null}
 

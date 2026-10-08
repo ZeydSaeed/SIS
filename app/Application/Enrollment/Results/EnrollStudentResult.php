@@ -17,9 +17,10 @@ final readonly class EnrollStudentResult extends ApplicationResult
         parent::__construct($success, $errors, $warnings, $fromIdempotencyCache);
     }
 
-    public static function success(int $enrollmentId, string $enrollmentNumber): self
+    /** @param  list<string>  $warnings  non-blocking notices, e.g. `enrollment.no_curriculum_for_placement` */
+    public static function success(int $enrollmentId, string $enrollmentNumber, array $warnings = []): self
     {
-        return new self(true, $enrollmentId, $enrollmentNumber);
+        return new self(true, $enrollmentId, $enrollmentNumber, warnings: $warnings);
     }
 
     public static function fromIdempotency(int $enrollmentId, string $enrollmentNumber): self

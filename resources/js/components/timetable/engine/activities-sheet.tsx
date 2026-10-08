@@ -48,7 +48,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
     const placeOptions = useMemo(() => [
         { value: '', label: e.roomNone },
         ...ctx.engine.workshops.map((w) => ({ value: `workshop:${w.id}`, label: `${e.workshop}: ${w.name} (${w.safety_capacity})` })),
-        ...roomTypes.map((n) => ({ value: `type:${n}`, label: `${e.roomType} ${n}` })),
+        ...roomTypes.map((n) => ({ value: `type:${n}`, label: `${e.roomType}: ${e.roomTypeNames[n] ?? n}` })),
         ...ctx.engine.rooms.map((r) => ({ value: `room:${r.id}`, label: `${e.room}: ${r.code} — ${r.name}${r.capacity ? ` (${r.capacity})` : ''}` })),
     ], [ctx, e, roomTypes]);
     const weekOptions = [{ value: '0', label: e.everyWeek }, ...Array.from({ length: Math.max(0, ctx.engine.settings.cycle_weeks > 1 ? ctx.engine.settings.cycle_weeks : 0) }, (_, i) => ({ value: String(i + 1), label: e.weekN.replace('{n}', String(i + 1)) }))];

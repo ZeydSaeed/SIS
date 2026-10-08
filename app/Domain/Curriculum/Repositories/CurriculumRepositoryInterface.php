@@ -23,6 +23,9 @@ interface CurriculumRepositoryInterface
 
     public function departmentActiveInSchool(int $schoolId, int $departmentId): bool;
 
+    /** An active curriculum of the department for the grade and year already exists (optionally ignoring one). */
+    public function activeCurriculumExists(int $schoolId, int $academicYearId, int $gradeLevelId, int $departmentId, ?int $exceptCurriculumId = null): bool;
+
     public function findActiveInSchool(int $schoolId, int $curriculumId): ?CurriculumSnapshot;
 
     public function findInactiveInSchool(int $schoolId, int $curriculumId): ?CurriculumSnapshot;

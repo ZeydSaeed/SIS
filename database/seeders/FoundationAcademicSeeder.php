@@ -22,7 +22,7 @@ class FoundationAcademicSeeder extends Seeder
             'academic_years',
             ['code' => FoundationReference::ACADEMIC_YEAR_CODE],
             [
-                'name' => 'Academic Year 2026-2027',
+                'name' => 'السنة الدراسية 2026-2027',
                 'start_date' => '2026-09-01',
                 'end_date' => '2027-06-30',
                 'is_current' => true,
@@ -37,7 +37,7 @@ class FoundationAcademicSeeder extends Seeder
             'terms',
             ['academic_year_id' => $academicYearId, 'code' => FoundationReference::TERM_ONE_CODE],
             [
-                'name' => 'First Term',
+                'name' => 'الفصل الأول',
                 'start_date' => '2026-09-01',
                 'end_date' => '2026-12-31',
                 'term_order' => 1,
@@ -52,7 +52,7 @@ class FoundationAcademicSeeder extends Seeder
             'terms',
             ['academic_year_id' => $academicYearId, 'code' => FoundationReference::TERM_TWO_CODE],
             [
-                'name' => 'Second Term',
+                'name' => 'الفصل الثاني',
                 'start_date' => '2027-01-01',
                 'end_date' => '2027-06-30',
                 'term_order' => 2,

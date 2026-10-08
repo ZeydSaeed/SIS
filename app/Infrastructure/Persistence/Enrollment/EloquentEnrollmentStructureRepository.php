@@ -310,6 +310,16 @@ final class EloquentEnrollmentStructureRepository implements EnrollmentStructure
             ]);
     }
 
+    public function activeSectionCapacitySum(int $schoolId, int $classId): int
+    {
+        $this->setSchoolGuc($schoolId);
+
+        return (int) DB::table(SchemaHelper::qualified('enrollment', 'sections'))
+            ->where('class_id', $classId)
+            ->where('status', EnrollmentStructureStatus::Active->value)
+            ->sum('capacity');
+    }
+
     public function countActiveEnrollmentsInClass(int $schoolId, int $classId): int
     {
         $this->setSchoolGuc($schoolId);

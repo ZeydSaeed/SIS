@@ -48,6 +48,8 @@ final class DeactivateTeacherHandler implements CommandHandler
             $this->idempotency->store($key, self::COMMAND_NAME, ['teacher_id' => $command->teacherId]);
         });
 
-        return DeactivateTeacherResult::success($command->teacherId);
+        $lessons = $this->teachers->activeLessonCount([$command->teacherId], $command->schoolId);
+
+        return DeactivateTeacherResult::success($command->teacherId, $lessons > 0 ? ['teachers.deactivated_with_lessons?count='.$lessons] : []);
     }
 }

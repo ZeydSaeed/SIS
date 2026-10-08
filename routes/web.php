@@ -213,6 +213,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/divisions', [TimetableEngineController::class, 'storeDivision'])->name('divisions.store');
         Route::post('/divisions/{division}/end', [TimetableEngineController::class, 'endDivision'])->whereNumber('division')->name('divisions.end');
         Route::post('/availability', [TimetableEngineController::class, 'saveAvailability'])->name('availability.save');
+        Route::post('/places/rooms', [TimetableEngineController::class, 'storeRoom'])->name('places.rooms.store');
+        Route::patch('/places/rooms/{room}', [TimetableEngineController::class, 'updateRoom'])->whereNumber('room')->name('places.rooms.update');
+        Route::post('/places/workshops', [TimetableEngineController::class, 'storeWorkshop'])->name('places.workshops.store');
+        Route::patch('/places/workshops/{workshop}', [TimetableEngineController::class, 'updateWorkshop'])->whereNumber('workshop')->name('places.workshops.update');
+        Route::post('/places/status', [TimetableEngineController::class, 'changePlaceStatus'])->name('places.status');
         Route::post('/rules', [TimetableEngineController::class, 'storeRule'])->name('rules.store');
         Route::post('/rules/{rule}/end', [TimetableEngineController::class, 'endRule'])->whereNumber('rule')->name('rules.end');
         Route::post('/runs', [TimetableEngineController::class, 'storeRun'])->name('runs.store');

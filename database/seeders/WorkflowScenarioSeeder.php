@@ -41,7 +41,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Workflow scenarios through the real application handlers (admission → student →
- * enrollment → curriculum). 130 applicants: 30 stay at admission stages and 100
+ * enrollment → curriculum). 230 applicants: 30 stay at admission stages and 200
  * become students in every post-admission state the system supports.
  *
  * Run via: php artisan sis:seed-workflow-scenarios --truncate
@@ -63,17 +63,17 @@ class WorkflowScenarioSeeder extends Seeder
         'withdrawn' => 3,
     ];
 
-    /** Student outcomes — 100 students in total. */
+    /** Student outcomes — 200 students in total. */
     private const STUDENT_OUTCOMES = [
-        'enrolled' => 70,
-        'enrolled_cancelled' => 4,
-        'enrolled_suspended' => 2,
-        'enrolled_withdrawn' => 2,
-        'awaiting_enrollment' => 11,
+        'enrolled' => 140,
+        'enrolled_cancelled' => 8,
+        'enrolled_suspended' => 4,
+        'enrolled_withdrawn' => 4,
+        'awaiting_enrollment' => 20,
         'capacity_blocked' => 3,
-        'suspended' => 3,
-        'withdrawn_student' => 2,
-        'registered_direct' => 3,
+        'suspended' => 6,
+        'withdrawn_student' => 4,
+        'registered_direct' => 11,
     ];
 
     /** CLS-3 / SEC-C is the capacity demo section (2 seats, filled first). */
@@ -204,7 +204,7 @@ class WorkflowScenarioSeeder extends Seeder
             'name' => self::PERIOD_NAME,
             'start_date' => '2026-08-01 00:00:00',
             'end_date' => '2027-07-01 23:59:59',
-            'max_applications' => 200,
+            'max_applications' => 400,
             'status' => ApplicationPeriodStatus::Active->value,
             'created_at' => now(),
         ]);
@@ -314,7 +314,6 @@ class WorkflowScenarioSeeder extends Seeder
 
         foreach ($plan as $index => $outcome) {
             $seq = $index + 1;
-            $applicant = $this->applicant($seq);
             $placement = $placements[$index % count($placements)];
             if ($outcome === 'enrolled' && $capacityFill < self::CAPACITY_SEATS) {
                 // The first enrolled students fill the 2-seat demo section.
@@ -326,6 +325,9 @@ class WorkflowScenarioSeeder extends Seeder
                 $placement['class'] = self::CAPACITY_CLASS;
                 $placement['section'] = self::CAPACITY_SECTION;
             }
+
+            // Older students in the higher classes: the birth year follows the class.
+            $applicant = $this->applicant($seq, (int) substr($placement['class'], -1) - 1);
 
             $studentId = $outcome === 'registered_direct'
                 ? $this->registerDirect($seq, $applicant, $placement)
@@ -355,33 +357,39 @@ class WorkflowScenarioSeeder extends Seeder
     }
 
     /**
+     * Every (department × class) that has a curriculum, department-major, sections handed out round-robin so
+     * the students spread evenly over the nine sections (a department without a curriculum — الامن السبراني,
+     * رياضة — takes no students: enrolling there would leave the student without subjects).
+     *
      * @return list<array{class:string, section:string, branch:int, department:int, branch_name:string, department_name:string, class_name:string}>
      */
     private function placementCycle(): array
     {
         $cycle = [];
-        $pairs = AdmissionCatalogReference::placementPairs();
-        foreach ($pairs as $p => $pair) {
+        /** @var array<string, int> $perClass running count per class — the section rotates inside each class */
+        $perClass = [];
+        foreach (AdmissionCatalogReference::placementPairs() as $pair) {
             $departmentId = $this->departments[$pair['branch'].'|'.$pair['department']] ?? null;
             // Branch comes from the department row, never from the (possibly duplicated) name.
             $branchId = $departmentId !== null ? ($this->departmentBranch[$departmentId] ?? null) : null;
-            if ($branchId === null || $departmentId === null) {
+            if ($branchId === null || $departmentId === null
+                || CurriculumSubjectCatalogReference::subjectsFor($pair['branch'], $pair['department']) === []) {
                 continue;
             }
-            $classDef = AdmissionCatalogReference::CLASSES[$p % count(AdmissionCatalogReference::CLASSES)];
-            // Regular placements use sections A/B (C of CLS-3 is the capacity demo).
-            $section = $classDef['code'] === self::CAPACITY_CLASS
-                ? (['SEC-A', 'SEC-B'][$p % 2])
-                : (['SEC-A', 'SEC-B', 'SEC-C'][$p % 3]);
-            $cycle[] = [
-                'class' => $classDef['code'],
-                'class_name' => $classDef['name'],
-                'section' => $section,
-                'branch' => $branchId,
-                'department' => $departmentId,
-                'branch_name' => $pair['branch'],
-                'department_name' => $pair['department'],
-            ];
+            foreach (AdmissionCatalogReference::CLASSES as $classDef) {
+                // Regular placements use sections A/B of CLS-3 (its C is the capacity demo).
+                $sections = $classDef['code'] === self::CAPACITY_CLASS ? ['SEC-A', 'SEC-B'] : ['SEC-A', 'SEC-B', 'SEC-C'];
+                $cycle[] = [
+                    'class' => $classDef['code'],
+                    'class_name' => $classDef['name'],
+                    'section' => $sections[($perClass[$classDef['code']] ?? 0) % count($sections)],
+                    'branch' => $branchId,
+                    'department' => $departmentId,
+                    'branch_name' => $pair['branch'],
+                    'department_name' => $pair['department'],
+                ];
+                $perClass[$classDef['code']] = ($perClass[$classDef['code']] ?? 0) + 1;
+            }
         }
 
         return $cycle;
@@ -429,7 +437,7 @@ class WorkflowScenarioSeeder extends Seeder
             previousGpa: $isTransfer ? $applicant['previous_gpa'] : null,
             mathematicsGrade: $isTransfer ? $applicant['mathematics_grade'] : null,
             physicsGrade: $isTransfer ? $applicant['physics_grade'] : null,
-            previousStudyTrack: $isTransfer ? (($seq % 2) + 1) : null,
+            previousStudyTrack: $isTransfer ? (($seq % 6) + 1) : null,
             notes: $this->notesFor($outcome),
             idempotencyKey: 'scn-create-'.$seq,
         ));
@@ -593,6 +601,9 @@ class WorkflowScenarioSeeder extends Seeder
             ));
             $enrolled += count($result->enrolledStudentIds);
             $skipped += count($result->skipped);
+            foreach ($result->skipped as $skip) {
+                $this->summary['skip:'.$skip['error_code']] = ($this->summary['skip:'.$skip['error_code']] ?? 0) + 1;
+            }
         }
 
         $this->summary['enrolled'] = $enrolled;
@@ -629,7 +640,7 @@ class WorkflowScenarioSeeder extends Seeder
         }
 
         $handler = app(ChangeEnrollmentStatusesHandler::class);
-        foreach (['enrolled_suspended' => 2, 'enrolled_withdrawn' => 4] as $outcome => $status) {
+        foreach (['enrolled_suspended' => 4, 'enrolled_withdrawn' => 4] as $outcome => $status) {
             $ids = $this->activeEnrollmentIds($byOutcome[$outcome] ?? []);
             if ($ids !== []) {
                 $handler->handle(new ChangeEnrollmentStatusesCommand(
@@ -693,7 +704,7 @@ class WorkflowScenarioSeeder extends Seeder
     // --------------------------------------------------------------- people
 
     /** @return array<string, mixed> Realistic, unique Iraqi applicant data. */
-    private function applicant(int $seq): array
+    private function applicant(int $seq, int $classIndex = 0): array
     {
         $boys = ['أحمد', 'علي', 'حسن', 'حسين', 'محمد', 'يوسف', 'كرار', 'مصطفى', 'عباس', 'مرتضى', 'سجاد', 'حيدر', 'زين العابدين', 'منتظر', 'باقر'];
         $girls = ['فاطمة', 'زينب', 'مريم', 'نور الهدى', 'سارة', 'رقية', 'آية', 'رغد', 'دعاء', 'تبارك', 'بنين', 'هبة', 'أمل', 'شهد', 'زهراء'];
@@ -716,7 +727,7 @@ class WorkflowScenarioSeeder extends Seeder
             'maternal_father_name' => $pick($men, $seq * 11 + 4),
             'maternal_grandfather_name' => $pick($men, $seq * 13 + 5),
             'national_id' => sprintf('2009%08d', 31000000 + $seq * 37),
-            'birth_date' => sprintf('%04d-%02d-%02d', 2008 + ($seq % 3), ($seq % 12) + 1, ($seq % 28) + 1),
+            'birth_date' => sprintf('%04d-%02d-%02d', 2011 - $classIndex - ($seq % 2), ($seq % 12) + 1, ($seq % 28) + 1),
             'birth_place' => $pick($places, $seq),
             'gender' => $female ? 2 : 1,
             'governorate' => $pick($places, $seq + 1),

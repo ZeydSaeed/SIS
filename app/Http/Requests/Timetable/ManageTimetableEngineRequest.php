@@ -71,8 +71,44 @@ class ManageTimetableEngineRequest extends TimetableEngineRequest
                 'params.*' => ['nullable'],
                 'reason' => ['nullable', 'string', 'max:255'],
             ],
+            'timetable.places.rooms.store' => [
+                'branch_id' => ['required', 'integer', 'min:1'],
+                'code' => ['required', 'string', 'max:30'],
+            ] + $this->roomRules(),
+            'timetable.places.rooms.update' => $this->roomRules(),
+            'timetable.places.workshops.store' => [
+                'code' => ['required', 'string', 'max:30'],
+            ] + $this->workshopRules(),
+            'timetable.places.workshops.update' => $this->workshopRules(),
+            'timetable.places.status' => [
+                'kind' => ['required', 'string', 'in:room,workshop'],
+                'id' => ['required', 'integer', 'min:1'],
+                // `status` itself is a protected field name (SecuritySensitiveFieldGuard): 1 = in service, 0 = out of service.
+                'active' => ['required', 'integer', 'in:0,1'],
+            ],
             default => $year,
         };
+    }
+
+    /** @return array<string, mixed> */
+    private function roomRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:150'],
+            'capacity' => ['nullable', 'integer', 'between:1,500'],
+            'room_type' => ['required', 'integer', 'in:1,2'],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function workshopRules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:150'],
+            'capacity' => ['required', 'integer', 'between:1,500'],
+            'safety_capacity' => ['required', 'integer', 'between:1,500', 'lte:capacity'],
+            'room_id' => ['nullable', 'integer', 'min:1'],
+        ];
     }
 
     /** @return array<string, mixed> */

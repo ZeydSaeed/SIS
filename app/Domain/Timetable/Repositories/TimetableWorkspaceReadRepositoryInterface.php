@@ -42,6 +42,13 @@ interface TimetableWorkspaceReadRepositoryInterface
      */
     public function teacherSubjects(int $schoolId, int $academicYearId): array;
 
+    /**
+     * Personal lesson limits of the active teachers (teachers.teacher_schools) — only teachers with at least one limit.
+     *
+     * @return array<int, array{weekly_min: int|null, weekly_max: int|null, daily_max: int|null}>
+     */
+    public function teacherLimits(int $schoolId, int $academicYearId): array;
+
     /** @return list<int>  subjects of type «عملي» (3) */
     public function practicalSubjectIds(): array;
 

@@ -242,6 +242,10 @@ final class TeacherPageController extends Controller
             grandfatherName: $request->validated('grandfather_name'),
             academicYearId: $this->nullableInt($request->validated('academic_year_id')),
             employmentType: $this->nullableInt($request->validated('employment_type')),
+            updateWorkload: $request->has('weekly_lessons_min') || $request->has('weekly_lessons_max') || $request->has('daily_lessons_max'),
+            weeklyLessonsMin: $this->nullableInt($request->validated('weekly_lessons_min')),
+            weeklyLessonsMax: $this->nullableInt($request->validated('weekly_lessons_max')),
+            dailyLessonsMax: $this->nullableInt($request->validated('daily_lessons_max')),
         ));
 
         return $this->respond($request, $result, 'teachers.web.update', 'updated', 'teacher:'.$teacher, 'flash.teachers.updated');
@@ -375,6 +379,9 @@ final class TeacherPageController extends Controller
             ['from_idempotency' => $result->fromIdempotencyCache],
         );
 
-        return redirect()->back()->with('success', $flash);
+        $redirect = redirect()->back()->with('success', $flash);
+
+        // A successful write that still needs attention (e.g. a deactivated teacher keeps lessons on the grid).
+        return $result->warnings === [] ? $redirect : $redirect->with('toast', ['type' => 'warning', 'message' => $result->warnings[0]]);
     }
 }

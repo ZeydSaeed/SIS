@@ -72,6 +72,9 @@ final class UpdateSectionHandler implements CommandHandler
             $this->idempotency->store($key, self::COMMAND_NAME, ['section_id' => $command->sectionId]);
         });
 
-        return UpdateSectionResult::success($command->sectionId);
+        return UpdateSectionResult::success($command->sectionId, $this->guard->capacityWarnings(
+            $class->capacity,
+            $this->structure->activeSectionCapacitySum($command->schoolId, $section->classId),
+        ));
     }
 }

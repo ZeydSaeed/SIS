@@ -33,6 +33,10 @@ final class CreateCurriculumGuard
             && ($departmentId < 1 || ! $this->curricula->departmentActiveInSchool($schoolId, $departmentId))) {
             return 'curriculum.department_invalid';
         }
+        if ($departmentId !== null
+            && $this->curricula->activeCurriculumExists($schoolId, $academicYearId, $gradeLevelId, $departmentId)) {
+            return 'curriculum.curriculum_exists';
+        }
         if ($specializationId !== null) {
             if ($specializationId < 1 || ! $this->specializations->activeInSchool($schoolId, $specializationId)) {
                 return 'curriculum.specialization_invalid';

@@ -12,6 +12,7 @@ use App\Domain\Teachers\Events\TeacherRegistered;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
 use App\Application\Teachers\Support\TeacherNameFormatter;
+use App\Domain\Teachers\Services\TeacherIdentityGuard;
 use App\Domain\Teachers\ValueObjects\TeacherEmploymentType;
 use App\Domain\Teachers\ValueObjects\TeacherStatus;
 
@@ -24,6 +25,7 @@ final class RegisterTeacherHandler implements CommandHandler
         private readonly TeacherRepositoryInterface $teachers,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly TeacherIdentityGuard $identity,
     ) {}
 
     public function handle(Command $command): RegisterTeacherResult
@@ -35,12 +37,18 @@ final class RegisterTeacherHandler implements CommandHandler
             return RegisterTeacherResult::fromIdempotency((int) $cached['teacher_id']);
         }
 
-        $code = trim($command->employeeCode);
+        // Codes are case-insensitive: T-S001 and t-s001 are the same code (change-code already upper-cases).
+        $code = strtoupper(trim($command->employeeCode));
         if ($code === '') {
             return RegisterTeacherResult::failure(['teachers.employee_code_required']);
         }
         if ($this->teachers->employeeCodeExists($code)) {
             return RegisterTeacherResult::failure(['teachers.employee_code_taken']);
+        }
+
+        $identityError = $this->identity->rejectionCode($command->academicYearId, $command->nationalId);
+        if ($identityError !== null) {
+            return RegisterTeacherResult::failure([$identityError]);
         }
 
         $first = trim($command->firstName);

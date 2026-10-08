@@ -323,7 +323,7 @@ final class TimetablePageController extends Controller
             'settings' => $engine->settings, 'activities' => $engine->activities, 'groups' => $engine->groups,
             'availability' => $engine->availability, 'rules' => $engine->rules, 'catalogue' => $engine->catalogue,
             'rooms' => $engine->rooms, 'workshops' => $engine->workshops, 'runs' => $engine->runs,
-            'versions' => $engine->versions, 'status' => $engine->status,
+            'versions' => $engine->versions, 'status' => $engine->status, 'places' => $engine->places,
         ];
     }
 

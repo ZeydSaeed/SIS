@@ -65,6 +65,9 @@ final class UpdateClassHandler implements CommandHandler
             $this->idempotency->store($key, self::COMMAND_NAME, ['class_id' => $command->classId]);
         });
 
-        return UpdateClassResult::success($command->classId);
+        return UpdateClassResult::success($command->classId, $this->guard->capacityWarnings(
+            $command->capacity,
+            $this->structure->activeSectionCapacitySum($command->schoolId, $command->classId),
+        ));
     }
 }

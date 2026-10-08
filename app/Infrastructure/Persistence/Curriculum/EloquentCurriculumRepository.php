@@ -26,6 +26,20 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->exists();
     }
 
+    public function activeCurriculumExists(int $schoolId, int $academicYearId, int $gradeLevelId, int $departmentId, ?int $exceptCurriculumId = null): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('grade_level_id', $gradeLevelId)
+            ->where('department_id', $departmentId)
+            ->where('status', CurriculumStatus::Active->value)
+            ->when($exceptCurriculumId !== null, fn ($q) => $q->where('id', '<>', $exceptCurriculumId))
+            ->exists();
+    }
+
     public function departmentActiveInSchool(int $schoolId, int $departmentId): bool
     {
         return DB::table(SchemaHelper::qualified('organization', 'departments'))

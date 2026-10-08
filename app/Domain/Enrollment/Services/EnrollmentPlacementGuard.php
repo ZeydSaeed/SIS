@@ -2,6 +2,7 @@
 
 namespace App\Domain\Enrollment\Services;
 
+use App\Domain\Enrollment\Exceptions\EnrollmentDateOutsideYearException;
 use App\Domain\Enrollment\Exceptions\InvalidEnrollmentPlacementException;
 use App\Domain\Enrollment\Repositories\EnrollmentPlacementRepositoryInterface;
 
@@ -15,6 +16,16 @@ final class EnrollmentPlacementGuard
     public function __construct(
         private readonly EnrollmentPlacementRepositoryInterface $placement,
     ) {}
+
+    /** The enrollment starts inside the academic year it belongs to (an unknown year is left to the FK). */
+    public function assertDateWithinYear(int $academicYearId, string $effectiveFrom): void
+    {
+        $bounds = $this->placement->academicYearBounds($academicYearId);
+        $day = substr($effectiveFrom, 0, 10);
+        if ($bounds !== null && ($day < $bounds['start'] || $day > $bounds['end'])) {
+            throw EnrollmentDateOutsideYearException::forDate($day, $bounds['start'], $bounds['end']);
+        }
+    }
 
     public function assertValid(
         int $schoolId,

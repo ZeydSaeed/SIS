@@ -55,6 +55,7 @@ final class TimetableBoardLoader
             rooms: $this->engine->rooms($schoolId),
             workshops: $this->engine->workshops($schoolId),
             sectionInfo: $this->engine->sectionInfo($schoolId, $academicYearId),
+            teacherLimits: $this->workspace->teacherLimits($schoolId, $academicYearId),
         );
     }
 

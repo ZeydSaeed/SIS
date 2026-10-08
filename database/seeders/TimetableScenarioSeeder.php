@@ -90,7 +90,9 @@ final class TimetableScenarioSeeder extends Seeder
         $this->assignTeaching();
         $this->clearGrid();
 
-        [$s1, $s2, $s3, $s4, $s5, $s6, $s7, $s8, $s9, $s10] = array_column($this->sections, 'id');
+        // The catalogue has 3 classes × 3 sections: the tenth (an empty section) exists only when a school adds one.
+        [$s1, $s2, $s3, $s4, $s5, $s6, $s7, $s8, $s9] = array_column($this->sections, 'id');
+        $s10 = $this->sections[9]['id'] ?? null;
 
         foreach ([$s1, $s2, $s3, $s4, $s5, $s6, $s7, $s8, $s9] as $sectionId) {
             $this->autoPlace($sectionId);
@@ -101,7 +103,9 @@ final class TimetableScenarioSeeder extends Seeder
         $this->cancelEvery($s7, 3, 'partly');
         $this->overPlace($s8);
         $this->holeAndSplit($s9);
-        $this->overloadTeacherDay($s10, 3);
+        if ($s10 !== null) {
+            $this->overloadTeacherDay($s10, 3);
+        }
         $this->orphanOneSubject($s3);
 
         $this->report();
@@ -123,8 +127,8 @@ final class TimetableScenarioSeeder extends Seeder
             ->get(['s.id', 's.class_id', 'c.name as class_name', 's.name']) as $row) {
             $this->sections[] = ['id' => (int) $row->id, 'class_id' => (int) $row->class_id, 'label' => $row->class_name.' — '.$row->name];
         }
-        if (count($this->sections) < 10) {
-            throw new RuntimeException('TimetableScenarioSeeder needs 10 active sections in '.self::SCHOOL.' (found '.count($this->sections).').');
+        if (count($this->sections) < 9) {
+            throw new RuntimeException('TimetableScenarioSeeder needs at least 9 active sections in '.self::SCHOOL.' (found '.count($this->sections).').');
         }
         $this->sections = array_slice($this->sections, 0, 10);
     }
@@ -504,9 +508,9 @@ final class TimetableScenarioSeeder extends Seeder
     private function orphanOneSubject(int $sectionId): void
     {
         // Not a subject the other scenarios rely on (sections 8 and 10).
-        [$s8, $s10] = [$this->sections[7]['id'], $this->sections[9]['id']];
+        $others = array_filter([$this->sections[7]['id'], $this->sections[9]['id'] ?? null]);
         $elsewhere = [];
-        foreach ([$s8, $s10] as $other) {
+        foreach ($others as $other) {
             foreach ($this->sectionLessons($other) as $o) {
                 $elsewhere[$o->teacher_id.':'.$o->subject_id] = true;
             }

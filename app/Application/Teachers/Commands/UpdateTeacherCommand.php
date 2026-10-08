@@ -21,5 +21,10 @@ final readonly class UpdateTeacherCommand implements Command
         /** When set, نوع التعيين of the membership in this school/year is updated too. */
         public ?int $academicYearId = null,
         public ?int $employmentType = null,
+        /** When true the personal lesson limits below replace the stored ones (null = no limit). */
+        public bool $updateWorkload = false,
+        public ?int $weeklyLessonsMin = null,
+        public ?int $weeklyLessonsMax = null,
+        public ?int $dailyLessonsMax = null,
     ) {}
 }

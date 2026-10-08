@@ -28,7 +28,7 @@ final class StudentProfileRules
             'neighborhood' => ['nullable', 'string', 'max:100'],
             'locality' => ['nullable', 'string', 'max:100'],
             'house_number' => ['nullable', 'string', 'max:50'],
-            'birth_date' => ['required', 'date', 'before:today'],
+            'birth_date' => ['required', 'date', 'before:today', 'after:1950-01-01'],
             'mawalid_date' => ['nullable', 'date'],
             'registration_place' => ['nullable', 'string', 'max:255'],
             'gender' => ['required', 'integer', 'in:1,2'],
@@ -54,7 +54,7 @@ final class StudentProfileRules
             'administrative_unit' => ['nullable', 'integer', 'in:1,2,3'],
             'graduation_year' => ['nullable', 'integer', 'min:1950', 'max:2100'],
             'previous_gpa' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'previous_study_track' => ['nullable', 'integer', 'in:1,2,3,4,5'],
+            'previous_study_track' => ['nullable', 'integer', 'in:1,2,3,4,5,6'],
             'mathematics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'physics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'student_code' => $requireStudentCode

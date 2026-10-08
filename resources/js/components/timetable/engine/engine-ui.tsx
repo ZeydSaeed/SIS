@@ -58,7 +58,7 @@ export function EngineRow({ children, two = false }: { children: ReactNode; two?
 }
 
 /** Window classes of an engine sheet: shared timetable look + its own size. */
-export const engineSheetClass = (kind: 'generate' | 'activities' | 'constraints' | 'availability' | 'versions' | 'settings' | 'readiness') =>
+export const engineSheetClass = (kind: 'generate' | 'activities' | 'constraints' | 'availability' | 'versions' | 'settings' | 'readiness' | 'places') =>
     `sis-branches-sheet sis-timetable-sheet sis-timetable-audit-sheet sis-timetable-engine-sheet sis-timetable-engine-sheet--${kind}`;
 
 export const toInt = (value: string): number | null => (value.trim() === '' ? null : Number(value));

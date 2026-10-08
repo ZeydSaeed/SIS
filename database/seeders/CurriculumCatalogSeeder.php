@@ -46,6 +46,7 @@ class CurriculumCatalogSeeder extends Seeder
             if ($existing !== null) {
                 DB::table($table)->where('id', (int) $existing->id)->update([
                     'name' => $subject['name'],
+                    'name_en' => CurriculumSubjectCatalogReference::ENGLISH_NAMES[$subject['name']] ?? null,
                     'subject_type' => $subject['subject_type'],
                     'credit_hours' => $subject['credit_hours'],
                     'max_grade' => 100,
@@ -61,7 +62,7 @@ class CurriculumCatalogSeeder extends Seeder
             $ids[$subject['name']] = (int) DB::table($table)->insertGetId([
                 'code' => $code,
                 'name' => $subject['name'],
-                'name_en' => null,
+                'name_en' => CurriculumSubjectCatalogReference::ENGLISH_NAMES[$subject['name']] ?? null,
                 'subject_type' => $subject['subject_type'],
                 'credit_hours' => $subject['credit_hours'],
                 'max_grade' => 100,

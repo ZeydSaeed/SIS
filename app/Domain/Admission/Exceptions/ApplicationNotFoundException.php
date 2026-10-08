@@ -2,12 +2,12 @@
 
 namespace App\Domain\Admission\Exceptions;
 
-use DomainException;
+use App\Domain\Shared\Exceptions\SisDomainException;
 
-final class ApplicationNotFoundException extends DomainException
+final class ApplicationNotFoundException extends SisDomainException
 {
     public static function forId(int $id): self
     {
-        return new self("Admission application {$id} was not found.");
+        return new self("Admission application {$id} was not found.", 'admission.application_missing');
     }
 }

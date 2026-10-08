@@ -11,13 +11,15 @@ final readonly class DeactivateTeacherResult extends ApplicationResult
         public ?int $teacherId = null,
         array $errors = [],
         bool $fromIdempotencyCache = false,
+        array $warnings = [],
     ) {
-        parent::__construct($success, $errors, [], $fromIdempotencyCache);
+        parent::__construct($success, $errors, $warnings, $fromIdempotencyCache);
     }
 
-    public static function success(int $teacherId): self
+    /** @param  list<string>  $warnings */
+    public static function success(int $teacherId, array $warnings = []): self
     {
-        return new self(true, $teacherId);
+        return new self(true, $teacherId, warnings: $warnings);
     }
 
     public static function fromIdempotency(int $teacherId): self

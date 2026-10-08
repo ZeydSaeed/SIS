@@ -24,7 +24,9 @@ use App\Domain\Timetable\ValueObjects\PeriodType;
  * - availability: unavailable / avoid / preferred slots;
  * - rules: active constraint rules;
  * - rooms / workshops: id → capacity (+ room type / workshop's room and safety capacity);
- * - sectionInfo: section id → class, grade, branches, departments, students (rule scopes, capacity).
+ * - sectionInfo: section id → class, grade, branches, departments, students (rule scopes, capacity);
+ * - teacherLimits: teacher id → personal weekly min / weekly max / daily max lessons (teacher_schools; a missing
+ *   key or a null limit = no personal limit).
  */
 final readonly class TimetableBoard
 {
@@ -51,6 +53,7 @@ final readonly class TimetableBoard
      * @param  array<int, array{id: int, capacity: int|null, room_type: int|null}>  $rooms
      * @param  array<int, array{id: int, capacity: int, safety_capacity: int, room_id: int|null}>  $workshops
      * @param  array<int, array{class_id: int, grade_level_id: int|null, branch_ids: list<int>, department_ids: list<int>, students: int}>  $sectionInfo
+     * @param  array<int, array{weekly_min: int|null, weekly_max: int|null, daily_max: int|null}>  $teacherLimits
      */
     public function __construct(
         public array $periods,
@@ -68,6 +71,7 @@ final readonly class TimetableBoard
         public array $rooms = [],
         public array $workshops = [],
         public array $sectionInfo = [],
+        public array $teacherLimits = [],
     ) {
         $this->settings = $settings ?? TimetableSettings::defaults();
         $ordered = $periods;
@@ -105,7 +109,7 @@ final readonly class TimetableBoard
     {
         return new self($this->periods, $schedules, $this->requirements, $this->teacherSubjects, $this->activeTeacherIds,
             $this->practicalSubjectIds, $this->sectionIds, $this->settings, $this->activities, $this->groups, $this->availability,
-            $this->rules, $this->rooms, $this->workshops, $this->sectionInfo);
+            $this->rules, $this->rooms, $this->workshops, $this->sectionInfo, $this->teacherLimits);
     }
 
     /** The same board with extra availability rows (what-if: an absence, a closed room). */
@@ -113,7 +117,7 @@ final readonly class TimetableBoard
     {
         return new self($this->periods, $this->schedules, $this->requirements, $this->teacherSubjects, $this->activeTeacherIds,
             $this->practicalSubjectIds, $this->sectionIds, $this->settings, $this->activities, $this->groups, [...$this->availability, ...$extra],
-            $this->rules, $this->rooms, $this->workshops, $this->sectionInfo);
+            $this->rules, $this->rooms, $this->workshops, $this->sectionInfo, $this->teacherLimits);
     }
 
     /** The same board with extra rules (generation objectives). */
@@ -121,7 +125,27 @@ final readonly class TimetableBoard
     {
         return new self($this->periods, $this->schedules, $this->requirements, $this->teacherSubjects, $this->activeTeacherIds,
             $this->practicalSubjectIds, $this->sectionIds, $this->settings, $this->activities, $this->groups, $this->availability,
-            [...$this->rules, ...$extra], $this->rooms, $this->workshops, $this->sectionInfo);
+            [...$this->rules, ...$extra], $this->rooms, $this->workshops, $this->sectionInfo, $this->teacherLimits);
+    }
+
+    /**
+     * Lessons a week the teacher can take: the week's slots and the daily limit (personal, else the school's)
+     * cap it, and so does the personal weekly maximum.
+     */
+    public function weeklyCapacity(int $teacherId): int
+    {
+        $days = count($this->settings->days);
+        $daily = $this->dailyLimit($teacherId);
+        $capacity = min($days * count($this->lessonPeriodIds), $days * $daily);
+        $max = $this->teacherLimits[$teacherId]['weekly_max'] ?? null;
+
+        return $max === null ? $capacity : min($capacity, $max);
+    }
+
+    /** Lessons a day: the teacher's personal limit, else the school-wide one. */
+    public function dailyLimit(int $teacherId): int
+    {
+        return $this->teacherLimits[$teacherId]['daily_max'] ?? $this->settings->maxTeacherPerDay;
     }
 
     public function isPractical(int $subjectId): bool

@@ -412,6 +412,17 @@ final class ConstraintCompiler
             $this->compileRule(null, 'section_no_gaps', ConstraintPriority::High, [], [], $mode, $board),
             $this->compileRule(null, 'teacher_max_gaps_per_day', ConstraintPriority::VeryLow, [], ['max' => 0], $mode, $board),
         ];
+        // A teacher's personal daily limit (teacher_schools) is a teacher-scoped rule: it beats the school-wide default
+        // and the broader stored rules, and a stored rule on that teacher (or an activity) still beats it.
+        foreach ($board->teacherLimits as $teacherId => $limit) {
+            if (($limit['daily_max'] ?? null) === null) {
+                continue;
+            }
+            $personal = $this->compileRule(null, 'teacher_max_per_day', ConstraintPriority::High, ['teacher_id' => $teacherId], ['max' => $limit['daily_max']], $mode, $board);
+            $personal['specificity'] = ConstraintRuleCatalogue::specificity($personal['scope']) - 1;
+            $personal['source'] = 'teacher';
+            $compiled[] = $personal;
+        }
         foreach ($board->rules as $r) {
             if (! ConstraintRuleCatalogue::exists($r['rule_type'])) {
                 continue;

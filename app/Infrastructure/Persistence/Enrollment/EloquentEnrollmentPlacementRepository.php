@@ -13,6 +13,24 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentEnrollmentPlacementRepository implements EnrollmentPlacementRepositoryInterface
 {
+    public function academicYearBounds(int $academicYearId): ?array
+    {
+        $row = DB::table(SchemaHelper::qualified('academic', 'academic_years'))->where('id', $academicYearId)->first(['start_date', 'end_date']);
+
+        return $row === null ? null : ['start' => substr((string) $row->start_date, 0, 10), 'end' => substr((string) $row->end_date, 0, 10)];
+    }
+
+    public function hasActiveCurriculum(int $departmentId, int $classId, int $academicYearId): bool
+    {
+        return DB::table(SchemaHelper::qualified('curriculum', 'curricula').' as c')
+            ->join(SchemaHelper::qualified('enrollment', 'classes').' as cl', 'cl.grade_level_id', '=', 'c.grade_level_id')
+            ->where('cl.id', $classId)
+            ->where('c.department_id', $departmentId)
+            ->where('c.academic_year_id', $academicYearId)
+            ->where('c.status', 1)
+            ->exists();
+    }
+
     public function studentBelongsToSchool(int $studentId, int $schoolId): bool
     {
         $record = StudentRecord::query()->find($studentId);

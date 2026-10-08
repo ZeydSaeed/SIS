@@ -431,7 +431,17 @@ final class EnrollmentPageController extends Controller
             "enrollment:{$result->enrollmentId}",
         );
 
-        return redirect()->back();
+        return $this->withWarningToast(redirect()->back(), $result->warnings);
+    }
+
+    /**
+     * A successful write that still needs attention (e.g. the placement has no curriculum) — a warning toast.
+     *
+     * @param  list<string>  $warnings
+     */
+    private function withWarningToast(RedirectResponse $redirect, array $warnings): RedirectResponse
+    {
+        return $warnings === [] ? $redirect : $redirect->with('toast', ['type' => 'warning', 'message' => $warnings[0]]);
     }
 
     /** Enroll up to 100 students into one placement; per-student outcome via flash.bulkEnroll. */
@@ -462,10 +472,10 @@ final class EnrollmentPageController extends Controller
             ],
         );
 
-        return redirect()->back()->with('bulkEnroll', [
+        return $this->withWarningToast(redirect()->back()->with('bulkEnroll', [
             'enrolled' => $result->enrolledStudentIds,
             'skipped' => $result->skipped,
-        ]);
+        ]), $result->warnings);
     }
 
     public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response

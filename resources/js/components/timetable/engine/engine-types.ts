@@ -57,6 +57,11 @@ export type EngineRoom = { id: number; code: string; name: string; capacity: num
 
 export type EngineWorkshop = { id: number; code: string; name: string; capacity: number; safety_capacity: number; room_id: number | null };
 
+/** A room / workshop with every status and how many lessons / activities / workshops still use it (the «الأماكن» sheet). */
+export type EnginePlaceRoom = { id: number; branch_id: number; branch_name: string; code: string; name: string; capacity: number | null; room_type: number; status: number; used: number };
+
+export type EnginePlaceWorkshop = { id: number; code: string; name: string; capacity: number; safety_capacity: number; room_id: number | null; status: number; used: number };
+
 export type EngineRun = {
     id: number;
     mode: number;
@@ -102,6 +107,7 @@ export type Engine = {
     catalogue: EngineCatalogueEntry[];
     rooms: EngineRoom[];
     workshops: EngineWorkshop[];
+    places: { rooms: EnginePlaceRoom[]; workshops: EnginePlaceWorkshop[] };
     runs: EngineRun[];
     versions: EngineVersion[];
     status: { published_version_id: number | null; effective_version_id: number | null; stale: boolean; fingerprint: string };

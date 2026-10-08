@@ -45,6 +45,9 @@ interface EnrollmentStructureRepositoryInterface
 
     public function updateSection(int $schoolId, int $sectionId, string $name, ?int $capacity, ?int $homeroomTeacherId, string $at): void;
 
+    /** Sum of the capacities of the class's active sections (a section without a capacity counts 0). */
+    public function activeSectionCapacitySum(int $schoolId, int $classId): int;
+
     public function countActiveEnrollmentsInClass(int $schoolId, int $classId): int;
 
     public function countActiveEnrollmentsInSection(int $schoolId, int $sectionId): int;

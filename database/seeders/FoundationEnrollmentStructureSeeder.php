@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
  */
 class FoundationEnrollmentStructureSeeder extends Seeder
 {
+    private const SECTION_CAPACITY = 40;
+
     public function run(): void
     {
         $schoolId = (int) DB::table(SchemaHelper::qualified('organization', 'schools'))
@@ -49,7 +51,8 @@ class FoundationEnrollmentStructureSeeder extends Seeder
                 [
                     'grade_level_id' => (int) $grade->id,
                     'name' => $classDef['name'],
-                    'capacity' => 50,
+                    // A class never holds fewer seats than its sections together.
+                    'capacity' => count(AdmissionCatalogReference::SECTIONS) * self::SECTION_CAPACITY,
                     'status' => 1,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -65,7 +68,7 @@ class FoundationEnrollmentStructureSeeder extends Seeder
                     ],
                     [
                         'name' => $sectionDef['name'],
-                        'capacity' => 40,
+                        'capacity' => self::SECTION_CAPACITY,
                         'status' => 1,
                         'created_at' => $now,
                         'updated_at' => $now,

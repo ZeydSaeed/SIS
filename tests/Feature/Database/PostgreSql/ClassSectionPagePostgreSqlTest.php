@@ -14,6 +14,33 @@ final class ClassSectionPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
     use InteractsWithSecurity;
 
     #[Test]
+    public function a_class_with_fewer_seats_than_its_sections_saves_with_a_warning(): void
+    {
+        [$schoolId, $yearId, $gradeId] = $this->seedSchool('CS-W');
+        $this->actingAsEnrollmentManagerForSchool($schoolId);
+        $go = fn (string $method, string $uri, array $payload, string $key) => $this->from('/organization/classes-sections')
+            ->withHeader('X-Idempotency-Key', $key)->{$method}($uri, $payload);
+
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الأول', 'capacity' => 50], 'cs-w-class');
+        $classId = (int) DB::table('enrollment.classes')->where('school_id', $schoolId)->value('id');
+
+        // 30 + 15 = 45 ≤ 50: no warning.
+        $go('post', '/organization/sections', ['class_id' => $classId, 'name' => 'أ', 'capacity' => 30], 'cs-w-s1')->assertSessionMissing('toast');
+        $go('post', '/organization/sections', ['class_id' => $classId, 'name' => 'ب', 'capacity' => 15], 'cs-w-s2')->assertSessionMissing('toast');
+
+        // 45 + 20 = 65 > 50: saved, with a warning that names both numbers.
+        $go('post', '/organization/sections', ['class_id' => $classId, 'name' => 'ج', 'capacity' => 20], 'cs-w-s3')
+            ->assertSessionHas('success', 'flash.structure.sectionCreated')
+            ->assertSessionHas('toast', ['type' => 'warning', 'message' => 'enrollment.class_capacity_below_sections?class=50&sections=65']);
+        $this->assertSame(3, DB::table('enrollment.sections')->where('class_id', $classId)->count());
+
+        // Raising the class capacity clears the warning; lowering it brings it back.
+        $go('patch', '/organization/classes/'.$classId, ['grade_level_id' => $gradeId, 'name' => 'الأول', 'capacity' => 100], 'cs-w-c1')->assertSessionMissing('toast');
+        $go('patch', '/organization/classes/'.$classId, ['grade_level_id' => $gradeId, 'name' => 'الأول', 'capacity' => 60], 'cs-w-c2')
+            ->assertSessionHas('toast', ['type' => 'warning', 'message' => 'enrollment.class_capacity_below_sections?class=60&sections=65']);
+    }
+
+    #[Test]
     public function guest_is_redirected(): void
     {
         $this->get('/organization/classes-sections')->assertRedirect('/login');

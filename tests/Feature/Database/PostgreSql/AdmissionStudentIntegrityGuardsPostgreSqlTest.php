@@ -62,6 +62,24 @@ class AdmissionStudentIntegrityGuardsPostgreSqlTest extends PostgreSqlIntegratio
         $this->assertSame(1, DB::table('admission.application_periods')->where('id', $periodId)->update(['name' => 'Renamed']));
     }
 
+    #[Test]
+    public function students_accept_every_previous_study_track_an_application_accepts(): void
+    {
+        $refs = $this->seedReferences();
+        $studentId = $this->insertStudent($refs['school_id'], 'GUARD-STU-TRACK');
+
+        foreach ([1, 2, 3, 4, 5, 6] as $track) {
+            DB::table('students.students')->where('id', $studentId)->update(['previous_study_track' => $track]);
+            $this->assertSame($track, (int) DB::table('students.students')->where('id', $studentId)->value('previous_study_track'));
+        }
+        try {
+            DB::transaction(fn () => DB::table('students.students')->where('id', $studentId)->update(['previous_study_track' => 7]));
+            $this->fail('A track outside 1–6 must violate students_previous_study_track_chk.');
+        } catch (QueryException $exception) {
+            $this->assertStringContainsString('students_previous_study_track_chk', $exception->getMessage());
+        }
+    }
+
     private function assertRejected(callable $write): void
     {
         $rejected = false;

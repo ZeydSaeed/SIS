@@ -295,7 +295,7 @@
 | school_id | BIGINT | FK → organization.schools, nullable |
 | branch_id | BIGINT | FK → organization.branches, nullable — الفرع |
 | department_id | BIGINT | FK → organization.departments, nullable, restrict — القسم / الاختصاص (المصدر الوحيد؛ الاسم يُقرأ من الجدول) |
-| public_id | UUID | UNIQUE DEFAULT gen_random_uuid() |
+| public_id | UUID | UNIQUE NOT NULL DEFAULT gen_random_uuid() (enforced by migration `2026_10_08_100000`; it was nullable without default and empty for every student) |
 | student_code | VARCHAR(50) | UNIQUE NOT NULL |
 | national_id | VARCHAR(20) | UNIQUE |
 | first_name | VARCHAR(100) | NOT NULL — اسم الطالب |
@@ -336,7 +336,7 @@
 | administrative_unit | SMALLINT | الوحدة الإدارية — nullable; CHECK IN (1,2,3) |
 | graduation_year | SMALLINT | سنة التخرج — nullable; CHECK 1950–2100 |
 | previous_gpa | DECIMAL(5,2) | المعدل — nullable; CHECK 0–100 |
-| previous_study_track | SMALLINT | مرحلة الدراسة السابقة — nullable; CHECK IN (1,2,3,4,5) |
+| previous_study_track | SMALLINT | مرحلة الدراسة السابقة — nullable; CHECK IN (1–6) — same set as admission (6 = متوسطة), migration `2026_10_08_130000` |
 | mathematics_grade | DECIMAL(5,2) | درجة الرياضيات — nullable; CHECK 0–100 |
 | physics_grade | DECIMAL(5,2) | درجة الطبيعيات — nullable; CHECK 0–100 |
 | request_kind | SMALLINT | قناة القبول المحفوظة من الاستمارة — nullable; CHECK IN (1,2); 1=تحويل أكاديمي→مهني، 2=قبول مهني |
@@ -519,6 +519,7 @@
 | intended_grade_name | VARCHAR(100) | nullable — نص المرحلة المطلوبة حتى ضبط القائمة |
 | request_kind | SMALLINT | NOT NULL DEFAULT 2; CHECK IN (1, 2) — قناة القبول: 1=تحويل أكاديمي→مهني، 2=قبول مهني |
 | department_name | VARCHAR(100) | nullable — القسم (قائمة لاحقاً) |
+| department_id | BIGINT | FK → organization.departments, nullable, restrict — الاختصاص (المصدر الوحيد؛ resolved at write time; names are read back from the table, `department_name` stays as the "as applied" snapshot) — migration `2026_10_08_120000` |
 | specialization_id | BIGINT | FK → specializations, nullable |
 | specialization_name | VARCHAR(100) | nullable — الاختصاص (نص حتى ضبط القائمة) |
 | governorate | VARCHAR(100) | nullable — المحافظة |
@@ -726,6 +727,9 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 | academic_year_id | BIGINT | FK → academic_years |
 | is_primary | BOOLEAN | NOT NULL DEFAULT true |
 | employment_type | SMALLINT | nullable, CHECK 1–5 — نوع التعيين in this school/year: 1 ملاك · 2 مكلف · 3 تنسيب · 4 محاضر · 5 عقد (2026-10-06) |
+| weekly_lessons_min | SMALLINT | nullable, CHECK 0–60 — personal weekly minimum (timetable; migration `2026_10_08_110000`) |
+| weekly_lessons_max | SMALLINT | nullable, CHECK 1–60, min ≤ max — personal weekly quota |
+| daily_lessons_max | SMALLINT | nullable, CHECK 1–12 — personal daily limit (overrides the school-wide one for this teacher) |
 | left_at | TIMESTAMPTZ | nullable — set on soft leave (**8.6-U01**); active = `NULL` |
 | created_at | TIMESTAMPTZ | NOT NULL |
 

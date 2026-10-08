@@ -58,9 +58,9 @@ final class AdmissionCatalogReference
 
     /** UI section codes → Arabic names. */
     public const SECTIONS = [
-        ['code' => 'SEC-A', 'ui' => 'A', 'name' => 'شعبة أ'],
+        ['code' => 'SEC-A', 'ui' => 'A', 'name' => 'أ'],
         ['code' => 'SEC-B', 'ui' => 'B', 'name' => 'ب'],
-        ['code' => 'SEC-C', 'ui' => 'C', 'name' => 'شعبة ج'],
+        ['code' => 'SEC-C', 'ui' => 'C', 'name' => 'ج'],
     ];
 
     public static function branchCode(string $branchName): string

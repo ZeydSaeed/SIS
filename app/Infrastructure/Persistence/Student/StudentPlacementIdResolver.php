@@ -80,7 +80,7 @@ final class StudentPlacementIdResolver
     }
 
     /** Mirrors normalizeArabicLabel() in resources/js/lib/enrollment-dialog-resolve.ts. */
-    private static function normalize(string $value): string
+    public static function normalize(string $value): string
     {
         $value = str_replace(['أ', 'إ', 'آ', 'ة', 'ى', 'ئ', 'ؤ'], ['ا', 'ا', 'ا', 'ه', 'ي', 'ي', 'و'], trim($value));
         $value = (string) preg_replace('/[\x{064B}-\x{065F}\x{0670}]/u', '', $value);

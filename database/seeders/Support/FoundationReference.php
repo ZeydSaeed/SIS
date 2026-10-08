@@ -14,9 +14,16 @@ final class FoundationReference
 
     public const SCHOOL_CODE = 'SCH-DEMO';
 
+    public const SCHOOL_NAME = 'اعدادية التحرير';
+
+    public const SECOND_SCHOOL_CODE = 'SCH-0001';
+
+    public const SECOND_SCHOOL_NAME = 'اعدادية العباس';
+
     public const BRANCH_CODE = 'BR-MAIN';
 
-    public const DEPARTMENT_CODE = 'DEP-VOC';
+    /** The single «كهرباء» department (the old DEP-VOC duplicate no longer exists). */
+    public const DEPARTMENT_CODE = 'DEP-ELEC';
 
     public const ACADEMIC_YEAR_CODE = '2026-2027';
 

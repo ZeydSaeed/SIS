@@ -34,5 +34,7 @@ final readonly class TimetableEngineDTO
         public array $runs,
         public array $versions,
         public array $status,
+        /** Every room and workshop of the school, any status, with how many lessons / activities use it. */
+        public array $places = ['rooms' => [], 'workshops' => []],
     ) {}
 }

@@ -13,9 +13,13 @@ trait ValidatesApplicationPeriodAcademicYear
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            // The date guard compares against the academic year: only for fields that already passed their own rules.
+            if ($validator->errors()->hasAny(['academic_year_id', 'start_date', 'end_date'])) {
+                return;
+            }
             $yearId = (int) $this->input('academic_year_id');
-            $startDate = (string) $this->input('start_date');
-            $endDate = $this->filled('end_date') ? (string) $this->input('end_date') : null;
+            $startDate = is_string($this->input('start_date')) ? $this->input('start_date') : '';
+            $endDate = $this->filled('end_date') && is_string($this->input('end_date')) ? $this->input('end_date') : null;
 
             if ($yearId < 1 || $startDate === '') {
                 return;

@@ -40,6 +40,19 @@ final class EnrollmentStructureGuard
         return $capacity < $activeEnrollments ? $prefix.'_capacity_below_enrolled' : null;
     }
 
+    /**
+     * A class that holds fewer seats than its sections together can never fill them: not an error (a class limit
+     * below the sections is a legitimate cap), but worth telling the user.
+     *
+     * @return list<string> warning keys (with `?class=…&sections=…` parameters)
+     */
+    public function capacityWarnings(?int $classCapacity, int $sectionsCapacitySum): array
+    {
+        return $classCapacity !== null && $sectionsCapacitySum > $classCapacity
+            ? ['enrollment.class_capacity_below_sections?class='.$classCapacity.'&sections='.$sectionsCapacitySum]
+            : [];
+    }
+
     public function gradeLevelChangeError(int $currentGradeLevelId, int $newGradeLevelId, int $activeEnrollments): ?string
     {
         if ($currentGradeLevelId === $newGradeLevelId || $activeEnrollments === 0) {

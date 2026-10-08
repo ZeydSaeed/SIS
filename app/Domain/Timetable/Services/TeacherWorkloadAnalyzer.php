@@ -11,7 +11,8 @@ use App\Domain\Timetable\Support\DayRuns;
  * required — weekly lessons of the teacher's assignments (curriculum hours; unknown loads not counted);
  * placed   — active lessons on the grid, split into practical / theory, and per day;
  * gaps     — free periods between a teacher's first and last lesson, summed over the week;
- * capacity — lessons the week allows (days × the daily limit, at most the lesson slots).
+ * capacity — lessons the week allows (days × the daily limit, at most the lesson slots, at most the teacher's
+ *            personal weekly maximum when one is set).
  *
  * Status: `over` when the load passes the capacity or a day passes the daily limit, `incomplete` while
  * fewer lessons are placed than required, `ok` otherwise. No underload threshold — SIS has no policy for it.
@@ -24,7 +25,6 @@ final class TeacherWorkloadAnalyzer
     public function analyze(TimetableBoard $board): array
     {
         $days = $board->settings->days;
-        $capacity = min(count($days) * count($board->lessonPeriodIds), count($days) * $board->settings->maxTeacherPerDay);
 
         $rows = [];
         $row = static fn (int $teacherId): array => [
@@ -60,6 +60,7 @@ final class TeacherWorkloadAnalyzer
                 $longest = max($longest, DayRuns::longestRun($positions));
             }
             $maxDay = $byDay === [] ? 0 : max($byDay);
+            $capacity = $board->weeklyCapacity($r['teacher_id']);
 
             $result[] = [
                 'teacher_id' => $r['teacher_id'],
@@ -74,7 +75,7 @@ final class TeacherWorkloadAnalyzer
                 'max_consecutive' => $longest,
                 'capacity' => $capacity,
                 'status' => match (true) {
-                    $r['required'] > $capacity || $r['placed'] > $capacity || $maxDay > $board->settings->maxTeacherPerDay => 'over',
+                    $r['required'] > $capacity || $r['placed'] > $capacity || $maxDay > $board->dailyLimit($r['teacher_id']) => 'over',
                     $r['placed'] < $r['required'] => 'incomplete',
                     default => 'ok',
                 },

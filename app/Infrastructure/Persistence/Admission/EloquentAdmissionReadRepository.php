@@ -653,6 +653,8 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
             $search,
             $enrollmentStatus,
         )
+            ->leftJoin(SchemaHelper::qualified('organization', 'departments').' as dep', 'dep.id', '=', 'apps.department_id')
+            ->leftJoin(SchemaHelper::qualified('organization', 'branches').' as br', 'br.id', '=', 'apps.branch_id')
             ->orderBy('apps.first_name')
             ->orderBy('apps.father_name')
             ->orderBy('apps.grandfather_name')
@@ -681,10 +683,11 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'apps.neighborhood',
                 'apps.target_school_id',
                 'apps.branch_id',
-                'apps.branch_name',
+                DB::raw('COALESCE(br.name, apps.branch_name) as branch_name'),
                 'apps.grade_level_id',
                 'apps.intended_grade_name',
-                'apps.department_name',
+                DB::raw('COALESCE(dep.name, apps.department_name) as department_name'),
+                'apps.department_id',
                 'apps.specialization_id',
                 'apps.specialization_name',
                 'apps.status',
@@ -739,6 +742,7 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
                 'grade_level_id' => $row->grade_level_id !== null ? (int) $row->grade_level_id : null,
                 'intended_grade_name' => $row->intended_grade_name !== null ? (string) $row->intended_grade_name : null,
                 'department_name' => $row->department_name !== null ? (string) $row->department_name : null,
+                'department_id' => $row->department_id !== null ? (int) $row->department_id : null,
                 'specialization_id' => $row->specialization_id !== null ? (int) $row->specialization_id : null,
                 'specialization_name' => $row->specialization_name !== null ? (string) $row->specialization_name : null,
                 'status' => $status,

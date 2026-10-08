@@ -7,6 +7,7 @@ use App\Application\Timetable\Support\TimetableBoardLoader;
 use App\Domain\Timetable\Constraints\ConstraintRuleCatalogue;
 use App\Domain\Timetable\Data\TimetableBoard;
 use App\Domain\Timetable\Repositories\GenerationRunRepositoryInterface;
+use App\Domain\Timetable\Repositories\TimetablePlaceRepositoryInterface;
 use App\Domain\Timetable\Repositories\TimetableVersionRepositoryInterface;
 use App\Domain\Timetable\Services\EffectiveVersionSelector;
 use App\Domain\Timetable\Services\TimetableFingerprint;
@@ -19,6 +20,7 @@ final class GetTimetableEngineHandler
         private readonly TimetableVersionRepositoryInterface $versions,
         private readonly TimetableFingerprint $fingerprints,
         private readonly EffectiveVersionSelector $selector,
+        private readonly TimetablePlaceRepositoryInterface $places,
     ) {}
 
     /** @param  TimetableBoard|null  $board  already loaded board (the workspace's) */
@@ -51,6 +53,7 @@ final class GetTimetableEngineHandler
                 'stale' => $published !== null && $published['source_fingerprint'] !== $fingerprint,
                 'fingerprint' => $fingerprint,
             ],
+            places: $this->places->places($query->schoolId),
         );
     }
 }

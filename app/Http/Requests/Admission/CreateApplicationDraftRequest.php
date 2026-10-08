@@ -29,7 +29,7 @@ final class CreateApplicationDraftRequest extends FormRequest
             'mother_name' => ['required', 'string', 'max:100'],
             'maternal_father_name' => ['required', 'string', 'max:100'],
             'maternal_grandfather_name' => ['required', 'string', 'max:100'],
-            'birth_date' => ['required', 'date'],
+            'birth_date' => ['required', 'date', 'before:today', 'after:1950-01-01'],
             'birth_place' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'integer', 'in:1,2'],
             'target_school_id' => $this->applicationSchoolRule(),
@@ -55,7 +55,7 @@ final class CreateApplicationDraftRequest extends FormRequest
             'mathematics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'physics_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'previous_study_track' => ['nullable', 'integer', 'in:1,2,3,4,5,6'],
-            'notes' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:5000'],
         ];
     }
 

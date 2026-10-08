@@ -72,6 +72,9 @@ final class CreateSectionHandler implements CommandHandler
             return $id;
         });
 
-        return CreateSectionResult::success($sectionId);
+        return CreateSectionResult::success($sectionId, $this->guard->capacityWarnings(
+            $class->capacity,
+            $this->structure->activeSectionCapacitySum($command->schoolId, $command->classId),
+        ));
     }
 }

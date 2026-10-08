@@ -41,6 +41,12 @@ interface TeacherRepositoryInterface
     /** نوع التعيين of the active membership in the school/year (null clears it). */
     public function setEmploymentType(int $teacherId, int $schoolId, int $academicYearId, ?int $employmentType): void;
 
+    /** Personal lesson limits of the active membership in the school/year (null clears a limit). */
+    public function setWorkloadLimits(int $teacherId, int $schoolId, int $academicYearId, ?int $weeklyMin, ?int $weeklyMax, ?int $dailyMax): void;
+
+    /** Lessons still on the timetable grid (active, lead or co-teacher) for these teachers in the school. */
+    public function activeLessonCount(array $teacherIds, int $schoolId): int;
+
     public function activeTeachingAssignmentExists(TeachingAssignmentData $data): bool;
 
     public function addTeachingAssignment(TeachingAssignmentData $data): int;
@@ -73,6 +79,11 @@ interface TeacherRepositoryInterface
     public function listForSchool(int $schoolId, int $academicYearId, int $page, int $perPage): array;
 
     public function belongsToSchool(int $teacherId, int $schoolId, ?int $academicYearId = null): bool;
+
+    public function academicYearExists(int $academicYearId): bool;
+
+    /** True when another teacher (not `$exceptTeacherId`) already has this national id. */
+    public function nationalIdTaken(string $nationalId, ?int $exceptTeacherId = null): bool;
 
     public function isPrimaryInSchool(int $teacherId, int $schoolId, int $academicYearId): bool;
 

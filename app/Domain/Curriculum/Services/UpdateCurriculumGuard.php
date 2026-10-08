@@ -31,6 +31,10 @@ final class UpdateCurriculumGuard
             if ($departmentId < 1 || ! $this->curricula->departmentActiveInSchool($schoolId, $departmentId)) {
                 return 'curriculum.department_invalid';
             }
+            $current = $this->curricula->findActiveInSchool($schoolId, $curriculumId);
+            if ($current !== null && $this->curricula->activeCurriculumExists($schoolId, $current->academicYearId, $current->gradeLevelId, $departmentId, $curriculumId)) {
+                return 'curriculum.curriculum_exists';
+            }
         }
         if (array_key_exists('specialization_id', $fields) && $fields['specialization_id'] !== null) {
             $specId = (int) $fields['specialization_id'];

@@ -3,11 +3,13 @@
 namespace App\Providers;
 
 use App\Database\ProtectedDatabaseGuard;
+use App\Security\Validation\RobustValidator;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->hardenValidator();
         $this->protectDestructiveArtisanCommands();
     }
 
@@ -54,6 +57,12 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    /** Hostile values in date fields fail validation (422) instead of crashing the request (500). */
+    protected function hardenValidator(): void
+    {
+        Validator::resolver(static fn ($translator, array $data, array $rules, array $messages, array $attributes): RobustValidator => new RobustValidator($translator, $data, $rules, $messages, $attributes));
     }
 
     protected function protectDestructiveArtisanCommands(): void
