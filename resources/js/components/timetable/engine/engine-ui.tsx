@@ -10,10 +10,10 @@ export function useEngineRequest() {
     return useRegistryRequest(ENGINE_RELOAD);
 }
 
-/** A labelled field with the sheet's existing classes. */
-export function EngineField({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
+/** A labelled field with the sheet's existing classes; `span` = how many columns it takes in a sheet's own grid. */
+export function EngineField({ label, children, wide = false, span }: { label: string; children: ReactNode; wide?: boolean; span?: 2 | 3 }) {
     return (
-        <label className={`sis-admission-sheet__field${wide ? ' sis-branches-field--wide' : ''}`}>
+        <label className={`sis-admission-sheet__field${wide ? ' sis-branches-field--wide' : ''}${span ? ` sis-timetable-engine-field--span${span}` : ''}`}>
             <span className="sis-admission-sheet__label">{label}</span>
             {children}
         </label>

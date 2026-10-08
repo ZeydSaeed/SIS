@@ -72,16 +72,17 @@ function scrollOptionIntoMenu(menu: HTMLElement, option: HTMLElement): void {
     }
 }
 
+/** The menu layer lives in the full-screen element while one is shown (the browser renders nothing outside it), else in body. */
 function getPortalRoot(): HTMLElement {
-    const existing = document.getElementById('sis-list-select-portal');
-    if (existing) {
-        return existing;
+    const host = document.fullscreenElement ?? document.body;
+    const root = document.getElementById('sis-list-select-portal') ?? document.createElement('div');
+    if (root.id === '') {
+        root.id = 'sis-list-select-portal';
+        root.setAttribute('data-sis-list-select-portal', '');
     }
-
-    const root = document.createElement('div');
-    root.id = 'sis-list-select-portal';
-    root.setAttribute('data-sis-list-select-portal', '');
-    document.body.appendChild(root);
+    if (root.parentElement !== host) {
+        host.appendChild(root);
+    }
 
     return root;
 }

@@ -6,6 +6,7 @@ approved — ADR-021, ADR-022).
 
 | Document | Content |
 |----------|---------|
+| [TIMETABLE-SYSTEM-REPORT.md](./TIMETABLE-SYSTEM-REPORT.md) | Full Arabic walkthrough (data sources, workflow, ribbon / icons, every sheet), spec conformance, gaps and integration proposals (2026-10-08) |
 | [TIMETABLE-GAP-ANALYSIS.md](./TIMETABLE-GAP-ANALYSIS.md) | Discovery (T0), UI inventory, gap list with what is now closed |
 | [TIMETABLE-DOMAIN-SPECIFICATION.md](./TIMETABLE-DOMAIN-SPECIFICATION.md) | Ownership, activity / time / constraint models, lifecycle, **implemented schema** |
 | [TIMETABLE-SOLVER-SPECIFICATION.md](./TIMETABLE-SOLVER-SPECIFICATION.md) | Solver port, compiler, heuristic, modes, scoring, explainability, runs |

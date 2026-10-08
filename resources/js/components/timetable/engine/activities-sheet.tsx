@@ -122,7 +122,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
         <SheetSection id="timetable-activity-form" title={editing === 'new' ? e.newActivity : e.edit}>
             <EngineRow>
                 {editing === 'new' ? (
-                    <EngineField label={e.subject}>
+                    <EngineField label={e.subject} span={2}>
                         <EngineSelect value={form.subject} label={e.subject} includeBlank onChange={set('subject')} options={ctx.subjects.map((s) => ({ value: String(s.id), label: s.name }))} />
                     </EngineField>
                 ) : null}
@@ -140,23 +140,23 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                 </EngineField>
             </EngineRow>
             <EngineRow>
-                <EngineField label={e.roomSource}>
+                <EngineField label={e.roomSource} span={2}>
                     <EngineSelect value={form.place} label={e.roomSource} onChange={set('place')} options={placeOptions} />
                 </EngineField>
                 <EngineField label={e.weekPattern}>
                     <EngineSelect value={form.week} label={e.weekPattern} onChange={set('week')} options={weekOptions} />
                 </EngineField>
-                <EngineField label={e.note} wide>
+                <EngineField label={e.note} span={3}>
                     <input className="sis-admission-sheet__control" value={form.note} maxLength={255} onChange={(ev) => set('note')(ev.target.value)} />
                 </EngineField>
             </EngineRow>
             {editing === 'new' ? (
                 <>
                     <EngineRow>
-                        <EngineField label={e.leadTeacher}>
+                        <EngineField label={e.leadTeacher} span={2}>
                             <EngineSelect value={form.lead} label={e.leadTeacher} includeBlank onChange={set('lead')} options={ctx.teachers.map((x) => ({ value: String(x.id), label: x.name }))} />
                         </EngineField>
-                        <EngineField label={e.coTeacher}>
+                        <EngineField label={e.coTeacher} span={2}>
                             <EngineSelect value={form.co} label={e.coTeacher} includeBlank onChange={set('co')} options={ctx.teachers.filter((x) => String(x.id) !== form.lead).map((x) => ({ value: String(x.id), label: x.name }))} />
                         </EngineField>
                         {form.co !== '' ? (
@@ -167,10 +167,10 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                     </EngineRow>
                     {form.targets.map((tg, index) => (
                         <EngineRow key={index}>
-                            <EngineField label={e.targets}>
+                            <EngineField label={e.targets} span={2}>
                                 <EngineSelect value={tg.section} label={e.targets} includeBlank onChange={(v) => setForm((f) => ({ ...f, targets: f.targets.map((x, i) => (i === index ? { section: v, group: '' } : x)) }))} options={ctx.sections.map((s) => ({ value: String(s.id), label: s.label }))} />
                             </EngineField>
-                            <EngineField label={e.group}>
+                            <EngineField label={e.group} span={2}>
                                 <EngineSelect value={tg.group} label={e.group} onChange={(v) => setForm((f) => ({ ...f, targets: f.targets.map((x, i) => (i === index ? { ...x, group: v } : x)) }))}
                                     options={[{ value: '', label: e.wholeSection }, ...ctx.engine.groups.filter((g) => String(g.section_id) === tg.section).map((g) => ({ value: String(g.id), label: `${g.division_name}: ${g.name}` }))]} />
                             </EngineField>
@@ -242,7 +242,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                             </ul>
                             {ctx.can.manage ? (
                                 <EngineRow>
-                                    <EngineField label={e.splitName}>
+                                    <EngineField label={e.splitName} span={2}>
                                         <input className="sis-admission-sheet__control" value={split.name} maxLength={100} onChange={(ev) => setSplit((s) => ({ ...s, name: ev.target.value }))} />
                                     </EngineField>
                                     <EngineField label={e.groupCount}>

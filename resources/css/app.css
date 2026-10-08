@@ -3042,7 +3042,7 @@ input[type='reset']:disabled {
 #sis-list-select-portal {
     position: fixed;
     inset: 0;
-    z-index: 210000;
+    z-index: 260000; /* above sheets (200000) and the timetable full-screen preview (250000) */
     pointer-events: none;
 }
 
@@ -15574,22 +15574,167 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 
 /* Timetable engine windows: sized to what each one shows, so forms and tables are fully visible. */
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--settings {
-    --sis-sheet-w: min(96vw, 48rem);
+    /* Sized to what it shows: seven days on one line, the four limits two per line with full labels. */
+    --sis-sheet-w: min(94vw, 36rem);
 }
 
-.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--readiness,
-.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--availability {
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--readiness {
     --sis-sheet-w: min(96vw, 62rem);
 }
 
-.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--generate,
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--availability {
+    --sis-sheet-w: min(96vw, 80rem); /* day column + every lesson column with its full label */
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--generate {
+    /* Three fields a line with the longest mode / scope fully shown; the window height follows the content. */
+    --sis-sheet-w: min(96vw, 60rem);
+}
+
+/* «توليد الجدول»: its own three-column body (the shared 120-column body needs ~66rem of gaps alone, scattered the
+   fields and overflowed narrow screens): scope · mode · search time, then objectives / days / lists on full lines. */
+.sis-timetable-engine-sheet--generate .sis-admission-sheet__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    padding-inline: 1rem;
+}
+
+.sis-timetable-engine-sheet--generate .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-admission-sheet__field:not(.sis-branches-field--wide) {
+    grid-column: auto;
+}
+
+.sis-timetable-engine-sheet--generate .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-admission-sheet__field.sis-branches-field--wide {
+    grid-column: 1 / -1;
+}
+
+.sis-timetable-engine-sheet--generate .sis-admission-sheet__label {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.sis-timetable-engine-sheet--generate .sis-timetable-audit__bar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.35rem 1.25rem;
+}
+
+.sis-timetable-engine-sheet--generate .sis-timetable-audit__filter {
+    flex: 0 0 auto;
+    margin-inline-start: 0;
+    white-space: nowrap;
+}
+
+.sis-timetable-engine-sheet--generate .sis-admission-sheet__actions {
+    padding-inline: 1rem;
+}
+
+@container sis-sheet (max-width: 40rem) {
+    .sis-timetable-engine-sheet--generate .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-admission-sheet__field:not(.sis-branches-field--wide) {
+        grid-column: 1 / -1;
+    }
+
+    .sis-timetable-engine-sheet--generate .sis-admission-sheet__label {
+        white-space: normal;
+    }
+}
+
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--constraints {
+    --sis-sheet-w: min(96vw, 84rem); /* type · priority · up to nine scope fields · params */
+}
+
+/* Controls fill their field and shrink with it — a long option never pushes the window wider. */
+.sis-timetable-engine-sheet .sis-admission-sheet__field,
+.sis-timetable-engine-sheet .sis-admission-sheet__control,
+.sis-timetable-engine-sheet .sis-admission-sheet-list-select {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.sis-timetable-engine-sheet .sis-admission-sheet-list-select,
+.sis-timetable-engine-sheet .sis-admission-sheet__control {
+    width: 100%;
+}
+
+.sis-timetable-engine-sheet .sis-admission-sheet__field .sis-timetable-audit__bar {
+    flex-wrap: wrap;
+    padding-inline: 0;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--versions {
+    --sis-sheet-w: min(96vw, 72rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities {
+    /* Six columns: subject · type · weekly · block · distribution on one line, every label and value whole. */
     --sis-sheet-w: min(96vw, 66rem);
 }
 
-.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities,
-.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--versions {
-    --sis-sheet-w: min(96vw, 72rem);
+/* «الأنشطة والمجموعات»: its own six-column body (the shared 120-column body needs ~66rem of gaps alone and scattered
+   the fields). Each form row starts a new line; long fields take 2–3 columns; lists and buttons take the full line. */
+.sis-timetable-engine-sheet--activities .sis-admission-sheet__body {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    padding-inline: 1rem;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > * {
+    grid-column: auto;
+    min-width: 0;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > :first-child {
+    grid-column-start: 1;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-timetable-engine-field--span2 {
+    grid-column-end: span 2;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-timetable-engine-field--span3 {
+    grid-column-end: span 3;
+}
+
+/* The split button sits on the line of its fields, level with the inputs. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > button {
+    align-self: end;
+    justify-self: start;
+}
+
+.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > button {
+    justify-self: start;
+}
+
+.sis-timetable-engine-sheet--activities .sis-admission-sheet__label {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.sis-timetable-engine-sheet--activities .sis-timetable-audit__bar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.sis-timetable-engine-sheet--activities .sis-admission-sheet__actions {
+    padding-inline: 1rem;
+}
+
+@container sis-sheet (max-width: 40rem) {
+    .sis-timetable-engine-sheet--activities .sis-admission-sheet__body {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-timetable-engine-field--span2,
+    .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--activities .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-timetable-engine-field--span3 {
+        grid-column: 1 / -1;
+    }
+
+    .sis-timetable-engine-sheet--activities .sis-admission-sheet__label {
+        white-space: normal;
+    }
 }
 
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-lesson-sheet {
@@ -15615,10 +15760,55 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     overflow: visible;
 }
 
-/* «إعدادات الجدول»: the seven days on one line, the limits two per line — all visible at once. */
+/* «إعدادات الجدول»: the seven days in equal columns, the limits two per line — all visible, with side margins.
+   Its own two-column body (the shared 120-column body needs ~66rem of gaps alone and clipped this form), and
+   the window is as wide as the days and two fields with their full labels (36rem), as tall as the content. */
+.sis-timetable-engine-sheet--settings .sis-admission-sheet__body {
+    grid-template-columns: repeat(2, minmax(max-content, 1fr));
+    column-gap: 0.75rem;
+    padding-inline: 1rem;
+    row-gap: 0.5rem;
+}
+
+.sis-timetable-engine-sheet--settings .sis-admission-sheet__row--2 > .sis-admission-sheet__field {
+    grid-column: auto;
+}
+
 .sis-timetable-engine-sheet--settings .sis-timetable-audit__bar {
-    flex-wrap: nowrap;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(max-content, 1fr));
+    gap: 0.35rem 0.5rem;
+    padding-inline: 0;
+}
+
+.sis-timetable-engine-sheet--settings .sis-timetable-audit__filter {
+    margin-inline-start: 0;
+    white-space: nowrap;
+}
+
+.sis-timetable-engine-sheet--settings .sis-admission-sheet__label {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.35;
+}
+
+.sis-timetable-engine-sheet--settings .sis-admission-sheet__actions {
+    padding-inline: 1rem;
+}
+
+@media (max-width: 40rem) {
+    .sis-timetable-engine-sheet--settings .sis-timetable-audit__bar {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .sis-timetable-engine-sheet--settings .sis-admission-sheet__row--2 > .sis-admission-sheet__field {
+        grid-column: 1 / -1;
+    }
+
+    .sis-timetable-engine-sheet--settings .sis-admission-sheet__label {
+        white-space: normal;
+    }
 }
 
 /* Tables in timetable windows fit the window (the shared drafts table asks for 64rem). */
@@ -15681,6 +15871,129 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     width: auto;
 }
 
+/* «الجدول الموحّد» (full screen): all departments and sections in one table, the school's printed layout —
+   timetable tokens only (lines, tinted heads, subject tints), so the look stays the page's. */
+.sis-timetable-master {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.sis-timetable-master__head {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 0.1rem 1rem;
+    color: var(--sis-oxford);
+    font-weight: 700;
+    font-size: 0.86rem;
+}
+
+.sis-timetable-master__school {
+    justify-self: start;
+}
+
+.sis-timetable-master__title {
+    justify-self: center;
+    font-size: 0.95rem;
+}
+
+.sis-timetable-master__stage {
+    justify-self: end;
+}
+
+.sis-timetable-master__effective {
+    grid-column: 3;
+    justify-self: end;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.sis-timetable-master__grid {
+    overflow: auto;
+    min-height: 0;
+}
+
+.sis-timetable-grid table.sis-timetable-master__table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 0.72rem;
+}
+
+.sis-timetable-master__col-day {
+    width: 2.1rem;
+}
+
+.sis-timetable-master__col-period {
+    width: 2.6rem; /* «الحصص» on one line */
+}
+
+.sis-timetable-master__table th,
+.sis-timetable-master__table td {
+    padding: 0.12rem 0.2rem;
+    border: 1px solid var(--sis-timetable-line);
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.sis-timetable-master__table thead th {
+    font-weight: 700;
+}
+
+.sis-timetable-master__department {
+    font-size: 0.8rem;
+}
+
+.sis-timetable-master__sub {
+    font-size: 0.68rem;
+}
+
+.sis-timetable-master__day,
+.sis-timetable-master__period {
+    background: var(--sis-timetable-head);
+    color: var(--sis-oxford);
+    font-weight: 700;
+}
+
+.sis-timetable-master__day span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0.82rem;
+}
+
+/* Each day starts with a double line, as on the printed timetable. */
+.sis-timetable-master__day-start > th,
+.sis-timetable-master__day-start > td {
+    border-top: 3px double var(--sis-timetable-line);
+}
+
+/* A lesson keeps its subject tint; a merged block (double / triple) reads as one. */
+.sis-timetable-master__lesson {
+    background: hsl(var(--subject-hue, 205) 72% var(--subject-light, 86%));
+    color: var(--sis-oxford);
+}
+
+.sis-timetable-master__lesson--subject {
+    font-weight: 700;
+}
+
+.sis-timetable-master__empty {
+    background: #ffffff;
+}
+
+.sis-timetable-preview__body > .sis-timetable-master {
+    height: 100%;
+}
+
 /* Preview: same line / heading tokens as the page, so tables keep their borders. */
 .sis-timetable-preview {
     --sis-timetable-line: var(--sis-curriculum-chrome);
@@ -15697,6 +16010,82 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     gap: 0.4rem;
 }
 
+/* Preview head: one fixed line — never wraps, never scrolls (only the body below scrolls); on a narrow screen the
+   filter lists narrow instead. Filters, «عرض الكل» and the commands share one control look — the preview's head tint,
+   oxford text, the same height and radius as its buttons. */
+.sis-timetable-preview__head {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+.sis-timetable-preview__title,
+.sis-timetable-preview__actions {
+    flex: 0 0 auto;
+}
+
+.sis-timetable-preview__actions {
+    flex-wrap: nowrap;
+}
+
+.sis-timetable-preview__filters {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    margin-inline: auto;
+}
+
+.sis-timetable-preview__filter {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.sis-timetable-preview__filter-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.sis-timetable-preview__select {
+    width: auto;
+    min-width: 0;
+}
+
+.sis-timetable-preview .sis-timetable-preview__close,
+.sis-timetable-preview .sis-list-select__trigger.sis-timetable-preview__control {
+    box-sizing: border-box;
+    height: 2rem;
+    min-height: 2rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.sis-timetable-preview .sis-list-select__trigger.sis-timetable-preview__control {
+    width: clamp(5.5rem, 9vw, 9rem);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-inline: 0.6rem 1.4rem;
+    background: var(--sis-timetable-head);
+    color: var(--sis-oxford);
+}
+
+.sis-timetable-preview .sis-list-select__trigger.sis-timetable-preview__control:hover,
+.sis-timetable-preview .sis-list-select__trigger.sis-timetable-preview__control:focus-visible {
+    background: color-mix(in srgb, var(--sis-curriculum-chrome) 24%, var(--sis-curriculum-page));
+}
+
 .sis-timetable-preview .sis-timetable-preview__close {
     border-color: transparent;
     background: var(--sis-timetable-head);
@@ -15711,125 +16100,6 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 
 .sis-timetable-preview .sis-timetable-preview__close[aria-pressed='true'] {
     box-shadow: inset 0 0 0 1px var(--sis-oxford);
-}
-
-/* «تخطيط الطباعة A3»: landscape A3 sheets (420 × 297), 2 × 3 boards each. */
-.sis-timetable-preview__body--a3 {
-    background: color-mix(in srgb, var(--sis-steel) 18%, var(--sis-curriculum-page));
-}
-
-.sis-timetable-a3 {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.25rem;
-}
-
-.sis-timetable-a3__sheet {
-    page: timetable-a3;
-    display: flex;
-    flex-direction: column;
-    gap: 3mm;
-    width: min(100%, 1400px);
-    aspect-ratio: 420 / 297;
-    padding: 8mm;
-    background: #ffffff;
-    box-shadow: 0 2px 10px color-mix(in srgb, var(--sis-night) 25%, transparent);
-    overflow: hidden;
-    break-after: page;
-}
-
-.sis-timetable-a3__sheet:last-child {
-    break-after: auto;
-}
-
-.sis-timetable-a3__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-block-end: 2mm;
-    border-block-end: 0.5px solid var(--sis-timetable-line);
-    color: var(--sis-oxford);
-    font-size: 0.85rem;
-}
-
-.sis-timetable-a3__title {
-    font-size: 1.05rem;
-    font-weight: 700;
-}
-
-.sis-timetable-a3__boards {
-    display: grid;
-    flex: 1 1 auto;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
-    gap: 3mm;
-    min-height: 0;
-}
-
-.sis-timetable-a3__boards > .sis-timetable-board {
-    min-height: 0;
-}
-
-.sis-timetable-a3 .sis-timetable-grid {
-    display: flex;
-    flex: 1 1 auto;
-    overflow: hidden;
-}
-
-.sis-timetable-a3 .sis-timetable-table {
-    height: 100%;
-}
-
-.sis-timetable-a3 .sis-timetable-board__head {
-    min-height: 0;
-    padding-block: 0.15rem;
-}
-
-.sis-timetable-a3 .sis-timetable-board__title {
-    font-size: 0.8rem;
-}
-
-@page timetable-a3 {
-    size: A3 landscape;
-    margin: 0;
-}
-
-@media print {
-    body * {
-        visibility: hidden;
-    }
-
-    .sis-timetable-a3,
-    .sis-timetable-a3 * {
-        visibility: visible;
-    }
-
-    .sis-timetable-preview,
-    .sis-timetable-preview__body {
-        position: static;
-        overflow: visible;
-        background: #ffffff;
-    }
-
-    .sis-timetable-a3 {
-        position: absolute;
-        inset: 0 auto auto 0;
-        gap: 0;
-    }
-
-    .sis-timetable-a3__sheet {
-        width: 420mm;
-        height: 297mm;
-        aspect-ratio: auto;
-        box-shadow: none;
-    }
-
-    .sis-timetable-a3 * {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
 }
 
 /* Section board and «الحصص غير الموزّعة» title bars: same height, same level. */
@@ -15920,4 +16190,231 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-timetable-layout--groups > .sis-timetable-tray {
     height: calc(100% - var(--sis-timetable-group-title) - var(--sis-timetable-group-gap));
     margin-block-start: calc(var(--sis-timetable-group-title) + var(--sis-timetable-group-gap));
+}
+
+
+/* ── «الجدول الموحّد»: outer frame and heavier separators — between days, sections and specializations ── */
+.sis-timetable-grid table.sis-timetable-master__table {
+    border: 2.5px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-master__day-start > th,
+.sis-timetable-master__day-start > td {
+    border-top: 3px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-master__table thead tr:last-child > th {
+    border-bottom: 2.5px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-master__period,
+.sis-timetable-master__table thead th.sis-timetable-master__corner:nth-child(2) {
+    border-inline-end: 2.5px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-master__table .sis-timetable-master__edge--section {
+    border-inline-end: 2px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-master__table .sis-timetable-master__edge--department {
+    border-inline-end: 3px solid var(--sis-timetable-line);
+}
+
+/* ── «تخطيط الطباعة»: the table on a sheet of the chosen paper (size, orientation, margins) ── */
+.sis-timetable-preview__body--paper {
+    background: color-mix(in srgb, var(--sis-steel) 18%, var(--sis-curriculum-page));
+}
+
+.sis-timetable-paper-stage {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.sis-timetable-paper {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    width: var(--sis-paper-w);
+    min-height: var(--sis-paper-h);
+    padding: var(--sis-paper-pt) var(--sis-paper-pr) var(--sis-paper-pb) var(--sis-paper-pl);
+    background: #ffffff;
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--sis-night) 25%, transparent);
+    /* Sharper lines for paper: the timetable line in full strength. */
+    --sis-timetable-line: var(--sis-oxford);
+}
+
+@media screen {
+    .sis-timetable-paper {
+        zoom: var(--sis-paper-screen-zoom, 1);
+    }
+}
+
+.sis-timetable-paper--fit-page {
+    height: var(--sis-paper-h);
+}
+
+.sis-timetable-paper__box {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2mm;
+    min-height: 0;
+}
+
+.sis-timetable-paper--fit-page .sis-timetable-paper__box {
+    overflow: hidden;
+}
+
+.sis-timetable-paper__content {
+    flex: 0 0 auto;
+    zoom: var(--sis-paper-scale, 1);
+}
+
+.sis-timetable-paper .sis-timetable-master,
+.sis-timetable-paper .sis-timetable-master__grid {
+    height: auto;
+    overflow: visible;
+}
+
+/* One sheet: after the text scale is chosen, the rows share the height left, so the table fills the page
+   (switched off while the scale is measured). */
+.sis-timetable-paper--fit-page .sis-timetable-paper__content:not([data-measuring]) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.sis-timetable-paper--fit-page .sis-timetable-paper__content:not([data-measuring]) > .sis-timetable-master,
+.sis-timetable-paper--fit-page .sis-timetable-paper__content:not([data-measuring]) > .sis-timetable-board,
+.sis-timetable-paper--fit-page .sis-timetable-paper__content:not([data-measuring]) .sis-timetable-master__grid,
+.sis-timetable-paper--fit-page .sis-timetable-paper__content:not([data-measuring]) .sis-timetable-board .sis-timetable-grid {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.sis-timetable-paper--fit-page .sis-timetable-paper__content:not([data-measuring]) table {
+    flex: 1 1 auto;
+    height: 100%;
+}
+
+.sis-timetable-paper__foot {
+    margin-block-start: auto;
+    color: var(--sis-oxford);
+    font-size: 8pt;
+    text-align: start;
+}
+
+.sis-timetable-paper--no-head .sis-timetable-master__head,
+.sis-timetable-paper--no-head .sis-timetable-board__head {
+    display: none;
+}
+
+/* Colour: subject tints and heads print as on screen. */
+.sis-timetable-paper--color,
+.sis-timetable-paper--color * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Black & white: white cells, black text and lines, light grey heads. */
+.sis-timetable-paper--mono {
+    --sis-timetable-line: #000000;
+    --sis-timetable-head: #e6e6e6;
+    color: #000000;
+}
+
+.sis-timetable-paper--mono .sis-timetable-master__lesson,
+.sis-timetable-paper--mono .sis-timetable-master__empty,
+.sis-timetable-paper--mono .sis-timetable-card {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.sis-timetable-paper--mono .sis-timetable-master__head,
+.sis-timetable-paper--mono .sis-timetable-master__day,
+.sis-timetable-paper--mono .sis-timetable-master__period,
+.sis-timetable-paper--mono .sis-timetable-master__table thead th {
+    color: #000000;
+}
+
+.sis-timetable-paper--mono * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* The print copy (a direct child of body): hidden on screen; when printing it is the only thing on the page, so no
+   blank or shifted pages. The @page rule of the preview gives the size and margins; the sheet is the content area. */
+.sis-timetable-print-root {
+    display: none;
+}
+
+@media print {
+    /* Only while a timetable print copy exists — every other page prints as before. */
+    body:has(> .sis-timetable-print-root) > *:not(.sis-timetable-print-root) {
+        display: none !important;
+    }
+
+    html:has(> body > .sis-timetable-print-root),
+    body:has(> .sis-timetable-print-root) {
+        background: #ffffff !important;
+    }
+
+    .sis-timetable-print-root {
+        display: block;
+    }
+
+    .sis-timetable-print-root .sis-timetable-paper {
+        width: var(--sis-paper-content-w);
+        min-height: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .sis-timetable-print-root .sis-timetable-paper--fit-page {
+        height: var(--sis-paper-content-h);
+    }
+
+    .sis-timetable-print-root .sis-timetable-master__table tr {
+        break-inside: avoid;
+    }
+}
+
+/* «إعدادات الطباعة»: a panel under the preview head, built from the sheet fields. */
+.sis-timetable-print-panel.sis-admission-sheet {
+    position: absolute;
+    top: 3.1rem;
+    inset-inline-end: 1rem;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    width: min(30rem, calc(100vw - 2rem));
+    height: auto;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    border-radius: var(--sis-surface-radius);
+    background: var(--sis-admission-page);
+    box-shadow: 0 0.45rem 1.4rem color-mix(in srgb, var(--sis-night) 22%, transparent);
+}
+
+.sis-timetable-print-panel__body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
+    padding: 0.6rem 1rem;
+}
+
+.sis-timetable-print-panel__checks {
+    display: flex;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+}
+
+.sis-timetable-print-panel .sis-admission-sheet__actions {
+    padding-inline: 1rem;
 }
