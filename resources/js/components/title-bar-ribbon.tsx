@@ -1,6 +1,8 @@
 import { usePage } from '@inertiajs/react';
-import { Fragment, useId, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
+    ChevronDown,
     AlignCenter,
     AlignLeft,
     AlignRight,
@@ -193,6 +195,18 @@ type RibbonItem = {
     onSelect?: () => void;
 };
 
+
+/** Outline colours for commands that do not name one (governed palette tones, stable per command id). */
+const AUTO_ICON_TONES = ['authority', 'education', 'growth', 'sky', 'amber', 'rose', 'forest', 'steel'] as const;
+
+function autoIconTone(id: string): (typeof AUTO_ICON_TONES)[number] {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+        hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+
+    return AUTO_ICON_TONES[hash % AUTO_ICON_TONES.length];
+}
 
 type RibbonGroup = {
     id: string;
@@ -618,6 +632,8 @@ export function TitleBarRibbon({
     const isOpsAccentPage = isTitlebarOpsAccentPath(path);
     // «الجدول الدراسي»: no «النمط» group, so the home strip fits without a horizontal scroll.
     const isTimetablePage = path === '/timetable' || path.startsWith('/timetable/');
+    // «الغرف الدراسية»: the same coloured command icons as the timetable page.
+    const isRoomsPage = path === '/organization/rooms';
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
     const pageOwnsContentTab =
@@ -672,7 +688,7 @@ export function TitleBarRibbon({
         group.id.startsWith('enrollment-'),
     );
     // Organization pages (المديريات والمدارس / الفروع والاختصاصات) share the students edit ribbon look.
-    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-') || group.id.startsWith('org-'));
+    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-') || group.id.startsWith('org-') || group.id.startsWith('rooms-'));
     const isCurriculumRibbon = groups.some((group) => group.id.startsWith('curriculum-'));
     const isCurriculumPage =
         path === '/curriculum' || path.startsWith('/curriculum/');
@@ -690,6 +706,184 @@ export function TitleBarRibbon({
     const i18n = t();
     const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
+    // «تحرير»: never a horizontal scroll — groups that do not fit fold (last first) into an accordion button
+    // that opens their commands in a flyout under it.
+    const accordion = tab === 'edit';
+    const bodyRef = useRef<HTMLDivElement | null>(null);
+    const [collapsedCount, setCollapsedCount] = useState(0);
+    const [flyout, setFlyout] = useState<{ id: string; top: number; right: number } | null>(null);
+    const flyoutRef = useRef<HTMLDivElement | null>(null);
+    const groupsKey = `${tab}|${groups.map((group) => `${group.id}:${group.items?.length ?? 'c'}`).join('|')}`;
+
+    useLayoutEffect(() => {
+        setCollapsedCount(0);
+        setFlyout(null);
+    }, [groupsKey]);
+
+    // Fold one more group while anything still overflows (the strip, or a group squeezed below its content).
+    useLayoutEffect(() => {
+        const body = bodyRef.current;
+        if (!accordion || body === null || collapsedCount >= groups.length) {
+            return;
+        }
+        const clipped =
+            body.scrollWidth > body.clientWidth + 1 ||
+            Array.from(body.querySelectorAll<HTMLElement>('.sis-ribbon__items')).some((items) => items.scrollWidth > items.clientWidth + 1);
+        if (clipped) {
+            setCollapsedCount((count) => count + 1);
+        }
+    });
+
+    // A wider window may fit folded groups again: start over on every width change.
+    useEffect(() => {
+        const body = bodyRef.current;
+        if (!accordion || body === null || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+        let width = body.clientWidth;
+        const observer = new ResizeObserver(() => {
+            if (Math.abs(body.clientWidth - width) > 1) {
+                width = body.clientWidth;
+                setCollapsedCount(0);
+                setFlyout(null);
+            }
+        });
+        observer.observe(body);
+
+        return () => observer.disconnect();
+    }, [accordion]);
+
+    useEffect(() => {
+        if (flyout === null) {
+            return;
+        }
+        const close = (event: PointerEvent) => {
+            const target = event.target as Element | null;
+            if (
+                target !== null &&
+                (flyoutRef.current?.contains(target) ||
+                    target.closest(`[data-ribbon-accordion="${flyout.id}"]`) ||
+                    target.closest('[data-sis-list-select-portal], [data-radix-popper-content-wrapper]'))
+            ) {
+                return;
+            }
+            setFlyout(null);
+        };
+        const escape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setFlyout(null);
+            }
+        };
+        document.addEventListener('pointerdown', close, true);
+        document.addEventListener('keydown', escape);
+
+        return () => {
+            document.removeEventListener('pointerdown', close, true);
+            document.removeEventListener('keydown', escape);
+        };
+    }, [flyout]);
+
+    const firstCollapsed = accordion ? groups.length - collapsedCount : groups.length;
+    const groupClassName = (group: RibbonGroup): string =>
+        group.id.includes('filter')
+            ? 'sis-ribbon__group sis-ribbon__group--filters'
+            : group.id.includes('progress')
+              ? 'sis-ribbon__group sis-ribbon__group--progress'
+              : 'sis-ribbon__group sis-ribbon__group--commands';
+    const ribbonModifiers = [
+        isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
+        isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
+        isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
+        isCurriculumPage ? 'sis-ribbon--curriculum-page' : '',
+        isEnrollmentsPage ? 'sis-ribbon--enrollments-page' : '',
+        isStudentsPage ? 'sis-ribbon--students-page' : '',
+        isAdmissionPage ? 'sis-ribbon--admission-page' : '',
+        isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
+        isTimetablePage ? 'sis-ribbon--timetable-page' : '',
+        isRoomsPage ? 'sis-ribbon--coloured-icons' : '',
+    ].filter(Boolean);
+
+    const renderItem = (item: RibbonItem, afterSelect?: () => void): ReactNode => {
+        const Icon = item.icon;
+        const iconTone = item.iconTone ?? autoIconTone(item.id);
+        const isClipboard =
+            item.id === 'copy' ||
+            item.id === 'cut' ||
+            item.id === 'paste';
+        const isSelectionCancel =
+            item.id === 'cancel-admission-selection' ||
+            item.id === 'cancel-student-selection' ||
+            item.id === 'cancel-enrollment-selection';
+
+        return (
+            <button
+                key={item.id}
+                type="button"
+                data-item-id={item.id}
+                className={
+                    item.tone
+                        ? `sis-ribbon__item sis-ribbon__item--${item.tone}`
+                        : 'sis-ribbon__item'
+                }
+                disabled={item.disabled}
+                aria-label={item.title ?? item.label}
+                title={item.title ?? item.label}
+                aria-pressed={
+                    item.pressed === undefined
+                        ? undefined
+                        : item.pressed
+                }
+                onMouseDown={(event) => {
+                    if (isClipboard || isSelectionCancel) {
+                        event.preventDefault();
+                        if (isClipboard) {
+                            preservePageClipboardSelection();
+                        }
+                    }
+                }}
+                onPointerDown={(event) => {
+                    if (isClipboard) {
+                        event.preventDefault();
+                        preservePageClipboardSelection();
+                    }
+                }}
+                onClick={() => {
+                    afterSelect?.();
+                    if (item.onSelect) {
+                        item.onSelect();
+
+                        return;
+                    }
+
+                    onAction?.(item.id as RibbonActionId);
+                }}
+            >
+                {item.count !== undefined ? (
+                    <span
+                        className="sis-ribbon__count"
+                        dir="ltr"
+                    >
+                        {item.count}
+                    </span>
+                ) : null}
+                <Icon
+                    className={`sis-ribbon__icon sis-ribbon__icon--tone-${iconTone}`}
+                    aria-hidden
+                />
+                <span className="sis-ribbon__label">
+                    {item.label}
+                </span>
+            </button>
+        );
+    };
+
+    const renderItems = (group: RibbonGroup, afterSelect?: () => void): ReactNode =>
+        group.custom
+            ? group.custom
+            : group.items?.map((item) => renderItem(item, afterSelect));
+
+    const flyoutGroup = flyout === null ? null : (groups.find((group) => group.id === flyout.id) ?? null);
+
     return (
         <div
             className={[
@@ -705,6 +899,7 @@ export function TitleBarRibbon({
                 isAdmissionRibbon ? 'sis-ribbon--admission' : '',
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
+                isRoomsPage ? 'sis-ribbon--coloured-icons' : '',
             ]
                 .filter(Boolean)
                 .join(' ')}
@@ -712,107 +907,81 @@ export function TitleBarRibbon({
             aria-label={ariaLabel}
             dir="rtl"
         >
-            <div className="sis-ribbon__body">
+            <div className="sis-ribbon__body" ref={bodyRef}>
                 {groups.map((group, index) => (
                     <Fragment key={group.id}>
                         {index > 0 ? (
                             <div className="sis-ribbon__separator" aria-hidden />
                         ) : null}
+                        {index >= firstCollapsed ? (
+                            <div className="sis-ribbon__group sis-ribbon__group--collapsed" data-group-id={group.id}>
+                                <div className="sis-ribbon__items">
+                                    <button
+                                        type="button"
+                                        className="sis-ribbon__item sis-ribbon__accordion"
+                                        data-ribbon-accordion={group.id}
+                                        aria-expanded={flyout?.id === group.id}
+                                        aria-haspopup="true"
+                                        title={group.label}
+                                        onClick={(event) => {
+                                            if (flyout?.id === group.id) {
+                                                setFlyout(null);
+
+                                                return;
+                                            }
+                                            const rect = event.currentTarget.getBoundingClientRect();
+                                            setFlyout({ id: group.id, top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) });
+                                        }}
+                                    >
+                                        {(() => {
+                                            const Icon = group.items?.[0]?.icon ?? LayoutGrid;
+
+                                            return <Icon className="sis-ribbon__icon" aria-hidden />;
+                                        })()}
+                                        <span className="sis-ribbon__label">
+                                            {group.label}
+                                            <ChevronDown className="sis-ribbon__accordion-chevron" aria-hidden />
+                                        </span>
+                                    </button>
+                                </div>
+                                <span className="sis-ribbon__group-label">{group.label}</span>
+                            </div>
+                        ) : (
                         <div
-                            className={
-                                group.id.includes('filter')
-                                    ? 'sis-ribbon__group sis-ribbon__group--filters'
-                                    : group.id.includes('progress')
-                                      ? 'sis-ribbon__group sis-ribbon__group--progress'
-                                      : 'sis-ribbon__group sis-ribbon__group--commands'
-                            }
+                            className={groupClassName(group)}
                             data-group-id={group.id}
                         >
                             <div className="sis-ribbon__items">
-                                {group.custom
-                                    ? group.custom
-                                    : group.items?.map((item) => {
-                                          const Icon = item.icon;
-                                          const isClipboard =
-                                              item.id === 'copy' ||
-                                              item.id === 'cut' ||
-                                              item.id === 'paste';
-                                          const isSelectionCancel =
-                                              item.id === 'cancel-admission-selection' ||
-                                              item.id === 'cancel-student-selection' ||
-                                              item.id === 'cancel-enrollment-selection';
-
-                                          return (
-                                              <button
-                                                  key={item.id}
-                                                  type="button"
-                                                  data-item-id={item.id}
-                                                  className={
-                                                      item.tone
-                                                          ? `sis-ribbon__item sis-ribbon__item--${item.tone}`
-                                                          : 'sis-ribbon__item'
-                                                  }
-                                                  disabled={item.disabled}
-                                                  aria-label={item.title ?? item.label}
-                                                  title={item.title ?? item.label}
-                                                  aria-pressed={
-                                                      item.pressed === undefined
-                                                          ? undefined
-                                                          : item.pressed
-                                                  }
-                                                  onMouseDown={(event) => {
-                                                      if (isClipboard || isSelectionCancel) {
-                                                          event.preventDefault();
-                                                          if (isClipboard) {
-                                                              preservePageClipboardSelection();
-                                                          }
-                                                      }
-                                                  }}
-                                                  onPointerDown={(event) => {
-                                                      if (isClipboard) {
-                                                          event.preventDefault();
-                                                          preservePageClipboardSelection();
-                                                      }
-                                                  }}
-                                                  onClick={() => {
-                                                      if (item.onSelect) {
-                                                          item.onSelect();
-
-                                                          return;
-                                                      }
-
-                                                      onAction?.(item.id as RibbonActionId);
-                                                  }}
-                                              >
-                                                  {item.count !== undefined ? (
-                                                      <span
-                                                          className="sis-ribbon__count"
-                                                          dir="ltr"
-                                                      >
-                                                          {item.count}
-                                                      </span>
-                                                  ) : null}
-                                                  <Icon
-                                                      className={
-                                                          item.iconTone
-                                                              ? `sis-ribbon__icon sis-ribbon__icon--tone-${item.iconTone}`
-                                                              : 'sis-ribbon__icon'
-                                                      }
-                                                      aria-hidden
-                                                  />
-                                                  <span className="sis-ribbon__label">
-                                                      {item.label}
-                                                  </span>
-                                              </button>
-                                          );
-                                      })}
+                                {renderItems(group)}
                             </div>
                             <span className="sis-ribbon__group-label">{group.label}</span>
                         </div>
+                        )}
                     </Fragment>
                 ))}
             </div>
+            {flyoutGroup !== null && flyout !== null && typeof document !== 'undefined'
+                ? createPortal(
+                      <div
+                          ref={flyoutRef}
+                          className={['sis-ribbon', 'sis-ribbon-flyout', ...ribbonModifiers].join(' ')}
+                          role="group"
+                          aria-label={flyoutGroup.label}
+                          dir="rtl"
+                          style={{ top: flyout.top, right: flyout.right }}
+                      >
+                          <div className={groupClassName(flyoutGroup)} data-group-id={flyoutGroup.id}>
+                              <div className="sis-ribbon__items">
+                                  {renderItems(flyoutGroup, flyoutGroup.custom ? undefined : () => setFlyout(null))}
+                              </div>
+                              <span className="sis-ribbon__group-label">{flyoutGroup.label}</span>
+                          </div>
+                      </div>,
+                      document.fullscreenElement ?? document.body,
+                  )
+                : null}
             <div className="sis-ribbon__chrome-actions">
+
                 <button
                     type="button"
                     className={

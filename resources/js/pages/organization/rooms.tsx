@@ -17,7 +17,7 @@ import {
     Shapes,
     Trash2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RegistryListField, RegistrySheetDialog, RegistryTextField, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { AppearanceDialog, AppearanceFields, hueStyle, type AppearanceValue } from '@/components/sis/appearance-fields';
 import { SheetSection } from '@/components/sis/admission-sheet';
@@ -26,8 +26,13 @@ import { isContextMenuKey, SisContextMenu, useContextMenu, type ContextMenuItem 
 import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { tableActionIds, toggleTableRowChecked, toggleTableSelectAll } from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
+import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
+import { clipRowsToFitPageSize, fitAwareLastPage, useDebouncedFitPageSync } from '@/lib/sis-ribbon-layout';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -174,18 +179,64 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
     const request = useRegistryRequest(RELOAD);
     const menu = useContextMenu<Room>();
     const [selectedId, setSelectedId] = useState<number | null>(null);
-    const [sheet, setSheet] = useState<{ id: number | null; viewOnly: boolean; form: RoomForm } | null>(null);
+    const [checkedIds, setCheckedIds] = useState<number[]>([]);
+    const selectAllRef = useRef<HTMLInputElement>(null);
+    const [sheet, setSheet] = useState<{ id: number | null; viewOnly: boolean; form: RoomForm; queue: number[] } | null>(null);
     const [typesOpen, setTypesOpen] = useState(false);
     const [appearanceFor, setAppearanceFor] = useState<Room | null>(null);
-    const [confirmOut, setConfirmOut] = useState<Room | null>(null);
+    const [confirmOut, setConfirmOut] = useState<Room[] | null>(null);
     const [saving, setSaving] = useState(false);
 
-    const selected = rooms.find((room) => room.id === selectedId) ?? null;
+    // One room = the action target; several checked rooms = a batch (activate / deactivate only).
+    const actionIds = useMemo(() => tableActionIds(checkedIds, selectedId), [checkedIds, selectedId]);
+    const targets = useMemo(() => rooms.filter((room) => actionIds.includes(room.id)), [actionIds, rooms]);
+    const selected = targets.length === 1 ? targets[0] : null;
     const activeTypes = types.filter((type) => type.status === ACTIVE);
     const typeById = useMemo(() => new Map(types.map((type) => [type.id, type])), [types]);
+    const tableRef = useRef<HTMLTableElement>(null);
+    const scrollerRef = useRef<HTMLDivElement>(null);
+
+    // Same list mechanics as «الطلاب»: rows fit the visible height (page size follows the window), resizable columns.
+    const fitPageSize = useFitTablePageSize(scrollerRef, { fallbackRows: pagination.per_page, enabled: true });
+    const fitPageSizeRef = useRef(fitPageSize);
+    fitPageSizeRef.current = fitPageSize;
+    const displayRooms = useMemo(() => clipRowsToFitPageSize(rooms, fitPageSize), [fitPageSize, rooms]);
+    const fitLastPage = fitAwareLastPage(pagination.total, fitPageSize, pagination.last_page);
+    useResizableTableColumns(tableRef, { storageKey: 'organization.rooms', columnSignature: `rooms:${canManage ? 'select' : 'readonly'}:v2`, enabled: rooms.length > 0 });
+    useSmoothVerticalScroll(scrollerRef, displayRooms.length > 0);
+
+    // «تحديد»: a checkbox column with select-all over the rooms shown (same helpers as «المعلمون»).
+    const rowIds = useMemo(() => displayRooms.map((room) => room.id), [displayRooms]);
+    const pageChecked = rowIds.filter((id) => checkedIds.includes(id));
+    const allChecked = rowIds.length > 0 && pageChecked.length === rowIds.length;
+    const someChecked = pageChecked.length > 0 && !allChecked;
+    useEffect(() => {
+        if (selectAllRef.current) {
+            selectAllRef.current.indeterminate = someChecked;
+        }
+    }, [someChecked]);
+    // Drop selections of rooms that left the list after a reload / filter.
+    useEffect(() => {
+        setCheckedIds((current) => current.filter((id) => rooms.some((room) => room.id === id)));
+        setSelectedId((current) => (current !== null && rooms.some((room) => room.id === current) ? current : null));
+    }, [rooms]);
+    const selectRow = (id: number) => {
+        setSelectedId(id);
+        setCheckedIds([id]);
+    };
+    const toggleChecked = (id: number) => {
+        const next = toggleTableRowChecked(checkedIds, id);
+        setCheckedIds(next.checkedIds);
+        setSelectedId(next.selectedId);
+    };
+    const toggleAll = () => {
+        const next = toggleTableSelectAll(checkedIds, rowIds, selectedId);
+        setCheckedIds(next.checkedIds);
+        setSelectedId(next.selectedId);
+    };
 
     /** Server-side list: every filter / sort / page change is a visit (no client filtering of the catalogue). */
-    const visit = (patch: Partial<Filters> & { page?: number }) => {
+    const visit = (patch: Partial<Filters> & { page?: number; per_page?: number }) => {
         const next = { ...filters, ...patch };
         router.get(
             '/organization/rooms',
@@ -198,10 +249,17 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                 sort: next.sort,
                 direction: next.direction,
                 page: patch.page ?? 1,
+                per_page: patch.per_page ?? fitPageSizeRef.current,
             },
             { preserveState: true, preserveScroll: true, replace: true, only: ['rooms', 'pagination', 'filters', 'stats', 'types'] },
         );
     };
+    const syncFitPageSize = useCallback(
+        (perPage: number) => visit({ per_page: perPage, page: pagination.page }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [filters, pagination.page],
+    );
+    useDebouncedFitPageSync(fitPageSize, pagination.per_page, syncFitPageSize);
 
     const run = async (action: () => Promise<boolean>, after?: () => void) => {
         if (saving) {
@@ -217,8 +275,21 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
         }
     };
 
-    const openRoom = (room: Room | null, viewOnly: boolean) => setSheet({ id: room?.id ?? null, viewOnly, form: formOf(room, filters.branch_id ?? branches[0]?.id ?? null) });
-    const setStatus = (room: Room, active: boolean, after?: () => void) => run(() => request('post', `/organization/rooms/${room.id}/status`, { active: active ? 1 : 0 }), after);
+    /** `queue` = the rooms a multi-selection «عرض» steps through (previous / next in the window). */
+    const openRoom = (room: Room | null, viewOnly: boolean, queue: number[] = []) =>
+        setSheet({ id: room?.id ?? null, viewOnly, form: formOf(room, filters.branch_id ?? branches[0]?.id ?? null), queue });
+    /** Status for one or several rooms, in order — stops at the first failure (its error is already shown). */
+    const setStatusMany = (items: Room[], active: boolean, after?: () => void) =>
+        run(async () => {
+            for (const room of items) {
+                if (!(await request('post', `/organization/rooms/${room.id}/status`, { active: active ? 1 : 0 }))) {
+                    return false;
+                }
+            }
+
+            return true;
+        }, after);
+    const setStatus = (room: Room, active: boolean, after?: () => void) => setStatusMany([room], active, after);
     const openTimetable = (room: Room) => router.get('/timetable', { view: 'room', room_id: room.id });
 
     const saveRoom = () => {
@@ -261,7 +332,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
         ...(canManage
             ? [
                   room.status === ACTIVE
-                      ? { id: 'out', label: r.deactivate, icon: Trash2, danger: true, separator: true, disabled: room.links + room.weekly_lessons > 0, onSelect: () => setConfirmOut(room) }
+                      ? { id: 'out', label: r.deactivate, icon: Trash2, danger: true, separator: true, disabled: room.links + room.weekly_lessons > 0, onSelect: () => setConfirmOut([room]) }
                       : { id: 'in', label: r.reactivate, icon: RotateCcw, separator: true, onSelect: () => void setStatus(room, true) },
               ]
             : []),
@@ -269,7 +340,9 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
 
     // ── Ribbon «تحرير» ─────────────────────────────────────────────────────────────
     const ribbon = useMemo((): PageRibbonGroup[] => {
-        const none = selected === null;
+        const none = targets.length === 0;
+        const notOne = selected === null;
+        const allOut = targets.length > 0 && targets.every((room) => room.status !== ACTIVE);
         const field = (value: string, label: string, options: Array<{ value: string; label: string }>, onChange: (next: string) => void) => (
             <div className="sis-ribbon__filter-field" dir="rtl">
                 <span className="sis-admission-select-fit">
@@ -286,44 +359,47 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                 id: 'rooms-actions',
                 label: r.actions,
                 commands: [
-                    { id: 'rooms-view', label: i18n.common.view, icon: Eye, disabled: none, title: none ? i18n.orgRibbon.needsSelection : r.view, onSelect: () => selected && openRoom(selected, true) },
+                    { id: 'rooms-view', label: i18n.common.view, icon: Eye, iconTone: 'sky', disabled: none, title: none ? i18n.orgRibbon.needsSelection : r.view, onSelect: () => targets.length > 0 && openRoom(targets[0], true, targets.length > 1 ? targets.map((room) => room.id) : []) },
                     ...(canManage
                         ? [
-                              { id: 'rooms-add', label: r.add, icon: PlusCircle, disabled: branches.length === 0, onSelect: () => openRoom(null, false) },
-                              { id: 'rooms-edit', label: i18n.common.edit, icon: Pencil, tone: 'edit' as const, disabled: none || saving, onSelect: () => selected && openRoom(selected, false) },
-                              { id: 'rooms-appearance', label: i18n.appearance.title, icon: Palette, disabled: none, onSelect: () => selected && setAppearanceFor(selected) },
-                              selected === null || selected.status === ACTIVE
-                                  ? { id: 'rooms-out', label: r.deactivate, icon: Trash2, tone: 'delete' as const, disabled: none || saving, onSelect: () => selected && setConfirmOut(selected) }
-                                  : { id: 'rooms-in', label: r.reactivate, icon: RotateCcw, disabled: saving, onSelect: () => void setStatus(selected, true) },
+                              { id: 'rooms-add', label: r.add, icon: PlusCircle, iconTone: 'ok' as const, disabled: branches.length === 0, onSelect: () => openRoom(null, false) },
+                              { id: 'rooms-edit', label: i18n.common.edit, icon: Pencil, iconTone: 'amber' as const, tone: 'edit' as const, disabled: notOne || saving, onSelect: () => selected && openRoom(selected, false) },
+                              { id: 'rooms-appearance', label: i18n.appearance.title, icon: Palette, iconTone: 'rose' as const, disabled: notOne, onSelect: () => selected && setAppearanceFor(selected) },
+                              allOut
+                                  ? { id: 'rooms-in', label: r.reactivate, icon: RotateCcw, iconTone: 'ok' as const, disabled: saving, onSelect: () => void setStatusMany(targets, true) }
+                                  : { id: 'rooms-out', label: r.deactivate, icon: Trash2, iconTone: 'danger' as const, tone: 'delete' as const, disabled: none || saving, onSelect: () => setConfirmOut(targets) },
                           ]
                         : []),
-                    { id: 'rooms-timetable', label: r.openTimetable, icon: CalendarRange, disabled: none, onSelect: () => selected && openTimetable(selected) },
+                    { id: 'rooms-timetable', label: r.openTimetable, icon: CalendarRange, iconTone: 'education', disabled: notOne, onSelect: () => selected && openTimetable(selected) },
                 ],
             },
             {
                 id: 'rooms-state',
                 label: r.filters,
                 commands: [
-                    { key: null, label: r.all, icon: Layers, count: stats.total },
-                    { key: 1, label: r.active, icon: CheckCircle2, count: stats.active },
-                    { key: 2, label: r.inactive, icon: CircleSlash, count: stats.total - stats.active },
+                    { key: null, label: r.all, icon: Layers, iconTone: 'steel' as const, count: stats.total, title: `${r.statsCapacity}: ${stats.capacity}` },
+                    { key: 1, label: r.active, icon: CheckCircle2, iconTone: 'ok' as const, count: stats.active },
+                    { key: 2, label: r.inactive, icon: CircleSlash, iconTone: 'warning' as const, count: stats.total - stats.active },
                 ]
                     .map((tab): PageRibbonCommand => ({
                         id: `rooms-state-${tab.key ?? 'all'}`,
                         label: tab.label,
                         icon: tab.icon,
+                        iconTone: tab.iconTone,
                         count: tab.count,
-                        pressed: filters.state === tab.key,
-                        onSelect: () => visit({ state: tab.key }),
+                        title: 'title' in tab ? tab.title : undefined,
+                        pressed: filters.practical !== true && filters.state === tab.key,
+                        onSelect: () => visit({ state: tab.key, practical: null }),
                     }))
                     .concat([
                         {
                             id: 'rooms-practical',
                             label: r.practicalOnly,
                             icon: FlaskConical,
+                            iconTone: 'forest',
                             count: stats.practical,
                             pressed: filters.practical === true,
-                            onSelect: () => visit({ practical: filters.practical === true ? null : true }),
+                            onSelect: () => visit({ practical: filters.practical === true ? null : true, state: null }),
                         } satisfies PageRibbonCommand,
                     ]),
             },
@@ -347,11 +423,11 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
             {
                 id: 'rooms-manage',
                 label: r.manage,
-                commands: [{ id: 'rooms-types', label: r.types, icon: Shapes, count: types.length, onSelect: () => setTypesOpen(true) }],
+                commands: [{ id: 'rooms-types', label: r.types, icon: Shapes, iconTone: 'authority', count: types.length, onSelect: () => setTypesOpen(true) }],
             },
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [i18n, selected, canManage, saving, filters, stats, branches, types]);
+    }, [i18n, targets, selected, canManage, saving, filters, stats, branches, types]);
     useRegisterPageRibbon('edit', ribbon);
 
     const titlebarSearch = useMemo(
@@ -378,23 +454,24 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                 {canManage ? null : <p className="sis-branches-page__notice">{r.readOnly}</p>}
                 <div className="sis-admission-page-body">
                     <section aria-label={r.tableCaption} className="flex min-h-0 flex-1 flex-col">
-                        <p className="sis-timetable-toolbar__meta" aria-label={r.stats}>
-                            {r.statsTotal}: <bdi dir="ltr">{stats.total}</bdi> · {r.statsActive}: <bdi dir="ltr">{stats.active}</bdi> · {r.statsPractical}: <bdi dir="ltr">{stats.practical}</bdi> · {r.statsCapacity}:{' '}
-                            <bdi dir="ltr">{stats.capacity}</bdi>
-                        </p>
                         {rooms.length === 0 ? (
                             <p className="text-sm">{stats.total === 0 ? r.empty : r.noResult}</p>
                         ) : (
                             <>
                                 <div className="sis-admission-periods-table sis-admission-drafts-table">
-                                    <div className="sis-admission-drafts-table__scroller" data-allow-x-scroll>
-                                        <table>
+                                    <div className="sis-admission-drafts-table__scroller" ref={scrollerRef}>
+                                        <table ref={tableRef}>
                                             <thead>
                                                 <tr>
+                                                    {canManage ? (
+                                                        <th className="sis-admission-drafts-table__select">
+                                                            <input ref={selectAllRef} type="checkbox" checked={allChecked} disabled={saving} aria-label={r.selectAll} onChange={toggleAll} />
+                                                        </th>
+                                                    ) : null}
                                                     <th className="sis-admission-drafts-table__num">#</th>
                                                     {SORTABLE.map((column) => (
                                                         <th key={column.key} className={column.num ? 'sis-admission-drafts-table__num' : undefined} aria-sort={filters.sort === column.key ? (filters.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                                                            <button type="button" className="sis-ops-hub__link" onClick={() => sortBy(column.key)}>
+                                                            <button type="button" className="sis-students-table__sort" onClick={() => sortBy(column.key)}>
                                                                 {column.label(r)}
                                                                 {filters.sort === column.key ? (
                                                                     filters.direction === 'asc' ? (
@@ -412,57 +489,90 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {rooms.map((room, index) => (
-                                                    <tr
-                                                        key={room.id}
-                                                        tabIndex={0}
-                                                        className={selectedId === room.id ? 'sis-admission-periods-table__row--selected' : undefined}
-                                                        aria-selected={selectedId === room.id}
-                                                        onClick={() => setSelectedId(room.id)}
-                                                        onDoubleClick={() => openRoom(room, !canManage)}
-                                                        onContextMenu={(event) => {
-                                                            setSelectedId(room.id);
-                                                            menu.open(event, room);
-                                                        }}
-                                                        onKeyDown={(event) => {
-                                                            if (isContextMenuKey(event)) {
-                                                                event.preventDefault();
-                                                                setSelectedId(room.id);
-                                                                menu.openAt(event.currentTarget, room);
-                                                            } else if (event.key === 'Enter') {
-                                                                openRoom(room, !canManage);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <td className="sis-admission-drafts-table__num">
-                                                            <span dir="ltr">{offset + index + 1}</span>
-                                                        </td>
-                                                        <td>
-                                                            <span className="sis-timetable-card sis-timetable-card--tray" style={hueStyle(room.color_hue ?? typeById.get(room.room_type_id ?? 0)?.color_hue ?? 205)}>
-                                                                <span className="sis-timetable-card__subject" dir="ltr">
-                                                                    {room.abbreviation ?? room.code}
+                                                {displayRooms.map((room, index) => {
+                                                    const checked = checkedIds.includes(room.id);
+                                                    const rowSelected = selectedId === room.id || checked;
+
+                                                    return (
+                                                        <tr
+                                                            key={room.id}
+                                                            tabIndex={0}
+                                                            className={rowSelected ? 'sis-admission-periods-table__row--selected' : undefined}
+                                                            aria-selected={rowSelected}
+                                                            onClick={() => selectRow(room.id)}
+                                                            onDoubleClick={() => openRoom(room, !canManage)}
+                                                            onContextMenu={(event) => {
+                                                                if (!checked) {
+                                                                    selectRow(room.id);
+                                                                }
+                                                                menu.open(event, room);
+                                                            }}
+                                                            onKeyDown={(event) => {
+                                                                if (isContextMenuKey(event)) {
+                                                                    event.preventDefault();
+                                                                    if (!checked) {
+                                                                        selectRow(room.id);
+                                                                    }
+                                                                    menu.openAt(event.currentTarget, room);
+                                                                } else if (event.key === 'Enter') {
+                                                                    openRoom(room, !canManage);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {canManage ? (
+                                                                <td className="sis-admission-drafts-table__select">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        disabled={saving}
+                                                                        aria-label={`${r.selectRoom}: ${room.name}`}
+                                                                        onClick={(event) => event.stopPropagation()}
+                                                                        onChange={() => toggleChecked(room.id)}
+                                                                    />
+                                                                </td>
+                                                            ) : null}
+                                                            <td className="sis-admission-drafts-table__num">
+                                                                <span dir="ltr">{offset + index + 1}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span className="sis-timetable-card sis-timetable-card--tray" style={hueStyle(room.color_hue ?? typeById.get(room.room_type_id ?? 0)?.color_hue ?? 205)}>
+                                                                    <span className="sis-timetable-card__subject" dir="ltr">
+                                                                        {room.abbreviation ?? room.code}
+                                                                    </span>
                                                                 </span>
-                                                            </span>
-                                                        </td>
-                                                        <td>{room.name}</td>
-                                                        <td dir="ltr">{room.room_number ?? '—'}</td>
-                                                        <td>{room.type_name === null ? r.noType : `${room.type_name} · ${kindLabel(room.type_kind)}`}</td>
-                                                        <td className="sis-admission-drafts-table__num">{room.capacity ?? '—'}</td>
-                                                        <td>{room.building ?? '—'}</td>
-                                                        <td className="sis-admission-drafts-table__num">{room.floor ?? '—'}</td>
-                                                        <td>{room.department_name === null ? room.branch_name : `${room.branch_name} › ${room.department_name}`}</td>
-                                                        <td>{room.supports_practical ? r.practicalYes : '—'}</td>
-                                                        <td className="sis-admission-drafts-table__num">{room.weekly_lessons}</td>
-                                                        <td>
-                                                            <span className={`sis-branches-status${room.status === ACTIVE ? '' : ' sis-org-status--inactive'}`}>{room.status === ACTIVE ? r.inService : r.outOfService}</span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__name">
+                                                                <div className="sis-students-table__cell-scroll">{room.name}</div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">{room.room_number ?? '—'}</div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">{room.type_name === null ? r.noType : `${room.type_name} · ${kindLabel(room.type_kind)}`}</div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__num">{room.capacity ?? '—'}</td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">{room.building ?? '—'}</div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__num">{room.floor ?? '—'}</td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">{room.department_name === null ? room.branch_name : `${room.branch_name} › ${room.department_name}`}</div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">{room.supports_practical ? r.practicalYes : '—'}</div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__num">{room.weekly_lessons}</td>
+                                                            <td className={`sis-students-table__status sis-students-table__status--tone-${room.status === ACTIVE ? 'dark' : 'light'}`} data-status={room.status}>
+                                                                <div className="sis-students-table__cell-scroll">{room.status === ACTIVE ? r.inService : r.outOfService}</div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                                {pagination.last_page > 1 ? (
+                                {pagination.total > 0 ? (
                                     <nav className="sis-admission-drafts-pagination" aria-label={i18n.common.page}>
                                         <ul className="sis-admission-pagination" dir="ltr">
                                             <li className="sis-admission-pagination__item">
@@ -470,7 +580,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                     <span aria-hidden="true">&laquo;</span>
                                                 </button>
                                             </li>
-                                            {visiblePages(pagination.page, pagination.last_page).map((pageNum) => (
+                                            {visiblePages(pagination.page, fitLastPage).map((pageNum) => (
                                                 <li key={pageNum} className="sis-admission-pagination__item">
                                                     <button
                                                         type="button"
@@ -483,7 +593,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                 </li>
                                             ))}
                                             <li className="sis-admission-pagination__item">
-                                                <button type="button" className="sis-admission-pagination__link" aria-label={i18n.common.next} disabled={pagination.page >= pagination.last_page} onClick={() => visit({ page: pagination.page + 1 })}>
+                                                <button type="button" className="sis-admission-pagination__link" aria-label={i18n.common.next} disabled={pagination.page >= fitLastPage} onClick={() => visit({ page: pagination.page + 1 })}>
                                                     <span aria-hidden="true">&raquo;</span>
                                                 </button>
                                             </li>
@@ -508,6 +618,12 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                     room={rooms.find((room) => room.id === sheet.id) ?? null}
                     onChange={(form) => setSheet((current) => (current === null ? current : { ...current, form }))}
                     onEdit={() => setSheet((current) => (current === null ? current : { ...current, viewOnly: false }))}
+                    onStep={(id) => {
+                        const next = rooms.find((room) => room.id === id);
+                        if (next !== undefined) {
+                            openRoom(next, true, sheet.queue);
+                        }
+                    }}
                     onSave={saveRoom}
                     onClose={() => setSheet(null)}
                 />
@@ -526,6 +642,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                     payload={{ target: 'room', id: appearanceFor.id }}
                     reloadProps={RELOAD}
                     canEdit={canManage}
+                    sheetClassName="sis-timetable-sheet sis-rooms-form"
                     onClose={() => setAppearanceFor(null)}
                 />
             ) : null}
@@ -537,7 +654,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                 confirmLabel={r.deactivate}
                 tone="danger"
                 confirmPending={saving}
-                onConfirm={() => confirmOut !== null && void setStatus(confirmOut, false, () => setConfirmOut(null))}
+                onConfirm={() => confirmOut !== null && void setStatusMany(confirmOut, false, () => setConfirmOut(null))}
                 onOpenChange={(open) => {
                     if (!open && !saving) {
                         setConfirmOut(null);
@@ -571,10 +688,11 @@ function RoomSheet({
     room,
     onChange,
     onEdit,
+    onStep,
     onSave,
     onClose,
 }: {
-    sheet: { id: number | null; viewOnly: boolean; form: RoomForm };
+    sheet: { id: number | null; viewOnly: boolean; form: RoomForm; queue: number[] };
     branches: Props['branches'];
     types: RoomType[];
     saving: boolean;
@@ -582,11 +700,14 @@ function RoomSheet({
     room: Room | null;
     onChange: (form: RoomForm) => void;
     onEdit: () => void;
+    onStep: (id: number) => void;
     onSave: () => void;
     onClose: () => void;
 }) {
     const i18n = t();
     const r = i18n.rooms;
+    const queueIndex = sheet.id === null ? -1 : sheet.queue.indexOf(sheet.id);
+    const stepping = sheet.viewOnly && sheet.queue.length > 1 && queueIndex >= 0;
     const editing = !sheet.viewOnly;
     const f = sheet.form;
     const set = <K extends keyof RoomForm>(key: K) => (value: RoomForm[K]) => onChange({ ...f, [key]: value });
@@ -597,7 +718,7 @@ function RoomSheet({
     const chosenType = types.find((type) => String(type.id) === f.room_type_id) ?? null;
 
     return (
-        <RegistrySheetDialog title={sheet.id === null ? r.add : sheet.viewOnly ? r.view : r.edit} className="sis-branches-sheet" onClose={onClose}>
+        <RegistrySheetDialog title={sheet.id === null ? r.add : sheet.viewOnly ? r.view : r.edit} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-sheet" onClose={onClose}>
             <SheetSection id="room-basic" title={r.sectionBasic}>
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                     <RegistryListField
@@ -678,6 +799,19 @@ function RoomSheet({
                 <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
                     {sheet.viewOnly ? r.close : r.cancel}
                 </Button>
+                {stepping ? (
+                    <>
+                        <Button type="button" variant="outline" disabled={queueIndex <= 0} onClick={() => onStep(sheet.queue[queueIndex - 1])}>
+                            {i18n.common.previous}
+                        </Button>
+                        <span dir="ltr" aria-live="polite">
+                            {queueIndex + 1} / {sheet.queue.length}
+                        </span>
+                        <Button type="button" variant="outline" disabled={queueIndex >= sheet.queue.length - 1} onClick={() => onStep(sheet.queue[queueIndex + 1])}>
+                            {i18n.common.next}
+                        </Button>
+                    </>
+                ) : null}
                 {sheet.viewOnly ? (
                     canManage ? (
                         <Button type="button" onClick={onEdit}>
@@ -729,11 +863,11 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
     };
 
     return (
-        <RegistrySheetDialog title={r.types} className="sis-branches-sheet" onClose={onClose}>
+        <RegistrySheetDialog title={r.types} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-types-sheet" onClose={onClose}>
             <SheetSection id="room-types" title={r.typesHint}>
                 <div className="sis-admission-periods-table sis-admission-drafts-table sis-branches-field--wide">
-                    <div className="sis-admission-drafts-table__scroller" data-allow-x-scroll>
-                        <table>
+                    <div className="sis-admission-drafts-table__scroller">
+                        <table className="sis-rooms-types-table">
                             <thead>
                                 <tr>
                                     <th>{r.abbreviationColumn}</th>
@@ -763,37 +897,39 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
                                         <td>
                                             <span className={`sis-branches-status${type.status === ACTIVE ? '' : ' sis-org-status--inactive'}`}>{type.status === ACTIVE ? r.inService : r.outOfService}</span>
                                         </td>
-                                        <td className="sis-timetable-periods__actions">
-                                            {canManage && type.school_id !== null ? (
-                                                <>
+                                        <td className="sis-rooms-types-table__actions-cell">
+                                            <div className="sis-rooms-types-table__actions">
+                                                {canManage && type.school_id !== null ? (
+                                                    <>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={saving || form !== null}
+                                                            onClick={() =>
+                                                                setForm({ id: type.id, code: type.code, name: type.name, kind: String(type.kind), supports_practical: type.supports_practical, appearance: { abbreviation: type.abbreviation ?? '', color_hue: type.color_hue } })
+                                                            }
+                                                        >
+                                                            {r.editType}
+                                                        </Button>
+                                                        <Button type="button" size="sm" variant="outline" disabled={saving || (type.status === ACTIVE && type.rooms > 0)} onClick={() => void toggle(type)}>
+                                                            {type.status === ACTIVE ? r.deactivateType : r.reactivateType}
+                                                        </Button>
+                                                    </>
+                                                ) : canManage ? (
                                                     <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
                                                         disabled={saving || form !== null}
                                                         onClick={() =>
-                                                            setForm({ id: type.id, code: type.code, name: type.name, kind: String(type.kind), supports_practical: type.supports_practical, appearance: { abbreviation: type.abbreviation ?? '', color_hue: type.color_hue } })
+                                                            setForm({ id: null, code: `${type.code}_2`, name: type.name, kind: String(type.kind), supports_practical: type.supports_practical, appearance: { abbreviation: type.abbreviation ?? '', color_hue: type.color_hue } })
                                                         }
                                                     >
-                                                        {r.editType}
+                                                        {r.copyType}
                                                     </Button>
-                                                    <Button type="button" size="sm" variant="outline" disabled={saving || (type.status === ACTIVE && type.rooms > 0)} onClick={() => void toggle(type)}>
-                                                        {type.status === ACTIVE ? r.deactivateType : r.reactivateType}
-                                                    </Button>
-                                                </>
-                                            ) : canManage ? (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={saving || form !== null}
-                                                    onClick={() =>
-                                                        setForm({ id: null, code: `${type.code}_2`, name: type.name, kind: String(type.kind), supports_practical: type.supports_practical, appearance: { abbreviation: type.abbreviation ?? '', color_hue: type.color_hue } })
-                                                    }
-                                                >
-                                                    {r.copyType}
-                                                </Button>
-                                            ) : null}
+                                                ) : null}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -802,45 +938,50 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
                     </div>
                 </div>
             </SheetSection>
-            {form !== null ? (
-                <SheetSection id="room-type-form" title={form.id === null ? r.addType : r.editType}>
-                    <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                        <RegistryTextField label={r.typeCode} editing={form.id === null} required dir="ltr" value={form.code} onChange={(code) => setForm({ ...form, code })} />
-                        <RegistryTextField label={r.typeName} editing required value={form.name} onChange={(name) => setForm({ ...form, name })} />
-                        <RegistryListField
-                            label={r.kind}
-                            editing
-                            required
-                            value={form.kind}
-                            display={kindOptions.find((o) => o.value === form.kind)?.label ?? ''}
-                            options={kindOptions}
-                            onChange={(kind) => setForm({ ...form, kind, supports_practical: kind === '2' || kind === '3' })}
-                        />
-                        <label className="sis-admission-sheet__field">
-                            <span className="sis-admission-sheet__label">{r.practical}</span>
-                            <input type="checkbox" checked={form.supports_practical} onChange={(event) => setForm({ ...form, supports_practical: event.target.checked })} />
-                        </label>
-                        <AppearanceFields value={form.appearance} onChange={(appearance) => setForm({ ...form, appearance })} editing previewTitle={form.name} />
-                    </div>
-                </SheetSection>
-            ) : null}
             <div className="sis-admission-sheet__actions">
-                <Button type="button" variant="outline" disabled={saving} onClick={form === null ? onClose : () => setForm(null)}>
-                    {form === null ? r.close : r.cancel}
+                <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
+                    {r.close}
                 </Button>
                 {canManage ? (
-                    form === null ? (
-                        <Button type="button" onClick={() => setForm({ id: null, code: '', name: '', kind: '1', supports_practical: false, appearance: { abbreviation: '', color_hue: null } })}>
-                            <DoorOpen aria-hidden />
-                            {r.addType}
+                    <Button type="button" disabled={form !== null} onClick={() => setForm({ id: null, code: '', name: '', kind: '1', supports_practical: false, appearance: { abbreviation: '', color_hue: null } })}>
+                        <DoorOpen aria-hidden />
+                        {r.addType}
+                    </Button>
+                ) : null}
+            </div>
+            {/* «إضافة نوع» / «تعديل النوع»: its own window above the list. */}
+            {form !== null ? (
+                <RegistrySheetDialog title={form.id === null ? r.addType : r.editType} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-timetable-subsheet sis-timetable-subsheet--form" onClose={() => setForm(null)}>
+                    <SheetSection id="room-type-form" title={form.id === null ? r.addType : r.editType}>
+                        <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                            <RegistryTextField label={r.typeCode} editing={form.id === null} required dir="ltr" value={form.code} onChange={(code) => setForm({ ...form, code })} />
+                            <RegistryTextField label={r.typeName} editing required value={form.name} onChange={(name) => setForm({ ...form, name })} />
+                            <RegistryListField
+                                label={r.kind}
+                                editing
+                                required
+                                value={form.kind}
+                                display={kindOptions.find((o) => o.value === form.kind)?.label ?? ''}
+                                options={kindOptions}
+                                onChange={(kind) => setForm({ ...form, kind, supports_practical: kind === '2' || kind === '3' })}
+                            />
+                            <label className="sis-admission-sheet__field">
+                                <span className="sis-admission-sheet__label">{r.practical}</span>
+                                <input type="checkbox" checked={form.supports_practical} onChange={(event) => setForm({ ...form, supports_practical: event.target.checked })} />
+                            </label>
+                            <AppearanceFields value={form.appearance} onChange={(appearance) => setForm({ ...form, appearance })} editing previewTitle={form.name} />
+                        </div>
+                    </SheetSection>
+                    <div className="sis-admission-sheet__actions">
+                        <Button type="button" variant="outline" disabled={saving} onClick={() => setForm(null)}>
+                            {r.cancel}
                         </Button>
-                    ) : (
                         <Button type="button" disabled={saving || form.name.trim() === '' || form.code.trim() === ''} onClick={() => void save()}>
                             {saving ? i18n.common.saving : r.save}
                         </Button>
-                    )
-                ) : null}
-            </div>
+                    </div>
+                </RegistrySheetDialog>
+            ) : null}
         </RegistrySheetDialog>
     );
 }

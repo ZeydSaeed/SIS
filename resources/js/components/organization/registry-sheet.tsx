@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
 import { useSheetMaximize } from '@/hooks/use-sheet-maximize';
 import { useSmoothDialogDrag } from '@/hooks/use-smooth-dialog-drag';
+import { useFitSheetToContent } from '@/hooks/use-fit-sheet-to-content';
 import { t } from '@/i18n';
 
 /**
@@ -182,6 +183,9 @@ export function RegistrySheetDialog({
         minSize: { width: 560, height: 420 },
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
+    // Timetable windows («الجدول المدرسي»): the width follows the fields, tables and buttons — nothing cut.
+    // «تحرير الخلية» keeps one fixed size (its tabs never resize it).
+    useFitSheetToContent(contentRef, className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet'));
 
     // The portal mounts the content after the first commit — raise the new window once it exists,
     // so a sheet opened from another sheet appears above it.

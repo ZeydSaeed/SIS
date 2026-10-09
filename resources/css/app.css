@@ -1062,26 +1062,26 @@ body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.si
  * are open. --sis-chrome-bottom (set by AppSidebarHeader) is the chrome's
  * bottom edge; sheets centre, maximize and dim only in the area below it.
  */
-body:has(.sis-chrome--word-tabs) :is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
+body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above)) :is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
     top: var(--sis-chrome-bottom, 0px) !important;
 }
 
-body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog:not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
+body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above)) .sis-admission-sheet-dialog:not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
     top: calc(
         var(--sis-chrome-bottom, 0px) + (100vh - var(--sis-chrome-bottom, 0px)) / 2
     ) !important;
     max-height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.35rem) !important;
 }
 
-body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog):not(.sis-admission-accepted-dialog):not(.sis-student-enrollment-sheet):not(.sis-enrollment-record-sheet):not(.sis-placement-history-dialog):not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
+body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above)) .sis-admission-sheet-dialog:not(.sis-admission-request-type-dialog):not(.sis-admission-accepted-dialog):not(.sis-student-enrollment-sheet):not(.sis-enrollment-record-sheet):not(.sis-placement-history-dialog):not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
     min-height: min(86vh, 46rem, calc(100vh - var(--sis-chrome-bottom, 0px) - 0.35rem)) !important;
 }
 
-body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog[data-placed='true'] {
+body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above)) .sis-admission-sheet-dialog[data-placed='true'] {
     max-height: calc(100vh - var(--sis-chrome-bottom, 0px)) !important;
 }
 
-body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog.sis-admission-sheet-dialog--maximized {
+body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above)) .sis-admission-sheet-dialog.sis-admission-sheet-dialog--maximized {
     top: calc(var(--sis-chrome-bottom, 0px) + 0.35rem) !important;
     bottom: auto !important;
     height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.7rem) !important;
@@ -1089,7 +1089,7 @@ body:has(.sis-chrome--word-tabs) .sis-admission-sheet-dialog.sis-admission-sheet
     min-height: 0 !important;
 }
 
-body:has(.sis-chrome--word-tabs)
+body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
     .sis-admission-sheet-dialog.sis-admission-sheet-dialog--maximized
     :is(.sis-admission-sheet, .sis-admission-accepted-sheet, .sis-placement-history-sheet) {
     max-height: calc(100vh - var(--sis-chrome-bottom, 0px) - 0.7rem) !important;
@@ -15517,7 +15517,8 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 /* «الجدول الدراسي» › «تحرير»: coloured icons — outline in the command colour, a soft tint inside. */
-.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'] {
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'],
+.sis-ribbon--coloured-icons.sis-ribbon--fit .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'] {
     fill: color-mix(in srgb, currentColor 18%, transparent);
     stroke-width: 2;
 }
@@ -16628,4 +16629,1094 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-timetable-grid thead th.sis-timetable-grid__break[style*='--subject-hue'],
 .sis-timetable-cell--break[style*='--subject-hue'] {
     background: hsl(var(--subject-hue) 60% 92%);
+}
+
+/* «الاستيراد من Excel»: a document page — the body scrolls vertically, every section shows at its full height
+   (the shared list-page rules shrink stacked sections to the viewport and clip them). */
+.sis-imports-page .sis-admission-page-body,
+.sis-admission-page-body:has(.sis-imports-page) {
+    display: block;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    padding-inline: 1rem;
+    padding-block-end: 1rem;
+}
+
+.sis-imports-page .sis-admission-page-body::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+    height: 8px;
+}
+
+.sis-imports-page .sis-admission-page-body > section {
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+    min-height: auto !important;
+    margin-block-end: 0.75rem;
+}
+
+.sis-imports-page .sis-admission-drafts-table {
+    flex: 0 0 auto !important;
+    max-height: none !important;
+    overflow: visible;
+}
+
+/* Long previews scroll inside their own card; columns wrap instead of overflowing the page. */
+.sis-imports-page .sis-admission-drafts-table > .sis-admission-drafts-table__scroller {
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    scrollbar-width: thin;
+}
+
+.sis-imports-page .sis-admission-drafts-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.sis-imports-page .sis-admission-sheet__actions {
+    flex-wrap: wrap;
+}
+
+/* «تحرير» ribbon accordion: no horizontal scroll — groups that do not fit fold into one button that opens a flyout. */
+.sis-ribbon--fit .sis-ribbon__body,
+.sis-ribbon--timetable-page.sis-ribbon--fit .sis-ribbon__body,
+.sis-ribbon--fit .sis-ribbon__body:has(.sis-ribbon__group[data-group-id^='teachers-']) {
+    overflow-x: hidden !important;
+}
+
+.sis-ribbon__group--collapsed {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+}
+
+.sis-ribbon__accordion .sis-ribbon__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    white-space: nowrap;
+}
+
+.sis-ribbon__accordion-chevron {
+    width: 0.7rem;
+    height: 0.7rem;
+    flex-shrink: 0;
+}
+
+.sis-ribbon__accordion[aria-expanded='true'] {
+    background: var(--sis-hover);
+}
+
+.sis-ribbon.sis-ribbon-flyout {
+    position: fixed;
+    z-index: 60;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    max-width: calc(100vw - 16px);
+    padding: 0.4rem 0.5rem 0.3rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--sis-night) 22%, transparent);
+    overflow: visible;
+}
+
+.sis-ribbon-flyout .sis-ribbon__group {
+    height: auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.sis-ribbon-flyout .sis-ribbon__items {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    max-width: calc(100vw - 40px);
+}
+
+.sis-ribbon-flyout .sis-ribbon__item {
+    height: 4.2rem;
+}
+
+/* «المناهج» windows (subject · plan · create): same window rules as the other pages — the window is as tall as its
+   content and never cut; when the content is taller than the screen the form scrolls inside, the title bar and the
+   buttons stay in view. */
+.sis-curriculum-subject-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) > .sis-admission-sheet,
+.sis-curriculum-subject-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized)
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-sheet {
+    max-height: calc(92vh - 0.5rem) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+.sis-curriculum-subject-sheet.sis-admission-sheet-dialog--maximized > .sis-admission-sheet,
+.sis-curriculum-subject-sheet.sis-admission-sheet-dialog--maximized .sis-student-sheet-dialog__many-page > .sis-admission-sheet {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+.sis-curriculum-subject-sheet .sis-admission-sheet > .sis-admission-sheet__hero {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.sis-curriculum-subject-sheet .sis-admission-sheet > .sis-admission-sheet__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--sheet-surface);
+}
+
+.sis-curriculum-subject-sheet .sis-admission-sheet__section,
+.sis-curriculum-subject-sheet .sis-admission-sheet__body {
+    overflow: visible;
+}
+
+/* Abbreviation + colour inside the subject form: one full-width line each, the swatches wrap. */
+.sis-curriculum-subject-sheet__appearance {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.sis-curriculum-subject-sheet__appearance .sis-appearance-swatches {
+    flex-wrap: wrap;
+}
+
+/* «جدول المرحلة» (working page, several sections): one table per class — sections across, each day a block of
+   period rows with the day written vertically, a heavy line between days, breaks as a band (the school's sheet). */
+.sis-timetable-group__boards--stages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.sis-timetable-stage .sis-timetable-grid table.sis-timetable-stage__table {
+    table-layout: fixed;
+    min-width: 0;
+    width: 100%;
+    border-spacing: 0.15rem;
+}
+
+.sis-timetable-stage__col-day {
+    width: 2.2rem;
+}
+
+.sis-timetable-stage__col-period {
+    width: 3.4rem;
+}
+
+.sis-timetable-stage__section {
+    cursor: pointer;
+}
+
+.sis-timetable-stage__section--focus {
+    box-shadow: inset 0 -3px 0 var(--sis-curriculum-chrome);
+}
+
+.sis-timetable-stage__day {
+    padding: 0.2rem 0;
+    vertical-align: middle;
+}
+
+.sis-timetable-stage__day > span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+.sis-timetable-stage__period {
+    padding: 0.1rem;
+    border-radius: var(--sis-field-radius);
+    background: var(--sis-curriculum-page);
+    color: var(--sis-oxford);
+    text-align: center;
+    font-weight: 600;
+}
+
+.sis-timetable-stage__period .sis-timetable-grid__period,
+.sis-timetable-stage__period .sis-timetable-grid__time {
+    display: block;
+}
+
+/* Heavy line between days. */
+.sis-timetable-stage__day-block + .sis-timetable-stage__day-block > tr:first-child > * {
+    border-top: 3px solid var(--sis-night);
+}
+
+.sis-timetable-stage__break-row .sis-timetable-cell--break {
+    height: 1.4rem;
+    padding-block: 0;
+    text-align: center;
+}
+
+.sis-timetable-stage__break-row .sis-timetable-cell__break-label {
+    writing-mode: horizontal-tb;
+    transform: none;
+}
+
+/* «معاينة الطباعة» head on two lines: line 1 = what is shown (title, view, teacher / room / branch › section
+   filters), line 2 = the commands. Every button and list is as wide as its own text — nothing squeezed or cut. */
+.sis-timetable-preview__head.sis-timetable-preview__head--two-lines {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.4rem;
+    white-space: normal;
+}
+
+.sis-timetable-preview__head--two-lines .sis-timetable-preview__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    min-width: 0;
+}
+
+.sis-timetable-preview__head--two-lines .sis-timetable-preview__filters {
+    flex-wrap: wrap;
+    margin-inline: 0;
+}
+
+.sis-timetable-preview__head--two-lines .sis-timetable-preview__actions {
+    flex-wrap: wrap;
+}
+
+.sis-timetable-preview__head--two-lines .sis-timetable-preview__filter {
+    flex: 0 0 auto;
+}
+
+.sis-timetable-preview .sis-timetable-preview__head--two-lines .sis-timetable-preview__close {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: max-content;
+    padding-inline: 0.6rem;
+}
+
+.sis-timetable-preview .sis-timetable-preview__head--two-lines .sis-list-select__trigger.sis-timetable-preview__control {
+    width: auto;
+    min-width: 6rem;
+    max-width: 18rem;
+}
+
+/* «الجدول المدرسي» windows follow their content (useFitSheetToContent widens them up to the screen; height is
+   the content, the body scrolls only past the screen height). Starting widths that already show everything: */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-periods-sheet {
+    --sis-sheet-w: min(96vw, 62rem);
+}
+
+/* «اليوم الدراسي والاستراحات»: the list shows every column and its labelled edit / move / delete buttons. */
+.sis-timetable-periods-sheet .sis-timetable-periods {
+    overflow-x: visible;
+}
+
+.sis-timetable-periods-sheet .sis-timetable-periods table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.sis-timetable-periods-sheet .sis-timetable-periods th,
+.sis-timetable-periods-sheet .sis-timetable-periods td {
+    white-space: nowrap;
+}
+
+.sis-timetable-periods-sheet .sis-timetable-periods__actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    justify-content: flex-end;
+}
+
+.sis-timetable-periods-sheet .sis-timetable-periods__actions .sis-ui-button,
+.sis-timetable-periods-sheet .sis-timetable-periods__actions button {
+    width: auto;
+    white-space: nowrap;
+    gap: 0.25rem;
+}
+
+/* «تنسيق الجدول»: its own width (the settings window is 36rem for seven days) — the preview, every field and
+   every option visible; option lists wrap instead of a fixed seven-column grid. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--settings.sis-timetable-format-sheet {
+    --sis-sheet-w: min(96vw, 60rem);
+}
+
+.sis-timetable-format-sheet .sis-timetable-audit__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+}
+
+.sis-timetable-format-sheet .sis-admission-sheet__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sis-timetable-format-sheet .sis-timetable-format-preview {
+    flex-wrap: wrap;
+}
+
+/* «جدول الدروس الأسبوعي» sheet on the working page (school sheet layout): stage head line, department →
+   section → «الدرس | اسم المدرس», separator lines like the printed sheet. */
+.sis-timetable-stage__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+}
+
+.sis-timetable-stage__school {
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-timetable-stage__department,
+.sis-timetable-stage__section,
+.sis-timetable-stage__sub {
+    background: var(--sis-timetable-head);
+    color: var(--sis-oxford);
+    text-align: center;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.sis-timetable-stage__department {
+    font-size: 0.8rem;
+}
+
+.sis-timetable-stage__section {
+    font-size: 0.74rem;
+}
+
+.sis-timetable-stage__sub {
+    font-size: 0.66rem;
+    font-weight: 600;
+}
+
+.sis-timetable-stage__col-lesson {
+    width: auto;
+}
+
+.sis-timetable-stage__table--teachers .sis-timetable-stage__col-teacher {
+    width: auto;
+}
+
+.sis-timetable-stage__table .sis-timetable-stage__edge--section {
+    border-inline-end: 2px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-stage__table .sis-timetable-stage__edge--department {
+    border-inline-end: 3px solid var(--sis-timetable-line);
+}
+
+.sis-timetable-stage__teacher {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--sis-oxford);
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+/* Several stage sheets in the preview / print: spaced on screen, one per page on paper. */
+.sis-timetable-master-sheets {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+@media print {
+    .sis-timetable-master-sheets > .sis-timetable-master + .sis-timetable-master {
+        break-before: page;
+        page-break-before: always;
+    }
+}
+
+/* ═══ «الجدول المدرسي» — 2026-10-10 ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1) The timetables show whole: no scroll inside a table or board — the page body scrolls (hairline bar) and every
+      table is as wide as the page (fixed layout, columns share the width). The tray stays in view beside them. */
+.sis-timetable-page .sis-admission-page-body.sis-timetable-body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+}
+
+.sis-timetable-page .sis-timetable-layout {
+    flex: 0 0 auto;
+    grid-template-rows: auto !important;
+    align-items: start !important;
+    min-height: auto;
+}
+
+.sis-timetable-page .sis-timetable-layout > .sis-timetable-boards {
+    height: auto !important;
+    min-height: 0;
+    overflow: visible !important;
+}
+
+.sis-timetable-page .sis-timetable-boards--single > .sis-timetable-board,
+.sis-timetable-page .sis-timetable-board {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+}
+
+.sis-timetable-page .sis-timetable-grid,
+.sis-timetable-page .sis-timetable-boards--single > .sis-timetable-board > .sis-timetable-grid {
+    flex: 0 0 auto;
+    overflow: visible !important;
+}
+
+.sis-timetable-page .sis-timetable-grid table {
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: fixed;
+}
+
+.sis-timetable-page .sis-timetable-layout > .sis-timetable-tray,
+.sis-timetable-page .sis-timetable-layout--groups > .sis-timetable-tray {
+    position: sticky;
+    top: 0;
+    height: auto !important;
+    max-height: calc(100dvh - 13rem);
+    margin-block-start: 0 !important;
+    align-self: start;
+}
+
+/* 3) Hairline scrollbars wherever the timetable (page, windows, preview) or its windows scroll. */
+.sis-timetable-page,
+.sis-timetable-page *,
+.sis-timetable-sheet,
+.sis-timetable-sheet *,
+.sis-timetable-preview,
+.sis-timetable-preview *,
+.sis-registry-sheet,
+.sis-registry-sheet * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--sis-steel) 45%, transparent) transparent;
+}
+
+.sis-timetable-page ::-webkit-scrollbar,
+.sis-timetable-sheet ::-webkit-scrollbar,
+.sis-timetable-preview ::-webkit-scrollbar,
+.sis-registry-sheet ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.sis-timetable-page ::-webkit-scrollbar-thumb,
+.sis-timetable-sheet ::-webkit-scrollbar-thumb,
+.sis-timetable-preview ::-webkit-scrollbar-thumb,
+.sis-registry-sheet ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-steel) 45%, transparent);
+}
+
+.sis-timetable-page ::-webkit-scrollbar-track,
+.sis-timetable-sheet ::-webkit-scrollbar-track,
+.sis-timetable-preview ::-webkit-scrollbar-track,
+.sis-registry-sheet ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Timetable windows (and the forms they open): as tall as the content; past the screen the body scrolls with the
+   hairline bar, title bar and buttons stay. Forms opened from a window («تعديل / إضافة …») start at form width. */
+.sis-timetable-sheet.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized) > .sis-admission-sheet {
+    max-height: calc(92vh - 0.5rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-subsheet--form {
+    --sis-sheet-w: min(94vw, 40rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-subsheet--wide {
+    --sis-sheet-w: min(96vw, 60rem);
+}
+
+/* 8) Field contents and dialog tables read right-to-left from the right edge (numbers and codes too). */
+:is(.sis-timetable-page, .sis-timetable-sheet, .sis-timetable-preview, .sis-registry-sheet, .sis-curriculum-subject-sheet)
+    :is(input:not([type='checkbox']):not([type='radio']):not([type='color']), textarea, select, .sis-admission-sheet__control, .sis-list-select__trigger) {
+    direction: rtl;
+    text-align: right;
+}
+
+:is(.sis-timetable-page, .sis-timetable-sheet, .sis-timetable-preview, .sis-registry-sheet, .sis-curriculum-subject-sheet) input[type='time'] {
+    direction: ltr; /* hh:mm keeps its order; the value sits at the right edge */
+    text-align: right;
+}
+
+:is(.sis-timetable-sheet, .sis-registry-sheet) :is(td, th),
+:is(.sis-timetable-sheet, .sis-registry-sheet) .sis-admission-draft-readonly {
+    text-align: right;
+}
+
+/* 10) Crisp text and drawings in windows: centred on whole pixels (a half-pixel translate blurs text), smoothed
+       glyphs, icons drawn on the pixel grid. */
+.sis-admission-sheet-dialog:not([data-placed='true']):not(.sis-admission-sheet-dialog--maximized) {
+    transform: translate(round(nearest, -50%, 1px), round(nearest, -50%, 1px)) !important;
+}
+
+/* A permanent compositing layer renders window text as a bitmap (soft at fractional scales): layer only while moving. */
+.sis-admission-sheet-dialog {
+    will-change: auto !important;
+}
+
+.sis-admission-sheet-dialog,
+.sis-timetable-preview,
+.sis-ribbon-flyout {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    backface-visibility: hidden;
+}
+
+.sis-admission-sheet-dialog svg,
+.sis-timetable-preview svg,
+.sis-timetable-page svg {
+    shape-rendering: geometricPrecision;
+}
+
+/* «القاعات الدراسية»: sortable headers look like the students table headers (the header is the button). */
+.sis-students-table__sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+/* «إعدادات الطباعة» floats as its own window under the two-line preview head (not over it). */
+.sis-timetable-preview:has(.sis-timetable-preview__head--two-lines) .sis-timetable-print-panel.sis-admission-sheet {
+    top: 6.4rem;
+    max-height: calc(100vh - 7rem);
+}
+
+/* ═══ Windows — 2026-10-10 (round 3) ═════════════════════════════════════════════════════════════════════════ */
+
+/* Every system window scrolls its content (hairline bar) as soon as it opens — not only after maximize / resize.
+   Before a resize the window is `height: fit-content`, so the older `max-height: 100%` on the form resolved to
+   «none» and the form overflowed the window, clipped. The form is capped at the screen instead. (Selector weight
+   above the enrollment / curriculum sheet rules on purpose.) */
+.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true'])
+    > .sis-admission-sheet.sis-admission-sheet.sis-admission-sheet,
+.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true'])
+    .sis-student-sheet-dialog__many-page
+    > .sis-admission-sheet.sis-admission-sheet {
+    max-height: min(92vh, calc(100dvh - 1rem)) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog:is(.sis-admission-sheet-dialog--maximized, [data-placed='true'])
+    > .sis-admission-sheet.sis-admission-sheet.sis-admission-sheet {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+.sis-admission-sheet-dialog > .sis-admission-sheet::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.sis-admission-sheet-dialog > .sis-admission-sheet::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-steel) 45%, transparent);
+}
+
+/* The title bar stays on top and the closing buttons at the bottom while the form scrolls. */
+.sis-admission-sheet-dialog > .sis-admission-sheet > .sis-admission-sheet__hero {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+}
+
+.sis-admission-sheet-dialog > .sis-admission-sheet > .sis-admission-sheet__actions:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-bottom: 0 !important;
+    padding-block: 0.45rem;
+    background: var(--sheet-surface, var(--sis-curriculum-table));
+}
+
+/* «تحرير الخلية»: one fixed size that shows every tab whole — switching tabs never resizes the window. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-lesson-sheet {
+    --sis-sheet-w: min(96vw, 60rem);
+}
+
+.sis-timetable-lesson-sheet.sis-timetable-lesson-sheet.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true']) {
+    height: min(88vh, 44rem) !important;
+    max-height: min(88vh, 44rem) !important;
+}
+
+.sis-timetable-lesson-sheet.sis-timetable-lesson-sheet.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true'])
+    > .sis-admission-sheet.sis-admission-sheet.sis-admission-sheet {
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+/* Fields of the timetable windows: label | value side by side — two aligned cells (equal label column). */
+.sis-timetable-sheet:not(.sis-timetable-engine-sheet):not(.sis-timetable-subsheet--wide) .sis-admission-sheet__field {
+    display: grid !important;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.6rem;
+    row-gap: 0.2rem;
+}
+
+.sis-timetable-sheet:not(.sis-timetable-engine-sheet):not(.sis-timetable-subsheet--wide) .sis-admission-sheet__field > .sis-admission-sheet__label {
+    margin: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.35;
+}
+
+.sis-timetable-sheet:not(.sis-timetable-engine-sheet):not(.sis-timetable-subsheet--wide) .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
+    grid-column: 2;
+    min-width: 0;
+}
+
+/* Facts of a cell (الاختصار · الطلاب · السعة · الفرع …): two cells per line, labels in one aligned column. */
+.sis-timetable-facts {
+    display: grid !important;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 0 !important;
+    border: 1px solid color-mix(in srgb, var(--sis-steel) 30%, transparent);
+    border-radius: var(--sis-field-radius);
+    overflow: hidden;
+}
+
+.sis-timetable-facts > .sis-timetable-audit__item {
+    display: contents;
+}
+
+.sis-timetable-facts > .sis-timetable-audit__item > * {
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--sis-steel) 20%, transparent);
+    text-align: right;
+}
+
+.sis-timetable-facts > .sis-timetable-audit__item > .sis-timetable-audit__text {
+    background: var(--sis-timetable-head);
+    color: var(--sis-oxford);
+    font-weight: 700;
+}
+
+.sis-timetable-facts > .sis-timetable-audit__item > :not(.sis-timetable-audit__text) {
+    background: color-mix(in srgb, var(--sis-curriculum-page) 55%, #ffffff);
+}
+
+/* «اليوم الدراسي» forms: «تظهر في» / «تُطبع في» and the break lengths (5 · 10 · 15 · 20 · 30) — one line each,
+   equal aligned columns. */
+.sis-timetable-subsheet .sis-timetable-audit__bar,
+.sis-timetable-periods-sheet .sis-timetable-audit__bar {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(max-content, 1fr));
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    padding-inline: 0;
+    white-space: nowrap;
+}
+
+.sis-timetable-subsheet .sis-timetable-audit__filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.sis-timetable-subsheet .sis-timetable-audit__bar > button {
+    width: 100%;
+    justify-content: center;
+}
+
+/* The cell the user chose: a clear mark (nothing is marked on its own). */
+.sis-timetable-cell.sis-timetable-cell--selected {
+    outline: 2px solid var(--sis-oxford);
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--sis-oxford) 9%, transparent);
+}
+
+.sis-timetable-stage__section,
+.sis-timetable-stage__section--focus {
+    box-shadow: none !important;
+}
+
+/* «الحصص» written top → bottom in the sheet heading (working page and print). */
+.sis-timetable-stage__corner--vertical > span,
+.sis-timetable-master__table thead tr:first-child > th.sis-timetable-master__corner:nth-child(2) {
+    writing-mode: vertical-rl;
+    white-space: nowrap;
+}
+
+.sis-timetable-stage__corner--vertical {
+    vertical-align: middle;
+    text-align: center;
+}
+
+/* «معاينة الطباعة»: one line — view and filters, then settings / print / close, each as wide as its text. */
+.sis-timetable-preview__head.sis-timetable-preview__head--one-line {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.sis-timetable-preview__head--one-line > .sis-timetable-preview__line {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    min-width: 0;
+}
+
+.sis-timetable-preview__head--one-line .sis-timetable-preview__filters {
+    flex-wrap: nowrap;
+    margin-inline: 0;
+    min-width: 0;
+}
+
+.sis-timetable-preview__head--one-line .sis-timetable-preview__filter {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.sis-timetable-preview__head--one-line .sis-timetable-preview__actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    margin-inline-start: auto;
+}
+
+.sis-timetable-preview .sis-timetable-preview__head--one-line .sis-timetable-preview__close {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: max-content;
+    padding-inline: 0.6rem;
+}
+
+.sis-timetable-preview .sis-timetable-preview__head--one-line .sis-list-select__trigger.sis-timetable-preview__control {
+    width: auto;
+    min-width: 5rem;
+    max-width: 12rem;
+}
+
+/* ── «الغرف الدراسية»: every window is as wide / tall as its content; past the screen a hairline bar scrolls it. ── */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-rooms-sheet {
+    --sis-sheet-w: min(94vw, 30rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-rooms-types-sheet {
+    --sis-sheet-w: min(96vw, 46rem);
+}
+
+.sis-rooms-sheet .sis-admission-sheet__row,
+.sis-rooms-types-sheet .sis-admission-sheet__row {
+    min-width: 0;
+}
+
+/* «نسخ كنوع خاص» / «تعديل» / «تعطيل»: one tidy row inside the cell (the cell stays a table cell). */
+.sis-rooms-types-table__actions-cell {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.sis-rooms-types-table__actions {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.3rem;
+}
+
+.sis-rooms-types-table__actions button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+/* ═══ «اليوم الدراسي والاستراحات» and the small forms opened from timetable windows (2026-10-10, round 4) ═══
+   One field per line: an aligned label column (9rem) and the control filling the rest — time, number, title and
+   abbreviation boxes all the same width; the «تزحيف» checkbox with its hint in the value column; «تظهر في» /
+   «تُطبع في» as five equal columns; the colour swatches and the preview in the value column. */
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__body {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding-inline: 1rem;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__body > .sis-admission-sheet__row {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    width: 100%;
+    margin: 0;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field {
+    display: grid !important;
+    grid-template-columns: 9rem minmax(0, 1fr) !important;
+    align-items: center;
+    column-gap: 0.75rem;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin: 0;
+    grid-column: auto !important;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > .sis-admission-sheet__label {
+    grid-column: 1;
+    margin: 0;
+    padding: 0;
+    font-weight: 700;
+    white-space: normal;
+    text-align: right;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
+    grid-column: 2;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > .sis-admission-sheet__control,
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field .sis-admission-sheet-list-select,
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field .sis-list-select__trigger {
+    width: 100% !important;
+    max-width: none !important;
+    height: 2.1rem;
+    min-height: 2.1rem;
+}
+
+/* «تزحيف ما بعدها»: checkbox and its hint on one line in the value column. */
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > .sis-timetable-audit__filter {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    white-space: normal;
+    line-height: 1.4;
+}
+
+/* «تظهر في» / «تُطبع في»: five equal columns, each checkbox before its name, aligned in both lists. */
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > .sis-timetable-audit__bar {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem 0.5rem;
+    padding: 0;
+    white-space: nowrap;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-timetable-audit__bar > .sis-timetable-audit__filter {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    min-width: 0;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-timetable-audit__bar > button {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+}
+
+/* Hints sit under the value column, not under the labels. */
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__body > .sis-timetable-sheet__hint,
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__row > .sis-timetable-sheet__hint {
+    margin: 0;
+    padding-inline-start: 9.75rem;
+}
+
+/* Colour swatches and preview start at the value column. */
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-appearance-swatches {
+    justify-content: flex-start;
+}
+
+:is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-appearance-preview {
+    justify-self: start;
+}
+
+/* The forms are as wide as label + controls + five show / print columns. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-subsheet--form {
+    --sis-sheet-w: min(94vw, 44rem);
+}
+
+@media (max-width: 40rem) {
+    :is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    :is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
+        grid-column: 1;
+    }
+
+    :is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__field > .sis-timetable-audit__bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    :is(.sis-timetable-periods-sheet, .sis-timetable-subsheet--form) .sis-admission-sheet__row > .sis-timetable-sheet__hint {
+        padding-inline-start: 0;
+    }
+}
+
+/* ═══ «جدول الدروس الأسبوعي» lines like the school's printed sheet (2026-10-10, round 5) ══════════════════════
+   Working page (.sis-timetable-stage__table) and preview / print (.sis-timetable-master__table) share them:
+   thin grid lines; heavy (3px) — the whole frame, both sides of the days column, the side of the periods column,
+   between departments, above and below the class / section row and the «الدرس | اسم المدرس» row; between two days
+   a very thin empty row with a heavy line above and below. */
+.sis-timetable-stage .sis-timetable-grid table.sis-timetable-stage__table,
+.sis-timetable-grid table.sis-timetable-master__table {
+    --sis-sheet-heavy: 3px solid var(--sis-night);
+    --sis-sheet-thin: 1px solid color-mix(in srgb, var(--sis-night) 55%, transparent);
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    border: var(--sis-sheet-heavy) !important;
+}
+
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) :is(th, td) {
+    border: var(--sis-sheet-thin);
+    border-radius: 0;
+}
+
+/* Days column: heavy on both sides. */
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) :is(.sis-timetable-stage__day, .sis-timetable-master__day),
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) thead tr:first-child > th:first-child {
+    border-inline-start: var(--sis-sheet-heavy) !important;
+    border-inline-end: var(--sis-sheet-heavy) !important;
+}
+
+/* Periods column: heavy towards the first department. */
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) :is(.sis-timetable-stage__period, .sis-timetable-master__period),
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) thead tr:first-child > th:nth-child(2) {
+    border-inline-end: var(--sis-sheet-heavy) !important;
+}
+
+/* Between departments: heavy, top to bottom (headings and every row). */
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) :is(.sis-timetable-stage__edge--department, .sis-timetable-master__edge--department),
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) :is(.sis-timetable-stage__department, .sis-timetable-master__department) {
+    border-inline-end: var(--sis-sheet-heavy) !important;
+}
+
+/* Between the sections of one department: the thin grid line. */
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) :is(.sis-timetable-stage__edge--section, .sis-timetable-master__edge--section) {
+    border-inline-end: var(--sis-sheet-thin) !important;
+}
+
+/* Class / section row and «الدرس | اسم المدرس» row: heavy above and below. */
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) thead tr:nth-child(2) > th,
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) thead tr:nth-child(3) > th {
+    border-top: var(--sis-sheet-heavy) !important;
+    border-bottom: var(--sis-sheet-heavy) !important;
+}
+
+/* The department row's bottom = the section row's top (heavy); with no «اسم المدرس» row the section row closes
+   the heading with a heavy line too. */
+:is(.sis-timetable-stage__table, .sis-timetable-master__table) thead tr:last-child > th {
+    border-bottom: var(--sis-sheet-heavy) !important;
+}
+
+/* A very thin empty row between days, heavy above and below. */
+.sis-timetable-stage__day-gap > tr > td,
+.sis-timetable-master__day-gap > td {
+    height: 4px;
+    padding: 0 !important;
+    border-top: var(--sis-sheet-heavy) !important;
+    border-bottom: var(--sis-sheet-heavy) !important;
+    border-inline: 0 !important;
+    background: color-mix(in srgb, var(--sis-steel) 14%, var(--sis-pearl));
+    line-height: 0;
+    font-size: 0;
+}
+
+/* The gap row carries the day separation now (no second heavy line on the day's first row). */
+.sis-timetable-stage__day-block + .sis-timetable-stage__day-block > tr:first-child > *,
+.sis-timetable-master__day-start > th,
+.sis-timetable-master__day-start > td {
+    border-top: var(--sis-sheet-thin);
+}
+
+/* «الحصص» (and the days) written top → bottom: a block box, so the vertical writing mode applies. */
+.sis-timetable-stage__corner--vertical > span,
+.sis-timetable-master__corner--vertical > span,
+.sis-timetable-stage__day > span,
+.sis-timetable-master__day > span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+.sis-timetable-master__corner--vertical {
+    vertical-align: middle;
+    text-align: center;
+}
+
+/* Heading line above each sheet: school · title + year · stage · «يعمل بموجبه اعتباراً من», one line. */
+.sis-timetable-stage__head {
+    flex-wrap: nowrap;
+}
+
+.sis-timetable-stage__head > * {
+    white-space: nowrap;
+}
+
+/* «الغرف الدراسية»: the button bar of every window stays fixed at the bottom edge (normal or maximized);
+   only the form above it scrolls, so the whole content can be browsed. */
+.sis-rooms-form .sis-admission-draft-form.sis-admission-sheet > .sis-admission-sheet__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin: auto 0 0;
+    align-items: center;
+}
+
+
+/* ═══ Round 6 (2026-10-10) ═══════════════════════════════════════════════════════════════════════════════════
+   The engine windows (القيود · الإصدارات والنشر · التوليد · الأنشطة · الإتاحة · الأماكن · الإعدادات · التنسيق) keep
+   their own field layout (fields as wide as their text, several a line) — the label-beside-value rule above is for
+   the cell / pick / audit windows only. */
+
+/* Sheet heading: the school name in white on the title bar, like the rest of the line. */
+.sis-timetable-stage__head .sis-timetable-stage__school {
+    color: #ffffff;
+}
+
+/* «الحصص»: reversed (reads bottom → top). */
+.sis-timetable-stage__corner--vertical > span,
+.sis-timetable-master__corner--vertical > span {
+    transform: rotate(180deg);
+}
+
+/* Break rows: one cell per department so the heavy department lines run through the break. */
+.sis-timetable-stage__break-row > .sis-timetable-stage__period--break {
+    padding: 0;
+}
+
+.sis-timetable-stage__table .sis-timetable-stage__break-row > td.sis-timetable-stage__edge--department {
+    border-inline-end: var(--sis-sheet-heavy) !important;
+}
+
+/* Every ribbon icon outlined in its colour (all tabs). */
+.sis-ribbon .sis-ribbon__item .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'] {
+    stroke-width: 2;
 }

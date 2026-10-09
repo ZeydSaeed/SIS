@@ -9,6 +9,7 @@ import {
     CalendarDays,
     CalendarRange,
     ClipboardList,
+    DoorOpen,
     FileBarChart,
     FileBadge,
     FolderOpen,
@@ -55,6 +56,7 @@ type ModuleKey =
     | 'health'
     | 'teachers'
     | 'hr'
+    | 'rooms'
     | 'timetable'
     | 'curriculum'
     | 'exams'
@@ -83,6 +85,7 @@ const MODULE_DEFS: Record<
     health: { href: '/health', icon: HeartPulse },
     teachers: { href: '/teachers', icon: Users },
     hr: { href: '/hr', icon: Briefcase },
+    rooms: { href: '/organization/rooms', icon: DoorOpen },
     timetable: { href: '/timetable', icon: CalendarRange },
     curriculum: { href: '/curriculum', icon: BookOpen },
     exams: { href: '/exams', icon: NotebookPen },
@@ -124,6 +127,7 @@ export function getSisSidebarSections(): SisNavSection[] {
                 moduleItem('enrollments'),
                 moduleItem('curriculum'),
                 moduleItem('teachers'),
+                moduleItem('rooms'),
                 moduleItem('timetable'),
                 moduleItem('attendance'),
                 moduleItem('holidays'),

@@ -372,6 +372,9 @@ export function AppSidebarHeader({
         (base) => currentPath === base || currentPath.startsWith(`${base}/`),
     );
 
+    // «الغرف الدراسية»: like «الجدول المدرسي», its windows open above the tab strip (not confined below it).
+    const sheetsAboveChrome = currentPath === '/organization/rooms' || currentPath.startsWith('/organization/rooms/');
+
     const chromeClassName = [
         'sis-chrome',
         'shrink-0',
@@ -379,6 +382,7 @@ export function AppSidebarHeader({
         renderedRibbonTab ? 'sis-chrome--ribbon-present' : '',
         isCurriculumPage ? 'sis-chrome--curriculum' : '',
         hasWordTabs ? 'sis-chrome--word-tabs' : '',
+        sheetsAboveChrome ? 'sis-chrome--sheets-above' : '',
     ]
         .filter(Boolean)
         .join(' ');
@@ -391,7 +395,7 @@ export function AppSidebarHeader({
         const node = chromeRef.current;
         const root = document.documentElement;
 
-        if (!hasWordTabs || node === null) {
+        if (!hasWordTabs || sheetsAboveChrome || node === null) {
             root.style.removeProperty(SIS_CHROME_BOTTOM_VAR);
 
             return;
@@ -414,7 +418,7 @@ export function AppSidebarHeader({
             window.removeEventListener('resize', publish);
             root.style.removeProperty(SIS_CHROME_BOTTOM_VAR);
         };
-    }, [hasWordTabs]);
+    }, [hasWordTabs, sheetsAboveChrome]);
 
     return (
         <div ref={chromeRef} className={chromeClassName}>

@@ -118,6 +118,7 @@ export function AppearanceDialog({
     reloadProps,
     canEdit,
     onClose,
+    sheetClassName = '',
 }: {
     title: string;
     entityName: string;
@@ -130,6 +131,8 @@ export function AppearanceDialog({
     reloadProps: string[];
     canEdit: boolean;
     onClose: () => void;
+    /** Extra window classes (e.g. `sis-timetable-sheet` = size follows the content). */
+    sheetClassName?: string;
 }) {
     const i18n = t();
     const a = i18n.appearance;
@@ -149,7 +152,7 @@ export function AppearanceDialog({
     };
 
     return (
-        <RegistrySheetDialog title={title} className="sis-branches-sheet sis-appearance-sheet" onClose={onClose}>
+        <RegistrySheetDialog title={title} className={`sis-branches-sheet sis-appearance-sheet ${sheetClassName}`.trim()} onClose={onClose}>
             <SheetSection id="appearance" title={entityName}>
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                     <AppearanceFields value={value} onChange={setValue} editing={canEdit} suggested={suggested} defaultHue={defaultHue} previewTitle={entityName} />
