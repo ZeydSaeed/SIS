@@ -293,7 +293,9 @@ function TimetablePage({
 
     // ── Workbench: «تنسيق الجدول», «اختبار الجدول», the school day, context menu, clipboard, drop alternatives ──
     const [displayOverride, setDisplayOverride] = useState<DisplaySettings | null>(null);
-    const settings = displayOverride ?? resolveDisplay(display?.settings);
+    // Memoised: `settings` feeds the ribbon groups, and a new object each render re-registers the ribbon forever.
+    const savedSettings = useMemo(() => resolveDisplay(display?.settings), [display?.settings]);
+    const settings = displayOverride ?? savedSettings;
     const [formatFor, setFormatFor] = useState<{ scheduleId: number | null } | null>(null);
     const [testOpen, setTestOpen] = useState(false);
     const [dayOpen, setDayOpen] = useState(false);

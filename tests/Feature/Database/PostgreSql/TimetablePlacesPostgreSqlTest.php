@@ -70,6 +70,38 @@ final class TimetablePlacesPostgreSqlTest extends PostgreSqlIntegrationTestCase
     }
 
     #[Test]
+    public function room_names_are_limited_to_100_characters(): void
+    {
+        $this->actAsManager();
+
+        // Exactly 100 characters: accepted.
+        $name100 = str_repeat('ع', 100); // 100 Arabic chars
+        $this->send('/timetable/places/rooms', ['branch_id' => $this->branchId, 'code' => 'r-100', 'name' => $name100, 'capacity' => 30, 'room_type' => 1], 'pl-name-100')
+            ->assertSessionHas('success', 'flash.timetable.engine.placeSaved');
+
+        // 101 characters: rejected.
+        $name101 = str_repeat('ع', 101);
+        $this->send('/timetable/places/rooms', ['branch_id' => $this->branchId, 'code' => 'r-101', 'name' => $name101, 'room_type' => 1], 'pl-name-101')
+            ->assertSessionHasErrors(['engine' => 'timetable.place_name_invalid']);
+    }
+
+    #[Test]
+    public function workshop_names_are_limited_to_100_characters(): void
+    {
+        $this->actAsManager();
+
+        // Exactly 100 characters: accepted.
+        $name100 = str_repeat('ع', 100);
+        $this->send('/timetable/places/workshops', ['code' => 'ws-100', 'name' => $name100, 'capacity' => 20, 'safety_capacity' => 16], 'pw-name-100')
+            ->assertSessionHas('success', 'flash.timetable.engine.placeSaved');
+
+        // 101 characters: rejected.
+        $name101 = str_repeat('ع', 101);
+        $this->send('/timetable/places/workshops', ['code' => 'ws-101', 'name' => $name101, 'capacity' => 20, 'safety_capacity' => 16], 'pw-name-101')
+            ->assertSessionHasErrors(['engine' => 'timetable.place_name_invalid']);
+    }
+
+    #[Test]
     public function workshops_validate_safety_capacity_and_room(): void
     {
         $this->actAsManager();

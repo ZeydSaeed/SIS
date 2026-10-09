@@ -2,6 +2,7 @@
 
 namespace App\Domain\Timetable\Services;
 
+use App\Domain\Organization\Services\RoomCatalogueGuard;
 use App\Domain\Timetable\Repositories\TimetablePlaceRepositoryInterface;
 
 /**
@@ -27,7 +28,7 @@ final class TimetablePlaceGuard
         if ($roomId === null && ($code === '' || mb_strlen($code) > 30)) {
             return 'timetable.place_code_invalid';
         }
-        if (trim($name) === '' || mb_strlen(trim($name)) > 150) {
+        if (trim($name) === '' || mb_strlen(trim($name)) > RoomCatalogueGuard::MAX_NAME) {
             return 'timetable.place_name_invalid';
         }
         if ($capacity !== null && ($capacity < 1 || $capacity > self::MAX_CAPACITY)) {
@@ -53,7 +54,7 @@ final class TimetablePlaceGuard
         if ($workshopId === null && ($code === '' || mb_strlen($code) > 30)) {
             return 'timetable.place_code_invalid';
         }
-        if (trim($name) === '' || mb_strlen(trim($name)) > 150) {
+        if (trim($name) === '' || mb_strlen(trim($name)) > RoomCatalogueGuard::MAX_NAME) {
             return 'timetable.place_name_invalid';
         }
         if ($capacity < 1 || $capacity > self::MAX_CAPACITY) {
