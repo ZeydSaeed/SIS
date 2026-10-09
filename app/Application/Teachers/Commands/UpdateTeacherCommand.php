@@ -26,5 +26,9 @@ final readonly class UpdateTeacherCommand implements Command
         public ?int $weeklyLessonsMin = null,
         public ?int $weeklyLessonsMax = null,
         public ?int $dailyLessonsMax = null,
+        /** When true «اللقب العلمي» and «الاختصار» below replace the stored ones. */
+        public bool $updateTitle = false,
+        public ?int $academicTitleId = null,
+        public ?string $abbreviation = null,
     ) {}
 }

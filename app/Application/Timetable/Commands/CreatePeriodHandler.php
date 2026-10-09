@@ -39,7 +39,12 @@ final class CreatePeriodHandler implements CommandHandler
             startTime: $command->startTime,
             endTime: $command->endTime,
             periodType: $command->periodType,
+            presentation: $command->presentation,
         );
+        $presentationError = $command->presentation?->rejection();
+        if ($presentationError !== null) {
+            return CreatePeriodResult::failure($presentationError);
+        }
 
         $error = $this->guard->error($data, $this->periods->listForSchool($command->schoolId));
         if ($error !== null) {

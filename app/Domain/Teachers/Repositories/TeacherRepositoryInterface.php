@@ -12,6 +12,14 @@ interface TeacherRepositoryInterface
 {
     public function employeeCodeExists(string $employeeCode): bool;
 
+    /**
+     * «استيراد المعلمين»: the teacher holding an employee code (case-insensitive) with the identity fields an import
+     * row may leave blank, and whether the teacher is an active member of the school in the year.
+     *
+     * @return array{id: int, first_name: string, father_name: string|null, grandfather_name: string|null, last_name: string, national_id: string|null, specialization_field: string|null, hire_date: string|null, status: int, abbreviation: string|null, academic_title_id: int|null, in_school: bool}|null
+     */
+    public function importIdentity(string $employeeCode, int $schoolId, int $academicYearId): ?array;
+
     public function employeeCodeTakenByOther(string $employeeCode, int $exceptTeacherId): bool;
 
     public function createTeacher(

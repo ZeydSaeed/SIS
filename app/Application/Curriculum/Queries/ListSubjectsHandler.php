@@ -58,6 +58,8 @@ final class ListSubjectsHandler
             passGrade: $row->passGrade,
             status: $row->status,
             prerequisitesText: $row->prerequisitesText,
+            abbreviation: $row->abbreviation,
+            colorHue: $row->colorHue,
         );
     }
 }

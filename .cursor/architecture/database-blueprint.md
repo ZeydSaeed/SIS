@@ -1,11 +1,11 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
-> **Target:** **96** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
+> **Target:** **102** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**; +1 `teachers.teaching_assignments` (2026-10-06) → **97**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**; +1 `teachers.teaching_assignments` (2026-10-06) → **97**; timetable workbench (2026-10-08/09): +1 `teachers.academic_titles`, +1 `organization.room_types`, +1 `timetable.test_marks`, +2 `documents.import_batches` / `documents.import_rows` → **102**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -106,12 +106,46 @@
 | code | VARCHAR(20) | NOT NULL |
 | name | VARCHAR(100) | NOT NULL |
 | capacity | SMALLINT | |
-| room_type | SMALLINT | NOT NULL |
+| room_type | SMALLINT | NOT NULL — solver class: 1 any room · 2 practical-capable (follows `supports_practical`) |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
+| abbreviation | VARCHAR(20) | nullable — «الاختصار» (2026-10-08) |
+| color_hue | SMALLINT | nullable, CHECK 0–359 — card hue (2026-10-08) |
+| room_number | VARCHAR(20) | nullable — رقم الغرفة |
+| building | VARCHAR(100) | nullable — المبنى |
+| floor | SMALLINT | nullable, CHECK −5…100 — الطابق |
+| location | VARCHAR(150) | nullable — الموقع |
+| department_id | BIGINT | FK → departments, nullable, restrict — القسم (of the room's branch) |
+| room_type_id | BIGINT | FK → room_types, nullable, restrict — managed type |
+| supports_practical | BOOLEAN | NOT NULL DEFAULT false — تدعم العملي |
+| equipment | TEXT | nullable — التجهيزات |
+| suitable_for | TEXT | nullable — المواد / الأنشطة المناسبة |
+| notes | TEXT | nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(branch_id)`, `UNIQUE(branch_id, code)`
+**Indexes:** `BTREE(branch_id)`, `UNIQUE(branch_id, code)`, `BTREE(room_type_id)` (type usage / filter)
+
+**«الغرف الدراسية» (2026-10-08, migration `2026_10_08_150000`):** page `/organization/rooms` (RoomCataloguePageController → SaveRoom / ChangeRoomStatus / SaveRoomType / ChangeRoomTypeStatus / UpdateOrganizationAppearance; guard `RoomCatalogueGuard`). Existing rooms backfilled to the system types (room_type 2 → «مختبر», else «صف دراسي»). The timetable's legacy room endpoint keeps `supports_practical` / `room_type_id` in step. No school_id column: a room is the school's through its branch (every query joins branches.school_id).
+
+### `organization.room_types` (2026-10-08)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools, nullable — NULL = system default type (shared, read-only) |
+| code | VARCHAR(30) | NOT NULL, UNIQUE (COALESCE(school_id,0), code) |
+| name | VARCHAR(100) | NOT NULL |
+| abbreviation | VARCHAR(20) | nullable |
+| kind | SMALLINT | NOT NULL CHECK IN (1 صف, 2 مختبر, 3 ورشة, 4 قاعة, 9 أخرى) |
+| supports_practical | BOOLEAN | NOT NULL DEFAULT false |
+| color_hue | SMALLINT | nullable, CHECK 0–359 |
+| sort_order | SMALLINT | NOT NULL DEFAULT 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1 CHECK IN (1, 2) |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+Seeded system types: صف دراسي، مختبر، مختبر حاسوب، مختبر كهرباء، مختبر كيمياء، ورشة، ورشة صناعية، قاعة، غرفة أخرى. Hard DELETE rejected (`organization.reject_room_types_delete`). A type in use by active rooms cannot be retired.
+
+**Display attributes (2026-10-08, same migration):** `abbreviation VARCHAR(20)` + `color_hue SMALLINT CHECK 0–359` (both nullable; NULL = default) also on `organization.branches`, `organization.departments`, `curriculum.subjects`, `teachers.teachers`, `enrollment.classes`, `enrollment.sections`. Written only by the owning page (UpdateSubject fields, UpdateTeacherAppearance, UpdateOrganizationAppearance, UpdateStructureAppearance); the timetable reads them (`displayCatalog`) and never copies them.
 
 ---
 
@@ -775,6 +809,22 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 **Security:** FORCE RLS school isolation on `school_id`; hard DELETE rejected by trigger (end = status 2 + effective_to).
 **Rules (`TeachingAssignmentGuard`):** branch of the school, department of the branch, class of the school/year, section of the class (all active); the subject is in an active curriculum of the school/year for the department (or of any department of the branch when branch-wide, or a general curriculum). Adding an assignment also inserts `teacher_subjects` (المواد المسندة) in the same transaction; unlinking a subject ends its active assignments.
 
+### `teachers.academic_titles` (2026-10-08)
+
+«اللقب العلمي» reference data — global (no school_id, no RLS; same posture as `curriculum.subjects`).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | SMALLINT | PK (identity) |
+| code | VARCHAR(20) | UNIQUE NOT NULL |
+| name | VARCHAR(60) | NOT NULL |
+| abbreviation | VARCHAR(20) | nullable |
+| sort_order | SMALLINT | NOT NULL DEFAULT 0 |
+| status | SMALLINT | NOT NULL DEFAULT 1 CHECK IN (1, 2) |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+Seeded: مدرس، مدرس أول، مدرس مساعد، أستاذ، أستاذ مساعد، دكتور، مهندس، معلم، مدرب فني. `teachers.teachers.academic_title_id SMALLINT` FK → academic_titles (nullable, restrict). Hard DELETE rejected.
+
 ### `teachers.teacher_qualifications`
 
 | Column | Type | Constraints |
@@ -889,9 +939,11 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 | end_time | TIME | NOT NULL |
 | period_type | SMALLINT | NOT NULL DEFAULT 1 |
 
-**Indexes:** `UNIQUE(school_id, period_number)`  
+**Indexes:** `UNIQUE(school_id, period_number) WHERE status = 1` (`periods_school_number_active_uidx`, 2026-10-08 — was a full UNIQUE)  
 **RLS:** ENABLE + FORCE (`periods_school_isolation`)  
 **Triggers:** `periods_reject_delete`
+
+**Presentation & retirement (2026-10-08, migration `2026_10_08_150100`):** `name VARCHAR(60)`, `abbreviation VARCHAR(20)`, `color_hue SMALLINT` (0–359), `show_in` / `print_in SMALLINT DEFAULT 31` (bitmask 1 general · 2 teachers · 4 sections · 8 students · 16 rooms), `status SMALLINT DEFAULT 1` (2 = a removed break, retired — never deleted). Readers use active rows only. «الاستراحات» `POST /timetable/periods/reshape` (ReshapeSchoolDay → Domain `BellScheduleCalculator`): insert / move / resize / remove a break, re-time one period (with or without moving the following ones), fixed pattern — the whole day is written in one transaction, lesson ids kept.
 
 **«توقيت الحصص» writes (2026-10-06, no schema change):** web `POST/PATCH /timetable/periods` (CreatePeriod / UpdatePeriod, policy `managePeriods` = `timetable.schedule.update`). `period_type`: 1 = lesson, 2 = break. Domain `PeriodTimeGuard`: start < end, unique number (1–20), no overlapping minutes. A break holds no schedules (`timetable.period_not_lesson`); a period with active schedules cannot become a break (`timetable.period_has_lessons`). Periods are re-timed, never deleted.
 
@@ -954,7 +1006,7 @@ All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` o
 
 | Table | Columns (beyond id, school_id, timestamps) | Constraints / indexes |
 |-------|--------------------------------------------|-----------------------|
-| `timetable.configs` | academic_year_id, working_days JSONB, cycle_weeks, max_teacher_per_day, max_subject_per_day, double_changeover_minutes, weights JSONB, updated_by | UNIQUE(school_id, academic_year_id); CHECKs on ranges, working_days array 1–7 |
+| `timetable.configs` | academic_year_id, working_days JSONB, cycle_weeks, max_teacher_per_day, max_subject_per_day, double_changeover_minutes, weights JSONB, updated_by, **display JSONB** (2026-10-08 — «تنسيق الجدول», normalised by `TimetableDisplaySettings`) | UNIQUE(school_id, academic_year_id); CHECKs on ranges, working_days array 1–7; display is an object |
 | `timetable.divisions` | academic_year_id, section_id, name, status | BTREE(school_id, academic_year_id), BTREE(section_id) |
 | `timetable.division_groups` | division_id, name, student_count, status | BTREE(division_id) |
 | `timetable.group_members` | group_id, enrollment_id, status, effective_from/to | partial UNIQUE(group_id, enrollment_id) WHERE status=1; BTREE(enrollment_id) |
@@ -964,6 +1016,7 @@ All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` o
 | `timetable.availability` | academic_year_id, teacher_id / room_id / section_id / workshop_id (exactly one — `num_nonnulls = 1`), day_of_week, period_id (FK periods with school), week_no, kind (1 unavailable · 2 avoid · 3 preferred), reason, status, created_by | partial UNIQUE per target-slot WHERE status=1; BTREE(school_id, academic_year_id, status) |
 | `timetable.constraint_rules` | academic_year_id, rule_type, priority 1–6, explicit scope FKs (branch, department, grade_level, class, section, teacher, subject, room, activity, other_activity), params JSONB object, source, reason, status, effective_from/to, created_by | BTREE(school_id, academic_year_id, status) — rule semantics in `ConstraintRuleCatalogue` |
 | `timetable.generation_runs` | academic_year_id, mode 1–5, status 1–7, is_what_if, scope / options / progress / input_snapshot / result / quality JSONB, solver, cancel_requested, input_fingerprint, hard_violations, soft_penalty, activities_total, placed, unplaced, error, requested_by, applied_by, started/finished/applied_at | **partial UNIQUE(school_id, academic_year_id) WHERE status IN (1,2)** — one active run; BTREE(school_id, academic_year_id, created_at DESC) |
+| `timetable.test_marks` (2026-10-08) | academic_year_id, issue_key VARCHAR(200), mark 1 ignore · 2 review later, note, status 1 active · 2 cleared, marked_by | partial UNIQUE(school_id, academic_year_id, issue_key) WHERE status = 1; FORCE RLS; reject-delete (`timetable.reject_engine_delete`). «اختبار الجدول» marks; a critical issue still blocks generation when ignored |
 | `timetable.versions` | academic_year_id, version_no, parent_version_id, name, reason, status 1–7, source_fingerprint, entries_count, quality JSONB, generation_run_id, approval_request_id (FK workflow.approval_requests), created_by, decided_by/at, published_by/at, effective_from/to | UNIQUE(school_id, academic_year_id, version_no); UNIQUE(id, school_id); CHECK published ⇒ dates; BTREE(school_id, academic_year_id, status) |
 | `timetable.version_entries` | version_id (FK with school), section_id, group_id, day_of_week, period_id (FK with school), week_no, subject_id, teacher_id, co_teacher_id, room_id, activity_id, source_schedule_id | **immutable** (reject UPDATE + DELETE); BTREE(version_id, section_id), BTREE(version_id, teacher_id) |
 
@@ -1530,7 +1583,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 ---
 
-## Schema: `documents` (1 table — Phase DOC-U01 LIVE)
+## Schema: `documents` (3 tables — Phase DOC-U01 LIVE; import batches 2026-10-09)
 
 ### `documents.files`
 
@@ -1552,6 +1605,44 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 **Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(file_hash)`, `BTREE(school_id, created_at)`  
 **Security (Phase DOC-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
 **v1 HTTP:** Metadata Register/List + binary Upload/Download (DOC-U04 local object storage). S3/AV/PDF engine HOLD. No BYTEA.
+
+### `documents.import_batches` (2026-10-09, migration `2026_10_09_100000`)
+
+«استيراد Excel»: one uploaded spreadsheet (the file in object storage, `storage_key`).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools, NOT NULL |
+| academic_year_id | BIGINT | FK → academic_years, nullable (kinds bound to a year) |
+| kind | VARCHAR(20) | NOT NULL CHECK IN (teachers, structure, students, subjects) |
+| status | SMALLINT | NOT NULL — 1 parsing · 2 previewed · 3 committing · 4 committed · 5 failed · 6 cancelled |
+| file_name / storage_key | VARCHAR | NOT NULL |
+| total_rows / valid_rows / error_rows / duplicate_rows | INTEGER | NOT NULL DEFAULT 0 |
+| result | JSONB | nullable — {created, updated, skipped, failed, errors} |
+| error | TEXT | nullable — batch-level error code |
+| created_by / committed_by | BIGINT | FK → users, nullable |
+| committed_at | TIMESTAMPTZ | nullable |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(school_id, created_at DESC)` (history list).
+
+### `documents.import_rows` (2026-10-09)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK |
+| school_id | BIGINT | FK → schools, NOT NULL |
+| batch_id | BIGINT | FK → import_batches, restrict |
+| row_number | INTEGER | NOT NULL ≥ 1, UNIQUE (batch_id, row_number) |
+| data | JSONB | NOT NULL — planned values + `_source` (original cells) |
+| action | SMALLINT | 1 create · 2 update · 3 skip |
+| status | SMALLINT | 1 valid · 2 error · 3 duplicate · 4 committed · 5 failed |
+| errors | JSONB | nullable — error codes |
+| entity_id | BIGINT | nullable — the created / updated entity |
+| created_at / updated_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `BTREE(batch_id, status)` (preview filter, commit, error report). Both tables: FORCE RLS on `app.current_school_id`, hard DELETE rejected. Writes into the owning data happen only on «اعتماد» and only through the owning context's handlers (ImportProfile per context).
 
 ---
 

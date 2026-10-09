@@ -33,6 +33,18 @@ final class EloquentTimetableConfigurationRepository implements TimetableConfigu
         }
     }
 
+    public function saveDisplay(int $schoolId, int $academicYearId, array $display, ?int $userId): void
+    {
+        $this->bindSchool($schoolId);
+        $table = SchemaHelper::qualified('timetable', 'configs');
+        $values = ['display' => json_encode($display, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 'updated_by' => $userId, 'updated_at' => now()];
+        $updated = DB::table($table)->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->update($values);
+        if ($updated === 0) {
+            // A school-year without settings yet: the defaults row (DB defaults) carrying the display.
+            DB::table($table)->insert($values + ['school_id' => $schoolId, 'academic_year_id' => $academicYearId, 'created_at' => now()]);
+        }
+    }
+
     public function insertActivity(int $schoolId, int $academicYearId, array $data, array $targets, array $teachers, ?int $userId): int
     {
         $this->bindSchool($schoolId);

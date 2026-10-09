@@ -13,7 +13,7 @@ use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Application\Teachers\Support\TeacherNameFormatter;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
 use App\Domain\Teachers\Services\TeacherIdentityGuard;
-use App\Domain\Teachers\ValueObjects\TeacherEmploymentType;
+use App\Domain\Teachers\Services\TeacherTitleGuard;
 use App\Domain\Teachers\ValueObjects\TeacherWorkloadLimits;
 
 final class UpdateTeacherHandler implements CommandHandler
@@ -26,6 +26,7 @@ final class UpdateTeacherHandler implements CommandHandler
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
         private readonly TeacherIdentityGuard $identity,
+        private readonly TeacherTitleGuard $title,
     ) {}
 
     public function handle(Command $command): UpdateTeacherResult
@@ -52,8 +53,9 @@ final class UpdateTeacherHandler implements CommandHandler
             return UpdateTeacherResult::failure(['teachers.name_required']);
         }
 
-        if (! TeacherEmploymentType::isValid($command->employmentType)) {
-            return UpdateTeacherResult::failure(['teachers.employment_type_invalid']);
+        $profileError = $this->title->profileRejection($command->employmentType, $command->updateTitle, $command->academicTitleId, $command->abbreviation);
+        if ($profileError !== null) {
+            return UpdateTeacherResult::failure([$profileError]);
         }
 
         $workloadError = TeacherWorkloadLimits::errorForUpdate(
@@ -85,6 +87,7 @@ final class UpdateTeacherHandler implements CommandHandler
             if ($command->userId !== null) {
                 $fields['user_id'] = $command->userId;
             }
+            $fields += TeacherTitleGuard::columns($command->updateTitle, $command->academicTitleId, $command->abbreviation);
             $this->teachers->updateTeacher($command->teacherId, $fields);
             if ($command->academicYearId !== null) {
                 $this->teachers->setEmploymentType(

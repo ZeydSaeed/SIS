@@ -64,6 +64,21 @@ use App\Domain\Organization\Repositories\BranchRepositoryInterface;
 use App\Domain\Organization\Repositories\BranchStructureRepositoryInterface;
 use App\Domain\Organization\Repositories\DepartmentRepositoryInterface;
 use App\Domain\Organization\Repositories\DirectorateRepositoryInterface;
+use App\Domain\Organization\Repositories\OrganizationAppearanceRepositoryInterface;
+use App\Domain\Organization\Repositories\RoomCatalogueRepositoryInterface;
+use App\Domain\Timetable\Repositories\TimetableTestMarkRepositoryInterface;
+use App\Application\Curriculum\Imports\SubjectImportProfile;
+use App\Application\Imports\Contracts\ImportJobDispatcher;
+use App\Application\Imports\Contracts\SpreadsheetPort;
+use App\Application\Imports\Support\ImportProfileRegistry;
+use App\Application\Organization\Imports\StructureImportProfile;
+use App\Application\Student\Imports\StudentImportProfile;
+use App\Application\Teachers\Imports\TeacherImportProfile;
+use App\Domain\Imports\Repositories\ImportBatchRepositoryInterface;
+use App\Infrastructure\Imports\QueuedImportJobs;
+use App\Infrastructure\Persistence\Imports\EloquentImportBatchRepository;
+use App\Infrastructure\Spreadsheet\SimpleSpreadsheet;
+use App\Infrastructure\Persistence\Timetable\EloquentTimetableTestMarkRepository;
 use App\Domain\Organization\Repositories\RoomRepositoryInterface;
 use App\Domain\Organization\Repositories\SchoolRepositoryInterface;
 use App\Domain\Portal\Repositories\PortalScopeRepositoryInterface;
@@ -80,6 +95,8 @@ use App\Domain\Student\Repositories\StudentRepositoryInterface;
 use App\Domain\Teachers\Contracts\TeachingPlacementCatalogPort;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\Repositories\TeacherRosterReadRepositoryInterface;
+use App\Domain\Teachers\Repositories\AcademicTitleRepositoryInterface;
+use App\Infrastructure\Persistence\Teachers\EloquentAcademicTitleRepository;
 use App\Domain\Timetable\Repositories\GenerationRunRepositoryInterface;
 use App\Domain\Timetable\Repositories\PeriodRepositoryInterface;
 use App\Domain\Timetable\Repositories\ScheduleExceptionRepositoryInterface;
@@ -153,6 +170,8 @@ use App\Infrastructure\Persistence\Organization\EloquentBranchRepository;
 use App\Infrastructure\Persistence\Organization\EloquentBranchStructureRepository;
 use App\Infrastructure\Persistence\Organization\EloquentDepartmentRepository;
 use App\Infrastructure\Persistence\Organization\EloquentDirectorateRepository;
+use App\Infrastructure\Persistence\Organization\EloquentOrganizationAppearanceRepository;
+use App\Infrastructure\Persistence\Organization\EloquentRoomCatalogueRepository;
 use App\Infrastructure\Persistence\Organization\EloquentRoomRepository;
 use App\Infrastructure\Persistence\Organization\EloquentSchoolRegistryReadRepository;
 use App\Infrastructure\Persistence\Organization\EloquentSchoolRepository;
@@ -246,6 +265,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(TeacherRepositoryInterface::class, EloquentTeacherRepository::class);
         $this->app->bind(TeachingPlacementCatalogPort::class, EloquentTeachingPlacementCatalogAdapter::class);
         $this->app->bind(TeacherRosterReadRepositoryInterface::class, EloquentTeacherRosterReadRepository::class);
+        $this->app->bind(AcademicTitleRepositoryInterface::class, EloquentAcademicTitleRepository::class);
         $this->app->bind(PromotionRepositoryInterface::class, EloquentPromotionRepository::class);
         $this->app->bind(TransferRepositoryInterface::class, EloquentTransferRepository::class);
         $this->app->bind(TransferApprovalHookPort::class, TransferApprovalHookAdapter::class);
@@ -280,6 +300,19 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(StudentDocumentRepositoryInterface::class, EloquentStudentDocumentRepository::class);
         $this->app->bind(StudentGuardianRepositoryInterface::class, EloquentStudentGuardianRepository::class);
         $this->app->bind(RoomRepositoryInterface::class, EloquentRoomRepository::class);
+        $this->app->bind(RoomCatalogueRepositoryInterface::class, EloquentRoomCatalogueRepository::class);
+        $this->app->bind(TimetableTestMarkRepositoryInterface::class, EloquentTimetableTestMarkRepository::class);
+        // «استيراد Excel»: the engine, its spreadsheet adapter and queue, and the profiles of the owning contexts.
+        $this->app->bind(ImportBatchRepositoryInterface::class, EloquentImportBatchRepository::class);
+        $this->app->bind(SpreadsheetPort::class, SimpleSpreadsheet::class);
+        $this->app->bind(ImportJobDispatcher::class, QueuedImportJobs::class);
+        $this->app->bind(ImportProfileRegistry::class, fn ($app): ImportProfileRegistry => new ImportProfileRegistry([
+            $app->make(TeacherImportProfile::class),
+            $app->make(StructureImportProfile::class),
+            $app->make(SubjectImportProfile::class),
+            $app->make(StudentImportProfile::class),
+        ]));
+        $this->app->bind(OrganizationAppearanceRepositoryInterface::class, EloquentOrganizationAppearanceRepository::class);
         $this->app->bind(BranchRepositoryInterface::class, EloquentBranchRepository::class);
         $this->app->bind(BranchStructureRepositoryInterface::class, EloquentBranchStructureRepository::class);
         $this->app->bind(DepartmentRepositoryInterface::class, EloquentDepartmentRepository::class);

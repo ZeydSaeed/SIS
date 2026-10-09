@@ -9,6 +9,9 @@ interface TimetableEngineReadRepositoryInterface
 {
     public function settings(int $schoolId, int $academicYearId): ?TimetableSettings;
 
+    /** @return array<string, mixed>|null  the stored «تنسيق الجدول» (null = never saved) */
+    public function display(int $schoolId, int $academicYearId): ?array;
+
     /**
      * Active activities with targets and teachers (+ display fields: activity_type, distribution text, note).
      *

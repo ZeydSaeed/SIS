@@ -6,6 +6,7 @@ approved — ADR-021, ADR-022).
 
 | Document | Content |
 |----------|---------|
+| [WORKBENCH.md](./WORKBENCH.md) | **Workbench (2026-10-09):** rooms page, abbreviations & colours from the owners, breaks with re-timing, cell formatting / layouts, context menu, «اختبار الجدول» with explainable remedies, complexity / constraint levels, preview zoom, Excel import |
 | [TIMETABLE-SYSTEM-REPORT.md](./TIMETABLE-SYSTEM-REPORT.md) | Full Arabic walkthrough (data sources, workflow, ribbon / icons, every sheet), spec conformance, gaps and integration proposals (2026-10-08) |
 | [TIMETABLE-GAP-ANALYSIS.md](./TIMETABLE-GAP-ANALYSIS.md) | Discovery (T0), UI inventory, gap list with what is now closed |
 | [TIMETABLE-DOMAIN-SPECIFICATION.md](./TIMETABLE-DOMAIN-SPECIFICATION.md) | Ownership, activity / time / constraint models, lifecycle, **implemented schema** |
@@ -23,7 +24,7 @@ approved — ADR-021, ADR-022).
 SIS data (curriculum hours × teaching assignments, sections, enrollments, rooms, workshops)
   → «الأنشطة والمجموعات»  activities (from the curriculum or by hand), groups, joined classes, co-teachers
   → «القيود» / «الإتاحة» / «إعدادات الجدول»  rules with priorities, time-off, working days, limits
-  → «الجاهزية والجودة»  READY / BLOCKED with reasons (advisor)
+  → «الجاهزية والجودة» / «اختبار الجدول»  READY / BLOCKED, five severities, causes and remedies
   → «توليد الجدول»  queued run (mode, scope, objectives, what-if) → review (unplaced + why, relaxed rules, diff)
   → apply to the working grid → manual edits (drag & drop, swap, shift, lock, «اقتراح أماكن»)
   → «الإصدارات والنشر»  snapshot → workflow approval → publish from a date → effective timetable

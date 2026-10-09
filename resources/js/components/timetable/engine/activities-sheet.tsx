@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import type { EngineActivity } from './engine-types';
-import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineConfirm, useEngineRequest, engineSheetClass } from './engine-ui';
 
 type Form = {
     subject: string;
@@ -34,6 +34,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
     const i18n = t();
     const e = i18n.timetable.engine;
     const request = useEngineRequest();
+    const confirm = useEngineConfirm();
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<number | 'new' | null>(null);
     const blank = (): Form => ({ subject: '', type: '1', weekly: '2', block: '1', distribution: '', place: '', week: '0', note: '', lead: '', co: '', coSessions: '', targets: [{ section: String(sectionId ?? ''), group: '' }] });
@@ -214,7 +215,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                                 {ctx.can.manage ? (
                                     <span>
                                         <Button type="button" size="sm" variant="outline" onClick={() => edit(a)}>{e.edit}</Button>{' '}
-                                        <Button type="button" size="sm" variant="outline" onClick={() => void request('post', `/timetable/activities/${a.id}/end`, { academic_year_id: ctx.yearId })}>{e.end}</Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => confirm.ask(e.confirmEndActivity, () => void request('post', `/timetable/activities/${a.id}/end`, { academic_year_id: ctx.yearId }))}>{e.end}</Button>
                                     </span>
                                 ) : null}
                             </li>
@@ -235,7 +236,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                                             {name}: {groups.filter((g) => g.division_id === divisionId).map((g) => `${g.name} (${g.members || g.student_count || 0} ${e.members})`).join(' · ')}
                                         </span>
                                         {ctx.can.manage ? (
-                                            <Button type="button" size="sm" variant="outline" onClick={() => void request('post', `/timetable/divisions/${divisionId}/end`, { academic_year_id: ctx.yearId })}>{e.end}</Button>
+                                            <Button type="button" size="sm" variant="outline" onClick={() => confirm.ask(e.confirmEndDivision, () => void request('post', `/timetable/divisions/${divisionId}/end`, { academic_year_id: ctx.yearId }))}>{e.end}</Button>
                                         ) : null}
                                     </li>
                                 ))}
@@ -265,6 +266,7 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                     {i18n.timetable.close}
                 </Button>
             </div>
+            {confirm.dialog}
         </RegistrySheetDialog>
     );
 }

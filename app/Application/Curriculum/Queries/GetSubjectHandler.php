@@ -30,6 +30,8 @@ final class GetSubjectHandler
             passGrade: $s->passGrade,
             status: $s->status,
             prerequisitesText: $s->prerequisitesText,
+            abbreviation: $s->abbreviation,
+            colorHue: $s->colorHue,
         );
     }
 }

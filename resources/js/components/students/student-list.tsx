@@ -835,6 +835,8 @@ export function StudentList({
     const [creatingStudent, setCreatingStudent] = useState(false);
     const [enrollCandidates, setEnrollCandidates] = useState<StudentListItem[] | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<StudentListItem | null>(null);
+    /** A status other than «نشط» for the selected students waits for a confirmation (it also stops their enrollments). */
+    const [statusConfirm, setStatusConfirm] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [applyingStatus, setApplyingStatus] = useState(false);
     const selectAllRef = useRef<HTMLInputElement>(null);
@@ -1680,7 +1682,7 @@ export function StudentList({
                     title: canApplyStatus ? full : i18n.students.statusNeedsSelection,
                     icon: action.icon,
                     disabled: !canApplyStatus,
-                    onSelect: () => applyStatus(action.status),
+                    onSelect: () => (action.status === STUDENT_STATUS_ACTIVE ? applyStatus(action.status) : setStatusConfirm(action.status)),
                 });
             }
         }
@@ -2060,6 +2062,28 @@ export function StudentList({
                 </Suspense>
             ) : null}
 
+            <ConfirmDialog
+                open={statusConfirm !== null}
+                title={i18n.students.statusConfirmTitle}
+                description={
+                    statusConfirm === null
+                        ? ''
+                        : i18n.students.statusConfirmBody.replace('{count}', String(resolveActionIds().length)).replace('{status}', statusTabLabel(statusConfirm, i18n))
+                }
+                confirmLabel={i18n.students.statusConfirmAction}
+                tone="danger"
+                onConfirm={() => {
+                    if (statusConfirm !== null) {
+                        applyStatus(statusConfirm);
+                    }
+                    setStatusConfirm(null);
+                }}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setStatusConfirm(null);
+                    }
+                }}
+            />
             <ConfirmDialog
                 open={deleteTarget !== null}
                 title={i18n.students.deleteTitle}

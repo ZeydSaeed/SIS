@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import { VERSION, type Comparison, type EngineVersion } from './engine-types';
-import { EngineField, EngineRow, EngineSelect, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineRow, EngineSelect, useEngineConfirm, useEngineRequest, engineSheetClass } from './engine-ui';
 
 const STATUS_TONE: Record<number, string> = { 1: 'info', 2: 'warning', 3: 'info', 4: 'error', 5: 'info', 6: 'warning', 7: 'warning' };
 
@@ -19,6 +19,7 @@ export function VersionsSheet({ ctx, comparison, onClose }: { ctx: EngineContext
     const i18n = t();
     const e = i18n.timetable.engine;
     const request = useEngineRequest();
+    const confirm = useEngineConfirm();
     const [name, setName] = useState('');
     const [reason, setReason] = useState('');
     const [dates, setDates] = useState<Record<number, string>>({});
@@ -98,11 +99,11 @@ export function VersionsSheet({ ctx, comparison, onClose }: { ctx: EngineContext
                                     {ctx.can.publish && v.status === VERSION.approved ? (
                                         <>
                                             <input className="sis-admission-sheet__control" type="date" dir="ltr" aria-label={e.effectiveFrom} value={dates[v.id] ?? today} onChange={(ev) => setDates((d) => ({ ...d, [v.id]: ev.target.value }))} />{' '}
-                                            <Button type="button" size="sm" disabled={saving} onClick={() => void act(`/timetable/versions/${v.id}/publish`, { effective_from: dates[v.id] ?? today })}>{e.publish}</Button>
+                                            <Button type="button" size="sm" disabled={saving} onClick={() => confirm.ask(e.confirmPublish.replace('{date}', dates[v.id] ?? today), () => void act(`/timetable/versions/${v.id}/publish`, { effective_from: dates[v.id] ?? today }), e.publish)}>{e.publish}</Button>
                                         </>
                                     ) : null}
                                     {ctx.can.publish && [VERSION.draft, VERSION.rejected, VERSION.approved, VERSION.superseded].includes(v.status as 1) ? (
-                                        <> <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void act(`/timetable/versions/${v.id}/archive`)}>{e.archive}</Button></>
+                                        <> <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => confirm.ask(e.confirmArchive, () => void act(`/timetable/versions/${v.id}/archive`), e.archive)}>{e.archive}</Button></>
                                     ) : null}
                                     {ctx.can.publish ? (
                                         <> <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => setRestoreId(v.id)}>{e.restore}</Button></>
@@ -157,6 +158,7 @@ export function VersionsSheet({ ctx, comparison, onClose }: { ctx: EngineContext
                 }}
                 onOpenChange={(open) => (open ? null : setRestoreId(null))}
             />
+            {confirm.dialog}
         </RegistrySheetDialog>
     );
 }

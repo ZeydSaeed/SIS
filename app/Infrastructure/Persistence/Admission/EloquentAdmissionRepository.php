@@ -67,9 +67,8 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'branch_id' => $data->branchId,
             'branch_name' => $data->branchName,
             'department_name' => $data->departmentName,
-            'department_id' => $this->departmentIdFor($data->targetSchoolId, $data->branchId, $data->departmentName),
-            'specialization_id' => $data->specializationId,
-            'specialization_name' => $data->specializationName,
+            'department_id' => $departmentId = $this->departmentIdFor($data->targetSchoolId, $data->branchId, $data->departmentName),
+            ...$this->specializationColumns($data->targetSchoolId, $departmentId, $data->specializationId, $data->specializationName),
             'governorate' => $data->governorate,
             'administrative_unit' => $data->administrativeUnit,
             'neighborhood' => $data->neighborhood,
@@ -365,6 +364,27 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         return (new StudentPlacementIdResolver)->findDepartment($schoolId, $branchId, $departmentName)['id'] ?? null;
     }
 
+    /**
+     * The department is the single source of the placement; the vocational specialization is its 1:1 mirror, so
+     * when the department has one it overrides whatever the form sent (a changed department must not keep the old
+     * specialization). Without a mirror the submitted values are kept.
+     *
+     * @return array{specialization_id: int|null, specialization_name: string|null}
+     */
+    private function specializationColumns(?int $schoolId, ?int $departmentId, ?int $submittedId, ?string $submittedName): array
+    {
+        if ($schoolId !== null && $departmentId !== null) {
+            $mirror = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
+                ->where('school_id', $schoolId)->where('department_id', $departmentId)->where('status', 1)
+                ->orderBy('id')->first(['id', 'name']);
+            if ($mirror !== null) {
+                return ['specialization_id' => (int) $mirror->id, 'specialization_name' => (string) $mirror->name];
+            }
+        }
+
+        return ['specialization_id' => $submittedId, 'specialization_name' => $submittedName];
+    }
+
     private function resolveBranchIdForSchool(int $schoolId, string $branchName): ?int
     {
         $name = trim($branchName);
@@ -431,10 +451,9 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             $payload['department_id'] = $schoolId !== null
                 ? $this->departmentIdFor((int) $schoolId, $data->branchId, $data->departmentName)
                 : null;
+            $payload = array_merge($payload, $this->specializationColumns($schoolId !== null ? (int) $schoolId : null, $payload['department_id'], $data->specializationId, $data->specializationName));
             $payload['grade_level_id'] = $data->gradeLevelId;
             $payload['intended_grade_name'] = $data->intendedGradeName;
-            $payload['specialization_id'] = $data->specializationId;
-            $payload['specialization_name'] = $data->specializationName;
         }
 
         DB::table(SchemaHelper::qualified('admission', 'applications'))

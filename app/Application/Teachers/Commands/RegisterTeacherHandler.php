@@ -13,7 +13,7 @@ use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
 use App\Application\Teachers\Support\TeacherNameFormatter;
 use App\Domain\Teachers\Services\TeacherIdentityGuard;
-use App\Domain\Teachers\ValueObjects\TeacherEmploymentType;
+use App\Domain\Teachers\Services\TeacherTitleGuard;
 use App\Domain\Teachers\ValueObjects\TeacherStatus;
 
 final class RegisterTeacherHandler implements CommandHandler
@@ -26,6 +26,7 @@ final class RegisterTeacherHandler implements CommandHandler
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
         private readonly TeacherIdentityGuard $identity,
+        private readonly TeacherTitleGuard $title,
     ) {}
 
     public function handle(Command $command): RegisterTeacherResult
@@ -57,8 +58,9 @@ final class RegisterTeacherHandler implements CommandHandler
             return RegisterTeacherResult::failure(['teachers.name_required']);
         }
 
-        if (! TeacherEmploymentType::isValid($command->employmentType)) {
-            return RegisterTeacherResult::failure(['teachers.employment_type_invalid']);
+        $profileError = $this->title->profileRejection($command->employmentType, true, $command->academicTitleId, $command->abbreviation);
+        if ($profileError !== null) {
+            return RegisterTeacherResult::failure([$profileError]);
         }
 
         $at = (new \DateTimeImmutable)->format('Y-m-d H:i:s');
@@ -83,6 +85,7 @@ final class RegisterTeacherHandler implements CommandHandler
                 $father,
                 $grandfather,
             );
+            $this->teachers->updateTeacher($teacherId, TeacherTitleGuard::columns(true, $command->academicTitleId, $command->abbreviation));
             $this->teachers->assignSchool(
                 $teacherId,
                 $command->schoolId,

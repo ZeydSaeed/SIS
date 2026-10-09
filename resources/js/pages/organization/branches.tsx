@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SheetSection } from '@/components/sis/admission-sheet';
+import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { useRegisterPageRibbon, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
@@ -47,8 +48,8 @@ import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
-type Department = { id: number; code: string; name: string; description: string | null; status: number };
-type Branch = { id: number; code: string; name: string; description: string | null; status: number; departments: Department[] };
+type Department = { id: number; code: string; name: string; description: string | null; status: number; abbreviation?: string | null; color_hue?: number | null };
+type Branch = { id: number; code: string; name: string; description: string | null; status: number; departments: Department[]; abbreviation?: string | null; color_hue?: number | null };
 
 type Props = {
     branches: Branch[];
@@ -186,6 +187,7 @@ function BranchesPage({ branches, authorization }: Props) {
     const selected = branches.find((branch) => branch.id === selectedId) ?? null;
     /** A department row of the selected branch; when set, the «تحرير» actions target it. */
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+    const [appearanceOpen, setAppearanceOpen] = useState(false);
     const selectedDepartment = selected?.departments.find((department) => department.id === selectedDepartmentId) ?? null;
     const selectBranch = (branchId: number) => {
         setSelectedId(branchId);
@@ -444,6 +446,14 @@ function BranchesPage({ branches, authorization }: Props) {
                         icon: BookOpen,
                         disabled: branches.length === 0,
                         onSelect: () => openAddDepartment(selectedId),
+                    },
+                    {
+                        id: 'org-branch-appearance',
+                        label: i18n.appearance.title,
+                        icon: Palette,
+                        title: noSelection ? r.needsSelection : i18n.appearance.edit,
+                        disabled: noSelection,
+                        onSelect: () => setAppearanceOpen(true),
                     },
                     {
                         id: 'org-departments-manage',
@@ -973,6 +983,19 @@ function BranchesPage({ branches, authorization }: Props) {
                 </RegistrySheetDialog>
             ) : null}
 
+            {appearanceOpen && (selectedDepartment ?? selected) !== null ? (
+                <AppearanceDialog
+                    title={i18n.appearance.edit}
+                    entityName={(selectedDepartment ?? selected)?.name ?? ''}
+                    initial={{ abbreviation: (selectedDepartment ?? selected)?.abbreviation ?? '', color_hue: (selectedDepartment ?? selected)?.color_hue ?? null }}
+                    suggested={null}
+                    url="/organization/appearance"
+                    payload={{ target: selectedDepartment !== null ? 'department' : 'branch', id: (selectedDepartment ?? selected)?.id ?? 0 }}
+                    reloadProps={RELOAD_PROPS}
+                    canEdit={canManage}
+                    onClose={() => setAppearanceOpen(false)}
+                />
+            ) : null}
             <ConfirmDialog
                 open={confirmBulkDelete}
                 title={b.deleteDepartmentTitle}

@@ -12,6 +12,7 @@ use App\Domain\Curriculum\Events\SubjectUpdated;
 use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
 use App\Domain\Curriculum\Services\UpdateSubjectGuard;
 use App\Domain\Curriculum\Support\CurriculumIdempotencyGuard;
+use App\Domain\Shared\ValueObjects\DisplayAppearance;
 
 final class UpdateSubjectHandler implements CommandHandler
 {
@@ -39,10 +40,15 @@ final class UpdateSubjectHandler implements CommandHandler
             return UpdateSubjectResult::failure([$error]);
         }
 
-        $this->unitOfWork->transaction(function () use ($command, $key): void {
+        $fields = $command->fields;
+        if (array_key_exists('abbreviation', $fields)) {
+            $fields['abbreviation'] = DisplayAppearance::of($fields['abbreviation'], null)->abbreviation;
+        }
+
+        $this->unitOfWork->transaction(function () use ($command, $key, $fields): void {
             $this->subjects->updateActive(
                 $command->subjectId,
-                $command->fields,
+                $fields,
                 (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             );
             $this->outbox->stage(new SubjectUpdated($command->subjectId, new \DateTimeImmutable));

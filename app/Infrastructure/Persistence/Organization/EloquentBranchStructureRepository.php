@@ -24,7 +24,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
             ->whereIn('school_id', $schoolIds)
             ->when($activeOnly, fn (Builder $query) => $query->where('status', self::ACTIVE))
             ->orderBy('id')
-            ->get(['id', 'school_id', 'code', 'name', 'description', 'status']);
+            ->get(['id', 'school_id', 'code', 'name', 'description', 'status', 'abbreviation', 'color_hue']);
         if ($branches->isEmpty()) {
             return [];
         }
@@ -34,7 +34,7 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
             ->whereIn('branch_id', $branches->pluck('id'))
             ->when($activeOnly, fn (Builder $query) => $query->where('status', self::ACTIVE))
             ->orderBy('id')
-            ->get(['id', 'branch_id', 'code', 'name', 'description', 'status']);
+            ->get(['id', 'branch_id', 'code', 'name', 'description', 'status', 'abbreviation', 'color_hue']);
 
         $byBranch = [];
         foreach ($departments as $row) {
@@ -44,6 +44,8 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
                 'name' => (string) $row->name,
                 'description' => $row->description !== null ? (string) $row->description : null,
                 'status' => (int) $row->status,
+                'abbreviation' => $row->abbreviation !== null ? (string) $row->abbreviation : null,
+                'color_hue' => $row->color_hue !== null ? (int) $row->color_hue : null,
             ];
         }
 
@@ -55,6 +57,8 @@ final class EloquentBranchStructureRepository implements BranchStructureReposito
                 'name' => (string) $row->name,
                 'description' => $row->description !== null ? (string) $row->description : null,
                 'status' => (int) $row->status,
+                'abbreviation' => $row->abbreviation !== null ? (string) $row->abbreviation : null,
+                'color_hue' => $row->color_hue !== null ? (int) $row->color_hue : null,
                 'departments' => $byBranch[(int) $row->id] ?? [],
             ];
         }

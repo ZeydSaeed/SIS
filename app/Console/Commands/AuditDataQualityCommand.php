@@ -104,6 +104,9 @@ class AuditDataQualityCommand extends Command
             'application names a department but has no department_id' => 'SELECT id FROM '.$q('admission', 'applications').' WHERE department_id IS NULL AND department_name IS NOT NULL AND btrim(department_name) <> \'\'',
             'application department not in its branch' => 'SELECT a.id FROM '.$q('admission', 'applications').' a JOIN '.$departments.' d ON d.id = a.department_id WHERE a.branch_id IS DISTINCT FROM d.branch_id',
 
+            'application specialization differs from the mirror of its department' => 'SELECT a.id FROM '.$q('admission', 'applications').' a JOIN '.$q('vocational', 'specializations').' s ON s.department_id = a.department_id AND s.school_id = a.school_id AND s.status = 1 WHERE a.specialization_id IS DISTINCT FROM s.id',
+            'curriculum without the specialization mirrored from its department' => 'SELECT c.id FROM '.$q('curriculum', 'curricula').' c JOIN '.$q('vocational', 'specializations').' s ON s.department_id = c.department_id AND s.school_id = c.school_id AND s.status = 1 WHERE c.status = 1 AND c.specialization_id IS NULL',
+
             // --- curriculum
             'curriculum without subjects' => 'SELECT c.id FROM '.$q('curriculum', 'curricula').' c WHERE NOT EXISTS (SELECT 1 FROM '.$q('curriculum', 'curriculum_subjects').' cs WHERE cs.curriculum_id = c.id)',
             'curriculum subject without weekly hours' => 'SELECT id FROM '.$q('curriculum', 'curriculum_subjects').' WHERE status = 1 AND (weekly_hours IS NULL OR weekly_hours < 1)',

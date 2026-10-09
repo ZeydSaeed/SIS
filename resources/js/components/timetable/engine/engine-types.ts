@@ -118,7 +118,26 @@ export type RunDetail = EngineRun & {
         unplaced: Array<{ card_id: string; activity_id: number | null; subject_id: number; teacher_id: number; section_ids: number[]; length: number; reasons: Record<string, number>; suggestions: Array<{ reason: string; day?: number; lesson?: number }> }>;
         violations: Array<{ rule_type: string; rule_id: number | null; source: string; hard: boolean; count: number; priority: number }>;
         compile_notes: Array<{ card_id: string; reason: string }>;
-        stats: { iterations: number; elapsed_ms: number; stopped: boolean; cards: number; fixed: number; rows: number; replaced: number };
+        stats: {
+            iterations: number;
+            elapsed_ms: number;
+            stopped: boolean;
+            cards: number;
+            fixed: number;
+            rows: number;
+            replaced: number;
+            required?: number;
+            teachers?: number;
+            subjects?: number;
+            sections?: number;
+            rooms?: number;
+            breaks?: number;
+            complexity?: string;
+            constraint_level?: string | null;
+            attempts?: number;
+            best_attempt?: number;
+        };
+        issues?: Array<{ severity: string }>;
         diff: { counts: Record<string, number>; sections: number[] } | null;
     } | null;
 };

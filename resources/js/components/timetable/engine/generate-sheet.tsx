@@ -38,7 +38,12 @@ export function GenerateSheet({
     const request = useEngineRequest();
     const [scope, setScope] = useState('school');
     const [mode, setMode] = useState('2');
-    const [budget, setBudget] = useState('20');
+    const [budget, setBudget] = useState('10');
+    // «تعقيد الإنشاء» (search depth, attempts) and «مستوى القيود» (what is hard): GenerationStrategy on the server.
+    const [complexity, setComplexity] = useState('normal');
+    const [level, setLevel] = useState('');
+    const lv = i18n.timetable.level;
+    const r = i18n.timetable.result;
     const [objectives, setObjectives] = useState<string[]>(['minimize_teacher_gaps']);
     const [scenarios, setScenarios] = useState<Scenario[]>([]);
     const [saving, setSaving] = useState(false);
@@ -61,13 +66,14 @@ export function GenerateSheet({
         router.reload({ only: ['runDetail'], data: { run: id } });
     };
 
-    const start = async () => {
+    const start = async (modeOverride?: string) => {
         const scopePayload = scope === 'filtered' ? { section_ids: visibleSectionIds }
             : scope === 'section' && focusSectionId !== null ? { section_ids: [focusSectionId] }
                 : scope === 'teacher' && focusTeacherId !== null ? { teacher_ids: [focusTeacherId] } : {};
         setSaving(true);
         await request('post', '/timetable/runs', {
-            academic_year_id: ctx.yearId, mode: Number(mode), scope: scopePayload, time_budget: Number(budget), objectives,
+            academic_year_id: ctx.yearId, mode: Number(modeOverride ?? mode), scope: scopePayload, time_budget: Number(budget), objectives,
+            complexity, constraint_level: level === '' ? null : level,
             what_if: scenarios.filter((s) => s.id !== '' && s.days.length > 0).map((s) => ({ type: s.type, id: Number(s.id), days: s.days })),
         });
         setSaving(false);
@@ -130,6 +136,34 @@ export function GenerateSheet({
                                 <EngineNumber value={budget} onChange={setBudget} min={2} max={120} label={e.timeBudget} />
                             </EngineField>
                         </EngineRow>
+                        <EngineRow>
+                            <EngineField label={lv.complexity}>
+                                <EngineSelect
+                                    value={complexity}
+                                    label={lv.complexity}
+                                    onChange={(v) => {
+                                        setComplexity(v);
+                                        setBudget(v === 'huge' ? '110' : v === 'large' ? '40' : '10');
+                                    }}
+                                    options={Object.entries(lv.complexities).map(([value, label]) => ({ value, label }))}
+                                />
+                            </EngineField>
+                            <EngineField label={lv.constraints}>
+                                <EngineSelect
+                                    value={level}
+                                    label={lv.constraints}
+                                    includeBlank
+                                    onChange={(v) => {
+                                        setLevel(v);
+                                        if (v !== '' && mode !== '4' && mode !== '5') {
+                                            setMode(v === 'strict' ? '1' : v === 'relaxed' ? '3' : '2');
+                                        }
+                                    }}
+                                    options={Object.entries(lv.levels).map(([value, label]) => ({ value, label }))}
+                                />
+                            </EngineField>
+                        </EngineRow>
+                        <p className="sis-timetable-sheet__hint">{lv.hint}</p>
                         <EngineRow>
                             <EngineField label={e.objectives} wide>
                                 <span className="sis-timetable-audit__bar">
@@ -211,7 +245,55 @@ export function GenerateSheet({
                 </SheetSection>
 
                 {detail !== null && detail.result !== null ? (
-                    <SheetSection id="timetable-generate-review" title={`${e.review} #${detail.id}`}>
+                    <SheetSection id="timetable-generate-review" title={`${r.title} #${detail.id}`}>
+                        <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                            {(
+                                [
+                                    [r.required, detail.result.stats.required ?? detail.activities_total],
+                                    [r.rows, detail.result.stats.rows],
+                                    [r.placed, detail.placed],
+                                    [r.remaining, detail.unplaced],
+                                    [r.teachers, detail.result.stats.teachers],
+                                    [r.subjects, detail.result.stats.subjects],
+                                    [r.sections, detail.result.stats.sections],
+                                    [r.rooms, detail.result.stats.rooms],
+                                    [r.breaks, detail.result.stats.breaks],
+                                    [r.conflicts, detail.hard_violations],
+                                    [r.warnings, (detail.result.issues ?? []).filter((i) => i.severity === 'warning').length],
+                                    [r.score, detail.quality?.overall != null ? `${detail.quality.overall}%` : '—'],
+                                    [r.success, detail.activities_total ? `${Math.round((100 * (detail.placed ?? 0)) / detail.activities_total)}%` : '—'],
+                                    [r.time, `${(detail.result.stats.elapsed_ms / 1000).toFixed(1)}s`],
+                                    [r.attempts, detail.result.stats.attempts !== undefined ? `${detail.result.stats.best_attempt ?? 1} / ${detail.result.stats.attempts}` : null],
+                                    [r.strategy, detail.result.stats.complexity ? `${lv.complexities[detail.result.stats.complexity]?.split(' — ')[0] ?? ''}${detail.result.stats.constraint_level ? ` · ${lv.levels[detail.result.stats.constraint_level]?.split(' — ')[0] ?? ''}` : ''}` : null],
+                                ] as Array<[string, string | number | null | undefined]>
+                            )
+                                .filter(([, v]) => v !== null && v !== undefined)
+                                .map(([label, value]) => (
+                                    <li key={label} className="sis-timetable-audit__item">
+                                        <span className="sis-timetable-audit__text">{label}</span>
+                                        <bdi dir="ltr">{value}</bdi>
+                                    </li>
+                                ))}
+                        </ul>
+                        {ctx.can.generate ? (
+                            <div className="sis-timetable-audit__bar">
+                                <Button type="button" size="sm" variant="outline" disabled={saving || active !== undefined} onClick={() => void start()}>
+                                    {r.regenerate}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={saving || active !== undefined}
+                                    onClick={() => {
+                                        setMode('4');
+                                        void start('4');
+                                    }}
+                                >
+                                    {r.optimize}
+                                </Button>
+                            </div>
+                        ) : null}
                         <div className="sis-timetable-audit__bar">
                             <span className={`sis-timetable-badge sis-timetable-badge--${detail.unplaced === 0 && detail.hard_violations === 0 ? 'info' : 'error'}`}>
                                 {e.placed} {detail.placed} · {e.unplaced} {detail.unplaced}

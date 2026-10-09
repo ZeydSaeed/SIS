@@ -38,6 +38,15 @@ final class EloquentTimetableEngineReadRepository implements TimetableEngineRead
         );
     }
 
+    public function display(int $schoolId, int $academicYearId): ?array
+    {
+        $this->bindSchool($schoolId);
+        $raw = DB::table(SchemaHelper::qualified('timetable', 'configs'))
+            ->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->value('display');
+
+        return $raw === null ? null : (array) json_decode((string) $raw, true);
+    }
+
     public function activities(int $schoolId, int $academicYearId): array
     {
         $this->bindSchool($schoolId);

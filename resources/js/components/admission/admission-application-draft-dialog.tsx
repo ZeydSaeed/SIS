@@ -322,7 +322,7 @@ export function AdmissionApplicationDraftDialog({
         const target = normalize(branchName);
         const loose = branches.find((branch) => {
             const candidate = normalize(branch.name);
-            return candidate === target || candidate.includes(target) || target.includes(candidate);
+            return candidate === target; // equality only — never "contains" (matches the server)
         });
 
         return loose !== undefined ? String(loose.id) : '';

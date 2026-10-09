@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRegistryRequest } from '@/components/organization/registry-sheet';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { t } from '@/i18n';
 
 /** Props the engine writes refresh (the grid follows when a run is applied or a version restored). */
 export const ENGINE_RELOAD = ['engine', 'schedules', 'issues', 'advice', 'workload', 'quality', 'flash', 'errors'];
@@ -62,3 +64,33 @@ export const engineSheetClass = (kind: 'generate' | 'activities' | 'constraints'
     `sis-branches-sheet sis-timetable-sheet sis-timetable-audit-sheet sis-timetable-engine-sheet sis-timetable-engine-sheet--${kind}`;
 
 export const toInt = (value: string): number | null => (value.trim() === '' ? null : Number(value));
+
+/**
+ * «تأكيد قبل التنفيذ» for the engine's consequential actions (ending an activity or a rule, taking a place out of
+ * service, publishing / archiving a version): `ask(message, run)` opens the shared confirm dialog; `run` fires only
+ * on confirm. Render `dialog` once in the sheet.
+ */
+export function useEngineConfirm() {
+    const e = t().timetable.engine;
+    const [pending, setPending] = useState<{ message: string; label?: string; run: () => void } | null>(null);
+    const dialog = (
+        <ConfirmDialog
+            open={pending !== null}
+            title={e.confirmTitle}
+            description={pending?.message ?? ''}
+            confirmLabel={pending?.label}
+            tone="danger"
+            onConfirm={() => {
+                pending?.run();
+                setPending(null);
+            }}
+            onOpenChange={(open) => {
+                if (!open) {
+                    setPending(null);
+                }
+            }}
+        />
+    );
+
+    return { ask: (message: string, run: () => void, label?: string) => setPending({ message, run, label }), dialog };
+}

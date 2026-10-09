@@ -15,5 +15,8 @@ final readonly class SubjectSnapshot
         public int $passGrade,
         public int $status,
         public ?string $prerequisitesText = null,
+        /** «الاختصار واللون» shown on the timetable (null = default). */
+        public ?string $abbreviation = null,
+        public ?int $colorHue = null,
     ) {}
 }

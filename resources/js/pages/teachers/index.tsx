@@ -12,6 +12,7 @@ import {
     FilterX,
     GraduationCap,
     Layers,
+    Palette,
     Pencil,
     PlusCircle,
     Presentation,
@@ -32,6 +33,7 @@ import {
     useRegistryRequest,
 } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
+import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
 import { usePageError } from '@/components/sis/page-error-context';
@@ -80,6 +82,10 @@ type Teacher = {
     weekly_lessons_min: number | null;
     weekly_lessons_max: number | null;
     daily_lessons_max: number | null;
+    /** «الاختصار واللون» and «اللقب العلمي» (shown on the timetable). */
+    abbreviation?: string | null;
+    color_hue?: number | null;
+    academic_title_id?: number | null;
     subject_ids: number[];
     assignments: Assignment[];
 };
@@ -95,6 +101,7 @@ type Props = {
     branches: BranchOption[];
     classes: ClassOption[];
     curriculumSubjects: { general: number[]; by_department: Record<string, number[]> };
+    academicTitles?: Array<{ id: number; code: string; name: string; abbreviation: string | null }>;
     filters: { academic_year_id: number | null };
     authorization: { can_manage: boolean };
 };
@@ -113,6 +120,8 @@ type TeacherForm = {
     status: string;
     national_id: string;
     hire_date: string;
+    academic_title_id: string;
+    abbreviation: string;
 };
 
 /** section_code: shared SSOT code A / B / C (sis-class-section-options), resolved to the class's section on save. */
@@ -179,6 +188,8 @@ const EMPTY_FORM: TeacherForm = {
     status: String(ACTIVE),
     national_id: '',
     hire_date: '',
+    academic_title_id: '',
+    abbreviation: '',
 };
 
 const EMPTY_TEACHING: TeachingForm = { branch_id: '', department_id: '', subject_id: '', class_id: '', section_code: '' };
@@ -198,6 +209,8 @@ function formOf(teacher: Teacher): TeacherForm {
         status: String(teacher.status === ACTIVE ? ACTIVE : INACTIVE),
         national_id: teacher.national_id ?? '',
         hire_date: teacher.hire_date ?? '',
+        academic_title_id: teacher.academic_title_id == null ? '' : String(teacher.academic_title_id),
+        abbreviation: teacher.abbreviation ?? '',
     };
 }
 
@@ -320,7 +333,8 @@ export default function TeachersIndex(props: Props) {
     );
 }
 
-function TeachersPage({ teachers, total, subjects, branches, classes, curriculumSubjects, filters, authorization }: Props) {
+function TeachersPage({ teachers, total, subjects, branches, classes, curriculumSubjects, academicTitles = [], filters, authorization }: Props) {
+    const [appearanceTeacher, setAppearanceTeacher] = useState<Teacher | null>(null);
     const i18n = t();
     const tc = i18n.teachers;
     const canManage = authorization.can_manage;
@@ -471,6 +485,8 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             hire_date: blankToNull(f.hire_date),
             employment_type: f.employment_type === '' ? null : Number(f.employment_type),
             academic_year_id: yearId,
+            academic_title_id: f.academic_title_id === '' ? null : Number(f.academic_title_id),
+            abbreviation: blankToNull(f.abbreviation),
         };
         const teacherId = sheet.id;
         const original = teacherId === null ? null : (teachers.find((teacher) => teacher.id === teacherId) ?? null);
@@ -713,6 +729,20 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
 
         if (canManage) {
             groups.push({
+                id: 'teachers-appearance',
+                label: i18n.appearance.title,
+                commands: [
+                    {
+                        id: 'teachers-appearance-edit',
+                        label: i18n.appearance.title,
+                        icon: Palette,
+                        title: single === null ? i18n.orgRibbon.needsSelection : i18n.appearance.edit,
+                        disabled: single === null,
+                        onSelect: () => setAppearanceTeacher(single),
+                    },
+                ],
+            });
+            groups.push({
                 id: 'teachers-employment',
                 label: tc.employmentGroup,
                 commands: [
@@ -730,7 +760,7 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                         icon: UserX,
                         title: selectionTitle(tc.setInactive),
                         disabled: !hasSelection || saving,
-                        onSelect: () => void bulk('/teachers/bulk-status', { teacher_status: INACTIVE }),
+                        onSelect: () => setConfirmDeactivate(true),
                     },
                     ...EMPLOYMENT_TYPES.map((type) => ({
                         id: `teachers-set-type-${type}`,
@@ -1134,6 +1164,15 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                 onChange={setSheetField('specialization_field')}
                             />
                             <RegistryListField
+                                label={tc.academicTitle}
+                                editing={sheetEditing}
+                                value={sheet.form.academic_title_id}
+                                display={academicTitles.find((x) => String(x.id) === sheet.form.academic_title_id)?.name ?? tc.noAcademicTitle}
+                                options={[{ value: '', label: tc.noAcademicTitle }, ...academicTitles.map((x) => ({ value: String(x.id), label: x.abbreviation ? `${x.name} (${x.abbreviation})` : x.name }))]}
+                                onChange={setSheetField('academic_title_id')}
+                            />
+                            <RegistryTextField label={tc.abbreviation} editing={sheetEditing} value={sheet.form.abbreviation} onChange={setSheetField('abbreviation')} />
+                            <RegistryListField
                                 label={tc.employmentType}
                                 editing={sheetEditing}
                                 value={sheet.form.employment_type}
@@ -1350,6 +1389,18 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 </RegistrySheetDialog>
             ) : null}
 
+            {appearanceTeacher !== null ? (
+                <AppearanceDialog
+                    title={i18n.appearance.edit}
+                    entityName={appearanceTeacher.full_name}
+                    initial={{ abbreviation: appearanceTeacher.abbreviation ?? '', color_hue: appearanceTeacher.color_hue ?? null }}
+                    suggested={appearanceTeacher.first_name}
+                    url={`/teachers/${appearanceTeacher.id}/appearance`}
+                    reloadProps={RELOAD_PROPS}
+                    canEdit={canManage}
+                    onClose={() => setAppearanceTeacher(null)}
+                />
+            ) : null}
             <ConfirmDialog
                 open={confirmDeactivate}
                 title={tc.deactivate}

@@ -3,6 +3,7 @@ import {
     Eye,
     Filter,
     FilterX,
+    Palette,
     Pencil,
     Trash2,
     XCircle,
@@ -26,6 +27,7 @@ import {
     matchesCurriculumEditFilter,
     type CurriculumEditFilter,
 } from '@/components/curriculum/curriculum-edit-controls';
+import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import {
@@ -104,6 +106,9 @@ export type SubjectRow = {
     pass_grade: number;
     status: number;
     prerequisites?: string;
+    /** «الاختصار واللون» (shown on the timetable). */
+    abbreviation?: string | null;
+    color_hue?: number | null;
 };
 
 export type LinkedSubjectRow = {
@@ -452,6 +457,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const [confirmPending, setConfirmPending] = useState(false);
     const [activeView, setActiveView] = useState<CurriculumListView>('subjects');
     const [editFilter, setEditFilter] = useState<CurriculumEditFilter>({ kind: 'all' });
+    const [appearanceOpen, setAppearanceOpen] = useState(false);
     const [selectedNames, setSelectedNames] = useState<string[]>([]);
     const [listPage, setListPage] = useState(() => readStoredListPage('curriculum', 1));
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -1362,8 +1368,18 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         subjectsByName,
     ]);
 
+    const appearanceSubject = appearanceOpen ? (subjectsByName.get(selectedNames[0] ?? '') ?? null) : null;
+
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const actionCommands: PageRibbonCommand[] = [
+            {
+                id: 'subject-appearance',
+                label: i18n.appearance.title,
+                icon: Palette,
+                disabled: !canManage || selectedNames.length !== 1 || !subjectsByName.has(selectedNames[0] ?? ''),
+                title: i18n.appearance.edit,
+                onSelect: () => setAppearanceOpen(true),
+            },
             {
                 id: 'view-subjects',
                 label: c.view,
@@ -1488,6 +1504,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         i18n.common.edit,
         openSelectedSubjectsSheet,
         requestDeleteSelected,
+        selectedNames,
+        subjectsByName,
+        i18n.appearance,
     ]);
 
     useRegisterPageRibbon('edit', editRibbonGroups);
@@ -2069,6 +2088,18 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 />
             ) : null}
 
+            {appearanceSubject !== null ? (
+                <AppearanceDialog
+                    title={i18n.appearance.edit}
+                    entityName={appearanceSubject.name}
+                    initial={{ abbreviation: appearanceSubject.abbreviation ?? '', color_hue: appearanceSubject.color_hue ?? null }}
+                    suggested={null}
+                    url={`/curriculum/subjects/${appearanceSubject.id}`}
+                    reloadProps={['subjects', 'flash']}
+                    canEdit={canManage}
+                    onClose={() => setAppearanceOpen(false)}
+                />
+            ) : null}
             <ConfirmDialog
                 open={confirm !== null}
                 title={confirmCopy.title}

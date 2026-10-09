@@ -23,7 +23,11 @@ use App\Application\Timetable\Commands\CreateScheduleCommand;
 use App\Application\Timetable\Commands\CreateScheduleExceptionCommand;
 use App\Application\Timetable\Commands\CreateScheduleExceptionHandler;
 use App\Application\Timetable\Commands\CreateScheduleHandler;
+use App\Application\Timetable\Commands\ReshapeSchoolDayCommand;
+use App\Application\Timetable\Commands\ReshapeSchoolDayHandler;
 use App\Application\Timetable\Commands\ShiftScheduleCommand;
+use App\Domain\Timetable\ValueObjects\PeriodPresentation;
+use App\Http\Requests\Timetable\ReshapeSchoolDayRequest;
 use App\Application\Timetable\Commands\ShiftScheduleHandler;
 use App\Application\Timetable\Commands\SwapSchedulesCommand;
 use App\Application\Timetable\Commands\SwapSchedulesHandler;
@@ -44,6 +48,10 @@ use App\Application\Timetable\Queries\GetStudentTimetableHandler;
 use App\Application\Timetable\Queries\GetStudentTimetableQuery;
 use App\Application\Timetable\Queries\GetTimetableEngineHandler;
 use App\Application\Timetable\Queries\GetTimetableEngineQuery;
+use App\Application\Timetable\Queries\GetTimetableDisplayCatalogHandler;
+use App\Application\Timetable\Queries\GetTimetableDisplayCatalogQuery;
+use App\Application\Timetable\Queries\TestTimetableHandler;
+use App\Application\Timetable\Queries\TestTimetableQuery;
 use App\Application\Timetable\Queries\GetTimetableVersionEntriesHandler;
 use App\Application\Timetable\Queries\GetTimetableVersionEntriesQuery;
 use App\Application\Timetable\Queries\GetTimetableWorkspaceHandler;
@@ -98,6 +106,8 @@ final class TimetablePageController extends Controller
         CompareTimetableVersionsHandler $compare,
         SuggestScheduleMovesHandler $moves,
         SuggestSubstitutesHandler $substitutes,
+        GetTimetableDisplayCatalogHandler $displayCatalog,
+        TestTimetableHandler $test,
     ): Response {
         $this->authorize('view', ScheduleRecord::class);
 
@@ -132,6 +142,11 @@ final class TimetablePageController extends Controller
                 'start_time' => substr($p->startTime, 0, 5),
                 'end_time' => substr($p->endTime, 0, 5),
                 'period_type' => $p->periodType,
+                'name' => $p->name,
+                'abbreviation' => $p->abbreviation,
+                'color_hue' => $p->colorHue,
+                'show_in' => $p->showIn,
+                'print_in' => $p->printIn,
             ], $dto->periods);
             $lessons = $dto->lessons;
             $schedules = $dto->schedules;
@@ -206,6 +221,8 @@ final class TimetablePageController extends Controller
             ),
             'filters' => ['academic_year_id' => $academicYearId],
             'engine' => $engine,
+            // Names, abbreviations and colours from the owning pages (teachers, curriculum, organization, rooms).
+            'display' => $academicYearId === null ? null : $displayCatalog->handle(new GetTimetableDisplayCatalogQuery($schoolId, $academicYearId)),
             'viewingVersion' => $viewingVersion,
             // On demand (partial reloads): a run's review, a comparison, move / substitute suggestions.
             'runDetail' => Inertia::optional(fn () => $academicYearId === null || ! $request->filled('run') ? null
@@ -215,6 +232,9 @@ final class TimetablePageController extends Controller
             )))),
             'moveSuggestions' => Inertia::optional(fn () => $academicYearId === null || ! $request->filled('suggest') ? null
                 : $this->insight($moves->handle(new SuggestScheduleMovesQuery($schoolId, $academicYearId, (int) $request->query('suggest'))))),
+            // «اختبار الجدول»: the full test report, computed only when asked for (?test=1, partial reload).
+            'testReport' => Inertia::optional(fn () => $academicYearId === null || ! $request->boolean('test') ? null
+                : $test->handle(new TestTimetableQuery($schoolId, $academicYearId))),
             'substitutes' => Inertia::optional(fn () => $academicYearId === null || ! $request->filled('substitute') ? null
                 : $this->insight($substitutes->handle(new SuggestSubstitutesQuery($schoolId, $academicYearId, (int) $request->query('substitute'), (string) $request->query('date', ''))))),
             'authorization' => [
@@ -392,6 +412,7 @@ final class TimetablePageController extends Controller
             endTime: (string) $request->validated('end_time'),
             periodType: (int) $request->validated('period_type'),
             idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            presentation: self::presentation($request),
         ));
 
         return $this->respondPeriod($request, $result, 'timetable.web.periods.store', 'created', 'flash.timetable.periodAdded');
@@ -407,6 +428,7 @@ final class TimetablePageController extends Controller
             endTime: (string) $request->validated('end_time'),
             periodType: (int) $request->validated('period_type'),
             idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+            presentation: self::presentation($request),
         ));
 
         return $this->respondPeriod($request, $result, 'timetable.web.periods.update', 'updated', 'flash.timetable.periodUpdated');
@@ -527,6 +549,42 @@ final class TimetablePageController extends Controller
         ));
 
         return $this->respondPeriod($request, $result, 'timetable.web.periods.arrange', 'arranged', 'flash.timetable.dayArranged');
+    }
+
+    /** «الاستراحات وإعدادات الحصص»: insert / move / resize / remove a break, re-time one period, or a fixed pattern. */
+    public function reshapeDay(ReshapeSchoolDayRequest $request, ReshapeSchoolDayHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new ReshapeSchoolDayCommand(
+            schoolId: $this->schoolContext->requireId(),
+            operation: (string) $request->validated('operation'),
+            periodId: $this->nullableInt($request->validated('period_id')),
+            afterPeriodId: $this->nullableInt($request->validated('after_period_id')),
+            minutes: $this->nullableInt($request->validated('minutes')),
+            startTime: $request->validated('start_time'),
+            endTime: $request->validated('end_time'),
+            cascade: (bool) $request->validated('cascade', false),
+            presentation: self::presentation($request),
+            idempotencyKey: trim((string) $request->header('X-Idempotency-Key')),
+        ));
+
+        return $this->respondPeriod($request, $result, 'timetable.web.periods.reshape', (string) $request->validated('operation'), 'flash.timetable.dayReshaped');
+    }
+
+    /** The presentation fields when the form sent any (else null: the stored title / colour / targets stay). */
+    private static function presentation(Request $request): ?PeriodPresentation
+    {
+        if (! $request->hasAny(['name', 'abbreviation', 'color_hue', 'show_in', 'print_in'])) {
+            return null;
+        }
+        $hue = $request->input('color_hue');
+
+        return PeriodPresentation::of(
+            $request->input('name'),
+            $request->input('abbreviation'),
+            $hue === null || $hue === '' ? null : (int) $hue,
+            (int) $request->input('show_in', PeriodPresentation::EVERYWHERE),
+            (int) $request->input('print_in', PeriodPresentation::EVERYWHERE),
+        );
     }
 
     /** @return array{id: int, class_id: int, class_name: string, code: string, name: string} */

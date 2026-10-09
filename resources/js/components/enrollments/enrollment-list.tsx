@@ -309,6 +309,8 @@ export function EnrollmentList({
     const [handoffAcademicYearId, setHandoffAcademicYearId] = useState<number | null>(null);
     const [enrollingHandoff, setEnrollingHandoff] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<EnrollmentListItem | null>(null);
+    /** Cancelling / suspending / withdrawing the selected enrollments waits for a confirmation. */
+    const [statusConfirm, setStatusConfirm] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
     const selectAllRef = useRef<HTMLInputElement>(null);
     const tableRef = useRef<HTMLTableElement>(null);
@@ -1757,7 +1759,7 @@ export function EnrollmentList({
                     title: canApplyStatus ? full : i18n.enrollments.statusNeedsSelection,
                     icon: action.icon,
                     disabled: !canApplyStatus || (needsCancel && !authorization.canCancel),
-                    onSelect: () => applyStatus(action.status),
+                    onSelect: () => (needsCancel ? setStatusConfirm(action.status) : applyStatus(action.status)),
                 });
             }
         }
@@ -2082,6 +2084,28 @@ export function EnrollmentList({
                 </Suspense>
             ) : null}
 
+            <ConfirmDialog
+                open={statusConfirm !== null}
+                title={i18n.enrollments.statusConfirmTitle}
+                description={
+                    statusConfirm === null
+                        ? ''
+                        : i18n.enrollments.statusConfirmBody.replace('{count}', String(resolveActionIds().length)).replace('{status}', statusTabLabel(statusConfirm, i18n))
+                }
+                confirmLabel={i18n.enrollments.statusConfirmAction}
+                tone="danger"
+                onConfirm={() => {
+                    if (statusConfirm !== null) {
+                        applyStatus(statusConfirm);
+                    }
+                    setStatusConfirm(null);
+                }}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setStatusConfirm(null);
+                    }
+                }}
+            />
             <ConfirmDialog
                 open={deleteTarget !== null}
                 title={i18n.enrollments.deleteTitle}

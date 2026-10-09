@@ -9,8 +9,8 @@ use App\Domain\Timetable\Services\TimetableAuditor;
 use App\Domain\Timetable\Services\TimetableFingerprint;
 use App\Domain\Timetable\Services\TimetableQualityScorer;
 use App\Domain\Timetable\Solver\ConstraintCompiler;
+use App\Domain\Timetable\Solver\GenerationStrategy;
 use App\Domain\Timetable\Solver\PlacementRows;
-use App\Domain\Timetable\Solver\SolverOptions;
 use App\Domain\Timetable\Solver\SolverProblem;
 use App\Domain\Timetable\Solver\SolverResult;
 use App\Domain\Timetable\Solver\TimetableSolverInterface;
@@ -43,21 +43,22 @@ final class GenerationRunner
             return false;
         }
         try {
-            $mode = GenerationMode::from($run['mode']);
+            $strategy = GenerationStrategy::from($run['options']);
+            $mode = $strategy->mode(GenerationMode::from($run['mode']));
             $board = $this->boards->load($schoolId, $run['academic_year_id']);
             $board = GenerationScope::whatIf($board, $run['options']['what_if'] ?? []);
+            $board = $board->replaceRules($strategy->rules($board->rules, $mode));
             $board = $board->withRules(GenerationScope::objectiveRules($board, $run['options']['objectives'] ?? []));
             $problem = $this->compiler->compile($board, $mode, GenerationScope::resolve($board, $run['scope']));
             if (! $this->runs->markRunning($schoolId, $runId, $this->fingerprints->of($board), self::snapshot($board, $run))) {
                 return false;
             }
-            $options = new SolverOptions(
-                seed: (int) ($run['options']['seed'] ?? 1),
-                timeBudgetSeconds: max(2.0, min(120.0, (float) ($run['options']['time_budget'] ?? 20))),
-                maxIterations: 200_000,
-            );
-            $result = $this->solver->solve($problem, $options, new RunProgress($this->runs, $schoolId, $runId));
+            [$result, $attempts, $bestAttempt] = $this->search($problem, $strategy, (int) ($run['options']['seed'] ?? 1), new RunProgress($this->runs, $schoolId, $runId));
             $outcome = $this->outcome($board, $problem, $result);
+            $outcome['result']['stats'] += [
+                'complexity' => $strategy->complexity, 'constraint_level' => $strategy->constraintLevel, 'mode_used' => $mode->value,
+                'attempts' => $attempts, 'best_attempt' => $bestAttempt, 'time_budget' => $strategy->budget(),
+            ];
             $cancelled = $result->stopped && $this->runs->cancelRequested($schoolId, $runId);
             $this->runs->finish($schoolId, $runId, ($cancelled ? GenerationRunStatus::Cancelled : GenerationRunStatus::Succeeded)->value, $outcome);
         } catch (\Throwable $e) {
@@ -66,6 +67,36 @@ final class GenerationRunner
         }
 
         return true;
+    }
+
+    /**
+     * Runs the strategy's attempts (different seeds, shared budget) and keeps the best result; stops early on a
+     * perfect timetable or a cancel request.
+     *
+     * @return array{0: SolverResult, 1: int, 2: int} best result, attempts made, best attempt (1-based)
+     */
+    private function search(SolverProblem $problem, GenerationStrategy $strategy, int $seed, RunProgress $progress): array
+    {
+        $best = null;
+        $bestAttempt = 1;
+        $made = 0;
+        foreach ($strategy->attempts($seed) as $n => $options) {
+            if ($made > 0 && $progress->shouldStop()) {
+                break;
+            }
+            $made++;
+            $result = $this->solver->solve($problem, $options, $progress);
+            if (GenerationStrategy::better($result, $best)) {
+                $best = $result;
+                $bestAttempt = $n + 1;
+            }
+            if (($result->feasible() && $result->softPenalty === 0) || $result->stopped) {
+                break;
+            }
+        }
+        assert($best !== null);
+
+        return [$best, $made, $bestAttempt];
     }
 
     /** The grid a run would produce: kept lessons + generated rows, audited and scored. */
@@ -100,7 +131,14 @@ final class GenerationRunner
                 'compile_notes' => $problem->compileNotes,
                 'issues' => array_slice($issues, 0, 200),
                 'stats' => ['iterations' => $result->iterations, 'elapsed_ms' => $result->elapsedMs, 'stopped' => $result->stopped,
-                    'cards' => count($problem->cards), 'fixed' => count($problem->fixed), 'rows' => count($rows), 'replaced' => count($replaced)],
+                    'cards' => count($problem->cards), 'fixed' => count($problem->fixed), 'rows' => count($rows), 'replaced' => count($replaced),
+                    // «نتيجة إنشاء الجدول»: what the proposed grid covers.
+                    'required' => array_sum(array_map(static fn ($c): int => $c->length * count($c->weeks), $problem->cards)) + count($problem->fixed),
+                    'teachers' => count(array_unique(array_column([...$kept, ...$proposed], 'teacher_id'))),
+                    'subjects' => count(array_unique(array_column([...$kept, ...$proposed], 'subject_id'))),
+                    'sections' => count(array_unique(array_column([...$kept, ...$proposed], 'section_id'))),
+                    'rooms' => count(array_filter(array_unique(array_column([...$kept, ...$proposed], 'room_id')))),
+                    'breaks' => count($board->periods) - count($board->lessonPeriodIds)],
             ],
             'quality' => $quality,
             'hard_violations' => $result->hardViolations,

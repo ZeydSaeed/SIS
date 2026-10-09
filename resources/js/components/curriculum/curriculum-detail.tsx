@@ -89,6 +89,7 @@ type ConfirmState =
     | { kind: 'link-reactivate'; id: number }
     | { kind: 'prereq-deactivate'; id: number }
     | { kind: 'prereq-reactivate'; id: number }
+    | { kind: 'apply-enrollments' }
     | null;
 
 function normalizeTab(tab: string): CurriculumShowTab {
@@ -263,10 +264,7 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                               label: c.applyToEnrollments,
                               title: c.applyToEnrollmentsTitle,
                               icon: ListChecks,
-                              onSelect: () =>
-                                  postWithIdempotency(
-                                      `/curriculum/curricula/${curriculum.id}/apply-to-enrollments`,
-                                  ),
+                              onSelect: () => setConfirm({ kind: 'apply-enrollments' }),
                           },
                       ]
                     : [],
@@ -500,6 +498,13 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                     { preserveScroll: true, headers, onFinish: done },
                 );
                 break;
+            case 'apply-enrollments':
+                router.post(
+                    `/curriculum/curricula/${curriculum.id}/apply-to-enrollments`,
+                    {},
+                    { preserveScroll: true, headers, onFinish: done },
+                );
+                break;
         }
     };
 
@@ -516,6 +521,8 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 return { title: c.deactivate, description: c.confirmDeactivatePrerequisite };
             case 'prereq-reactivate':
                 return { title: c.reactivate, description: c.confirmReactivatePrerequisite };
+            case 'apply-enrollments':
+                return { title: c.applyToEnrollments, description: c.confirmApplyToEnrollments };
         }
     }, [c, confirm]);
 

@@ -4,6 +4,7 @@ namespace App\Domain\Curriculum\Services;
 
 use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
 use App\Domain\Curriculum\ValueObjects\SubjectType;
+use App\Domain\Shared\ValueObjects\DisplayAppearance;
 
 final class UpdateSubjectGuard
 {
@@ -49,6 +50,15 @@ final class UpdateSubjectGuard
         }
         if ($max < 1 || $pass < 0 || $pass > $max) {
             return 'curriculum.subject_grades_invalid';
+        }
+        if (array_key_exists('abbreviation', $fields) || array_key_exists('color_hue', $fields)) {
+            $appearanceError = DisplayAppearance::of(
+                $fields['abbreviation'] ?? null,
+                isset($fields['color_hue']) ? (int) $fields['color_hue'] : null,
+            )->rejection();
+            if ($appearanceError !== null) {
+                return $appearanceError;
+            }
         }
 
         return null;

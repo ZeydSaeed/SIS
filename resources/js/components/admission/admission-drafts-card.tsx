@@ -12,6 +12,7 @@ import {
 } from 'react';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
 import { AdmissionStatusReasonDialog } from '@/components/admission/admission-status-reason-dialog';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { sisClassLabel, sisClassSelectOptions } from '@/lib/sis-class-section-options';
 import { pickDirtyPayload, isDirtyPayloadEmpty, sisSmoothMutation } from '@/lib/sis-ui-perf';
@@ -393,7 +394,7 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                       const a = normalize(left);
                       const b = normalize(right);
 
-                      return a === b || a.includes(b) || b.includes(a);
+                      return a === b; // equality only — never "contains" (matches the server)
                   }) ?? null);
         const matchedSpecialization =
             specializationId === ''
@@ -681,6 +682,8 @@ export function AdmissionDraftsCard({
     const [editing, setEditing] = useState(false);
     const [withdrawing, setWithdrawing] = useState(false);
     const [transitioning, setTransitioning] = useState(false);
+    /** Accepting or converting applications creates / commits official records: it waits for a confirmation. */
+    const [transitionConfirm, setTransitionConfirm] = useState<number | null>(null);
     const [reasonPrompt, setReasonPrompt] = useState<{
         kind: 'reject' | 'withdraw';
         toStatus: number;
@@ -1198,7 +1201,7 @@ export function AdmissionDraftsCard({
                                             ? undefined
                                             : i18n.admission.transitionsNeedSelection
                                     }
-                                    onClick={() => applyTransition(value)}
+                                    onClick={() => (value === ADMISSION_STATUS_CONVERTED || value === ADMISSION_STATUS_ACCEPTED ? setTransitionConfirm(value) : applyTransition(value))}
                                 >
                                     {applicationStatusLabel(value)}
                                 </button>
@@ -1324,6 +1327,24 @@ export function AdmissionDraftsCard({
                     }
                 }}
                 onConfirm={confirmReasonTransition}
+            />
+            <ConfirmDialog
+                open={transitionConfirm !== null}
+                title={transitionConfirm === ADMISSION_STATUS_CONVERTED ? i18n.admission.confirmConvertTitle : i18n.admission.confirmAcceptTitle}
+                description={(transitionConfirm === ADMISSION_STATUS_CONVERTED ? i18n.admission.confirmConvertBody : i18n.admission.confirmAcceptBody).replace('{count}', String(actionIds.length))}
+                confirmLabel={transitionConfirm === ADMISSION_STATUS_CONVERTED ? i18n.admission.confirmConvertAction : i18n.admission.confirmAcceptAction}
+                onConfirm={() => {
+                    const status = transitionConfirm;
+                    setTransitionConfirm(null);
+                    if (status !== null) {
+                        applyTransition(status);
+                    }
+                }}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setTransitionConfirm(null);
+                    }
+                }}
             />
         </section>
     );

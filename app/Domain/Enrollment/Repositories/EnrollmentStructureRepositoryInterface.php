@@ -4,6 +4,7 @@ namespace App\Domain\Enrollment\Repositories;
 
 use App\Domain\Enrollment\Data\ClassSnapshot;
 use App\Domain\Enrollment\Data\SectionSnapshot;
+use App\Domain\Shared\ValueObjects\DisplayAppearance;
 
 interface EnrollmentStructureRepositoryInterface
 {
@@ -44,6 +45,16 @@ interface EnrollmentStructureRepositoryInterface
     public function createSection(int $schoolId, int $classId, string $name, ?int $capacity, ?int $homeroomTeacherId, string $at): int;
 
     public function updateSection(int $schoolId, int $sectionId, string $name, ?int $capacity, ?int $homeroomTeacherId, string $at): void;
+
+    /**
+     * «الاختصار واللون» of the year's classes and sections, by id.
+     *
+     * @return array{classes: array<int, array{abbreviation: string|null, color_hue: int|null}>, sections: array<int, array{abbreviation: string|null, color_hue: int|null}>}
+     */
+    public function appearanceForYear(int $schoolId, int $academicYearId): array;
+
+    /** «الاختصار واللون» of a class ('class') or section ('section') of the school. */
+    public function setAppearance(string $target, int $schoolId, int $id, DisplayAppearance $appearance, string $at): void;
 
     /** Sum of the capacities of the class's active sections (a section without a capacity counts 0). */
     public function activeSectionCapacitySum(int $schoolId, int $classId): int;

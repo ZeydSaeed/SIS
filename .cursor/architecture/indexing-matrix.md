@@ -133,6 +133,17 @@
 | versions · (school, year, version_no) / (school, year, status) | UNIQUE / B-Tree | Numbering; version list, current published |
 | version_entries · (version, section) / (version, teacher) | B-Tree | Version view, student / effective timetable by section or teacher |
 
+### Timetable workbench (2026-10-08 / 09)
+
+| Table · column(s) | Type | Reason (query pattern) |
+|-------------------|------|------------------------|
+| timetable.periods · (school, period_number) WHERE status = 1 | partial UNIQUE | Replaces the full UNIQUE: a retired break keeps its row (never deleted) and its number can be reused |
+| timetable.test_marks · (school, year, issue_key) WHERE status = 1 | partial UNIQUE | One active mark per issue; marks of a school-year read once per test run |
+| organization.rooms · room_type_id | B-Tree | «الغرف الدراسية» filter by type; type-in-use check before retiring a type |
+| organization.room_types · (COALESCE(school_id,0), code) | UNIQUE (expression) | Codes unique per school, system types (NULL school) unique among themselves |
+| documents.import_batches · (school, created_at DESC) | B-Tree | «عمليات الاستيراد» history (latest first) |
+| documents.import_rows · (batch, status) | B-Tree | Preview filter by status, commit of valid rows, error report |
+
 ## PostgreSQL Index Examples
 
 ```sql

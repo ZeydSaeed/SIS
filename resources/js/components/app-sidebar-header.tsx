@@ -118,6 +118,8 @@ const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     directoratesSchools: '/organization/directorates-schools',
     branchesDepartments: '/organization/branches',
     classesSections: '/organization/classes-sections',
+    roomsCatalogue: '/organization/rooms',
+    importCenter: '/imports',
 };
 
 const SETTINGS_ROUTES: Partial<Record<RibbonActionId, string>> = {
@@ -127,7 +129,7 @@ const SETTINGS_ROUTES: Partial<Record<RibbonActionId, string>> = {
     settingsNotes: '/documents',
     settingsDefinitions: '/curriculum',
     settingsPractical: '/curriculum',
-    settingsLabs: '/curriculum',
+    settingsLabs: '/organization/rooms',
     settingsReports: '/reports',
     settingsScheduling: '/timetable',
     settingsDocuments: '/documents',

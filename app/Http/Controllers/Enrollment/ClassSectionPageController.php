@@ -21,10 +21,15 @@ use App\Application\Enrollment\Commands\UpdateClassCommand;
 use App\Application\Enrollment\Commands\UpdateClassHandler;
 use App\Application\Enrollment\Commands\UpdateSectionCommand;
 use App\Application\Enrollment\Commands\UpdateSectionHandler;
+use App\Application\Enrollment\Commands\UpdateStructureAppearanceCommand;
+use App\Application\Enrollment\Commands\UpdateStructureAppearanceHandler;
+use App\Http\Requests\Enrollment\UpdateStructureAppearanceRequest;
 use App\Application\Enrollment\DTOs\ClassDTO;
 use App\Application\Enrollment\DTOs\SectionDTO;
 use App\Application\Enrollment\Queries\GetClassStructureHandler;
 use App\Application\Enrollment\Queries\GetClassStructureQuery;
+use App\Application\Enrollment\Queries\GetStructureAppearanceHandler;
+use App\Application\Enrollment\Queries\GetStructureAppearanceQuery;
 use App\Application\Shared\Results\ApplicationResult;
 use App\Application\Teachers\Queries\GetTeacherRosterHandler;
 use App\Application\Teachers\Queries\GetTeacherRosterQuery;
@@ -68,6 +73,7 @@ final class ClassSectionPageController extends Controller
         GetClassStructureHandler $structure,
         ListGradeLevelsHandler $gradeLevels,
         GetTeacherRosterHandler $roster,
+        GetStructureAppearanceHandler $appearance,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -85,14 +91,15 @@ final class ClassSectionPageController extends Controller
         $teachers = [];
         if ($academicYearId !== null) {
             $result = $structure->handle(new GetClassStructureQuery($schoolId, $academicYearId));
-            $classes = array_map(static fn (ClassDTO $c): array => [
+            $look = $appearance->handle(new GetStructureAppearanceQuery($schoolId, $academicYearId));
+            $classes = array_map(static fn (ClassDTO $c): array => ($look['classes'][$c->id] ?? ['abbreviation' => null, 'color_hue' => null]) + [
                 'id' => $c->id,
                 'code' => $c->code,
                 'name' => $c->name,
                 'grade_level_id' => $c->gradeLevelId,
                 'capacity' => $c->capacity,
                 'status' => $c->status,
-                'sections' => array_map(static fn (SectionDTO $s): array => [
+                'sections' => array_map(static fn (SectionDTO $s): array => ($look['sections'][$s->id] ?? ['abbreviation' => null, 'color_hue' => null]) + [
                     'id' => $s->id,
                     'code' => $s->code,
                     'name' => $s->name,
@@ -234,6 +241,21 @@ final class ClassSectionPageController extends Controller
         ));
 
         return $this->respond($request, $result, 'enrollment.web.section.reactivate', 'section', 'flash.structure.sectionReactivated', $section);
+    }
+
+    /** «الاختصار واللون» of a class or section (also from the timetable's context menu). */
+    public function updateAppearance(UpdateStructureAppearanceRequest $request, UpdateStructureAppearanceHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new UpdateStructureAppearanceCommand(
+            schoolId: $this->schoolContext->requireId(),
+            target: (string) $request->validated('target'),
+            id: (int) $request->validated('id'),
+            abbreviation: $request->validated('abbreviation'),
+            colorHue: $this->nullableInt($request->validated('color_hue')),
+            idempotencyKey: (string) $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'enrollment.web.structure.appearance', (string) $request->validated('target'), 'flash.structure.appearanceUpdated', (int) $request->validated('id'));
     }
 
     private function respond(

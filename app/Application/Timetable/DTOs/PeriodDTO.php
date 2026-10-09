@@ -11,5 +11,10 @@ final readonly class PeriodDTO
         public string $startTime,
         public string $endTime,
         public int $periodType,
+        public ?string $name = null,
+        public ?string $abbreviation = null,
+        public ?int $colorHue = null,
+        public int $showIn = 31,
+        public int $printIn = 31,
     ) {}
 }

@@ -9,7 +9,7 @@ interface PeriodRepositoryInterface
 {
     public function find(int $schoolId, int $periodId): ?PeriodSnapshot;
 
-    /** @return list<PeriodSnapshot> */
+    /** @return list<PeriodSnapshot>  the active periods of the school day (retired breaks excluded) */
     public function listForSchool(int $schoolId): array;
 
     public function insert(PersistPeriodData $data): int;
@@ -24,6 +24,9 @@ interface PeriodRepositoryInterface
      * @param  list<array{id: int|null, data: PersistPeriodData}>  $day
      */
     public function replaceDay(int $schoolId, array $day): void;
+
+    /** «حذف استراحة»: the break leaves the day (status 2) — the row stays (never deleted). */
+    public function retire(int $schoolId, int $periodId): void;
 
     /** True when an active schedule sits in the period (it cannot become a break). */
     public function hasActiveSchedules(int $schoolId, int $periodId): bool;

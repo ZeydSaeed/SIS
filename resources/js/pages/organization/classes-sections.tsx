@@ -7,6 +7,7 @@ import {
     Eye,
     Layers,
     LayoutGrid,
+    Palette,
     Pencil,
     Plus,
     PlusCircle,
@@ -25,6 +26,7 @@ import {
     useRegistryRequest,
 } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
+import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
 import { useRegisterPageRibbon, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
@@ -43,6 +45,8 @@ type Section = {
     homeroom_teacher_id: number | null;
     status: number;
     enrolled: number;
+    abbreviation?: string | null;
+    color_hue?: number | null;
 };
 
 type SchoolClass = {
@@ -53,6 +57,8 @@ type SchoolClass = {
     capacity: number | null;
     status: number;
     sections: Section[];
+    abbreviation?: string | null;
+    color_hue?: number | null;
 };
 
 type Props = {
@@ -149,6 +155,7 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     const [confirmDeactivate, setConfirmDeactivate] = useState<'class' | 'section' | null>(null);
     const [filterKey, setFilterKey] = useState<'all' | 'active' | 'inactive'>('all');
     const [query, setQuery] = useState('');
+    const [appearanceOpen, setAppearanceOpen] = useState(false);
     const nameInputRef = useRef<HTMLInputElement | null>(null);
 
     const selected = classes.find((item) => item.id === selectedId) ?? null;
@@ -403,6 +410,14 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 label: r.manage,
                 commands: [
                     { id: 'classes-add', label: c.addClass, icon: PlusCircle, disabled: yearId === null, onSelect: () => setAddOpen(true) },
+                    {
+                        id: 'classes-appearance',
+                        label: i18n.appearance.title,
+                        icon: Palette,
+                        title: noSelection ? r.needsSelection : i18n.appearance.edit,
+                        disabled: noSelection,
+                        onSelect: () => setAppearanceOpen(true),
+                    },
                     {
                         id: 'sections-add',
                         label: c.addSection,
@@ -779,6 +794,19 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 </RegistrySheetDialog>
             ) : null}
 
+            {appearanceOpen && (selectedSection ?? selected) !== null ? (
+                <AppearanceDialog
+                    title={i18n.appearance.edit}
+                    entityName={selectedSection !== null ? `${selected?.name ?? ''} — ${selectedSection.name}` : (selected?.name ?? '')}
+                    initial={{ abbreviation: (selectedSection ?? selected)?.abbreviation ?? '', color_hue: (selectedSection ?? selected)?.color_hue ?? null }}
+                    suggested={(selectedSection ?? selected)?.name ?? null}
+                    url="/organization/classes-sections/appearance"
+                    payload={{ target: selectedSection !== null ? 'section' : 'class', id: (selectedSection ?? selected)?.id ?? 0 }}
+                    reloadProps={RELOAD_PROPS}
+                    canEdit={canManage}
+                    onClose={() => setAppearanceOpen(false)}
+                />
+            ) : null}
             <ConfirmDialog
                 open={confirmDeactivate !== null && confirmTarget !== null}
                 title={confirmDeactivate === 'section' ? c.deactivateSection : c.deactivateClass}

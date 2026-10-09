@@ -58,4 +58,21 @@ interface TimetableWorkspaceReadRepositoryInterface
      * @return list<array{id: int, class_id: int}>
      */
     public function sections(int $schoolId, int $academicYearId): array;
+
+    /**
+     * How the timetable shows each entity: name, abbreviation and colour — read from the owning rows (subjects,
+     * teachers + academic title, branches, departments, classes, sections, rooms, room types); never copied.
+     *
+     * @return array{
+     *     subjects: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null, subject_type: int}>,
+     *     teachers: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null, title: string|null, title_abbreviation: string|null}>,
+     *     branches: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null}>,
+     *     departments: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null}>,
+     *     classes: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null}>,
+     *     sections: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null, capacity: int|null}>,
+     *     rooms: list<array{id: int, name: string, code: string, abbreviation: string|null, color_hue: int|null, room_type_id: int|null, capacity: int|null, supports_practical: bool}>,
+     *     room_types: list<array{id: int, name: string, abbreviation: string|null, color_hue: int|null, kind: int}>
+     * }
+     */
+    public function displayCatalog(int $schoolId, int $academicYearId): array;
 }

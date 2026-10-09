@@ -25,6 +25,12 @@ class SavePeriodRequest extends FormRequest
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'period_type' => ['required', 'integer', 'in:1,2'],
+            // Presentation (optional): title, abbreviation, colour, where it shows / prints (bitmask 1·2·4·8·16).
+            'name' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'abbreviation' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'color_hue' => ['sometimes', 'nullable', 'integer', 'between:0,359'],
+            'show_in' => ['sometimes', 'integer', 'between:0,31'],
+            'print_in' => ['sometimes', 'integer', 'between:0,31'],
             'school_id' => ['prohibited'],
         ], SecuritySensitiveFieldGuard::prohibitedRules());
     }

@@ -30,6 +30,9 @@ class GenerateTimetableRequest extends TimetableEngineRequest
             'scope.department_id' => ['nullable', 'integer', 'min:1'],
             'scope.class_id' => ['nullable', 'integer', 'min:1'],
             'time_budget' => ['nullable', 'integer', 'between:2,120'],
+            // «تعقيد الإنشاء» / «مستوى القيود» (GenerationStrategy).
+            'complexity' => ['nullable', 'string', 'in:normal,large,huge'],
+            'constraint_level' => ['nullable', 'string', 'in:basic,relaxed,strict'],
             'seed' => ['nullable', 'integer', 'between:1,2147483647'],
             'objectives' => ['nullable', 'array', 'max:5'],
             'objectives.*' => ['string', 'in:minimize_teacher_gaps,avoid_last_lesson,morning_practicals'],

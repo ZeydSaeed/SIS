@@ -9,6 +9,7 @@ use App\Domain\Enrollment\Exceptions\EnrollmentStructureNotFoundException;
 use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStructureStatus;
+use App\Domain\Shared\ValueObjects\DisplayAppearance;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentEnrollmentStructureRepository implements EnrollmentStructureRepositoryInterface
@@ -308,6 +309,36 @@ final class EloquentEnrollmentStructureRepository implements EnrollmentStructure
                 'homeroom_teacher_id' => $homeroomTeacherId,
                 'updated_at' => $at,
             ]);
+    }
+
+    public function appearanceForYear(int $schoolId, int $academicYearId): array
+    {
+        $this->setSchoolGuc($schoolId);
+        $map = static fn ($rows): array => $rows->mapWithKeys(static fn (object $r): array => [(int) $r->id => [
+            'abbreviation' => $r->abbreviation !== null ? (string) $r->abbreviation : null,
+            'color_hue' => $r->color_hue !== null ? (int) $r->color_hue : null,
+        ]])->all();
+
+        return [
+            'classes' => $map(DB::table(SchemaHelper::qualified('enrollment', 'classes'))
+                ->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->get(['id', 'abbreviation', 'color_hue'])),
+            'sections' => $map(DB::table(SchemaHelper::qualified('enrollment', 'sections').' as s')
+                ->join(SchemaHelper::qualified('enrollment', 'classes').' as c', 'c.id', '=', 's.class_id')
+                ->where('c.school_id', $schoolId)->where('c.academic_year_id', $academicYearId)->get(['s.id', 's.abbreviation', 's.color_hue'])),
+        ];
+    }
+
+    public function setAppearance(string $target, int $schoolId, int $id, DisplayAppearance $appearance, string $at): void
+    {
+        if ($target === 'class') {
+            $this->requireClassInSchool($schoolId, $id, activeOnly: false);
+        } else {
+            $this->requireSectionInSchool($schoolId, $id, activeOnly: false);
+        }
+
+        DB::table(SchemaHelper::qualified('enrollment', $target === 'class' ? 'classes' : 'sections'))
+            ->where('id', $id)
+            ->update($appearance->toArray() + ['updated_at' => $at]);
     }
 
     public function activeSectionCapacitySum(int $schoolId, int $classId): int

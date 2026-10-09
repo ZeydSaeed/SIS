@@ -10,6 +10,9 @@ use App\Domain\Timetable\Support\TimetableSettings;
  */
 interface TimetableConfigurationRepositoryInterface
 {
+    /** @param  array<string, mixed>  $display  normalised «تنسيق الجدول» (TimetableDisplaySettings) */
+    public function saveDisplay(int $schoolId, int $academicYearId, array $display, ?int $userId): void;
+
     public function saveSettings(int $schoolId, int $academicYearId, TimetableSettings $settings, ?int $userId): void;
 
     /**

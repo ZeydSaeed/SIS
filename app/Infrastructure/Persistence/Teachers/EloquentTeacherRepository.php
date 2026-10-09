@@ -28,6 +28,31 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             ->exists();
     }
 
+    public function importIdentity(string $employeeCode, int $schoolId, int $academicYearId): ?array
+    {
+        $row = DB::table(SchemaHelper::qualified('teachers', 'teachers'))
+            ->whereRaw('upper(employee_code) = ?', [strtoupper(trim($employeeCode))])
+            ->first(['id', 'first_name', 'father_name', 'grandfather_name', 'last_name', 'national_id', 'specialization_field', 'hire_date', 'status', 'abbreviation', 'academic_title_id']);
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row->id,
+            'first_name' => (string) $row->first_name,
+            'father_name' => $row->father_name !== null ? (string) $row->father_name : null,
+            'grandfather_name' => $row->grandfather_name !== null ? (string) $row->grandfather_name : null,
+            'last_name' => (string) $row->last_name,
+            'national_id' => $row->national_id !== null ? (string) $row->national_id : null,
+            'specialization_field' => $row->specialization_field !== null ? (string) $row->specialization_field : null,
+            'hire_date' => $row->hire_date !== null ? substr((string) $row->hire_date, 0, 10) : null,
+            'status' => (int) $row->status,
+            'abbreviation' => $row->abbreviation !== null ? (string) $row->abbreviation : null,
+            'academic_title_id' => $row->academic_title_id !== null ? (int) $row->academic_title_id : null,
+            'in_school' => $this->belongsToSchool((int) $row->id, $schoolId, $academicYearId),
+        ];
+    }
+
     public function employeeCodeExists(string $employeeCode): bool
     {
         return DB::table(SchemaHelper::qualified('teachers', 'teachers'))

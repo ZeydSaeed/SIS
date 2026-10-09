@@ -12,7 +12,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
 {
     private const SELECT_COLUMNS = [
         'id', 'code', 'name', 'name_en', 'subject_type', 'credit_hours',
-        'max_grade', 'pass_grade', 'status', 'prerequisites_text',
+        'max_grade', 'pass_grade', 'status', 'prerequisites_text', 'abbreviation', 'color_hue',
     ];
 
     public function codeExists(string $code): bool
@@ -167,6 +167,8 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             'max_grade',
             'pass_grade',
             'prerequisites_text',
+            'abbreviation',
+            'color_hue',
         ] as $key) {
             if (array_key_exists($key, $fields)) {
                 $payload[$key] = $fields[$key];
@@ -200,6 +202,8 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             prerequisitesText: $prerequisitesText !== null && trim($prerequisitesText) !== ''
                 ? trim($prerequisitesText)
                 : null,
+            abbreviation: property_exists($row, 'abbreviation') && $row->abbreviation !== null ? (string) $row->abbreviation : null,
+            colorHue: property_exists($row, 'color_hue') && $row->color_hue !== null ? (int) $row->color_hue : null,
         );
     }
 }

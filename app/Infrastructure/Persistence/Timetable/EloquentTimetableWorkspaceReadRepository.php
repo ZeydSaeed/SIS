@@ -195,6 +195,65 @@ final class EloquentTimetableWorkspaceReadRepository implements TimetableWorkspa
             ->all();
     }
 
+    public function displayCatalog(int $schoolId, int $academicYearId): array
+    {
+        $this->bindSchool($schoolId);
+        $int = static fn (mixed $v): ?int => $v !== null ? (int) $v : null;
+        $str = static fn (mixed $v): ?string => $v !== null ? (string) $v : null;
+        $look = static fn (object $r): array => [
+            'id' => (int) $r->id, 'name' => (string) $r->name,
+            'abbreviation' => $r->abbreviation !== null ? (string) $r->abbreviation : null,
+            'color_hue' => $r->color_hue !== null ? (int) $r->color_hue : null,
+        ];
+
+        return [
+            // Subjects are a global catalogue: only those the school-year can show (assigned or placed).
+            'subjects' => DB::table(SchemaHelper::qualified('curriculum', 'subjects').' as s')
+                ->whereIn('s.id', DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+                    ->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->select('subject_id')
+                    ->union(DB::table(SchemaHelper::qualified('timetable', 'schedules'))
+                        ->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->select('subject_id')))
+                ->orderBy('s.id')
+                ->get(['s.id', 's.name', 's.abbreviation', 's.color_hue', 's.subject_type'])
+                ->map(static fn (object $r): array => $look($r) + ['subject_type' => (int) $r->subject_type])->all(),
+            'teachers' => DB::table(SchemaHelper::qualified('teachers', 'teachers').' as t')
+                ->join(SchemaHelper::qualified('teachers', 'teacher_schools').' as ts', 'ts.teacher_id', '=', 't.id')
+                ->leftJoin(SchemaHelper::qualified('teachers', 'academic_titles').' as at', 'at.id', '=', 't.academic_title_id')
+                ->where('ts.school_id', $schoolId)->where('ts.academic_year_id', $academicYearId)
+                ->orderBy('t.id')
+                ->selectRaw(self::SHORT_NAME.' AS name')
+                ->addSelect(['t.id', 't.abbreviation', 't.color_hue', 'at.name as title', 'at.abbreviation as title_abbreviation'])
+                ->get()
+                ->map(static fn (object $r): array => $look($r) + ['title' => $str($r->title), 'title_abbreviation' => $str($r->title_abbreviation)])->all(),
+            'branches' => DB::table(SchemaHelper::qualified('organization', 'branches'))
+                ->where('school_id', $schoolId)->orderBy('id')
+                ->get(['id', 'name', 'abbreviation', 'color_hue'])->map($look)->all(),
+            'departments' => DB::table(SchemaHelper::qualified('organization', 'departments'))
+                ->where('school_id', $schoolId)->orderBy('id')
+                ->get(['id', 'name', 'abbreviation', 'color_hue'])->map($look)->all(),
+            'classes' => DB::table(SchemaHelper::qualified('enrollment', 'classes'))
+                ->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->orderBy('id')
+                ->get(['id', 'name', 'abbreviation', 'color_hue'])->map($look)->all(),
+            'sections' => DB::table(SchemaHelper::qualified('enrollment', 'sections').' as s')
+                ->join(SchemaHelper::qualified('enrollment', 'classes').' as c', 'c.id', '=', 's.class_id')
+                ->where('c.school_id', $schoolId)->where('c.academic_year_id', $academicYearId)->orderBy('s.id')
+                ->get(['s.id', 's.name', 's.abbreviation', 's.color_hue', 's.capacity'])
+                ->map(static fn (object $r): array => $look($r) + ['capacity' => $int($r->capacity)])->all(),
+            'rooms' => DB::table(SchemaHelper::qualified('organization', 'rooms').' as r')
+                ->join(SchemaHelper::qualified('organization', 'branches').' as b', 'b.id', '=', 'r.branch_id')
+                ->where('b.school_id', $schoolId)->orderBy('r.id')
+                ->get(['r.id', 'r.name', 'r.code', 'r.abbreviation', 'r.color_hue', 'r.room_type_id', 'r.capacity', 'r.supports_practical'])
+                ->map(static fn (object $r): array => $look($r) + [
+                    'code' => (string) $r->code, 'room_type_id' => $int($r->room_type_id),
+                    'capacity' => $int($r->capacity), 'supports_practical' => (bool) $r->supports_practical,
+                ])->all(),
+            'room_types' => DB::table(SchemaHelper::qualified('organization', 'room_types'))
+                ->where(fn ($q) => $q->whereNull('school_id')->orWhere('school_id', $schoolId))->orderBy('sort_order')->orderBy('id')
+                ->get(['id', 'name', 'abbreviation', 'color_hue', 'kind'])
+                ->map(static fn (object $r): array => $look($r) + ['kind' => (int) $r->kind])->all(),
+        ];
+    }
+
     private function bindSchool(int $schoolId): void
     {
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);

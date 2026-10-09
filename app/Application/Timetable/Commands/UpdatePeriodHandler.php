@@ -44,7 +44,12 @@ final class UpdatePeriodHandler implements CommandHandler
             startTime: $command->startTime,
             endTime: $command->endTime,
             periodType: $command->periodType,
+            presentation: $command->presentation,
         );
+        $presentationError = $command->presentation?->rejection();
+        if ($presentationError !== null) {
+            return UpdatePeriodResult::failure($presentationError);
+        }
 
         $error = $this->guard->error($data, $this->periods->listForSchool($command->schoolId), $command->periodId);
         if ($error !== null) {

@@ -106,13 +106,27 @@ final class EloquentTimetablePlaceRepository implements TimetablePlaceRepository
         return (int) DB::table(SchemaHelper::qualified('organization', 'rooms'))->insertGetId([
             'branch_id' => $branchId, 'code' => strtoupper(trim($code)), 'name' => trim($name), 'capacity' => $capacity,
             'room_type' => $roomType, 'status' => self::ACTIVE, 'created_at' => $at, 'updated_at' => $at,
-        ]);
+        ] + self::managedType($roomType));
     }
 
     public function updateRoom(int $roomId, string $name, ?int $capacity, int $roomType, string $at): void
     {
         DB::table(SchemaHelper::qualified('organization', 'rooms'))->where('id', $roomId)
-            ->update(['name' => trim($name), 'capacity' => $capacity, 'room_type' => $roomType, 'updated_at' => $at]);
+            ->update(['name' => trim($name), 'capacity' => $capacity, 'room_type' => $roomType, 'supports_practical' => $roomType === 2, 'updated_at' => $at]);
+    }
+
+    /**
+     * «الغرف الدراسية» owns rooms now; this legacy timetable path keeps the new columns consistent: practical support
+     * follows the legacy class and a new room gets the matching system type (classroom / lab).
+     *
+     * @return array{supports_practical: bool, room_type_id: int|null}
+     */
+    private static function managedType(int $roomType): array
+    {
+        $typeId = DB::table(SchemaHelper::qualified('organization', 'room_types'))
+            ->whereNull('school_id')->where('code', $roomType === 2 ? 'LAB' : 'CLASSROOM')->value('id');
+
+        return ['supports_practical' => $roomType === 2, 'room_type_id' => $typeId !== null ? (int) $typeId : null];
     }
 
     public function setRoomStatus(int $roomId, int $status, string $at): void

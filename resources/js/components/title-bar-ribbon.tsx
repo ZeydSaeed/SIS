@@ -20,6 +20,7 @@ import {
     ClipboardPaste,
     Copy,
     Database,
+    DoorOpen,
     FileBadge,
     FileBarChart,
     FileDown,
@@ -117,6 +118,8 @@ export type AddRibbonActionId =
     | 'addTimetable'
     | 'branchesDepartments'
     | 'classesSections'
+    | 'roomsCatalogue'
+    | 'importCenter'
     | 'addSubject';
 
 export type SettingsRibbonActionId =
@@ -258,6 +261,8 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
             { id: 'directoratesSchools', label: 'المديريات والمدارس', icon: Landmark, iconTone: 'authority' },
             { id: 'branchesDepartments', label: 'الفروع والاختصاصات', icon: GitBranch, iconTone: 'growth' },
             { id: 'classesSections', label: 'الصفوف والشعب', icon: LayoutGrid, iconTone: 'education' },
+            { id: 'roomsCatalogue', label: 'الغرف الدراسية', icon: DoorOpen, iconTone: 'authority' },
+            { id: 'importCenter', label: 'استيراد Excel', icon: FileDown, iconTone: 'growth' },
         ],
     },
     {

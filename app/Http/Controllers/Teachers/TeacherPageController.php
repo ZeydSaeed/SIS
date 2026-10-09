@@ -35,6 +35,11 @@ use App\Application\Teachers\Queries\GetTeacherHandler;
 use App\Application\Teachers\Queries\GetTeacherQuery;
 use App\Application\Teachers\Queries\GetTeacherRosterHandler;
 use App\Application\Teachers\Queries\GetTeacherRosterQuery;
+use App\Application\Teachers\Queries\ListAcademicTitlesHandler;
+use App\Application\Teachers\Queries\ListAcademicTitlesQuery;
+use App\Application\Teachers\Commands\UpdateTeacherAppearanceCommand;
+use App\Application\Teachers\Commands\UpdateTeacherAppearanceHandler;
+use App\Http\Requests\Teachers\UpdateTeacherAppearanceRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teachers\AddTeachingAssignmentRequest;
 use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
@@ -77,6 +82,7 @@ final class TeacherPageController extends Controller
         ListSubjectsHandler $subjects,
         GetBranchStructureHandler $branches,
         GetClassStructureHandler $classes,
+        ListAcademicTitlesHandler $titles,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -149,6 +155,7 @@ final class TeacherPageController extends Controller
             ),
             'classes' => $classOptions,
             'curriculumSubjects' => $curriculumSubjects,
+            'academicTitles' => $titles->handle(new ListAcademicTitlesQuery),
             'filters' => ['academic_year_id' => $academicYearId],
             'authorization' => ['can_manage' => $user->can('manageTeachers')],
         ]);
@@ -221,6 +228,8 @@ final class TeacherPageController extends Controller
             fatherName: $request->validated('father_name'),
             grandfatherName: $request->validated('grandfather_name'),
             employmentType: $this->nullableInt($request->validated('employment_type')),
+            academicTitleId: $this->nullableInt($request->validated('academic_title_id')),
+            abbreviation: $request->validated('abbreviation'),
         ));
 
         return $this->respond($request, $result, 'teachers.web.register', 'created', 'teacher:'.($result->teacherId ?? 0), 'flash.teachers.registered');
@@ -246,9 +255,27 @@ final class TeacherPageController extends Controller
             weeklyLessonsMin: $this->nullableInt($request->validated('weekly_lessons_min')),
             weeklyLessonsMax: $this->nullableInt($request->validated('weekly_lessons_max')),
             dailyLessonsMax: $this->nullableInt($request->validated('daily_lessons_max')),
+            updateTitle: $request->has('academic_title_id') || $request->has('abbreviation'),
+            academicTitleId: $this->nullableInt($request->validated('academic_title_id')),
+            abbreviation: $request->validated('abbreviation'),
         ));
 
         return $this->respond($request, $result, 'teachers.web.update', 'updated', 'teacher:'.$teacher, 'flash.teachers.updated');
+    }
+
+    /** «الاختصار واللون» of a teacher (also from the timetable's context menu). */
+    public function updateAppearance(int $teacher, UpdateTeacherAppearanceRequest $request, UpdateTeacherAppearanceHandler $handler): RedirectResponse
+    {
+        $hue = $request->validated('color_hue');
+        $result = $handler->handle(new UpdateTeacherAppearanceCommand(
+            schoolId: $this->schoolContext->requireId(),
+            teacherId: $teacher,
+            abbreviation: $request->validated('abbreviation'),
+            colorHue: $hue === null ? null : (int) $hue,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.appearance', 'updated', 'teacher:'.$teacher, 'flash.appearance.updated');
     }
 
     public function deactivate(int $teacher, DeactivateTeacherRequest $request, DeactivateTeacherHandler $handler): RedirectResponse

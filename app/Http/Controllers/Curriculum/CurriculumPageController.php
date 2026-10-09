@@ -211,6 +211,8 @@ final class CurriculumPageController extends Controller
             'pass_grade' => $dto->passGrade,
             'status' => $dto->status,
             'prerequisites' => $dto->prerequisitesText ?? '',
+            'abbreviation' => $dto->abbreviation,
+            'color_hue' => $dto->colorHue,
         ];
         $subjectsPayload = [
             'data' => array_map($mapSubjectRow, $subjectsForCatalog['items']),
@@ -535,7 +537,7 @@ final class CurriculumPageController extends Controller
         UpdateSubjectHandler $handler,
     ): RedirectResponse {
         $fields = [];
-        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text'] as $key) {
+        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text', 'abbreviation', 'color_hue'] as $key) {
             if ($request->exists($key)) {
                 $fields[$key] = $request->validated($key);
             }

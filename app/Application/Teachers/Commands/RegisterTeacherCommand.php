@@ -21,5 +21,8 @@ final readonly class RegisterTeacherCommand implements Command
         public ?string $grandfatherName = null,
         /** نوع التعيين in the registering school (TeacherEmploymentType); null = not set. */
         public ?int $employmentType = null,
+        /** «اللقب العلمي» (teachers.academic_titles) and «الاختصار» shown on the timetable. */
+        public ?int $academicTitleId = null,
+        public ?string $abbreviation = null,
     ) {}
 }

@@ -25,6 +25,10 @@ use App\Application\Timetable\Commands\EndTimetableDivisionHandler;
 use App\Application\Timetable\Commands\EndTimetableRuleCommand;
 use App\Application\Timetable\Commands\EndTimetableRuleHandler;
 use App\Application\Timetable\Commands\LockSchedulesCommand;
+use App\Application\Timetable\Commands\MarkTimetableTestIssueCommand;
+use App\Application\Timetable\Commands\SaveTimetableDisplayCommand;
+use App\Application\Timetable\Commands\SaveTimetableDisplayHandler;
+use App\Application\Timetable\Commands\MarkTimetableTestIssueHandler;
 use App\Application\Timetable\Commands\LockSchedulesHandler;
 use App\Application\Timetable\Commands\PublishTimetableVersionCommand;
 use App\Application\Timetable\Commands\PublishTimetableVersionHandler;
@@ -224,6 +228,29 @@ final class TimetableEngineController extends Controller
             $request->user()?->id, $request->idempotencyKey())), 'rules.end', 'flash.timetable.engine.ruleEnded');
     }
 
+    // ── «تنسيق الجدول» ─────────────────────────────────────────────────────
+
+    public function saveDisplay(ManageTimetableEngineRequest $request, SaveTimetableDisplayHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new SaveTimetableDisplayCommand(
+            $this->school(), (int) $v['academic_year_id'], (array) $v['display'], $request->user()?->id, $request->idempotencyKey(),
+        )), 'display.save', 'flash.timetable.displaySaved');
+    }
+
+    // ── «اختبار الجدول» ─────────────────────────────────────────────────────
+
+    public function markTestIssue(ManageTimetableEngineRequest $request, MarkTimetableTestIssueHandler $handler): RedirectResponse
+    {
+        $v = $request->validated();
+
+        return $this->respond($request, $handler->handle(new MarkTimetableTestIssueCommand(
+            $this->school(), (int) $v['academic_year_id'], (string) $v['issue_key'], self::int($v['mark'] ?? null), $v['note'] ?? null,
+            $request->user()?->id, $request->idempotencyKey(),
+        )), 'test.marks', null);
+    }
+
     // ── Generation ───────────────────────────────────────────────────────────
 
     public function storeRun(GenerateTimetableRequest $request, QueueTimetableGenerationHandler $handler): RedirectResponse
@@ -234,6 +261,8 @@ final class TimetableEngineController extends Controller
             'seed' => self::int($v['seed'] ?? null) ?? random_int(1, 1_000_000),
             'objectives' => $v['objectives'] ?? [],
             'what_if' => $v['what_if'] ?? [],
+            'complexity' => $v['complexity'] ?? null,
+            'constraint_level' => $v['constraint_level'] ?? null,
         ], static fn ($value): bool => $value !== null);
 
         return $this->respond($request, $handler->handle(new QueueTimetableGenerationCommand(

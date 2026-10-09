@@ -40,6 +40,19 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->exists();
     }
 
+    /** The active vocational specialization that mirrors the department (1:1), or null. */
+    private function specializationOfDepartment(int $schoolId, ?int $departmentId): ?int
+    {
+        if ($departmentId === null) {
+            return null;
+        }
+        $id = DB::table(SchemaHelper::qualified('vocational', 'specializations'))
+            ->where('school_id', $schoolId)->where('department_id', $departmentId)->where('status', 1)
+            ->orderBy('id')->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
     public function departmentActiveInSchool(int $schoolId, int $departmentId): bool
     {
         return DB::table(SchemaHelper::qualified('organization', 'departments'))
@@ -59,6 +72,8 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         ?int $departmentId = null,
     ): int {
         $this->bindSchool($schoolId);
+        // The department is the single source; the specialization is its 1:1 mirror, filled unless one is given.
+        $specializationId ??= $this->specializationOfDepartment($schoolId, $departmentId);
 
         return (int) DB::table(SchemaHelper::qualified('curriculum', 'curricula'))->insertGetId([
             'school_id' => $schoolId,
@@ -258,6 +273,9 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         }
         if (array_key_exists('department_id', $fields)) {
             $payload['department_id'] = $fields['department_id'];
+            if (! array_key_exists('specialization_id', $fields)) {
+                $payload['specialization_id'] = $this->specializationOfDepartment($schoolId, $fields['department_id'] !== null ? (int) $fields['department_id'] : null);
+            }
         }
         if (count($payload) === 1) {
             return false;

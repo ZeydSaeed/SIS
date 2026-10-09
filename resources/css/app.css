@@ -16422,3 +16422,210 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-timetable-print-panel .sis-admission-sheet__actions {
     padding-inline: 1rem;
 }
+
+/* ── Timetable workbench: shared context menu and «الاختصار واللون» editor (additive; SIS tokens only) ── */
+.sis-context-menu {
+    z-index: 260000;
+    min-width: 12rem;
+    max-width: min(22rem, calc(100vw - 1rem));
+    max-height: min(26rem, calc(100vh - 1rem));
+    outline: none;
+    box-shadow: 0 0.35rem 1rem color-mix(in srgb, var(--sis-night) 24%, transparent);
+}
+
+.sis-context-menu .sis-context-menu__item {
+    justify-content: flex-start;
+    gap: 0.5rem;
+    text-align: start;
+    white-space: nowrap;
+}
+
+.sis-context-menu .sis-context-menu__item.is-disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+.sis-context-menu .sis-context-menu__item--danger:not(.is-disabled) {
+    color: var(--sis-ribbon-accent-delete);
+}
+
+.sis-context-menu .sis-context-menu__icon {
+    flex: none;
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.sis-context-menu .sis-context-menu__label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sis-context-menu .sis-context-menu__hint {
+    flex: none;
+    opacity: 0.65;
+    font-size: 0.7rem;
+}
+
+.sis-context-menu .sis-context-menu__separator {
+    height: 1px;
+    margin: 0.15rem 0.4rem;
+    background: color-mix(in srgb, var(--sis-mist) 55%, transparent);
+    list-style: none;
+}
+
+.sis-appearance-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding-block: 0.2rem;
+}
+
+.sis-appearance-swatch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid hsl(var(--subject-hue, 205) 55% 42%);
+    border-radius: var(--sis-field-radius);
+    background: hsl(var(--subject-hue, 205) 72% var(--subject-light, 86%));
+    color: var(--sis-oxford);
+    cursor: pointer;
+}
+
+.sis-appearance-swatch svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.sis-appearance-swatch--default:not([style]) {
+    background: var(--sis-pearl);
+    border-style: dashed;
+    border-color: var(--sis-mist);
+}
+
+.sis-appearance-swatch.is-selected {
+    box-shadow: 0 0 0 2px var(--sis-pearl), 0 0 0 4px var(--sis-oxford);
+}
+
+.sis-appearance-swatch:focus-visible {
+    outline: 2px solid var(--sis-oxford);
+    outline-offset: 2px;
+}
+
+.sis-appearance-swatch:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.sis-appearance-preview {
+    display: flex;
+    max-width: 14rem;
+}
+
+.sis-appearance-preview .sis-timetable-card {
+    min-height: 3rem;
+}
+
+/* ── «تنسيق الجدول» (TimetableDisplaySettings): each rule applies only when its setting differs from the default ── */
+.sis-timetable-grid[data-tt-font] .sis-timetable-card,
+.sis-timetable-grid[data-tt-font] thead th {
+    font-family: var(--tt-font);
+}
+
+.sis-timetable-grid[data-tt-scaled] .sis-timetable-card__subject,
+.sis-timetable-grid[data-tt-scaled] .sis-timetable-card__line {
+    zoom: var(--tt-font-scale);
+}
+
+.sis-timetable-grid[data-tt-height] .sis-timetable-card {
+    min-height: var(--tt-cell-height);
+}
+
+.sis-timetable-grid[data-tt-width] thead th:not(.sis-timetable-grid__break):not(.sis-timetable-grid__corner) {
+    width: var(--tt-col-width);
+    min-width: var(--tt-col-width);
+}
+
+.sis-timetable-grid[data-tt-weight] .sis-timetable-card__subject {
+    font-weight: var(--tt-subject-weight);
+}
+
+.sis-timetable-grid[data-tt-color] .sis-timetable-card {
+    color: var(--tt-text);
+}
+
+.sis-timetable-grid[data-tt-plain] .sis-timetable-card__line {
+    color: inherit;
+}
+
+.sis-timetable-grid[data-tt-italic] .sis-timetable-card__line {
+    font-style: italic;
+}
+
+.sis-timetable-grid[data-tt-align-v='top'] .sis-timetable-card {
+    justify-content: flex-start;
+}
+
+.sis-timetable-grid[data-tt-align-v='bottom'] .sis-timetable-card {
+    justify-content: flex-end;
+}
+
+.sis-timetable-grid[data-tt-align-h='center'] .sis-timetable-card {
+    align-items: center;
+    text-align: center;
+}
+
+.sis-timetable-grid[data-tt-align-h='end'] .sis-timetable-card {
+    align-items: flex-end;
+    text-align: end;
+}
+
+.sis-timetable-grid[data-tt-header-regular] .sis-timetable-grid__period {
+    font-weight: 400;
+}
+
+.sis-timetable-grid[data-tt-header-plain] .sis-timetable-grid__time {
+    color: inherit;
+}
+
+/* Layout «المادة والمعلم في عمودين». */
+.sis-timetable-grid[data-tt-layout='columns'] .sis-timetable-card:not(.sis-timetable-card--tray) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.4rem;
+    align-content: center;
+}
+
+.sis-timetable-grid[data-tt-layout='columns'] .sis-timetable-card:not(.sis-timetable-card--tray) .sis-timetable-card__line--teacher {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+}
+
+/* Layout «المادة رئيسية والمعلم في الركن»: the teacher line sits at the bottom of the cell. */
+.sis-timetable-grid[data-tt-layout='corner'] .sis-timetable-card__line--teacher {
+    margin-block-start: auto;
+}
+
+.sis-timetable-grid[data-tt-layout='corner'] .sis-timetable-card__subject + .sis-timetable-card__line--teacher {
+    margin-block-start: 0;
+}
+
+/* «الإعدادات السريعة» chips and the Edit-cell tabs (wrap inside a sheet). */
+.sis-timetable-cell-tabs {
+    flex-wrap: wrap;
+}
+
+.sis-timetable-format-preview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 12rem));
+    gap: 0.5rem;
+}
+
+/* A break with an owner colour («الاستراحات»): tinted from the same governed hue scale as the cards. */
+.sis-timetable-grid thead th.sis-timetable-grid__break[style*='--subject-hue'],
+.sis-timetable-cell--break[style*='--subject-hue'] {
+    background: hsl(var(--subject-hue) 60% 92%);
+}

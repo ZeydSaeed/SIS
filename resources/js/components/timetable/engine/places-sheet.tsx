@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import { RegistrySheetDialog } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import type { EnginePlaceRoom, EnginePlaceWorkshop } from './engine-types';
-import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineConfirm, useEngineRequest, engineSheetClass } from './engine-ui';
 
 type RoomForm = { branch: string; code: string; name: string; capacity: string; type: string };
 type WorkshopForm = { code: string; name: string; capacity: string; safety: string; room: string };
@@ -20,6 +21,7 @@ export function PlacesSheet({ ctx, onClose }: { ctx: EngineContext; onClose: () 
     const i18n = t();
     const e = i18n.timetable.engine;
     const request = useEngineRequest();
+    const confirm = useEngineConfirm();
     const places = ctx.engine.places;
     const [saving, setSaving] = useState(false);
     const [room, setRoom] = useState<{ id: number | null; form: RoomForm } | null>(null);
@@ -67,8 +69,11 @@ export function PlacesSheet({ ctx, onClose }: { ctx: EngineContext; onClose: () 
         }
     };
 
-    const toggle = (kind: 'room' | 'workshop', id: number, inService: boolean) =>
-        void request('post', '/timetable/places/status', { kind, id, active: inService ? 0 : 1 });
+    const toggle = (kind: 'room' | 'workshop', id: number, inService: boolean) => {
+        const run = () => void request('post', '/timetable/places/status', { kind, id, active: inService ? 0 : 1 });
+        // Back into service is harmless; out of service asks first.
+        inService ? confirm.ask(e.confirmDisablePlace, run) : run();
+    };
 
     const describeRoom = (r: EnginePlaceRoom) =>
         `${r.code} — ${r.name} · ${r.branch_name} · ${typeName(r.room_type)}${r.capacity ? ` · ${e.capacity}: ${r.capacity}` : ''}${r.used > 0 ? ` · ${e.placeUsed.replace('{n}', String(r.used))}` : ''}${r.status !== IN_SERVICE ? ` · ${e.placeOut}` : ''}`;
@@ -79,13 +84,17 @@ export function PlacesSheet({ ctx, onClose }: { ctx: EngineContext; onClose: () 
         <RegistrySheetDialog title={e.places} className={engineSheetClass('places')} onClose={onClose}>
             <div className="sis-timetable-audit__list">
                 <SheetSection id="timetable-places-rooms" title={`${e.placesRooms} (${places.rooms.length})`}>
-                    {ctx.can.manage ? (
-                        <div className="sis-timetable-audit__bar">
+                    <div className="sis-timetable-audit__bar">
+                        {ctx.can.manage ? (
                             <Button type="button" size="sm" variant="outline" onClick={() => setRoom({ id: null, form: blankRoom() })}>
                                 {e.newRoom}
                             </Button>
-                        </div>
-                    ) : null}
+                        ) : null}
+                        {/* «الغرف الدراسية» is the rooms' source of truth (number, building, type, equipment, colour). */}
+                        <Button type="button" size="sm" variant="outline" onClick={() => router.get('/organization/rooms')}>
+                            {i18n.rooms.title}
+                        </Button>
+                    </div>
                     {places.rooms.length === 0 ? <p className="sis-timetable-audit__clean">{e.noPlaces}</p> : null}
                     <ul className="sis-timetable-audit__items sis-branches-field--wide">
                         {places.rooms.map((r) => (
@@ -197,6 +206,7 @@ export function PlacesSheet({ ctx, onClose }: { ctx: EngineContext; onClose: () 
                     {i18n.timetable.close}
                 </Button>
             </div>
+            {confirm.dialog}
         </RegistrySheetDialog>
     );
 }

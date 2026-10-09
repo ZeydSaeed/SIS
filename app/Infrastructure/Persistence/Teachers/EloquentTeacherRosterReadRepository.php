@@ -29,6 +29,7 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
                 't.full_name', 't.national_id', 't.specialization_field', 't.hire_date', 't.status',
                 'ts.is_primary', 'ts.employment_type',
                 'ts.weekly_lessons_min', 'ts.weekly_lessons_max', 'ts.daily_lessons_max',
+                't.abbreviation', 't.color_hue', 't.academic_title_id',
             ]);
 
         return [
@@ -49,6 +50,9 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
                 'weekly_lessons_min' => $r->weekly_lessons_min !== null ? (int) $r->weekly_lessons_min : null,
                 'weekly_lessons_max' => $r->weekly_lessons_max !== null ? (int) $r->weekly_lessons_max : null,
                 'daily_lessons_max' => $r->daily_lessons_max !== null ? (int) $r->daily_lessons_max : null,
+                'abbreviation' => $r->abbreviation !== null ? (string) $r->abbreviation : null,
+                'color_hue' => $r->color_hue !== null ? (int) $r->color_hue : null,
+                'academic_title_id' => $r->academic_title_id !== null ? (int) $r->academic_title_id : null,
             ])->all(),
             'total' => $total,
         ];

@@ -25,6 +25,9 @@ class UpdateSubjectRequest extends FormRequest
             'max_grade' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['sometimes', 'integer', 'min:0', 'max:1000'],
             'prerequisites_text' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // «الاختصار واللون» (timetable display; null = default).
+            'abbreviation' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'color_hue' => ['sometimes', 'nullable', 'integer', 'between:0,359'],
             'code' => ['prohibited'],
             'status' => ['prohibited'],
             'subject_id' => ['prohibited'],

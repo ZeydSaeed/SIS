@@ -128,6 +128,14 @@ final readonly class TimetableBoard
             [...$this->rules, ...$extra], $this->rooms, $this->workshops, $this->sectionInfo, $this->teacherLimits);
     }
 
+    /** The same board with exactly these rules (a generation level may keep only the hard ones). */
+    public function replaceRules(array $rules): self
+    {
+        return new self($this->periods, $this->schedules, $this->requirements, $this->teacherSubjects, $this->activeTeacherIds,
+            $this->practicalSubjectIds, $this->sectionIds, $this->settings, $this->activities, $this->groups, $this->availability,
+            $rules, $this->rooms, $this->workshops, $this->sectionInfo, $this->teacherLimits);
+    }
+
     /**
      * Lessons a week the teacher can take: the week's slots and the daily limit (personal, else the school's)
      * cap it, and so does the personal weekly maximum.

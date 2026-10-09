@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import type { EngineRule } from './engine-types';
-import { EngineField, EngineNumber, EngineRow, EngineSelect, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineNumber, EngineRow, EngineSelect, useEngineConfirm, useEngineRequest, engineSheetClass } from './engine-ui';
 
 const PRIORITY_TONE: Record<number, string> = { 1: 'error', 2: 'error', 3: 'warning', 4: 'warning', 5: 'info', 6: 'info' };
 
@@ -17,6 +17,7 @@ export function ConstraintsSheet({ ctx, onClose }: { ctx: EngineContext; onClose
     const i18n = t();
     const e = i18n.timetable.engine;
     const request = useEngineRequest();
+    const confirm = useEngineConfirm();
     const catalogue = ctx.engine.catalogue;
     const [type, setType] = useState(catalogue[0]?.type ?? '');
     const [priority, setPriority] = useState('3');
@@ -123,7 +124,7 @@ export function ConstraintsSheet({ ctx, onClose }: { ctx: EngineContext; onClose
                                         {rule.reason ? ` — ${e.reasonLabel}: ${rule.reason}` : ''}
                                     </span>
                                     {ctx.can.manage ? (
-                                        <Button type="button" size="sm" variant="outline" onClick={() => void request('post', `/timetable/rules/${rule.id}/end`, { academic_year_id: ctx.yearId })}>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => confirm.ask(e.confirmEndRule, () => void request('post', `/timetable/rules/${rule.id}/end`, { academic_year_id: ctx.yearId }))}>
                                             {e.end}
                                         </Button>
                                     ) : null}
@@ -210,6 +211,7 @@ export function ConstraintsSheet({ ctx, onClose }: { ctx: EngineContext; onClose
                     {i18n.timetable.close}
                 </Button>
             </div>
+            {confirm.dialog}
         </RegistrySheetDialog>
     );
 }

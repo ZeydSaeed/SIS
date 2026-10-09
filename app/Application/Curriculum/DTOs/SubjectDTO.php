@@ -15,5 +15,7 @@ final readonly class SubjectDTO
         public int $passGrade,
         public int $status,
         public ?string $prerequisitesText = null,
+        public ?string $abbreviation = null,
+        public ?int $colorHue = null,
     ) {}
 }

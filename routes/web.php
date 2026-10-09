@@ -12,6 +12,8 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Ops\OpsModulePageController;
 use App\Http\Controllers\Organization\BranchStructurePageController;
+use App\Http\Controllers\Organization\RoomCataloguePageController;
+use App\Http\Controllers\Imports\ImportPageController;
 use App\Http\Controllers\Organization\DirectorateRegistryController;
 use App\Http\Controllers\Organization\DirectorateSchoolPageController;
 use App\Http\Controllers\Organization\SchoolRegistryController;
@@ -93,6 +95,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/sections/{section}', [ClassSectionPageController::class, 'updateSection'])->whereNumber('section')->name('sections.update');
         Route::post('/sections/{section}/deactivate', [ClassSectionPageController::class, 'deactivateSection'])->whereNumber('section')->name('sections.deactivate');
         Route::post('/sections/{section}/reactivate', [ClassSectionPageController::class, 'reactivateSection'])->whereNumber('section')->name('sections.reactivate');
+        Route::patch('/classes-sections/appearance', [ClassSectionPageController::class, 'updateAppearance'])->name('classes-sections.appearance');
         Route::post('/branches', [BranchStructurePageController::class, 'storeBranch'])->name('branches.store');
         Route::patch('/branches/{branch}', [BranchStructurePageController::class, 'updateBranch'])
             ->whereNumber('branch')
@@ -106,6 +109,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('departments.update');
         Route::post('/departments/delete', [BranchStructurePageController::class, 'destroyDepartments'])
             ->name('departments.delete');
+
+        // «الغرف الدراسية» — rooms and managed room types (source of truth for the timetable; delete = out of service).
+        Route::get('/rooms', [RoomCataloguePageController::class, 'index'])->name('rooms.index');
+        Route::post('/rooms', [RoomCataloguePageController::class, 'storeRoom'])->name('rooms.store');
+        Route::patch('/rooms/{room}', [RoomCataloguePageController::class, 'updateRoom'])->whereNumber('room')->name('rooms.update');
+        Route::post('/rooms/{room}/status', [RoomCataloguePageController::class, 'changeRoomStatus'])->whereNumber('room')->name('rooms.status');
+        Route::post('/room-types', [RoomCataloguePageController::class, 'storeType'])->name('room-types.store');
+        Route::patch('/room-types/{type}', [RoomCataloguePageController::class, 'updateType'])->whereNumber('type')->name('room-types.update');
+        Route::post('/room-types/{type}/status', [RoomCataloguePageController::class, 'changeTypeStatus'])->whereNumber('type')->name('room-types.status');
+        // «الاختصار واللون» of a branch / department / room / room type (the timetable's context menu uses it too).
+        Route::patch('/appearance', [RoomCataloguePageController::class, 'updateAppearance'])->name('appearance.update');
     });
 
     Route::prefix('admission')->name('admission.')->middleware('require.school.context')->group(function (): void {
@@ -177,6 +191,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{teacher}', [TeacherPageController::class, 'show'])->whereNumber('teacher')->name('show');
         Route::post('/', [TeacherPageController::class, 'store'])->name('store');
         Route::patch('/{teacher}', [TeacherPageController::class, 'update'])->whereNumber('teacher')->name('update');
+        Route::patch('/{teacher}/appearance', [TeacherPageController::class, 'updateAppearance'])->whereNumber('teacher')->name('appearance');
         Route::post('/{teacher}/deactivate', [TeacherPageController::class, 'deactivate'])->whereNumber('teacher')->name('deactivate');
         Route::post('/{teacher}/reactivate', [TeacherPageController::class, 'reactivate'])->whereNumber('teacher')->name('reactivate');
         Route::post('/{teacher}/subjects', [TeacherPageController::class, 'assignSubject'])->whereNumber('teacher')->name('subjects.assign');
@@ -195,6 +210,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{schedule}', [TimetablePageController::class, 'show'])->whereNumber('schedule')->name('show');
         Route::post('/periods', [TimetablePageController::class, 'storePeriod'])->name('periods.store');
         Route::post('/periods/arrange', [TimetablePageController::class, 'arrangeDay'])->name('periods.arrange');
+        Route::post('/periods/reshape', [TimetablePageController::class, 'reshapeDay'])->name('periods.reshape');
         Route::patch('/periods/{period}', [TimetablePageController::class, 'updatePeriod'])->whereNumber('period')->name('periods.update');
         Route::post('/schedules', [TimetablePageController::class, 'storeSchedule'])->name('schedules.store');
         Route::patch('/schedules/{schedule}', [TimetablePageController::class, 'updateSchedule'])->whereNumber('schedule')->name('schedules.update');
@@ -221,6 +237,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/rules', [TimetableEngineController::class, 'storeRule'])->name('rules.store');
         Route::post('/rules/{rule}/end', [TimetableEngineController::class, 'endRule'])->whereNumber('rule')->name('rules.end');
         Route::post('/runs', [TimetableEngineController::class, 'storeRun'])->name('runs.store');
+        Route::post('/test/marks', [TimetableEngineController::class, 'markTestIssue'])->name('test.marks');
+        Route::post('/display', [TimetableEngineController::class, 'saveDisplay'])->name('display.save');
         Route::post('/runs/{run}/cancel', [TimetableEngineController::class, 'cancelRun'])->whereNumber('run')->name('runs.cancel');
         Route::post('/runs/{run}/apply', [TimetableEngineController::class, 'applyRun'])->whereNumber('run')->name('runs.apply');
         Route::post('/runs/{run}/discard', [TimetableEngineController::class, 'discardRun'])->whereNumber('run')->name('runs.discard');
@@ -232,6 +250,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/versions/{version}/restore', [TimetableEngineController::class, 'restoreVersion'])->whereNumber('version')->name('versions.restore');
         Route::get('/students/{student}', [TimetablePageController::class, 'student'])->whereNumber('student')->name('students.show');
         Route::get('/export', [TimetablePageController::class, 'export'])->name('export');
+    });
+
+    // «مركز الاستيراد» — Excel / CSV import (template → upload → preview → commit → report).
+    Route::prefix('imports')->name('imports.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [ImportPageController::class, 'index'])->name('index');
+        Route::get('/templates/{kind}', [ImportPageController::class, 'template'])->whereIn('kind', ['teachers', 'structure', 'students', 'subjects'])->name('template');
+        Route::post('/batches/{batch}/commit', [ImportPageController::class, 'commit'])->whereNumber('batch')->name('commit');
+        Route::post('/batches/{batch}/cancel', [ImportPageController::class, 'cancel'])->whereNumber('batch')->name('cancel');
+        Route::get('/batches/{batch}/errors', [ImportPageController::class, 'errors'])->whereNumber('batch')->name('errors');
+        Route::post('/{kind}', [ImportPageController::class, 'store'])->whereIn('kind', ['teachers', 'structure', 'students', 'subjects'])->name('store');
     });
 
     Route::prefix('curriculum')->name('curriculum.')->middleware('require.school.context')->group(function (): void {

@@ -35,6 +35,9 @@ class UpdateTeacherRequest extends FormRequest
             'specialization_field' => ['nullable', 'string', 'max:255'],
             'hire_date' => ['nullable', 'date', 'before_or_equal:today', 'after:1950-01-01'],
             'user_id' => ['nullable', 'integer', 'min:1'],
+            // «اللقب العلمي» / «الاختصار» (replaced together when sent).
+            'academic_title_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'abbreviation' => ['sometimes', 'nullable', 'string', 'max:20'],
             'employee_code' => ['prohibited'],
             'school_id' => ['prohibited'],
             'status' => ['prohibited'],

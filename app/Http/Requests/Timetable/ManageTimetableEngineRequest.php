@@ -80,6 +80,13 @@ class ManageTimetableEngineRequest extends TimetableEngineRequest
                 'code' => ['required', 'string', 'max:30'],
             ] + $this->workshopRules(),
             'timetable.places.workshops.update' => $this->workshopRules(),
+            'timetable.display.save' => $year + ['display' => ['required', 'array']],
+            // «اختبار الجدول»: ignore / review later / clear one issue (mark null).
+            'timetable.test.marks' => $year + [
+                'issue_key' => ['required', 'string', 'max:200'],
+                'mark' => ['nullable', 'integer', 'in:1,2'],
+                'note' => ['nullable', 'string', 'max:255'],
+            ],
             'timetable.places.status' => [
                 'kind' => ['required', 'string', 'in:room,workshop'],
                 'id' => ['required', 'integer', 'min:1'],
