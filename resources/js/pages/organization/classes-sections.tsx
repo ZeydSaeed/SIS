@@ -34,6 +34,7 @@ import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-se
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
+import { initialSearchParam } from '@/lib/initial-search';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -69,8 +70,8 @@ type Props = {
     authorization: { can_manage: boolean };
 };
 
-type ClassForm = { name: string; grade_level_id: string; capacity: string };
-type SectionDraft = { id: number | null; name: string; capacity: string; homeroom_teacher_id: string; viewOnly?: boolean };
+type ClassForm = { name: string; grade_level_id: string; capacity: string; status: string };
+type SectionDraft = { id: number | null; name: string; capacity: string; homeroom_teacher_id: string; status: string; viewOnly?: boolean };
 
 /** EnrollmentStructureStatus: 1 نشط · 2 معطّل. */
 const ACTIVE = 1;
@@ -81,6 +82,7 @@ function classFormOf(item: SchoolClass | null): ClassForm {
         name: item?.name ?? '',
         grade_level_id: item === null ? '' : String(item.grade_level_id),
         capacity: item?.capacity === null || item === null ? '' : String(item.capacity),
+        status: String(item?.status ?? ACTIVE),
     };
 }
 
@@ -154,7 +156,7 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     const [sectionDraft, setSectionDraft] = useState<SectionDraft | null>(null);
     const [confirmDeactivate, setConfirmDeactivate] = useState<'class' | 'section' | null>(null);
     const [filterKey, setFilterKey] = useState<'all' | 'active' | 'inactive'>('all');
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(() => initialSearchParam('search'));
     const [appearanceOpen, setAppearanceOpen] = useState(false);
     const nameInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -175,7 +177,7 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     useEffect(() => {
         setForm(classFormOf(selected));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selected?.id, selected?.name, selected?.grade_level_id, selected?.capacity]);
+    }, [selected?.id, selected?.name, selected?.grade_level_id, selected?.capacity, selected?.status]);
 
     const activeCount = classes.filter((item) => item.status === ACTIVE).length;
     const allSections = classes.flatMap((item) => item.sections);
@@ -218,6 +220,7 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 name: form.name.trim(),
                 grade_level_id: Number(form.grade_level_id),
                 capacity: capacityValue(form.capacity),
+                status: Number(form.status),
             }),
         );
 
@@ -229,6 +232,7 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                     name: newClass.name.trim(),
                     grade_level_id: Number(newClass.grade_level_id),
                     capacity: capacityValue(newClass.capacity),
+                    status: Number(newClass.status),
                 }),
             () => {
                 setAddOpen(false);
@@ -244,6 +248,7 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
             name: sectionDraft.name.trim(),
             capacity: capacityValue(sectionDraft.capacity),
             homeroom_teacher_id: sectionDraft.homeroom_teacher_id === '' ? null : Number(sectionDraft.homeroom_teacher_id),
+            status: Number(sectionDraft.status),
         };
         void run(
             () =>
@@ -259,13 +264,14 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     const setSectionStatus = (section: Section, active: boolean, after?: () => void) =>
         run(() => request('post', `/organization/sections/${section.id}/${active ? 'reactivate' : 'deactivate'}`), after);
 
-    const openAddSection = () => setSectionDraft({ id: null, name: '', capacity: '', homeroom_teacher_id: '' });
+    const openAddSection = () => setSectionDraft({ id: null, name: '', capacity: '', homeroom_teacher_id: '', status: String(ACTIVE) });
     const openSection = (section: Section, viewOnly = false) =>
         setSectionDraft({
             id: section.id,
             name: section.name,
             capacity: section.capacity === null ? '' : String(section.capacity),
             homeroom_teacher_id: section.homeroom_teacher_id === null ? '' : String(section.homeroom_teacher_id),
+            status: String(section.status),
             viewOnly,
         });
 
@@ -469,6 +475,10 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     );
     useRegisterPageTitlebarSearch(titlebarSearch);
 
+    const statusOptions = [
+        { value: String(ACTIVE), label: r.statusActive },
+        { value: '2', label: r.statusInactive },
+    ];
     const classFields = (value: ClassForm, onChange: (next: ClassForm) => void, editing: boolean, ref?: typeof nameInputRef) => (
         <>
             <RegistryTextField
@@ -497,6 +507,16 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 dir="ltr"
                 value={value.capacity}
                 onChange={(capacity) => onChange({ ...value, capacity })}
+                fieldClassName="sis-branches-field--wide"
+            />
+            <RegistryListField
+                label={r.statusLabel}
+                editing={editing}
+                required
+                value={value.status}
+                display={statusOptions.find((option) => option.value === value.status)?.label ?? '—'}
+                options={statusOptions}
+                onChange={(status) => onChange({ ...value, status })}
                 fieldClassName="sis-branches-field--wide"
             />
         </>
@@ -768,6 +788,16 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                 onChange={(homeroom_teacher_id) =>
                                     setSectionDraft((current) => (current === null ? current : { ...current, homeroom_teacher_id }))
                                 }
+                                fieldClassName="sis-branches-field--wide"
+                            />
+                            <RegistryListField
+                                label={r.statusLabel}
+                                editing={sectionDraft.viewOnly !== true}
+                                required
+                                value={sectionDraft.status}
+                                display={statusOptions.find((option) => option.value === sectionDraft.status)?.label ?? '—'}
+                                options={statusOptions}
+                                onChange={(status) => setSectionDraft((current) => (current === null ? current : { ...current, status }))}
                                 fieldClassName="sis-branches-field--wide"
                             />
                         </div>

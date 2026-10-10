@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { t } from '@/i18n';
+import { formatClock } from './display-settings';
 
 type Lesson = {
     id: number;
@@ -32,17 +33,23 @@ export function MasterTimetable({
     groupName,
     subjectStyle,
     heading,
+    showTeacher = true,
+    periodHeader = null,
 }: {
     columns: MasterColumn[];
     days: number[];
     dayLabel: (day: number) => string;
-    periods: Array<{ id: number; number: number }>;
+    periods: Array<{ id: number; number: number; start?: string; end?: string }>;
     lessons: Lesson[];
     subjectName: (id: number) => string;
     teacherName: (id: number) => string;
     groupName: (id: number) => string;
     subjectStyle: (id: number) => CSSProperties | undefined;
     heading: { title: string; school?: string; year?: string; stage?: string; effectiveFrom?: string | null };
+    /** «الدرس | اسم المدرس» (default) or «الدرس» only. */
+    showTeacher?: boolean;
+    /** «تنسيق الجدول» › رأس الحصة: the number and the time shown in the period column. */
+    periodHeader?: { show_number: boolean; show_time: boolean; clock: '12' | '24'; am: string; pm: string } | null;
 }) {
     const tt = t().timetable;
     const m = tt.master;
@@ -108,15 +115,20 @@ export function MasterTimetable({
                         <col className="sis-timetable-master__col-day" />
                         <col className="sis-timetable-master__col-period" />
                         {columns.flatMap((c) =>
-                            c.sections.flatMap((s) => [<col key={`${c.key}:${s.id}:s`} className="sis-timetable-master__col-subject" />, <col key={`${c.key}:${s.id}:t`} className="sis-timetable-master__col-teacher" />]),
+                            c.sections.flatMap((s) => [
+                                <col key={`${c.key}:${s.id}:s`} className="sis-timetable-master__col-subject" />,
+                                ...(showTeacher ? [<col key={`${c.key}:${s.id}:t`} className="sis-timetable-master__col-teacher" />] : []),
+                            ]),
                         )}
                     </colgroup>
                     <thead>
                         <tr>
-                            <th rowSpan={3} className="sis-timetable-master__corner">{m.days}</th>
-                            <th rowSpan={3} className="sis-timetable-master__corner">{m.periods}</th>
+                            <th rowSpan={showTeacher ? 3 : 2} className="sis-timetable-master__corner">{m.days}</th>
+                            <th rowSpan={showTeacher ? 3 : 2} className="sis-timetable-master__corner sis-timetable-master__corner--vertical">
+                                <span>{m.periods}</span>
+                            </th>
                             {columns.map((c) => (
-                                <th key={c.key} colSpan={c.sections.length * 2} className="sis-timetable-master__department sis-timetable-master__edge--department">
+                                <th key={c.key} colSpan={c.sections.length * (showTeacher ? 2 : 1)} className="sis-timetable-master__department sis-timetable-master__edge--department">
                                     {c.title}
                                 </th>
                             ))}
@@ -124,12 +136,13 @@ export function MasterTimetable({
                         <tr>
                             {columns.flatMap((c) =>
                                 c.sections.map((s, si) => (
-                                    <th key={`${c.key}:${s.id}`} colSpan={2} className={`sis-timetable-master__section${edge(c, si)}`}>
+                                    <th key={`${c.key}:${s.id}`} colSpan={showTeacher ? 2 : 1} className={`sis-timetable-master__section${edge(c, si)}`}>
                                         {s.label}
                                     </th>
                                 )),
                             )}
                         </tr>
+                        {showTeacher ? (
                         <tr>
                             {columns.flatMap((c) =>
                                 c.sections.flatMap((s, si) => [
@@ -138,19 +151,37 @@ export function MasterTimetable({
                                 ]),
                             )}
                         </tr>
+                        ) : null}
                     </thead>
                     <tbody>
-                        {days.map((day) => {
+                        {days.map((day, dayIndex) => {
                             const daySpans = new Map(columns.flatMap((c) => c.sections.map((s) => [s.id, spans(s.id, day)] as const)));
+                            // Between two days: a very thin empty row with a heavy line above and below (the school's sheet).
+                            const gap =
+                                dayIndex === 0
+                                    ? []
+                                    : [
+                                          <tr key={`gap:${day}`} className="sis-timetable-master__day-gap" aria-hidden="true">
+                                              <td colSpan={2 + sectionCount * (showTeacher ? 2 : 1)} />
+                                          </tr>,
+                                      ];
 
-                            return periods.map((p, index) => (
+                            return [...gap, ...periods.map((p, index) => (
                                 <tr key={`${day}:${p.id}`} className={index === 0 ? 'sis-timetable-master__day-start' : undefined}>
                                     {index === 0 ? (
                                         <th rowSpan={periods.length} className="sis-timetable-master__day">
                                             <span>{dayLabel(day)}</span>
                                         </th>
                                     ) : null}
-                                    <th className="sis-timetable-master__period">{p.number}</th>
+                                    <th className="sis-timetable-master__period">
+                                        {periodHeader === null || periodHeader.show_number ? <span className="sis-timetable-master__period-number">{p.number}</span> : null}
+                                        {periodHeader !== null && periodHeader.show_time && p.start !== undefined && p.end !== undefined ? (
+                                            <span className="sis-timetable-master__period-time">
+                                                <bdi dir="ltr">{formatClock(p.start, periodHeader.clock, periodHeader.am, periodHeader.pm)}</bdi>
+                                                <bdi dir="ltr">{formatClock(p.end, periodHeader.clock, periodHeader.am, periodHeader.pm)}</bdi>
+                                            </span>
+                                        ) : null}
+                                    </th>
                                     {columns.flatMap((c) =>
                                         c.sections.flatMap((s, si) => {
                                             const span = daySpans.get(s.id)?.[index] ?? 1;
@@ -159,9 +190,19 @@ export function MasterTimetable({
                                             }
                                             const list = cells.get(s.id)?.get(`${day}:${p.id}`) ?? [];
                                             if (list.length === 0) {
-                                                return [<td key={`${c.key}:${s.id}:s`} className="sis-timetable-master__empty" />, <td key={`${c.key}:${s.id}:t`} className={`sis-timetable-master__empty${edge(c, si)}`} />];
+                                                return showTeacher
+                                                    ? [<td key={`${c.key}:${s.id}:s`} className="sis-timetable-master__empty" />, <td key={`${c.key}:${s.id}:t`} className={`sis-timetable-master__empty${edge(c, si)}`} />]
+                                                    : [<td key={`${c.key}:${s.id}:s`} className={`sis-timetable-master__empty${edge(c, si)}`} />];
                                             }
                                             const style = subjectStyle(list[0].subject_id);
+
+                                            if (!showTeacher) {
+                                                return [
+                                                    <td key={`${c.key}:${s.id}:s`} rowSpan={span} className={`sis-timetable-master__lesson sis-timetable-master__lesson--subject${edge(c, si)}`} style={style}>
+                                                        {subjectText(list)}
+                                                    </td>,
+                                                ];
+                                            }
 
                                             return [
                                                 <td key={`${c.key}:${s.id}:s`} rowSpan={span} className="sis-timetable-master__lesson sis-timetable-master__lesson--subject" style={style}>
@@ -174,7 +215,7 @@ export function MasterTimetable({
                                         }),
                                     )}
                                 </tr>
-                            ));
+                            ))];
                         })}
                         {sectionCount === 0 ? (
                             <tr>

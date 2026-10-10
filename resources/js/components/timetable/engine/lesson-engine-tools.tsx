@@ -1,4 +1,5 @@
 import { router } from '@inertiajs/react';
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { Button } from '@/components/ui/button';
@@ -95,14 +96,15 @@ export function LessonEngineTools({
             ) : null}
             {canSubstitute ? (
                 <SheetSection id="timetable-lesson-substitute" title={e.substitute}>
-                    <EngineRow>
+                    <div className="sis-timetable-date-row">
                         <EngineField label={e.substituteDate}>
                             <input className="sis-admission-sheet__control" type="date" dir="ltr" value={date} onChange={(ev) => setDate(ev.target.value)} />
                         </EngineField>
-                        <Button type="button" size="sm" variant="outline" title={e.substituteHint} onClick={() => router.reload({ only: ['substitutes'], data: { substitute: lesson.id, date } })}>
+                        <Button type="button" variant="outline" title={e.substituteHint} onClick={() => router.reload({ only: ['substitutes'], data: { substitute: lesson.id, date } })}>
+                            <Search aria-hidden />
                             {e.substituteFind}
                         </Button>
-                    </EngineRow>
+                    </div>
                     {substitutes !== null ? (
                         substitutes.candidates.length === 0 ? (
                             <p className="sis-timetable-audit__clean">{substitutes.reason === 'weekday_mismatch' ? e.substituteWeekday : e.substituteNone}</p>

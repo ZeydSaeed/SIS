@@ -46,7 +46,8 @@ export function cellLines(lesson: CellLesson, settings: DisplaySettings, ctx: Ce
     const a = settings.abbreviate;
     const subject = entityLabel(ctx.catalog, 'subjects', lesson.subject_id, a.subject, ctx.subjectName);
     const teacherRow = displayRow(ctx.catalog, 'teachers', lesson.teacher_id);
-    const title = settings.teacher_title && teacherRow?.title_abbreviation ? `${teacherRow.title_abbreviation} ` : '';
+    const titleText = settings.teacher_title_style === 'full' ? (teacherRow?.title ?? null) : (teacherRow?.title_abbreviation ?? null);
+    const title = settings.teacher_title && titleText ? `${titleText} ` : '';
     const teacherText = ctx.contextLine ?? `${title}${entityLabel(ctx.catalog, 'teachers', lesson.teacher_id, a.teacher, ctx.teacherName)}`;
     const teacher = settings.layout === 'subject' || (!f.teacher && !ctx.contextLine) ? null : teacherText;
     const room = lesson.room_id === null ? null : entityLabel(ctx.catalog, 'rooms', lesson.room_id, a.room, ctx.roomName ?? '');

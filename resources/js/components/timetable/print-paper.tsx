@@ -134,7 +134,8 @@ export function TimetablePaper({ settings, children, footer }: { settings: Print
         if (stage === null) {
             return;
         }
-        const update = () => setScreenZoom(Math.min(1, Math.max(0.1, (stage.clientWidth - 16) / (w * MM_TO_PX))));
+        // The sheet fills the screen width (a small paper is enlarged; the page then scrolls up and down).
+        const update = () => setScreenZoom(Math.min(4, Math.max(0.1, (stage.clientWidth - 4) / (w * MM_TO_PX))));
         update();
         const observer = new ResizeObserver(update);
         observer.observe(stage);

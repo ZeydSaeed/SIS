@@ -14,6 +14,8 @@ export type DisplaySettings = {
     fields: Record<CellField, boolean>;
     abbreviate: Record<AbbreviateField, boolean>;
     teacher_title: boolean;
+    /** The academic title before the teacher's name: its abbreviation or the full title. */
+    teacher_title_style: 'abbreviation' | 'full';
     align_v: 'top' | 'middle' | 'bottom';
     align_h: 'start' | 'center' | 'end';
     font_family: 'segoe' | 'tahoma' | 'calibri' | 'aptos';
@@ -25,7 +27,9 @@ export type DisplaySettings = {
     cell_height: number;
     column_width: number;
     color_by: ColorBy;
-    period_header: { number_bold: boolean; show_time: boolean; time_muted: boolean; clock: '12' | '24' };
+    period_header: { show_number: boolean; number_bold: boolean; show_time: boolean; time_muted: boolean; clock: '12' | '24' };
+    /** «ترويسة الجدول»: «يعمل بموجبه اعتباراً من» (Y-m-d; null = the effective version's date). */
+    heading: { effective_from: string | null };
 };
 
 export type DisplayRow = {
@@ -55,6 +59,7 @@ export const DEFAULT_DISPLAY: DisplaySettings = {
     fields: { subject: true, teacher: true, room: false, class: false, section: false, students: false, group: true, branch: false, department: false, subject_type: true },
     abbreviate: { subject: false, teacher: false, room: true, section: false, class: false },
     teacher_title: false,
+    teacher_title_style: 'abbreviation',
     align_v: 'middle',
     align_h: 'start',
     font_family: 'segoe',
@@ -66,7 +71,8 @@ export const DEFAULT_DISPLAY: DisplaySettings = {
     cell_height: 32,
     column_width: 0,
     color_by: 'subject',
-    period_header: { number_bold: true, show_time: true, time_muted: true, clock: '12' },
+    period_header: { show_number: true, number_bold: true, show_time: true, time_muted: true, clock: '12' },
+    heading: { effective_from: null },
 };
 
 /** The approved font stacks (COLOR-TYPOGRAPHY-GOVERNANCE: Segoe UI, Tahoma, Calibri, Aptos only). */
@@ -95,16 +101,18 @@ export function resolveDisplay(stored: Partial<DisplaySettings> | null | undefin
         fields: { ...DEFAULT_DISPLAY.fields, ...(stored.fields ?? {}) },
         abbreviate: { ...DEFAULT_DISPLAY.abbreviate, ...(stored.abbreviate ?? {}) },
         period_header: { ...DEFAULT_DISPLAY.period_header, ...(stored.period_header ?? {}) },
+        heading: { ...DEFAULT_DISPLAY.heading, ...(stored.heading ?? {}) },
     };
 }
 
 /** CSS variables of the grid root (layout classes read them; values stay inside the governed palette). */
-export function gridStyle(settings: DisplaySettings): CSSProperties {
+export function gridStyle(settings: DisplaySettings, zoom = 1): CSSProperties {
     return {
         '--tt-font': FONT_STACKS[settings.font_family],
-        '--tt-font-scale': settings.font_scale / 100,
-        '--tt-cell-height': `${settings.cell_height / 10}rem`,
-        '--tt-col-width': settings.column_width === 0 ? 'auto' : `${settings.column_width / 10}rem`,
+        '--tt-font-scale': (settings.font_scale / 100) * zoom,
+        '--tt-cell-height': `${(settings.cell_height / 10) * zoom}rem`,
+        '--tt-col-width': settings.column_width === 0 ? 'auto' : `${(settings.column_width / 10) * zoom}rem`,
+        '--tt-zoom': zoom,
         '--tt-subject-weight': settings.subject_weight,
         '--tt-text': TEXT_COLORS[settings.text_color],
     } as CSSProperties;
@@ -114,7 +122,7 @@ export function gridStyle(settings: DisplaySettings): CSSProperties {
  * Data attributes of the grid root. A formatting rule applies only when its setting differs from the default, so the
  * default grid (and its compact variant) renders exactly as before.
  */
-export function gridData(settings: DisplaySettings): Record<string, string> {
+export function gridData(settings: DisplaySettings, zoom = 1): Record<string, string> {
     const data: Record<string, string> = { 'data-tt-layout': settings.layout };
     const flag = (name: string, on: boolean, value = 'yes') => {
         if (on) {
@@ -126,9 +134,11 @@ export function gridData(settings: DisplaySettings): Record<string, string> {
     flag('data-tt-plain', !settings.secondary_muted);
     flag('data-tt-italic', settings.italic);
     flag('data-tt-font', settings.font_family !== 'segoe');
-    flag('data-tt-scaled', settings.font_scale !== 100);
-    flag('data-tt-height', settings.cell_height !== DEFAULT_DISPLAY.cell_height);
+    flag('data-tt-scaled', settings.font_scale !== 100 || zoom !== 1);
+    flag('data-tt-height', settings.cell_height !== DEFAULT_DISPLAY.cell_height || zoom !== 1);
     flag('data-tt-width', settings.column_width !== 0);
+    // «تكبير / تصغير الجدول»: the table itself grows (columns included) inside its scrolling frame.
+    flag('data-tt-zoomed', zoom !== 1);
     flag('data-tt-weight', settings.subject_weight !== 700);
     flag('data-tt-color', settings.text_color !== 'oxford');
     flag('data-tt-header-regular', !settings.period_header.number_bold);

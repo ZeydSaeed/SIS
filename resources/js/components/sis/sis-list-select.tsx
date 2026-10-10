@@ -30,7 +30,7 @@ function optionId(listId: string, value: string): string {
     return `${listId}-opt-${value === '' ? 'blank' : value}`;
 }
 
-function placeMenu(trigger: HTMLElement, menu: HTMLElement): void {
+export function placeMenu(trigger: HTMLElement, menu: HTMLElement): void {
     const rect = trigger.getBoundingClientRect();
     const gutter = 4;
     const spaceBelow = window.innerHeight - rect.bottom - gutter;
@@ -73,7 +73,7 @@ function scrollOptionIntoMenu(menu: HTMLElement, option: HTMLElement): void {
 }
 
 /** The menu layer lives in the full-screen element while one is shown (the browser renders nothing outside it), else in body. */
-function getPortalRoot(): HTMLElement {
+export function getPortalRoot(): HTMLElement {
     const host = document.fullscreenElement ?? document.body;
     const root = document.getElementById('sis-list-select-portal') ?? document.createElement('div');
     if (root.id === '') {

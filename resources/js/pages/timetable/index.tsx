@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { BadgeCheck, FileText, Boxes, Building2, ClipboardCheck, ClipboardPaste, Coffee, Copy, DoorClosed, Eye, EyeOff, Lightbulb, Palette, Pencil, Search, Unlock, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { BadgeCheck, FileText, Boxes, Building2, ClipboardCheck, ClipboardPaste, Coffee, Copy, DoorClosed, Eye, EyeOff, Lightbulb, Palette, Pencil, Search, Unlock, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Minimize2, Printer, RotateCcw, Sparkles, Trash2, UserRound, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cloneElement, Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement, type ReactNode } from 'react';
 import { RegistryListField, RegistrySheetDialog, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { AppearanceDialog, hueStyle } from '@/components/sis/appearance-fields';
@@ -15,6 +15,8 @@ import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
 import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { useTimetableGridResize } from '@/hooks/use-timetable-grid-resize';
+import { multiSelectSummary, SisMultiSelect } from '@/components/sis/sis-multi-select';
 import { dayOfWeekLabel } from '@/components/sis/status-chip';
 import { ActivitiesSheet } from '@/components/timetable/engine/activities-sheet';
 import { AvailabilitySheet } from '@/components/timetable/engine/availability-sheet';
@@ -169,7 +171,12 @@ type CellState = 'free' | 'busy' | 'taken' | 'swap' | 'idle';
 type MenuTarget = { type: 'lesson'; schedule: Schedule } | { type: 'cell'; sectionId: number; day: number; periodId: number } | { type: 'period'; period: Period };
 
 /** Filters «الفرع / الاختصاص / الصف / الشعبة» ('' = الكل); section = the shared code A / B / C (SSOT). */
-type GridFilters = { branch: string; department: string; class: string; section: string };
+type GridFilters = { branch: string[]; department: string[]; class: string[]; section: string[] };
+/** One filter control of the home ribbon and of the full-screen preview (same fields, same choices). */
+type FilterOption = { value: string; label: string };
+type FilterSpec =
+    | { key: string; type: 'single'; label: string; value: string; options: FilterOption[]; onChange: (value: string) => void }
+    | { key: string; type: 'multi'; label: string; allLabel: string; values: string[]; options: FilterOption[]; onChange: (values: string[]) => void };
 
 /** A block of the «عرض الكل» split: branch › department (or the sections without students). */
 type GridGroup = { key: string; title: string; sections: Array<{ section: Section; students: number }> };
@@ -177,6 +184,9 @@ type GridGroup = { key: string; title: string; sections: Array<{ section: Sectio
 type StageColumn = { key: string; title: string; members: Array<{ section: Section; students: number }> };
 type StageSheet = { key: string; name: string; columns: StageColumn[] };
 const STAGE_TEACHERS_KEY = 'sis.timetable.stage-teachers';
+const VIEW_STATE_KEY = 'sis.timetable.view-state';
+const ZOOM_KEY = 'sis.timetable.zoom';
+const ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 
 const LESSON = 1;
 /** School week: الأحد → الخميس (`day_of_week` 1–5). */
@@ -187,7 +197,49 @@ const FINDING_SEVERITIES: FindingSeverity[] = ['blocker', 'warning', 'info'];
 const QUALITY_METRICS = ['completeness', 'teacher_compactness', 'section_compactness', 'distribution', 'practical_doubles', 'workload_balance'] as const;
 const SEVERITIES: Severity[] = ['error', 'warning', 'info'];
 const SEVERITY_RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
-const NO_FILTERS: GridFilters = { branch: '', department: '', class: '', section: '' };
+const NO_FILTERS: GridFilters = { branch: [], department: [], class: [], section: [] };
+const EMPTY_CELLS = new Map<string, Schedule>();
+
+type SavedView = { view: 'section' | 'teacher' | 'room' | undefined; teacherIds: number[] | undefined; roomIds: number[] | undefined; filters: GridFilters };
+
+/** The filter the user left the page with (a per-browser convenience): kept until the user changes it. */
+function loadSavedView(): Partial<SavedView> {
+    try {
+        const raw = window.localStorage.getItem(VIEW_STATE_KEY);
+        if (raw === null) {
+            return {};
+        }
+        const saved = JSON.parse(raw) as Record<string, unknown>;
+        const texts = (value: unknown): string[] => (Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string' && x !== '') : typeof value === 'string' && value !== '' ? [value] : []);
+        const ids = (value: unknown, single: unknown): number[] | undefined => {
+            if (Array.isArray(value)) {
+                return value.filter((x): x is number => typeof x === 'number' && Number.isFinite(x) && x > 0);
+            }
+            // the previous format: one id (0 = all)
+            return typeof single === 'number' && Number.isFinite(single) ? (single > 0 ? [single] : []) : undefined;
+        };
+        const filters = (saved.filters ?? {}) as Record<string, unknown>;
+
+        return {
+            view: saved.view === 'teacher' || saved.view === 'room' || saved.view === 'section' ? saved.view : undefined,
+            teacherIds: ids(saved.teacherIds, saved.teacherId),
+            roomIds: ids(saved.roomIds, saved.roomId),
+            filters: { branch: texts(filters.branch), department: texts(filters.department), class: texts(filters.class), section: texts(filters.section) },
+        };
+    } catch {
+        return {};
+    }
+}
+
+function loadZoom(): number {
+    try {
+        const value = Number(window.localStorage.getItem(ZOOM_KEY));
+
+        return ZOOM_STEPS.includes(value) ? value : 1;
+    } catch {
+        return 1;
+    }
+}
 
 const cellKey = (day: number, periodId: number) => `${day}:${periodId}`;
 const teacherSlotKey = (teacherId: number, day: number, periodId: number) => `${teacherId}:${day}:${periodId}`;
@@ -269,12 +321,16 @@ function TimetablePage({
 
     // «عرض جدول الغرفة» from «الغرف الدراسية» opens here with ?view=room&room_id=…
     const query = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
-    const [view, setView] = useState<'section' | 'teacher' | 'room'>(query?.get('view') === 'room' ? 'room' : query?.get('view') === 'teacher' ? 'teacher' : 'section');
-    const [roomId, setRoomId] = useState<number | null>(Number(query?.get('room_id')) || (engine?.rooms[0]?.id ?? null));
+    const [savedView] = useState<Partial<SavedView>>(() => (typeof window === 'undefined' ? {} : loadSavedView()));
+    const [view, setView] = useState<'section' | 'teacher' | 'room'>(
+        query?.get('view') === 'room' ? 'room' : query?.get('view') === 'teacher' ? 'teacher' : (savedView.view ?? 'section'),
+    );
+    const urlRoomId = Number(query?.get('room_id')) || null;
+    const [roomIds, setRoomIds] = useState<number[]>(urlRoomId !== null ? [urlRoomId] : (savedView.roomIds ?? (engine?.rooms[0] ? [engine.rooms[0].id] : [])));
     const [engineSheet, setEngineSheet] = useState<'generate' | 'activities' | 'constraints' | 'availability' | 'places' | 'versions' | 'settings' | null>(null);
-    const [gridFilters, setGridFilters] = useState<GridFilters>(NO_FILTERS);
+    const [gridFilters, setGridFilters] = useState<GridFilters>(savedView.filters ?? NO_FILTERS);
     const [focusId, setFocusId] = useState<number | null>(null);
-    const [teacherId, setTeacherId] = useState<number | null>(teachers[0]?.id ?? null);
+    const [teacherIds, setTeacherIds] = useState<number[]>(savedView.teacherIds ?? (teachers[0] ? [teachers[0].id] : []));
     const [drag, setDrag] = useState<DragPayload | null>(null);
     const [overCell, setOverCell] = useState<string | null>(null);
     const [pickCell, setPickCell] = useState<{ sectionId: number; day: number; periodId: number } | null>(null);
@@ -327,6 +383,35 @@ function TimetablePage({
             // private mode — the choice lasts for this page only
         }
     }, []);
+    // «تكبير / تصغير الجدول»: fonts, rows and columns grow together (the page keeps its choice).
+    const [zoom, setZoomState] = useState<number>(() => (typeof window === 'undefined' ? 1 : loadZoom()));
+    const setZoom = useCallback((next: number) => {
+        setZoomState(next);
+        try {
+            window.localStorage.setItem(ZOOM_KEY, String(next));
+        } catch {
+            // private mode — the zoom lasts for this page only
+        }
+    }, []);
+    const stepZoom = (direction: 1 | -1) => {
+        const index = ZOOM_STEPS.indexOf(zoom);
+        const next = ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, (index === -1 ? ZOOM_STEPS.indexOf(1) : index) + direction))];
+        setZoom(next ?? 1);
+    };
+    // The full-screen preview / print keep the saved look at 100%.
+    const gridZoom = preview ? 1 : zoom;
+    // Columns, rows and the whole table are resized on the heads (a zoom change starts from the automatic sizes).
+    useTimetableGridResize(!preview, zoom);
+    // The boards column grows with the zoom, so the whole table expands (the page scrolls both ways).
+    const zoomLayout = gridZoom === 1 ? {} : { 'data-tt-zoomed': 'yes', style: { '--tt-zoom': gridZoom } as CSSProperties };
+    // «الفلترة» stays as the user left it (view, teacher, room, branch / specialization / class / section).
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({ view, teacherIds, roomIds, filters: gridFilters }));
+        } catch {
+            // private mode — the filter lasts for this visit only
+        }
+    }, [view, teacherIds, roomIds, gridFilters]);
     const cardMenu = useContextMenu<MenuTarget>();
     const openEdit = (scheduleId: number, tab = 'content') => {
         setEditTab(tab);
@@ -335,7 +420,10 @@ function TimetablePage({
 
     // A version on the grid is history: read-only.
     const canPlace = authorization.can_create && yearId !== null && viewingVersion === null;
-    const activeTeacherId = teachers.some((x) => x.id === teacherId) ? teacherId : (teachers[0]?.id ?? null);
+    // Several teachers / rooms can be chosen; none chosen = all of them.
+    const shownTeachers = teachers.filter((x) => teacherIds.includes(x.id));
+    const allTeachers = shownTeachers.length === 0;
+    const activeTeacherId = shownTeachers.length === 1 ? shownTeachers[0].id : null;
     const sortedPeriods = useMemo(() => [...periods].sort((a, b) => a.period_number - b.period_number), [periods]);
     const lessonPeriods = sortedPeriods.filter((p) => p.period_type === LESSON);
     /** Lessons are numbered 1, 2, 3 … in the day; breaks take no number. */
@@ -372,17 +460,22 @@ function TimetablePage({
             block.sections.push({ section, students });
             blocks.set(key, block);
         };
-        const branchFilter = gridFilters.branch === '' ? null : Number(gridFilters.branch);
-        const departmentFilter = gridFilters.department === '' ? null : Number(gridFilters.department);
+        const branchFilter = gridFilters.branch.map(Number);
+        const departmentFilter = gridFilters.department.map(Number);
         for (const section of sections) {
-            if ((gridFilters.class !== '' && String(section.class_id) !== gridFilters.class) || (gridFilters.section !== '' && resolveSisSectionCode(section.id, sections) !== gridFilters.section)) {
+            if (
+                (gridFilters.class.length > 0 && !gridFilters.class.includes(String(section.class_id))) ||
+                (gridFilters.section.length > 0 && !gridFilters.section.includes(resolveSisSectionCode(section.id, sections)))
+            ) {
                 continue;
             }
             const served = (bySection.get(section.id) ?? []).filter(
-                (p) => (branchFilter === null || p.branch_id === branchFilter) && (departmentFilter === null || p.department_id === departmentFilter),
+                (p) =>
+                    (branchFilter.length === 0 || branchFilter.includes(p.branch_id)) &&
+                    (departmentFilter.length === 0 || (p.department_id !== null && departmentFilter.includes(p.department_id))),
             );
             if (served.length === 0) {
-                if (branchFilter === null && departmentFilter === null) {
+                if (branchFilter.length === 0 && departmentFilter.length === 0) {
                     add('unlinked', tt.unlinkedGroup, section, 0);
                 }
                 continue;
@@ -420,24 +513,35 @@ function TimetablePage({
     }, [branches, departmentNames, gridFilters, placements, sections, tt]);
 
     const visibleSectionIds = useMemo(() => [...new Set(groups.flatMap((g) => g.sections.map((s) => s.section.id)))], [groups]);
-    const gridFiltered = gridFilters.branch !== '' || gridFilters.department !== '' || gridFilters.class !== '' || gridFilters.section !== '';
+    const gridFiltered = gridFilters.branch.length > 0 || gridFilters.department.length > 0 || gridFilters.class.length > 0 || gridFilters.section.length > 0;
     const setFilter = useCallback((patch: Partial<GridFilters>) => setGridFilters((current) => ({ ...current, ...patch })), []);
-    // Branch / specialization / class / section options — the ribbon filters and the full-screen preview share them.
+    // Branch / specialization / class / section choices — the ribbon filters and the full-screen preview share them.
     const filterOptions = useMemo(() => {
-        const branch = branches.find((b) => String(b.id) === gridFilters.branch) ?? null;
+        const chosen = branches.filter((b) => gridFilters.branch.includes(String(b.id)));
 
         return {
-            branch: [{ value: '', label: tt.allBranches }, ...branches.map((b) => ({ value: String(b.id), label: b.name }))],
-            department: [
-                { value: '', label: tt.allDepartments },
-                ...(branch === null
-                    ? [...new Map(branches.flatMap((b) => b.departments.map((d) => [d.id, `${d.name}`] as const))).entries()].map(([id, name]) => ({ value: String(id), label: name }))
-                    : branch.departments.map((d) => ({ value: String(d.id), label: d.name }))),
-            ],
-            class: [{ value: '', label: tt.allClasses }, ...[...new Map(sections.map((s) => [s.class_id, s.class_name] as const)).entries()].map(([id, name]) => ({ value: String(id), label: name }))],
-            section: [{ value: '', label: tt.allSections }, ...sisSectionSelectOptions()],
+            branch: branches.map((b) => ({ value: String(b.id), label: b.name })),
+            department: [...new Map((chosen.length === 0 ? branches : chosen).flatMap((b) => b.departments.map((d) => [d.id, d.name] as const))).entries()].map(([id, name]) => ({ value: String(id), label: name })),
+            class: [...new Map(sections.map((x) => [x.class_id, x.class_name] as const)).entries()].map(([id, name]) => ({ value: String(id), label: name })),
+            section: sisSectionSelectOptions(),
         };
-    }, [branches, sections, gridFilters.branch, tt]);
+    }, [branches, sections, gridFilters.branch]);
+    // A saved choice that no longer exists (a branch / class that was removed) never leaves the grid empty.
+    useEffect(() => {
+        setGridFilters((current) => {
+            const keep = (values: string[], options: FilterOption[]) => values.filter((v) => options.some((o) => o.value === v));
+            const next = {
+                branch: keep(current.branch, filterOptions.branch),
+                department: keep(current.department, filterOptions.department),
+                class: keep(current.class, filterOptions.class),
+                section: keep(current.section, filterOptions.section),
+            };
+
+            return next.branch.length === current.branch.length && next.department.length === current.department.length && next.class.length === current.class.length && next.section.length === current.section.length
+                ? current
+                : next;
+        });
+    }, [filterOptions]);
     const focusSectionId = focusId !== null && visibleSectionIds.includes(focusId) ? focusId : (visibleSectionIds[0] ?? null);
     const focusSection = focusSectionId === null ? null : (sectionsById.get(focusSectionId) ?? null);
     const singleGrid = visibleSectionIds.length === 1 && groups.length === 1;
@@ -465,16 +569,43 @@ function TimetablePage({
         return bySection;
     }, [schedules]);
     /** The teacher's week: lead or co-teacher; a joined lesson once (its lead row). */
-    const teacherCells = useMemo(
-        () => new Map(schedules.filter((s) => (s.teacher_id === activeTeacherId || s.co_teacher_id === activeTeacherId) && (s.joined_to ?? null) === null).map((s) => [cellKey(s.day_of_week, s.period_id), s])),
-        [schedules, activeTeacherId],
-    );
+    const teacherCellMaps = useMemo(() => {
+        const byTeacher = new Map<number, Map<string, Schedule>>();
+        for (const s of schedules) {
+            if ((s.joined_to ?? null) !== null) {
+                continue;
+            }
+            for (const id of new Set([s.teacher_id, s.co_teacher_id ?? null])) {
+                if (id === null) {
+                    continue;
+                }
+                const cells = byTeacher.get(id) ?? new Map<string, Schedule>();
+                cells.set(cellKey(s.day_of_week, s.period_id), s);
+                byTeacher.set(id, cells);
+            }
+        }
+
+        return byTeacher;
+    }, [schedules]);
+    const teacherCells = teacherCellMaps.get(activeTeacherId ?? -1) ?? EMPTY_CELLS;
     /** «حسب القاعة»: the room's week (lead rows hold the room). */
-    const activeRoomId = engine?.rooms.some((r) => r.id === roomId) ? roomId : (engine?.rooms[0]?.id ?? null);
-    const roomCells = useMemo(
-        () => new Map(schedules.filter((s) => s.room_id !== null && s.room_id === activeRoomId && (s.joined_to ?? null) === null).map((s) => [cellKey(s.day_of_week, s.period_id), s])),
-        [schedules, activeRoomId],
-    );
+    const shownRooms = (engine?.rooms ?? []).filter((r) => roomIds.includes(r.id));
+    const allRooms = shownRooms.length === 0;
+    const activeRoomId = shownRooms.length === 1 ? shownRooms[0].id : null;
+    const roomCellMaps = useMemo(() => {
+        const byRoom = new Map<number, Map<string, Schedule>>();
+        for (const s of schedules) {
+            if (s.room_id === null || (s.joined_to ?? null) !== null) {
+                continue;
+            }
+            const cells = byRoom.get(s.room_id) ?? new Map<string, Schedule>();
+            cells.set(cellKey(s.day_of_week, s.period_id), s);
+            byRoom.set(s.room_id, cells);
+        }
+
+        return byRoom;
+    }, [schedules]);
+    const roomCells = roomCellMaps.get(activeRoomId ?? -1) ?? EMPTY_CELLS;
     /** Lessons sharing a section cell (parallel groups of one division): the cell shows the first and «+n». */
     const sharedCells = useMemo(() => {
         const count = new Map<string, number>();
@@ -718,11 +849,11 @@ function TimetablePage({
 
     const goToIssue = (issue: Issue) => {
         if (issue.section_id !== null) {
-            setGridFilters({ ...NO_FILTERS, class: String(sectionsById.get(issue.section_id)?.class_id ?? ''), section: resolveSisSectionCode(issue.section_id, sections) });
+            setGridFilters({ ...NO_FILTERS, class: [String(sectionsById.get(issue.section_id)?.class_id ?? '')], section: [resolveSisSectionCode(issue.section_id, sections)] });
             setFocusId(issue.section_id);
             setView('section');
         } else if (issue.teacher_id !== null) {
-            setTeacherId(issue.teacher_id);
+            setTeacherIds([issue.teacher_id]);
             setView('teacher');
         }
         setHighlight(issue.schedule_ids);
@@ -730,27 +861,86 @@ function TimetablePage({
     };
 
     // ── Ribbon (الصفحة الرئيسية) ─────────────────────────────────────────────
-    const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
-        const field = (value: string, label: string, options: Array<{ value: string; label: string }>, onChange: (next: string) => void) => (
-            <div className="sis-ribbon__filter-field" dir="rtl">
+    /** The filter fields of the home ribbon — the full-screen preview shows the very same list. */
+    const filterSpecs = (): FilterSpec[] => {
+        const year: FilterSpec = {
+            key: 'year',
+            type: 'single',
+            label: tt.academicYear,
+            value: yearId === null ? '' : String(yearId),
+            options: years.map((y) => ({ value: String(y.id), label: formatAcademicYearOptionLabel(y.name, y.code) })),
+            onChange: changeYear,
+        };
+        if (view === 'room') {
+            return [
+                year,
+                {
+                    key: 'room',
+                    type: 'multi',
+                    label: et.room,
+                    allLabel: tt.allRooms,
+                    values: shownRooms.map((r) => String(r.id)),
+                    options: (engine?.rooms ?? []).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` })),
+                    onChange: (values) => setRoomIds(values.map(Number)),
+                },
+            ];
+        }
+        if (view === 'teacher') {
+            return [
+                year,
+                {
+                    key: 'teacher',
+                    type: 'multi',
+                    label: tt.teacher,
+                    allLabel: tt.allTeachers,
+                    values: shownTeachers.map((x) => String(x.id)),
+                    options: teachers.map((x) => ({ value: String(x.id), label: x.short_name })),
+                    onChange: (values) => setTeacherIds(values.map(Number)),
+                },
+            ];
+        }
+
+        return [
+            year,
+            { key: 'branch', type: 'multi', label: tt.branch, allLabel: tt.allBranches, values: gridFilters.branch, options: filterOptions.branch, onChange: (values) => setFilter({ branch: values, department: [] }) },
+            { key: 'department', type: 'multi', label: tt.department, allLabel: tt.allDepartments, values: gridFilters.department, options: filterOptions.department, onChange: (values) => setFilter({ department: values }) },
+            { key: 'class', type: 'multi', label: tt.class, allLabel: tt.allClasses, values: gridFilters.class, options: filterOptions.class, onChange: (values) => setFilter({ class: values }) },
+            { key: 'section', type: 'multi', label: tt.section, allLabel: tt.allSections, values: gridFilters.section, options: filterOptions.section, onChange: (values) => setFilter({ section: values }) },
+        ];
+    };
+    const renderFilter = (kind: 'ribbon' | 'preview', spec: FilterSpec) => {
+        const ribbon = kind === 'ribbon';
+        const triggerClassName = ribbon ? 'sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control' : 'sis-timetable-preview__control';
+        const className = ribbon ? undefined : 'sis-timetable-preview__select';
+        const mirror =
+            spec.type === 'single'
+                ? (spec.options.find((o) => o.value === spec.value)?.label ?? spec.options[0]?.label ?? '')
+                : multiSelectSummary(spec.values, spec.options, spec.allLabel, (n) => `${n} / ${spec.options.length}`);
+        const control =
+            spec.type === 'single' ? (
+                <SisListSelect value={spec.value} options={spec.options} onChange={spec.onChange} className={className} triggerClassName={triggerClassName} dir="rtl" ariaLabel={spec.label} />
+            ) : (
+                <SisMultiSelect values={spec.values} options={spec.options} allLabel={spec.allLabel} onChange={spec.onChange} className={className} triggerClassName={triggerClassName} dir="rtl" ariaLabel={spec.label} />
+            );
+
+        return ribbon ? (
+            <div key={spec.key} className="sis-ribbon__filter-field" dir="rtl">
                 <span className="sis-admission-select-fit">
                     <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                        {options.find((o) => o.value === value)?.label ?? options[0]?.label ?? ''}
+                        {mirror}
                     </span>
-                    <SisListSelect
-                        value={value}
-                        options={options}
-                        onChange={onChange}
-                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                        dir="rtl"
-                        ariaLabel={label}
-                    />
+                    {control}
                 </span>
             </div>
+        ) : (
+            <span key={spec.key} className="sis-timetable-preview__filter">
+                <span className="sis-timetable-preview__filter-label">{spec.label}</span>
+                {control}
+            </span>
         );
-        const yearOptions = years.map((year) => ({ value: String(year.id), label: formatAcademicYearOptionLabel(year.name, year.code) }));
-        const teacherOptions = teachers.map((x) => ({ value: String(x.id), label: x.short_name }));
+    };
 
+    const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
         return [
             {
                 id: 'timetable-view',
@@ -768,19 +958,7 @@ function TimetablePage({
                 custom: (
                     <div className="sis-ribbon__filters" dir="rtl">
                         <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--curriculum sis-ribbon__filters-stack--timetable">
-                            {field(yearId === null ? '' : String(yearId), tt.academicYear, yearOptions, changeYear)}
-                            {view === 'section' ? (
-                                <>
-                                    {field(gridFilters.branch, tt.branch, filterOptions.branch, (next) => setFilter({ branch: next, department: '' }))}
-                                    {field(gridFilters.department, tt.department, filterOptions.department, (next) => setFilter({ department: next }))}
-                                    {field(gridFilters.class, tt.class, filterOptions.class, (next) => setFilter({ class: next }))}
-                                    {field(gridFilters.section, tt.section, filterOptions.section, (next) => setFilter({ section: next }))}
-                                </>
-                            ) : view === 'room' ? (
-                                field(activeRoomId === null ? '' : String(activeRoomId), et.room, (engine?.rooms ?? []).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` })), (next) => setRoomId(Number(next)))
-                            ) : (
-                                field(activeTeacherId === null ? '' : String(activeTeacherId), tt.teacher, teacherOptions, (next) => setTeacherId(Number(next)))
-                            )}
+                            {filterSpecs().map((spec) => renderFilter('ribbon', spec))}
                         </div>
                         {view === 'section' ? (
                             <>
@@ -815,9 +993,18 @@ function TimetablePage({
                     </div>
                 ),
             },
+            {
+                id: 'timetable-zoom',
+                label: tt.zoomGroup,
+                commands: [
+                    { id: 'timetable-zoom-in', label: tt.zoom.in, icon: ZoomIn, iconTone: 'sky', title: tt.zoomTitle, disabled: zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1], onSelect: () => stepZoom(1) },
+                    { id: 'timetable-zoom-out', label: tt.zoom.out, icon: ZoomOut, iconTone: 'sky', title: tt.zoomTitle, disabled: zoom <= ZOOM_STEPS[0], onSelect: () => stepZoom(-1) },
+                    { id: 'timetable-zoom-reset', label: `${Math.round(zoom * 100)}%`, icon: RotateCcw, iconTone: 'steel', title: tt.zoom.reset, disabled: zoom === 1, onSelect: () => setZoom(1) },
+                ],
+            },
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [i18n, years, sections, branches, teachers, view, yearId, gridFilters, gridFiltered, filterOptions, setFilter, activeTeacherId, activeRoomId, engine, issueCounts, canPlace, saving, lessonPeriods.length, visibleSectionIds]);
+    }, [i18n, years, sections, branches, teachers, view, yearId, gridFilters, gridFiltered, filterOptions, setFilter, teacherIds, roomIds, zoom, engine, issueCounts, canPlace, saving, lessonPeriods.length, visibleSectionIds]);
     useRegisterPageRibbon('home', homeRibbonGroups);
 
     // «تحرير»: one line of commands — building tools · checks · engine. Each icon is its own command and its
@@ -1177,11 +1364,13 @@ function TimetablePage({
                                     type="button"
                                     className="sis-timetable-card__open"
                                     aria-label={`${tt.editLesson}: ${subjectName}`}
-                                    onClick={() => openEdit(s.id)}
                                     onKeyDown={(event) => {
                                         if (isContextMenuKey(event)) {
                                             event.preventDefault();
                                             cardMenu.openAt(event.currentTarget, { type: 'lesson', schedule: s });
+                                        } else if (event.key === 'Enter') {
+                                            event.preventDefault();
+                                            openEdit(s.id);
                                         }
                                     }}
                                 />
@@ -1280,8 +1469,8 @@ function TimetablePage({
         );
     };
 
-    const teacherCell = (day: number, period: Period) => {
-        const placed = teacherCells.get(cellKey(day, period.id));
+    const teacherCell = (cells: Map<string, Schedule>, day: number, period: Period) => {
+        const placed = cells.get(cellKey(day, period.id));
 
         return (
             <td key={cellKey(day, period.id)} className="sis-timetable-cell">
@@ -1290,7 +1479,7 @@ function TimetablePage({
                         type="button"
                         className="sis-timetable-cell__open"
                         onClick={() => {
-                            setGridFilters({ ...NO_FILTERS, class: String(sectionsById.get(placed.section_id)?.class_id ?? ''), section: resolveSisSectionCode(placed.section_id, sections) });
+                            setGridFilters({ ...NO_FILTERS, class: [String(sectionsById.get(placed.section_id)?.class_id ?? '')], section: [resolveSisSectionCode(placed.section_id, sections)] });
                             setFocusId(placed.section_id);
                             setView('section');
                             setHighlight([placed.id]);
@@ -1335,9 +1524,11 @@ function TimetablePage({
                     {dayPeriods.map((period) =>
                         period.period_type === LESSON ? (
                             <th key={period.id} {...headerMenu(period)}>
-                                <span className="sis-timetable-grid__period">
-                                    {tt.periodLabel} {lessonNumber.get(period.id)}
-                                </span>
+                                {settings.period_header.show_number ? (
+                                    <span className="sis-timetable-grid__period">
+                                        {tt.periodLabel} {lessonNumber.get(period.id)}
+                                    </span>
+                                ) : null}
                                 {settings.period_header.show_time ? (
                                     <span className="sis-timetable-grid__time">
                                         {formatClock(period.start_time, settings.period_header.clock, tt.am, tt.pm)} – {formatClock(period.end_time, settings.period_header.clock, tt.am, tt.pm)}
@@ -1396,7 +1587,7 @@ function TimetablePage({
                     </bdi>
                 </span>
             </header>
-            <div className="sis-timetable-grid" {...gridData(settings)} style={gridStyle(settings)}>{gridTable((day, period) => (readOnly ? previewCell : sectionCell)(section.id, day, period), compact)}</div>
+            <div className="sis-timetable-grid" {...gridData(settings, gridZoom)} style={gridStyle(settings, gridZoom)}>{gridTable((day, period) => (readOnly ? previewCell : sectionCell)(section.id, day, period), compact)}</div>
         </section>
     );
 
@@ -1431,7 +1622,7 @@ function TimetablePage({
                     </span>
                     <span className="sis-timetable-board__meta">{sheetEffective !== '' ? tt.master.effectiveFrom.replace('{date}', sheetEffective) : ''}</span>
                 </header>
-                <div className="sis-timetable-grid" {...gridData(settings)} style={gridStyle(settings)}>
+                <div className="sis-timetable-grid" {...gridData(settings, gridZoom)} style={gridStyle(settings, gridZoom)}>
                     <table className={`sis-timetable-table sis-timetable-table--compact sis-timetable-stage__table${stageTeachers ? ' sis-timetable-stage__table--teachers' : ''}`}>
                         <colgroup>
                             <col className="sis-timetable-stage__col-day" />
@@ -1503,7 +1694,13 @@ function TimetablePage({
                                         {period.period_type === LESSON ? (
                                             <>
                                                 <th scope="row" className="sis-timetable-stage__period" {...headerMenu(period)}>
-                                                    {lessonNumber.get(period.id)}
+                                                    {settings.period_header.show_number ? <span className="sis-timetable-grid__period">{lessonNumber.get(period.id)}</span> : null}
+                                                    {settings.period_header.show_time ? (
+                                                        <span className="sis-timetable-grid__time">
+                                                            <bdi dir="ltr">{formatClock(period.start_time, settings.period_header.clock, tt.am, tt.pm)}</bdi>
+                                                            <bdi dir="ltr">{formatClock(period.end_time, settings.period_header.clock, tt.am, tt.pm)}</bdi>
+                                                        </span>
+                                                    ) : null}
                                                 </th>
                                                 {stage.columns.flatMap((column) =>
                                                     column.members.flatMap(({ section }, memberIndex) => {
@@ -1698,7 +1895,7 @@ function TimetablePage({
         ) : visibleSectionIds.length === 0 ? (
             notice(tt.noMatch, '')
         ) : (
-            <div className={`sis-timetable-layout${singleGrid ? '' : ' sis-timetable-layout--groups'}`}>
+            <div className={`sis-timetable-layout${singleGrid ? '' : ' sis-timetable-layout--groups'}`} {...zoomLayout}>
                 <div className={`sis-timetable-boards${singleGrid ? ' sis-timetable-boards--single' : ''}`}>
                     {singleGrid
                         ? groups.map((group) => <Fragment key={group.key}>{group.sections.map(({ section, students }) => sectionBoard(section, students, false))}</Fragment>)
@@ -1708,45 +1905,79 @@ function TimetablePage({
             </div>
         );
 
-    const teacherView = (
-        <div className="sis-timetable-layout sis-timetable-layout--wide">
-            <div className="sis-timetable-boards sis-timetable-boards--single">
-                <section className="sis-timetable-board" aria-busy={saving}>
-                    <header className="sis-timetable-board__head">
-                        <span className="sis-timetable-board__title">{teacherNames.get(activeTeacherId ?? 0) ?? tt.pickTeacher}</span>
+    /** One teacher's week (or none yet); `readOnly` = the printed / preview look (no jump to the section). */
+    const teacherBoard = (id: number | null, readOnly: boolean) => {
+        const cells = teacherCellMaps.get(id ?? -1) ?? EMPTY_CELLS;
+
+        return (
+            <section key={id ?? 'none'} className="sis-timetable-board" aria-busy={saving}>
+                <header className="sis-timetable-board__head">
+                    <span className="sis-timetable-board__title">{teacherNames.get(id ?? 0) ?? (readOnly ? '' : tt.pickTeacher)}</span>
+                    {readOnly ? null : (
                         <span className="sis-timetable-board__meta">
-                            {tt.teacherLoad}: <bdi dir="ltr">{teacherCells.size}</bdi> {tt.lessonsUnit}
+                            {tt.teacherLoad}: <bdi dir="ltr">{cells.size}</bdi> {tt.lessonsUnit}
                         </span>
-                    </header>
-                    <div className="sis-timetable-grid" {...gridData(settings)} style={gridStyle(settings)}>{gridTable(teacherCell, false)}</div>
-                </section>
+                    )}
+                </header>
+                <div className="sis-timetable-grid" {...gridData(settings, gridZoom)} style={gridStyle(settings, gridZoom)}>
+                    {gridTable(
+                        (day, period) =>
+                            readOnly ? (
+                                <td key={cellKey(day, period.id)} className="sis-timetable-cell">
+                                    {cells.get(cellKey(day, period.id)) !== undefined ? lessonCard(cells.get(cellKey(day, period.id)) as Schedule, sectionLabel((cells.get(cellKey(day, period.id)) as Schedule).section_id), false) : null}
+                                </td>
+                            ) : (
+                                teacherCell(cells, day, period)
+                            ),
+                        false,
+                    )}
+                </div>
+            </section>
+        );
+    };
+
+    /** The teachers on show: the chosen ones, or all of them when none is chosen. */
+    const teacherList = allTeachers ? teachers : shownTeachers;
+    const teacherView = (
+        <div className="sis-timetable-layout sis-timetable-layout--wide" {...zoomLayout}>
+            <div className={`sis-timetable-boards${teacherList.length > 1 ? ' sis-timetable-boards--all' : ' sis-timetable-boards--single'}`}>
+                {teacherList.length === 0 ? teacherBoard(null, false) : teacherList.map((x) => teacherBoard(x.id, false))}
             </div>
         </div>
     );
 
-    const activeRoom = engine?.rooms.find((r) => r.id === activeRoomId) ?? null;
-    const roomView = (
-        <div className="sis-timetable-layout sis-timetable-layout--wide">
-            <div className="sis-timetable-boards sis-timetable-boards--single">
-                <section className="sis-timetable-board" aria-busy={saving}>
-                    <header className="sis-timetable-board__head">
-                        <span className="sis-timetable-board__title">{activeRoom === null ? et.noRooms : `${activeRoom.code} — ${activeRoom.name}`}</span>
-                        <span className="sis-timetable-board__meta">
-                            <bdi dir="ltr">{roomCells.size}</bdi> {tt.lessonsUnit}
-                        </span>
-                    </header>
-                    <div className="sis-timetable-grid" {...gridData(settings)} style={gridStyle(settings)}>
-                        {gridTable((day, period) => {
-                            const placed = roomCells.get(cellKey(day, period.id));
+    type EngineRoomRow = NonNullable<typeof engine>['rooms'][number];
+    const roomBoard = (room: EngineRoomRow | null) => {
+        const cells = roomCellMaps.get(room?.id ?? -1) ?? EMPTY_CELLS;
 
-                            return (
-                                <td key={cellKey(day, period.id)} className="sis-timetable-cell">
-                                    {placed !== undefined ? lessonCard(placed, `${sectionLabel(placed.section_id)} · ${teacherNames.get(placed.teacher_id) ?? ''}`, false) : null}
-                                </td>
-                            );
-                        }, false)}
-                    </div>
-                </section>
+        return (
+            <section key={room?.id ?? 'none'} className="sis-timetable-board" aria-busy={saving}>
+                <header className="sis-timetable-board__head">
+                    <span className="sis-timetable-board__title">{room === null ? et.noRooms : `${room.code} — ${room.name}`}</span>
+                    <span className="sis-timetable-board__meta">
+                        <bdi dir="ltr">{cells.size}</bdi> {tt.lessonsUnit}
+                    </span>
+                </header>
+                <div className="sis-timetable-grid" {...gridData(settings, gridZoom)} style={gridStyle(settings, gridZoom)}>
+                    {gridTable((day, period) => {
+                        const placed = cells.get(cellKey(day, period.id));
+
+                        return (
+                            <td key={cellKey(day, period.id)} className="sis-timetable-cell">
+                                {placed !== undefined ? lessonCard(placed, `${sectionLabel(placed.section_id)} · ${teacherNames.get(placed.teacher_id) ?? ''}`, false) : null}
+                            </td>
+                        );
+                    }, false)}
+                </div>
+            </section>
+        );
+    };
+
+    const roomList = allRooms ? (engine?.rooms ?? []) : shownRooms;
+    const roomView = (
+        <div className="sis-timetable-layout sis-timetable-layout--wide" {...zoomLayout}>
+            <div className={`sis-timetable-boards${roomList.length > 1 ? ' sis-timetable-boards--all' : ' sis-timetable-boards--single'}`}>
+                {roomList.length === 0 ? roomBoard(null) : roomList.map((room) => roomBoard(room))}
             </div>
         </div>
     );
@@ -1754,37 +1985,11 @@ function TimetablePage({
     // What the full-screen preview shows — and, in «تخطيط الطباعة», what lies on the sheet and prints.
     const previewContent =
         view === 'teacher' ? (
-                        <section className="sis-timetable-board">
-
-                            <header className="sis-timetable-board__head">
-
-                                <span className="sis-timetable-board__title">{teacherNames.get(activeTeacherId ?? 0) ?? ''}</span>
-
-                            </header>
-
-                            <div className="sis-timetable-grid" {...gridData(settings)} style={gridStyle(settings)}>
-
-                                {gridTable((day, period) => {
-
-                                    const placed = teacherCells.get(cellKey(day, period.id));
-
-
-
-                                    return (
-
-                                        <td key={cellKey(day, period.id)} className="sis-timetable-cell">
-
-                                            {placed !== undefined ? lessonCard(placed, sectionLabel(placed.section_id), false) : null}
-
-                                        </td>
-
-                                    );
-
-                                }, false)}
-
-                            </div>
-
-                        </section>
+            teacherList.length > 1 ? (
+                <div className="sis-timetable-master-sheets">{teacherList.map((x) => teacherBoard(x.id, true))}</div>
+            ) : (
+                teacherBoard(teacherList[0]?.id ?? null, true)
+            )
         ) : view === 'room' ? (
             roomView
         ) : (
@@ -1803,7 +2008,8 @@ function TimetablePage({
                                     }))}
                                     days={DAYS}
                                     dayLabel={dayOfWeekLabel}
-                                    periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0 }))}
+                                    periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0, start: p.start_time, end: p.end_time }))}
+                                    periodHeader={{ ...settings.period_header, am: tt.am, pm: tt.pm }}
                                     lessons={schedules}
                                     subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
                                     teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
@@ -1815,6 +2021,21 @@ function TimetablePage({
                             ))}
                         </div>
         );
+    /** The owner's page opened on that entity (its name in the page's own search) — never the bare list. */
+    const entityPage = (kind: 'teachers' | 'subjects' | 'rooms' | 'sections', id: number | null): string => {
+        const enc = encodeURIComponent;
+        switch (kind) {
+            case 'teachers':
+                return `/teachers?search=${enc(teachers.find((x) => x.id === id)?.full_name ?? teacherNames.get(id ?? 0) ?? '')}`;
+            case 'subjects':
+                return `/curriculum?q=${enc(subjectNames.get(id ?? 0) ?? '')}`;
+            case 'rooms':
+                return `/organization/rooms?search=${enc(engine?.rooms.find((r) => r.id === id)?.name ?? '')}`;
+            default:
+                return `/organization/classes-sections?search=${enc(sectionsById.get(id ?? 0)?.class_name ?? '')}`;
+        }
+    };
+
     /** «تحرير الخلية» panes beside «المحتوى»: each entity's facts with its owner's «الاختصار واللون» and page. */
     const cellPanes = (s: Schedule): Record<string, ReactNode> => {
         const c = tt.cell;
@@ -1869,17 +2090,17 @@ function TimetablePage({
                 [i18n.appearance.abbreviation, teacher?.short],
                 [tt.format.teacherTitle, teacher?.title ?? null],
                 [tt.teacherLoad, schedules.filter((x) => x.teacher_id === s.teacher_id).length],
-            ], '/teachers'),
+            ], entityPage('teachers', s.teacher_id)),
             subject: entityPane('timetable-cell-subject', ctx.subjectName, 'subjects', s.subject_id, [
                 [i18n.appearance.abbreviation, subject?.short],
                 [tt.format.fieldNames.subject_type, ctx.practical ? tt.practical : null],
-            ], '/curriculum'),
+            ], entityPage('subjects', s.subject_id)),
             room: entityPane('timetable-cell-room', ctx.roomName ?? c.noRoom, 'rooms', s.room_id, [
                 [i18n.appearance.abbreviation, room?.short ?? null],
                 [c.capacity, room?.capacity ?? null],
                 [c.practicalRoom, room?.supports_practical ? tt.practical : null],
                 [c.students, ctx.students],
-            ], '/organization/rooms'),
+            ], entityPage('rooms', s.room_id)),
             section: entityPane('timetable-cell-section', sectionLabel(s.section_id), 'sections', s.section_id, [
                 [i18n.appearance.abbreviation, section?.short ?? null],
                 [c.students, ctx.students],
@@ -1887,7 +2108,7 @@ function TimetablePage({
                 [tt.format.fieldNames.branch, ctx.branchName],
                 [tt.format.fieldNames.department, ctx.departmentName],
                 [tt.format.fieldNames.group, ctx.groupName],
-            ], '/organization/classes-sections'),
+            ], entityPage('sections', s.section_id)),
             view: (
                 <SheetSection id="timetable-cell-view" title={tt.format.fields}>
                     <p className="sis-timetable-sheet__hint sis-branches-field--wide">{c.viewHint}</p>
@@ -1991,9 +2212,9 @@ function TimetablePage({
             { id: 'lesson-teacher-look', label: m.teacherAppearance, icon: Palette, onSelect: () => setAppearanceFor({ kind: 'teachers', id: s.teacher_id }) },
             { id: 'lesson-section-look', label: m.sectionAppearance, icon: Palette, onSelect: () => setAppearanceFor({ kind: 'sections', id: s.section_id }) },
             ...(s.room_id !== null ? [{ id: 'lesson-room-look', label: m.roomAppearance, icon: Palette, onSelect: () => setAppearanceFor({ kind: 'rooms', id: s.room_id as number }) }] : []),
-            { id: 'lesson-open-teacher', label: m.openTeacher, icon: UserRound, separator: true, onSelect: () => router.get('/teachers') },
-            { id: 'lesson-open-subject', label: m.openSubject, icon: Boxes, onSelect: () => router.get('/curriculum') },
-            ...(s.room_id !== null ? [{ id: 'lesson-open-room', label: m.openRoom, icon: DoorClosed, onSelect: () => router.get('/organization/rooms') }] : []),
+            { id: 'lesson-open-teacher', label: m.openTeacher, icon: UserRound, separator: true, onSelect: () => router.get(entityPage('teachers', s.teacher_id)) },
+            { id: 'lesson-open-subject', label: m.openSubject, icon: Boxes, onSelect: () => router.get(entityPage('subjects', s.subject_id)) },
+            ...(s.room_id !== null ? [{ id: 'lesson-open-room', label: m.openRoom, icon: DoorClosed, onSelect: () => router.get(entityPage('rooms', s.room_id)) }] : []),
             singleGrid || view !== 'section'
                 ? { id: 'lesson-teacher-toggle', label: settings.fields.teacher ? m.hideTeacher : m.showTeacher, icon: settings.fields.teacher ? EyeOff : Eye, separator: true, onSelect: () => toggleField('teacher') }
                 : { id: 'lesson-teacher-toggle', label: stageTeachers ? m.hideTeacher : m.showTeacher, icon: stageTeachers ? EyeOff : Eye, separator: true, onSelect: () => setStageTeachers(!stageTeachers) },
@@ -2102,7 +2323,7 @@ function TimetablePage({
     };
     const formatSamples = (() => {
         const focus = formatFor?.scheduleId ? schedules.find((s) => s.id === formatFor.scheduleId) : undefined;
-        const picks = [...(focus ? [focus] : []), ...schedules.filter((s) => s.id !== focus?.id)].slice(0, 2);
+        const picks = [...(focus ? [focus] : []), ...schedules.filter((s) => s.id !== focus?.id)].slice(0, 1);
 
         return picks.map((s) => ({ lesson: s as CellLesson, ctx: cellCtx(s, null) }));
     })();
@@ -2130,7 +2351,7 @@ function TimetablePage({
                 ) : null}
                 {engine?.status.stale ? <p className="sis-branches-page__notice">{et.staleBanner}</p> : null}
 
-                <div className="sis-admission-page-body sis-timetable-body">
+                <div className="sis-admission-page-body sis-timetable-body" data-zoomed={gridZoom !== 1 ? 'yes' : undefined}>
                     {yearId === null ? null : lessonPeriods.length === 0 ? notice(tt.noPeriodsTitle, tt.noPeriodsHint) : (
                         <>
                             <div className="sis-timetable-toolbar">
@@ -2171,63 +2392,30 @@ function TimetablePage({
                                 ariaLabel={tt.zoom.kind}
                             />
                         </span>
-                        {view === 'teacher' ? (
-                            <span className="sis-timetable-preview__filter">
-                                <span className="sis-timetable-preview__filter-label">{tt.teacher}</span>
-                                <SisListSelect
-                                    value={activeTeacherId === null ? '' : String(activeTeacherId)}
-                                    options={teachers.map((x) => ({ value: String(x.id), label: x.full_name }))}
-                                    onChange={(next) => setTeacherId(Number(next))}
-                                    className="sis-timetable-preview__select"
-                                    triggerClassName="sis-timetable-preview__control"
-                                    dir="rtl"
-                                    ariaLabel={tt.teacher}
-                                />
-                            </span>
-                        ) : null}
-                        {view === 'room' ? (
-                            <span className="sis-timetable-preview__filter">
-                                <span className="sis-timetable-preview__filter-label">{et.room}</span>
-                                <SisListSelect
-                                    value={activeRoomId === null ? '' : String(activeRoomId)}
-                                    options={(engine?.rooms ?? []).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` }))}
-                                    onChange={(next) => setRoomId(Number(next))}
-                                    className="sis-timetable-preview__select"
-                                    triggerClassName="sis-timetable-preview__control"
-                                    dir="rtl"
-                                    ariaLabel={et.room}
-                                />
-                            </span>
-                        ) : null}
-                        {view === 'section' ? (
-                            <span className="sis-timetable-preview__filters" role="group" aria-label={tt.ribbonFilters}>
-                                {(
-                                    [
-                                        ['branch', tt.branch, (next: string) => setFilter({ branch: next, department: '' })],
-                                        ['department', tt.department, (next: string) => setFilter({ department: next })],
-                                        ['class', tt.class, (next: string) => setFilter({ class: next })],
-                                        ['section', tt.section, (next: string) => setFilter({ section: next })],
-                                    ] as const
-                                ).map(([key, label, onChange]) => (
-                                    <span key={key} className="sis-timetable-preview__filter">
-                                        <span className="sis-timetable-preview__filter-label">{label}</span>
-                                        <SisListSelect
-                                            value={gridFilters[key]}
-                                            options={filterOptions[key]}
-                                            onChange={onChange}
-                                            className="sis-timetable-preview__select"
-                                            triggerClassName="sis-timetable-preview__control"
-                                            dir="rtl"
-                                            ariaLabel={label}
-                                        />
-                                    </span>
-                                ))}
-                                <Button type="button" variant="outline" className="sis-timetable-preview__close" aria-pressed={!gridFiltered} title={tt.showAllHint} onClick={() => setGridFilters(NO_FILTERS)}>
-                                    <FilterX aria-hidden />
-                                    {tt.showAll}
-                                </Button>
-                            </span>
-                        ) : null}
+                        <span className="sis-timetable-preview__filters" role="group" aria-label={tt.ribbonFilters}>
+                            {filterSpecs().map((spec) => renderFilter('preview', spec))}
+                            {view === 'section' ? (
+                                <>
+                                    <Button type="button" variant="outline" className="sis-timetable-preview__close" disabled={!gridFiltered} title={tt.clearFilters} onClick={() => setGridFilters(NO_FILTERS)}>
+                                        <FilterX aria-hidden />
+                                        {tt.clearFilters}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="sis-timetable-preview__close"
+                                        title={tt.showAllHint}
+                                        onClick={() => {
+                                            setGridFilters(NO_FILTERS);
+                                            setFocusId(null);
+                                        }}
+                                    >
+                                        <LayoutList aria-hidden />
+                                        {tt.showAll}
+                                    </Button>
+                                </>
+                            ) : null}
+                        </span>
                         <span className="sis-timetable-preview__actions" role="group" aria-label={tt.zoom.kind}>
                             <Button type="button" variant="outline" className="sis-timetable-preview__close" aria-pressed={printPanel} aria-expanded={printPanel} onClick={() => setPrintPanel((current) => !current)}>
                                 <Settings2 aria-hidden />
@@ -2491,6 +2679,7 @@ function TimetablePage({
                         payload={target.payload}
                         reloadProps={['display', 'schedules', 'engine', 'flash']}
                         canEdit
+                        sheetClassName="sis-timetable-sheet"
                         onClose={() => setAppearanceFor(null)}
                     />
                 );

@@ -17257,15 +17257,15 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-timetable-lesson-sheet.sis-timetable-lesson-sheet.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true']) {
-    height: fit-content !important;
-    min-height: min(30rem, 88vh) !important;
-    max-height: min(92vh, 100%) !important;
+    height: min(88vh, 44rem) !important;
+    min-height: 0 !important;
+    max-height: min(88vh, 44rem) !important;
 }
 
 .sis-timetable-lesson-sheet.sis-timetable-lesson-sheet.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true'])
     > .sis-admission-sheet.sis-admission-sheet.sis-admission-sheet {
-    height: auto !important;
-    max-height: calc(92vh - 0.5rem) !important;
+    height: 100% !important;
+    max-height: 100% !important;
 }
 
 /* Fields of the timetable windows: label | value side by side — two aligned cells (equal label column). */
@@ -17845,4 +17845,180 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     margin-inline-end: auto;
     padding-inline: 0;
     text-align: right;
+}
+
+/* ── «الجدول المدرسي»: zoom, all teachers / rooms, period number + time, date row, preview fills the screen ── */
+
+/* «تكبير / تصغير»: the table (columns included) grows inside its frame; the frame scrolls sideways when wider. */
+.sis-timetable-grid[data-tt-zoomed] :is(thead th, tbody th) {
+    zoom: var(--tt-zoom, 1);
+}
+
+/* «كل المعلمين» / «كل القاعات»: one board under another, each as tall as its table. */
+.sis-timetable-boards--all {
+    gap: 1.25rem;
+}
+
+.sis-timetable-boards--all > .sis-timetable-board {
+    flex: 0 0 auto;
+}
+
+@media print {
+    .sis-timetable-master-sheets > .sis-timetable-board + .sis-timetable-board {
+        break-before: page;
+        page-break-before: always;
+    }
+}
+
+/* Period column: the number and, under it, the start and end of the lesson. */
+.sis-timetable-stage__col-period {
+    width: 4rem;
+}
+
+.sis-timetable-stage__period .sis-timetable-grid__time bdi {
+    display: block;
+    font-size: 0.66rem;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.sis-timetable-master__col-period {
+    width: 3.6rem;
+}
+
+.sis-timetable-master__period {
+    line-height: 1.2;
+}
+
+.sis-timetable-master__period-number {
+    display: block;
+}
+
+.sis-timetable-master__period-time {
+    display: block;
+    color: var(--sis-steel);
+    font-size: 0.62rem;
+    font-weight: 600;
+}
+
+.sis-timetable-master__period-time bdi {
+    display: block;
+    white-space: nowrap;
+}
+
+/* «تحرير الخلية» › المحتوى: the date field with its search button on the same line. */
+.sis-timetable-date-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.75rem;
+    grid-column: 1 / -1;
+}
+
+.sis-timetable-date-row > .sis-admission-sheet__field {
+    flex: 0 1 auto;
+    width: min(100%, 24rem);
+}
+
+.sis-timetable-date-row > button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    gap: 0.35rem;
+}
+
+.sis-timetable-date-row > button svg {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+/* «معاينة الجدول»: the sheet fills the screen edge to edge; the hidden scroll bar still browses up and down. */
+.sis-timetable-preview__body--paper {
+    padding: 0.25rem 0.25rem 0.5rem;
+    gap: 0;
+}
+
+.sis-timetable-preview__body--paper .sis-timetable-paper-stage {
+    align-items: flex-start;
+}
+
+/* «معاينة الجدول»: the scroll bar stays hidden (wheel / touch / keys browse up and down). */
+.sis-timetable-preview,
+.sis-timetable-preview * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+}
+
+.sis-timetable-preview ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* ═══ «الجدول المدرسي» — zoom expands the table, resize handles, selection frame, one dialog surface ═══════════ */
+
+/* «تكبير / تصغير»: the boards column is `zoom` times the page width — the whole table expands and the page
+   scrolls (sideways and down) instead of the table scrolling inside a frame. */
+.sis-timetable-page .sis-timetable-layout[data-tt-zoomed] {
+    grid-template-columns: calc(100% * var(--tt-zoom, 1)) 16rem !important;
+}
+
+.sis-timetable-page .sis-timetable-layout--wide[data-tt-zoomed] {
+    grid-template-columns: calc(100% * var(--tt-zoom, 1)) !important;
+}
+
+.sis-timetable-page .sis-admission-page-body.sis-timetable-body[data-zoomed] {
+    overflow-x: auto !important;
+}
+
+/* A table the user resized by hand keeps its size; the frame scrolls when it is wider than the page. */
+.sis-timetable-page .sis-timetable-grid[data-tt-resized] {
+    overflow-x: auto !important;
+}
+
+/* The grip of the bottom-left corner (the whole table's size); a double click there restores the automatic size. */
+.sis-timetable-page .sis-timetable-grid {
+    position: relative;
+}
+
+.sis-timetable-page .sis-timetable-grid::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 4;
+    width: 14px;
+    height: 14px;
+    opacity: 0.6;
+    pointer-events: none;
+    background: linear-gradient(45deg, var(--sis-steel) 0 18%, transparent 18% 40%, var(--sis-steel) 40% 58%, transparent 58%);
+}
+
+/* The chosen cell: a clear frame (drawn on its own layer — focus rules remove outlines and shadows). */
+.sis-timetable-page td.sis-timetable-cell--selected {
+    position: relative;
+}
+
+.sis-timetable-page td.sis-timetable-cell--selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border: 3px solid var(--sis-night);
+    box-shadow: inset 0 0 0 1px var(--sis-pearl);
+    pointer-events: none;
+}
+
+/* Windows are as tall as their content (the generic form keeps a 46rem minimum for the long admission forms). */
+.sis-timetable-sheet .sis-admission-draft-form.sis-admission-sheet,
+.sis-rooms-form .sis-admission-draft-form.sis-admission-sheet {
+    min-height: 0;
+}
+
+/* The multi-choice filter list: a check column before the name. */
+.sis-list-select__option .sis-list-select__check {
+    display: inline-block;
+    width: 1rem;
+    margin-inline-end: 0.25rem;
+    text-align: center;
+    font-weight: 700;
 }

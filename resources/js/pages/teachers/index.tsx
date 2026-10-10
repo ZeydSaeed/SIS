@@ -47,6 +47,7 @@ import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
+import { initialSearchParam } from '@/lib/initial-search';
 import { resolveSisSectionCode, resolveSisSectionId, sisSectionSelectOptions, type SisSectionRef } from '@/lib/sis-class-section-options';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -376,7 +377,7 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
     const [filterKey, setFilterKey] = useState<FilterKey>('all');
     const [rosterFilters, setRosterFilters] = useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(() => initialSearchParam('search'));
     const [pageNumber, setPageNumber] = useState(1);
     const [saving, setSaving] = useState(false);
     /** Teacher sheet: add (id null), view (viewOnly) or edit; queue = selected teachers walked with «السابق / التالي». */

@@ -32,6 +32,7 @@ final readonly class TimetableDisplaySettings
             'group' => true, 'branch' => false, 'department' => false, 'subject_type' => true],
         'abbreviate' => ['subject' => false, 'teacher' => false, 'room' => true, 'section' => false, 'class' => false],
         'teacher_title' => false,
+        'teacher_title_style' => 'abbreviation',
         'align_v' => 'middle',
         'align_h' => 'start',
         'font_family' => 'segoe',
@@ -43,7 +44,8 @@ final readonly class TimetableDisplaySettings
         'cell_height' => 32,
         'column_width' => 0,
         'color_by' => 'subject',
-        'period_header' => ['number_bold' => true, 'show_time' => true, 'time_muted' => true, 'clock' => '12'],
+        'period_header' => ['show_number' => true, 'number_bold' => true, 'show_time' => true, 'time_muted' => true, 'clock' => '12'],
+        'heading' => ['effective_from' => null],
     ];
 
     /** @param  array<string, mixed>  $values */
@@ -67,12 +69,18 @@ final readonly class TimetableDisplaySettings
         $pick = static fn (string $key, array $allowed) => in_array($input[$key] ?? null, $allowed, true) ? $input[$key] : $d[$key];
         $int = static fn (string $key, int $min, int $max): int => is_numeric($input[$key] ?? null) && (int) $input[$key] >= $min && (int) $input[$key] <= $max ? (int) $input[$key] : $d[$key];
         $header = is_array($input['period_header'] ?? null) ? $input['period_header'] : [];
+        $heading = is_array($input['heading'] ?? null) ? $input['heading'] : [];
+        $effective = is_string($heading['effective_from'] ?? null) ? $heading['effective_from'] : '';
+        $effectiveOk = preg_match('/^\d{4}-\d{2}-\d{2}$/', $effective) === 1
+            && checkdate((int) substr($effective, 5, 2), (int) substr($effective, 8, 2), (int) substr($effective, 0, 4));
 
         return new self([
             'layout' => $pick('layout', self::LAYOUTS),
             'fields' => array_combine(array_keys($d['fields']), $flags($d['fields'], $input['fields'] ?? null)),
             'abbreviate' => array_combine(array_keys($d['abbreviate']), $flags($d['abbreviate'], $input['abbreviate'] ?? null)),
             'teacher_title' => (bool) ($input['teacher_title'] ?? $d['teacher_title']),
+            // the academic title before the teacher's name: its abbreviation or the full title
+            'teacher_title_style' => $pick('teacher_title_style', ['abbreviation', 'full']),
             'align_v' => $pick('align_v', ['top', 'middle', 'bottom']),
             'align_h' => $pick('align_h', ['start', 'center', 'end']),
             'font_family' => $pick('font_family', self::FONTS),
@@ -86,11 +94,13 @@ final readonly class TimetableDisplaySettings
             'column_width' => is_numeric($input['column_width'] ?? null) && ((int) $input['column_width'] === 0 || ((int) $input['column_width'] >= 40 && (int) $input['column_width'] <= 200)) ? (int) $input['column_width'] : $d['column_width'],
             'color_by' => $pick('color_by', self::COLOR_BY),
             'period_header' => [
+                'show_number' => (bool) ($header['show_number'] ?? true),
                 'number_bold' => (bool) ($header['number_bold'] ?? true),
                 'show_time' => (bool) ($header['show_time'] ?? true),
                 'time_muted' => (bool) ($header['time_muted'] ?? true),
                 'clock' => in_array($header['clock'] ?? null, ['12', '24'], true) ? $header['clock'] : '12',
             ],
+            'heading' => ['effective_from' => $effectiveOk ? $effective : null],
         ]);
     }
 

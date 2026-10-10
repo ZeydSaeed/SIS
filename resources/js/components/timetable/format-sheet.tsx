@@ -1,5 +1,5 @@
 import { RotateCcw, Save, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RegistrySheetDialog } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,19 @@ export function FormatSheet({
     const request = useEngineRequest();
     const [draft, setDraft] = useState<DisplaySettings>(settings);
     const [saving, setSaving] = useState(false);
+    // Every change shows on the timetable at once; closing without saving puts the saved look back.
+    const initial = useRef(settings);
+    const saved = useRef(false);
+    useEffect(() => {
+        onApply(draft);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draft]);
+    const close = () => {
+        if (!saved.current) {
+            onApply(initial.current);
+        }
+        onClose();
+    };
     const set = <K extends keyof DisplaySettings>(key: K, value: DisplaySettings[K]) => setDraft((current) => ({ ...current, [key]: value }));
     const options = (map: Record<string, string>) => Object.entries(map).map(([value, label]) => ({ value, label }));
 
@@ -52,13 +65,14 @@ export function FormatSheet({
         const ok = await request('post', '/timetable/display', { academic_year_id: yearId, display: draft });
         setSaving(false);
         if (ok) {
+            saved.current = true;
             onApply(draft);
             onClose();
         }
     };
 
     return (
-        <RegistrySheetDialog title={f.title} className="sis-branches-sheet sis-timetable-sheet sis-timetable-engine-sheet sis-timetable-engine-sheet--settings" onClose={onClose}>
+        <RegistrySheetDialog title={f.title} className="sis-branches-sheet sis-timetable-sheet sis-timetable-engine-sheet sis-timetable-engine-sheet--settings sis-timetable-format-sheet" onClose={close}>
             <SheetSection id="timetable-format-preview" title={focusLabel === null ? f.preview : `${f.preview} — ${focusLabel}`}>
                 <div className="sis-timetable-grid" {...gridData(draft)} style={gridStyle(draft)}>
                     <div className="sis-timetable-format-preview">
@@ -73,7 +87,7 @@ export function FormatSheet({
                         )}
                     </div>
                     <p className="sis-timetable-sheet__hint">
-                        <span className="sis-timetable-grid__period">{f.headerSample}</span>{' '}
+                        {draft.period_header.show_number ? <span className="sis-timetable-grid__period">{f.headerSample}</span> : null}{' '}
                         {draft.period_header.show_time ? <span className="sis-timetable-grid__time">{formatClock('08:30', draft.period_header.clock, i18n.timetable.am, i18n.timetable.pm)} – {formatClock('09:15', draft.period_header.clock, i18n.timetable.am, i18n.timetable.pm)}</span> : null}
                     </p>
                 </div>
@@ -111,6 +125,14 @@ export function FormatSheet({
                                 {f.teacherTitle}
                             </label>
                         </span>
+                    </EngineField>
+                    <EngineField label={f.titleStyle}>
+                        <EngineSelect
+                            value={draft.teacher_title_style}
+                            label={f.titleStyle}
+                            onChange={(v) => set('teacher_title_style', v as DisplaySettings['teacher_title_style'])}
+                            options={options(f.titleStyles)}
+                        />
                     </EngineField>
                 </EngineRow>
             </SheetSection>
@@ -171,6 +193,10 @@ export function FormatSheet({
                     <EngineField label={f.headerTitle} wide>
                         <span className="sis-timetable-audit__bar">
                             <label className="sis-timetable-audit__filter">
+                                <input type="checkbox" checked={draft.period_header.show_number} onChange={(e) => set('period_header', { ...draft.period_header, show_number: e.target.checked })} />
+                                {f.showNumber}
+                            </label>
+                            <label className="sis-timetable-audit__filter">
                                 <input type="checkbox" checked={draft.period_header.number_bold} onChange={(e) => set('period_header', { ...draft.period_header, number_bold: e.target.checked })} />
                                 {f.numberBold}
                             </label>
@@ -190,7 +216,7 @@ export function FormatSheet({
                 </EngineRow>
             </SheetSection>
             <div className="sis-admission-sheet__actions">
-                <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
+                <Button type="button" variant="outline" disabled={saving} onClick={close}>
                     {i18n.timetable.close}
                 </Button>
                 <Button type="button" variant="outline" disabled={saving} onClick={() => setDraft(DEFAULT_DISPLAY)}>
