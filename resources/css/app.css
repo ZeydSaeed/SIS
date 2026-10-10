@@ -17257,14 +17257,15 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-timetable-lesson-sheet.sis-timetable-lesson-sheet.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true']) {
-    height: min(88vh, 44rem) !important;
-    max-height: min(88vh, 44rem) !important;
+    height: fit-content !important;
+    min-height: min(30rem, 88vh) !important;
+    max-height: min(92vh, 100%) !important;
 }
 
 .sis-timetable-lesson-sheet.sis-timetable-lesson-sheet.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true'])
     > .sis-admission-sheet.sis-admission-sheet.sis-admission-sheet {
-    height: 100% !important;
-    max-height: 100% !important;
+    height: auto !important;
+    max-height: calc(92vh - 0.5rem) !important;
 }
 
 /* Fields of the timetable windows: label | value side by side — two aligned cells (equal label column). */
@@ -17719,4 +17720,129 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 /* Every ribbon icon outlined in its colour (all tabs). */
 .sis-ribbon .sis-ribbon__item .sis-ribbon__icon[class*='sis-ribbon__icon--tone-'] {
     stroke-width: 2;
+}
+
+/* ── «الجدول المدرسي»: one form contract for every window ────────────────────────────────────────────────────────
+   Same everywhere: side margins on the body, label ABOVE its control, controls full width of their column, the
+   columns follow the window width (one on a narrow window, more on a wide one), wide fields / hints on a full
+   line, the same control height. Three engine windows keep their own explicit grid (generate / activities /
+   settings) but share the label, control and margin rules below. */
+.sis-timetable-sheet:not(.sis-timetable-engine-sheet--generate):not(.sis-timetable-engine-sheet--activities):not(.sis-timetable-engine-sheet--settings) .sis-admission-sheet__body {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    column-gap: 0.9rem;
+    row-gap: 0.55rem;
+    padding: 0.5rem 1rem;
+    align-items: start;
+}
+
+.sis-timetable-sheet:not(.sis-timetable-engine-sheet--generate):not(.sis-timetable-engine-sheet--activities):not(.sis-timetable-engine-sheet--settings) .sis-admission-sheet__body > .sis-admission-sheet__row > :is(.sis-admission-sheet__field, .sis-admission-sheet__choice-group, button) {
+    grid-column: auto !important;
+    min-width: 0;
+}
+
+.sis-timetable-sheet:not(.sis-timetable-engine-sheet--generate):not(.sis-timetable-engine-sheet--activities):not(.sis-timetable-engine-sheet--settings) .sis-admission-sheet__body > .sis-admission-sheet__row > .sis-branches-field--wide {
+    grid-column: 1 / -1 !important;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__body .sis-admission-sheet__field {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__body .sis-admission-sheet__field > .sis-admission-sheet__label {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__body .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
+    grid-column: auto;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__body :is(input:not([type='checkbox']):not([type='radio']), .sis-admission-sheet__control, .sis-list-select__trigger) {
+    min-height: 2.15rem;
+    box-sizing: border-box;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__body input[type='date'] {
+    width: 100%;
+    min-width: 10.5rem;
+}
+
+.sis-timetable-sheet .sis-admission-sheet__body .sis-admission-sheet__field:has(input[type='date']) {
+    min-width: 10.5rem;
+}
+
+/* The days field and the periods field of the grid: heavy frame on the right and at the bottom. */
+.sis-timetable-master__table thead th.sis-timetable-master__corner,
+.sis-timetable-stage__table thead th.sis-timetable-stage__corner,
+.sis-timetable-table thead th.sis-timetable-grid__corner {
+    border-right: var(--sis-sheet-heavy, 3px solid var(--sis-night)) !important;
+    border-bottom: var(--sis-sheet-heavy, 3px solid var(--sis-night)) !important;
+}
+
+.sis-timetable-master__table th.sis-timetable-master__day,
+.sis-timetable-stage__table th.sis-timetable-stage__day,
+.sis-timetable-table th.sis-timetable-grid__day {
+    border-right: var(--sis-sheet-heavy, 3px solid var(--sis-night)) !important;
+    border-bottom: var(--sis-sheet-heavy, 3px solid var(--sis-night)) !important;
+}
+
+/* «تحرير الخلية» › المحتوى: each field on its own line — label, then its text box beside it (same line). */
+.sis-timetable-lesson-sheet .sis-admission-sheet__body {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.sis-timetable-lesson-sheet .sis-admission-sheet__body .sis-admission-sheet__field {
+    display: grid !important;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.75rem;
+}
+
+.sis-timetable-lesson-sheet .sis-admission-sheet__body .sis-admission-sheet__field > .sis-admission-sheet__label {
+    grid-column: 1;
+}
+
+.sis-timetable-lesson-sheet .sis-admission-sheet__body .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
+    grid-column: 2;
+}
+
+/* Every text box of every window and sub-window: the text starts at the beginning (the right edge). */
+.sis-admission-sheet-dialog :is(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), textarea, select, .sis-admission-sheet__control, .sis-admission-draft-readonly) {
+    text-align: right !important;
+}
+
+.sis-admission-sheet-dialog .sis-list-select__trigger {
+    justify-content: flex-start !important;
+    text-align: right !important;
+}
+
+/* «المعاينة»: the periods field (corner + every period cell) gets a heavy left border. */
+.sis-timetable-master__table :is(th.sis-timetable-master__period, thead th.sis-timetable-master__corner--vertical),
+.sis-timetable-stage__table :is(th.sis-timetable-stage__period, thead th.sis-timetable-stage__corner--vertical) {
+    border-left: var(--sis-sheet-heavy, 3px solid var(--sis-night)) !important;
+}
+
+/* Date / time fields of every window and sub-window: the value starts at the right edge of the field. */
+.sis-admission-sheet-dialog :is(input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'], input[type='week']) {
+    direction: rtl !important;
+    text-align: right !important;
+    text-align-last: right;
+}
+
+.sis-admission-sheet-dialog :is(input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'], input[type='week'])::-webkit-datetime-edit {
+    margin-inline-end: auto;
+    padding-inline: 0;
+    text-align: right;
 }

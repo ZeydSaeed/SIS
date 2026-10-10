@@ -1,11 +1,12 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { BadgeCheck, Boxes, Building2, ClipboardCheck, ClipboardPaste, Coffee, Copy, DoorClosed, Expand, Eye, EyeOff, Lightbulb, Palette, Pencil, Search, Shrink, Unlock, ZoomIn, ZoomOut, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Maximize2, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement, type ReactNode } from 'react';
+import { BadgeCheck, FileText, Boxes, Building2, ClipboardCheck, ClipboardPaste, Coffee, Copy, DoorClosed, Eye, EyeOff, Lightbulb, Palette, Pencil, Search, Unlock, CalendarClock, CalendarX, ChevronsLeft, ChevronsRight, CircleAlert, Clock, DoorOpen, FileCheck, FileClock, FileWarning, FilterX, Gauge, History, LoaderCircle, Lock, OctagonX, Scale, Settings2, ShieldAlert, ShieldCheck, TriangleAlert, Wand2, WandSparkles, LayoutGrid, LayoutList, Minimize2, Printer, Sparkles, Trash2, UserRound, X } from 'lucide-react';
+import { cloneElement, Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type ReactElement, type ReactNode } from 'react';
 import { RegistryListField, RegistrySheetDialog, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { AppearanceDialog, hueStyle } from '@/components/sis/appearance-fields';
 import { isContextMenuKey, SisContextMenu, useContextMenu, type ContextMenuItem } from '@/components/sis/context-menu';
 import { displayRow, formatClock, gridData, gridStyle, ownerHue, resolveDisplay, type DisplayCatalog, type DisplayKind, type DisplaySettings } from '@/components/timetable/display-settings';
 import { FormatSheet } from '@/components/timetable/format-sheet';
+import { HeadingSheet } from '@/components/timetable/heading-sheet';
 import { CellBody, cellLines, type CellContext, type CellLesson } from '@/components/timetable/lesson-card-content';
 import { SchoolDaySheet } from '@/components/timetable/school-day-sheet';
 import { TestSheet, type TestFix, type TestIssue, type TestReport } from '@/components/timetable/test-sheet';
@@ -22,9 +23,10 @@ import type { EngineContext } from '@/components/timetable/engine/engine-context
 import type { Comparison, Engine, MoveSuggestions, RunDetail, Substitutes } from '@/components/timetable/engine/engine-types';
 import { GenerateSheet } from '@/components/timetable/engine/generate-sheet';
 import { PlacesSheet } from '@/components/timetable/engine/places-sheet';
-import { MasterTimetable, type MasterColumn } from '@/components/timetable/master-timetable';
+import { MasterTimetable } from '@/components/timetable/master-timetable';
 import { loadPrintSettings, pageRule, PrintSettingsPanel, savePrintSettings, TimetablePaper, type PrintSettings } from '@/components/timetable/print-paper';
 import { LessonEngineTools } from '@/components/timetable/engine/lesson-engine-tools';
+import { TimetableSubWindow } from '@/components/timetable/engine/engine-ui';
 import { SettingsSheet } from '@/components/timetable/engine/settings-sheet';
 import { VersionsSheet } from '@/components/timetable/engine/versions-sheet';
 import { Button } from '@/components/ui/button';
@@ -171,11 +173,15 @@ type GridFilters = { branch: string; department: string; class: string; section:
 
 /** A block of the «عرض الكل» split: branch › department (or the sections without students). */
 type GridGroup = { key: string; title: string; sections: Array<{ section: Section; students: number }> };
+/** «جدول الدروس الأسبوعي» sheet: one stage (class name), its departments across, each with its sections. */
+type StageColumn = { key: string; title: string; members: Array<{ section: Section; students: number }> };
+type StageSheet = { key: string; name: string; columns: StageColumn[] };
+const STAGE_TEACHERS_KEY = 'sis.timetable.stage-teachers';
 
 const LESSON = 1;
 /** School week: الأحد → الخميس (`day_of_week` 1–5). */
 const DEFAULT_DAYS = [1, 2, 3, 4, 5];
-const SCHEDULE_RELOAD = ['schedules', 'issues', 'advice', 'workload', 'quality', 'engine', 'flash'];
+const SCHEDULE_RELOAD = ['schedules', 'periods', 'display', 'issues', 'advice', 'workload', 'quality', 'engine', 'flash'];
 const PERIOD_RELOAD = ['periods', 'issues', 'advice', 'workload', 'quality', 'flash'];
 const FINDING_SEVERITIES: FindingSeverity[] = ['blocker', 'warning', 'info'];
 const QUALITY_METRICS = ['completeness', 'teacher_compactness', 'section_compactness', 'distribution', 'practical_doubles', 'workload_balance'] as const;
@@ -288,7 +294,6 @@ function TimetablePage({
     }, []);
     const previewRef = useRef<HTMLDivElement | null>(null);
     const previewBodyRef = useRef<HTMLDivElement | null>(null);
-    const previewContentRef = useRef<HTMLDivElement | null>(null);
     const [saving, setSaving] = useState(false);
 
     // ── Workbench: «تنسيق الجدول», «اختبار الجدول», the school day, context menu, clipboard, drop alternatives ──
@@ -299,11 +304,29 @@ function TimetablePage({
     const [formatFor, setFormatFor] = useState<{ scheduleId: number | null } | null>(null);
     const [testOpen, setTestOpen] = useState(false);
     const [dayOpen, setDayOpen] = useState(false);
+    const [headingOpen, setHeadingOpen] = useState(false);
     const [editTab, setEditTab] = useState('content');
     const [appearanceFor, setAppearanceFor] = useState<{ kind: DisplayKind; id: number } | null>(null);
     const [clipboard, setClipboard] = useState<{ sectionId: number; subjectId: number; teacherId: number } | null>(null);
     const [dropReject, setDropReject] = useState<{ payload: DragPayload; reason: 'busy' | 'taken'; day: number; periodId: number } | null>(null);
-    const [zoom, setZoom] = useState(1);
+    /** The cell the user chose (one click): marked on the grid; «تحرير الخلية» acts on it. */
+    const [selectedCell, setSelectedCell] = useState<{ sectionId: number; day: number; periodId: number } | null>(null);
+    // «الدرس» only, or «الدرس | اسم المدرس» — the sheet columns of the working page and the print.
+    const [stageTeachers, setStageTeachersState] = useState<boolean>(() => {
+        try {
+            return window.localStorage.getItem(STAGE_TEACHERS_KEY) !== '0';
+        } catch {
+            return true;
+        }
+    });
+    const setStageTeachers = useCallback((next: boolean) => {
+        setStageTeachersState(next);
+        try {
+            window.localStorage.setItem(STAGE_TEACHERS_KEY, next ? '1' : '0');
+        } catch {
+            // private mode — the choice lasts for this page only
+        }
+    }, []);
     const cardMenu = useContextMenu<MenuTarget>();
     const openEdit = (scheduleId: number, tab = 'content') => {
         setEditTab(tab);
@@ -872,14 +895,6 @@ function TimetablePage({
                         disabled: !canPlace || view !== 'section' || visibleSectionIds.length === 0 || lessonPeriods.length === 0 || saving,
                         onSelect: autoPlace,
                     },
-                    {
-                        id: 'timetable-preview',
-                        label: tt.preview,
-                        icon: Maximize2,
-                        title: tt.previewHint,
-                        disabled: lessonPeriods.length === 0 || (view === 'section' && visibleSectionIds.length === 0),
-                        onSelect: () => setPreview(true),
-                    },
                 ],
             },
             {
@@ -922,10 +937,25 @@ function TimetablePage({
                         label: tt.cell.title,
                         icon: Pencil,
                         title: tt.cell.title,
-                        disabled: highlight.length === 0 || !authorization.can_update,
-                        onSelect: () => highlight[0] !== undefined && openEdit(highlight[0]),
+                        disabled: (selectedCell === null && highlight.length === 0) || !authorization.can_update,
+                        onSelect: () => {
+                            if (selectedCell !== null) {
+                                const placed = sectionCells.get(selectedCell.sectionId)?.get(cellKey(selectedCell.day, selectedCell.periodId));
+                                if (placed !== undefined) {
+                                    openEdit(placed.id);
+                                } else if (canPlace) {
+                                    setPickCell(selectedCell);
+                                }
+
+                                return;
+                            }
+                            if (highlight[0] !== undefined) {
+                                openEdit(highlight[0]);
+                            }
+                        },
                     },
-                    ...(['teacher', 'room', 'section'] as const).map((field) => ({
+                    // «المعلم» left the ribbon: the teacher is shown through «الدرس والمدرس» / «تنسيق الجدول».
+                    ...(['room', 'section'] as const).map((field) => ({
                         id: `timetable-show-${field}`,
                         label: tt.format.fieldNames[field],
                         icon: settings.fields[field] ? Eye : EyeOff,
@@ -933,6 +963,25 @@ function TimetablePage({
                         title: `${tt.editRibbon.show}: ${tt.format.fieldNames[field]}`,
                         onSelect: () => setDisplayOverride({ ...settings, fields: { ...settings.fields, [field]: !settings.fields[field] } }),
                     })),
+                    {
+                        id: 'timetable-sheet-lesson',
+                        label: tt.master.lessonOnly,
+                        icon: LayoutGrid,
+                        iconTone: 'steel',
+                        pressed: !stageTeachers,
+                        title: tt.master.lessonOnlyHint,
+                        onSelect: () => setStageTeachers(false),
+                    },
+                    {
+                        id: 'timetable-sheet-teacher',
+                        label: tt.master.lessonTeacher,
+                        icon: UserRound,
+                        iconTone: 'steel',
+                        pressed: stageTeachers,
+                        title: tt.master.lessonTeacherHint,
+                        onSelect: () => setStageTeachers(true),
+                    },
+                    { id: 'timetable-heading', label: tt.heading.open, icon: FileText, iconTone: 'steel', title: tt.heading.hint, disabled: yearId === null, onSelect: () => setHeadingOpen(true) },
                     { id: 'timetable-day', label: tt.schoolDay.open, icon: Coffee, iconTone: 'amber', title: tt.schoolDay.hint, disabled: !authorization.can_manage_periods, onSelect: () => setDayOpen(true) },
                     {
                         id: 'timetable-print-preview',
@@ -940,10 +989,7 @@ function TimetablePage({
                         icon: Printer,
                         iconTone: 'steel',
                         disabled: lessonPeriods.length === 0,
-                        onSelect: () => {
-                            setPrintLayout(true);
-                            setPreview(true);
-                        },
+                        onSelect: () => setPreview(true),
                     },
                 ],
             },
@@ -1014,7 +1060,7 @@ function TimetablePage({
             },
         ]);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tt, canPlace, view, visibleSectionIds, lessonPeriods.length, saving, issueCounts, advice, quality, engine, settings, highlight, yearId]);
+    }, [tt, canPlace, view, visibleSectionIds, lessonPeriods.length, saving, issueCounts, advice, quality, engine, settings, highlight, yearId, stageTeachers, setStageTeachers, selectedCell, sectionCells]);
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const addRibbonGroups = useMemo(
@@ -1089,7 +1135,8 @@ function TimetablePage({
         };
     };
 
-    const lessonCard = (s: Schedule, line: string, interactive: boolean) => {
+    const lessonCard = (s: Schedule, line: string, interactive: boolean, hideTeacher = false) => {
+        const cardSettings = hideTeacher ? { ...settings, fields: { ...settings.fields, teacher: false } } : settings;
         const severity = lessonSeverity.get(s.id);
         // A locked lesson opens (to unlock) but is not dragged.
         const draggable = interactive && s.locked !== true;
@@ -1109,16 +1156,19 @@ function TimetablePage({
             <div
                 className={className}
                 style={cardStyle(s)}
-                title={cellLines(s, settings, ctx).title}
+                title={cellLines(s, cardSettings, ctx).title}
                 draggable={draggable}
                 onDragStart={draggable ? (event) => startDrag(event, { sectionId: s.section_id, subjectId: s.subject_id, teacherId: s.teacher_id, scheduleId: s.id }) : undefined}
                 onDragEnd={endDrag}
-                onDoubleClick={interactive ? () => openEdit(s.id) : undefined}
+                onDoubleClick={interactive ? (event) => {
+                    event.stopPropagation();
+                    openEdit(s.id);
+                } : undefined}
                 onContextMenu={(event) => cardMenu.open(event, { type: 'lesson', schedule: s })}
             >
                 <CellBody
                     lesson={s}
-                    settings={settings}
+                    settings={cardSettings}
                     ctx={ctx}
                     trailing={
                         <>
@@ -1158,12 +1208,14 @@ function TimetablePage({
         );
     };
 
-    const sectionCell = (sectionId: number, day: number, period: Period) => {
+    const sectionCell = (sectionId: number, day: number, period: Period, hideTeacher = false) => {
         const key = `${sectionId}:${cellKey(day, period.id)}`;
         const placed = sectionCells.get(sectionId)?.get(cellKey(day, period.id));
         const state = cellState(sectionId, day, period.id, drag);
+        const chosen = selectedCell !== null && selectedCell.sectionId === sectionId && selectedCell.day === day && selectedCell.periodId === period.id;
         const className = [
             'sis-timetable-cell',
+            chosen ? 'sis-timetable-cell--selected' : '',
             state !== 'idle' ? `sis-timetable-cell--${state}` : '',
             overCell === key && (state === 'free' || state === 'swap') ? 'sis-timetable-cell--over' : '',
         ]
@@ -1175,6 +1227,17 @@ function TimetablePage({
                 key={key}
                 className={className}
                 title={state === 'busy' ? tt.teacherBusy : state === 'swap' ? tt.swapHint : undefined}
+                aria-selected={chosen}
+                onClick={() => setSelectedCell({ sectionId, day, periodId: period.id })}
+                onDoubleClick={() => {
+                    if (placed !== undefined) {
+                        if (authorization.can_update && viewingVersion === null) {
+                            openEdit(placed.id);
+                        }
+                    } else if (canPlace) {
+                        setPickCell({ sectionId, day, periodId: period.id });
+                    }
+                }}
                 onDragOver={(event) => {
                     if (drag !== null && state !== 'idle') {
                         // Busy / taken cells accept the drop too: it answers with the reason and free alternatives.
@@ -1182,7 +1245,12 @@ function TimetablePage({
                         setOverCell(state === 'free' || state === 'swap' ? key : null);
                     }
                 }}
-                onContextMenu={placed === undefined ? (event) => cardMenu.open(event, { type: 'cell', sectionId, day, periodId: period.id }) : undefined}
+                onContextMenu={(event) => {
+                    setSelectedCell({ sectionId, day, periodId: period.id });
+                    if (placed === undefined) {
+                        cardMenu.open(event, { type: 'cell', sectionId, day, periodId: period.id });
+                    }
+                }}
                 onDragLeave={() => setOverCell((current) => (current === key ? null : current))}
                 onDrop={(event) => {
                     event.preventDefault();
@@ -1194,7 +1262,7 @@ function TimetablePage({
                 }}
             >
                 {placed !== undefined ? (
-                    lessonCard(placed, teacherNames.get(placed.teacher_id) ?? '', authorization.can_update && !saving)
+                    lessonCard(placed, teacherNames.get(placed.teacher_id) ?? '', authorization.can_update && !saving, hideTeacher)
                 ) : canPlace ? (
                     <button
                         type="button"
@@ -1332,27 +1400,203 @@ function TimetablePage({
         </section>
     );
 
+    /**
+     * «جدول الدروس الأسبوعي» on the working page — the school's sheet: one table per stage (class), its
+     * departments across, each department its sections, each section «الدرس» (+ «اسم المدرس» when shown);
+     * the days down the side (written vertically, a heavy line between days) with their periods. The lesson
+     * cell is the working cell (drop / pick / menu / edit); choosing a cell or heading focuses that section.
+     */
+    const stageBoard = (stage: StageSheet) => {
+        const codeOf = (section: Section) => resolveSisSectionCode(section.id, sections);
+        const label = (section: Section) => (codeOf(section) !== '' ? `${section.class_name} ${codeOf(section)}` : `${section.class_name} — ${section.name}`);
+        const perSection = stageTeachers ? 2 : 1;
+        const sectionCount = stage.columns.reduce((n, c) => n + c.members.length, 0);
+        const teacherText = (s: Schedule) =>
+            [s.teacher_id, s.co_teacher_id]
+                .filter((id): id is number => id !== null && id !== undefined)
+                .map((id) => teacherNames.get(id) ?? `#${id}`)
+                .join(' + ');
+        const edge = (column: StageColumn, index: number) => (index === column.members.length - 1 ? ' sis-timetable-stage__edge--department' : ' sis-timetable-stage__edge--section');
+
+        return (
+            <section key={stage.key} className="sis-timetable-board sis-timetable-stage" aria-busy={saving}>
+                <header className="sis-timetable-board__head sis-timetable-stage__head">
+                    <span className="sis-timetable-stage__school">{schoolName}</span>
+                    <span className="sis-timetable-board__title">
+                        {tt.master.title}
+                        {yearName !== '' ? ` ${tt.master.forYear} ${sheetYear}` : ''}
+                    </span>
+                    <span className="sis-timetable-board__title">
+                        {tt.master.stage}: {stage.name}
+                    </span>
+                    <span className="sis-timetable-board__meta">{sheetEffective !== '' ? tt.master.effectiveFrom.replace('{date}', sheetEffective) : ''}</span>
+                </header>
+                <div className="sis-timetable-grid" {...gridData(settings)} style={gridStyle(settings)}>
+                    <table className={`sis-timetable-table sis-timetable-table--compact sis-timetable-stage__table${stageTeachers ? ' sis-timetable-stage__table--teachers' : ''}`}>
+                        <colgroup>
+                            <col className="sis-timetable-stage__col-day" />
+                            <col className="sis-timetable-stage__col-period" />
+                            {stage.columns.flatMap((column) =>
+                                column.members.flatMap(({ section }) =>
+                                    stageTeachers
+                                        ? [<col key={`${column.key}:${section.id}:s`} className="sis-timetable-stage__col-lesson" />, <col key={`${column.key}:${section.id}:t`} className="sis-timetable-stage__col-teacher" />]
+                                        : [<col key={`${column.key}:${section.id}:s`} className="sis-timetable-stage__col-lesson" />],
+                                ),
+                            )}
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th rowSpan={stageTeachers ? 3 : 2} className="sis-timetable-grid__corner">{tt.master.days}</th>
+                                <th rowSpan={stageTeachers ? 3 : 2} className="sis-timetable-grid__corner sis-timetable-stage__corner--vertical">
+                                    <span>{tt.master.periods}</span>
+                                </th>
+                                {stage.columns.map((column) => (
+                                    <th key={column.key} colSpan={column.members.length * perSection} className="sis-timetable-stage__department sis-timetable-stage__edge--department">
+                                        {column.title}
+                                    </th>
+                                ))}
+                            </tr>
+                            <tr>
+                                {stage.columns.flatMap((column) =>
+                                    column.members.map(({ section, students }, index) => (
+                                        <th
+                                            key={`${column.key}:${section.id}`}
+                                            scope="colgroup"
+                                            colSpan={perSection}
+                                            className={`sis-timetable-stage__section${edge(column, index)}`}
+                                            title={`${students > 0 ? `${tt.studentsCount.replace('{n}', String(students))} · ` : ''}${sectionCells.get(section.id)?.size ?? 0} / ${lessonsOf(section).reduce((sum, l) => sum + (l.required ?? 0), 0)}`}
+                                            onClick={() => setFocusId(section.id)}
+                                        >
+                                            {label(section)}
+                                        </th>
+                                    )),
+                                )}
+                            </tr>
+                            {stageTeachers ? (
+                                <tr>
+                                    {stage.columns.flatMap((column) =>
+                                        column.members.flatMap(({ section }, index) => [
+                                            <th key={`${column.key}:${section.id}:s`} className="sis-timetable-stage__sub">{tt.master.lesson}</th>,
+                                            <th key={`${column.key}:${section.id}:t`} className={`sis-timetable-stage__sub${edge(column, index)}`}>{tt.master.teacher}</th>,
+                                        ]),
+                                    )}
+                                </tr>
+                            ) : null}
+                        </thead>
+                        {DAYS.map((day, dayIndex) => (
+                            <Fragment key={day}>
+                            {dayIndex > 0 ? (
+                                <tbody className="sis-timetable-stage__day-gap" aria-hidden="true">
+                                    <tr>
+                                        <td colSpan={2 + sectionCount * perSection} />
+                                    </tr>
+                                </tbody>
+                            ) : null}
+                            <tbody className="sis-timetable-stage__day-block">
+                                {dayPeriods.map((period, index) => (
+                                    <tr key={period.id} className={period.period_type === LESSON ? undefined : 'sis-timetable-stage__break-row'}>
+                                        {index === 0 ? (
+                                            <th scope="rowgroup" rowSpan={dayPeriods.length} className="sis-timetable-grid__day sis-timetable-stage__day">
+                                                <span>{dayOfWeekLabel(day)}</span>
+                                            </th>
+                                        ) : null}
+                                        {period.period_type === LESSON ? (
+                                            <>
+                                                <th scope="row" className="sis-timetable-stage__period" {...headerMenu(period)}>
+                                                    {lessonNumber.get(period.id)}
+                                                </th>
+                                                {stage.columns.flatMap((column) =>
+                                                    column.members.flatMap(({ section }, memberIndex) => {
+                                                        const cell = sectionCell(section.id, day, period, stageTeachers);
+                                                        const lessonCell = cloneElement(cell, {
+                                                            key: `${column.key}:${section.id}:${day}:${period.id}:s`,
+                                                            // lesson only: the lesson cell closes the section (its separator line)
+                                                            className: `${(cell.props as { className?: string }).className ?? ''}${stageTeachers ? '' : edge(column, memberIndex)}`,
+                                                            onClickCapture: () => setFocusId(section.id),
+                                                        });
+                                                        if (!stageTeachers) {
+                                                            return [lessonCell];
+                                                        }
+                                                        const placed = sectionCells.get(section.id)?.get(cellKey(day, period.id));
+
+                                                        return [
+                                                            lessonCell,
+                                                            <td
+                                                                key={`${column.key}:${section.id}:${day}:${period.id}:t`}
+                                                                className={`sis-timetable-cell sis-timetable-stage__teacher${edge(column, memberIndex)}`}
+                                                                style={placed === undefined ? undefined : cardStyle(placed)}
+                                                                onClick={() => setFocusId(section.id)}
+                                                            >
+                                                                {placed === undefined ? null : teacherText(placed)}
+                                                            </td>,
+                                                        ];
+                                                    }),
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <th scope="row" className="sis-timetable-stage__period sis-timetable-stage__period--break" {...headerMenu(period)} style={hueStyle(period.color_hue)} />
+                                                {stage.columns.map((column) => (
+                                                    <td
+                                                        key={`${column.key}:break:${period.id}`}
+                                                        colSpan={column.members.length * perSection}
+                                                        {...headerMenu(period)}
+                                                        className={`sis-timetable-cell sis-timetable-cell--break sis-timetable-break--${breakTone(minutesOf(period.end_time) - minutesOf(period.start_time))} sis-timetable-stage__edge--department`}
+                                                        style={hueStyle(period.color_hue)}
+                                                    >
+                                                        <span className="sis-timetable-cell__break-label">{breakText(period)}</span>
+                                                    </td>
+                                                ))}
+                                            </>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                            </Fragment>
+                        ))}
+                    </table>
+                </div>
+            </section>
+        );
+    };
+
+    /**
+     * The sheets of the page: one per stage (class name — «الأول», «الثاني» …), in class order; inside, the
+     * departments in the order of `groups` (organization structure), each with its sections of that stage.
+     */
+    const stageSheets = useMemo((): StageSheet[] => {
+        const sheets = new Map<string, StageSheet & { order: number }>();
+        for (const group of groups) {
+            const title = group.title.split(' › ').pop() ?? group.title;
+            for (const member of group.sections) {
+                const name = member.section.class_name;
+                const sheet = sheets.get(name) ?? { key: `stage:${name}`, name, columns: [], order: member.section.class_id };
+                sheet.order = Math.min(sheet.order, member.section.class_id);
+                let column = sheet.columns.find((c) => c.key === group.key);
+                if (column === undefined) {
+                    column = { key: group.key, title, members: [] };
+                    sheet.columns.push(column);
+                }
+                column.members.push(member);
+                sheets.set(name, sheet);
+            }
+        }
+
+        return [...sheets.values()].sort((a, b) => a.order - b.order).map(({ order: _order, ...sheet }) => sheet);
+    }, [groups]);
+
     const yearName = years.find((y) => y.id === yearId)?.name ?? '';
 
-    // «الجدول الموحّد» (full screen): department → its sections; a section is «class + A / B / C» (SSOT codes).
-    const masterColumns = useMemo((): MasterColumn[] => {
-        const codeOf = (section: Section) => resolveSisSectionCode(section.id, sections);
-
-        // Same order as the page's boards (sorted once in `groups`).
-        return groups.map((group) => ({
-            key: group.key,
-            title: group.title.split(' › ').pop() ?? group.title,
-            sections: group.sections
-                .map(({ section }) => section)
-                .map((section) => ({ id: section.id, label: codeOf(section) !== '' ? `${section.class_name} ${codeOf(section)}` : `${section.class_name} — ${section.name}` })),
-        }));
-    }, [groups, sections]);
-    const masterStage = (() => {
-        const names = [...new Set(masterColumns.flatMap((c) => c.sections.map((s) => sectionsById.get(s.id)?.class_name ?? '')))].filter((n) => n !== '');
-
-        return names.length === 1 ? names[0] : '';
-    })();
     const effectiveVersion = engine?.versions.find((v) => v.id === engine.status.effective_version_id) ?? null;
+    /** Heading of the sheets: «2026 - 2027», and «4 / 10 / 2026» from «ترويسة الجدول» (else the effective version's date). */
+    // The stored name reads «السنة الدراسية 2026-2027»; the header already says «للسنة الدراسية» → the number only.
+    const sheetYear = yearName.replace(/^\s*السنة\s+الدراسية\s*/, '').replace(/\s*[-–]\s*/, ' - ').trim();
+    const sheetEffective = (() => {
+        const iso = settings.heading.effective_from ?? effectiveVersion?.effective_from ?? null;
+        const m = iso === null ? null : /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+
+        return m === null ? '' : `${Number(m[3])} / ${Number(m[2])} / ${m[1]}`;
+    })();
     const schoolName = page.schoolContext?.schools.find((x) => x.id === page.schoolContext?.schoolId)?.name ?? '';
 
     const tray = (
@@ -1456,19 +1700,9 @@ function TimetablePage({
         ) : (
             <div className={`sis-timetable-layout${singleGrid ? '' : ' sis-timetable-layout--groups'}`}>
                 <div className={`sis-timetable-boards${singleGrid ? ' sis-timetable-boards--single' : ''}`}>
-                    {groups.map((group) =>
-                        singleGrid ? (
-                            <Fragment key={group.key}>{group.sections.map(({ section, students }) => sectionBoard(section, students, false))}</Fragment>
-                        ) : (
-                            <div key={group.key} className="sis-timetable-group">
-                                <h2 className="sis-timetable-group__title">
-                                    {group.title}
-                                    <span className="sis-timetable-group__count">{tt.sectionsCount.replace('{n}', String(group.sections.length))}</span>
-                                </h2>
-                                <div className="sis-timetable-group__boards">{group.sections.map(({ section, students }) => sectionBoard(section, students, true))}</div>
-                            </div>
-                        ),
-                    )}
+                    {singleGrid
+                        ? groups.map((group) => <Fragment key={group.key}>{group.sections.map(({ section, students }) => sectionBoard(section, students, false))}</Fragment>)
+                        : stageSheets.map((stage) => stageBoard(stage))}
                 </div>
                 {tray}
             </div>
@@ -1554,29 +1788,32 @@ function TimetablePage({
         ) : view === 'room' ? (
             roomView
         ) : (
-                        <MasterTimetable
-
-                            columns={masterColumns}
-
-                            days={DAYS}
-
-                            dayLabel={dayOfWeekLabel}
-
-                            periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0 }))}
-
-                            lessons={schedules}
-
-                            subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
-
-                            teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
-
-                            groupName={(id) => groupNames.get(id) ?? ''}
-
-                            subjectStyle={(id) => subjectStyles.get(id)}
-
-                            heading={{ title: tt.master.title, school: schoolName, year: yearName, stage: masterStage, effectiveFrom: effectiveVersion?.effective_from ?? null }}
-
-                        />
+                        // One sheet per stage, like the school's printed pages (a page break between stages).
+                        <div className="sis-timetable-master-sheets">
+                            {stageSheets.map((stage) => (
+                                <MasterTimetable
+                                    key={stage.key}
+                                    columns={stage.columns.map((column) => ({
+                                        key: column.key,
+                                        title: column.title,
+                                        sections: column.members.map(({ section }) => ({
+                                            id: section.id,
+                                            label: resolveSisSectionCode(section.id, sections) !== '' ? `${section.class_name} ${resolveSisSectionCode(section.id, sections)}` : `${section.class_name} — ${section.name}`,
+                                        })),
+                                    }))}
+                                    days={DAYS}
+                                    dayLabel={dayOfWeekLabel}
+                                    periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0 }))}
+                                    lessons={schedules}
+                                    subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
+                                    teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
+                                    groupName={(id) => groupNames.get(id) ?? ''}
+                                    subjectStyle={(id) => subjectStyles.get(id)}
+                                    heading={{ title: tt.master.title, school: schoolName, year: sheetYear, stage: stage.name, effectiveFrom: sheetEffective === '' ? null : sheetEffective }}
+                                    showTeacher={stageTeachers}
+                                />
+                            ))}
+                        </div>
         );
     /** «تحرير الخلية» panes beside «المحتوى»: each entity's facts with its owner's «الاختصار واللون» and page. */
     const cellPanes = (s: Schedule): Record<string, ReactNode> => {
@@ -1585,7 +1822,7 @@ function TimetablePage({
         const period = sortedPeriods.find((p) => p.id === s.period_id);
         const row = (kind: DisplayKind, id: number | null) => (id === null ? null : displayRow(display, kind, id));
         const facts = (items: Array<[string, string | number | null | undefined]>) => (
-            <ul className="sis-timetable-audit__items sis-branches-field--wide">
+            <ul className="sis-timetable-audit__items sis-timetable-facts sis-branches-field--wide">
                 {items.filter(([, v]) => v !== null && v !== undefined && v !== '').map(([label, value]) => (
                     <li key={label} className="sis-timetable-audit__item">
                         <span className="sis-timetable-audit__text">{label}</span>
@@ -1724,7 +1961,11 @@ function TimetablePage({
             ];
         }
         if (target.type === 'cell') {
-            const canPaste = clipboard !== null && clipboard.sectionId === target.sectionId && canPlace;
+            const targetSection = sectionsById.get(target.sectionId) ?? null;
+            const canPaste =
+                clipboard !== null &&
+                canPlace &&
+                (clipboard.sectionId === target.sectionId || lessonsOf(targetSection).some((l) => l.subjectId === clipboard.subjectId && l.teacherId === clipboard.teacherId));
             return [
                 { id: 'cell-add', label: m.add, icon: Sparkles, disabled: !canPlace, onSelect: () => setPickCell({ sectionId: target.sectionId, day: target.day, periodId: target.periodId }) },
                 {
@@ -1732,7 +1973,7 @@ function TimetablePage({
                     label: m.paste,
                     icon: ClipboardPaste,
                     disabled: !canPaste,
-                    onSelect: () => clipboard !== null && place({ sectionId: clipboard.sectionId, subjectId: clipboard.subjectId, teacherId: clipboard.teacherId, scheduleId: null }, target.sectionId, target.day, target.periodId),
+                    onSelect: () => clipboard !== null && place({ sectionId: target.sectionId, subjectId: clipboard.subjectId, teacherId: clipboard.teacherId, scheduleId: null }, target.sectionId, target.day, target.periodId),
                 },
                 { id: 'cell-format', label: m.format, icon: Search, separator: true, onSelect: () => setFormatFor({ scheduleId: null }) },
             ];
@@ -1753,7 +1994,9 @@ function TimetablePage({
             { id: 'lesson-open-teacher', label: m.openTeacher, icon: UserRound, separator: true, onSelect: () => router.get('/teachers') },
             { id: 'lesson-open-subject', label: m.openSubject, icon: Boxes, onSelect: () => router.get('/curriculum') },
             ...(s.room_id !== null ? [{ id: 'lesson-open-room', label: m.openRoom, icon: DoorClosed, onSelect: () => router.get('/organization/rooms') }] : []),
-            { id: 'lesson-teacher-toggle', label: settings.fields.teacher ? m.hideTeacher : m.showTeacher, icon: settings.fields.teacher ? EyeOff : Eye, separator: true, onSelect: () => toggleField('teacher') },
+            singleGrid || view !== 'section'
+                ? { id: 'lesson-teacher-toggle', label: settings.fields.teacher ? m.hideTeacher : m.showTeacher, icon: settings.fields.teacher ? EyeOff : Eye, separator: true, onSelect: () => toggleField('teacher') }
+                : { id: 'lesson-teacher-toggle', label: stageTeachers ? m.hideTeacher : m.showTeacher, icon: stageTeachers ? EyeOff : Eye, separator: true, onSelect: () => setStageTeachers(!stageTeachers) },
             { id: 'lesson-room-toggle', label: settings.fields.room ? m.hideRoom : m.showRoom, icon: settings.fields.room ? EyeOff : Eye, onSelect: () => toggleField('room') },
             { id: 'lesson-remove', label: m.remove, icon: Trash2, danger: true, separator: true, disabled: !editable || !authorization.can_cancel || s.locked === true, onSelect: () => void unplace(s.id) },
         ];
@@ -1865,16 +2108,10 @@ function TimetablePage({
     })();
 
     const printDate = new Date().toLocaleDateString('ar', { year: 'numeric', month: 'long', day: 'numeric' });
-    /** Prints the sheet; from the screen view it first lays the table on the sheet (fit measured), then prints. */
+    /** Prints the sheet shown in the preview. */
     const printNow = () => {
         setPrintPanel(false);
-        if (printLayout) {
-            window.print();
-
-            return;
-        }
-        setPrintLayout(true);
-        window.setTimeout(() => window.print(), 400);
+        window.print();
     };
 
     return (
@@ -1916,11 +2153,52 @@ function TimetablePage({
                 <div ref={previewRef} className="sis-timetable-preview" role="dialog" aria-modal="true" aria-label={tt.preview} dir="rtl" lang="ar">
                     {/* The printed sheet: the paper, orientation and margins of «إعدادات الطباعة». */}
                     <style>{pageRule(printSettings)}</style>
-                    <header className="sis-timetable-preview__head">
-                        <span className="sis-timetable-preview__title">
-                            {tt.title}
-                            {view === 'teacher' ? ` — ${teacherNames.get(activeTeacherId ?? 0) ?? ''}` : ''}
+                    <header className="sis-timetable-preview__head sis-timetable-preview__head--one-line">
+                        <div className="sis-timetable-preview__line">
+                        <span className="sis-timetable-preview__filter">
+                            <span className="sis-timetable-preview__filter-label">{tt.zoom.kind}</span>
+                            <SisListSelect
+                                value={view}
+                                options={[
+                                    { value: 'section', label: tt.bySection },
+                                    { value: 'teacher', label: tt.byTeacher },
+                                    ...((engine?.rooms.length ?? 0) > 0 ? [{ value: 'room', label: et.byRoom }] : []),
+                                ]}
+                                onChange={(next) => setView(next as 'section' | 'teacher' | 'room')}
+                                className="sis-timetable-preview__select"
+                                triggerClassName="sis-timetable-preview__control"
+                                dir="rtl"
+                                ariaLabel={tt.zoom.kind}
+                            />
                         </span>
+                        {view === 'teacher' ? (
+                            <span className="sis-timetable-preview__filter">
+                                <span className="sis-timetable-preview__filter-label">{tt.teacher}</span>
+                                <SisListSelect
+                                    value={activeTeacherId === null ? '' : String(activeTeacherId)}
+                                    options={teachers.map((x) => ({ value: String(x.id), label: x.full_name }))}
+                                    onChange={(next) => setTeacherId(Number(next))}
+                                    className="sis-timetable-preview__select"
+                                    triggerClassName="sis-timetable-preview__control"
+                                    dir="rtl"
+                                    ariaLabel={tt.teacher}
+                                />
+                            </span>
+                        ) : null}
+                        {view === 'room' ? (
+                            <span className="sis-timetable-preview__filter">
+                                <span className="sis-timetable-preview__filter-label">{et.room}</span>
+                                <SisListSelect
+                                    value={activeRoomId === null ? '' : String(activeRoomId)}
+                                    options={(engine?.rooms ?? []).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` }))}
+                                    onChange={(next) => setRoomId(Number(next))}
+                                    className="sis-timetable-preview__select"
+                                    triggerClassName="sis-timetable-preview__control"
+                                    dir="rtl"
+                                    ariaLabel={et.room}
+                                />
+                            </span>
+                        ) : null}
                         {view === 'section' ? (
                             <span className="sis-timetable-preview__filters" role="group" aria-label={tt.ribbonFilters}>
                                 {(
@@ -1951,65 +2229,6 @@ function TimetablePage({
                             </span>
                         ) : null}
                         <span className="sis-timetable-preview__actions" role="group" aria-label={tt.zoom.kind}>
-                            <SisListSelect
-                                value={view}
-                                options={[
-                                    { value: 'section', label: tt.bySection },
-                                    { value: 'teacher', label: tt.byTeacher },
-                                    ...((engine?.rooms.length ?? 0) > 0 ? [{ value: 'room', label: et.byRoom }] : []),
-                                ]}
-                                onChange={(next) => setView(next as 'section' | 'teacher' | 'room')}
-                                className="sis-timetable-preview__select"
-                                triggerClassName="sis-timetable-preview__control"
-                                dir="rtl"
-                                ariaLabel={tt.zoom.kind}
-                            />
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" title={tt.zoom.out} aria-label={tt.zoom.out} onClick={() => setZoom((z) => Math.max(0.3, Math.round((z - 0.1) * 10) / 10))}>
-                                <ZoomOut aria-hidden />
-                            </Button>
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" title={tt.zoom.reset} onClick={() => setZoom(1)}>
-                                <bdi dir="ltr">{Math.round(zoom * 100)}%</bdi>
-                            </Button>
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" title={tt.zoom.in} aria-label={tt.zoom.in} onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}>
-                                <ZoomIn aria-hidden />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="sis-timetable-preview__close"
-                                title={tt.zoom.fitWidth}
-                                aria-label={tt.zoom.fitWidth}
-                                onClick={() => {
-                                    const body = previewBodyRef.current;
-                                    const content = previewContentRef.current;
-                                    if (body !== null && content !== null && content.scrollWidth > 0) {
-                                        setZoom(Math.max(0.3, Math.min(3, (body.clientWidth / (content.scrollWidth / zoom)) * 0.98)));
-                                    }
-                                }}
-                            >
-                                <Expand aria-hidden />
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="sis-timetable-preview__close"
-                                title={tt.zoom.fitPage}
-                                aria-label={tt.zoom.fitPage}
-                                onClick={() => {
-                                    const body = previewBodyRef.current;
-                                    const content = previewContentRef.current;
-                                    if (body !== null && content !== null && content.scrollWidth > 0 && content.scrollHeight > 0) {
-                                        const natural = { w: content.scrollWidth / zoom, h: content.scrollHeight / zoom };
-                                        setZoom(Math.max(0.3, Math.min(3, Math.min(body.clientWidth / natural.w, body.clientHeight / natural.h) * 0.98)));
-                                    }
-                                }}
-                            >
-                                <Shrink aria-hidden />
-                            </Button>
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" aria-pressed={printLayout} title={tt.a3LayoutHint} onClick={() => setPrintLayout((current) => !current)}>
-                                <LayoutList aria-hidden />
-                                {printLayout ? tt.a3LayoutBack : tt.a3Layout}
-                            </Button>
                             <Button type="button" variant="outline" className="sis-timetable-preview__close" aria-pressed={printPanel} aria-expanded={printPanel} onClick={() => setPrintPanel((current) => !current)}>
                                 <Settings2 aria-hidden />
                                 {tt.printSetup.title}
@@ -2023,19 +2242,14 @@ function TimetablePage({
                                 {tt.previewClose}
                             </Button>
                         </span>
+                        </div>
                     </header>
                     {printPanel ? <PrintSettingsPanel settings={printSettings} onChange={changePrintSettings} onClose={() => setPrintPanel(false)} /> : null}
-                    <div ref={previewBodyRef} className={`sis-timetable-preview__body${printLayout ? ' sis-timetable-preview__body--paper' : ''}`}>
-                        {printLayout ? (
-                            <TimetablePaper settings={printSettings} footer={`${tt.printSetup.printedOn} ${printDate}`}>
-                                {previewContent}
-                            </TimetablePaper>
-                        ) : (
-                            // «تكبير / تصغير / ملاءمة»: the on-screen preview only (the printed sheet keeps its own fit).
-                            <div ref={previewContentRef} style={zoom === 1 ? undefined : { zoom }}>
-                                {previewContent}
-                            </div>
-                        )}
+                    {/* «معاينة الطباعة» only: always the printed sheet (paper, orientation, margins of «إعدادات الطباعة»). */}
+                    <div ref={previewBodyRef} className="sis-timetable-preview__body sis-timetable-preview__body--paper">
+                        <TimetablePaper settings={printSettings} footer={`${tt.printSetup.printedOn} ${printDate}`}>
+                            {previewContent}
+                        </TimetablePaper>
                     </div>
                 </div>
             ) : null}
@@ -2249,6 +2463,18 @@ function TimetablePage({
                 />
             ) : null}
 
+            {headingOpen && yearId !== null ? (
+                <HeadingSheet
+                    settings={settings}
+                    yearId={yearId}
+                    school={schoolName}
+                    year={sheetYear}
+                    stages={stageSheets.map((s) => s.name)}
+                    canSave={authorization.can_manage_constraints}
+                    onSaved={setDisplayOverride}
+                    onClose={() => setHeadingOpen(false)}
+                />
+            ) : null}
             {dayOpen ? <SchoolDaySheet periods={sortedPeriods} lessonNumber={lessonNumber} clock={(time) => formatClock(time, settings.period_header.clock, tt.am, tt.pm)} onClose={() => setDayOpen(false)} /> : null}
 
             {appearanceFor !== null ? (() => {
@@ -2263,7 +2489,7 @@ function TimetablePage({
                         suggested={row?.suggested ?? null}
                         url={target.url}
                         payload={target.payload}
-                        reloadProps={['display', 'flash']}
+                        reloadProps={['display', 'schedules', 'engine', 'flash']}
                         canEdit
                         onClose={() => setAppearanceFor(null)}
                     />
@@ -2406,7 +2632,6 @@ function LessonSheet({
                                 setTeacherId(first === undefined ? '' : String(first.id));
                             }
                         }}
-                        fieldClassName="sis-branches-field--wide"
                     />
                     <RegistryListField
                         label={tt.lessonTeacher}
@@ -2415,7 +2640,6 @@ function LessonSheet({
                         display={teacherOptions.find((o) => o.value === teacherId)?.label ?? ''}
                         options={teacherOptions.length === 0 ? [{ value: '', label: tt.noOtherTeacher }] : teacherOptions}
                         onChange={setTeacherId}
-                        fieldClassName="sis-branches-field--wide"
                     />
                     <RegistryListField
                         label={c.room}
@@ -2424,7 +2648,6 @@ function LessonSheet({
                         display={roomOptions.find((o) => o.value === roomId)?.label ?? ''}
                         options={roomOptions}
                         onChange={setRoomId}
-                        fieldClassName="sis-branches-field--wide"
                     />
                     <p className="sis-timetable-sheet__hint sis-branches-field--wide">{tt.shiftHint}</p>
                 </div>
@@ -2733,39 +2956,49 @@ function PeriodsSheet({ periods, lessonNumber, onClose }: { periods: Period[]; l
             ? `${tt.periodLabel} ${lessonNumber.get(period.id) ?? ''}`
             : `${tt.periodBreak} ${minutesOf(period.end_time) - minutesOf(period.start_time)} ${tt.minutesShort}`;
 
-    const editRow = (key: string) => (
-        <tr key={key} className="sis-timetable-periods__editing">
-            <td>
-                <input className="sis-admission-sheet__control" type="number" min={1} max={20} dir="ltr" value={form.period_number} aria-label={tt.periodOrder} onChange={(e) => set('period_number')(e.target.value)} />
-            </td>
-            <td>
-                <input className="sis-admission-sheet__control" type="time" dir="ltr" value={form.start_time} aria-label={tt.startTime} onChange={(e) => set('start_time')(e.target.value)} />
-            </td>
-            <td>
-                <input className="sis-admission-sheet__control" type="time" dir="ltr" value={form.end_time} aria-label={tt.endTime} onChange={(e) => set('end_time')(e.target.value)} />
-            </td>
-            <td>
-                <SisListSelect
-                    value={form.period_type}
-                    options={typeOptions}
-                    onChange={set('period_type')}
-                    ariaLabel={tt.periodType}
-                    includeBlank={false}
-                    className="sis-admission-sheet-list-select"
-                    triggerClassName="sis-admission-sheet__control sis-admission-draft-select"
-                    menuClassName="sis-admission-sheet-list-select__menu"
-                />
-            </td>
-            <td className="sis-timetable-periods__actions">
-                <Button type="button" size="sm" disabled={saving || form.start_time === '' || form.end_time === '' || form.period_number === ''} onClick={() => void save()}>
-                    {saving ? i18n.common.saving : tt.savePeriod}
-                </Button>
-                <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => setEditingId(null)}>
-                    {tt.cancelEdit}
-                </Button>
-            </td>
-        </tr>
-    );
+    // «تعديل الحصة» / «إضافة حصة»: its own window above this one (not a row editor inside the list).
+    const periodWindow =
+        editingId === null ? null : (
+            <TimetableSubWindow title={editingId === 'new' ? tt.addPeriod : tt.editPeriod} onClose={() => setEditingId(null)}>
+                <SheetSection id="timetable-period-form" title={editingId === 'new' ? tt.addPeriod : tt.editPeriod}>
+                    <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                        <label className="sis-admission-sheet__field">
+                            <span className="sis-admission-sheet__label">{tt.periodOrder}</span>
+                            <input className="sis-admission-sheet__control" type="number" min={1} max={20} value={form.period_number} onChange={(e) => set('period_number')(e.target.value)} />
+                        </label>
+                        <label className="sis-admission-sheet__field">
+                            <span className="sis-admission-sheet__label">{tt.startTime}</span>
+                            <input className="sis-admission-sheet__control" type="time" value={form.start_time} onChange={(e) => set('start_time')(e.target.value)} />
+                        </label>
+                        <label className="sis-admission-sheet__field">
+                            <span className="sis-admission-sheet__label">{tt.endTime}</span>
+                            <input className="sis-admission-sheet__control" type="time" value={form.end_time} onChange={(e) => set('end_time')(e.target.value)} />
+                        </label>
+                        <div className="sis-admission-sheet__field">
+                            <span className="sis-admission-sheet__label">{tt.periodType}</span>
+                            <SisListSelect
+                                value={form.period_type}
+                                options={typeOptions}
+                                onChange={set('period_type')}
+                                ariaLabel={tt.periodType}
+                                includeBlank={false}
+                                className="sis-admission-sheet-list-select"
+                                triggerClassName="sis-admission-sheet__control sis-admission-draft-select"
+                                menuClassName="sis-admission-sheet-list-select__menu"
+                            />
+                        </div>
+                    </div>
+                </SheetSection>
+                <div className="sis-admission-sheet__actions">
+                    <Button type="button" variant="outline" disabled={saving} onClick={() => setEditingId(null)}>
+                        {tt.cancelEdit}
+                    </Button>
+                    <Button type="button" disabled={saving || form.start_time === '' || form.end_time === '' || form.period_number === ''} onClick={() => void save()}>
+                        {saving ? i18n.common.saving : tt.savePeriod}
+                    </Button>
+                </div>
+            </TimetableSubWindow>
+        );
 
     return (
         <RegistrySheetDialog title={tt.periodsSetup} className="sis-branches-sheet sis-timetable-sheet sis-timetable-periods-sheet" onClose={onClose}>
@@ -2808,10 +3041,7 @@ function PeriodsSheet({ periods, lessonNumber, onClose }: { periods: Period[]; l
                                 </tr>
                             </thead>
                             <tbody>
-                                {periods.map((period) =>
-                                    editingId === period.id ? (
-                                        editRow(String(period.id))
-                                    ) : (
+                                {periods.map((period) => (
                                         <tr key={period.id} className={period.period_type === LESSON ? '' : 'sis-timetable-periods__break'}>
                                             <td dir="ltr">{period.period_number}</td>
                                             <td>{clock12(period.start_time)}</td>
@@ -2823,9 +3053,7 @@ function PeriodsSheet({ periods, lessonNumber, onClose }: { periods: Period[]; l
                                                 </Button>
                                             </td>
                                         </tr>
-                                    ),
-                                )}
-                                {editingId === 'new' ? editRow('new') : null}
+                                ))}
                             </tbody>
                         </table>
                     </div>
@@ -2839,7 +3067,8 @@ function PeriodsSheet({ periods, lessonNumber, onClose }: { periods: Period[]; l
                     {tt.addPeriod}
                 </Button>
             </div>
-                    <ConfirmDialog
+            {periodWindow}
+            <ConfirmDialog
                 open={confirmArrange}
                 title={i18n.timetable.engine.confirmTitle}
                 description={i18n.timetable.engine.confirmArrange}
