@@ -16777,14 +16777,38 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 /* Abbreviation + colour inside the subject form: one full-width line each, the swatches wrap. */
+/* Abbreviation | colour swatches | preview on one line; the swatches wrap inside their own column. */
 .sis-curriculum-subject-sheet__appearance {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
+    display: grid;
+    grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr) minmax(7rem, 10rem);
+    align-items: start;
+    gap: 0.5rem 0.9rem;
+    width: 100%;
+}
+
+.sis-curriculum-subject-sheet__appearance > * {
+    grid-column: auto;
+    min-width: 0;
+}
+
+.sis-curriculum-subject-sheet__appearance > .sis-timetable-sheet__hint {
+    grid-column: 1 / -1;
 }
 
 .sis-curriculum-subject-sheet__appearance .sis-appearance-swatches {
     flex-wrap: wrap;
+    gap: 0.3rem;
+    padding-block: 0.1rem;
+}
+
+.sis-curriculum-subject-sheet__appearance .sis-appearance-preview {
+    max-width: 100%;
+}
+
+@media (max-width: 48rem) {
+    .sis-curriculum-subject-sheet__appearance {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 /* «جدول المرحلة» (working page, several sections): one table per class — sections across, each day a block of
@@ -17422,7 +17446,7 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-rooms-types-sheet {
-    --sis-sheet-w: min(96vw, 46rem);
+    --sis-sheet-w: min(96vw, 64rem);
 }
 
 .sis-rooms-sheet .sis-admission-sheet__row,
@@ -18183,4 +18207,131 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 
 .sis-timetable-print-sheet .sis-admission-sheet__banner {
     padding-block: 0.25rem;
+}
+
+/* ═══ Narrow single-column forms («بيانات / تعديل الغرفة», «تعديل الاختصار واللون») ═══
+   Laid out like «إضافة مادة»: titled sections, one field per line, label above its control. The window is as wide
+   as its widest field (the name / list box) — nothing is stretched past it; the swatches wrap inside. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-narrow-form.sis-narrow-form.sis-narrow-form {
+    --sis-sheet-w: min(94vw, 23rem);
+}
+
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__body {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+}
+
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__body > .sis-admission-sheet__row {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    width: 100%;
+    margin: 0;
+}
+
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__field {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin: 0;
+    grid-column: auto !important;
+}
+
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__field > .sis-admission-sheet__label {
+    grid-column: auto;
+    margin: 0;
+    padding: 0;
+    font-weight: 700;
+    text-align: right;
+    white-space: normal;
+}
+
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__field > :not(.sis-admission-sheet__label),
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__field .sis-admission-sheet-list-select,
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__field .sis-list-select__trigger {
+    grid-column: auto;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.sis-narrow-form.sis-narrow-form .sis-appearance-preview {
+    max-width: 100%;
+}
+
+.sis-narrow-form.sis-narrow-form .sis-admission-sheet__actions {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+/* ═══ «الغرف الدراسية»: every window (room data / edit / add, «تعديل الاختصار واللون», room type form) lays its content
+   out in three equal columns; the window is as wide as those columns, as tall as the rows. ═══ */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-rooms-three.sis-rooms-three.sis-rooms-three {
+    --sis-sheet-w: min(96vw, 44rem);
+}
+
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__body {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.5rem 0.9rem;
+    padding: 0.5rem 0.9rem;
+}
+
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__body > .sis-admission-sheet__row {
+    display: contents !important;
+}
+
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__field {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin: 0;
+    grid-column: auto !important;
+}
+
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__field > .sis-admission-sheet__label {
+    grid-column: auto;
+    margin: 0;
+    padding: 0;
+    font-weight: 700;
+    text-align: right;
+    white-space: normal;
+}
+
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__field > :not(.sis-admission-sheet__label),
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__field .sis-admission-sheet-list-select,
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__field .sis-list-select__trigger {
+    grid-column: auto;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.sis-rooms-three.sis-rooms-three .sis-admission-sheet__body .sis-timetable-sheet__hint {
+    grid-column: 1 / -1;
+}
+
+.sis-rooms-three.sis-rooms-three .sis-appearance-preview {
+    max-width: 100%;
+}
+
+@media (max-width: 40rem) {
+    .sis-rooms-three.sis-rooms-three .sis-admission-sheet__body {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }

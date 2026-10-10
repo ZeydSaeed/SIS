@@ -162,7 +162,7 @@ export function AppearanceDialog({
             title={title}
             className={
                 compact
-                    ? 'sis-branches-sheet sis-timetable-sheet sis-timetable-subsheet sis-timetable-subsheet--form sis-timetable-appearance-sheet'
+                    ? `sis-branches-sheet sis-timetable-sheet sis-timetable-subsheet sis-timetable-subsheet--form sis-timetable-appearance-sheet ${sheetClassName.includes('sis-rooms-three') ? '' : 'sis-narrow-form'} ${sheetClassName}`.replace(/\s+/g, ' ').trim()
                     : `sis-branches-sheet sis-appearance-sheet ${sheetClassName}`.trim()
             }
             onClose={onClose}

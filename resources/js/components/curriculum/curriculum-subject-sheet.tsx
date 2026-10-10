@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import AppLogo from '@/components/app-logo';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { SheetSection } from '@/components/sis/admission-sheet';
+import { AppearanceFields } from '@/components/sis/appearance-fields';
 import { usePageError } from '@/components/sis/page-error-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,9 @@ export type CurriculumSubjectSheetSubject = {
     pass_grade: number;
     status: number;
     prerequisites?: string;
+    /** «الاختصار واللون» (shown on the timetable). */
+    abbreviation?: string | null;
+    color_hue?: number | null;
 };
 
 export type CurriculumSubjectSheetMode = 'edit' | 'create';
@@ -38,6 +42,8 @@ type Draft = {
     pass_grade: string;
     status: string;
     prerequisites: string;
+    abbreviation: string;
+    color_hue: number | null;
 };
 
 /** Blank subject for create-mode SSOT — same sheet as enrollment-style view/edit. */
@@ -104,6 +110,8 @@ function toDraft(subject: CurriculumSubjectSheetSubject): Draft {
         pass_grade: String(subject.pass_grade ?? 50),
         status: String(Number(subject.status) === 1 ? 1 : 2),
         prerequisites: subject.prerequisites?.trim() ?? '',
+        abbreviation: subject.abbreviation?.trim() ?? '',
+        color_hue: subject.color_hue ?? null,
     };
 }
 
@@ -345,7 +353,9 @@ function SubjectRecordForm({
             draftCredit !== subjectCredit ||
             Number(draft.max_grade) !== Number(subject.max_grade) ||
             Number(draft.pass_grade) !== Number(subject.pass_grade) ||
-            draft.prerequisites.trim() !== (subject.prerequisites?.trim() ?? '')
+            draft.prerequisites.trim() !== (subject.prerequisites?.trim() ?? '') ||
+            draft.abbreviation.trim() !== (subject.abbreviation?.trim() ?? '') ||
+            draft.color_hue !== (subject.color_hue ?? null)
         );
     };
 
@@ -375,6 +385,8 @@ function SubjectRecordForm({
                 max_grade: Number(draft.max_grade),
                 pass_grade: Number(draft.pass_grade),
                 prerequisites_text: prerequisitesText === '' ? null : prerequisitesText,
+                abbreviation: draft.abbreviation.trim() === '' ? null : draft.abbreviation.trim(),
+                color_hue: draft.color_hue,
             },
             {
                 preserveScroll: true,
@@ -640,6 +652,27 @@ function SubjectRecordForm({
                 </div>
             </SheetSection>
 
+            {isCreate ? null : (
+                <SheetSection
+                    id={`subject-appearance-${subject.id}`}
+                    title={i18n.appearance.title}
+                >
+                    <div
+                        className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row sis-curriculum-subject-sheet__appearance"
+                        data-subject-appearance
+                    >
+                        <AppearanceFields
+                            value={{ abbreviation: draft.abbreviation, color_hue: draft.color_hue }}
+                            onChange={(next) =>
+                                setDraft((current) => ({ ...current, abbreviation: next.abbreviation, color_hue: next.color_hue }))
+                            }
+                            editing={fieldsEditable}
+                            previewTitle={draft.name}
+                        />
+                    </div>
+                </SheetSection>
+            )}
+
             <div className="sis-admission-sheet__actions">
                 {onClose ? (
                     <Button type="button" variant="outline" onClick={onClose}>
@@ -727,6 +760,8 @@ type Props = {
     mode?: CurriculumSubjectSheetMode;
     canManage: boolean;
     initialEditing?: boolean;
+    /** Opened from «الاختصار واللون»: scroll the form to that section. */
+    focusAppearance?: boolean;
     onClose: () => void;
 };
 
@@ -738,6 +773,7 @@ export function CurriculumSubjectSheetDialog({
     mode = 'edit',
     canManage,
     initialEditing = false,
+    focusAppearance = false,
     onClose,
 }: Props) {
     const i18n = t();
@@ -759,6 +795,17 @@ export function CurriculumSubjectSheetDialog({
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
     const scrollerRef = useRef<HTMLDivElement | null>(null);
     const subjectIdsKey = list.map((subject) => subject.id).join(',');
+
+    useEffect(() => {
+        if (!focusAppearance || isCreate) {
+            return;
+        }
+        const frame = requestAnimationFrame(() => {
+            contentRef.current?.querySelector('[data-subject-appearance]')?.scrollIntoView({ block: 'nearest' });
+        });
+
+        return () => cancelAnimationFrame(frame);
+    }, [contentRef, focusAppearance, isCreate, subjectIdsKey]);
 
     useManySheetPageFit({
         contentRef,

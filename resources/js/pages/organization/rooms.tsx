@@ -642,7 +642,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                     payload={{ target: 'room', id: appearanceFor.id }}
                     reloadProps={RELOAD}
                     canEdit={canManage}
-                    sheetClassName="sis-rooms-form"
+                    sheetClassName="sis-rooms-form sis-rooms-three"
                     compact
                     onClose={() => setAppearanceFor(null)}
                 />
@@ -719,7 +719,7 @@ function RoomSheet({
     const chosenType = types.find((type) => String(type.id) === f.room_type_id) ?? null;
 
     return (
-        <RegistrySheetDialog title={sheet.id === null ? r.add : sheet.viewOnly ? r.view : r.edit} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-sheet" onClose={onClose}>
+        <RegistrySheetDialog title={sheet.id === null ? r.add : sheet.viewOnly ? r.view : r.edit} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-sheet sis-rooms-three" onClose={onClose}>
             <SheetSection id="room-basic" title={r.sectionBasic}>
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                     <RegistryListField
@@ -952,7 +952,7 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
             </div>
             {/* «إضافة نوع» / «تعديل النوع»: its own window above the list. */}
             {form !== null ? (
-                <RegistrySheetDialog title={form.id === null ? r.addType : r.editType} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-timetable-subsheet sis-timetable-subsheet--form" onClose={() => setForm(null)}>
+                <RegistrySheetDialog title={form.id === null ? r.addType : r.editType} className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-three sis-timetable-subsheet sis-timetable-subsheet--form" onClose={() => setForm(null)}>
                     <SheetSection id="room-type-form" title={form.id === null ? r.addType : r.editType}>
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                             <RegistryTextField label={r.typeCode} editing={form.id === null} required dir="ltr" value={form.code} onChange={(code) => setForm({ ...form, code })} />

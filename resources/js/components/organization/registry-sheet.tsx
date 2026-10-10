@@ -15,6 +15,9 @@ import { t } from '@/i18n';
  * window chrome, fields and requests. Same classes as the curriculum subject sheet.
  */
 
+const SUBSHEET_WIDTH_RATIO = 0.82;
+const SUBSHEET_MIN_WIDTH = 340;
+
 export function newIdempotencyKey(prefix: string): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
         return `${prefix}-${crypto.randomUUID()}`;
@@ -180,12 +183,12 @@ export function RegistrySheetDialog({
     const i18n = t();
     const { contentRef, heroDragProps, bringToFront, resizeHandles } = useSmoothDialogDrag(true, {
         resizable: true,
-        minSize: { width: 560, height: 420 },
+        minSize: className.includes('sis-narrow-form') || className.includes('sis-rooms-three') ? { width: 300, height: 320 } : { width: 560, height: 420 },
     });
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
     // Timetable windows («الجدول المدرسي»): the width follows the fields, tables and buttons — nothing cut.
     // «تحرير الخلية» keeps one fixed size (its tabs never resize it).
-    useFitSheetToContent(contentRef, className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet') && !className.includes('sis-timetable-print-sheet'));
+    useFitSheetToContent(contentRef, className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet') && !className.includes('sis-timetable-print-sheet') && !className.includes('sis-narrow-form') && !className.includes('sis-rooms-three'));
 
     // The portal mounts the content after the first commit — raise the new window once it exists,
     // so a sheet opened from another sheet appears above it.
@@ -204,9 +207,9 @@ export function RegistrySheetDialog({
         return () => cancelAnimationFrame(frame);
     }, [bringToFront, contentRef]);
 
-    // A window opened from another window («اختصار ولون» from «تحرير الخلية», «تعديل النشاط» from «الأنشطة») takes the
-    // width of the window it was opened from — the pair reads as one block. A window opened from the page keeps its own.
-    const inheritsWidth = className.includes('sis-timetable-subsheet') || className.includes('sis-timetable-appearance-sheet');
+    // A window opened from another window («اختصار ولون» from «تحرير الخلية», «تعديل النشاط» from «الأنشطة») is narrower
+    // than the window it was opened from, so the pair reads as parent + child. A window opened from the page keeps its own.
+    const inheritsWidth = (className.includes('sis-timetable-subsheet') || className.includes('sis-timetable-appearance-sheet')) && !className.includes('sis-narrow-form') && !className.includes('sis-rooms-three');
     useEffect(() => {
         if (!inheritsWidth) {
             return;
@@ -229,8 +232,11 @@ export function RegistrySheetDialog({
             }
             const layer = (el: HTMLElement) => Number.parseInt(getComputedStyle(el).zIndex, 10) || 0;
             const parent = others.reduce((best, el) => (layer(el) >= layer(best) ? el : best));
-            const width = Math.min(Math.round(parent.getBoundingClientRect().width), window.innerWidth - 24);
-            node.style.setProperty('--sis-sheet-w', `${width}px`);
+            const parentWidth = parent.getBoundingClientRect().width;
+            // Narrower than its parent so the main window stays visible behind it; never below a readable form width.
+            const floor = Math.min(SUBSHEET_MIN_WIDTH, parentWidth - 24);
+            const width = Math.max(Math.round(Math.min(parentWidth * SUBSHEET_WIDTH_RATIO, parentWidth - 40)), floor, 0);
+            node.style.setProperty('--sis-sheet-w', `${Math.min(width, window.innerWidth - 24)}px`);
         };
         frame = requestAnimationFrame(apply);
 

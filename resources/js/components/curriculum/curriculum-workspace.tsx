@@ -27,7 +27,6 @@ import {
     matchesCurriculumEditFilter,
     type CurriculumEditFilter,
 } from '@/components/curriculum/curriculum-edit-controls';
-import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import {
@@ -452,12 +451,12 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const [subjectCreateOpen, setSubjectCreateOpen] = useState(false);
     const [subjectSheetSubjects, setSubjectSheetSubjects] = useState<SubjectRow[]>([]);
     const [subjectSheetEditing, setSubjectSheetEditing] = useState(false);
+    const [subjectSheetFocusAppearance, setSubjectSheetFocusAppearance] = useState(false);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [confirm, setConfirm] = useState<ConfirmState>(null);
     const [confirmPending, setConfirmPending] = useState(false);
     const [activeView, setActiveView] = useState<CurriculumListView>('subjects');
     const [editFilter, setEditFilter] = useState<CurriculumEditFilter>({ kind: 'all' });
-    const [appearanceOpen, setAppearanceOpen] = useState(false);
     const [selectedNames, setSelectedNames] = useState<string[]>([]);
     const [listPage, setListPage] = useState(() => readStoredListPage('curriculum', 1));
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -1317,7 +1316,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     );
 
     const openSelectedSubjectsSheet = useCallback(
-        (startEditing: boolean): void => {
+        (startEditing: boolean, focusAppearance = false): void => {
             const rows = selectedNames
                 .map((name) => subjectsByName.get(name))
                 .filter((row): row is SubjectRow => row !== undefined);
@@ -1330,6 +1329,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
 
             setSubjectSheetSubjects(rows);
             setSubjectSheetEditing(startEditing);
+            setSubjectSheetFocusAppearance(focusAppearance);
         },
         [c.subjectNotInDatabase, selectedNames, showWarning, subjectsByName],
     );
@@ -1368,8 +1368,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         subjectsByName,
     ]);
 
-    const appearanceSubject = appearanceOpen ? (subjectsByName.get(selectedNames[0] ?? '') ?? null) : null;
-
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const actionCommands: PageRibbonCommand[] = [
             {
@@ -1378,7 +1376,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 icon: Palette,
                 disabled: !canManage || selectedNames.length !== 1 || !subjectsByName.has(selectedNames[0] ?? ''),
                 title: i18n.appearance.edit,
-                onSelect: () => setAppearanceOpen(true),
+                // «الاختصار واللون» live in the subject form itself — open it ready to edit, scrolled to that section.
+                onSelect: () => openSelectedSubjectsSheet(true, true),
             },
             {
                 id: 'view-subjects',
@@ -2071,9 +2070,11 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                     subjects={subjectSheetSubjects}
                     canManage={canManage}
                     initialEditing={subjectSheetEditing}
+                    focusAppearance={subjectSheetFocusAppearance}
                     onClose={() => {
                         setSubjectSheetSubjects([]);
                         setSubjectSheetEditing(false);
+                        setSubjectSheetFocusAppearance(false);
                     }}
                 />
             ) : null}
@@ -2088,18 +2089,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 />
             ) : null}
 
-            {appearanceSubject !== null ? (
-                <AppearanceDialog
-                    title={i18n.appearance.edit}
-                    entityName={appearanceSubject.name}
-                    initial={{ abbreviation: appearanceSubject.abbreviation ?? '', color_hue: appearanceSubject.color_hue ?? null }}
-                    suggested={null}
-                    url={`/curriculum/subjects/${appearanceSubject.id}`}
-                    reloadProps={['subjects', 'flash']}
-                    canEdit={canManage}
-                    onClose={() => setAppearanceOpen(false)}
-                />
-            ) : null}
             <ConfirmDialog
                 open={confirm !== null}
                 title={confirmCopy.title}
