@@ -2413,7 +2413,7 @@ function TimetablePage({
                     {/* The printed sheet: the paper, orientation and margins of «إعدادات الطباعة». */}
                     <style>{pageRule(printSettings)}</style>
                     {/* The page's tab strip: «الصفحة الرئيسية» and «التحرير», same classes; a tab opens / folds its ribbon. */}
-                    <div className={`sis-chrome sis-chrome--ribbon-present sis-timetable-preview__chrome${previewTab !== null ? ' sis-chrome--ribbon-open' : ''}`}>
+                    <div className={`sis-chrome sis-chrome--word-tabs sis-chrome--sheets-above sis-chrome--ribbon-present sis-timetable-preview__chrome${previewTab !== null ? ' sis-chrome--ribbon-open' : ''}`}>
                         <header className="sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3" dir="rtl">
                             <div className="sis-titlebar__start">
                                 <nav className="sis-titlebar__menu" aria-label={i18n.chrome.tabsAria} dir="rtl">

@@ -1036,14 +1036,18 @@ body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.si
 .sis-ribbon.sis-ribbon--curriculum-page,
 .sis-ribbon.sis-ribbon--students-page,
 .sis-ribbon.sis-ribbon--admission-page,
-.sis-ribbon.sis-ribbon--enrollments-page {
+.sis-ribbon.sis-ribbon--enrollments-page,
+.sis-ribbon.sis-ribbon--timetable-page,
+.sis-ribbon.sis-ribbon--teachers-page {
     border-bottom: 1px solid var(--sis-curriculum-tab-frame);
 }
 
 .sis-ribbon--curriculum-page .sis-ribbon__separator,
 .sis-ribbon--students-page .sis-ribbon__separator,
 .sis-ribbon--admission-page .sis-ribbon__separator,
-.sis-ribbon--enrollments-page .sis-ribbon__separator {
+.sis-ribbon--enrollments-page .sis-ribbon__separator,
+.sis-ribbon--timetable-page .sis-ribbon__separator,
+.sis-ribbon--teachers-page .sis-ribbon__separator {
     margin-block: 0.25rem 0.35rem;
     background: var(--sis-curriculum-tab-frame);
 }
@@ -1051,7 +1055,9 @@ body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.si
 .sis-ribbon--curriculum-page .sis-ribbon__group-label,
 .sis-ribbon--students-page .sis-ribbon__group-label,
 .sis-ribbon--admission-page .sis-ribbon__group-label,
-.sis-ribbon--enrollments-page .sis-ribbon__group-label {
+.sis-ribbon--enrollments-page .sis-ribbon__group-label,
+.sis-ribbon--timetable-page .sis-ribbon__group-label,
+.sis-ribbon--teachers-page .sis-ribbon__group-label {
     align-self: stretch;
     text-align: center;
     color: var(--sis-steel);
@@ -1520,13 +1526,17 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
 /* Enrollments / students / admission — same ribbon strip styling as curriculum. */
 .sis-ribbon--enrollments-page,
 .sis-ribbon--students-page,
-.sis-ribbon--admission-page {
+.sis-ribbon--admission-page,
+.sis-ribbon--timetable-page,
+.sis-ribbon--teachers-page {
     background: var(--sis-curriculum-ribbon);
 }
 
 .sis-ribbon--enrollments-page .sis-ribbon__body,
 .sis-ribbon--students-page .sis-ribbon__body,
-.sis-ribbon--admission-page .sis-ribbon__body {
+.sis-ribbon--admission-page .sis-ribbon__body,
+.sis-ribbon--timetable-page .sis-ribbon__body,
+.sis-ribbon--teachers-page .sis-ribbon__body {
     background: var(--sis-curriculum-ribbon);
 }
 

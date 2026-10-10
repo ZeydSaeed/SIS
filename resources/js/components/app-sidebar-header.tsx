@@ -368,12 +368,14 @@ export function AppSidebarHeader({
     const currentPath = (page.url.split('?')[0] ?? page.url);
     const isCurriculumPage =
         currentPath === '/curriculum' || currentPath.startsWith('/curriculum/');
-    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments', '/organization'].some(
+    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments', '/organization', '/teachers', '/timetable'].some(
         (base) => currentPath === base || currentPath.startsWith(`${base}/`),
     );
 
-    // «الغرف الدراسية»: like «الجدول المدرسي», its windows open above the tab strip (not confined below it).
-    const sheetsAboveChrome = currentPath === '/organization/rooms' || currentPath.startsWith('/organization/rooms/');
+    // «الغرف الدراسية» / «الجدول المدرسي» / «المعلمون»: windows open above the tab strip (not confined below it).
+    const sheetsAboveChrome = ['/organization/rooms', '/timetable', '/teachers'].some(
+        (base) => currentPath === base || currentPath.startsWith(`${base}/`),
+    );
 
     const chromeClassName = [
         'sis-chrome',

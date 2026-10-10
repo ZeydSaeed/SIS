@@ -634,6 +634,7 @@ export function TitleBarRibbon({
     const isTimetablePage = path === '/timetable' || path.startsWith('/timetable/');
     // «الغرف الدراسية»: the same coloured command icons as the timetable page.
     const isRoomsPage = path === '/organization/rooms';
+    const isTeachersPage = path === '/teachers' || path.startsWith('/teachers/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
     const pageOwnsContentTab =
@@ -800,6 +801,7 @@ export function TitleBarRibbon({
         isAdmissionPage ? 'sis-ribbon--admission-page' : '',
         isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
         isTimetablePage ? 'sis-ribbon--timetable-page' : '',
+        isTeachersPage ? 'sis-ribbon--teachers-page' : '',
         isRoomsPage ? 'sis-ribbon--coloured-icons' : '',
     ].filter(Boolean);
 
@@ -899,6 +901,7 @@ export function TitleBarRibbon({
                 isAdmissionRibbon ? 'sis-ribbon--admission' : '',
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
+                isTeachersPage ? 'sis-ribbon--teachers-page' : '',
                 isRoomsPage ? 'sis-ribbon--coloured-icons' : '',
             ]
                 .filter(Boolean)
