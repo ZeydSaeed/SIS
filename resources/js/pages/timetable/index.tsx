@@ -18,7 +18,7 @@ import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } f
 import { DialogContainerContext } from '@/components/sis/dialog-container-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { useTimetableGridResize } from '@/hooks/use-timetable-grid-resize';
-import { multiSelectSummary, SisMultiSelect } from '@/components/sis/sis-multi-select';
+import { FilterControl, RibbonFilterField, type FilterOption, type FilterSpec } from '@/components/sis/ribbon-filter';
 import { dayOfWeekLabel } from '@/components/sis/status-chip';
 import { ActivitiesSheet } from '@/components/timetable/engine/activities-sheet';
 import { AvailabilitySheet } from '@/components/timetable/engine/availability-sheet';
@@ -174,11 +174,6 @@ type MenuTarget = { type: 'lesson'; schedule: Schedule } | { type: 'cell'; secti
 
 /** Filters «الفرع / الاختصاص / الصف / الشعبة» ('' = الكل); section = the shared code A / B / C (SSOT). */
 type GridFilters = { branch: string[]; department: string[]; class: string[]; section: string[] };
-/** One filter control of the home ribbon and of the full-screen preview (same fields, same choices). */
-type FilterOption = { value: string; label: string };
-type FilterSpec =
-    | { key: string; type: 'single'; label: string; value: string; options: FilterOption[]; onChange: (value: string) => void }
-    | { key: string; type: 'multi'; label: string; allLabel: string; values: string[]; options: FilterOption[]; onChange: (values: string[]) => void };
 
 /** A block of the «عرض الكل» split: branch › department (or the sections without students). */
 type GridGroup = { key: string; title: string; sections: Array<{ section: Section; students: number }> };
@@ -917,33 +912,14 @@ function TimetablePage({
         ];
     };
     const renderFilter = (kind: 'ribbon' | 'preview', spec: FilterSpec) => {
-        const ribbon = kind === 'ribbon';
-        const triggerClassName = ribbon ? 'sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control' : 'sis-timetable-preview__control';
-        const className = ribbon ? undefined : 'sis-timetable-preview__select';
-        const mirror =
-            spec.type === 'single'
-                ? (spec.options.find((o) => o.value === spec.value)?.label ?? spec.options[0]?.label ?? '')
-                : multiSelectSummary(spec.values, spec.options, spec.allLabel, (n) => `${n} / ${spec.options.length}`);
-        const control =
-            spec.type === 'single' ? (
-                <SisListSelect value={spec.value} options={spec.options} onChange={spec.onChange} className={className} triggerClassName={triggerClassName} dir="rtl" ariaLabel={spec.label} />
-            ) : (
-                <SisMultiSelect values={spec.values} options={spec.options} allLabel={spec.allLabel} onChange={spec.onChange} className={className} triggerClassName={triggerClassName} dir="rtl" ariaLabel={spec.label} />
-            );
+        if (kind === 'ribbon') {
+            return <RibbonFilterField key={spec.key} spec={spec} />;
+        }
 
-        return ribbon ? (
-            <div key={spec.key} className="sis-ribbon__filter-field" dir="rtl">
-                <span className="sis-admission-select-fit">
-                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                        {mirror}
-                    </span>
-                    {control}
-                </span>
-            </div>
-        ) : (
+        return (
             <span key={spec.key} className="sis-timetable-preview__filter">
                 <span className="sis-timetable-preview__filter-label">{spec.label}</span>
-                {control}
+                <FilterControl spec={spec} className="sis-timetable-preview__select" triggerClassName="sis-timetable-preview__control" />
             </span>
         );
     };

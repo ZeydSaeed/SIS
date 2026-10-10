@@ -39,7 +39,7 @@ import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis
 import { usePageError } from '@/components/sis/page-error-context';
 import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
-import { SisListSelect } from '@/components/sis/sis-list-select';
+import { RibbonFilterField } from '@/components/sis/ribbon-filter';
 import { tableActionIds, toggleTableRowChecked, toggleTableSelectAll } from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
@@ -149,9 +149,9 @@ type FilterKey = 'all' | 'active' | 'inactive' | `type-${number}`;
 
 /** Home-ribbon filters (client-side over the loaded roster); '' = all. */
 /** department = department name (shown without its branch; same-named departments of all branches match together). */
-type RosterFilters = { specialization: string; branch_id: string; department: string; subject_id: string };
+type RosterFilters = { specialization: string[]; branch_id: string[]; department: string[]; subject_id: string[] };
 
-const EMPTY_ROSTER_FILTERS: RosterFilters = { specialization: '', branch_id: '', department: '', subject_id: '' };
+const EMPTY_ROSTER_FILTERS: RosterFilters = { specialization: [], branch_id: [], department: [], subject_id: [] };
 
 type SubjectTone = { hue: number; light: number };
 
@@ -225,18 +225,23 @@ function matchesFilter(teacher: Teacher, key: FilterKey): boolean {
 
 /** Branch / department / subject must meet on one teaching; subject alone also matches an untaught linked subject. */
 function matchesRosterFilters(teacher: Teacher, f: RosterFilters): boolean {
-    if (f.specialization !== '' && (teacher.specialization_field ?? '').trim() !== f.specialization) {
+    if (f.specialization.length > 0 && !f.specialization.includes((teacher.specialization_field ?? '').trim())) {
         return false;
     }
-    if (f.branch_id === '' && f.department === '') {
-        return f.subject_id === '' || teacher.subject_ids.includes(Number(f.subject_id)) || teacher.assignments.some((a) => a.subject_id === Number(f.subject_id));
+    const subjectIds = f.subject_id.map(Number);
+    if (f.branch_id.length === 0 && f.department.length === 0) {
+        return (
+            subjectIds.length === 0
+            || teacher.subject_ids.some((id) => subjectIds.includes(id))
+            || teacher.assignments.some((a) => subjectIds.includes(a.subject_id))
+        );
     }
 
     return teacher.assignments.some(
         (a) =>
-            (f.branch_id === '' || a.branch_id === Number(f.branch_id))
-            && (f.department === '' || a.department_name === f.department)
-            && (f.subject_id === '' || a.subject_id === Number(f.subject_id)),
+            (f.branch_id.length === 0 || f.branch_id.includes(String(a.branch_id)))
+            && (f.department.length === 0 || f.department.includes(a.department_name ?? ''))
+            && (subjectIds.length === 0 || subjectIds.includes(a.subject_id)),
     );
 }
 
@@ -617,14 +622,15 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             ),
         [teachers],
     );
-    const filterBranch = branches.find((branch) => String(branch.id) === rosterFilters.branch_id) ?? null;
+    const filterBranches = branches.filter((branch) => rosterFilters.branch_id.includes(String(branch.id)));
     const departmentOptions = useMemo(() => {
-        const names = (filterBranch !== null ? [filterBranch] : branches).flatMap((branch) => branch.departments.map((d) => d.name));
+        const names = (filterBranches.length > 0 ? filterBranches : branches).flatMap((branch) => branch.departments.map((d) => d.name));
 
         return [...new Set(names)].sort((a, b) => a.localeCompare(b, 'ar')).map((name) => ({ value: name, label: name }));
-    }, [branches, filterBranch]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branches, rosterFilters.branch_id]);
     const rosterFiltered =
-        rosterFilters.specialization !== '' || rosterFilters.branch_id !== '' || rosterFilters.department !== '' || rosterFilters.subject_id !== '';
+        rosterFilters.specialization.length > 0 || rosterFilters.branch_id.length > 0 || rosterFilters.department.length > 0 || rosterFilters.subject_id.length > 0;
 
     // Subject picker: curriculum of the chosen department (or of every department of the branch) + general curricula.
     const teachingBranch = branches.find((branch) => String(branch.id) === teachingForm.branch_id) ?? null;
@@ -835,29 +841,21 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             clearSelection();
             setRosterFilters((current) => ({ ...current, ...patch }));
         };
-        const field = (value: string, mirror: string, label: string, options: Array<{ value: string; label: string }>, onChange: (next: string) => void) => (
-            <div className="sis-ribbon__filter-field" dir="rtl">
-                <span className="sis-admission-select-fit">
-                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                        {mirror}
-                    </span>
-                    <SisListSelect
-                        value={value}
-                        options={options}
-                        onChange={onChange}
-                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                        dir="rtl"
-                        ariaLabel={label}
-                    />
-                </span>
-            </div>
-        );
         const yearOptions = years.map((year) => ({ value: String(year.id), label: formatAcademicYearOptionLabel(year.name, year.code) }));
-        const specializationSelect = [{ value: '', label: tc.allSpecializations }, ...specializationOptions.map((value) => ({ value, label: value }))];
-        const branchSelect = [{ value: '', label: tc.allBranches }, ...branches.map((branch) => ({ value: String(branch.id), label: branch.name }))];
-        const departmentSelect = [{ value: '', label: tc.allBranchDepartments }, ...departmentOptions];
-        const subjectSelect = [{ value: '', label: tc.allSubjects }, ...subjects.map((subject) => ({ value: String(subject.id), label: subject.name }))];
-        const labelOf = (options: Array<{ value: string; label: string }>, value: string) => options.find((o) => o.value === value)?.label ?? options[0]?.label ?? '';
+        const multi = (key: keyof RosterFilters, label: string, allLabel: string, options: Array<{ value: string; label: string }>, extra: Partial<RosterFilters> = {}) => (
+            <RibbonFilterField
+                key={key}
+                spec={{
+                    key,
+                    type: 'multi',
+                    label,
+                    allLabel,
+                    values: rosterFilters[key],
+                    options,
+                    onChange: (values) => setFilter({ [key]: values, ...extra }),
+                }}
+            />
+        );
 
         return [
             {
@@ -867,19 +865,13 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 custom: (
                     <div className="sis-ribbon__filters" aria-label={tc.filtersTitle} dir="rtl">
                         <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--curriculum sis-ribbon__filters-stack--teachers">
-                            {field(yearId === null ? '' : String(yearId), labelOf(yearOptions, String(yearId ?? '')), tc.academicYear, yearOptions, changeYear)}
-                            {field(rosterFilters.specialization, labelOf(specializationSelect, rosterFilters.specialization), tc.certificateSpecialization, specializationSelect, (specialization) =>
-                                setFilter({ specialization }),
-                            )}
-                            {field(rosterFilters.branch_id, labelOf(branchSelect, rosterFilters.branch_id), tc.branch, branchSelect, (branch_id) =>
-                                setFilter({ branch_id, department: '' }),
-                            )}
-                            {field(rosterFilters.department, labelOf(departmentSelect, rosterFilters.department), tc.department, departmentSelect, (department) =>
-                                setFilter({ department }),
-                            )}
-                            {field(rosterFilters.subject_id, labelOf(subjectSelect, rosterFilters.subject_id), tc.subject, subjectSelect, (subject_id) =>
-                                setFilter({ subject_id }),
-                            )}
+                            <RibbonFilterField
+                                spec={{ key: 'year', type: 'single', label: tc.academicYear, value: yearId === null ? '' : String(yearId), options: yearOptions, onChange: changeYear }}
+                            />
+                            {multi('specialization', tc.certificateSpecialization, tc.allSpecializations, specializationOptions.map((value) => ({ value, label: value })))}
+                            {multi('branch_id', tc.branch, tc.allBranches, branches.map((branch) => ({ value: String(branch.id), label: branch.name })), { department: [] })}
+                            {multi('department', tc.department, tc.allBranchDepartments, departmentOptions)}
+                            {multi('subject_id', tc.subject, tc.allSubjects, subjects.map((subject) => ({ value: String(subject.id), label: subject.name })))}
                         </div>
                         <button
                             type="button"

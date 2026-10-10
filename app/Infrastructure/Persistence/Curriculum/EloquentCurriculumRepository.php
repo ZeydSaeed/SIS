@@ -146,13 +146,13 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         int $schoolId,
         ?int $academicYearId,
         ?int $status,
-        ?int $gradeLevelId,
-        ?int $specializationId,
-        ?int $branchId,
+        int|array|null $gradeLevelId,
+        int|array|null $specializationId,
+        int|array|null $branchId,
         string $q,
         int $page,
         int $perPage,
-        ?int $departmentId = null,
+        int|array|null $departmentId = null,
     ): array {
         $this->bindSchool($schoolId);
 
@@ -171,17 +171,17 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         if ($status !== null) {
             $query->where('c.status', $status);
         }
-        if ($gradeLevelId !== null) {
-            $query->where('c.grade_level_id', $gradeLevelId);
-        }
-        if ($specializationId !== null) {
-            $query->where('c.specialization_id', $specializationId);
-        }
-        if ($departmentId !== null) {
-            $query->where('c.department_id', $departmentId);
-        }
-        if ($branchId !== null) {
-            $query->where('d.branch_id', $branchId);
+        // Each of these filters takes one id or several (a multi-choice ribbon filter).
+        foreach ([
+            'c.grade_level_id' => $gradeLevelId,
+            'c.specialization_id' => $specializationId,
+            'c.department_id' => $departmentId,
+            'd.branch_id' => $branchId,
+        ] as $column => $value) {
+            $ids = array_values(array_filter(array_map('intval', $value === null ? [] : (array) $value), static fn (int $id): bool => $id > 0));
+            if ($ids !== []) {
+                $query->whereIn($column, $ids);
+            }
         }
 
         $needle = trim($q);

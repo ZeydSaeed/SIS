@@ -17,17 +17,18 @@ type SisMultiSelectProps = {
     dir?: 'rtl' | 'ltr';
 };
 
-/** What the trigger says: «كل …», the one chosen name, the names (up to two), else «n محددة». */
+/** The widest text (in characters) a ribbon field shows before it falls back to the count («3 / 10»). */
+export const MULTI_SELECT_MAX_CHARS = 16;
+
+/** What the trigger says: «كل …», the chosen names while they fit the field, else «n / total» (the count). */
 export function multiSelectSummary(values: readonly string[], options: readonly SisListSelectOption[], allLabel: string, countLabel: (n: number) => string): string {
     const chosen = options.filter((option) => values.includes(option.value));
     if (chosen.length === 0) {
         return allLabel;
     }
-    if (chosen.length <= 2) {
-        return chosen.map((option) => option.label).join('، ');
-    }
+    const names = chosen.map((option) => option.label).join('، ');
 
-    return countLabel(chosen.length);
+    return names.length <= MULTI_SELECT_MAX_CHARS ? names : countLabel(chosen.length);
 }
 
 /**
@@ -41,8 +42,37 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
     const [open, setOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const rows = [{ value: '', label: allLabel }, ...options];
-    const summary = multiSelectSummary(values, options, allLabel, (n) => `${n} / ${options.length}`);
+    const chosenLabels = options.filter((option) => values.includes(option.value)).map((option) => option.label);
+    const namesText = chosenLabels.join('، ');
+    const countText = `${chosenLabels.length} / ${options.length}`;
+    const valueRef = useRef<HTMLSpanElement>(null);
+    const [triggerWidth, setTriggerWidth] = useState(0);
+    // Several choices: show every name while they fit the cell, else «n / total» (re-measured when names or width change).
+    const [overflowing, setOverflowing] = useState(false);
+    const summary = chosenLabels.length === 0 ? allLabel : chosenLabels.length === 1 || !overflowing ? namesText : countText;
     const isChosen = (value: string) => (value === '' ? values.length === 0 : values.includes(value));
+
+    useEffect(() => {
+        const trigger = triggerRef.current;
+        if (trigger === null || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+        const observer = new ResizeObserver(() => setTriggerWidth(trigger.clientWidth));
+        observer.observe(trigger);
+
+        return () => observer.disconnect();
+    }, []);
+
+    useLayoutEffect(() => {
+        setOverflowing(false);
+    }, [namesText, triggerWidth]);
+
+    useLayoutEffect(() => {
+        const el = valueRef.current;
+        if (!overflowing && chosenLabels.length > 1 && el !== null && el.scrollWidth > el.clientWidth + 1) {
+            setOverflowing(true);
+        }
+    }, [overflowing, namesText, triggerWidth, chosenLabels.length]);
 
     useLayoutEffect(() => {
         if (open && triggerRef.current !== null && menuRef.current !== null) {
@@ -174,7 +204,9 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
                     }
                 }}
             >
-                <span className="sis-list-select__value">{summary}</span>
+                <span ref={valueRef} className="sis-list-select__value" title={namesText || undefined}>
+                    {summary}
+                </span>
             </button>
             {menu}
         </span>

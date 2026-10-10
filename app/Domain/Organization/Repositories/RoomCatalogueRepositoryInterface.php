@@ -17,7 +17,7 @@ interface RoomCatalogueRepositoryInterface
     public const INACTIVE = 2;
 
     /**
-     * @param  array{search?: string|null, branch_id?: int|null, room_type_id?: int|null, status?: int|null, practical?: bool|null}  $filters
+     * @param  array{search?: string|null, branch_ids?: list<int>, room_type_ids?: list<int>, status?: int|null, practical?: bool|null}  $filters
      * @return array{rows: list<array<string, mixed>>, total: int}
      */
     public function page(int $schoolId, array $filters, string $sort, string $direction, int $page, int $perPage): array;

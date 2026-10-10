@@ -34,12 +34,12 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         ?int $status = null,
         string $q = '',
         ?int $gender = null,
-        ?int $classId = null,
-        ?int $sectionId = null,
+        int|array|null $classId = null,
+        int|array|null $sectionId = null,
         ?string $departmentName = null,
         ?int $specializationId = null,
-        ?int $branchId = null,
-        ?int $departmentId = null,
+        int|array|null $branchId = null,
+        int|array|null $departmentId = null,
         ?int $gradeLevelId = null,
     ): array {
         $page = max(1, $page);
@@ -89,12 +89,12 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         int $schoolId,
         ?int $academicYearId = null,
         ?int $gender = null,
-        ?int $classId = null,
-        ?int $sectionId = null,
+        int|array|null $classId = null,
+        int|array|null $sectionId = null,
         ?string $departmentName = null,
         ?int $specializationId = null,
-        ?int $branchId = null,
-        ?int $departmentId = null,
+        int|array|null $branchId = null,
+        int|array|null $departmentId = null,
     ): array {
         $rows = $this->filteredQuery(
             $schoolId,
@@ -122,7 +122,7 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         return $counts;
     }
 
-    public function listFilterOptions(int $schoolId, ?int $academicYearId, ?int $classId = null): array
+    public function listFilterOptions(int $schoolId, ?int $academicYearId, int|array|null $classId = null): array
     {
         $classesTable = SchemaHelper::qualified('enrollment', 'classes');
         $sectionsTable = SchemaHelper::qualified('enrollment', 'sections');
@@ -152,8 +152,9 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             ->where('status', 1)
             ->orderBy('name')
             ->select(['id', 'class_id', 'code', 'name']);
-        if ($classId !== null) {
-            $sectionsQuery->where('class_id', $classId);
+        $classFilter = self::idList($classId);
+        if ($classFilter !== []) {
+            $sectionsQuery->whereIn('class_id', $classFilter);
         } else {
             $classIds = array_map(static fn (array $row): int => $row['id'], $classes);
             if ($classIds === []) {
@@ -277,18 +278,34 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
         return $items;
     }
 
+    /**
+     * One id or a list of ids (a multi-choice ribbon filter) as a clean list of positive ids.
+     *
+     * @param  int|list<int>|null  $value
+     * @return list<int>
+     */
+    private static function idList(int|array|null $value): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $value === null ? [] : (array) $value),
+            static fn (int $id): bool => $id > 0,
+        )));
+
+        return $ids;
+    }
+
     private function filteredQuery(
         int $schoolId,
         ?int $academicYearId,
         ?int $status,
         string $q,
         ?int $gender,
-        ?int $classId = null,
-        ?int $sectionId = null,
+        int|array|null $classId = null,
+        int|array|null $sectionId = null,
         ?string $departmentName = null,
         ?int $specializationId = null,
-        ?int $branchId = null,
-        ?int $departmentId = null,
+        int|array|null $branchId = null,
+        int|array|null $departmentId = null,
         ?int $gradeLevelId = null,
     ): Builder {
         $query = $this->baseQuery($schoolId);
@@ -309,32 +326,36 @@ final class EloquentEnrollmentReadRepository implements EnrollmentReadRepository
             $query->where('s.gender', $gender);
         }
 
-        if ($classId !== null && $classId > 0) {
-            $query->where('e.class_id', $classId);
+        $classIds = self::idList($classId);
+        if ($classIds !== []) {
+            $query->whereIn('e.class_id', $classIds);
         }
 
-        if ($sectionId !== null && $sectionId > 0) {
-            $query->where('e.section_id', $sectionId);
+        $sectionIds = self::idList($sectionId);
+        if ($sectionIds !== []) {
+            $query->whereIn('e.section_id', $sectionIds);
         }
 
         if ($gradeLevelId !== null && $gradeLevelId > 0) {
             $query->where('c.grade_level_id', $gradeLevelId);
         }
 
-        if ($branchId !== null && $branchId > 0) {
-            $query->where(function (Builder $builder) use ($branchId): void {
-                $builder->where('e.branch_id', $branchId)
-                    ->orWhere('s.branch_id', $branchId);
+        $branchIds = self::idList($branchId);
+        if ($branchIds !== []) {
+            $query->where(function (Builder $builder) use ($branchIds): void {
+                $builder->whereIn('e.branch_id', $branchIds)
+                    ->orWhereIn('s.branch_id', $branchIds);
             });
         }
 
         // Enrollment department first; an enrollment without one falls back to the student's.
-        if ($departmentId !== null && $departmentId > 0) {
-            $query->where(function (Builder $builder) use ($departmentId): void {
-                $builder->where('e.department_id', $departmentId)
+        $departmentIds = self::idList($departmentId);
+        if ($departmentIds !== []) {
+            $query->where(function (Builder $builder) use ($departmentIds): void {
+                $builder->whereIn('e.department_id', $departmentIds)
                     ->orWhere(fn (Builder $fallback) => $fallback
                         ->whereNull('e.department_id')
-                        ->where('s.department_id', $departmentId));
+                        ->whereIn('s.department_id', $departmentIds));
             });
         } else {
             $department = trim((string) ($departmentName ?? ''));

@@ -37,6 +37,7 @@ import {
 import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
+import { RibbonFilterField } from '@/components/sis/ribbon-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
     tableActionIds,
@@ -1402,25 +1403,6 @@ export function StudentList({
     }, [editingIds, savingRows]);
 
     const homeRibbonGroups = useMemo((): PageRibbonGroup[] => {
-        const genderFilterLabel =
-            genderValue === '1'
-                ? i18n.students.male
-                : genderValue === '2'
-                  ? i18n.students.female
-                  : i18n.students.gender;
-        const enrolledFilterLabel =
-            enrolledValue === '1'
-                ? i18n.students.enrolledStudents
-                : enrolledValue === '0'
-                  ? i18n.students.notEnrolledStudents
-                  : i18n.students.enrollmentFilter;
-        const requestKindFilterLabel =
-            requestKindValue === '1'
-                ? i18n.students.requestKindAcademicTransfer
-                : requestKindValue === '2'
-                  ? i18n.students.requestKindVocational
-                  : i18n.students.requestKindFilter;
-
         return [
             {
                 id: 'student-filters',
@@ -1468,101 +1450,67 @@ export function StudentList({
                                     controlClassName="sis-admission-year-control"
                                 />
                             </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {genderFilterLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={genderValue}
-                                        options={[
-                                            { value: '', label: i18n.students.gender },
-                                            { value: '1', label: i18n.students.male },
-                                            { value: '2', label: i18n.students.female },
-                                        ]}
-                                        onChange={(next) => {
-                                            if (filtersBusy) {
-                                                return;
-                                            }
-                                            visitList({
-                                                gender:
-                                                    next === '1' || next === '2' ? Number(next) : null,
-                                                student: undefined,
-                                            });
-                                        }}
-                                        disabled={filtersBusy}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={i18n.students.filterByGender}
-                                    />
-                                </span>
-                            </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {enrolledFilterLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={enrolledValue}
-                                        options={[
-                                            { value: '', label: i18n.students.enrollmentFilter },
-                                            { value: '1', label: i18n.students.enrolledStudents },
-                                            { value: '0', label: i18n.students.notEnrolledStudents },
-                                        ]}
-                                        onChange={(next) => {
-                                            if (filtersBusy) {
-                                                return;
-                                            }
-                                            visitList({
-                                                enrolled:
-                                                    next === '1' || next === '0' ? Number(next) : null,
-                                                student: undefined,
-                                            });
-                                        }}
-                                        disabled={filtersBusy}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={i18n.students.filterByEnrollment}
-                                    />
-                                </span>
-                            </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {requestKindFilterLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={requestKindValue}
-                                        options={[
-                                            { value: '', label: i18n.students.requestKindFilter },
-                                            {
-                                                value: '2',
-                                                label: i18n.students.requestKindVocational,
-                                            },
-                                            {
-                                                value: '1',
-                                                label: i18n.students.requestKindAcademicTransfer,
-                                            },
-                                        ]}
-                                        onChange={(next) => {
-                                            if (filtersBusy) {
-                                                return;
-                                            }
-                                            visitList({
-                                                request_kind:
-                                                    next === '1' || next === '2'
-                                                        ? Number(next)
-                                                        : null,
-                                                student: undefined,
-                                            });
-                                        }}
-                                        disabled={filtersBusy}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={i18n.students.filterByRequestKind}
-                                    />
-                                </span>
-                            </div>
+                            {/* Binary attribute filters: the same shared ribbon field as every other page (single choice — two values). */}
+                            <RibbonFilterField
+                                spec={{
+                                    key: 'gender',
+                                    type: 'single',
+                                    label: i18n.students.filterByGender,
+                                    disabled: filtersBusy,
+                                    value: genderValue,
+                                    options: [
+                                        { value: '', label: i18n.students.gender },
+                                        { value: '1', label: i18n.students.male },
+                                        { value: '2', label: i18n.students.female },
+                                    ],
+                                    onChange: (next) => {
+                                        if (filtersBusy) {
+                                            return;
+                                        }
+                                        visitList({ gender: next === '1' || next === '2' ? Number(next) : null, student: undefined });
+                                    },
+                                }}
+                            />
+                            <RibbonFilterField
+                                spec={{
+                                    key: 'enrolled',
+                                    type: 'single',
+                                    label: i18n.students.filterByEnrollment,
+                                    disabled: filtersBusy,
+                                    value: enrolledValue,
+                                    options: [
+                                        { value: '', label: i18n.students.enrollmentFilter },
+                                        { value: '1', label: i18n.students.enrolledStudents },
+                                        { value: '0', label: i18n.students.notEnrolledStudents },
+                                    ],
+                                    onChange: (next) => {
+                                        if (filtersBusy) {
+                                            return;
+                                        }
+                                        visitList({ enrolled: next === '1' || next === '0' ? Number(next) : null, student: undefined });
+                                    },
+                                }}
+                            />
+                            <RibbonFilterField
+                                spec={{
+                                    key: 'request-kind',
+                                    type: 'single',
+                                    label: i18n.students.filterByRequestKind,
+                                    disabled: filtersBusy,
+                                    value: requestKindValue,
+                                    options: [
+                                        { value: '', label: i18n.students.requestKindFilter },
+                                        { value: '2', label: i18n.students.requestKindVocational },
+                                        { value: '1', label: i18n.students.requestKindAcademicTransfer },
+                                    ],
+                                    onChange: (next) => {
+                                        if (filtersBusy) {
+                                            return;
+                                        }
+                                        visitList({ request_kind: next === '1' || next === '2' ? Number(next) : null, student: undefined });
+                                    },
+                                }}
+                            />
                         </div>
                         <button
                             type="button"

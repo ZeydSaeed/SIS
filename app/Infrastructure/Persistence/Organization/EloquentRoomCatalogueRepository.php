@@ -253,7 +253,7 @@ final class EloquentRoomCatalogueRepository implements RoomCatalogueRepositoryIn
         DB::table($this->typeTable())->where('id', $typeId)->update(['status' => $status, 'updated_at' => $at]);
     }
 
-    /** @param  array{search?: string|null, branch_id?: int|null, room_type_id?: int|null, status?: int|null, practical?: bool|null}  $filters */
+    /** @param  array{search?: string|null, branch_ids?: list<int>, room_type_ids?: list<int>, status?: int|null, practical?: bool|null}  $filters */
     private function filtered(int $schoolId, array $filters): Builder
     {
         $query = DB::table($this->rooms().' as r')
@@ -271,11 +271,11 @@ final class EloquentRoomCatalogueRepository implements RoomCatalogueRepositoryIn
                 }
             });
         }
-        if (($filters['branch_id'] ?? null) !== null) {
-            $query->where('r.branch_id', $filters['branch_id']);
+        if (($filters['branch_ids'] ?? []) !== []) {
+            $query->whereIn('r.branch_id', $filters['branch_ids']);
         }
-        if (($filters['room_type_id'] ?? null) !== null) {
-            $query->where('r.room_type_id', $filters['room_type_id']);
+        if (($filters['room_type_ids'] ?? []) !== []) {
+            $query->whereIn('r.room_type_id', $filters['room_type_ids']);
         }
         if (($filters['status'] ?? null) !== null) {
             $query->where('r.status', $filters['status']);

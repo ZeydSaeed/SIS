@@ -45,13 +45,13 @@ interface CurriculumRepositoryInterface
         int $schoolId,
         ?int $academicYearId,
         ?int $status,
-        ?int $gradeLevelId,
-        ?int $specializationId,
-        ?int $branchId,
+        int|array|null $gradeLevelId,
+        int|array|null $specializationId,
+        int|array|null $branchId,
         string $q,
         int $page,
         int $perPage,
-        ?int $departmentId = null,
+        int|array|null $departmentId = null,
     ): array;
 
     public function deactivate(int $schoolId, int $curriculumId): bool;

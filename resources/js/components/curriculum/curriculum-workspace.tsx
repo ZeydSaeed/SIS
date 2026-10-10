@@ -41,6 +41,8 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { RibbonFilterField } from '@/components/sis/ribbon-filter';
+import { encodeIds, joinSelection, sameIds, splitSelection } from '@/lib/filter-values';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -148,13 +150,14 @@ export type CurriculumPageFilters = {
     curriculum_id: number | null;
     q: string;
     status: number | null;
-    class_id: number | null;
-    grade_level_id: number | null;
-    specialization_id: number | null;
-    branch_id: number | null;
-    /** Vocational catalog branch name (SSOT). */
+    /** The ribbon filters take several choices: ids of the chosen classes / grade levels / … */
+    class_id: number[];
+    grade_level_id: number[];
+    specialization_id: number[];
+    branch_id: number[];
+    /** Vocational catalog branch names (SSOT); several chosen are joined by `|`. */
     branch: string;
-    /** Vocational catalog specialization / department name (SSOT). */
+    /** Vocational catalog specialization / department names (SSOT); several chosen are joined by `|`. */
     specialization: string;
     page: number;
     per_page: number;
@@ -417,10 +420,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             curriculum_id: props.filters?.curriculum_id ?? null,
             q: props.filters?.q ?? '',
             status: props.filters?.status ?? null,
-            class_id: props.filters?.class_id ?? null,
-            grade_level_id: props.filters?.grade_level_id ?? null,
-            specialization_id: props.filters?.specialization_id ?? null,
-            branch_id: props.filters?.branch_id ?? null,
+            class_id: props.filters?.class_id ?? [],
+            grade_level_id: props.filters?.grade_level_id ?? [],
+            specialization_id: props.filters?.specialization_id ?? [],
+            branch_id: props.filters?.branch_id ?? [],
             branch: props.filters?.branch ?? '',
             specialization: props.filters?.specialization ?? '',
             page: props.filters?.page ?? 1,
@@ -540,8 +543,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return stored.classKey;
         }
 
-        return resolveSisClassKey(filters.class_id, filterOptions.classes);
+        return joinSelection(
+            filters.class_id.map((id) => resolveSisClassKey(id, filterOptions.classes)).filter((key) => key !== ''),
+        );
     });
+    const branchSel = splitSelection(selectedBranch);
+    const specSel = splitSelection(selectedSpec);
+    const classSel = splitSelection(selectedClass);
     const filtersHydratedRef = useRef(false);
 
     const selectedPlan = useMemo(
@@ -552,17 +560,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const catalogBranchOptions = useMemo(() => catalogBranches(), []);
     const catalogSpecOptions = useMemo(
         () =>
-            selectedBranch === ''
-                ? catalogBranchOptions.flatMap((branch) =>
-                      catalogDepartmentsForBranch(branch).map((name) => ({
-                          branch,
-                          name,
-                      })),
-                  )
-                : catalogDepartmentsForBranch(selectedBranch).map((name) => ({
-                      branch: selectedBranch,
-                      name,
-                  })),
+            (splitSelection(selectedBranch).length === 0 ? catalogBranchOptions : splitSelection(selectedBranch))
+                .flatMap((branch) =>
+                    catalogDepartmentsForBranch(branch).map((name) => ({
+                        branch,
+                        name,
+                    })),
+                )
+                .filter((item, index, all) => all.findIndex((other) => other.name === item.name) === index),
         [catalogBranchOptions, selectedBranch],
     );
     const classSelectOptions = useMemo(() => sisClassSelectOptions(), []);
@@ -610,7 +615,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 }),
                 branch: showAll ? '' : next.branch,
                 specialization: showAll ? '' : next.specialization,
-                class_id: showAll ? '' : (next.class_id ?? ''),
+                class_id: showAll ? '' : (encodeIds(next.class_id) ?? ''),
             },
             {
                 preserveState: true,
@@ -651,10 +656,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return;
         }
 
-        const classId =
-            stored.classKey === ''
-                ? null
-                : resolveSisClassId(stored.classKey, filterOptions.classes);
+        const classIds = splitSelection(stored.classKey)
+            .map((key) => resolveSisClassId(key, filterOptions.classes))
+            .filter((id): id is number => id !== null);
         const yearId =
             stored.year !== ''
                 ? Number(stored.year)
@@ -663,7 +667,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         const urlMatches =
             (stored.branch === (filters.branch ?? '')) &&
             (stored.specialization === (filters.specialization ?? '')) &&
-            ((classId ?? null) === (filters.class_id ?? null)) &&
+            sameIds(classIds, filters.class_id) &&
             (stored.year === '' || Number(stored.year) === filters.academic_year_id);
 
         if (urlMatches) {
@@ -674,8 +678,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             academic_year_id: yearId,
             branch: stored.branch,
             specialization: stored.specialization,
-            class_id: classId,
-            grade_level_id: null,
+            class_id: classIds,
+            grade_level_id: [],
         });
         // One-shot hydration only.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -731,16 +735,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             : c.academicYear;
     }, [c.academicYear, selectedYear, yearCatalog]);
 
-    const classFilterLabel = useMemo(() => {
-        if (selectedClass === '') {
-            return c.gradeLevel;
-        }
-
-        return (
-            classSelectOptions.find((item) => item.value === selectedClass)?.label ?? c.gradeLevel
-        );
-    }, [c.gradeLevel, classSelectOptions, selectedClass]);
-
     const tableFilterContext = useMemo(() => {
         const yearLabel =
             selectedYear === ''
@@ -751,13 +745,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                           ? formatAcademicYearOptionLabel(match.name, match.code)
                           : c.filterDefault;
                   })();
-        const branchLabel = selectedBranch === '' ? c.filterDefault : selectedBranch;
-        const specLabel = selectedSpec === '' ? c.filterDefault : selectedSpec;
+        const branchLabel = selectedBranch === '' ? c.filterDefault : splitSelection(selectedBranch).join('، ');
+        const specLabel = selectedSpec === '' ? c.filterDefault : splitSelection(selectedSpec).join('، ');
         const classLabel =
             selectedClass === ''
                 ? c.filterDefault
-                : (classSelectOptions.find((item) => item.value === selectedClass)?.label ??
-                  c.filterDefault);
+                : splitSelection(selectedClass)
+                      .map((key) => classSelectOptions.find((item) => item.value === key)?.label ?? key)
+                      .join('، ');
 
         return {
             year: yearLabel,
@@ -786,8 +781,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             all_curricula: false,
             branch: '',
             specialization: '',
-            class_id: null,
-            grade_level_id: null,
+            class_id: [],
+            grade_level_id: [],
         });
         // visitIndex closes over latest filters/state when invoked
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -805,10 +800,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             all_curricula: true,
             branch: '',
             specialization: '',
-            class_id: null,
-            grade_level_id: null,
-            specialization_id: null,
-            branch_id: null,
+            class_id: [],
+            grade_level_id: [],
+            specialization_id: [],
+            branch_id: [],
             per_page: 100,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -860,91 +855,62 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                     />
                                 </span>
                             </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {classFilterLabel}
-                                    </span>
-                                    <SisListSelect
-                                        value={selectedClass}
-                                        options={[
-                                            { value: '', label: c.gradeLevel },
-                                            ...classSelectOptions,
-                                        ]}
-                                        onChange={(next) => {
-                                            setSelectedClass(next);
-                                            const classId =
-                                                next === ''
-                                                    ? null
-                                                    : resolveSisClassId(next, filterOptions.classes);
-                                            visitIndex({
-                                                class_id: classId,
-                                                grade_level_id: null,
-                                                all_curricula: false,
-                                            });
-                                        }}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={c.gradeLevel}
-                                    />
-                                </span>
-                            </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {selectedBranch === '' ? c.branch : selectedBranch}
-                                    </span>
-                                    <SisListSelect
-                                        value={selectedBranch}
-                                        options={[
-                                            { value: '', label: c.branch },
-                                            ...catalogBranchOptions.map((name) => ({
-                                                value: name,
-                                                label: name,
-                                            })),
-                                        ]}
-                                        onChange={(next) => {
-                                            setSelectedBranch(next);
-                                            setSelectedSpec('');
-                                            visitIndex({
-                                                branch: next,
-                                                specialization: '',
-                                                all_curricula: false,
-                                            });
-                                        }}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={c.branch}
-                                    />
-                                </span>
-                            </div>
-                            <div className="sis-ribbon__filter-field" dir="rtl">
-                                <span className="sis-admission-select-fit">
-                                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                                        {selectedSpec === '' ? c.specialization : selectedSpec}
-                                    </span>
-                                    <SisListSelect
-                                        value={selectedSpec}
-                                        options={[
-                                            { value: '', label: c.specialization },
-                                            ...catalogSpecOptions.map((item) => ({
-                                                value: item.name,
-                                                label: item.name,
-                                            })),
-                                        ]}
-                                        onChange={(next) => {
-                                            setSelectedSpec(next);
-                                            visitIndex({
-                                                specialization: next,
-                                                all_curricula: false,
-                                            });
-                                        }}
-                                        triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
-                                        dir="rtl"
-                                        ariaLabel={c.specialization}
-                                    />
-                                </span>
-                            </div>
+                            <RibbonFilterField
+                                spec={{
+                                    key: 'class',
+                                    type: 'multi',
+                                    label: c.gradeLevel,
+                                    allLabel: c.gradeLevel,
+                                    values: classSel,
+                                    options: classSelectOptions,
+                                    onChange: (values) => {
+                                        setSelectedClass(joinSelection(values));
+                                        visitIndex({
+                                            class_id: values
+                                                .map((key) => resolveSisClassId(key, filterOptions.classes))
+                                                .filter((id): id is number => id !== null),
+                                            grade_level_id: [],
+                                            all_curricula: false,
+                                        });
+                                    },
+                                }}
+                            />
+                            <RibbonFilterField
+                                spec={{
+                                    key: 'branch',
+                                    type: 'multi',
+                                    label: c.branch,
+                                    allLabel: c.branch,
+                                    values: branchSel,
+                                    options: catalogBranchOptions.map((name) => ({ value: name, label: name })),
+                                    onChange: (values) => {
+                                        setSelectedBranch(joinSelection(values));
+                                        setSelectedSpec('');
+                                        visitIndex({
+                                            branch: joinSelection(values),
+                                            specialization: '',
+                                            all_curricula: false,
+                                        });
+                                    },
+                                }}
+                            />
+                            <RibbonFilterField
+                                spec={{
+                                    key: 'specialization',
+                                    type: 'multi',
+                                    label: c.specialization,
+                                    allLabel: c.specialization,
+                                    values: specSel,
+                                    options: catalogSpecOptions.map((item) => ({ value: item.name, label: item.name })),
+                                    onChange: (values) => {
+                                        setSelectedSpec(joinSelection(values));
+                                        visitIndex({
+                                            specialization: joinSelection(values),
+                                            all_curricula: false,
+                                        });
+                                    },
+                                }}
+                            />
                         </div>
                         <button
                             type="button"
@@ -981,7 +947,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         c,
         catalogBranchOptions,
         catalogSpecOptions,
-        classFilterLabel,
         classSelectOptions,
         clearPageFilters,
         currentYearId,
@@ -1077,7 +1042,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     );
 
     const catalogCurriculumRows = useMemo(() => {
-        const classLabel = selectedClass === '' ? '' : sisClassLabel(selectedClass);
+        const classLabels = splitSelection(selectedClass).map((key) => sisClassLabel(key));
+        const classKeys = splitSelection(selectedClass);
+        const branchNames = splitSelection(selectedBranch);
+        const specNames = splitSelection(selectedSpec);
 
         // Overview: every curriculum across years (DB) or full catalog matrix.
         if (filters.all_curricula) {
@@ -1109,19 +1077,19 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             if (yearId !== null && row.academic_year_id !== yearId) {
                 return false;
             }
-            if (selectedBranch !== '' && (row.branch_name ?? '') !== selectedBranch) {
+            if (branchNames.length > 0 && !branchNames.includes(row.branch_name ?? '')) {
                 return false;
             }
-            if (selectedSpec !== '' && (row.department_name ?? row.specialization_name ?? '') !== selectedSpec) {
+            if (specNames.length > 0 && !specNames.includes(row.department_name ?? row.specialization_name ?? '')) {
                 return false;
             }
-            if (classLabel !== '') {
+            if (classLabels.length > 0) {
                 const classOk =
-                    (row.grade_level_name ?? '') === classLabel
+                    classLabels.includes(row.grade_level_name ?? '')
                     || filterOptions.classes.some(
                         (item) =>
                             item.grade_level_id === row.grade_level_id
-                            && (item.name === classLabel || String(item.id) === selectedClass),
+                            && (classLabels.includes(item.name) || classKeys.includes(String(item.id))),
                     );
                 if (!classOk) {
                     return false;
@@ -1136,7 +1104,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 key: `db-${row.id}`,
                 branch_name: row.branch_name ?? '',
                 specialization_name: row.department_name ?? row.specialization_name ?? '',
-                class_name: row.grade_level_name ?? classLabel,
+                class_name: row.grade_level_name ?? (classLabels[0] ?? ''),
                 subjects: (row.subjects ?? []).map((subject) => ({
                     name: subject.name,
                     subject_type: subject.subject_type,
@@ -1154,14 +1122,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         // No explicit year yet — catalog matrix for planning until curricula exist.
         let rows = catalogCurriculumTableRows();
 
-        if (selectedBranch !== '') {
-            rows = rows.filter((row) => row.branch_name === selectedBranch);
+        if (branchNames.length > 0) {
+            rows = rows.filter((row) => branchNames.includes(row.branch_name));
         }
-        if (selectedSpec !== '') {
-            rows = rows.filter((row) => row.specialization_name === selectedSpec);
+        if (specNames.length > 0) {
+            rows = rows.filter((row) => specNames.includes(row.specialization_name));
         }
-        if (classLabel !== '') {
-            rows = rows.filter((row) => row.class_name === classLabel);
+        if (classLabels.length > 0) {
+            rows = rows.filter((row) => classLabels.includes(row.class_name));
         }
 
         return rows;

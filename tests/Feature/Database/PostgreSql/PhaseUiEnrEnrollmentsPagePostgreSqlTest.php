@@ -29,4 +29,24 @@ final class PhaseUiEnrEnrollmentsPagePostgreSqlTest extends PostgreSqlIntegratio
                 ->has('enrollments.data')
                 ->has('filters'));
     }
+
+    #[Test]
+    public function list_filters_accept_several_ids_and_a_single_legacy_id(): void
+    {
+        $schoolId = $this->createSchool('SCH-ENR-MULTI', 'Enrollment multi filter');
+        $this->actingAsEnrollmentManagerForSchool($schoolId);
+
+        $this->get('/enrollments?class_id=3,5&section_id=7,8&branch_id=2,4,2&department_id=9')
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->component('enrollments/index')
+                ->where('filters.class_id', [3, 5])
+                ->where('filters.section_id', [7, 8])
+                ->where('filters.branch_id', [2, 4])
+                ->where('filters.department_id', [9]));
+
+        $this->get('/enrollments?class_id=abc,-1,0')
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page->where('filters.class_id', []));
+    }
 }

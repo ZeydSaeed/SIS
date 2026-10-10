@@ -23,6 +23,7 @@ use App\Application\Student\Queries\GetStudentHandler;
 use App\Application\Student\Queries\GetStudentQuery;
 use App\Domain\Enrollment\Exceptions\EnrollmentNotFoundException;
 use App\Domain\Student\Exceptions\StudentNotFoundException;
+use App\Http\Support\QueryIdList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Enrollment\BulkEnrollStudentsRequest;
 use App\Http\Requests\Enrollment\BulkUpdateEnrollmentPlacementRequest;
@@ -69,8 +70,8 @@ final class EnrollmentPageController extends Controller
         $q = trim((string) $request->query('q', ''));
         $status = $request->filled('status') ? (int) $request->query('status') : null;
         $gender = $this->queryGender($request);
-        $classId = $request->filled('class_id') ? (int) $request->query('class_id') : null;
-        $sectionId = $request->filled('section_id') ? (int) $request->query('section_id') : null;
+        $classIds = QueryIdList::from($request, 'class_id');
+        $sectionIds = QueryIdList::from($request, 'section_id');
         $departmentName = $request->filled('department_name')
             ? trim((string) $request->query('department_name'))
             : null;
@@ -78,10 +79,8 @@ final class EnrollmentPageController extends Controller
         $specializationId = $request->filled('specialization_id')
             ? (int) $request->query('specialization_id')
             : null;
-        $branchId = $request->filled('branch_id') ? (int) $request->query('branch_id') : null;
-        $departmentId = $request->filled('department_id')
-            ? (int) $request->query('department_id')
-            : null;
+        $branchIds = QueryIdList::from($request, 'branch_id');
+        $departmentIds = QueryIdList::from($request, 'department_id');
         $requestedYear = $request->filled('academic_year_id')
             ? (int) $request->query('academic_year_id')
             : null;
@@ -97,12 +96,12 @@ final class EnrollmentPageController extends Controller
             status: $status,
             q: $q,
             gender: $gender,
-            classId: $classId,
-            sectionId: $sectionId,
+            classId: $classIds,
+            sectionId: $sectionIds,
             departmentName: $departmentName,
             specializationId: $specializationId,
-            branchId: $branchId,
-            departmentId: $departmentId,
+            branchId: $branchIds,
+            departmentId: $departmentIds,
         ));
 
         $this->securityAudit->record(
@@ -135,17 +134,17 @@ final class EnrollmentPageController extends Controller
                 'q' => $q,
                 'status' => $status,
                 'gender' => $gender,
-                'class_id' => $classId,
-                'section_id' => $sectionId,
+                'class_id' => $classIds,
+                'section_id' => $sectionIds,
                 'department_name' => $departmentName,
                 'specialization_id' => $specializationId,
-                'branch_id' => $branchId,
-                'department_id' => $departmentId,
+                'branch_id' => $branchIds,
+                'department_id' => $departmentIds,
                 'academic_year_id' => $academicYearId,
                 'page' => $page,
                 'per_page' => $perPage,
             ],
-            'filterOptions' => $enrollments->listFilterOptions($schoolId, $academicYearId, $classId),
+            'filterOptions' => $enrollments->listFilterOptions($schoolId, $academicYearId, $classIds),
             'authorization' => $this->listAuthorization($user),
             'placementHistory' => $placementHistory,
         ]);

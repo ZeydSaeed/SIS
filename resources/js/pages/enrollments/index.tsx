@@ -16,12 +16,12 @@ type PageProps = {
         q: string;
         status: number | null;
         gender: number | null;
-        class_id: number | null;
-        section_id: number | null;
+        class_id: number[];
+        section_id: number[];
         department_name: string | null;
         specialization_id: number | null;
-        branch_id: number | null;
-        department_id: number | null;
+        branch_id: number[];
+        department_id: number[];
         page: number;
         per_page: number;
         academic_year_id: number | null;

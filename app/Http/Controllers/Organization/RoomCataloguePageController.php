@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Organization;
 
 use App\Application\Organization\Commands\ChangeRoomStatusCommand;
+use App\Http\Support\QueryIdList;
 use App\Application\Organization\Commands\ChangeRoomStatusHandler;
 use App\Application\Organization\Commands\ChangeRoomTypeStatusCommand;
 use App\Application\Organization\Commands\ChangeRoomTypeStatusHandler;
@@ -50,8 +51,8 @@ final class RoomCataloguePageController extends Controller
         $sort = in_array($request->query('sort'), self::SORTS, true) ? (string) $request->query('sort') : 'code';
         $filters = [
             'search' => mb_substr(trim((string) $request->query('search', '')), 0, 100) ?: null,
-            'branch_id' => self::positiveInt($request->query('branch_id')),
-            'room_type_id' => self::positiveInt($request->query('room_type_id')),
+            'branch_ids' => QueryIdList::from($request, 'branch_id'),
+            'room_type_ids' => QueryIdList::from($request, 'room_type_id'),
             'status' => in_array($request->query('state'), ['1', '2'], true) ? (int) $request->query('state') : null,
             'practical' => in_array($request->query('practical'), ['0', '1'], true) ? $request->query('practical') === '1' : null,
         ];
@@ -67,8 +68,8 @@ final class RoomCataloguePageController extends Controller
         return Inertia::render('organization/rooms', $catalogue->toArray() + [
             'filters' => [
                 'search' => $filters['search'] ?? '',
-                'branch_id' => $filters['branch_id'],
-                'room_type_id' => $filters['room_type_id'],
+                'branch_ids' => $filters['branch_ids'],
+                'room_type_ids' => $filters['room_type_ids'],
                 'state' => $filters['status'],
                 'practical' => $filters['practical'],
                 'sort' => $sort,
@@ -220,10 +221,5 @@ final class RoomCataloguePageController extends Controller
     private static function nullableInt(mixed $value): ?int
     {
         return $value === null || $value === '' ? null : (int) $value;
-    }
-
-    private static function positiveInt(mixed $value): ?int
-    {
-        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 }

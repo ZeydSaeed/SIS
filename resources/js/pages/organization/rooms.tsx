@@ -25,13 +25,14 @@ import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { isContextMenuKey, SisContextMenu, useContextMenu, type ContextMenuItem } from '@/components/sis/context-menu';
 import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
-import { SisListSelect } from '@/components/sis/sis-list-select';
+import { RibbonFilterField, type FilterSpec } from '@/components/sis/ribbon-filter';
 import { tableActionIds, toggleTableRowChecked, toggleTableSelectAll } from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
 import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
+import { encodeIds } from '@/lib/filter-values';
 import { clipRowsToFitPageSize, fitAwareLastPage, useDebouncedFitPageSync } from '@/lib/sis-ribbon-layout';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -79,8 +80,8 @@ type RoomType = {
 
 type Filters = {
     search: string;
-    branch_id: number | null;
-    room_type_id: number | null;
+    branch_ids: number[];
+    room_type_ids: number[];
     state: number | null;
     practical: boolean | null;
     sort: string;
@@ -242,8 +243,8 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
             '/organization/rooms',
             {
                 search: next.search || undefined,
-                branch_id: next.branch_id ?? undefined,
-                room_type_id: next.room_type_id ?? undefined,
+                branch_id: encodeIds(next.branch_ids),
+                room_type_id: encodeIds(next.room_type_ids),
                 state: next.state ?? undefined,
                 practical: next.practical === null ? undefined : next.practical ? 1 : 0,
                 sort: next.sort,
@@ -277,7 +278,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
 
     /** `queue` = the rooms a multi-selection «عرض» steps through (previous / next in the window). */
     const openRoom = (room: Room | null, viewOnly: boolean, queue: number[] = []) =>
-        setSheet({ id: room?.id ?? null, viewOnly, form: formOf(room, filters.branch_id ?? branches[0]?.id ?? null), queue });
+        setSheet({ id: room?.id ?? null, viewOnly, form: formOf(room, filters.branch_ids[0] ?? branches[0]?.id ?? null), queue });
     /** Status for one or several rooms, in order — stops at the first failure (its error is already shown). */
     const setStatusMany = (items: Room[], active: boolean, after?: () => void) =>
         run(async () => {
@@ -343,16 +344,6 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
         const none = targets.length === 0;
         const notOne = selected === null;
         const allOut = targets.length > 0 && targets.every((room) => room.status !== ACTIVE);
-        const field = (value: string, label: string, options: Array<{ value: string; label: string }>, onChange: (next: string) => void) => (
-            <div className="sis-ribbon__filter-field" dir="rtl">
-                <span className="sis-admission-select-fit">
-                    <span className="sis-admission-select-fit__mirror" aria-hidden="true">
-                        {options.find((o) => o.value === value)?.label ?? options[0]?.label ?? ''}
-                    </span>
-                    <SisListSelect value={value} options={options} onChange={onChange} triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control" dir="rtl" ariaLabel={label} />
-                </span>
-            </div>
-        );
 
         return [
             {
@@ -410,12 +401,28 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                 custom: (
                     <div className="sis-ribbon__filters" dir="rtl">
                         <div className="sis-ribbon__filters-stack">
-                            {field(filters.branch_id === null ? '' : String(filters.branch_id), r.branch, [{ value: '', label: r.allBranches }, ...branches.map((b) => ({ value: String(b.id), label: b.name }))], (next) =>
-                                visit({ branch_id: next === '' ? null : Number(next) }),
-                            )}
-                            {field(filters.room_type_id === null ? '' : String(filters.room_type_id), r.type, [{ value: '', label: r.allTypes }, ...types.map((x) => ({ value: String(x.id), label: x.name }))], (next) =>
-                                visit({ room_type_id: next === '' ? null : Number(next) }),
-                            )}
+                            {[
+                                {
+                                    key: 'branch',
+                                    type: 'multi',
+                                    label: r.branch,
+                                    allLabel: r.allBranches,
+                                    values: filters.branch_ids.map(String),
+                                    options: branches.map((b) => ({ value: String(b.id), label: b.name })),
+                                    onChange: (values: string[]) => visit({ branch_ids: values.map(Number) }),
+                                },
+                                {
+                                    key: 'type',
+                                    type: 'multi',
+                                    label: r.type,
+                                    allLabel: r.allTypes,
+                                    values: filters.room_type_ids.map(String),
+                                    options: types.map((x) => ({ value: String(x.id), label: x.name })),
+                                    onChange: (values: string[]) => visit({ room_type_ids: values.map(Number) }),
+                                },
+                            ].map((spec) => (
+                                <RibbonFilterField key={spec.key} spec={spec as FilterSpec} />
+                            ))}
                         </div>
                     </div>
                 ),

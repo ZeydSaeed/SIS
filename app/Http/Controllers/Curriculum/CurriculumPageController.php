@@ -49,6 +49,7 @@ use App\Application\Enrollment\Contracts\CurriculumApplicationQueue;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Enrollment\Queries\ListEnrollmentSubjectsHandler;
 use App\Application\Enrollment\Queries\ListEnrollmentSubjectsQuery;
+use App\Http\Support\QueryIdList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Curriculum\AddSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\ApplyCurriculumToEnrollmentsRequest;
@@ -112,24 +113,12 @@ final class CurriculumPageController extends Controller
 
         $q = trim((string) $request->query('q', ''));
         $status = $request->filled('status') ? (int) $request->query('status') : null;
-        $classId = null;
-        if (! $allCurricula && $request->exists('class_id')) {
-            if ($request->filled('class_id')) {
-                $classId = (int) $request->query('class_id');
-            }
-        }
-        $gradeLevelId = (! $allCurricula && $request->filled('grade_level_id'))
-            ? (int) $request->query('grade_level_id')
-            : null;
-        $specializationId = (! $allCurricula && $request->filled('specialization_id'))
-            ? (int) $request->query('specialization_id')
-            : null;
-        $branchId = (! $allCurricula && $request->filled('branch_id'))
-            ? (int) $request->query('branch_id')
-            : null;
-        $departmentFilterId = (! $allCurricula && $request->filled('department_id'))
-            ? (int) $request->query('department_id')
-            : null;
+        // The ribbon filters take several choices: `class_id=1,2` (see QueryIdList).
+        $classIds = $allCurricula ? [] : QueryIdList::from($request, 'class_id');
+        $gradeLevelIds = $allCurricula ? [] : QueryIdList::from($request, 'grade_level_id');
+        $specializationIds = $allCurricula ? [] : QueryIdList::from($request, 'specialization_id');
+        $branchIds = $allCurricula ? [] : QueryIdList::from($request, 'branch_id');
+        $departmentFilterIds = $allCurricula ? [] : QueryIdList::from($request, 'department_id');
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(max(1, (int) $request->query('per_page', $allCurricula ? 100 : 17)), 100);
 
@@ -145,14 +134,15 @@ final class CurriculumPageController extends Controller
         $specialization = $allCurricula ? '' : trim((string) $request->query('specialization', ''));
 
         // صف SSOT = enrollment.classes (الأول / الثاني / الثالث) → grade_level_id for curricula filter.
-        if (! $allCurricula && $classId !== null) {
-            $gradeLevelId = null;
+        if (! $allCurricula && $classIds !== []) {
+            $gradeLevelIds = [];
             foreach ($filterOptions['classes'] ?? [] as $classRow) {
-                if ((int) ($classRow['id'] ?? 0) === $classId) {
-                    $gradeLevelId = (int) ($classRow['grade_level_id'] ?? 0) ?: null;
-                    break;
+                $gradeLevel = (int) ($classRow['grade_level_id'] ?? 0);
+                if ($gradeLevel > 0 && in_array((int) ($classRow['id'] ?? 0), $classIds, true)) {
+                    $gradeLevelIds[$gradeLevel] = $gradeLevel;
                 }
             }
+            $gradeLevelIds = array_values($gradeLevelIds);
         }
         $meta = $this->buildLabelMaps($filterOptions);
 
@@ -163,14 +153,14 @@ final class CurriculumPageController extends Controller
                 academicYearId: $allCurricula ? null : $academicYearId,
                 includeInactive: true,
                 status: $status,
-                gradeLevelId: $gradeLevelId,
-                specializationId: $specializationId,
-                branchId: $branchId,
+                gradeLevelId: $gradeLevelIds,
+                specializationId: $specializationIds,
+                branchId: $branchIds,
                 q: $q,
                 page: $page,
                 perPage: $perPage,
                 paginate: true,
-                departmentId: $departmentFilterId,
+                departmentId: $departmentFilterIds,
             ));
             assert(isset($result['items']));
             $curriculaPayload = [
@@ -309,10 +299,10 @@ final class CurriculumPageController extends Controller
                 'curriculum_id' => $selectedCurriculumId,
                 'q' => $q,
                 'status' => $status,
-                'class_id' => $classId,
-                'grade_level_id' => $gradeLevelId,
-                'specialization_id' => $specializationId,
-                'branch_id' => $branchId,
+                'class_id' => $classIds,
+                'grade_level_id' => $gradeLevelIds,
+                'specialization_id' => $specializationIds,
+                'branch_id' => $branchIds,
                 'branch' => $branch,
                 'specialization' => $specialization,
                 'page' => $page,
