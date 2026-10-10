@@ -4,7 +4,7 @@ import { cloneElement, Fragment, useCallback, useEffect, useMemo, useRef, useSta
 import { RegistryListField, RegistrySheetDialog, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { AppearanceDialog, hueStyle } from '@/components/sis/appearance-fields';
 import { isContextMenuKey, SisContextMenu, useContextMenu, type ContextMenuItem } from '@/components/sis/context-menu';
-import { displayRow, formatClock, gridData, gridStyle, ownerHue, resolveDisplay, type DisplayCatalog, type DisplayKind, type DisplaySettings } from '@/components/timetable/display-settings';
+import { displayRow, entityLabel, formatClock, gridData, gridStyle, ownerHue, resolveDisplay, type DisplayCatalog, type DisplayKind, type DisplaySettings } from '@/components/timetable/display-settings';
 import { FormatSheet } from '@/components/timetable/format-sheet';
 import { HeadingSheet } from '@/components/timetable/heading-sheet';
 import { CellBody, cellLines, type CellContext, type CellLesson } from '@/components/timetable/lesson-card-content';
@@ -13,7 +13,9 @@ import { TestSheet, type TestFix, type TestIssue, type TestReport } from '@/comp
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
+import { autoIconTone } from '@/components/title-bar-ribbon';
 import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { DialogContainerContext } from '@/components/sis/dialog-container-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { useTimetableGridResize } from '@/hooks/use-timetable-grid-resize';
 import { multiSelectSummary, SisMultiSelect } from '@/components/sis/sis-multi-select';
@@ -343,12 +345,18 @@ function TimetablePage({
     const [preview, setPreview] = useState(false);
     const [printLayout, setPrintLayout] = useState(false);
     const [printPanel, setPrintPanel] = useState(false);
+    const [previewTab, setPreviewTab] = useState<'home' | 'edit' | null>('home');
+    const [previewNode, setPreviewNode] = useState<HTMLDivElement | null>(null);
     const [printSettings, setPrintSettings] = useState<PrintSettings>(() => loadPrintSettings());
     const changePrintSettings = useCallback((next: PrintSettings) => {
         setPrintSettings(next);
         savePrintSettings(next);
     }, []);
     const previewRef = useRef<HTMLDivElement | null>(null);
+    const bindPreview = useCallback((node: HTMLDivElement | null) => {
+        previewRef.current = node;
+        setPreviewNode(node);
+    }, []);
     const previewBodyRef = useRef<HTMLDivElement | null>(null);
     const [saving, setSaving] = useState(false);
 
@@ -1151,6 +1159,14 @@ function TimetablePage({
                         onSelect: () => setDisplayOverride({ ...settings, fields: { ...settings.fields, [field]: !settings.fields[field] } }),
                     })),
                     {
+                        id: 'timetable-show-time',
+                        label: tt.format.showTime,
+                        icon: Clock,
+                        pressed: settings.period_header.show_time,
+                        title: `${tt.editRibbon.show}: ${tt.format.showTime}`,
+                        onSelect: () => setDisplayOverride({ ...settings, period_header: { ...settings.period_header, show_time: !settings.period_header.show_time } }),
+                    },
+                    {
                         id: 'timetable-sheet-lesson',
                         label: tt.master.lessonOnly,
                         icon: LayoutGrid,
@@ -1923,7 +1939,26 @@ function TimetablePage({
                     {gridTable(
                         (day, period) =>
                             readOnly ? (
-                                <td key={cellKey(day, period.id)} className="sis-timetable-cell">
+                                <td
+                                    key={cellKey(day, period.id)}
+                                    className={`sis-timetable-cell${(() => {
+                                        const p = cells.get(cellKey(day, period.id));
+
+                                        return p !== undefined && selectedCell !== null && selectedCell.sectionId === p.section_id && selectedCell.day === day && selectedCell.periodId === period.id ? ' sis-timetable-cell--selected' : '';
+                                    })()}`}
+                                    onClick={() => {
+                                        const p = cells.get(cellKey(day, period.id));
+                                        if (p !== undefined) {
+                                            setSelectedCell({ sectionId: p.section_id, day, periodId: period.id });
+                                        }
+                                    }}
+                                    onDoubleClick={() => {
+                                        const p = cells.get(cellKey(day, period.id));
+                                        if (p !== undefined && authorization.can_update && viewingVersion === null) {
+                                            openEdit(p.id);
+                                        }
+                                    }}
+                                >
                                     {cells.get(cellKey(day, period.id)) !== undefined ? lessonCard(cells.get(cellKey(day, period.id)) as Schedule, sectionLabel((cells.get(cellKey(day, period.id)) as Schedule).section_id), false) : null}
                                 </td>
                             ) : (
@@ -1961,9 +1996,15 @@ function TimetablePage({
                 <div className="sis-timetable-grid" {...gridData(settings, gridZoom)} style={gridStyle(settings, gridZoom)}>
                     {gridTable((day, period) => {
                         const placed = cells.get(cellKey(day, period.id));
+                        const chosen = placed !== undefined && selectedCell !== null && selectedCell.sectionId === placed.section_id && selectedCell.day === day && selectedCell.periodId === period.id;
 
                         return (
-                            <td key={cellKey(day, period.id)} className="sis-timetable-cell">
+                            <td
+                                key={cellKey(day, period.id)}
+                                className={`sis-timetable-cell${chosen ? ' sis-timetable-cell--selected' : ''}`}
+                                onClick={() => placed !== undefined && setSelectedCell({ sectionId: placed.section_id, day, periodId: period.id })}
+                                onDoubleClick={() => placed !== undefined && authorization.can_update && viewingVersion === null && openEdit(placed.id)}
+                            >
                                 {placed !== undefined ? lessonCard(placed, `${sectionLabel(placed.section_id)} · ${teacherNames.get(placed.teacher_id) ?? ''}`, false) : null}
                             </td>
                         );
@@ -2011,10 +2052,31 @@ function TimetablePage({
                                     periods={lessonPeriods.map((p) => ({ id: p.id, number: lessonNumber.get(p.id) ?? 0, start: p.start_time, end: p.end_time }))}
                                     periodHeader={{ ...settings.period_header, am: tt.am, pm: tt.pm }}
                                     lessons={schedules}
-                                    subjectName={(id) => subjectNames.get(id) ?? `#${id}`}
-                                    teacherName={(id) => teacherNames.get(id) ?? `#${id}`}
+                                    subjectName={(id) => entityLabel(display, 'subjects', id, settings.abbreviate.subject, subjectNames.get(id) ?? `#${id}`)}
+                                    teacherName={(id) => {
+                                        const row = displayRow(display, 'teachers', id);
+                                        const title = settings.teacher_title ? (settings.teacher_title_style === 'full' ? row?.title : row?.title_abbreviation) : null;
+
+                                        return `${title ? `${title} ` : ''}${entityLabel(display, 'teachers', id, settings.abbreviate.teacher, teacherNames.get(id) ?? `#${id}`)}`;
+                                    }}
                                     groupName={(id) => groupNames.get(id) ?? ''}
                                     subjectStyle={(id) => subjectStyles.get(id)}
+                                    lessonStyle={(l) => (settings.color_by === 'none' ? undefined : cardStyle({ subject_id: l.subject_id, teacher_id: l.teacher_id, section_id: l.section_id, room_id: l.room_id ?? null }))}
+                                    roomLabel={(id) => (id === null ? null : entityLabel(display, 'rooms', id, settings.abbreviate.room, roomName(id) ?? ''))}
+                                    showRoom={settings.fields.room}
+                                    showSection={settings.fields.section}
+                                    selected={selectedCell}
+                                    onSelect={(cell) => setSelectedCell(cell)}
+                                    onOpen={(cell) => {
+                                        const placed = sectionCells.get(cell.sectionId)?.get(cellKey(cell.day, cell.periodId));
+                                        if (placed !== undefined) {
+                                            if (authorization.can_update && viewingVersion === null) {
+                                                openEdit(placed.id);
+                                            }
+                                        } else if (canPlace) {
+                                            setPickCell(cell);
+                                        }
+                                    }}
                                     heading={{ title: tt.master.title, school: schoolName, year: sheetYear, stage: stage.name, effectiveFrom: sheetEffective === '' ? null : sheetEffective }}
                                     showTeacher={stageTeachers}
                                 />
@@ -2336,7 +2398,7 @@ function TimetablePage({
     };
 
     return (
-        <>
+        <DialogContainerContext.Provider value={preview ? previewNode : null}>
             <Head title={tt.title} />
             <div className="sis-ops-hub sis-admission-page sis-timetable-page flex h-full min-h-0 flex-col overflow-hidden pb-4" dir="rtl" lang="ar">
                 {authorization.can_create ? null : <p className="sis-branches-page__notice">{tt.readOnly}</p>}
@@ -2371,67 +2433,179 @@ function TimetablePage({
             </div>
 
             {preview ? (
-                <div ref={previewRef} className="sis-timetable-preview" role="dialog" aria-modal="true" aria-label={tt.preview} dir="rtl" lang="ar">
+                <div ref={bindPreview} className="sis-timetable-preview" role="dialog" aria-modal="true" aria-label={tt.preview} dir="rtl" lang="ar">
                     {/* The printed sheet: the paper, orientation and margins of «إعدادات الطباعة». */}
                     <style>{pageRule(printSettings)}</style>
-                    <header className="sis-timetable-preview__head sis-timetable-preview__head--one-line">
-                        <div className="sis-timetable-preview__line">
-                        <span className="sis-timetable-preview__filter">
-                            <span className="sis-timetable-preview__filter-label">{tt.zoom.kind}</span>
-                            <SisListSelect
-                                value={view}
-                                options={[
-                                    { value: 'section', label: tt.bySection },
-                                    { value: 'teacher', label: tt.byTeacher },
-                                    ...((engine?.rooms.length ?? 0) > 0 ? [{ value: 'room', label: et.byRoom }] : []),
-                                ]}
-                                onChange={(next) => setView(next as 'section' | 'teacher' | 'room')}
-                                className="sis-timetable-preview__select"
-                                triggerClassName="sis-timetable-preview__control"
-                                dir="rtl"
-                                ariaLabel={tt.zoom.kind}
-                            />
-                        </span>
-                        <span className="sis-timetable-preview__filters" role="group" aria-label={tt.ribbonFilters}>
-                            {filterSpecs().map((spec) => renderFilter('preview', spec))}
-                            {view === 'section' ? (
-                                <>
-                                    <Button type="button" variant="outline" className="sis-timetable-preview__close" disabled={!gridFiltered} title={tt.clearFilters} onClick={() => setGridFilters(NO_FILTERS)}>
-                                        <FilterX aria-hidden />
-                                        {tt.clearFilters}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="sis-timetable-preview__close"
-                                        title={tt.showAllHint}
-                                        onClick={() => {
-                                            setGridFilters(NO_FILTERS);
-                                            setFocusId(null);
-                                        }}
-                                    >
-                                        <LayoutList aria-hidden />
-                                        {tt.showAll}
-                                    </Button>
-                                </>
-                            ) : null}
-                        </span>
-                        <span className="sis-timetable-preview__actions" role="group" aria-label={tt.zoom.kind}>
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" aria-pressed={printPanel} aria-expanded={printPanel} onClick={() => setPrintPanel((current) => !current)}>
-                                <Settings2 aria-hidden />
-                                {tt.printSetup.title}
-                            </Button>
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" onClick={printNow}>
-                                <Printer aria-hidden />
-                                {tt.print}
-                            </Button>
-                            <Button type="button" variant="outline" className="sis-timetable-preview__close" onClick={closePreview}>
-                                <Minimize2 aria-hidden />
-                                {tt.previewClose}
-                            </Button>
-                        </span>
+                    {/* The page's tab strip: «الصفحة الرئيسية» and «التحرير», same classes; a tab opens / folds its ribbon. */}
+                    <div className={`sis-chrome sis-chrome--ribbon-present sis-timetable-preview__chrome${previewTab !== null ? ' sis-chrome--ribbon-open' : ''}`}>
+                        <header className="sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3" dir="rtl">
+                            <div className="sis-titlebar__start">
+                                <nav className="sis-titlebar__menu" aria-label={i18n.chrome.tabsAria} dir="rtl">
+                                    {(['home', 'edit'] as const).map((id) => (
+                                        <button
+                                            key={id}
+                                            type="button"
+                                            className={previewTab === id ? 'sis-titlebar__menu-item sis-titlebar__menu-item--active' : 'sis-titlebar__menu-item'}
+                                            aria-pressed={previewTab === id}
+                                            onClick={() => setPreviewTab((current) => (current === id ? null : id))}
+                                        >
+                                            {i18n.chrome.tabs[id]}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+                        </header>
+                        <div className="sis-ribbon-slot" role="presentation">
+                            <div className="sis-ribbon-slot__panel">
+                                <div
+                                    className={`sis-ribbon sis-ribbon--ops-accent sis-ribbon--timetable-page${previewTab === 'edit' ? ' sis-ribbon--fit' : ''} sis-timetable-preview__ribbon`}
+                                    role="region"
+                                    aria-label={i18n.chrome.tabs[previewTab ?? 'home']}
+                                    dir="rtl"
+                                >
+                                    <div className="sis-ribbon__body">
+                                        {previewTab === 'edit' ? (
+                                            editRibbonGroups.map((group) => (
+                                                <Fragment key={group.id}>
+                                                    <div
+                                                        className={group.id.includes('filter') ? 'sis-ribbon__group sis-ribbon__group--filters' : group.id.includes('progress') ? 'sis-ribbon__group sis-ribbon__group--progress' : 'sis-ribbon__group sis-ribbon__group--commands'}
+                                                        data-group-id={group.id}
+                                                    >
+                                                        <div className="sis-ribbon__items">
+                                                            {group.custom ??
+                                                                group.commands.map((command) => {
+                                                                    const Icon = command.icon;
+
+                                                                    return (
+                                                                        <button
+                                                                            key={command.id}
+                                                                            type="button"
+                                                                            data-item-id={command.id}
+                                                                            className={command.tone ? `sis-ribbon__item sis-ribbon__item--${command.tone}` : 'sis-ribbon__item'}
+                                                                            disabled={command.disabled}
+                                                                            aria-label={command.title ?? command.label}
+                                                                            title={command.title ?? command.label}
+                                                                            aria-pressed={command.pressed}
+                                                                            onClick={command.onSelect}
+                                                                        >
+                                                                            {command.count !== undefined ? (
+                                                                                <span className="sis-ribbon__count" dir="ltr">
+                                                                                    {command.count}
+                                                                                </span>
+                                                                            ) : null}
+                                                                            <Icon className={`sis-ribbon__icon sis-ribbon__icon--tone-${command.iconTone ?? autoIconTone(command.id)}`} aria-hidden />
+                                                                            <span className="sis-ribbon__label">{command.label}</span>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                        <span className="sis-ribbon__group-label">{group.label}</span>
+                                                    </div>
+                                                    <div className="sis-ribbon__separator" aria-hidden />
+                                                </Fragment>
+                                            ))
+                                        ) : (
+                                        <>
+                                                <div className="sis-ribbon__group sis-ribbon__group--commands" data-group-id="timetable-view">
+                                                    <div className="sis-ribbon__items">
+                                                        {[
+                                                            { id: 'timetable-view-section', label: tt.bySection, icon: LayoutGrid, value: 'section' as const, disabled: false },
+                                                            { id: 'timetable-view-teacher', label: tt.byTeacher, icon: UserRound, value: 'teacher' as const, disabled: false },
+                                                            { id: 'timetable-view-room', label: et.byRoom, icon: DoorOpen, value: 'room' as const, disabled: (engine?.rooms.length ?? 0) === 0 },
+                                                        ].map((item) => {
+                                                            const Icon = item.icon;
+
+                                                            return (
+                                                                <button
+                                                                    key={item.id}
+                                                                    type="button"
+                                                                    data-item-id={item.id}
+                                                                    className="sis-ribbon__item"
+                                                                    disabled={item.disabled}
+                                                                    aria-label={item.label}
+                                                                    title={item.label}
+                                                                    aria-pressed={view === item.value}
+                                                                    onClick={() => setView(item.value)}
+                                                                >
+                                                                    <Icon className={`sis-ribbon__icon sis-ribbon__icon--tone-${autoIconTone(item.id)}`} aria-hidden />
+                                                                    <span className="sis-ribbon__label">{item.label}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <span className="sis-ribbon__group-label">{tt.viewBy}</span>
+                                                </div>
+                                                <div className="sis-ribbon__separator" aria-hidden />
+                                                <div className="sis-ribbon__group sis-ribbon__group--filters" data-group-id="timetable-filters">
+                                                    <div className="sis-ribbon__items">
+                                                        <div className="sis-ribbon__filters" dir="rtl">
+                                                            <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--curriculum sis-ribbon__filters-stack--timetable">
+                                                                {filterSpecs().map((spec) => renderFilter('ribbon', spec))}
+                                                            </div>
+                                                            {view === 'section' ? (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="sis-ribbon__item sis-ribbon__item--filter-clear"
+                                                                        data-item-id="timetable-filters-clear"
+                                                                        aria-label={tt.clearFilters}
+                                                                        title={tt.clearFilters}
+                                                                        disabled={!gridFiltered}
+                                                                        onClick={() => setGridFilters(NO_FILTERS)}
+                                                                    >
+                                                                        <FilterX className="sis-ribbon__icon" aria-hidden />
+                                                                        <span className="sis-ribbon__label">{tt.clearFilters}</span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="sis-ribbon__item sis-ribbon__item--filter-clear"
+                                                                        data-item-id="timetable-show-all"
+                                                                        aria-label={tt.showAll}
+                                                                        title={tt.showAllHint}
+                                                                        onClick={() => {
+                                                                            setGridFilters(NO_FILTERS);
+                                                                            setFocusId(null);
+                                                                        }}
+                                                                    >
+                                                                        <LayoutList className="sis-ribbon__icon" aria-hidden />
+                                                                        <span className="sis-ribbon__label">{tt.showAll}</span>
+                                                                    </button>
+                                                                </>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    <span className="sis-ribbon__group-label">{tt.ribbonFilters}</span>
+                                                </div>
+                                                <div className="sis-ribbon__separator" aria-hidden />
+                                        </>
+                                        )}
+                                        <div className="sis-ribbon__group sis-ribbon__group--commands" data-group-id="timetable-preview-actions">
+                                            <div className="sis-ribbon__items">
+                                                <button type="button" data-item-id="timetable-preview-setup" className="sis-ribbon__item" aria-label={tt.printSetup.title} title={tt.printSetup.title} aria-pressed={printPanel} onClick={() => setPrintPanel((current) => !current)}>
+                                                    <Settings2 className={`sis-ribbon__icon sis-ribbon__icon--tone-${autoIconTone('timetable-preview-setup')}`} aria-hidden />
+                                                    <span className="sis-ribbon__label">{tt.printSetup.title}</span>
+                                                </button>
+                                                <button type="button" data-item-id="timetable-preview-print" className="sis-ribbon__item" aria-label={tt.print} title={tt.print} onClick={printNow}>
+                                                    <Printer className={`sis-ribbon__icon sis-ribbon__icon--tone-${autoIconTone('timetable-preview-print')}`} aria-hidden />
+                                                    <span className="sis-ribbon__label">{tt.print}</span>
+                                                </button>
+                                                <button type="button" data-item-id="timetable-preview-close" className="sis-ribbon__item" aria-label={tt.previewClose} title={tt.previewClose} onClick={closePreview}>
+                                                    <Minimize2 className={`sis-ribbon__icon sis-ribbon__icon--tone-${autoIconTone('timetable-preview-close')}`} aria-hidden />
+                                                    <span className="sis-ribbon__label">{tt.previewClose}</span>
+                                                </button>
+                                            </div>
+                                            <span className="sis-ribbon__group-label">{tt.print}</span>
+                                        </div>
+                                    </div>
+                                    <div className="sis-ribbon__chrome-actions">
+                                        <button type="button" className="sis-ribbon__collapse" aria-label="طي الشريط" title="طي الشريط" onClick={() => setPreviewTab(null)}>
+                                            <span aria-hidden>⌃</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </header>
+                    </div>
                     {printPanel ? <PrintSettingsPanel settings={printSettings} onChange={changePrintSettings} onClose={() => setPrintPanel(false)} /> : null}
                     {/* «معاينة الطباعة» only: always the printed sheet (paper, orientation, margins of «إعدادات الطباعة»). */}
                     <div ref={previewBodyRef} className="sis-timetable-preview__body sis-timetable-preview__body--paper">
@@ -2679,7 +2853,7 @@ function TimetablePage({
                         payload={target.payload}
                         reloadProps={['display', 'schedules', 'engine', 'flash']}
                         canEdit
-                        sheetClassName="sis-timetable-sheet"
+                        compact
                         onClose={() => setAppearanceFor(null)}
                     />
                 );
@@ -2725,7 +2899,7 @@ function TimetablePage({
             ) : null}
 
             {periodsOpen ? <PeriodsSheet periods={sortedPeriods} lessonNumber={lessonNumber} onClose={() => setPeriodsOpen(false)} /> : null}
-        </>
+        </DialogContainerContext.Provider>
     );
 }
 

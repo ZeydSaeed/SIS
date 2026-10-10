@@ -2514,6 +2514,8 @@ export const ar = {
         a3LayoutBack: 'معاينة الشاشة',
         a3LayoutHint: 'الجدول المعروض حسب الفلاتر على ورقة بالحجم والهوامش المختارة — ما يظهر هو ما يُطبع.',
         printSetup: {
+            paperSection: 'الورقة والعرض',
+            marginsSection: 'الهوامش',
             title: 'إعدادات الطباعة',
             paper: 'حجم الورق',
             mm: 'مم',

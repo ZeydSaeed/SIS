@@ -9,10 +9,14 @@ type Lesson = {
     period_id: number;
     subject_id: number;
     teacher_id: number;
+    room_id?: number | null;
     co_teacher_id?: number | null;
     group_id?: number | null;
     week_no?: number | null;
 };
+
+/** A cell of the table: section × day × period (a merged block counts by its first period). */
+export type MasterCell = { sectionId: number; day: number; periodId: number };
 
 export type MasterColumn = { key: string; title: string; sections: Array<{ id: number; label: string }> };
 
@@ -35,6 +39,13 @@ export function MasterTimetable({
     heading,
     showTeacher = true,
     periodHeader = null,
+    roomLabel,
+    showRoom = false,
+    showSection = false,
+    lessonStyle,
+    selected = null,
+    onSelect,
+    onOpen,
 }: {
     columns: MasterColumn[];
     days: number[];
@@ -50,6 +61,17 @@ export function MasterTimetable({
     showTeacher?: boolean;
     /** «تنسيق الجدول» › رأس الحصة: the number and the time shown in the period column. */
     periodHeader?: { show_number: boolean; show_time: boolean; clock: '12' | '24'; am: string; pm: string } | null;
+    /** «الغرفة» in the lesson cell («تنسيق الجدول» › الحقول المعروضة). */
+    roomLabel?: (roomId: number | null) => string | null;
+    showRoom?: boolean;
+    /** «الشعبة» in the lesson cell (the column already names it; this repeats it for the printed cell). */
+    showSection?: boolean;
+    /** The cell colour per the chosen «لوّن حسب» (default: the subject's colour). */
+    lessonStyle?: (lesson: Lesson) => CSSProperties | undefined;
+    /** The chosen cell (one click) and the editor of a cell (double click). */
+    selected?: MasterCell | null;
+    onSelect?: (cell: MasterCell) => void;
+    onOpen?: (cell: MasterCell) => void;
 }) {
     const tt = t().timetable;
     const m = tt.master;
@@ -87,14 +109,24 @@ export function MasterTimetable({
         return out;
     };
 
-    const subjectText = (list: Lesson[]) =>
+    const subjectText = (list: Lesson[], sectionLabel: string | null = null) =>
         list
-            .map((l) => `${subjectName(l.subject_id)}${l.group_id ? ` (${groupName(l.group_id)})` : ''}${l.week_no ? ` · ${tt.engine.week} ${l.week_no}` : ''}`)
+            .map((l) => {
+                const room = showRoom && roomLabel !== undefined ? roomLabel(l.room_id ?? null) : null;
+
+                return `${subjectName(l.subject_id)}${l.group_id ? ` (${groupName(l.group_id)})` : ''}${l.week_no ? ` · ${tt.engine.week} ${l.week_no}` : ''}${room ? ` · ${room}` : ''}${sectionLabel ? ` · ${sectionLabel}` : ''}`;
+            })
             .join(' / ');
     const teacherText = (list: Lesson[]) =>
         list.map((l) => [l.teacher_id, l.co_teacher_id].filter((x): x is number => x !== null && x !== undefined).map(teacherName).join(' + ')).join(' / ');
 
     const sectionCount = columns.reduce((n, c) => n + c.sections.length, 0);
+    const handlers = (sectionId: number, day: number, periodId: number) => ({
+        onClick: onSelect === undefined ? undefined : () => onSelect({ sectionId, day, periodId }),
+        onDoubleClick: onOpen === undefined ? undefined : () => onOpen({ sectionId, day, periodId }),
+    });
+    const chosen = (sectionId: number, day: number, periodId: number) =>
+        selected !== null && selected.sectionId === sectionId && selected.day === day && selected.periodId === periodId ? ' sis-timetable-master__selected' : '';
     /** The line closing a section's «الدرس | اسم المدرس» pair: heavier between sections, heaviest between specializations. */
     const edge = (column: MasterColumn, index: number) => (index === column.sections.length - 1 ? ' sis-timetable-master__edge--department' : ' sis-timetable-master__edge--section');
 
@@ -190,25 +222,32 @@ export function MasterTimetable({
                                             }
                                             const list = cells.get(s.id)?.get(`${day}:${p.id}`) ?? [];
                                             if (list.length === 0) {
+                                                const empty = handlers(s.id, day, p.id);
+
                                                 return showTeacher
-                                                    ? [<td key={`${c.key}:${s.id}:s`} className="sis-timetable-master__empty" />, <td key={`${c.key}:${s.id}:t`} className={`sis-timetable-master__empty${edge(c, si)}`} />]
-                                                    : [<td key={`${c.key}:${s.id}:s`} className={`sis-timetable-master__empty${edge(c, si)}`} />];
+                                                    ? [
+                                                          <td key={`${c.key}:${s.id}:s`} className={`sis-timetable-master__empty${chosen(s.id, day, p.id)}`} {...empty} />,
+                                                          <td key={`${c.key}:${s.id}:t`} className={`sis-timetable-master__empty${edge(c, si)}`} {...empty} />,
+                                                      ]
+                                                    : [<td key={`${c.key}:${s.id}:s`} className={`sis-timetable-master__empty${edge(c, si)}${chosen(s.id, day, p.id)}`} {...empty} />];
                                             }
-                                            const style = subjectStyle(list[0].subject_id);
+                                            const style = lessonStyle?.(list[0]) ?? subjectStyle(list[0].subject_id);
+                                            const on = handlers(s.id, day, p.id);
+                                            const mark = chosen(s.id, day, p.id);
 
                                             if (!showTeacher) {
                                                 return [
-                                                    <td key={`${c.key}:${s.id}:s`} rowSpan={span} className={`sis-timetable-master__lesson sis-timetable-master__lesson--subject${edge(c, si)}`} style={style}>
-                                                        {subjectText(list)}
+                                                    <td key={`${c.key}:${s.id}:s`} rowSpan={span} className={`sis-timetable-master__lesson sis-timetable-master__lesson--subject${edge(c, si)}${mark}`} style={style} {...on}>
+                                                        {subjectText(list, showSection ? s.label : null)}
                                                     </td>,
                                                 ];
                                             }
 
                                             return [
-                                                <td key={`${c.key}:${s.id}:s`} rowSpan={span} className="sis-timetable-master__lesson sis-timetable-master__lesson--subject" style={style}>
-                                                    {subjectText(list)}
+                                                <td key={`${c.key}:${s.id}:s`} rowSpan={span} className={`sis-timetable-master__lesson sis-timetable-master__lesson--subject${mark}`} style={style} {...on}>
+                                                    {subjectText(list, showSection ? s.label : null)}
                                                 </td>,
-                                                <td key={`${c.key}:${s.id}:t`} rowSpan={span} className={`sis-timetable-master__lesson${edge(c, si)}`} style={style}>
+                                                <td key={`${c.key}:${s.id}:t`} rowSpan={span} className={`sis-timetable-master__lesson${edge(c, si)}`} style={style} {...on}>
                                                     {teacherText(list)}
                                                 </td>,
                                             ];

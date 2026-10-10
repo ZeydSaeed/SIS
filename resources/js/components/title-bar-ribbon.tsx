@@ -199,7 +199,7 @@ type RibbonItem = {
 /** Outline colours for commands that do not name one (governed palette tones, stable per command id). */
 const AUTO_ICON_TONES = ['authority', 'education', 'growth', 'sky', 'amber', 'rose', 'forest', 'steel'] as const;
 
-function autoIconTone(id: string): (typeof AUTO_ICON_TONES)[number] {
+export function autoIconTone(id: string): (typeof AUTO_ICON_TONES)[number] {
     let hash = 0;
     for (let i = 0; i < id.length; i++) {
         hash = (hash * 31 + id.charCodeAt(i)) >>> 0;

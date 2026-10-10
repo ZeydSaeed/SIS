@@ -18022,3 +18022,165 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     text-align: center;
     font-weight: 700;
 }
+
+/* «اختصار ولون»: opens like the sub-windows of «الأنشطة والمجموعات» (same window, same rows) — small, as tall as its fields. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-subsheet--form.sis-timetable-appearance-sheet {
+    --sis-sheet-w: min(94vw, 32rem);
+}
+
+.sis-timetable-appearance-sheet .sis-admission-draft-form.sis-admission-sheet {
+    min-height: 0;
+}
+
+/* «معاينة الطباعة»: the filter strip is the home tab's ribbon (same groups, same classes) under the preview head. */
+.sis-timetable-preview .sis-timetable-preview__ribbon {
+    flex: 0 0 auto;
+    position: relative;
+    width: 100%;
+    overflow: visible;
+}
+
+/* «معاينة الطباعة»: one tab above the strip; the strip folds away and comes back (like the page's ribbon). */
+.sis-timetable-preview__tabbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding: 0.25rem 1rem 0;
+    background: var(--sis-curriculum-chrome);
+}
+
+.sis-timetable-preview__tab {
+    padding: 0.3rem 0.9rem;
+    border: 0;
+    border-radius: var(--sis-field-radius) var(--sis-field-radius) 0 0;
+    background: transparent;
+    color: var(--sis-curriculum-chrome-text);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sis-timetable-preview__tab[aria-selected='true'] {
+    background: var(--sis-curriculum-ribbon);
+    color: var(--sis-curriculum-chrome);
+}
+
+.sis-timetable-preview .sis-timetable-preview__ribbon {
+    display: flex;
+    align-items: stretch;
+}
+
+/* «معاينة الطباعة»: the strip is the page's tab strip + ribbon; the print settings are a window of their own. */
+.sis-timetable-preview .sis-timetable-preview__chrome {
+    flex: 0 0 auto;
+    z-index: 5;
+}
+
+.sis-timetable-preview .sis-timetable-preview__ribbon {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+}
+
+.sis-timetable-print-toggle {
+    display: flex;
+    align-items: center;
+    min-height: 2.15rem;
+}
+
+.sis-timetable-print-toggle input {
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+/* «معاينة الطباعة»: the chosen cell is framed (not printed); cells answer a click and a double click. */
+.sis-timetable-preview td.sis-timetable-cell--selected,
+.sis-timetable-preview td.sis-timetable-master__selected {
+    position: relative;
+}
+
+.sis-timetable-preview td.sis-timetable-cell--selected::after,
+.sis-timetable-preview td.sis-timetable-master__selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border: 3px solid var(--sis-night);
+    box-shadow: inset 0 0 0 1px var(--sis-pearl);
+    pointer-events: none;
+}
+
+.sis-timetable-preview .sis-timetable-master__lesson,
+.sis-timetable-preview .sis-timetable-master__empty {
+    cursor: pointer;
+}
+
+@media print {
+    .sis-timetable-master__selected::after,
+    .sis-timetable-cell--selected::after {
+        display: none !important;
+    }
+}
+
+/* «معاينة الطباعة»: the strip is the page's tab strip + ribbon (home / edit); the print settings are a window. */
+.sis-timetable-preview .sis-timetable-preview__chrome {
+    flex: 0 0 auto;
+    z-index: 5;
+}
+
+.sis-timetable-preview .sis-timetable-preview__ribbon {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+}
+
+/* «إعدادات الطباعة»: one compact window — three columns, each label right beside its field, a fixed width
+   (the window is not auto-widened: its fields shrink instead). */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-print-sheet {
+    --sis-sheet-w: min(94vw, 34rem);
+}
+
+.sis-timetable-sheet.sis-timetable-print-sheet .sis-admission-sheet__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    column-gap: 0.5rem;
+    row-gap: 0.3rem;
+    padding: 0.35rem 0.6rem;
+}
+
+.sis-timetable-print-sheet .sis-admission-sheet__body .sis-admission-sheet__field {
+    display: grid !important;
+    grid-template-columns: 4.2rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.3rem;
+    min-width: 0;
+}
+
+.sis-timetable-print-sheet .sis-admission-sheet__body .sis-admission-sheet__field > .sis-admission-sheet__label {
+    grid-column: 1;
+    font-size: 0.74rem;
+    line-height: 1.2;
+    white-space: normal;
+}
+
+.sis-timetable-print-sheet .sis-admission-sheet__body .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+}
+
+.sis-timetable-print-sheet .sis-admission-sheet__body :is(input:not([type='checkbox']), .sis-admission-sheet__control, .sis-list-select__trigger) {
+    min-height: 1.85rem;
+    padding-block: 0.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sis-timetable-print-sheet .sis-timetable-print-toggle {
+    min-height: 1.85rem;
+}
+
+.sis-timetable-print-sheet .sis-admission-sheet__banner {
+    padding-block: 0.25rem;
+}

@@ -642,7 +642,8 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                     payload={{ target: 'room', id: appearanceFor.id }}
                     reloadProps={RELOAD}
                     canEdit={canManage}
-                    sheetClassName="sis-timetable-sheet sis-rooms-form"
+                    sheetClassName="sis-rooms-form"
+                    compact
                     onClose={() => setAppearanceFor(null)}
                 />
             ) : null}

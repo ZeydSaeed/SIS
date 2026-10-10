@@ -119,6 +119,7 @@ export function AppearanceDialog({
     canEdit,
     onClose,
     sheetClassName = '',
+    compact = false,
 }: {
     title: string;
     entityName: string;
@@ -133,6 +134,11 @@ export function AppearanceDialog({
     onClose: () => void;
     /** Extra window classes (e.g. `sis-timetable-sheet` = size follows the content). */
     sheetClassName?: string;
+    /**
+     * Opens like a sub-window of the timetable forms («تعديل النشاط»): the same window class, the same row layout, a
+     * small width — as tall as its fields.
+     */
+    compact?: boolean;
 }) {
     const i18n = t();
     const a = i18n.appearance;
@@ -152,9 +158,17 @@ export function AppearanceDialog({
     };
 
     return (
-        <RegistrySheetDialog title={title} className={`sis-branches-sheet sis-appearance-sheet ${sheetClassName}`.trim()} onClose={onClose}>
+        <RegistrySheetDialog
+            title={title}
+            className={
+                compact
+                    ? 'sis-branches-sheet sis-timetable-sheet sis-timetable-subsheet sis-timetable-subsheet--form sis-timetable-appearance-sheet'
+                    : `sis-branches-sheet sis-appearance-sheet ${sheetClassName}`.trim()
+            }
+            onClose={onClose}
+        >
             <SheetSection id="appearance" title={entityName}>
-                <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                <div className={`sis-admission-sheet__row${compact ? '' : ' sis-admission-sheet__row--full'} sis-branches-sheet__row`}>
                     <AppearanceFields value={value} onChange={setValue} editing={canEdit} suggested={suggested} defaultHue={defaultHue} previewTitle={entityName} />
                     <p className="sis-timetable-sheet__hint sis-branches-field--wide">{a.ownerHint}</p>
                 </div>

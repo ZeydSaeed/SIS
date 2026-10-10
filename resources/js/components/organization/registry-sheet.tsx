@@ -185,7 +185,7 @@ export function RegistrySheetDialog({
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
     // Timetable windows («الجدول المدرسي»): the width follows the fields, tables and buttons — nothing cut.
     // «تحرير الخلية» keeps one fixed size (its tabs never resize it).
-    useFitSheetToContent(contentRef, className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet'));
+    useFitSheetToContent(contentRef, className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet') && !className.includes('sis-timetable-print-sheet'));
 
     // The portal mounts the content after the first commit — raise the new window once it exists,
     // so a sheet opened from another sheet appears above it.
@@ -203,6 +203,39 @@ export function RegistrySheetDialog({
 
         return () => cancelAnimationFrame(frame);
     }, [bringToFront, contentRef]);
+
+    // A window opened from another window («اختصار ولون» from «تحرير الخلية», «تعديل النشاط» from «الأنشطة») takes the
+    // width of the window it was opened from — the pair reads as one block. A window opened from the page keeps its own.
+    const inheritsWidth = className.includes('sis-timetable-subsheet') || className.includes('sis-timetable-appearance-sheet');
+    useEffect(() => {
+        if (!inheritsWidth) {
+            return;
+        }
+        let frame = 0;
+        let attempts = 0;
+        const apply = () => {
+            const node = contentRef.current;
+            if (node === null) {
+                attempts += 1;
+                if (attempts < 10) {
+                    frame = requestAnimationFrame(apply);
+                }
+
+                return;
+            }
+            const others = Array.from(document.querySelectorAll<HTMLElement>('.sis-admission-sheet-dialog')).filter((el) => el !== node && el.getBoundingClientRect().width > 0);
+            if (others.length === 0) {
+                return;
+            }
+            const layer = (el: HTMLElement) => Number.parseInt(getComputedStyle(el).zIndex, 10) || 0;
+            const parent = others.reduce((best, el) => (layer(el) >= layer(best) ? el : best));
+            const width = Math.min(Math.round(parent.getBoundingClientRect().width), window.innerWidth - 24);
+            node.style.setProperty('--sis-sheet-w', `${width}px`);
+        };
+        frame = requestAnimationFrame(apply);
+
+        return () => cancelAnimationFrame(frame);
+    }, [contentRef, inheritsWidth]);
 
     return (
         <Dialog

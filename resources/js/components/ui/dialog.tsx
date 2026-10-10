@@ -2,6 +2,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 import * as React from "react"
 
+import { useDialogContainer } from "@/components/sis/dialog-container-context"
 import { useWindowMoveResize } from "@/hooks/use-window-move-resize"
 import { cn } from "@/lib/utils"
 
@@ -74,9 +75,10 @@ function DialogContent({
     [ref]
   )
   const { onPointerDown, ...contentProps } = props
+  const container = useDialogContainer()
 
   return (
-    <DialogPortal data-slot="dialog-portal">
+    <DialogPortal data-slot="dialog-portal" container={container}>
       {showOverlay ? <DialogOverlay className={overlayClassName} /> : null}
       <DialogPrimitive.Content
         data-slot="dialog-content"

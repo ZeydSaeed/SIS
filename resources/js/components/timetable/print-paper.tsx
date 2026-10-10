@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { RegistrySheetDialog } from '@/components/organization/registry-sheet';
+import { SheetSection } from '@/components/sis/admission-sheet';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
@@ -211,7 +213,7 @@ export function TimetablePaper({ settings, children, footer }: { settings: Print
     );
 }
 
-/** «إعدادات الطباعة»: paper, orientation, margins, fit, colour, heading and date — with the project's sheet fields. */
+/** «إعدادات الطباعة»: its own window (paper, orientation, margins, fit, colour, heading and date). */
 export function PrintSettingsPanel({ settings, onChange, onClose }: { settings: PrintSettings; onChange: (next: PrintSettings) => void; onClose: () => void }) {
     const p = t().timetable.printSetup;
     const select = (label: string, value: string, options: Array<{ value: string; label: string }>, change: (v: string) => void) => (
@@ -246,30 +248,36 @@ export function PrintSettingsPanel({ settings, onChange, onClose }: { settings: 
             />
         </label>
     );
-    const check = (label: string, checked: boolean, change: (v: boolean) => void) => (
-        <label className="sis-timetable-audit__filter">
-            <input type="checkbox" checked={checked} onChange={(e) => change(e.target.checked)} />
-            {label}
+    // A yes / no field: its label above, the box in the control row (same height as the other fields).
+    const toggle = (label: string, checked: boolean, change: (v: boolean) => void) => (
+        <label className="sis-admission-sheet__field">
+            <span className="sis-admission-sheet__label">{label}</span>
+            <span className="sis-timetable-print-toggle">
+                <input type="checkbox" checked={checked} aria-label={label} onChange={(e) => change(e.target.checked)} />
+            </span>
         </label>
     );
 
     return (
-        <div className="sis-timetable-print-panel sis-admission-sheet" role="dialog" aria-label={p.title} dir="rtl">
-            <h3 className="sis-admission-sheet__banner sis-admission-sheet__banner--accent">{p.title}</h3>
-            <div className="sis-timetable-print-panel__body">
-                {select(p.paper, settings.paper, (Object.keys(PAPERS) as PaperName[]).map((name) => ({ value: name, label: `${name} (${PAPERS[name].w} × ${PAPERS[name].h} ${p.mm})` })), (v) => onChange({ ...settings, paper: v as PaperName }))}
-                {select(p.orientation, settings.orientation, [{ value: 'landscape', label: p.landscape }, { value: 'portrait', label: p.portrait }], (v) => onChange({ ...settings, orientation: v as PrintSettings['orientation'] }))}
-                {margin('top')}
-                {margin('bottom')}
-                {margin('right')}
-                {margin('left')}
-                {select(p.fit, settings.fit, [{ value: 'page', label: p.fitPage }, { value: 'width', label: p.fitWidth }], (v) => onChange({ ...settings, fit: v as PrintSettings['fit'] }))}
-                {select(p.color, settings.color, [{ value: 'color', label: p.colorFull }, { value: 'mono', label: p.colorMono }], (v) => onChange({ ...settings, color: v as PrintSettings['color'] }))}
-                <span className="sis-timetable-print-panel__checks">
-                    {check(p.showHead, settings.showHead, (v) => onChange({ ...settings, showHead: v }))}
-                    {check(p.showDate, settings.showDate, (v) => onChange({ ...settings, showDate: v }))}
-                </span>
-            </div>
+        <RegistrySheetDialog title={p.title} className="sis-branches-sheet sis-timetable-sheet sis-timetable-print-sheet" onClose={onClose}>
+            <SheetSection id="timetable-print-paper" title={p.paperSection}>
+                <div className="sis-admission-sheet__row sis-branches-sheet__row">
+                    {select(p.paper, settings.paper, (Object.keys(PAPERS) as PaperName[]).map((name) => ({ value: name, label: `${name} · ${PAPERS[name].w}×${PAPERS[name].h}` })), (v) => onChange({ ...settings, paper: v as PaperName }))}
+                    {select(p.orientation, settings.orientation, [{ value: 'landscape', label: p.landscape }, { value: 'portrait', label: p.portrait }], (v) => onChange({ ...settings, orientation: v as PrintSettings['orientation'] }))}
+                    {select(p.fit, settings.fit, [{ value: 'page', label: p.fitPage }, { value: 'width', label: p.fitWidth }], (v) => onChange({ ...settings, fit: v as PrintSettings['fit'] }))}
+                    {select(p.color, settings.color, [{ value: 'color', label: p.colorFull }, { value: 'mono', label: p.colorMono }], (v) => onChange({ ...settings, color: v as PrintSettings['color'] }))}
+                    {toggle(p.showHead, settings.showHead, (v) => onChange({ ...settings, showHead: v }))}
+                    {toggle(p.showDate, settings.showDate, (v) => onChange({ ...settings, showDate: v }))}
+                </div>
+            </SheetSection>
+            <SheetSection id="timetable-print-margins" title={`${p.marginsSection} (${p.mm})`}>
+                <div className="sis-admission-sheet__row sis-branches-sheet__row">
+                    {margin('top')}
+                    {margin('bottom')}
+                    {margin('right')}
+                    {margin('left')}
+                </div>
+            </SheetSection>
             <div className="sis-admission-sheet__actions">
                 <Button type="button" variant="outline" onClick={() => onChange(DEFAULT_PRINT_SETTINGS)}>
                     {p.reset}
@@ -278,6 +286,6 @@ export function PrintSettingsPanel({ settings, onChange, onClose }: { settings: 
                     {p.done}
                 </Button>
             </div>
-        </div>
+        </RegistrySheetDialog>
     );
 }
