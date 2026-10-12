@@ -8,6 +8,9 @@ import {
     FileSpreadsheet,
     FileText,
     FlaskConical,
+    FolderDown,
+    History,
+    Info,
     LayoutGrid,
     Printer,
     ShieldAlert,
@@ -16,13 +19,18 @@ import {
     Users,
     type LucideIcon,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
     AttendancePage,
     AttendanceTable,
-    PageNotice,
+    AttendanceWindow,
+    WindowFact,
+    selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
+    useAttendanceMessages,
+    useAttendanceSelection,
+    useRowViewer,
     useYearFilterSpec,
     visitWith,
     type AttendanceColumn,
@@ -45,7 +53,7 @@ import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
-type Row = Record<string, string | number | null | boolean>;
+type Row = Record<string, string | number | null | boolean> & { __i: number };
 
 type ListKey =
     | 'class_id'
@@ -62,6 +70,7 @@ type Filters = Record<ListKey, number[]> & {
     date_to: string;
     approved_only: boolean;
     page: number;
+    per_page?: number;
     academic_year_id: number;
 };
 
@@ -80,7 +89,7 @@ type ExportRow = {
 type Props = {
     report: {
         type: string;
-        rows: Row[];
+        rows: Array<Record<string, string | number | null | boolean>>;
         meta: {
             page: number;
             per_page: number;
@@ -113,6 +122,7 @@ const HIDDEN = new Set([
     'subject_id',
     'teacher_id',
     'school_id',
+    '__i',
 ]);
 
 /** One icon shape + colour per report. */
@@ -151,12 +161,31 @@ export default function AttendanceReports(props: Props) {
 function criteria(filters: Filters): Record<string, unknown> {
     const {
         page: _page,
+        per_page: _perPage,
         academic_year_id: _year,
         type: _type,
         ...rest
     } = filters;
 
     return rest;
+}
+
+/** «rate:23 · trend:12 …» → explained reasons. */
+function reasonText(reasons: string): string {
+    const map = t().attendanceSystem.reports.riskReasons as Record<
+        string,
+        string
+    >;
+
+    return reasons
+        .split(' · ')
+        .filter((r) => r !== '')
+        .map((r) => {
+            const [key, value] = r.split(':');
+
+            return (map[key] ?? key).replace(':v', value ?? '');
+        })
+        .join(' · ');
 }
 
 function ReportsPage({
@@ -171,6 +200,13 @@ function ReportsPage({
     const rp = a.reports;
     const c = a.chrome;
     const { showInertiaErrors } = usePageError();
+    const [panel, setPanel] = useState<'info' | 'exports' | null>(null);
+    const rows: Row[] = useMemo(
+        () => report.rows.map((row, i) => ({ ...row, __i: i })),
+        [report.rows],
+    );
+    const selection = useAttendanceSelection(rows, (row) => row.__i);
+    const single = selection.targets.length === 1 ? selection.targets[0] : null;
 
     const visit = (next: Partial<Filters>) =>
         visitWith('/attendance/reports', {
@@ -191,7 +227,10 @@ function ReportsPage({
             value !== '' &&
             value !== false
         )
-            exportQuery.append(key, value === true ? '1' : String(value));
+            exportQuery.append(
+                key,
+                value === true ? '1' : String(value as string | number),
+            );
     });
 
     const queueExport = (format: 1 | 2) =>
@@ -204,9 +243,114 @@ function ReportsPage({
                 onError: (errors) => showInertiaErrors(errors),
             },
         );
+    const studentDetail = (row: Row) =>
+        typeof row.student_id === 'number' &&
+        visit({ type: 'student_detail', student_id: [row.student_id] });
+
+    const cell = (key: string, value: Row[string]) => {
+        if (value === null || value === undefined) return '—';
+        if (key === 'status' && report.type === 'student_detail')
+            return (
+                <StatusLabel
+                    meta={recordStatusMeta(Number(value))}
+                    label={a.recordStatus[Number(value)] ?? String(value)}
+                />
+            );
+        if (key === 'status' && report.type === 'excuses')
+            return a.excuses.statuses[Number(value)] ?? value;
+        if (key === 'sheet_status')
+            return (
+                <StatusLabel
+                    meta={sheetStatusMeta(Number(value))}
+                    label={a.sheetStatus[Number(value)] ?? String(value)}
+                />
+            );
+        if (key === 'lesson_type') return a.lessonType[Number(value)] ?? value;
+        if (key === 'excuse_type')
+            return a.excuses.types[Number(value)] ?? value;
+        if (key === 'weekday') return dayOfWeekLabel(Number(value));
+        if (key === 'band') return rp.bands[String(value)] ?? value;
+        if (key === 'reasons') return reasonText(String(value));
+        if (typeof value === 'boolean')
+            return value ? a.settings.yes : a.settings.no;
+
+        return typeof value === 'number' ? (
+            <span dir="ltr">{value}</span>
+        ) : (
+            String(value)
+        );
+    };
+
+    const keys = Object.keys(report.rows[0] ?? {}).filter(
+        (key) => !HIDDEN.has(key),
+    );
+    const columns: AttendanceColumn<Row>[] = keys.map((key) => {
+        const numeric =
+            typeof report.rows[0]?.[key] === 'number' &&
+            key !== 'status' &&
+            key !== 'sheet_status';
+        const statusTone =
+            key === 'band'
+                ? (r: Row) =>
+                      r.band === 'high' ? 4 : r.band === 'medium' ? 2 : 1
+                : key === 'sheet_status'
+                  ? (r: Row) =>
+                        sheetStatusMeta(Number(r.sheet_status))?.tone ?? 0
+                  : key === 'status' && report.type === 'student_detail'
+                    ? (r: Row) => recordStatusMeta(Number(r.status)).tone
+                    : undefined;
+
+        return {
+            id: key,
+            header: rp.columns[key] ?? key,
+            kind: statusTone
+                ? 'status'
+                : numeric
+                  ? 'num'
+                  : key === 'full_name' || key === 'teacher_name'
+                    ? 'name'
+                    : 'text',
+            tone: statusTone,
+            cell: (row: Row) => cell(key, row[key]),
+        };
+    });
+    const viewer = useRowViewer(columns, (row) =>
+        String(
+            row.full_name ??
+                row.teacher_name ??
+                row.subject_name ??
+                row.section_name ??
+                row.date ??
+                rp.types[report.type] ??
+                '',
+        ),
+    );
 
     const editGroups = useMemo(
         (): PageRibbonGroup[] => [
+            selectionGroup(
+                'attendance-reports-selection',
+                selection.targets,
+                viewer.open,
+                null,
+                {
+                    editTitle: rp.readOnly,
+                    extra: [
+                        {
+                            id: 'attendance-reports-student',
+                            label: rp.types.student_detail,
+                            icon: History,
+                            iconTone: 'education',
+                            disabled:
+                                single === null ||
+                                typeof single.student_id !== 'number' ||
+                                report.type === 'student_detail',
+                            title: single === null ? c.needsOne : undefined,
+                            onSelect: () => single && studentDetail(single),
+                        },
+                    ],
+                },
+            ),
             {
                 id: 'attendance-reports-types',
                 label: rp.type,
@@ -248,17 +392,32 @@ function ReportsPage({
                         onSelect: () => queueExport(2),
                     },
                     {
+                        id: 'attendance-reports-exports',
+                        label: rp.exportsTitle,
+                        icon: FolderDown,
+                        iconTone: 'sky',
+                        count: exports.length,
+                        onSelect: () => setPanel('exports'),
+                    },
+                    {
                         id: 'attendance-reports-print',
                         label: rp.print,
                         icon: Printer,
                         iconTone: 'steel',
                         onSelect: () => window.print(),
                     },
+                    {
+                        id: 'attendance-reports-info',
+                        label: rp.info,
+                        icon: Info,
+                        iconTone: 'education',
+                        onSelect: () => setPanel('info'),
+                    },
                 ],
             },
         ],
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [filters, types],
+        [selection.targets, filters, types, exports.length],
     );
     useAttendanceEditRibbon('reports', abilities, editGroups);
 
@@ -376,73 +535,12 @@ function ReportsPage({
         [filters, lookups, yearSpec.options.length],
     );
 
-    const cell = (key: string, value: Row[string]) => {
-        if (value === null || value === undefined) return '—';
-        if (key === 'status' && report.type === 'student_detail')
-            return (
-                <StatusLabel
-                    meta={recordStatusMeta(Number(value))}
-                    label={a.recordStatus[Number(value)] ?? String(value)}
-                />
-            );
-        if (key === 'status' && report.type === 'excuses')
-            return a.excuses.statuses[Number(value)] ?? value;
-        if (key === 'sheet_status')
-            return (
-                <StatusLabel
-                    meta={sheetStatusMeta(Number(value))}
-                    label={a.sheetStatus[Number(value)] ?? String(value)}
-                />
-            );
-        if (key === 'lesson_type') return a.lessonType[Number(value)] ?? value;
-        if (key === 'excuse_type')
-            return a.excuses.types[Number(value)] ?? value;
-        if (key === 'weekday') return dayOfWeekLabel(Number(value));
-        if (key === 'band') return rp.bands[String(value)] ?? value;
-        if (key === 'reasons') return reasonText(String(value));
-        if (typeof value === 'boolean')
-            return value ? a.settings.yes : a.settings.no;
-
-        return typeof value === 'number' ? (
-            <span dir="ltr">{value}</span>
-        ) : (
-            String(value)
-        );
-    };
-
-    const keys = Object.keys(report.rows[0] ?? {}).filter(
-        (key) => !HIDDEN.has(key),
+    useAttendanceMessages(
+        report.truncated
+            ? [{ key: 'truncated', tone: 'warning', text: rp.truncated }]
+            : [],
+        rp.title,
     );
-    const columns: AttendanceColumn<Row>[] = keys.map((key) => {
-        const numeric =
-            typeof report.rows[0]?.[key] === 'number' &&
-            key !== 'status' &&
-            key !== 'sheet_status';
-        const statusTone =
-            key === 'band'
-                ? (r: Row) =>
-                      r.band === 'high' ? 4 : r.band === 'medium' ? 2 : 1
-                : key === 'sheet_status'
-                  ? (r: Row) =>
-                        sheetStatusMeta(Number(r.sheet_status))?.tone ?? 0
-                  : key === 'status' && report.type === 'student_detail'
-                    ? (r: Row) => recordStatusMeta(Number(r.status)).tone
-                    : undefined;
-
-        return {
-            id: key,
-            header: rp.columns[key] ?? key,
-            kind: statusTone
-                ? 'status'
-                : numeric
-                  ? 'num'
-                  : key === 'full_name' || key === 'teacher_name'
-                    ? 'name'
-                    : 'text',
-            tone: statusTone,
-            cell: (row: Row) => cell(key, row[key]),
-        };
-    });
 
     const exportColumns: AttendanceColumn<ExportRow>[] = [
         {
@@ -499,70 +597,107 @@ function ReportsPage({
 
     return (
         <AttendancePage
-            title={rp.title}
-            scroll
-            notices={
-                <PageNotice>
-                    {`${rp.types[report.type] ?? report.type} — ${rp.generatedAt}: ${dateTime(report.generated_at)} — ${a.dashboard.formula}: ${report.formula}`}
-                </PageNotice>
-            }
+            title={`${rp.title} — ${rp.types[report.type] ?? report.type}`}
         >
-            {report.truncated ? (
-                <p className="sis-branches-page__notice">{rp.truncated}</p>
-            ) : null}
             <AttendanceTable
                 caption={rp.types[report.type] ?? report.type}
-                rows={report.rows}
-                rowKey={(row) => report.rows.indexOf(row)}
+                storageKey={`reports.${report.type}`}
+                rows={rows}
+                rowKey={(row) => row.__i}
                 columns={columns}
                 emptyText={rp.empty}
-                page={report.meta.page}
-                lastPage={report.meta.last_page}
-                onPage={(page) => visit({ page })}
-                numberOffset={(report.meta.page - 1) * report.meta.per_page}
-                onOpen={
-                    report.type === 'students' || report.type === 'risk'
-                        ? (row) =>
-                              typeof row.student_id === 'number' &&
-                              visit({
-                                  type: 'student_detail',
-                                  student_id: [row.student_id],
-                              })
-                        : undefined
-                }
+                selection={selection}
+                onOpen={(row) => viewer.open([row])}
+                server={{
+                    page: report.meta.page,
+                    perPage: report.meta.per_page,
+                    total: report.meta.total,
+                    lastPage: report.meta.last_page,
+                    onPage: (page, per_page) => visit({ page, per_page }),
+                }}
             />
-            {exports.length > 0 ? (
-                <>
-                    <p className="sis-branches-page__notice mt-3">
-                        {rp.exportsTitle}
-                    </p>
-                    <AttendanceTable
-                        caption={rp.exportsTitle}
-                        rows={exports}
-                        rowKey={(e) => e.id}
-                        columns={exportColumns}
-                        emptyText="—"
-                    />
-                </>
+
+            {viewer.element}
+
+            {panel === 'exports' ? (
+                <AttendanceWindow
+                    wide
+                    title={rp.exportsTitle}
+                    onClose={() => setPanel(null)}
+                    sections={[
+                        {
+                            id: 'att-exports',
+                            title: `${rp.exportsTitle} (${exports.length})`,
+                            plain: true,
+                            content: (
+                                <div className="sis-branches-field--wide">
+                                    <AttendanceTable
+                                        caption={rp.exportsTitle}
+                                        storageKey="reports.exports"
+                                        rows={exports}
+                                        rowKey={(e) => e.id}
+                                        columns={exportColumns}
+                                        emptyText={rp.noExports}
+                                        fit={false}
+                                        emptyAsDialog={false}
+                                    />
+                                </div>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            {panel === 'info' ? (
+                <AttendanceWindow
+                    title={rp.info}
+                    columns={2}
+                    onClose={() => setPanel(null)}
+                    sections={[
+                        {
+                            id: 'att-report-info',
+                            title: rp.types[report.type] ?? report.type,
+                            content: (
+                                <>
+                                    <WindowFact
+                                        label={rp.generatedAt}
+                                        value={dateTime(report.generated_at)}
+                                    />
+                                    <WindowFact
+                                        label={rp.rowCount}
+                                        value={
+                                            <span dir="ltr">
+                                                {report.meta.total}
+                                            </span>
+                                        }
+                                    />
+                                    <WindowFact
+                                        label={a.review.dateFrom}
+                                        value={
+                                            <span dir="ltr">
+                                                {filters.date_from}
+                                            </span>
+                                        }
+                                    />
+                                    <WindowFact
+                                        label={a.review.dateTo}
+                                        value={
+                                            <span dir="ltr">
+                                                {filters.date_to}
+                                            </span>
+                                        }
+                                    />
+                                    <WindowFact
+                                        wide
+                                        label={a.dashboard.formula}
+                                        value={report.formula}
+                                    />
+                                </>
+                            ),
+                        },
+                    ]}
+                />
             ) : null}
         </AttendancePage>
     );
-}
-
-/** «rate:23 · trend:12 …» → explained reasons. */
-function reasonText(reasons: string): string {
-    const map = t().attendanceSystem.reports.riskReasons as Record<
-        string,
-        string
-    >;
-
-    return reasons
-        .split(' · ')
-        .filter((r) => r !== '')
-        .map((r) => {
-            const [key, value] = r.split(':');
-
-            return (map[key] ?? key).replace(':v', value ?? '');
-        })
-        .join(' · ');
 }

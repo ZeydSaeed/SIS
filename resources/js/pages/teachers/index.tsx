@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeftRight,
     BookOpen,
+    CalendarRange,
     ClipboardCheck,
     CheckCircle2,
     ChevronDown,
@@ -23,7 +24,16 @@ import {
     XCircle,
     type LucideIcon,
 } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
 import {
     blankToNull,
     newIdempotencyKey,
@@ -35,12 +45,24 @@ import {
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
-import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
+import {
+    formatAcademicYearOptionLabel,
+    type YearOption,
+} from '@/components/sis/ops-year-filter';
 import { usePageError } from '@/components/sis/page-error-context';
-import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import {
+    useRegisterPageRibbon,
+    type PageRibbonCommand,
+    type PageRibbonGroup,
+} from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { RibbonFilterField } from '@/components/sis/ribbon-filter';
-import { tableActionIds, toggleTableRowChecked, toggleTableSelectAll } from '@/components/sis/table-row-selection';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
+import {
+    tableActionIds,
+    toggleTableRowChecked,
+    toggleTableSelectAll,
+} from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
@@ -48,7 +70,12 @@ import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 import { initialSearchParam } from '@/lib/initial-search';
-import { resolveSisSectionCode, resolveSisSectionId, sisSectionSelectOptions, type SisSectionRef } from '@/lib/sis-class-section-options';
+import {
+    resolveSisSectionCode,
+    resolveSisSectionId,
+    sisSectionSelectOptions,
+    type SisSectionRef,
+} from '@/lib/sis-class-section-options';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -92,8 +119,16 @@ type Teacher = {
 };
 
 type Subject = { id: number; code: string; name: string };
-type BranchOption = { id: number; name: string; departments: Array<{ id: number; name: string }> };
-type ClassOption = { id: number; name: string; sections: Array<{ id: number; code: string; name: string }> };
+type BranchOption = {
+    id: number;
+    name: string;
+    departments: Array<{ id: number; name: string }>;
+};
+type ClassOption = {
+    id: number;
+    name: string;
+    sections: Array<{ id: number; code: string; name: string }>;
+};
 
 type Props = {
     teachers: Teacher[];
@@ -101,8 +136,16 @@ type Props = {
     subjects: Subject[];
     branches: BranchOption[];
     classes: ClassOption[];
-    curriculumSubjects: { general: number[]; by_department: Record<string, number[]> };
-    academicTitles?: Array<{ id: number; code: string; name: string; abbreviation: string | null }>;
+    curriculumSubjects: {
+        general: number[];
+        by_department: Record<string, number[]>;
+    };
+    academicTitles?: Array<{
+        id: number;
+        code: string;
+        name: string;
+        abbreviation: string | null;
+    }>;
     filters: { academic_year_id: number | null };
     authorization: { can_manage: boolean };
 };
@@ -126,7 +169,13 @@ type TeacherForm = {
 };
 
 /** section_code: shared SSOT code A / B / C (sis-class-section-options), resolved to the class's section on save. */
-type TeachingForm = { branch_id: string; department_id: string; subject_id: string; class_id: string; section_code: string };
+type TeachingForm = {
+    branch_id: string;
+    department_id: string;
+    subject_id: string;
+    class_id: string;
+    section_code: string;
+};
 
 /** TeacherStatus: 1 نشط · 2 غير نشط. TeacherEmploymentType: 1 ملاك · 2 مكلف · 3 تنسيب · 4 محاضر · 5 عقد. */
 const ACTIVE = 1;
@@ -149,9 +198,19 @@ type FilterKey = 'all' | 'active' | 'inactive' | `type-${number}`;
 
 /** Home-ribbon filters (client-side over the loaded roster); '' = all. */
 /** department = department name (shown without its branch; same-named departments of all branches match together). */
-type RosterFilters = { specialization: string[]; branch_id: string[]; department: string[]; subject_id: string[] };
+type RosterFilters = {
+    specialization: string[];
+    branch_id: string[];
+    department: string[];
+    subject_id: string[];
+};
 
-const EMPTY_ROSTER_FILTERS: RosterFilters = { specialization: [], branch_id: [], department: [], subject_id: [] };
+const EMPTY_ROSTER_FILTERS: RosterFilters = {
+    specialization: [],
+    branch_id: [],
+    department: [],
+    subject_id: [],
+};
 
 type SubjectTone = { hue: number; light: number };
 
@@ -162,11 +221,30 @@ type SubjectTone = { hue: number; light: number };
 function subjectTones(subjectIds: number[]): Map<number, SubjectTone> {
     const step = 360 / Math.max(1, subjectIds.length);
 
-    return new Map(subjectIds.map((id, index) => [id, { hue: Math.round(index * step), light: index % 2 === 0 ? 82 : 90 }]));
+    return new Map(
+        subjectIds.map((id, index) => [
+            id,
+            { hue: Math.round(index * step), light: index % 2 === 0 ? 82 : 90 },
+        ]),
+    );
 }
 
-function SubjectChip({ tone, name, query = '' }: { tone: SubjectTone | undefined; name: string; query?: string }) {
-    const style = tone === undefined ? undefined : ({ '--subject-hue': tone.hue, '--subject-light': `${tone.light}%` } as CSSProperties);
+function SubjectChip({
+    tone,
+    name,
+    query = '',
+}: {
+    tone: SubjectTone | undefined;
+    name: string;
+    query?: string;
+}) {
+    const style =
+        tone === undefined
+            ? undefined
+            : ({
+                  '--subject-hue': tone.hue,
+                  '--subject-light': `${tone.light}%`,
+              } as CSSProperties);
 
     return (
         <span className="sis-teachers-subject" style={style}>
@@ -193,7 +271,13 @@ const EMPTY_FORM: TeacherForm = {
     abbreviation: '',
 };
 
-const EMPTY_TEACHING: TeachingForm = { branch_id: '', department_id: '', subject_id: '', class_id: '', section_code: '' };
+const EMPTY_TEACHING: TeachingForm = {
+    branch_id: '',
+    department_id: '',
+    subject_id: '',
+    class_id: '',
+    section_code: '',
+};
 
 function formOf(teacher: Teacher): TeacherForm {
     return {
@@ -203,14 +287,29 @@ function formOf(teacher: Teacher): TeacherForm {
         grandfather_name: teacher.grandfather_name ?? '',
         last_name: teacher.last_name,
         specialization_field: teacher.specialization_field ?? '',
-        employment_type: teacher.employment_type === null ? '' : String(teacher.employment_type),
-        weekly_lessons_min: teacher.weekly_lessons_min === null ? '' : String(teacher.weekly_lessons_min),
-        weekly_lessons_max: teacher.weekly_lessons_max === null ? '' : String(teacher.weekly_lessons_max),
-        daily_lessons_max: teacher.daily_lessons_max === null ? '' : String(teacher.daily_lessons_max),
+        employment_type:
+            teacher.employment_type === null
+                ? ''
+                : String(teacher.employment_type),
+        weekly_lessons_min:
+            teacher.weekly_lessons_min === null
+                ? ''
+                : String(teacher.weekly_lessons_min),
+        weekly_lessons_max:
+            teacher.weekly_lessons_max === null
+                ? ''
+                : String(teacher.weekly_lessons_max),
+        daily_lessons_max:
+            teacher.daily_lessons_max === null
+                ? ''
+                : String(teacher.daily_lessons_max),
         status: String(teacher.status === ACTIVE ? ACTIVE : INACTIVE),
         national_id: teacher.national_id ?? '',
         hire_date: teacher.hire_date ?? '',
-        academic_title_id: teacher.academic_title_id == null ? '' : String(teacher.academic_title_id),
+        academic_title_id:
+            teacher.academic_title_id == null
+                ? ''
+                : String(teacher.academic_title_id),
         abbreviation: teacher.abbreviation ?? '',
     };
 }
@@ -225,23 +324,28 @@ function matchesFilter(teacher: Teacher, key: FilterKey): boolean {
 
 /** Branch / department / subject must meet on one teaching; subject alone also matches an untaught linked subject. */
 function matchesRosterFilters(teacher: Teacher, f: RosterFilters): boolean {
-    if (f.specialization.length > 0 && !f.specialization.includes((teacher.specialization_field ?? '').trim())) {
+    if (
+        f.specialization.length > 0 &&
+        !f.specialization.includes((teacher.specialization_field ?? '').trim())
+    ) {
         return false;
     }
     const subjectIds = f.subject_id.map(Number);
     if (f.branch_id.length === 0 && f.department.length === 0) {
         return (
-            subjectIds.length === 0
-            || teacher.subject_ids.some((id) => subjectIds.includes(id))
-            || teacher.assignments.some((a) => subjectIds.includes(a.subject_id))
+            subjectIds.length === 0 ||
+            teacher.subject_ids.some((id) => subjectIds.includes(id)) ||
+            teacher.assignments.some((a) => subjectIds.includes(a.subject_id))
         );
     }
 
     return teacher.assignments.some(
         (a) =>
-            (f.branch_id.length === 0 || f.branch_id.includes(String(a.branch_id)))
-            && (f.department.length === 0 || f.department.includes(a.department_name ?? ''))
-            && (subjectIds.length === 0 || subjectIds.includes(a.subject_id)),
+            (f.branch_id.length === 0 ||
+                f.branch_id.includes(String(a.branch_id))) &&
+            (f.department.length === 0 ||
+                f.department.includes(a.department_name ?? '')) &&
+            (subjectIds.length === 0 || subjectIds.includes(a.subject_id)),
     );
 }
 
@@ -255,8 +359,16 @@ function visiblePages(current: number, totalPages: number): number[] {
 /** «شبكات الحاسوب — الحاسوب وتقنية المعلومات › شبكات الحاسوب · الأول/أ» */
 function assignmentPlace(assignment: Assignment): string {
     const tc = t().teachers;
-    const where = [assignment.branch_name, assignment.department_name ?? tc.allDepartments].join(' › ');
-    const room = assignment.class_name === null ? null : [assignment.class_name, assignment.section_name].filter(Boolean).join(' / ');
+    const where = [
+        assignment.branch_name,
+        assignment.department_name ?? tc.allDepartments,
+    ].join(' › ');
+    const room =
+        assignment.class_name === null
+            ? null
+            : [assignment.class_name, assignment.section_name]
+                  .filter(Boolean)
+                  .join(' / ');
 
     return room === null ? where : `${where} · ${room}`;
 }
@@ -279,10 +391,16 @@ function matchesSearch(teacher: Teacher, tokens: string[]): boolean {
         teacher.full_name,
         teacher.employee_code,
         teacher.specialization_field ?? '',
-        ...teacher.assignments.flatMap((a) => [a.subject_name, a.branch_name, a.department_name ?? '']),
+        ...teacher.assignments.flatMap((a) => [
+            a.subject_name,
+            a.branch_name,
+            a.department_name ?? '',
+        ]),
     ].map((value) => value.toLocaleLowerCase('ar'));
 
-    return tokens.every((token) => fields.some((value) => value.includes(token)));
+    return tokens.every((token) =>
+        fields.some((value) => value.includes(token)),
+    );
 }
 
 /** Same yellow hit marks as the other rosters («الطلاب», «التسجيل»). */
@@ -292,7 +410,10 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
         return <>{text}</>;
     }
 
-    const matcher = new RegExp(`(${tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'giu');
+    const matcher = new RegExp(
+        `(${tokens.map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+        'giu',
+    );
 
     return (
         <>
@@ -301,7 +422,10 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
                 .filter((part) => part !== '')
                 .map((part, index) =>
                     tokens.includes(part.toLocaleLowerCase('ar')) ? (
-                        <mark key={`hit-${index}`} className="sis-admission-search-hit">
+                        <mark
+                            key={`hit-${index}`}
+                            className="sis-admission-search-hit"
+                        >
                             {part}
                         </mark>
                     ) : (
@@ -318,18 +442,24 @@ function StatusCell({ teacher }: { teacher: Teacher }) {
 
     return (
         <span className="sis-teachers-status">
-            <span className={`sis-student-status-badge sis-student-status-badge--${active ? 1 : 0}`}>
+            <span
+                className={`sis-student-status-badge sis-student-status-badge--${active ? 1 : 0}`}
+            >
                 {active ? tc.statusActive : tc.statusInactive}
             </span>{' '}
             <span className="sis-org-tag">
-                {teacher.employment_type === null ? tc.noEmploymentType : tc.employmentTypes[teacher.employment_type]}
+                {teacher.employment_type === null
+                    ? tc.noEmploymentType
+                    : tc.employmentTypes[teacher.employment_type]}
             </span>
         </span>
     );
 }
 
 export default function TeachersIndex(props: Props) {
-    const breadcrumbs: BreadcrumbItem[] = [{ title: t().teachers.title, href: '/teachers' }];
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: t().teachers.title, href: '/teachers' },
+    ];
 
     // Inner component: page error / flash contexts live inside AppLayout.
     return (
@@ -339,8 +469,20 @@ export default function TeachersIndex(props: Props) {
     );
 }
 
-function TeachersPage({ teachers, total, subjects, branches, classes, curriculumSubjects, academicTitles = [], filters, authorization }: Props) {
-    const [appearanceTeacher, setAppearanceTeacher] = useState<Teacher | null>(null);
+function TeachersPage({
+    teachers,
+    total,
+    subjects,
+    branches,
+    classes,
+    curriculumSubjects,
+    academicTitles = [],
+    filters,
+    authorization,
+}: Props) {
+    const [appearanceTeacher, setAppearanceTeacher] = useState<Teacher | null>(
+        null,
+    );
     const i18n = t();
     const tc = i18n.teachers;
     const canManage = authorization.can_manage;
@@ -349,17 +491,33 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
     const { showInertiaErrors, showWarning } = usePageError();
     const page = usePage().props as { academicYears?: YearOption[] };
     const years = page.academicYears ?? [];
-    const subjectsById = useMemo(() => new Map(subjects.map((subject) => [subject.id, subject])), [subjects]);
+    const subjectsById = useMemo(
+        () => new Map(subjects.map((subject) => [subject.id, subject])),
+        [subjects],
+    );
     /** Sections of the school's classes, read through the shared A / B / C source of truth. */
     const sectionRefs = useMemo(
-        (): SisSectionRef[] => classes.flatMap((item) => item.sections.map((section) => ({ id: section.id, class_id: item.id, code: section.code, name: section.name }))),
+        (): SisSectionRef[] =>
+            classes.flatMap((item) =>
+                item.sections.map((section) => ({
+                    id: section.id,
+                    class_id: item.id,
+                    code: section.code,
+                    name: section.name,
+                })),
+            ),
         [classes],
     );
     const placeOf = (assignment: Assignment) =>
         assignmentPlace({
             ...assignment,
             section_name:
-                assignment.section_id === null ? null : resolveSisSectionCode(assignment.section_id, sectionRefs) || assignment.section_name,
+                assignment.section_id === null
+                    ? null
+                    : resolveSisSectionCode(
+                          assignment.section_id,
+                          sectionRefs,
+                      ) || assignment.section_name,
         });
     /** Unique colour per subject used on the roster (catalogue order, stable across rows). */
     const subjectTone = useMemo(() => {
@@ -368,7 +526,12 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             teacher.subject_ids.forEach((id) => used.add(id));
             teacher.assignments.forEach((a) => used.add(a.subject_id));
         }
-        const ordered = [...subjects.map((subject) => subject.id).filter((id) => used.has(id)), ...[...used].filter((id) => !subjectsById.has(id))];
+        const ordered = [
+            ...subjects
+                .map((subject) => subject.id)
+                .filter((id) => used.has(id)),
+            ...[...used].filter((id) => !subjectsById.has(id)),
+        ];
 
         return subjectTones(ordered);
     }, [subjects, subjectsById, teachers]);
@@ -380,15 +543,22 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
     const [filterKey, setFilterKey] = useState<FilterKey>('all');
-    const [rosterFilters, setRosterFilters] = useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
+    const [rosterFilters, setRosterFilters] =
+        useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
     const [query, setQuery] = useState(() => initialSearchParam('search'));
     const [pageNumber, setPageNumber] = useState(1);
     const [saving, setSaving] = useState(false);
     /** Teacher sheet: add (id null), view (viewOnly) or edit; queue = selected teachers walked with «السابق / التالي». */
-    const [sheet, setSheet] = useState<{ id: number | null; form: TeacherForm; viewOnly: boolean; queue: number[] } | null>(null);
+    const [sheet, setSheet] = useState<{
+        id: number | null;
+        form: TeacherForm;
+        viewOnly: boolean;
+        queue: number[];
+    } | null>(null);
     const [teachingFor, setTeachingFor] = useState<number | null>(null);
-    const [teachingForm, setTeachingForm] = useState<TeachingForm>(EMPTY_TEACHING);
+    const [teachingForm, setTeachingForm] =
+        useState<TeachingForm>(EMPTY_TEACHING);
     const [confirmDeactivate, setConfirmDeactivate] = useState(false);
     const [endTarget, setEndTarget] = useState<Assignment | null>(null);
 
@@ -397,15 +567,49 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
 
         return teachers.filter(
             (teacher) =>
-                matchesFilter(teacher, filterKey) && matchesRosterFilters(teacher, rosterFilters) && (tokens.length === 0 || matchesSearch(teacher, tokens)),
+                matchesFilter(teacher, filterKey) &&
+                matchesRosterFilters(teacher, rosterFilters) &&
+                (tokens.length === 0 || matchesSearch(teacher, tokens)),
         );
     }, [teachers, filterKey, rosterFilters, query]);
 
-    const fitPageSize = useFitTablePageSize(scrollerRef, { fallbackRows: TEACHERS_PER_PAGE, enabled: true });
-    const lastPage = Math.max(1, Math.ceil(filteredRows.length / Math.max(1, fitPageSize)));
+    // Header click sorts the whole roster, then it is paged.
+    const { rows: sortedRows, sort } = useTableSort(filteredRows, (row, key) => {
+        switch (key) {
+            case 'name':
+                return row.full_name;
+            case 'code':
+                return row.employee_code;
+            case 'specialization':
+                return row.specialization_field;
+            case 'subjectsCount':
+                return row.subject_ids.length;
+            case 'subjects':
+                return [...new Set([...row.assignments.map((a) => a.subject_id), ...row.subject_ids])]
+                    .map((id) => subjectsById.get(id)?.name ?? row.assignments.find((a) => a.subject_id === id)?.subject_name ?? '')
+                    .filter((name) => name !== '')
+                    .sort((a, b) => a.localeCompare(b, 'ar'))
+                    .join('، ');
+            case 'status':
+                return row.status === ACTIVE ? tc.statusActive : tc.statusInactive;
+            default:
+                return null;
+        }
+    });
+    const fitPageSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: TEACHERS_PER_PAGE,
+        enabled: true,
+    });
+    const lastPage = Math.max(
+        1,
+        Math.ceil(filteredRows.length / Math.max(1, fitPageSize)),
+    );
     const currentPage = Math.min(pageNumber, lastPage);
     const rowOffset = (currentPage - 1) * fitPageSize;
-    const displayRows = useMemo(() => filteredRows.slice(rowOffset, rowOffset + fitPageSize), [filteredRows, rowOffset, fitPageSize]);
+    const displayRows = useMemo(
+        () => sortedRows.slice(rowOffset, rowOffset + fitPageSize),
+        [sortedRows, rowOffset, fitPageSize],
+    );
 
     useEffect(() => setPageNumber(1), [filterKey, rosterFilters, query]);
 
@@ -416,13 +620,26 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
     });
     useSmoothVerticalScroll(scrollerRef, displayRows.length > 0);
 
-    const rowIds = useMemo(() => displayRows.map((row) => row.id), [displayRows]);
-    const visibleCheckedIds = useMemo(() => checkedIds.filter((id) => teachers.some((row) => row.id === id)), [checkedIds, teachers]);
-    const actionIds = useMemo(() => tableActionIds(visibleCheckedIds, selectedId), [selectedId, visibleCheckedIds]);
+    const rowIds = useMemo(
+        () => displayRows.map((row) => row.id),
+        [displayRows],
+    );
+    const visibleCheckedIds = useMemo(
+        () => checkedIds.filter((id) => teachers.some((row) => row.id === id)),
+        [checkedIds, teachers],
+    );
+    const actionIds = useMemo(
+        () => tableActionIds(visibleCheckedIds, selectedId),
+        [selectedId, visibleCheckedIds],
+    );
     const pageChecked = rowIds.filter((id) => checkedIds.includes(id));
-    const allChecked = rowIds.length > 0 && pageChecked.length === rowIds.length;
+    const allChecked =
+        rowIds.length > 0 && pageChecked.length === rowIds.length;
     const someChecked = pageChecked.length > 0 && !allChecked;
-    const single = actionIds.length === 1 ? (teachers.find((row) => row.id === actionIds[0]) ?? null) : null;
+    const single =
+        actionIds.length === 1
+            ? (teachers.find((row) => row.id === actionIds[0]) ?? null)
+            : null;
 
     useEffect(() => {
         if (selectAllRef.current) {
@@ -432,8 +649,14 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
 
     // Drop selections of rows that disappeared after a reload.
     useEffect(() => {
-        setCheckedIds((current) => current.filter((id) => teachers.some((row) => row.id === id)));
-        setSelectedId((current) => (current !== null && teachers.some((row) => row.id === current) ? current : null));
+        setCheckedIds((current) =>
+            current.filter((id) => teachers.some((row) => row.id === id)),
+        );
+        setSelectedId((current) =>
+            current !== null && teachers.some((row) => row.id === current)
+                ? current
+                : null,
+        );
     }, [teachers]);
 
     const selectRow = useCallback((teacherId: number) => {
@@ -458,7 +681,10 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
         setSelectedId(null);
     }, []);
 
-    const run = async (action: () => Promise<boolean>, after?: () => void): Promise<void> => {
+    const run = async (
+        action: () => Promise<boolean>,
+        after?: () => void,
+    ): Promise<void> => {
         if (saving) {
             return;
         }
@@ -472,8 +698,15 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
         }
     };
 
-    const bulk = (url: string, payload: Record<string, unknown>, after?: () => void) =>
-        run(() => request('post', url, { teacher_ids: actionIds, ...payload }), after);
+    const bulk = (
+        url: string,
+        payload: Record<string, unknown>,
+        after?: () => void,
+    ) =>
+        run(
+            () => request('post', url, { teacher_ids: actionIds, ...payload }),
+            after,
+        );
 
     const saveSheet = () => {
         if (sheet === null) {
@@ -489,34 +722,65 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             // Not shown on this page — the stored value is sent back unchanged so it is never wiped.
             national_id: blankToNull(f.national_id),
             hire_date: blankToNull(f.hire_date),
-            employment_type: f.employment_type === '' ? null : Number(f.employment_type),
+            employment_type:
+                f.employment_type === '' ? null : Number(f.employment_type),
             academic_year_id: yearId,
-            academic_title_id: f.academic_title_id === '' ? null : Number(f.academic_title_id),
+            academic_title_id:
+                f.academic_title_id === '' ? null : Number(f.academic_title_id),
             abbreviation: blankToNull(f.abbreviation),
         };
         const teacherId = sheet.id;
-        const original = teacherId === null ? null : (teachers.find((teacher) => teacher.id === teacherId) ?? null);
-        const statusChanged = original !== null && f.status !== formOf(original).status;
+        const original =
+            teacherId === null
+                ? null
+                : (teachers.find((teacher) => teacher.id === teacherId) ??
+                  null);
+        const statusChanged =
+            original !== null && f.status !== formOf(original).status;
         void run(
             async () => {
                 if (teacherId === null) {
-                    return request('post', '/teachers', { ...payload, employee_code: f.employee_code.trim() });
+                    return request('post', '/teachers', {
+                        ...payload,
+                        employee_code: f.employee_code.trim(),
+                    });
                 }
                 const workload = {
-                    weekly_lessons_min: f.weekly_lessons_min === '' ? null : Number(f.weekly_lessons_min),
-                    weekly_lessons_max: f.weekly_lessons_max === '' ? null : Number(f.weekly_lessons_max),
-                    daily_lessons_max: f.daily_lessons_max === '' ? null : Number(f.daily_lessons_max),
+                    weekly_lessons_min:
+                        f.weekly_lessons_min === ''
+                            ? null
+                            : Number(f.weekly_lessons_min),
+                    weekly_lessons_max:
+                        f.weekly_lessons_max === ''
+                            ? null
+                            : Number(f.weekly_lessons_max),
+                    daily_lessons_max:
+                        f.daily_lessons_max === ''
+                            ? null
+                            : Number(f.daily_lessons_max),
                 };
-                if (!(await request('patch', `/teachers/${teacherId}`, { ...payload, ...workload }))) {
+                if (
+                    !(await request('patch', `/teachers/${teacherId}`, {
+                        ...payload,
+                        ...workload,
+                    }))
+                ) {
                     return false;
                 }
 
                 // الحالة has its own server command (same as the ribbon «تفعيل / إيقاف»).
-                return !statusChanged || request('post', '/teachers/bulk-status', { teacher_ids: [teacherId], teacher_status: Number(f.status) });
+                return (
+                    !statusChanged ||
+                    request('post', '/teachers/bulk-status', {
+                        teacher_ids: [teacherId],
+                        teacher_status: Number(f.status),
+                    })
+                );
             },
             // Editing a selection: continue with the next selected teacher, close after the last.
             () => {
-                const next = teacherId === null ? null : nextInQueue(teacherId, 1);
+                const next =
+                    teacherId === null ? null : nextInQueue(teacherId, 1);
                 if (next === null) {
                     setSheet(null);
                 } else {
@@ -526,13 +790,25 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
         );
     };
 
-    const openSheet = (teacher: Teacher | null, viewOnly: boolean, queue: number[] = teacher === null ? [] : [teacher.id]) =>
-        setSheet({ id: teacher?.id ?? null, form: teacher === null ? EMPTY_FORM : formOf(teacher), viewOnly, queue });
+    const openSheet = (
+        teacher: Teacher | null,
+        viewOnly: boolean,
+        queue: number[] = teacher === null ? [] : [teacher.id],
+    ) =>
+        setSheet({
+            id: teacher?.id ?? null,
+            form: teacher === null ? EMPTY_FORM : formOf(teacher),
+            viewOnly,
+            queue,
+        });
 
     /** View / edit every selected teacher (select-all included), starting with the first. */
     const openSelection = (viewOnly: boolean) => {
-        const queue = actionIds.filter((id) => teachers.some((teacher) => teacher.id === id));
-        const first = teachers.find((teacher) => teacher.id === queue[0]) ?? null;
+        const queue = actionIds.filter((id) =>
+            teachers.some((teacher) => teacher.id === id),
+        );
+        const first =
+            teachers.find((teacher) => teacher.id === queue[0]) ?? null;
         if (first !== null) {
             openSheet(first, viewOnly, queue);
         }
@@ -544,11 +820,23 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
         }
         const index = sheet.queue.indexOf(teacherId) + step;
 
-        return index < 0 || index >= sheet.queue.length ? null : (teachers.find((teacher) => teacher.id === sheet.queue[index]) ?? null);
+        return index < 0 || index >= sheet.queue.length
+            ? null
+            : (teachers.find((teacher) => teacher.id === sheet.queue[index]) ??
+                  null);
     };
 
     const showSheetTeacher = (teacher: Teacher, viewOnly: boolean) =>
-        setSheet((current) => (current === null ? current : { ...current, id: teacher.id, form: formOf(teacher), viewOnly }));
+        setSheet((current) =>
+            current === null
+                ? current
+                : {
+                      ...current,
+                      id: teacher.id,
+                      form: formOf(teacher),
+                      viewOnly,
+                  },
+        );
 
     const openTeaching = (teacher: Teacher) => {
         setTeachingFor(teacher.id);
@@ -567,9 +855,15 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
 
                 return;
             }
-            sectionId = resolveSisSectionId(f.section_code, Number(f.class_id), sectionRefs);
+            sectionId = resolveSisSectionId(
+                f.section_code,
+                Number(f.class_id),
+                sectionRefs,
+            );
             if (sectionId === null) {
-                showWarning(tc.sectionNotInClass.replace('{section}', f.section_code));
+                showWarning(
+                    tc.sectionNotInClass.replace('{section}', f.section_code),
+                );
 
                 return;
             }
@@ -580,11 +874,13 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                     academic_year_id: yearId,
                     subject_id: Number(f.subject_id),
                     branch_id: Number(f.branch_id),
-                    department_id: f.department_id === '' ? null : Number(f.department_id),
+                    department_id:
+                        f.department_id === '' ? null : Number(f.department_id),
                     class_id: f.class_id === '' ? null : Number(f.class_id),
                     section_id: sectionId,
                 }),
-            () => setTeachingForm((current) => ({ ...current, subject_id: '' })),
+            () =>
+                setTeachingForm((current) => ({ ...current, subject_id: '' })),
         );
     };
 
@@ -593,14 +889,21 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             return;
         }
         // No idempotency requirement on this route; the header is harmless.
-        router.post(`/teachers/${teachingFor}/assignments/${endTarget.id}/end`, {}, {
-            preserveScroll: true,
-            preserveState: true,
-            only: RELOAD_PROPS,
-            headers: { 'X-Idempotency-Key': newIdempotencyKey('teaching-end') },
-            onError: (errors) => showInertiaErrors(errors, i18n.errors.saveFailed),
-            onFinish: () => setEndTarget(null),
-        });
+        router.post(
+            `/teachers/${teachingFor}/assignments/${endTarget.id}/end`,
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+                only: RELOAD_PROPS,
+                headers: {
+                    'X-Idempotency-Key': newIdempotencyKey('teaching-end'),
+                },
+                onError: (errors) =>
+                    showInertiaErrors(errors, i18n.errors.saveFailed),
+                onFinish: () => setEndTarget(null),
+            },
+        );
     };
 
     const changeYear = (next: string) => {
@@ -609,60 +912,116 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
         }
         clearSelection();
         setRosterFilters(EMPTY_ROSTER_FILTERS);
-        router.get('/teachers', { academic_year_id: Number(next) }, { preserveScroll: true });
+        router.get(
+            '/teachers',
+            { academic_year_id: Number(next) },
+            { preserveScroll: true },
+        );
     };
 
     const toggleExpanded = (teacherId: number) =>
-        setExpandedIds((current) => (current.includes(teacherId) ? current.filter((id) => id !== teacherId) : [...current, teacherId]));
+        setExpandedIds((current) =>
+            current.includes(teacherId)
+                ? current.filter((id) => id !== teacherId)
+                : [...current, teacherId],
+        );
 
     const specializationOptions = useMemo(
         () =>
-            [...new Set(teachers.map((teacher) => (teacher.specialization_field ?? '').trim()).filter((value) => value !== ''))].sort((a, b) =>
-                a.localeCompare(b, 'ar'),
-            ),
+            [
+                ...new Set(
+                    teachers
+                        .map((teacher) =>
+                            (teacher.specialization_field ?? '').trim(),
+                        )
+                        .filter((value) => value !== ''),
+                ),
+            ].sort((a, b) => a.localeCompare(b, 'ar')),
         [teachers],
     );
-    const filterBranches = branches.filter((branch) => rosterFilters.branch_id.includes(String(branch.id)));
+    const filterBranches = branches.filter((branch) =>
+        rosterFilters.branch_id.includes(String(branch.id)),
+    );
     const departmentOptions = useMemo(() => {
-        const names = (filterBranches.length > 0 ? filterBranches : branches).flatMap((branch) => branch.departments.map((d) => d.name));
+        const names = (
+            filterBranches.length > 0 ? filterBranches : branches
+        ).flatMap((branch) => branch.departments.map((d) => d.name));
 
-        return [...new Set(names)].sort((a, b) => a.localeCompare(b, 'ar')).map((name) => ({ value: name, label: name }));
+        return [...new Set(names)]
+            .sort((a, b) => a.localeCompare(b, 'ar'))
+            .map((name) => ({ value: name, label: name }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [branches, rosterFilters.branch_id]);
     const rosterFiltered =
-        rosterFilters.specialization.length > 0 || rosterFilters.branch_id.length > 0 || rosterFilters.department.length > 0 || rosterFilters.subject_id.length > 0;
+        rosterFilters.specialization.length > 0 ||
+        rosterFilters.branch_id.length > 0 ||
+        rosterFilters.department.length > 0 ||
+        rosterFilters.subject_id.length > 0;
 
     // Subject picker: curriculum of the chosen department (or of every department of the branch) + general curricula.
-    const teachingBranch = branches.find((branch) => String(branch.id) === teachingForm.branch_id) ?? null;
-    const teachingClass = classes.find((item) => String(item.id) === teachingForm.class_id) ?? null;
+    const teachingBranch =
+        branches.find(
+            (branch) => String(branch.id) === teachingForm.branch_id,
+        ) ?? null;
+    const teachingClass =
+        classes.find((item) => String(item.id) === teachingForm.class_id) ??
+        null;
     const pickableSubjectIds = useMemo(() => {
         if (teachingBranch === null) {
             return [];
         }
         const ids = new Set<number>(curriculumSubjects.general);
         const departmentIds =
-            teachingForm.department_id === '' ? teachingBranch.departments.map((d) => d.id) : [Number(teachingForm.department_id)];
+            teachingForm.department_id === ''
+                ? teachingBranch.departments.map((d) => d.id)
+                : [Number(teachingForm.department_id)];
         for (const departmentId of departmentIds) {
-            for (const subjectId of curriculumSubjects.by_department[String(departmentId)] ?? []) {
+            for (const subjectId of curriculumSubjects.by_department[
+                String(departmentId)
+            ] ?? []) {
                 ids.add(subjectId);
             }
         }
 
-        return [...ids].filter((id) => subjectsById.has(id)).sort((a, b) => (subjectsById.get(a)?.name ?? '').localeCompare(subjectsById.get(b)?.name ?? '', 'ar'));
-    }, [curriculumSubjects, subjectsById, teachingBranch, teachingForm.department_id]);
+        return [...ids]
+            .filter((id) => subjectsById.has(id))
+            .sort((a, b) =>
+                (subjectsById.get(a)?.name ?? '').localeCompare(
+                    subjectsById.get(b)?.name ?? '',
+                    'ar',
+                ),
+            );
+    }, [
+        curriculumSubjects,
+        subjectsById,
+        teachingBranch,
+        teachingForm.department_id,
+    ]);
 
     const counts = useMemo(() => {
         const byType: Record<number, number> = {};
         for (const type of EMPLOYMENT_TYPES) {
-            byType[type] = teachers.filter((teacher) => teacher.employment_type === type).length;
+            byType[type] = teachers.filter(
+                (teacher) => teacher.employment_type === type,
+            ).length;
         }
 
-        return { active: teachers.filter((teacher) => teacher.status === ACTIVE).length, byType };
+        return {
+            active: teachers.filter((teacher) => teacher.status === ACTIVE)
+                .length,
+            byType,
+        };
     }, [teachers]);
-    const withTeaching = teachers.filter((teacher) => teacher.assignments.length > 0).length;
-    const teachingPercent = teachers.length === 0 ? 0 : Math.round((withTeaching / teachers.length) * 100);
+    const withTeaching = teachers.filter(
+        (teacher) => teacher.assignments.length > 0,
+    ).length;
+    const teachingPercent =
+        teachers.length === 0
+            ? 0
+            : Math.round((withTeaching / teachers.length) * 100);
     const hasSelection = actionIds.length > 0;
-    const selectionTitle = (label: string) => (hasSelection ? label : tc.needsSelection);
+    const selectionTitle = (label: string) =>
+        hasSelection ? label : tc.needsSelection;
 
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const recordCommands: PageRibbonCommand[] = [
@@ -673,6 +1032,19 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 title: selectionTitle(i18n.common.view),
                 disabled: !hasSelection,
                 onSelect: () => openSelection(true),
+            },
+            {
+                // «الجدول الدراسي» of the selected teacher(s) only.
+                id: 'teachers-timetable',
+                label: tc.openTimetable,
+                icon: CalendarRange,
+                title: selectionTitle(tc.openTimetable),
+                disabled: !hasSelection,
+                onSelect: () =>
+                    router.get('/timetable', {
+                        view: 'teacher',
+                        teacher_ids: actionIds.join(','),
+                    }),
             },
         ];
         if (canManage) {
@@ -705,10 +1077,25 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             );
         }
 
-        const filterTabs: Array<{ key: FilterKey; label: string; icon: LucideIcon; count: number }> = [
+        const filterTabs: Array<{
+            key: FilterKey;
+            label: string;
+            icon: LucideIcon;
+            count: number;
+        }> = [
             { key: 'all', label: tc.all, icon: Layers, count: teachers.length },
-            { key: 'active', label: tc.statusActive, icon: CheckCircle2, count: counts.active },
-            { key: 'inactive', label: tc.statusInactive, icon: CircleSlash, count: teachers.length - counts.active },
+            {
+                key: 'active',
+                label: tc.statusActive,
+                icon: CheckCircle2,
+                count: counts.active,
+            },
+            {
+                key: 'inactive',
+                label: tc.statusInactive,
+                icon: CircleSlash,
+                count: teachers.length - counts.active,
+            },
             ...EMPLOYMENT_TYPES.map((type) => ({
                 key: `type-${type}` as FilterKey,
                 label: tc.employmentTypes[type],
@@ -718,7 +1105,11 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
         ];
 
         const groups: PageRibbonGroup[] = [
-            { id: 'teachers-actions', label: i18n.common.actions, commands: recordCommands },
+            {
+                id: 'teachers-actions',
+                label: i18n.common.actions,
+                commands: recordCommands,
+            },
             {
                 id: 'teachers-filters',
                 label: tc.statusColumn,
@@ -729,7 +1120,12 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                     icon: tab.icon,
                     count: tab.count,
                     pressed: filterKey === tab.key,
-                    onSelect: () => setFilterKey(filterKey === tab.key && tab.key !== 'all' ? 'all' : tab.key),
+                    onSelect: () =>
+                        setFilterKey(
+                            filterKey === tab.key && tab.key !== 'all'
+                                ? 'all'
+                                : tab.key,
+                        ),
                 })),
             },
         ];
@@ -743,7 +1139,10 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                         id: 'teachers-appearance-edit',
                         label: i18n.appearance.title,
                         icon: Palette,
-                        title: single === null ? i18n.orgRibbon.needsSelection : i18n.appearance.edit,
+                        title:
+                            single === null
+                                ? i18n.orgRibbon.needsSelection
+                                : i18n.appearance.edit,
                         disabled: single === null,
                         onSelect: () => setAppearanceTeacher(single),
                     },
@@ -759,7 +1158,10 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                         icon: UserCheck,
                         title: selectionTitle(tc.setActive),
                         disabled: !hasSelection || saving,
-                        onSelect: () => void bulk('/teachers/bulk-status', { teacher_status: ACTIVE }),
+                        onSelect: () =>
+                            void bulk('/teachers/bulk-status', {
+                                teacher_status: ACTIVE,
+                            }),
                     },
                     {
                         id: 'teachers-set-inactive',
@@ -773,9 +1175,15 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                         id: `teachers-set-type-${type}`,
                         label: tc.employmentTypes[type],
                         icon: EMPLOYMENT_ICONS[type],
-                        title: selectionTitle(`${tc.employmentType}: ${tc.employmentTypes[type]}`),
+                        title: selectionTitle(
+                            `${tc.employmentType}: ${tc.employmentTypes[type]}`,
+                        ),
                         disabled: !hasSelection || saving || yearId === null,
-                        onSelect: () => void bulk('/teachers/bulk-employment-type', { employment_type: type, academic_year_id: yearId }),
+                        onSelect: () =>
+                            void bulk('/teachers/bulk-employment-type', {
+                                employment_type: type,
+                                academic_year_id: yearId,
+                            }),
                     })),
                 ],
             });
@@ -797,7 +1205,10 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                     dir="rtl"
                     title={`${tc.progressLabel}: ${teachingPercent}%`}
                 >
-                    <span className="sis-ribbon__progress-fill" style={{ width: `${teachingPercent}%` }} />
+                    <span
+                        className="sis-ribbon__progress-fill"
+                        style={{ width: `${teachingPercent}%` }}
+                    />
                     <span className="sis-ribbon__progress-value" dir="ltr">
                         {teachingPercent}%
                     </span>
@@ -807,7 +1218,19 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
 
         return groups;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [actionIds, canManage, counts, filterKey, hasSelection, i18n, saving, single, teachers.length, teachingPercent, yearId]);
+    }, [
+        actionIds,
+        canManage,
+        counts,
+        filterKey,
+        hasSelection,
+        i18n,
+        saving,
+        single,
+        teachers.length,
+        teachingPercent,
+        yearId,
+    ]);
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const addRibbonGroups = useMemo((): PageRibbonGroup[] => {
@@ -820,12 +1243,19 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 id: 'teachers-teaching',
                 label: tc.ribbonTeacher,
                 commands: [
-                    { id: 'teachers-add', label: tc.addTeacher, icon: PlusCircle, disabled: yearId === null, onSelect: () => openSheet(null, false) },
+                    {
+                        id: 'teachers-add',
+                        label: tc.addTeacher,
+                        icon: PlusCircle,
+                        disabled: yearId === null,
+                        onSelect: () => openSheet(null, false),
+                    },
                     {
                         id: 'teachers-teaching-open',
                         label: tc.teachingTitle,
                         icon: BookOpen,
-                        title: single === null ? tc.needsSingle : tc.teachingTitle,
+                        title:
+                            single === null ? tc.needsSingle : tc.teachingTitle,
                         disabled: single === null || yearId === null,
                         onSelect: () => single && openTeaching(single),
                     },
@@ -841,8 +1271,17 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             clearSelection();
             setRosterFilters((current) => ({ ...current, ...patch }));
         };
-        const yearOptions = years.map((year) => ({ value: String(year.id), label: formatAcademicYearOptionLabel(year.name, year.code) }));
-        const multi = (key: keyof RosterFilters, label: string, allLabel: string, options: Array<{ value: string; label: string }>, extra: Partial<RosterFilters> = {}) => (
+        const yearOptions = years.map((year) => ({
+            value: String(year.id),
+            label: formatAcademicYearOptionLabel(year.name, year.code),
+        }));
+        const multi = (
+            key: keyof RosterFilters,
+            label: string,
+            allLabel: string,
+            options: Array<{ value: string; label: string }>,
+            extra: Partial<RosterFilters> = {},
+        ) => (
             <RibbonFilterField
                 key={key}
                 spec={{
@@ -852,7 +1291,8 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                     allLabel,
                     values: rosterFilters[key],
                     options,
-                    onChange: (values) => setFilter({ [key]: values, ...extra }),
+                    onChange: (values) =>
+                        setFilter({ [key]: values, ...extra }),
                 }}
             />
         );
@@ -863,15 +1303,57 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 label: tc.ribbonFilters,
                 commands: [],
                 custom: (
-                    <div className="sis-ribbon__filters" aria-label={tc.filtersTitle} dir="rtl">
+                    <div
+                        className="sis-ribbon__filters"
+                        aria-label={tc.filtersTitle}
+                        dir="rtl"
+                    >
                         <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--curriculum sis-ribbon__filters-stack--teachers">
                             <RibbonFilterField
-                                spec={{ key: 'year', type: 'single', label: tc.academicYear, value: yearId === null ? '' : String(yearId), options: yearOptions, onChange: changeYear }}
+                                spec={{
+                                    key: 'year',
+                                    type: 'single',
+                                    label: tc.academicYear,
+                                    value:
+                                        yearId === null ? '' : String(yearId),
+                                    options: yearOptions,
+                                    onChange: changeYear,
+                                }}
                             />
-                            {multi('specialization', tc.certificateSpecialization, tc.allSpecializations, specializationOptions.map((value) => ({ value, label: value })))}
-                            {multi('branch_id', tc.branch, tc.allBranches, branches.map((branch) => ({ value: String(branch.id), label: branch.name })), { department: [] })}
-                            {multi('department', tc.department, tc.allBranchDepartments, departmentOptions)}
-                            {multi('subject_id', tc.subject, tc.allSubjects, subjects.map((subject) => ({ value: String(subject.id), label: subject.name })))}
+                            {multi(
+                                'specialization',
+                                tc.certificateSpecialization,
+                                tc.allSpecializations,
+                                specializationOptions.map((value) => ({
+                                    value,
+                                    label: value,
+                                })),
+                            )}
+                            {multi(
+                                'branch_id',
+                                tc.branch,
+                                tc.allBranches,
+                                branches.map((branch) => ({
+                                    value: String(branch.id),
+                                    label: branch.name,
+                                })),
+                                { department: [] },
+                            )}
+                            {multi(
+                                'department',
+                                tc.department,
+                                tc.allBranchDepartments,
+                                departmentOptions,
+                            )}
+                            {multi(
+                                'subject_id',
+                                tc.subject,
+                                tc.allSubjects,
+                                subjects.map((subject) => ({
+                                    value: String(subject.id),
+                                    label: subject.name,
+                                })),
+                            )}
                         </div>
                         <button
                             type="button"
@@ -883,38 +1365,76 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                             onClick={() => setFilter(EMPTY_ROSTER_FILTERS)}
                         >
                             <FilterX className="sis-ribbon__icon" aria-hidden />
-                            <span className="sis-ribbon__label">{tc.clearFilters}</span>
+                            <span className="sis-ribbon__label">
+                                {tc.clearFilters}
+                            </span>
                         </button>
                     </div>
                 ),
             },
         ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [branches, departmentOptions, i18n, rosterFilters, rosterFiltered, specializationOptions, subjects, years, yearId]);
+    }, [
+        branches,
+        departmentOptions,
+        i18n,
+        rosterFilters,
+        rosterFiltered,
+        specializationOptions,
+        subjects,
+        years,
+        yearId,
+    ]);
     useRegisterPageRibbon('home', homeRibbonGroups);
 
     const titlebarSearch = useMemo(
-        () => ({ committedQuery: query, label: tc.search, placeholder: tc.search, onDraftChange: setQuery, onCommit: setQuery }),
+        () => ({
+            committedQuery: query,
+            label: tc.search,
+            placeholder: tc.search,
+            onDraftChange: setQuery,
+            onCommit: setQuery,
+        }),
         [query, tc.search],
     );
     useRegisterPageTitlebarSearch(titlebarSearch);
 
-    const teachingTeacher = teachers.find((teacher) => teacher.id === teachingFor) ?? null;
+    const teachingTeacher =
+        teachers.find((teacher) => teacher.id === teachingFor) ?? null;
     const sheetEditing = sheet !== null && !sheet.viewOnly;
     const setSheetField = (field: keyof TeacherForm) => (value: string) =>
-        setSheet((current) => (current === null ? current : { ...current, form: { ...current.form, [field]: value } }));
-    const prevTeacher = sheet === null || sheet.id === null ? null : nextInQueue(sheet.id, -1);
-    const nextTeacher = sheet === null || sheet.id === null ? null : nextInQueue(sheet.id, 1);
+        setSheet((current) =>
+            current === null
+                ? current
+                : { ...current, form: { ...current.form, [field]: value } },
+        );
+    const prevTeacher =
+        sheet === null || sheet.id === null ? null : nextInQueue(sheet.id, -1);
+    const nextTeacher =
+        sheet === null || sheet.id === null ? null : nextInQueue(sheet.id, 1);
     const statusOptions = [
         { value: String(ACTIVE), label: tc.statusActive },
         { value: String(INACTIVE), label: tc.statusInactive },
     ];
-    const sheetTeacher = sheet === null || sheet.id === null ? null : (teachers.find((teacher) => teacher.id === sheet.id) ?? null);
+    const sheetTeacher =
+        sheet === null || sheet.id === null
+            ? null
+            : (teachers.find((teacher) => teacher.id === sheet.id) ?? null);
     const sheetSubjectIds =
-        sheetTeacher === null ? [] : [...new Set([...sheetTeacher.assignments.map((a) => a.subject_id), ...sheetTeacher.subject_ids])];
+        sheetTeacher === null
+            ? []
+            : [
+                  ...new Set([
+                      ...sheetTeacher.assignments.map((a) => a.subject_id),
+                      ...sheetTeacher.subject_ids,
+                  ]),
+              ];
     const employmentOptions = [
         { value: '', label: tc.noEmploymentType },
-        ...EMPLOYMENT_TYPES.map((type) => ({ value: String(type), label: tc.employmentTypes[type] })),
+        ...EMPLOYMENT_TYPES.map((type) => ({
+            value: String(type),
+            label: tc.employmentTypes[type],
+        })),
     ];
 
     return (
@@ -925,172 +1445,429 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 dir="rtl"
                 lang="ar"
             >
-                {canManage ? null : <p className="sis-branches-page__notice">{tc.readOnly}</p>}
-                {yearId === null ? <p className="sis-branches-page__notice">{tc.noYear}</p> : null}
+                {canManage ? null : (
+                    <p className="sis-branches-page__notice">{tc.readOnly}</p>
+                )}
+                {yearId === null ? (
+                    <p className="sis-branches-page__notice">{tc.noYear}</p>
+                ) : null}
                 {total > teachers.length ? (
                     <p className="sis-branches-page__notice">
-                        {tc.truncated.replace('{limit}', String(ROSTER_LIMIT)).replace('{total}', String(total))}
+                        {tc.truncated
+                            .replace('{limit}', String(ROSTER_LIMIT))
+                            .replace('{total}', String(total))}
                     </p>
                 ) : null}
 
                 <div className="sis-admission-page-body">
-                    <section aria-label={tc.tableCaption} className="flex min-h-0 flex-1 flex-col">
+                    <section
+                        aria-label={tc.tableCaption}
+                        className="flex min-h-0 flex-1 flex-col"
+                    >
                         {filteredRows.length === 0 ? (
-                            <p className="text-sm">{teachers.length === 0 ? tc.noTeachers : tc.noSearchResult}</p>
+                            <p className="text-sm">
+                                {teachers.length === 0
+                                    ? tc.noTeachers
+                                    : tc.noSearchResult}
+                            </p>
                         ) : (
                             <>
                                 <div className="sis-admission-periods-table sis-admission-drafts-table">
-                                    <div className="sis-admission-drafts-table__scroller" ref={scrollerRef}>
+                                    <div
+                                        className="sis-admission-drafts-table__scroller"
+                                        ref={scrollerRef}
+                                    >
                                         <table ref={tableRef}>
                                             <thead>
                                                 <tr>
                                                     {canManage ? (
                                                         <th className="sis-admission-drafts-table__select">
                                                             <input
-                                                                ref={selectAllRef}
+                                                                ref={
+                                                                    selectAllRef
+                                                                }
                                                                 type="checkbox"
-                                                                checked={allChecked}
-                                                                disabled={saving}
-                                                                aria-label={tc.selectAll}
-                                                                onChange={toggleAll}
+                                                                checked={
+                                                                    allChecked
+                                                                }
+                                                                disabled={
+                                                                    saving
+                                                                }
+                                                                aria-label={
+                                                                    tc.selectAll
+                                                                }
+                                                                onChange={
+                                                                    toggleAll
+                                                                }
                                                             />
                                                         </th>
                                                     ) : null}
-                                                    <th className="sis-admission-drafts-table__num">{tc.seq}</th>
-                                                    <th className="sis-admission-drafts-table__name-head">{tc.tripleName}</th>
-                                                    <th>{tc.employeeCode}</th>
-                                                    <th title={tc.certificateSpecializationHint}>{tc.certificateSpecialization}</th>
-                                                    <th>{tc.subjectsCountColumn}</th>
-                                                    <th className="sis-teachers-table__subjects-head">{tc.subjectsColumn}</th>
-                                                    <th>{tc.statusColumn}</th>
+                                                    <th className="sis-admission-drafts-table__num">
+                                                        {tc.seq}
+                                                    </th>
+                                                    <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(sort, 'name')}>
+                                                        <SortButton sort={sort} column="name">
+                                                            {tc.tripleName}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th aria-sort={ariaSort(sort, 'code')}>
+                                                        <SortButton sort={sort} column="code">
+                                                            {tc.employeeCode}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th
+                                                        title={
+                                                            tc.certificateSpecializationHint
+                                                        }
+                                                        aria-sort={ariaSort(sort, 'specialization')}
+                                                    >
+                                                        <SortButton sort={sort} column="specialization">
+                                                            {
+                                                                tc.certificateSpecialization
+                                                            }
+                                                        </SortButton>
+                                                    </th>
+                                                    <th aria-sort={ariaSort(sort, 'subjectsCount')}>
+                                                        <SortButton sort={sort} column="subjectsCount">
+                                                            {tc.subjectsCountColumn}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th className="sis-teachers-table__subjects-head" aria-sort={ariaSort(sort, 'subjects')}>
+                                                        <SortButton sort={sort} column="subjects">
+                                                            {tc.subjectsColumn}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th aria-sort={ariaSort(sort, 'status')}>
+                                                        <SortButton sort={sort} column="status">
+                                                            {tc.statusColumn}
+                                                        </SortButton>
+                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {displayRows.map((row, index) => {
-                                                    const checked = checkedIds.includes(row.id);
-                                                    const selected = selectedId === row.id;
-                                                    const taught = new Set(row.assignments.map((a) => a.subject_id));
-                                                    const untaught = row.subject_ids.filter((id) => !taught.has(id));
-                                                    const rowSubjectIds = [...new Set([...row.assignments.map((a) => a.subject_id), ...untaught])];
-                                                    const expanded = expandedIds.includes(row.id);
-                                                    const subjectName = (subjectId: number) =>
-                                                        subjectsById.get(subjectId)?.name
-                                                        ?? row.assignments.find((a) => a.subject_id === subjectId)?.subject_name
-                                                        ?? `#${subjectId}`;
-                                                    const subjectChip = (subjectId: number) => <SubjectChip tone={subjectTone.get(subjectId)} name={subjectName(subjectId)} query={query} />;
+                                                {displayRows.map(
+                                                    (row, index) => {
+                                                        const checked =
+                                                            checkedIds.includes(
+                                                                row.id,
+                                                            );
+                                                        const selected =
+                                                            selectedId ===
+                                                            row.id;
+                                                        const taught = new Set(
+                                                            row.assignments.map(
+                                                                (a) =>
+                                                                    a.subject_id,
+                                                            ),
+                                                        );
+                                                        const untaught =
+                                                            row.subject_ids.filter(
+                                                                (id) =>
+                                                                    !taught.has(
+                                                                        id,
+                                                                    ),
+                                                            );
+                                                        const rowSubjectIds = [
+                                                            ...new Set([
+                                                                ...row.assignments.map(
+                                                                    (a) =>
+                                                                        a.subject_id,
+                                                                ),
+                                                                ...untaught,
+                                                            ]),
+                                                        ];
+                                                        const expanded =
+                                                            expandedIds.includes(
+                                                                row.id,
+                                                            );
+                                                        const subjectName = (
+                                                            subjectId: number,
+                                                        ) =>
+                                                            subjectsById.get(
+                                                                subjectId,
+                                                            )?.name ??
+                                                            row.assignments.find(
+                                                                (a) =>
+                                                                    a.subject_id ===
+                                                                    subjectId,
+                                                            )?.subject_name ??
+                                                            `#${subjectId}`;
+                                                        const subjectChip = (
+                                                            subjectId: number,
+                                                        ) => (
+                                                            <SubjectChip
+                                                                tone={subjectTone.get(
+                                                                    subjectId,
+                                                                )}
+                                                                name={subjectName(
+                                                                    subjectId,
+                                                                )}
+                                                                query={query}
+                                                            />
+                                                        );
 
-                                                    return (
-                                                        <tr
-                                                            key={row.id}
-                                                            className={selected || checked ? 'sis-admission-periods-table__row--selected' : undefined}
-                                                            aria-selected={selected || checked}
-                                                            onClick={() => {
-                                                                if (!hasPageTextSelection()) {
-                                                                    selectRow(row.id);
+                                                        return (
+                                                            <tr
+                                                                key={row.id}
+                                                                className={
+                                                                    selected ||
+                                                                    checked
+                                                                        ? 'sis-admission-periods-table__row--selected'
+                                                                        : undefined
                                                                 }
-                                                            }}
-                                                            onDoubleClick={() => openSheet(row, true)}
-                                                        >
-                                                            {canManage ? (
-                                                                <td className="sis-admission-drafts-table__select">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={checked}
-                                                                        disabled={saving}
-                                                                        aria-label={`${tc.selectTeacher}: ${row.full_name}`}
-                                                                        onClick={(event) => event.stopPropagation()}
-                                                                        onChange={() => toggleChecked(row.id)}
+                                                                aria-selected={
+                                                                    selected ||
+                                                                    checked
+                                                                }
+                                                                onClick={() => {
+                                                                    if (
+                                                                        !hasPageTextSelection()
+                                                                    ) {
+                                                                        selectRow(
+                                                                            row.id,
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                onDoubleClick={() =>
+                                                                    openSheet(
+                                                                        row,
+                                                                        true,
+                                                                    )
+                                                                }
+                                                            >
+                                                                {canManage ? (
+                                                                    <td className="sis-admission-drafts-table__select">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                checked
+                                                                            }
+                                                                            disabled={
+                                                                                saving
+                                                                            }
+                                                                            aria-label={`${tc.selectTeacher}: ${row.full_name}`}
+                                                                            onClick={(
+                                                                                event,
+                                                                            ) =>
+                                                                                event.stopPropagation()
+                                                                            }
+                                                                            onChange={() =>
+                                                                                toggleChecked(
+                                                                                    row.id,
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                ) : null}
+                                                                <td className="sis-admission-drafts-table__num">
+                                                                    <span dir="ltr">
+                                                                        {rowOffset +
+                                                                            index +
+                                                                            1}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="sis-admission-drafts-table__name">
+                                                                    <CellScroll>
+                                                                        <HighlightedText
+                                                                            text={
+                                                                                row.full_name
+                                                                            }
+                                                                            query={
+                                                                                query
+                                                                            }
+                                                                        />
+                                                                    </CellScroll>
+                                                                </td>
+                                                                <td>
+                                                                    <span dir="ltr">
+                                                                        <HighlightedText
+                                                                            text={
+                                                                                row.employee_code
+                                                                            }
+                                                                            query={
+                                                                                query
+                                                                            }
+                                                                        />
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <CellScroll>
+                                                                        <HighlightedText
+                                                                            text={
+                                                                                row.specialization_field ??
+                                                                                '—'
+                                                                            }
+                                                                            query={
+                                                                                query
+                                                                            }
+                                                                        />
+                                                                    </CellScroll>
+                                                                </td>
+                                                                <td>
+                                                                    <span dir="ltr">
+                                                                        {
+                                                                            row
+                                                                                .subject_ids
+                                                                                .length
+                                                                        }
+                                                                    </span>
+                                                                </td>
+                                                                <td className="sis-teachers-table__subjects">
+                                                                    {rowSubjectIds.length ===
+                                                                    0 ? (
+                                                                        '—'
+                                                                    ) : (
+                                                                        <div
+                                                                            className={
+                                                                                expanded
+                                                                                    ? 'sis-teachers-subjects sis-teachers-subjects--expanded'
+                                                                                    : 'sis-teachers-subjects'
+                                                                            }
+                                                                        >
+                                                                            <button
+                                                                                type="button"
+                                                                                className="sis-teachers-subjects__toggle"
+                                                                                aria-expanded={
+                                                                                    expanded
+                                                                                }
+                                                                                aria-label={`${expanded ? tc.collapseSubjects : tc.expandSubjects}: ${row.full_name}`}
+                                                                                title={
+                                                                                    expanded
+                                                                                        ? tc.collapseSubjects
+                                                                                        : tc.expandSubjects
+                                                                                }
+                                                                                onClick={(
+                                                                                    event,
+                                                                                ) => {
+                                                                                    event.stopPropagation();
+                                                                                    toggleExpanded(
+                                                                                        row.id,
+                                                                                    );
+                                                                                }}
+                                                                                onDoubleClick={(
+                                                                                    event,
+                                                                                ) =>
+                                                                                    event.stopPropagation()
+                                                                                }
+                                                                            >
+                                                                                {expanded ? (
+                                                                                    <ChevronDown
+                                                                                        aria-hidden
+                                                                                    />
+                                                                                ) : (
+                                                                                    <ChevronLeft
+                                                                                        aria-hidden
+                                                                                    />
+                                                                                )}
+                                                                            </button>
+                                                                            {expanded ? (
+                                                                                <div className="sis-teachers-subjects__list">
+                                                                                    {row.assignments.map(
+                                                                                        (
+                                                                                            assignment,
+                                                                                        ) => (
+                                                                                            <span
+                                                                                                key={
+                                                                                                    assignment.id
+                                                                                                }
+                                                                                                className="sis-teachers-table__teaching"
+                                                                                            >
+                                                                                                {subjectChip(
+                                                                                                    assignment.subject_id,
+                                                                                                )}{' '}
+                                                                                                {placeOf(
+                                                                                                    assignment,
+                                                                                                )}
+                                                                                            </span>
+                                                                                        ),
+                                                                                    )}
+                                                                                    {untaught.map(
+                                                                                        (
+                                                                                            subjectId,
+                                                                                        ) => (
+                                                                                            <span
+                                                                                                key={`s-${subjectId}`}
+                                                                                                className="sis-teachers-table__teaching"
+                                                                                            >
+                                                                                                {subjectChip(
+                                                                                                    subjectId,
+                                                                                                )}
+                                                                                            </span>
+                                                                                        ),
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="sis-teachers-subjects__line">
+                                                                                    {rowSubjectIds.map(
+                                                                                        (
+                                                                                            subjectId,
+                                                                                        ) => (
+                                                                                            <Fragment
+                                                                                                key={
+                                                                                                    subjectId
+                                                                                                }
+                                                                                            >
+                                                                                                {subjectChip(
+                                                                                                    subjectId,
+                                                                                                )}
+                                                                                            </Fragment>
+                                                                                        ),
+                                                                                    )}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    <StatusCell
+                                                                        teacher={
+                                                                            row
+                                                                        }
                                                                     />
                                                                 </td>
-                                                            ) : null}
-                                                            <td className="sis-admission-drafts-table__num">
-                                                                <span dir="ltr">{rowOffset + index + 1}</span>
-                                                            </td>
-                                                            <td className="sis-admission-drafts-table__name">
-                                                                <CellScroll>
-                                                                    <HighlightedText text={row.full_name} query={query} />
-                                                                </CellScroll>
-                                                            </td>
-                                                            <td>
-                                                                <span dir="ltr">
-                                                                    <HighlightedText text={row.employee_code} query={query} />
-                                                                </span>
-                                                            </td>
-                                                            <td>
-                                                                <CellScroll>
-                                                                    <HighlightedText text={row.specialization_field ?? '—'} query={query} />
-                                                                </CellScroll>
-                                                            </td>
-                                                            <td>
-                                                                <span dir="ltr">{row.subject_ids.length}</span>
-                                                            </td>
-                                                            <td className="sis-teachers-table__subjects">
-                                                                {rowSubjectIds.length === 0 ? (
-                                                                    '—'
-                                                                ) : (
-                                                                    <div className={expanded ? 'sis-teachers-subjects sis-teachers-subjects--expanded' : 'sis-teachers-subjects'}>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="sis-teachers-subjects__toggle"
-                                                                            aria-expanded={expanded}
-                                                                            aria-label={`${expanded ? tc.collapseSubjects : tc.expandSubjects}: ${row.full_name}`}
-                                                                            title={expanded ? tc.collapseSubjects : tc.expandSubjects}
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                toggleExpanded(row.id);
-                                                                            }}
-                                                                            onDoubleClick={(event) => event.stopPropagation()}
-                                                                        >
-                                                                            {expanded ? <ChevronDown aria-hidden /> : <ChevronLeft aria-hidden />}
-                                                                        </button>
-                                                                        {expanded ? (
-                                                                            <div className="sis-teachers-subjects__list">
-                                                                                {row.assignments.map((assignment) => (
-                                                                                    <span key={assignment.id} className="sis-teachers-table__teaching">
-                                                                                        {subjectChip(assignment.subject_id)} {placeOf(assignment)}
-                                                                                    </span>
-                                                                                ))}
-                                                                                {untaught.map((subjectId) => (
-                                                                                    <span key={`s-${subjectId}`} className="sis-teachers-table__teaching">
-                                                                                        {subjectChip(subjectId)}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        ) : (
-                                                                            <span className="sis-teachers-subjects__line">
-                                                                                {rowSubjectIds.map((subjectId) => (
-                                                                                    <Fragment key={subjectId}>{subjectChip(subjectId)}</Fragment>
-                                                                                ))}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td>
-                                                                <StatusCell teacher={row} />
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                            </tr>
+                                                        );
+                                                    },
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                                <nav className="sis-admission-drafts-pagination" aria-label={i18n.common.page}>
-                                    <ul className="sis-admission-pagination" dir="ltr">
+                                <nav
+                                    className="sis-admission-drafts-pagination"
+                                    aria-label={i18n.common.page}
+                                >
+                                    <ul
+                                        className="sis-admission-pagination"
+                                        dir="ltr"
+                                    >
                                         <li className="sis-admission-pagination__item">
                                             <button
                                                 type="button"
                                                 className="sis-admission-pagination__link"
-                                                aria-label={i18n.common.previous}
+                                                aria-label={
+                                                    i18n.common.previous
+                                                }
                                                 disabled={currentPage <= 1}
-                                                onClick={() => setPageNumber(currentPage - 1)}
+                                                onClick={() =>
+                                                    setPageNumber(
+                                                        currentPage - 1,
+                                                    )
+                                                }
                                             >
-                                                <span aria-hidden="true">&laquo;</span>
+                                                <span aria-hidden="true">
+                                                    &laquo;
+                                                </span>
                                             </button>
                                         </li>
-                                        {visiblePages(currentPage, lastPage).map((pageNum) => (
-                                            <li key={pageNum} className="sis-admission-pagination__item">
+                                        {visiblePages(
+                                            currentPage,
+                                            lastPage,
+                                        ).map((pageNum) => (
+                                            <li
+                                                key={pageNum}
+                                                className="sis-admission-pagination__item"
+                                            >
                                                 <button
                                                     type="button"
                                                     className={
@@ -1099,8 +1876,14 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                                             : 'sis-admission-pagination__link'
                                                     }
                                                     aria-label={`${i18n.common.page} ${pageNum}`}
-                                                    aria-current={pageNum === currentPage ? 'page' : undefined}
-                                                    onClick={() => setPageNumber(pageNum)}
+                                                    aria-current={
+                                                        pageNum === currentPage
+                                                            ? 'page'
+                                                            : undefined
+                                                    }
+                                                    onClick={() =>
+                                                        setPageNumber(pageNum)
+                                                    }
                                                 >
                                                     {pageNum}
                                                 </button>
@@ -1111,10 +1894,18 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                                 type="button"
                                                 className="sis-admission-pagination__link"
                                                 aria-label={i18n.common.next}
-                                                disabled={currentPage >= lastPage}
-                                                onClick={() => setPageNumber(currentPage + 1)}
+                                                disabled={
+                                                    currentPage >= lastPage
+                                                }
+                                                onClick={() =>
+                                                    setPageNumber(
+                                                        currentPage + 1,
+                                                    )
+                                                }
                                             >
-                                                <span aria-hidden="true">&raquo;</span>
+                                                <span aria-hidden="true">
+                                                    &raquo;
+                                                </span>
                                             </button>
                                         </li>
                                     </ul>
@@ -1128,19 +1919,50 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             {/* Teacher sheet: add / view / edit (school + teaching details only — contact data belongs to HR). */}
             {sheet !== null ? (
                 <RegistrySheetDialog
-                    title={sheet.id === null ? tc.addTeacher : sheet.viewOnly ? tc.viewTeacher : tc.editTeacher}
+                    title={
+                        sheet.id === null
+                            ? tc.addTeacher
+                            : sheet.viewOnly
+                              ? tc.viewTeacher
+                              : tc.editTeacher
+                    }
                     className="sis-branches-sheet sis-teachers-sheet"
                     onClose={() => setSheet(null)}
                 >
                     <SheetSection id="teacher-identity" title={tc.tripleName}>
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                            <RegistryTextField label={tc.firstName} editing={sheetEditing} required value={sheet.form.first_name} onChange={setSheetField('first_name')} />
-                            <RegistryTextField label={tc.fatherName} editing={sheetEditing} value={sheet.form.father_name} onChange={setSheetField('father_name')} />
-                            <RegistryTextField label={tc.grandfatherName} editing={sheetEditing} value={sheet.form.grandfather_name} onChange={setSheetField('grandfather_name')} />
-                            <RegistryTextField label={tc.familyName} editing={sheetEditing} required value={sheet.form.last_name} onChange={setSheetField('last_name')} />
+                            <RegistryTextField
+                                label={tc.firstName}
+                                editing={sheetEditing}
+                                required
+                                value={sheet.form.first_name}
+                                onChange={setSheetField('first_name')}
+                            />
+                            <RegistryTextField
+                                label={tc.fatherName}
+                                editing={sheetEditing}
+                                value={sheet.form.father_name}
+                                onChange={setSheetField('father_name')}
+                            />
+                            <RegistryTextField
+                                label={tc.grandfatherName}
+                                editing={sheetEditing}
+                                value={sheet.form.grandfather_name}
+                                onChange={setSheetField('grandfather_name')}
+                            />
+                            <RegistryTextField
+                                label={tc.familyName}
+                                editing={sheetEditing}
+                                required
+                                value={sheet.form.last_name}
+                                onChange={setSheetField('last_name')}
+                            />
                         </div>
                     </SheetSection>
-                    <SheetSection id="teacher-school" title={tc.employmentGroup}>
+                    <SheetSection
+                        id="teacher-school"
+                        title={tc.employmentGroup}
+                    >
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                             <RegistryTextField
                                 label={tc.employeeCode}
@@ -1160,16 +1982,41 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                 label={tc.academicTitle}
                                 editing={sheetEditing}
                                 value={sheet.form.academic_title_id}
-                                display={academicTitles.find((x) => String(x.id) === sheet.form.academic_title_id)?.name ?? tc.noAcademicTitle}
-                                options={[{ value: '', label: tc.noAcademicTitle }, ...academicTitles.map((x) => ({ value: String(x.id), label: x.abbreviation ? `${x.name} (${x.abbreviation})` : x.name }))]}
+                                display={
+                                    academicTitles.find(
+                                        (x) =>
+                                            String(x.id) ===
+                                            sheet.form.academic_title_id,
+                                    )?.name ?? tc.noAcademicTitle
+                                }
+                                options={[
+                                    { value: '', label: tc.noAcademicTitle },
+                                    ...academicTitles.map((x) => ({
+                                        value: String(x.id),
+                                        label: x.abbreviation
+                                            ? `${x.name} (${x.abbreviation})`
+                                            : x.name,
+                                    })),
+                                ]}
                                 onChange={setSheetField('academic_title_id')}
                             />
-                            <RegistryTextField label={tc.abbreviation} editing={sheetEditing} value={sheet.form.abbreviation} onChange={setSheetField('abbreviation')} />
+                            <RegistryTextField
+                                label={tc.abbreviation}
+                                editing={sheetEditing}
+                                value={sheet.form.abbreviation}
+                                onChange={setSheetField('abbreviation')}
+                            />
                             <RegistryListField
                                 label={tc.employmentType}
                                 editing={sheetEditing}
                                 value={sheet.form.employment_type}
-                                display={sheet.form.employment_type === '' ? tc.noEmploymentType : tc.employmentTypes[Number(sheet.form.employment_type)]}
+                                display={
+                                    sheet.form.employment_type === ''
+                                        ? tc.noEmploymentType
+                                        : tc.employmentTypes[
+                                              Number(sheet.form.employment_type)
+                                          ]
+                                }
                                 options={employmentOptions}
                                 onChange={setSheetField('employment_type')}
                             />
@@ -1177,25 +2024,71 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                 label={tc.statusColumn}
                                 editing={sheetEditing && sheet.id !== null}
                                 value={sheet.form.status}
-                                display={sheet.form.status === String(ACTIVE) ? tc.statusActive : tc.statusInactive}
+                                display={
+                                    sheet.form.status === String(ACTIVE)
+                                        ? tc.statusActive
+                                        : tc.statusInactive
+                                }
                                 options={statusOptions}
                                 onChange={setSheetField('status')}
                             />
-                            <RegistryTextField label={tc.hireDate} editing={sheetEditing} type="date" dir="ltr" value={sheet.form.hire_date} onChange={setSheetField('hire_date')} />
+                            <RegistryTextField
+                                label={tc.hireDate}
+                                editing={sheetEditing}
+                                type="date"
+                                dir="ltr"
+                                value={sheet.form.hire_date}
+                                onChange={setSheetField('hire_date')}
+                            />
                         </div>
                     </SheetSection>
                     {sheet.id !== null ? (
-                        <SheetSection id="teacher-workload" title={tc.workloadGroup}>
+                        <SheetSection
+                            id="teacher-workload"
+                            title={tc.workloadGroup}
+                        >
                             <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                                <RegistryTextField label={tc.weeklyMax} editing={sheetEditing} type="number" dir="ltr" value={sheet.form.weekly_lessons_max} onChange={setSheetField('weekly_lessons_max')} />
-                                <RegistryTextField label={tc.weeklyMin} editing={sheetEditing} type="number" dir="ltr" value={sheet.form.weekly_lessons_min} onChange={setSheetField('weekly_lessons_min')} />
-                                <RegistryTextField label={tc.dailyMax} editing={sheetEditing} type="number" dir="ltr" value={sheet.form.daily_lessons_max} onChange={setSheetField('daily_lessons_max')} />
+                                <RegistryTextField
+                                    label={tc.weeklyMax}
+                                    editing={sheetEditing}
+                                    type="number"
+                                    dir="ltr"
+                                    value={sheet.form.weekly_lessons_max}
+                                    onChange={setSheetField(
+                                        'weekly_lessons_max',
+                                    )}
+                                />
+                                <RegistryTextField
+                                    label={tc.weeklyMin}
+                                    editing={sheetEditing}
+                                    type="number"
+                                    dir="ltr"
+                                    value={sheet.form.weekly_lessons_min}
+                                    onChange={setSheetField(
+                                        'weekly_lessons_min',
+                                    )}
+                                />
+                                <RegistryTextField
+                                    label={tc.dailyMax}
+                                    editing={sheetEditing}
+                                    type="number"
+                                    dir="ltr"
+                                    value={sheet.form.daily_lessons_max}
+                                    onChange={setSheetField(
+                                        'daily_lessons_max',
+                                    )}
+                                />
                             </div>
-                            <p className="sis-admission-sheet__hint text-muted-foreground mt-2 text-xs">{tc.workloadHint}</p>
+                            <p className="sis-admission-sheet__hint text-muted-foreground mt-2 text-xs">
+                                {tc.workloadHint}
+                            </p>
                         </SheetSection>
                     ) : null}
                     {sheetTeacher !== null ? (
-                        <SheetSection id="teacher-subjects" title={tc.subjectsColumn}>
+                        <SheetSection
+                            id="teacher-subjects"
+                            title={tc.subjectsColumn}
+                        >
                             <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                                 <div className="sis-admission-sheet__field sis-branches-field--wide">
                                     <span className="sis-admission-sheet__label">{`${tc.subjectsColumn} (${sheetSubjectIds.length})`}</span>
@@ -1204,24 +2097,39 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                             <span className="sis-teachers-sheet-subjects__chips">
                                                 {sheetSubjectIds.length === 0
                                                     ? tc.noSubjects
-                                                    : sheetSubjectIds.map((subjectId) => (
-                                                          <SubjectChip
-                                                              key={subjectId}
-                                                              tone={subjectTone.get(subjectId)}
-                                                              name={
-                                                                  subjectsById.get(subjectId)?.name
-                                                                  ?? sheetTeacher.assignments.find((a) => a.subject_id === subjectId)?.subject_name
-                                                                  ?? `#${subjectId}`
-                                                              }
-                                                          />
-                                                      ))}
-                                                </span>
+                                                    : sheetSubjectIds.map(
+                                                          (subjectId) => (
+                                                              <SubjectChip
+                                                                  key={
+                                                                      subjectId
+                                                                  }
+                                                                  tone={subjectTone.get(
+                                                                      subjectId,
+                                                                  )}
+                                                                  name={
+                                                                      subjectsById.get(
+                                                                          subjectId,
+                                                                      )?.name ??
+                                                                      sheetTeacher.assignments.find(
+                                                                          (a) =>
+                                                                              a.subject_id ===
+                                                                              subjectId,
+                                                                      )
+                                                                          ?.subject_name ??
+                                                                      `#${subjectId}`
+                                                                  }
+                                                              />
+                                                          ),
+                                                      )}
+                                            </span>
                                         </div>
                                         <Button
                                             type="button"
                                             className="sis-teachers-sheet-subjects__open"
                                             disabled={yearId === null}
-                                            onClick={() => openTeaching(sheetTeacher)}
+                                            onClick={() =>
+                                                openTeaching(sheetTeacher)
+                                            }
                                         >
                                             <BookOpen aria-hidden />
                                             {tc.teachingTitle}
@@ -1238,29 +2146,62 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                                     type="button"
                                     variant="outline"
                                     disabled={saving || prevTeacher === null}
-                                    onClick={() => prevTeacher && showSheetTeacher(prevTeacher, sheet.viewOnly)}
+                                    onClick={() =>
+                                        prevTeacher &&
+                                        showSheetTeacher(
+                                            prevTeacher,
+                                            sheet.viewOnly,
+                                        )
+                                    }
                                 >
                                     {tc.previousTeacher}
                                 </Button>
-                                <span className="sis-teachers-sheet__counter" dir="ltr">
-                                    {sheet.queue.indexOf(sheet.id) + 1} / {sheet.queue.length}
+                                <span
+                                    className="sis-teachers-sheet__counter"
+                                    dir="ltr"
+                                >
+                                    {sheet.queue.indexOf(sheet.id) + 1} /{' '}
+                                    {sheet.queue.length}
                                 </span>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     disabled={saving || nextTeacher === null}
-                                    onClick={() => nextTeacher && showSheetTeacher(nextTeacher, sheet.viewOnly)}
+                                    onClick={() =>
+                                        nextTeacher &&
+                                        showSheetTeacher(
+                                            nextTeacher,
+                                            sheet.viewOnly,
+                                        )
+                                    }
                                 >
                                     {tc.nextTeacher}
                                 </Button>
                             </span>
                         ) : null}
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setSheet(null)}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={saving}
+                            onClick={() => setSheet(null)}
+                        >
                             {tc.cancel}
                         </Button>
                         {sheet.viewOnly ? (
                             canManage ? (
-                                <Button type="button" onClick={() => setSheet((current) => (current === null ? current : { ...current, viewOnly: false }))}>
+                                <Button
+                                    type="button"
+                                    onClick={() =>
+                                        setSheet((current) =>
+                                            current === null
+                                                ? current
+                                                : {
+                                                      ...current,
+                                                      viewOnly: false,
+                                                  },
+                                        )
+                                    }
+                                >
                                     {i18n.common.edit}
                                 </Button>
                             ) : null
@@ -1268,14 +2209,19 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                             <Button
                                 type="button"
                                 disabled={
-                                    saving
-                                    || sheet.form.first_name.trim() === ''
-                                    || sheet.form.last_name.trim() === ''
-                                    || (sheet.id === null && sheet.form.employee_code.trim() === '')
+                                    saving ||
+                                    sheet.form.first_name.trim() === '' ||
+                                    sheet.form.last_name.trim() === '' ||
+                                    (sheet.id === null &&
+                                        sheet.form.employee_code.trim() === '')
                                 }
                                 onClick={saveSheet}
                             >
-                                {saving ? i18n.common.saving : sheet.id === null ? tc.add : tc.saveChanges}
+                                {saving
+                                    ? i18n.common.saving
+                                    : sheet.id === null
+                                      ? tc.add
+                                      : tc.saveChanges}
                             </Button>
                         )}
                     </div>
@@ -1284,97 +2230,210 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
 
             {/* Teaching sheet: where the teacher teaches each subject. */}
             {teachingTeacher !== null ? (
-                <RegistrySheetDialog title={`${tc.teachingTitle}: ${teachingTeacher.full_name}`} className="sis-branches-sheet sis-teachers-sheet" onClose={() => setTeachingFor(null)}>
-                    <SheetSection id="teacher-teaching-list" title={`${tc.teaching} (${teachingTeacher.assignments.length})`}>
+                <RegistrySheetDialog
+                    title={`${tc.teachingTitle}: ${teachingTeacher.full_name}`}
+                    className="sis-branches-sheet sis-teachers-sheet"
+                    onClose={() => setTeachingFor(null)}
+                >
+                    <SheetSection
+                        id="teacher-teaching-list"
+                        title={`${tc.teaching} (${teachingTeacher.assignments.length})`}
+                    >
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                             {teachingTeacher.assignments.length === 0 ? (
-                                <p className="sis-branches-empty sis-branches-field--wide">{tc.noTeaching}</p>
+                                <p className="sis-branches-empty sis-branches-field--wide">
+                                    {tc.noTeaching}
+                                </p>
                             ) : (
                                 <ul className="sis-branches-checklist sis-branches-field--wide">
-                                    {teachingTeacher.assignments.map((assignment) => (
-                                        <li key={assignment.id}>
-                                            <span className="sis-branches-checklist__item">
-                                                <GraduationCap aria-hidden className="sis-branches-table__icon" />
-                                                <span className="sis-branches-checklist__text">
-                                                    <span className="sis-branches-checklist__name">{assignment.subject_name}</span>
-                                                    <span className="sis-branches-checklist__desc">{placeOf(assignment)}</span>
+                                    {teachingTeacher.assignments.map(
+                                        (assignment) => (
+                                            <li key={assignment.id}>
+                                                <span className="sis-branches-checklist__item">
+                                                    <GraduationCap
+                                                        aria-hidden
+                                                        className="sis-branches-table__icon"
+                                                    />
+                                                    <span className="sis-branches-checklist__text">
+                                                        <span className="sis-branches-checklist__name">
+                                                            {
+                                                                assignment.subject_name
+                                                            }
+                                                        </span>
+                                                        <span className="sis-branches-checklist__desc">
+                                                            {placeOf(
+                                                                assignment,
+                                                            )}
+                                                        </span>
+                                                    </span>
+                                                    {canManage ? (
+                                                        <button
+                                                            type="button"
+                                                            className="sis-branches-icon-btn sis-branches-icon-btn--plain"
+                                                            title={
+                                                                tc.endTeaching
+                                                            }
+                                                            aria-label={`${tc.endTeaching}: ${assignment.subject_name}`}
+                                                            onClick={() =>
+                                                                setEndTarget(
+                                                                    assignment,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2
+                                                                aria-hidden
+                                                            />
+                                                        </button>
+                                                    ) : null}
                                                 </span>
-                                                {canManage ? (
-                                                    <button
-                                                        type="button"
-                                                        className="sis-branches-icon-btn sis-branches-icon-btn--plain"
-                                                        title={tc.endTeaching}
-                                                        aria-label={`${tc.endTeaching}: ${assignment.subject_name}`}
-                                                        onClick={() => setEndTarget(assignment)}
-                                                    >
-                                                        <Trash2 aria-hidden />
-                                                    </button>
-                                                ) : null}
-                                            </span>
-                                        </li>
-                                    ))}
+                                            </li>
+                                        ),
+                                    )}
                                 </ul>
                             )}
                         </div>
                     </SheetSection>
                     {canManage ? (
-                        <SheetSection id="teacher-teaching-add" title={tc.addTeaching}>
+                        <SheetSection
+                            id="teacher-teaching-add"
+                            title={tc.addTeaching}
+                        >
                             <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                                <p className="sis-branches-checklist__desc sis-branches-field--wide">{tc.teachingHint}</p>
+                                <p className="sis-branches-checklist__desc sis-branches-field--wide">
+                                    {tc.teachingHint}
+                                </p>
                                 <RegistryListField
                                     label={tc.branch}
                                     editing
                                     required
                                     value={teachingForm.branch_id}
                                     display={teachingBranch?.name ?? '—'}
-                                    options={branches.map((branch) => ({ value: String(branch.id), label: branch.name }))}
-                                    onChange={(branch_id) => setTeachingForm({ ...EMPTY_TEACHING, branch_id, class_id: teachingForm.class_id })}
+                                    options={branches.map((branch) => ({
+                                        value: String(branch.id),
+                                        label: branch.name,
+                                    }))}
+                                    onChange={(branch_id) =>
+                                        setTeachingForm({
+                                            ...EMPTY_TEACHING,
+                                            branch_id,
+                                            class_id: teachingForm.class_id,
+                                        })
+                                    }
                                 />
                                 <RegistryListField
                                     label={tc.department}
                                     editing
                                     value={teachingForm.department_id}
-                                    display={teachingBranch?.departments.find((d) => String(d.id) === teachingForm.department_id)?.name ?? tc.allDepartments}
+                                    display={
+                                        teachingBranch?.departments.find(
+                                            (d) =>
+                                                String(d.id) ===
+                                                teachingForm.department_id,
+                                        )?.name ?? tc.allDepartments
+                                    }
                                     options={[
                                         { value: '', label: tc.allDepartments },
-                                        ...(teachingBranch?.departments ?? []).map((d) => ({ value: String(d.id), label: d.name })),
+                                        ...(
+                                            teachingBranch?.departments ?? []
+                                        ).map((d) => ({
+                                            value: String(d.id),
+                                            label: d.name,
+                                        })),
                                     ]}
-                                    onChange={(department_id) => setTeachingForm((current) => ({ ...current, department_id, subject_id: '' }))}
+                                    onChange={(department_id) =>
+                                        setTeachingForm((current) => ({
+                                            ...current,
+                                            department_id,
+                                            subject_id: '',
+                                        }))
+                                    }
                                 />
                                 <RegistryListField
                                     label={tc.subject}
                                     editing
                                     required
                                     value={teachingForm.subject_id}
-                                    display={subjectsById.get(Number(teachingForm.subject_id))?.name ?? '—'}
-                                    options={pickableSubjectIds.map((id) => ({ value: String(id), label: subjectsById.get(id)?.name ?? `#${id}` }))}
-                                    onChange={(subject_id) => setTeachingForm((current) => ({ ...current, subject_id }))}
+                                    display={
+                                        subjectsById.get(
+                                            Number(teachingForm.subject_id),
+                                        )?.name ?? '—'
+                                    }
+                                    options={pickableSubjectIds.map((id) => ({
+                                        value: String(id),
+                                        label:
+                                            subjectsById.get(id)?.name ??
+                                            `#${id}`,
+                                    }))}
+                                    onChange={(subject_id) =>
+                                        setTeachingForm((current) => ({
+                                            ...current,
+                                            subject_id,
+                                        }))
+                                    }
                                 />
                                 <RegistryListField
                                     label={tc.class}
                                     editing
                                     value={teachingForm.class_id}
-                                    display={teachingClass?.name ?? tc.allClasses}
-                                    options={[{ value: '', label: tc.allClasses }, ...classes.map((item) => ({ value: String(item.id), label: item.name }))]}
-                                    onChange={(class_id) => setTeachingForm((current) => ({ ...current, class_id }))}
+                                    display={
+                                        teachingClass?.name ?? tc.allClasses
+                                    }
+                                    options={[
+                                        { value: '', label: tc.allClasses },
+                                        ...classes.map((item) => ({
+                                            value: String(item.id),
+                                            label: item.name,
+                                        })),
+                                    ]}
+                                    onChange={(class_id) =>
+                                        setTeachingForm((current) => ({
+                                            ...current,
+                                            class_id,
+                                        }))
+                                    }
                                 />
                                 <RegistryListField
                                     label={tc.section}
                                     editing
                                     value={teachingForm.section_code}
-                                    display={teachingForm.section_code === '' ? tc.allSections : teachingForm.section_code}
-                                    options={[{ value: '', label: tc.allSections }, ...sisSectionSelectOptions()]}
-                                    onChange={(section_code) => setTeachingForm((current) => ({ ...current, section_code }))}
+                                    display={
+                                        teachingForm.section_code === ''
+                                            ? tc.allSections
+                                            : teachingForm.section_code
+                                    }
+                                    options={[
+                                        { value: '', label: tc.allSections },
+                                        ...sisSectionSelectOptions(),
+                                    ]}
+                                    onChange={(section_code) =>
+                                        setTeachingForm((current) => ({
+                                            ...current,
+                                            section_code,
+                                        }))
+                                    }
                                 />
                             </div>
                         </SheetSection>
                     ) : null}
                     <div className="sis-admission-sheet__actions">
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setTeachingFor(null)}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={saving}
+                            onClick={() => setTeachingFor(null)}
+                        >
                             {i18n.branchStructure.close}
                         </Button>
                         {canManage ? (
-                            <Button type="button" disabled={saving || teachingForm.branch_id === '' || teachingForm.subject_id === ''} onClick={addTeaching}>
+                            <Button
+                                type="button"
+                                disabled={
+                                    saving ||
+                                    teachingForm.branch_id === '' ||
+                                    teachingForm.subject_id === ''
+                                }
+                                onClick={addTeaching}
+                            >
                                 {saving ? i18n.common.saving : tc.addTeaching}
                             </Button>
                         ) : null}
@@ -1386,7 +2445,10 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 <AppearanceDialog
                     title={i18n.appearance.edit}
                     entityName={appearanceTeacher.full_name}
-                    initial={{ abbreviation: appearanceTeacher.abbreviation ?? '', color_hue: appearanceTeacher.color_hue ?? null }}
+                    initial={{
+                        abbreviation: appearanceTeacher.abbreviation ?? '',
+                        color_hue: appearanceTeacher.color_hue ?? null,
+                    }}
                     suggested={appearanceTeacher.first_name}
                     url={`/teachers/${appearanceTeacher.id}/appearance`}
                     reloadProps={RELOAD_PROPS}
@@ -1401,7 +2463,13 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
                 confirmLabel={tc.setInactive}
                 tone="danger"
                 confirmPending={saving}
-                onConfirm={() => void bulk('/teachers/bulk-status', { teacher_status: INACTIVE }, () => setConfirmDeactivate(false))}
+                onConfirm={() =>
+                    void bulk(
+                        '/teachers/bulk-status',
+                        { teacher_status: INACTIVE },
+                        () => setConfirmDeactivate(false),
+                    )
+                }
                 onOpenChange={(open) => {
                     if (!open && !saving) {
                         setConfirmDeactivate(false);
@@ -1411,7 +2479,11 @@ function TeachersPage({ teachers, total, subjects, branches, classes, curriculum
             <ConfirmDialog
                 open={endTarget !== null}
                 title={tc.endTeaching}
-                description={endTarget === null ? '' : `${endTarget.subject_name} — ${placeOf(endTarget)}. ${tc.endTeachingConfirm}`}
+                description={
+                    endTarget === null
+                        ? ''
+                        : `${endTarget.subject_name} — ${placeOf(endTarget)}. ${tc.endTeachingConfirm}`
+                }
                 confirmLabel={tc.endTeaching}
                 tone="danger"
                 onConfirm={endTeaching}

@@ -23,6 +23,7 @@ use App\Http\Requests\Attendance\IssueStaffCheckinCodeRequest;
 use App\Http\Requests\Attendance\LinkTeacherAccountRequest;
 use App\Http\Requests\Attendance\RecordStaffAttendanceRequest;
 use App\Http\Requests\Attendance\StaffCheckInRequest;
+use App\Http\Support\AttendanceFilterInput;
 use App\Http\Support\AttendanceRequestContext;
 use App\Infrastructure\Persistence\Eloquent\AttendanceSessionRecord;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -47,7 +48,7 @@ final class StaffAttendanceController extends Controller
         $abilities = $this->context->abilities($request);
         $actor = $this->context->actor($request, $yearId);
         $day = $handler->handle(new GetStaffAttendanceDayQuery(
-            $this->context->schoolId(), $yearId, $request->query('date'), $actor->teacherId, $abilities['record_staff'],
+            $this->context->schoolId(), $yearId, AttendanceFilterInput::date($request, 'date'), $actor->teacherId, $abilities['record_staff'],
         ));
         $policy = $policies->handle(new GetAttendancePolicyQuery($this->context->schoolId(), $yearId))->toArray()['policy'];
         $code = $request->query('code');
@@ -59,7 +60,7 @@ final class StaffAttendanceController extends Controller
             'evidence' => ['qr_enabled' => (bool) $policy['qr_enabled'], 'nfc_enabled' => (bool) $policy['nfc_enabled']],
             // Scanned QR: the code arrives in the URL and pre-fills the check-in window (it still has to be submitted).
             'prefill' => is_string($code) && preg_match('/^\d{4,10}$/', $code) === 1 ? ['code' => $code, 'via' => $request->query('via') === 'qr' ? 'qr' : 'code'] : null,
-            'abilities' => $abilities + ['link_account' => $request->user()?->can('linkTeacherAccount', AttendanceSessionRecord::class) ?? false],
+            'abilities' => $abilities,
         ]);
     }
 

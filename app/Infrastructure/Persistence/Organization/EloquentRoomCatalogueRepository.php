@@ -22,6 +22,9 @@ final class EloquentRoomCatalogueRepository implements RoomCatalogueRepositoryIn
         'floor' => 'r.floor',
         'branch' => 'b.name',
         'status' => 'r.status',
+        'practical' => 'r.supports_practical',
+        // Output column of the page query (the active-schedules count).
+        'weekly_lessons' => 'weekly_lessons',
     ];
 
     public function page(int $schoolId, array $filters, string $sort, string $direction, int $page, int $perPage): array

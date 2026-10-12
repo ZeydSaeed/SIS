@@ -9,7 +9,9 @@ use App\Domain\Enrollment\Exceptions\EnrollmentStructureNotFoundException;
 use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStatus;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStructureStatus;
+use App\Domain\Enrollment\ValueObjects\SectionLetter;
 use App\Domain\Shared\ValueObjects\DisplayAppearance;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentEnrollmentStructureRepository implements EnrollmentStructureRepositoryInterface
@@ -279,11 +281,13 @@ final class EloquentEnrollmentStructureRepository implements EnrollmentStructure
     {
         $this->requireClassInSchool($schoolId, $classId, activeOnly: false);
         $table = SchemaHelper::qualified('enrollment', 'sections');
-        $code = $this->nextCode(
-            'enrollment.sections:'.$classId,
-            'SEC',
-            fn (): array => DB::table($table)->where('class_id', $classId)->pluck('code')->all(),
-        );
+        // The code follows the letter (SEC-A …) — one source of truth with the name; numbered only for legacy names.
+        $existing = fn (): array => DB::table($table)->where('class_id', $classId)->pluck('code')->all();
+        $code = $this->nextCode('enrollment.sections:'.$classId, 'SEC', $existing);
+        $letter = SectionLetter::normalize($name);
+        if ($letter !== null && ! in_array(SectionLetter::code($letter), $existing(), true)) {
+            $code = SectionLetter::code($letter);
+        }
 
         return (int) DB::table($table)->insertGetId([
             'class_id' => $classId,
@@ -301,9 +305,15 @@ final class EloquentEnrollmentStructureRepository implements EnrollmentStructure
     {
         $this->requireSectionInSchool($schoolId, $sectionId, activeOnly: false);
 
-        DB::table(SchemaHelper::qualified('enrollment', 'sections'))
+        $table = SchemaHelper::qualified('enrollment', 'sections');
+        $letter = SectionLetter::normalize($name);
+        $classId = (int) DB::table($table)->where('id', $sectionId)->value('class_id');
+        $codeFree = $letter !== null
+            && ! DB::table($table)->where('class_id', $classId)->where('code', SectionLetter::code($letter))->where('id', '!=', $sectionId)->exists();
+
+        DB::table($table)
             ->where('id', $sectionId)
-            ->update([
+            ->update(($codeFree ? ['code' => SectionLetter::code((string) $letter)] : []) + [
                 'name' => trim($name),
                 'capacity' => $capacity,
                 'homeroom_teacher_id' => $homeroomTeacherId,
@@ -405,7 +415,7 @@ final class EloquentEnrollmentStructureRepository implements EnrollmentStructure
     }
 
     /** Active = status ACTIVE and still open (partial unique index enrollments_student_year_active_unique). */
-    private function activeEnrollments(int $schoolId): \Illuminate\Database\Query\Builder
+    private function activeEnrollments(int $schoolId): Builder
     {
         return DB::table(SchemaHelper::qualified('enrollment', 'enrollments'))
             ->where('school_id', $schoolId)

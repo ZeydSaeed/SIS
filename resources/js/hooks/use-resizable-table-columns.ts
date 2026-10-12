@@ -11,6 +11,8 @@ type Options = {
     minWidth?: number;
     /** Set false while the table is unmounted (e.g. empty state). */
     enabled?: boolean;
+    /** Initial widths when none are saved (default: the rendered widths). */
+    measure?: (cells: HTMLTableCellElement[]) => number[];
 };
 
 function isRtl(element: Element): boolean {
@@ -25,19 +27,28 @@ function readStored(storageKey: string, signature: string): number[] | null {
             return null;
         }
 
-        const parsed = JSON.parse(raw) as { signature?: string; widths?: number[] };
+        const parsed = JSON.parse(raw) as {
+            signature?: string;
+            widths?: number[];
+        };
 
         if (parsed.signature !== signature || !Array.isArray(parsed.widths)) {
             return null;
         }
 
-        return parsed.widths.filter((value) => typeof value === 'number' && value > 0);
+        return parsed.widths.filter(
+            (value) => typeof value === 'number' && value > 0,
+        );
     } catch {
         return null;
     }
 }
 
-function writeStored(storageKey: string, signature: string, widths: number[]): void {
+function writeStored(
+    storageKey: string,
+    signature: string,
+    widths: number[],
+): void {
     try {
         window.localStorage.setItem(
             STORAGE_PREFIX + storageKey,
@@ -59,7 +70,12 @@ function headerCells(table: HTMLTableElement): HTMLTableCellElement[] {
 }
 
 function measureWidths(cells: HTMLTableCellElement[]): number[] {
-    return cells.map((cell) => Math.max(DEFAULT_MIN_WIDTH, Math.round(cell.getBoundingClientRect().width)));
+    return cells.map((cell) =>
+        Math.max(
+            DEFAULT_MIN_WIDTH,
+            Math.round(cell.getBoundingClientRect().width),
+        ),
+    );
 }
 
 function applyWidths(table: HTMLTableElement, widths: number[]): void {
@@ -129,6 +145,7 @@ export function useResizableTableColumns(
         columnSignature = 'default',
         minWidth = DEFAULT_MIN_WIDTH,
         enabled = true,
+        measure = measureWidths,
     }: Options,
 ): void {
     useLayoutEffect(() => {
@@ -144,9 +161,9 @@ export function useResizableTableColumns(
 
         table.classList.add('sis-table--cols-resizable');
         const scroller =
-            table.closest('.sis-admission-drafts-table__scroller')
-            ?? table.closest('.sis-admission-periods-table__scroller')
-            ?? table.parentElement;
+            table.closest('.sis-admission-drafts-table__scroller') ??
+            table.closest('.sis-admission-periods-table__scroller') ??
+            table.parentElement;
 
         scroller?.classList.add('sis-table-scroller--resizable');
 
@@ -158,7 +175,7 @@ export function useResizableTableColumns(
         }
 
         if (widths === null || widths.length !== cells.length) {
-            widths = measureWidths(cells);
+            widths = measure(cells);
         }
 
         applyWidths(table, widths);
@@ -174,7 +191,10 @@ export function useResizableTableColumns(
             }
 
             const hit = findResizeCell(table, event.clientX);
-            table.classList.toggle('sis-table--cols-resize-hover', hit !== null);
+            table.classList.toggle(
+                'sis-table--cols-resize-hover',
+                hit !== null,
+            );
         };
 
         const onPointerDown = (event: PointerEvent): void => {
@@ -184,7 +204,10 @@ export function useResizableTableColumns(
 
             const target = event.target;
 
-            if (!(target instanceof Element) || !table.tHead?.contains(target)) {
+            if (
+                !(target instanceof Element) ||
+                !table.tHead?.contains(target)
+            ) {
                 return;
             }
 
@@ -198,7 +221,9 @@ export function useResizableTableColumns(
             event.stopPropagation();
             dragIndex = hit.index;
             dragStartX = event.clientX;
-            dragStartWidth = activeWidths[hit.index] ?? hit.cell.getBoundingClientRect().width;
+            dragStartWidth =
+                activeWidths[hit.index] ??
+                hit.cell.getBoundingClientRect().width;
             table.classList.add('sis-table--cols-resizing');
             document.body.classList.add('sis-table-col-resizing');
             hit.cell.setPointerCapture?.(event.pointerId);
@@ -212,7 +237,9 @@ export function useResizableTableColumns(
             }
 
             const rtl = isRtl(table);
-            const delta = rtl ? dragStartX - event.clientX : event.clientX - dragStartX;
+            const delta = rtl
+                ? dragStartX - event.clientX
+                : event.clientX - dragStartX;
             const next = Math.max(minWidth, Math.round(dragStartWidth + delta));
             activeWidths = activeWidths.map((width, index) =>
                 index === dragIndex ? next : width,
@@ -231,7 +258,9 @@ export function useResizableTableColumns(
             writeStored(storageKey, columnSignature, activeWidths);
 
             try {
-                (event.target as Element | null)?.releasePointerCapture?.(event.pointerId);
+                (event.target as Element | null)?.releasePointerCapture?.(
+                    event.pointerId,
+                );
             } catch {
                 // ignore
             }
@@ -240,7 +269,10 @@ export function useResizableTableColumns(
         const onDoubleClick = (event: MouseEvent): void => {
             const target = event.target;
 
-            if (!(target instanceof Element) || !table.tHead?.contains(target)) {
+            if (
+                !(target instanceof Element) ||
+                !table.tHead?.contains(target)
+            ) {
                 return;
             }
 
@@ -252,7 +284,7 @@ export function useResizableTableColumns(
 
             event.preventDefault();
             clearWidths(table);
-            activeWidths = measureWidths(headerCells(table));
+            activeWidths = measure(headerCells(table));
             applyWidths(table, activeWidths);
             writeStored(storageKey, columnSignature, activeWidths);
         };
@@ -277,5 +309,6 @@ export function useResizableTableColumns(
             document.body.classList.remove('sis-table-col-resizing');
             scroller?.classList.remove('sis-table-scroller--resizable');
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `measure` is a stable strategy per table
     }, [tableRef, storageKey, columnSignature, minWidth, enabled]);
 }

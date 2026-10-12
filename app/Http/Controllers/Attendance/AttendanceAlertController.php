@@ -6,10 +6,10 @@ use App\Application\Attendance\Commands\UpdateAttendanceAlertCommand;
 use App\Application\Attendance\Commands\UpdateAttendanceAlertHandler;
 use App\Application\Attendance\Queries\ListAttendanceAlertsHandler;
 use App\Application\Attendance\Queries\ListAttendanceAlertsQuery;
+use App\Domain\Attendance\Services\AttendanceAlertRules;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\DetectAttendanceAlertsRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceAlertRequest;
-use App\Domain\Attendance\Services\AttendanceAlertRules;
 use App\Http\Support\AttendanceFilterInput;
 use App\Http\Support\AttendanceRequestContext;
 use App\Infrastructure\Jobs\DetectAttendanceAlertsJob;
@@ -37,7 +37,7 @@ final class AttendanceAlertController extends Controller
         $filters = AttendanceFilterInput::from($request, ['severity'], [])
             + ['status' => AttendanceFilterInput::statuses($request, 'status', [1]), 'rule_code' => $rules];
         $page = max(1, (int) $request->query('page', 1));
-        $alerts = $handler->handle(new ListAttendanceAlertsQuery($this->context->schoolId(), $yearId, $filters, $page, (int) config('attendance.per_page.alerts', 25)));
+        $alerts = $handler->handle(new ListAttendanceAlertsQuery($this->context->schoolId(), $yearId, $filters, $page, AttendanceFilterInput::perPage($request, 'alerts', 25)));
 
         return Inertia::render('attendance/alerts', [
             'alerts' => $alerts->toArray(),

@@ -1,13 +1,28 @@
 import { router } from '@inertiajs/react';
-import { RotateCcw, Save } from 'lucide-react';
+import {
+    BellRing,
+    Clock3,
+    ClipboardPen,
+    Fingerprint,
+    RotateCcw,
+    UserCheck,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AttendancePage,
-    PageNotice,
+    AttendanceTable,
+    AttendanceWindow,
+    WindowFact,
+    WindowTimeField,
+    selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
+    useAttendanceMessages,
+    useAttendanceSelection,
+    useRowViewer,
     useYearFilterSpec,
     visitWith,
+    type AttendanceColumn,
 } from '@/components/attendance/attendance-chrome';
 import {
     newKey,
@@ -17,7 +32,6 @@ import {
     RegistryListField,
     RegistryTextField,
 } from '@/components/organization/registry-sheet';
-import { SheetSection } from '@/components/sis/admission-sheet';
 import { usePageError } from '@/components/sis/page-error-context';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
@@ -54,6 +68,10 @@ type Props = {
     abilities: AttendanceAbilities;
 };
 
+type Key = Exclude<keyof Policy, 'id' | 'version_no'>;
+type GroupKey = 'time' | 'marking' | 'alerts' | 'staff' | 'evidence';
+type Row = { id: number; key: Key; group: GroupKey };
+
 const TIMEZONES = [
     'Asia/Baghdad',
     'Asia/Riyadh',
@@ -67,9 +85,7 @@ const TIMEZONES = [
     'UTC',
 ];
 
-type GroupKey = 'time' | 'marking' | 'alerts' | 'staff' | 'evidence';
-
-const GROUPS: Record<GroupKey, Array<keyof Policy>> = {
+const GROUPS: Record<GroupKey, Key[]> = {
     time: [
         'timezone',
         'open_before_minutes',
@@ -98,12 +114,41 @@ const GROUPS: Record<GroupKey, Array<keyof Policy>> = {
     evidence: ['qr_enabled', 'nfc_enabled'],
 };
 
-const BOOLEANS = new Set<keyof Policy>([
+const GROUP_ICONS = {
+    time: Clock3,
+    marking: ClipboardPen,
+    alerts: BellRing,
+    staff: UserCheck,
+    evidence: Fingerprint,
+} as const;
+const GROUP_TONES = {
+    time: 'education',
+    marking: 'growth',
+    alerts: 'warning',
+    staff: 'forest',
+    evidence: 'authority',
+} as const;
+
+/** Group → status-cell tone (shared 0..5 palette). */
+const GROUP_STATUS_TONES: Record<GroupKey, number> = {
+    time: 3,
+    marking: 1,
+    alerts: 2,
+    staff: 5,
+    evidence: 0,
+};
+
+const BOOLEANS = new Set<Key>([
     'require_complete',
     'teacher_can_mark_excused',
     'qr_enabled',
     'nfc_enabled',
 ]);
+
+/** Every setting is one table row (grouped); «تحرير» edits the selected rows and saves a new policy version. */
+const ROWS: Row[] = (Object.keys(GROUPS) as GroupKey[])
+    .flatMap((group) => GROUPS[group].map((key) => ({ key, group })))
+    .map((row, i) => ({ ...row, id: i + 1 }));
 
 export default function AttendanceSettings(props: Props) {
     const a = t().attendanceSystem;
@@ -122,80 +167,228 @@ export default function AttendanceSettings(props: Props) {
 function SettingsPage({ settings, filters, abilities }: Props) {
     const a = t().attendanceSystem;
     const st = a.settings;
+    const c = a.chrome;
     const { showInertiaErrors } = usePageError();
-    const [form, setForm] = useState<Policy>(settings.policy);
-    const [busy, setBusy] = useState(false);
+    const policy = settings.policy;
     const editable = abilities.manage_policy;
-    const dirty = JSON.stringify(form) !== JSON.stringify(settings.policy);
-    const zones = TIMEZONES.includes(form.timezone)
-        ? TIMEZONES
-        : [form.timezone, ...TIMEZONES];
+    const [groupFilter, setGroupFilter] = useState<GroupKey[]>([]);
+    const [edit, setEdit] = useState<{ keys: Key[]; form: Policy } | null>(
+        null,
+    );
+    const [busy, setBusy] = useState(false);
+    const rows = useMemo(
+        () =>
+            ROWS.filter(
+                (r) =>
+                    groupFilter.length === 0 || groupFilter.includes(r.group),
+            ),
+        [groupFilter],
+    );
+    const selection = useAttendanceSelection(rows, (r) => r.id);
+    const groupLabel = (g: GroupKey) =>
+        (st.groups as Record<GroupKey, string>)[g];
+
+    const display = (key: Key, p: Policy): string => {
+        const value = p[key];
+        if (key === 'default_mark')
+            return st.defaultMarks[Number(value)] ?? String(value);
+        if (BOOLEANS.has(key)) return value ? st.yes : st.no;
+        if (value === null || value === '') return '—';
+
+        return String(value);
+    };
 
     const save = () => {
-        const { id: _id, version_no: _v, ...payload } = form;
+        if (edit === null) return;
+        const { id: _id, version_no: _v, ...payload } = edit.form;
         setBusy(true);
         router.post('/attendance/settings', payload, {
             preserveScroll: true,
             headers: { 'X-Idempotency-Key': newKey('policy') },
+            onSuccess: () => {
+                setEdit(null);
+            },
             onError: (errors) => showInertiaErrors(errors),
             onFinish: () => setBusy(false),
         });
     };
 
+    /** «فترة السماح للتأخير (دقائق)» → name «فترة السماح للتأخير» + unit «دقائق». */
+    const splitLabel = (key: Key): { name: string; unit: string } => {
+        const label = st.fields[key] ?? key;
+        const match = /^(.*?)\s*\(([^)]*)\)\s*$/.exec(label);
+
+        return match
+            ? { name: match[1], unit: match[2] }
+            : {
+                  name: label,
+                  unit: BOOLEANS.has(key)
+                      ? st.yesNo
+                      : key === 'staff_day_start'
+                        ? st.time
+                        : '—',
+              };
+    };
+    const columns: AttendanceColumn<Row>[] = [
+        {
+            id: 'group',
+            header: st.group,
+            kind: 'status',
+            tone: (r) => GROUP_STATUS_TONES[r.group],
+            cell: (r) => {
+                const Icon = GROUP_ICONS[r.group];
+
+                return (
+                    <span className="inline-flex items-center gap-1">
+                        <Icon className="size-3.5 shrink-0" aria-hidden />
+                        {groupLabel(r.group)}
+                    </span>
+                );
+            },
+            text: (r) => groupLabel(r.group),
+        },
+        {
+            id: 'setting',
+            header: st.setting,
+            kind: 'name',
+            cell: (r) => splitLabel(r.key).name,
+        },
+        {
+            id: 'value',
+            header: st.value,
+            kind: 'num',
+            cell: (r) => (
+                <span
+                    dir={
+                        r.key === 'timezone' ||
+                        r.key === 'staff_day_start' ||
+                        !BOOLEANS.has(r.key)
+                            ? 'ltr'
+                            : undefined
+                    }
+                >
+                    {display(r.key, policy)}
+                </span>
+            ),
+        },
+        {
+            id: 'unit',
+            header: st.unit,
+            kind: 'text',
+            cell: (r) => splitLabel(r.key).unit,
+        },
+    ];
+    const viewer = useRowViewer(columns, (r) => st.fields[r.key] ?? r.key);
+    const openEdit = (targets: Row[]) =>
+        setEdit({ keys: targets.map((r) => r.key), form: { ...policy } });
+
     const editGroups = useMemo(
-        (): PageRibbonGroup[] =>
-            editable
-                ? [
-                      {
-                          id: 'attendance-settings-actions',
-                          label: a.chrome.actions,
-                          commands: [
-                              {
-                                  id: 'attendance-settings-save',
-                                  label: st.save,
-                                  icon: Save,
-                                  iconTone: 'ok',
-                                  disabled: busy || !dirty,
-                                  onSelect: save,
-                              },
-                              {
-                                  id: 'attendance-settings-reset',
-                                  label: st.discard,
-                                  icon: RotateCcw,
-                                  iconTone: 'steel',
-                                  disabled: busy || !dirty,
-                                  onSelect: () => setForm(settings.policy),
-                              },
-                          ],
-                      },
-                  ]
-                : [],
+        (): PageRibbonGroup[] => [
+            selectionGroup(
+                'attendance-settings-selection',
+                selection.targets,
+                viewer.open,
+                editable ? openEdit : null,
+                { editTitle: editable ? undefined : st.readOnly },
+            ),
+            {
+                id: 'attendance-settings-actions',
+                label: c.actions,
+                commands: [
+                    {
+                        id: 'attendance-settings-edit-all',
+                        label: st.editAll,
+                        icon: ClipboardPen,
+                        iconTone: 'amber',
+                        disabled: !editable,
+                        title: editable ? st.editAll : st.readOnly,
+                        onSelect: () => openEdit(ROWS),
+                    },
+                    {
+                        id: 'attendance-settings-reload',
+                        label: st.reload,
+                        icon: RotateCcw,
+                        iconTone: 'steel',
+                        onSelect: () => router.reload(),
+                    },
+                ],
+            },
+            {
+                id: 'attendance-settings-groups',
+                label: st.groupsLabel,
+                commands: (Object.keys(GROUPS) as GroupKey[]).map((g) => ({
+                    id: `attendance-settings-group-${g}`,
+                    label: groupLabel(g),
+                    icon: GROUP_ICONS[g],
+                    iconTone: GROUP_TONES[g],
+                    count: GROUPS[g].length,
+                    pressed: groupFilter.includes(g),
+                    onSelect: () =>
+                        setGroupFilter((cur) =>
+                            cur.includes(g)
+                                ? cur.filter((x) => x !== g)
+                                : [...cur, g],
+                        ),
+                })),
+            },
+        ],
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [editable, busy, dirty, form, settings.policy],
+        [selection.targets, editable, groupFilter],
     );
     useAttendanceEditRibbon('settings', abilities, editGroups);
+
     const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
         visitWith('/attendance/settings', { academic_year_id: year }),
     );
-    useAttendanceHomeFilters([yearSpec], null, [
-        filters.academic_year_id,
-        yearSpec.options.length,
-    ]);
+    useAttendanceHomeFilters(
+        [
+            yearSpec,
+            {
+                key: 'group',
+                type: 'multi',
+                label: st.group,
+                allLabel: st.allGroups,
+                values: groupFilter,
+                options: (Object.keys(GROUPS) as GroupKey[]).map((g) => ({
+                    value: g,
+                    label: groupLabel(g),
+                })),
+                onChange: (values: string[]) =>
+                    setGroupFilter(values as GroupKey[]),
+            },
+        ],
+        groupFilter.length > 0 ? () => setGroupFilter([]) : null,
+        [filters.academic_year_id, groupFilter, yearSpec.options.length],
+    );
 
-    const field = (key: keyof Policy) => {
+    useAttendanceMessages(
+        [
+            ...(settings.is_default
+                ? [{ key: 'default', text: st.isDefault }]
+                : []),
+            ...(!editable ? [{ key: 'read-only', text: st.readOnly }] : []),
+        ],
+        st.title,
+    );
+
+    /** One field of the edit window (the control matches the setting's type). */
+    const field = (key: Key, form: Policy, set: (form: Policy) => void) => {
         const label = st.fields[key] ?? key;
-        const value = form[key];
         if (key === 'timezone') {
+            const zones = TIMEZONES.includes(form.timezone)
+                ? TIMEZONES
+                : [form.timezone, ...TIMEZONES];
+
             return (
                 <RegistryListField
                     key={key}
                     label={label}
-                    editing={editable}
+                    editing
                     required
                     value={form.timezone}
                     display={form.timezone}
                     options={zones.map((z) => ({ value: z, label: z }))}
-                    onChange={(timezone) => setForm({ ...form, timezone })}
+                    onChange={(timezone) => set({ ...form, timezone })}
                 />
             );
         }
@@ -204,18 +397,15 @@ function SettingsPage({ settings, filters, abilities }: Props) {
                 <RegistryListField
                     key={key}
                     label={label}
-                    editing={editable}
+                    editing
                     required
-                    fieldClassName="sis-branches-field--wide"
                     value={String(form.default_mark)}
                     display={st.defaultMarks[form.default_mark]}
                     options={[0, 1].map((v) => ({
                         value: String(v),
                         label: st.defaultMarks[v],
                     }))}
-                    onChange={(v) =>
-                        setForm({ ...form, default_mark: Number(v) })
-                    }
+                    onChange={(v) => set({ ...form, default_mark: Number(v) })}
                 />
             );
         }
@@ -224,50 +414,43 @@ function SettingsPage({ settings, filters, abilities }: Props) {
                 <RegistryListField
                     key={key}
                     label={label}
-                    editing={editable}
+                    editing
                     required
-                    value={value ? '1' : '0'}
-                    display={value ? st.yes : st.no}
+                    value={form[key] ? '1' : '0'}
+                    display={form[key] ? st.yes : st.no}
                     options={[
                         { value: '1', label: st.yes },
                         { value: '0', label: st.no },
                     ]}
-                    onChange={(v) => setForm({ ...form, [key]: v === '1' })}
+                    onChange={(v) => set({ ...form, [key]: v === '1' })}
                 />
             );
         }
         if (key === 'staff_day_start') {
             return (
-                <label key={key} className="sis-admission-sheet__field">
-                    <span className="sis-admission-sheet__label">{label}</span>
-                    <input
-                        className="sis-admission-sheet__control sis-admission-draft-field--filled"
-                        type="time"
-                        dir="ltr"
-                        disabled={!editable}
-                        value={form.staff_day_start}
-                        onChange={(event) =>
-                            setForm({
-                                ...form,
-                                staff_day_start: event.target.value,
-                            })
-                        }
-                    />
-                </label>
+                <WindowTimeField
+                    key={key}
+                    label={label}
+                    value={form.staff_day_start}
+                    onChange={(staff_day_start) =>
+                        set({ ...form, staff_day_start })
+                    }
+                />
             );
         }
+        const value = form[key];
 
         return (
             <RegistryTextField
                 key={key}
                 label={label}
-                editing={editable}
+                editing
                 required={key !== 'late_as_absent_minutes'}
                 type="number"
                 dir="ltr"
                 value={value === null ? '' : String(value)}
                 onChange={(v) =>
-                    setForm({
+                    set({
                         ...form,
                         [key]:
                             v === ''
@@ -283,36 +466,71 @@ function SettingsPage({ settings, filters, abilities }: Props) {
 
     return (
         <AttendancePage
-            title={st.title}
-            scroll
-            notices={
-                <>
-                    <PageNotice>{st.description}</PageNotice>
-                    <PageNotice>
-                        {settings.is_default
-                            ? st.isDefault
-                            : st.version.replace(
-                                  ':v',
-                                  String(settings.policy.version_no),
-                              )}
-                    </PageNotice>
-                    {!editable ? <PageNotice>{st.readOnly}</PageNotice> : null}
-                </>
-            }
+            title={`${st.title} — ${settings.is_default ? st.isDefaultShort : st.version.replace(':v', String(policy.version_no))}`}
         >
-            <div className="sis-branches-sheet">
-                {(Object.keys(GROUPS) as GroupKey[]).map((group) => (
-                    <SheetSection
-                        key={group}
-                        id={`att-settings-${group}`}
-                        title={(st.groups as Record<GroupKey, string>)[group]}
-                    >
-                        <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                            {GROUPS[group].map(field)}
-                        </div>
-                    </SheetSection>
-                ))}
-            </div>
+            <AttendanceTable
+                caption={st.title}
+                storageKey="settings"
+                rows={rows}
+                rowKey={(r) => r.id}
+                columns={columns}
+                emptyText="—"
+                selection={selection}
+                onOpen={(r) => (editable ? openEdit([r]) : viewer.open([r]))}
+            />
+
+            {viewer.element}
+
+            {edit !== null ? (
+                <AttendanceWindow
+                    title={
+                        edit.keys.length === ROWS.length
+                            ? st.editAll
+                            : `${st.title} (${edit.keys.length})`
+                    }
+                    columns={2}
+                    pending={busy}
+                    dirty={JSON.stringify(edit.form) !== JSON.stringify(policy)}
+                    confirmLabel={st.save}
+                    confirmDisabled={
+                        JSON.stringify(edit.form) === JSON.stringify(policy)
+                    }
+                    onConfirm={save}
+                    onClose={() => setEdit(null)}
+                    sections={(Object.keys(GROUPS) as GroupKey[])
+                        .filter((g) =>
+                            GROUPS[g].some((k) => edit.keys.includes(k)),
+                        )
+                        .map((g) => ({
+                            id: `att-settings-${g}`,
+                            title: groupLabel(g),
+                            content: (
+                                <>
+                                    {GROUPS[g]
+                                        .filter((k) => edit.keys.includes(k))
+                                        .map((k) =>
+                                            field(k, edit.form, (form) =>
+                                                setEdit({ ...edit, form }),
+                                            ),
+                                        )}
+                                </>
+                            ),
+                        }))
+                        .concat([
+                            {
+                                id: 'att-settings-version',
+                                title: st.versionTitle,
+                                content: (
+                                    <WindowFact
+                                        wide
+                                        label={st.versionTitle}
+                                        value={st.versionHint}
+                                    />
+                                ),
+                            },
+                        ])}
+                />
+            ) : null}
         </AttendancePage>
     );
 }

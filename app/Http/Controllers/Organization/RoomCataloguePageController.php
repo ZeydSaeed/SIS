@@ -36,7 +36,7 @@ use Inertia\Response;
  */
 final class RoomCataloguePageController extends Controller
 {
-    private const SORTS = ['code', 'name', 'room_number', 'type', 'capacity', 'building', 'floor', 'branch', 'status'];
+    private const SORTS = ['code', 'name', 'room_number', 'type', 'capacity', 'building', 'floor', 'branch', 'status', 'practical', 'weekly_lessons'];
 
     public function __construct(
         private readonly SchoolContext $schoolContext,

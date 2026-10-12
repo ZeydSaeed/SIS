@@ -28,13 +28,20 @@ import {
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
-import { formatAcademicYearOptionLabel, type YearOption } from '@/components/sis/ops-year-filter';
-import { useRegisterPageRibbon, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import {
+    formatAcademicYearOptionLabel,
+    type YearOption,
+} from '@/components/sis/ops-year-filter';
+import {
+    useRegisterPageRibbon,
+    type PageRibbonGroup,
+} from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { initialSearchParam } from '@/lib/initial-search';
+import { sisSectionSelectOptions } from '@/lib/sis-class-section-options';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -70,8 +77,20 @@ type Props = {
     authorization: { can_manage: boolean };
 };
 
-type ClassForm = { name: string; grade_level_id: string; capacity: string; status: string };
-type SectionDraft = { id: number | null; name: string; capacity: string; homeroom_teacher_id: string; status: string; viewOnly?: boolean };
+type ClassForm = {
+    name: string;
+    grade_level_id: string;
+    capacity: string;
+    status: string;
+};
+type SectionDraft = {
+    id: number | null;
+    name: string;
+    capacity: string;
+    homeroom_teacher_id: string;
+    status: string;
+    viewOnly?: boolean;
+};
 
 /** EnrollmentStructureStatus: 1 نشط · 2 معطّل. */
 const ACTIVE = 1;
@@ -81,7 +100,10 @@ function classFormOf(item: SchoolClass | null): ClassForm {
     return {
         name: item?.name ?? '',
         grade_level_id: item === null ? '' : String(item.grade_level_id),
-        capacity: item?.capacity === null || item === null ? '' : String(item.capacity),
+        capacity:
+            item?.capacity === null || item === null
+                ? ''
+                : String(item.capacity),
         status: String(item?.status ?? ACTIVE),
     };
 }
@@ -96,13 +118,21 @@ function StatusPill({ status }: { status: number }) {
     const c = t().classStructure;
 
     return (
-        <span className={`sis-branches-status${status === ACTIVE ? '' : ' sis-org-status--inactive'}`}>
+        <span
+            className={`sis-branches-status${status === ACTIVE ? '' : ' sis-org-status--inactive'}`}
+        >
             {status === ACTIVE ? c.statusActive : c.statusInactive}
         </span>
     );
 }
 
-function ClassTile({ active, large = false }: { active: boolean; large?: boolean }) {
+function ClassTile({
+    active,
+    large = false,
+}: {
+    active: boolean;
+    large?: boolean;
+}) {
     return (
         <span
             className={`sis-branches-tile sis-branches-tile--${active ? 'scientific' : 'default'}${large ? ' sis-branches-tile--lg' : ''}`}
@@ -114,7 +144,12 @@ function ClassTile({ active, large = false }: { active: boolean; large?: boolean
 }
 
 export default function OrganizationClassesSections(props: Props) {
-    const breadcrumbs: BreadcrumbItem[] = [{ title: t().classStructure.title, href: '/organization/classes-sections' }];
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: t().classStructure.title,
+            href: '/organization/classes-sections',
+        },
+    ];
 
     // Inner component: page error / flash contexts live inside AppLayout.
     return (
@@ -124,7 +159,13 @@ export default function OrganizationClassesSections(props: Props) {
     );
 }
 
-function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authorization }: Props) {
+function ClassesSectionsPage({
+    classes,
+    gradeLevels,
+    teachers,
+    filters,
+    authorization,
+}: Props) {
     const i18n = t();
     const c = i18n.classStructure;
     const r = i18n.orgRibbon;
@@ -132,36 +173,68 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     const yearId = filters.academic_year_id;
     const request = useRegistryRequest(RELOAD_PROPS);
     const page = usePage().props as {
-        schoolContext?: { schoolId: number | null; schools: Array<{ id: number; name: string }> };
+        schoolContext?: {
+            schoolId: number | null;
+            schools: Array<{ id: number; name: string }>;
+        };
         academicYears?: YearOption[];
     };
-    const schoolName = page.schoolContext?.schools.find((school) => school.id === page.schoolContext?.schoolId)?.name ?? null;
+    const schoolName =
+        page.schoolContext?.schools.find(
+            (school) => school.id === page.schoolContext?.schoolId,
+        )?.name ?? null;
     const years = page.academicYears ?? [];
-    const gradeName = useMemo(() => new Map(gradeLevels.map((grade) => [grade.id, grade.name])), [gradeLevels]);
-    const teacherName = useMemo(() => new Map(teachers.map((teacher) => [teacher.id, teacher.full_name])), [teachers]);
-    const gradeOptions = gradeLevels.map((grade) => ({ value: String(grade.id), label: grade.name }));
+    const gradeName = useMemo(
+        () => new Map(gradeLevels.map((grade) => [grade.id, grade.name])),
+        [gradeLevels],
+    );
+    const teacherName = useMemo(
+        () =>
+            new Map(teachers.map((teacher) => [teacher.id, teacher.full_name])),
+        [teachers],
+    );
+    const gradeOptions = gradeLevels.map((grade) => ({
+        value: String(grade.id),
+        label: grade.name,
+    }));
     const homeroomOptions = [
         { value: '', label: c.noHomeroom },
-        ...teachers.filter((teacher) => teacher.active).map((teacher) => ({ value: String(teacher.id), label: teacher.full_name })),
+        ...teachers
+            .filter((teacher) => teacher.active)
+            .map((teacher) => ({
+                value: String(teacher.id),
+                label: teacher.full_name,
+            })),
     ];
 
-    const [selectedId, setSelectedId] = useState<number | null>(classes[0]?.id ?? null);
+    const [selectedId, setSelectedId] = useState<number | null>(
+        classes[0]?.id ?? null,
+    );
     /** A section row of the selected class; when set, the «تحرير» actions target it. */
-    const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+    const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
+        null,
+    );
     const [collapsed, setCollapsed] = useState(true);
     const [form, setForm] = useState<ClassForm>(classFormOf(null));
     const [saving, setSaving] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
     const [newClass, setNewClass] = useState<ClassForm>(classFormOf(null));
     const [sectionDraft, setSectionDraft] = useState<SectionDraft | null>(null);
-    const [confirmDeactivate, setConfirmDeactivate] = useState<'class' | 'section' | null>(null);
-    const [filterKey, setFilterKey] = useState<'all' | 'active' | 'inactive'>('all');
+    const [confirmDeactivate, setConfirmDeactivate] = useState<
+        'class' | 'section' | null
+    >(null);
+    const [filterKey, setFilterKey] = useState<'all' | 'active' | 'inactive'>(
+        'all',
+    );
     const [query, setQuery] = useState(() => initialSearchParam('search'));
     const [appearanceOpen, setAppearanceOpen] = useState(false);
     const nameInputRef = useRef<HTMLInputElement | null>(null);
 
     const selected = classes.find((item) => item.id === selectedId) ?? null;
-    const selectedSection = selected?.sections.find((section) => section.id === selectedSectionId) ?? null;
+    const selectedSection =
+        selected?.sections.find(
+            (section) => section.id === selectedSectionId,
+        ) ?? null;
     const selectClass = (classId: number) => {
         setSelectedId(classId);
         setSelectedSectionId(null);
@@ -169,7 +242,10 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
 
     // Keep a valid selection after reloads (create / deactivate).
     useEffect(() => {
-        if (selectedId === null || !classes.some((item) => item.id === selectedId)) {
+        if (
+            selectedId === null ||
+            !classes.some((item) => item.id === selectedId)
+        ) {
             setSelectedId(classes[0]?.id ?? null);
         }
     }, [classes, selectedId]);
@@ -177,29 +253,52 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
     useEffect(() => {
         setForm(classFormOf(selected));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selected?.id, selected?.name, selected?.grade_level_id, selected?.capacity, selected?.status]);
+    }, [
+        selected?.id,
+        selected?.name,
+        selected?.grade_level_id,
+        selected?.capacity,
+        selected?.status,
+    ]);
 
     const activeCount = classes.filter((item) => item.status === ACTIVE).length;
     const allSections = classes.flatMap((item) => item.sections);
-    const withHomeroom = allSections.filter((section) => section.homeroom_teacher_id !== null).length;
+    const withHomeroom = allSections.filter(
+        (section) => section.homeroom_teacher_id !== null,
+    ).length;
     const visibleClasses = useMemo(() => {
         const q = query.trim();
 
         return classes.filter((item) => {
             if (filterKey === 'active' && item.status !== ACTIVE) return false;
-            if (filterKey === 'inactive' && item.status === ACTIVE) return false;
+            if (filterKey === 'inactive' && item.status === ACTIVE)
+                return false;
 
-            return q === '' || item.name.includes(q) || item.code.includes(q) || item.sections.some((section) => section.name.includes(q));
+            return (
+                q === '' ||
+                item.name.includes(q) ||
+                item.code.includes(q) ||
+                item.sections.some((section) => section.name.includes(q))
+            );
         });
     }, [classes, filterKey, query]);
 
     const selectedForm = classFormOf(selected);
     const dirty =
-        selected !== null && (Object.keys(form) as Array<keyof ClassForm>).some((key) => form[key].trim() !== selectedForm[key].trim());
+        selected !== null &&
+        (Object.keys(form) as Array<keyof ClassForm>).some(
+            (key) => form[key].trim() !== selectedForm[key].trim(),
+        );
     const formValid = form.name.trim() !== '' && form.grade_level_id !== '';
-    const sectionEditable = sectionDraft !== null && sectionDraft.viewOnly !== true && sectionDraft.name.trim() !== '';
+    const sectionEditable =
+        sectionDraft !== null &&
+        sectionDraft.viewOnly !== true &&
+        sectionDraft.name.trim() !== '';
 
-    const run = async (action: () => Promise<boolean>, after?: () => void): Promise<void> => {
+    const run = async (
+        action: () => Promise<boolean>,
+        after?: () => void,
+    ): Promise<void> => {
         if (saving) {
             return;
         }
@@ -247,30 +346,72 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
         const payload = {
             name: sectionDraft.name.trim(),
             capacity: capacityValue(sectionDraft.capacity),
-            homeroom_teacher_id: sectionDraft.homeroom_teacher_id === '' ? null : Number(sectionDraft.homeroom_teacher_id),
+            homeroom_teacher_id:
+                sectionDraft.homeroom_teacher_id === ''
+                    ? null
+                    : Number(sectionDraft.homeroom_teacher_id),
             status: Number(sectionDraft.status),
         };
         void run(
             () =>
                 sectionDraft.id === null
-                    ? request('post', '/organization/sections', { ...payload, class_id: selected.id })
-                    : request('patch', `/organization/sections/${sectionDraft.id}`, payload),
+                    ? request('post', '/organization/sections', {
+                          ...payload,
+                          class_id: selected.id,
+                      })
+                    : request(
+                          'patch',
+                          `/organization/sections/${sectionDraft.id}`,
+                          payload,
+                      ),
             () => setSectionDraft(null),
         );
     };
 
-    const setClassStatus = (item: SchoolClass, active: boolean, after?: () => void) =>
-        run(() => request('post', `/organization/classes/${item.id}/${active ? 'reactivate' : 'deactivate'}`), after);
-    const setSectionStatus = (section: Section, active: boolean, after?: () => void) =>
-        run(() => request('post', `/organization/sections/${section.id}/${active ? 'reactivate' : 'deactivate'}`), after);
+    const setClassStatus = (
+        item: SchoolClass,
+        active: boolean,
+        after?: () => void,
+    ) =>
+        run(
+            () =>
+                request(
+                    'post',
+                    `/organization/classes/${item.id}/${active ? 'reactivate' : 'deactivate'}`,
+                ),
+            after,
+        );
+    const setSectionStatus = (
+        section: Section,
+        active: boolean,
+        after?: () => void,
+    ) =>
+        run(
+            () =>
+                request(
+                    'post',
+                    `/organization/sections/${section.id}/${active ? 'reactivate' : 'deactivate'}`,
+                ),
+            after,
+        );
 
-    const openAddSection = () => setSectionDraft({ id: null, name: '', capacity: '', homeroom_teacher_id: '', status: String(ACTIVE) });
+    const openAddSection = () =>
+        setSectionDraft({
+            id: null,
+            name: '',
+            capacity: '',
+            homeroom_teacher_id: '',
+            status: String(ACTIVE),
+        });
     const openSection = (section: Section, viewOnly = false) =>
         setSectionDraft({
             id: section.id,
             name: section.name,
             capacity: section.capacity === null ? '' : String(section.capacity),
-            homeroom_teacher_id: section.homeroom_teacher_id === null ? '' : String(section.homeroom_teacher_id),
+            homeroom_teacher_id:
+                section.homeroom_teacher_id === null
+                    ? ''
+                    : String(section.homeroom_teacher_id),
             status: String(section.status),
             viewOnly,
         });
@@ -279,10 +420,17 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
         if (next === '' || Number(next) === yearId) {
             return;
         }
-        router.get('/organization/classes-sections', { academic_year_id: Number(next) }, { preserveScroll: true });
+        router.get(
+            '/organization/classes-sections',
+            { academic_year_id: Number(next) },
+            { preserveScroll: true },
+        );
     };
 
-    const homeroomPercent = allSections.length === 0 ? 0 : Math.round((withHomeroom / allSections.length) * 100);
+    const homeroomPercent =
+        allSections.length === 0
+            ? 0
+            : Math.round((withHomeroom / allSections.length) * 100);
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const noSelection = selected === null;
         const target = selectedSection ?? selected;
@@ -296,9 +444,14 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                         id: 'classes-view',
                         label: i18n.common.view,
                         icon: Eye,
-                        title: noSelection ? r.needsSelection : i18n.common.view,
+                        title: noSelection
+                            ? r.needsSelection
+                            : i18n.common.view,
                         disabled: noSelection,
-                        onSelect: () => (selectedSection !== null ? openSection(selectedSection, true) : setCollapsed(false)),
+                        onSelect: () =>
+                            selectedSection !== null
+                                ? openSection(selectedSection, true)
+                                : setCollapsed(false),
                     },
                     ...(canManage
                         ? [
@@ -315,7 +468,9 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                           return;
                                       }
                                       setCollapsed(false);
-                                      window.requestAnimationFrame(() => nameInputRef.current?.focus());
+                                      window.requestAnimationFrame(() =>
+                                          nameInputRef.current?.focus(),
+                                      );
                                   },
                               },
                               {
@@ -323,8 +478,16 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                   label: i18n.common.save,
                                   icon: Save,
                                   tone: 'save' as const,
-                                  disabled: saving || !(sectionEditable || (dirty && formValid)),
-                                  onSelect: () => (sectionEditable ? saveSection() : void saveClass()),
+                                  disabled:
+                                      saving ||
+                                      !(
+                                          sectionEditable ||
+                                          (dirty && formValid)
+                                      ),
+                                  onSelect: () =>
+                                      sectionEditable
+                                          ? saveSection()
+                                          : void saveClass(),
                               },
                           ]
                         : []),
@@ -351,9 +514,17 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                         label: i18n.common.delete,
                                         icon: Trash2,
                                         tone: 'delete' as const,
-                                        title: selectedSection !== null ? c.deactivateSection : c.deactivateClass,
+                                        title:
+                                            selectedSection !== null
+                                                ? c.deactivateSection
+                                                : c.deactivateClass,
                                         disabled: noSelection || saving,
-                                        onSelect: () => setConfirmDeactivate(selectedSection !== null ? 'section' : 'class'),
+                                        onSelect: () =>
+                                            setConfirmDeactivate(
+                                                selectedSection !== null
+                                                    ? 'section'
+                                                    : 'class',
+                                            ),
                                     }
                                   : {
                                         id: 'classes-reactivate',
@@ -362,8 +533,15 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                         disabled: saving,
                                         onSelect: () =>
                                             selectedSection !== null
-                                                ? void setSectionStatus(selectedSection, true)
-                                                : selected && void setClassStatus(selected, true),
+                                                ? void setSectionStatus(
+                                                      selectedSection,
+                                                      true,
+                                                  )
+                                                : selected &&
+                                                  void setClassStatus(
+                                                      selected,
+                                                      true,
+                                                  ),
                                     },
                           ]
                         : []),
@@ -373,9 +551,24 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 id: 'classes-filters',
                 label: c.filters,
                 commands: [
-                    { key: 'all' as const, label: c.all, icon: Layers, count: classes.length },
-                    { key: 'active' as const, label: c.active, icon: CheckCircle2, count: activeCount },
-                    { key: 'inactive' as const, label: c.inactive, icon: CircleSlash, count: classes.length - activeCount },
+                    {
+                        key: 'all' as const,
+                        label: c.all,
+                        icon: Layers,
+                        count: classes.length,
+                    },
+                    {
+                        key: 'active' as const,
+                        label: c.active,
+                        icon: CheckCircle2,
+                        count: activeCount,
+                    },
+                    {
+                        key: 'inactive' as const,
+                        label: c.inactive,
+                        icon: CircleSlash,
+                        count: classes.length - activeCount,
+                    },
                 ].map((tab) => ({
                     id: `classes-filter-${tab.key}`,
                     label: tab.label,
@@ -383,7 +576,12 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                     icon: tab.icon,
                     count: tab.count,
                     pressed: filterKey === tab.key,
-                    onSelect: () => setFilterKey(filterKey === tab.key && tab.key !== 'all' ? 'all' : tab.key),
+                    onSelect: () =>
+                        setFilterKey(
+                            filterKey === tab.key && tab.key !== 'all'
+                                ? 'all'
+                                : tab.key,
+                        ),
                 })),
             },
             {
@@ -391,14 +589,24 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 label: c.academicYear,
                 commands: [],
                 custom: (
-                    <div className="sis-ribbon__filters" aria-label={c.academicYear} dir="rtl">
+                    <div
+                        className="sis-ribbon__filters"
+                        aria-label={c.academicYear}
+                        dir="rtl"
+                    >
                         <div className="sis-ribbon__filter-field" dir="rtl">
-                            <CalendarRange aria-hidden className="sis-branches-table__icon" />
+                            <CalendarRange
+                                aria-hidden
+                                className="sis-branches-table__icon"
+                            />
                             <SisListSelect
                                 value={yearId === null ? '' : String(yearId)}
                                 options={years.map((year) => ({
                                     value: String(year.id),
-                                    label: formatAcademicYearOptionLabel(year.name, year.code),
+                                    label: formatAcademicYearOptionLabel(
+                                        year.name,
+                                        year.code,
+                                    ),
                                 }))}
                                 onChange={changeYear}
                                 triggerClassName="sis-ops-hub__link px-2 py-1 min-h-0 min-w-0 sis-admission-year-control"
@@ -415,12 +623,20 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 id: 'classes-manage',
                 label: r.manage,
                 commands: [
-                    { id: 'classes-add', label: c.addClass, icon: PlusCircle, disabled: yearId === null, onSelect: () => setAddOpen(true) },
+                    {
+                        id: 'classes-add',
+                        label: c.addClass,
+                        icon: PlusCircle,
+                        disabled: yearId === null,
+                        onSelect: () => setAddOpen(true),
+                    },
                     {
                         id: 'classes-appearance',
                         label: i18n.appearance.title,
                         icon: Palette,
-                        title: noSelection ? r.needsSelection : i18n.appearance.edit,
+                        title: noSelection
+                            ? r.needsSelection
+                            : i18n.appearance.edit,
                         disabled: noSelection,
                         onSelect: () => setAppearanceOpen(true),
                     },
@@ -450,7 +666,10 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                     dir="rtl"
                     title={`${c.progress}: ${homeroomPercent}%`}
                 >
-                    <span className="sis-ribbon__progress-fill" style={{ width: `${homeroomPercent}%` }} />
+                    <span
+                        className="sis-ribbon__progress-fill"
+                        style={{ width: `${homeroomPercent}%` }}
+                    />
                     <span className="sis-ribbon__progress-value" dir="ltr">
                         {homeroomPercent}%
                     </span>
@@ -460,7 +679,24 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
 
         return groups;
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeCount, canManage, classes, dirty, filterKey, formValid, homeroomPercent, i18n, saving, sectionDraft, sectionEditable, selected, selectedSection, selectedSectionId, years, yearId]);
+    }, [
+        activeCount,
+        canManage,
+        classes,
+        dirty,
+        filterKey,
+        formValid,
+        homeroomPercent,
+        i18n,
+        saving,
+        sectionDraft,
+        sectionEditable,
+        selected,
+        selectedSection,
+        selectedSectionId,
+        years,
+        yearId,
+    ]);
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const titlebarSearch = useMemo(
@@ -479,7 +715,12 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
         { value: String(ACTIVE), label: r.statusActive },
         { value: '2', label: r.statusInactive },
     ];
-    const classFields = (value: ClassForm, onChange: (next: ClassForm) => void, editing: boolean, ref?: typeof nameInputRef) => (
+    const classFields = (
+        value: ClassForm,
+        onChange: (next: ClassForm) => void,
+        editing: boolean,
+        ref?: typeof nameInputRef,
+    ) => (
         <>
             <RegistryTextField
                 label={c.className}
@@ -497,7 +738,9 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 value={value.grade_level_id}
                 display={gradeName.get(Number(value.grade_level_id)) ?? '—'}
                 options={gradeOptions}
-                onChange={(grade_level_id) => onChange({ ...value, grade_level_id })}
+                onChange={(grade_level_id) =>
+                    onChange({ ...value, grade_level_id })
+                }
                 fieldClassName="sis-branches-field--wide"
             />
             <RegistryTextField
@@ -514,7 +757,11 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                 editing={editing}
                 required
                 value={value.status}
-                display={statusOptions.find((option) => option.value === value.status)?.label ?? '—'}
+                display={
+                    statusOptions.find(
+                        (option) => option.value === value.status,
+                    )?.label ?? '—'
+                }
                 options={statusOptions}
                 onChange={(status) => onChange({ ...value, status })}
                 fieldClassName="sis-branches-field--wide"
@@ -522,19 +769,27 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
         </>
     );
 
-    const confirmTarget = confirmDeactivate === 'section' ? selectedSection : selected;
+    const confirmTarget =
+        confirmDeactivate === 'section' ? selectedSection : selected;
 
     return (
         <>
             <Head title={c.title} />
-            <div className="sis-ops-hub sis-branches-page sis-org-page" dir="rtl" lang="ar">
+            <div
+                className="sis-ops-hub sis-branches-page sis-org-page"
+                dir="rtl"
+                lang="ar"
+            >
                 <header className="sis-branches-page__head">
                     <div className="sis-branches-page__heading sis-branches-page__heading--centered">
                         <h1 className="sis-branches-page__title">
                             {c.heading}
                             {schoolName !== null ? (
                                 <>
-                                    <span className="sis-branches-page__title-sep" aria-hidden="true">
+                                    <span
+                                        className="sis-branches-page__title-sep"
+                                        aria-hidden="true"
+                                    >
                                         {' · '}
                                     </span>
                                     <span className="sis-branches-page__title-school">
@@ -545,26 +800,50 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                         </h1>
                     </div>
                 </header>
-                {canManage ? null : <p className="sis-branches-page__notice">{c.readOnly}</p>}
-                {yearId === null ? <p className="sis-branches-page__notice">{c.noYear}</p> : null}
+                {canManage ? null : (
+                    <p className="sis-branches-page__notice">{c.readOnly}</p>
+                )}
+                {yearId === null ? (
+                    <p className="sis-branches-page__notice">{c.noYear}</p>
+                ) : null}
 
                 <div className="sis-branches-page__grid">
                     {/* Classes list */}
-                    <section className="sis-branches-card sis-branches-list" aria-label={c.classesTitle}>
+                    <section
+                        className="sis-branches-card sis-branches-list"
+                        aria-label={c.classesTitle}
+                    >
                         <div className="sis-branches-card__head">
-                            <h2 className="sis-branches-card__title">{c.classesTitle}</h2>
+                            <h2 className="sis-branches-card__title">
+                                {c.classesTitle}
+                            </h2>
                             <span className="sis-branches-count" dir="ltr">
                                 {classes.length}
                             </span>
                         </div>
-                        <div className="sis-branches-table sis-branches-table--branches" role="table" aria-label={c.classesTitle}>
-                            <div className="sis-branches-table__row sis-branches-table__row--head" role="row">
+                        <div
+                            className="sis-branches-table sis-branches-table--branches"
+                            role="table"
+                            aria-label={c.classesTitle}
+                        >
+                            <div
+                                className="sis-branches-table__row sis-branches-table__row--head"
+                                role="row"
+                            >
                                 <span role="columnheader">{c.class}</span>
                             </div>
                             {visibleClasses.length === 0 ? (
-                                <div className="sis-branches-table__row" role="row">
-                                    <span role="cell" className="sis-branches-empty">
-                                        {classes.length === 0 ? c.noClasses : c.noSearchResult}
+                                <div
+                                    className="sis-branches-table__row"
+                                    role="row"
+                                >
+                                    <span
+                                        role="cell"
+                                        className="sis-branches-empty"
+                                    >
+                                        {classes.length === 0
+                                            ? c.noClasses
+                                            : c.noSearchResult}
                                     </span>
                                 </div>
                             ) : (
@@ -572,28 +851,45 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                     <div
                                         key={item.id}
                                         className={`sis-branches-table__row sis-branches-table__row--branch${
-                                            item.id === selectedId ? ' is-selected' : ''
+                                            item.id === selectedId
+                                                ? ' is-selected'
+                                                : ''
                                         }${item.status === ACTIVE ? '' : ' sis-org-item--inactive'}`}
                                         role="row"
                                         tabIndex={0}
                                         aria-selected={item.id === selectedId}
                                         onClick={() => selectClass(item.id)}
                                         onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
+                                            if (
+                                                event.key === 'Enter' ||
+                                                event.key === ' '
+                                            ) {
                                                 event.preventDefault();
                                                 selectClass(item.id);
                                             }
                                         }}
                                     >
-                                        <span role="cell" className="sis-branches-table__name">
-                                            <ClassTile active={item.status === ACTIVE} />
+                                        <span
+                                            role="cell"
+                                            className="sis-branches-table__name"
+                                        >
+                                            <ClassTile
+                                                active={item.status === ACTIVE}
+                                            />
                                             <span className="sis-branches-item__text">
                                                 <span className="sis-branches-item__name">
                                                     {item.name}
-                                                    {item.status === ACTIVE ? null : <StatusPill status={item.status} />}
+                                                    {item.status ===
+                                                    ACTIVE ? null : (
+                                                        <StatusPill
+                                                            status={item.status}
+                                                        />
+                                                    )}
                                                 </span>
                                                 <span className="sis-branches-item__meta">
-                                                    {gradeName.get(item.grade_level_id) ?? '—'}
+                                                    {gradeName.get(
+                                                        item.grade_level_id,
+                                                    ) ?? '—'}
                                                     {` · ${item.sections.length} ${c.sectionsCount}`}
                                                 </span>
                                             </span>
@@ -603,7 +899,11 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                             )}
                         </div>
                         {canManage && yearId !== null ? (
-                            <button type="button" className="sis-branches-add-row" onClick={() => setAddOpen(true)}>
+                            <button
+                                type="button"
+                                className="sis-branches-add-row"
+                                onClick={() => setAddOpen(true)}
+                            >
                                 <Plus aria-hidden />
                                 {c.addClass}
                             </button>
@@ -611,13 +911,21 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                     </section>
 
                     {/* Selected class */}
-                    <section className="sis-branches-card sis-branches-detail" aria-label={selected?.name ?? c.classesTitle}>
+                    <section
+                        className="sis-branches-card sis-branches-detail"
+                        aria-label={selected?.name ?? c.classesTitle}
+                    >
                         {selected === null ? (
-                            <p className="sis-branches-empty">{c.selectClass}</p>
+                            <p className="sis-branches-empty">
+                                {c.selectClass}
+                            </p>
                         ) : (
                             <>
                                 <div className="sis-branches-card__head sis-branches-detail__head">
-                                    <ClassTile active={selected.status === ACTIVE} large />
+                                    <ClassTile
+                                        active={selected.status === ACTIVE}
+                                        large
+                                    />
                                     <h2 className="sis-branches-card__title">
                                         {c.class} {selected.name}
                                     </h2>
@@ -626,27 +934,63 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                         type="button"
                                         className="sis-branches-icon-btn sis-branches-icon-btn--plain sis-branches-detail__toggle"
                                         aria-expanded={!collapsed}
-                                        title={collapsed ? c.expand : c.collapse}
-                                        aria-label={collapsed ? c.expand : c.collapse}
-                                        onClick={() => setCollapsed((value) => !value)}
+                                        title={
+                                            collapsed ? c.expand : c.collapse
+                                        }
+                                        aria-label={
+                                            collapsed ? c.expand : c.collapse
+                                        }
+                                        onClick={() =>
+                                            setCollapsed((value) => !value)
+                                        }
                                     >
-                                        <ChevronUp aria-hidden className={collapsed ? 'is-collapsed' : undefined} />
+                                        <ChevronUp
+                                            aria-hidden
+                                            className={
+                                                collapsed
+                                                    ? 'is-collapsed'
+                                                    : undefined
+                                            }
+                                        />
                                     </button>
                                 </div>
 
                                 {collapsed ? null : (
                                     <div className="sis-branches-detail__form">
-                                        {classFields(form, setForm, canManage, nameInputRef)}
+                                        {classFields(
+                                            form,
+                                            setForm,
+                                            canManage,
+                                            nameInputRef,
+                                        )}
                                         {canManage ? (
                                             <div className="sis-branches-detail__buttons">
-                                                <Button type="button" disabled={!dirty || !formValid || saving} onClick={() => void saveClass()}>
-                                                    {saving ? i18n.common.saving : c.saveChanges}
+                                                <Button
+                                                    type="button"
+                                                    disabled={
+                                                        !dirty ||
+                                                        !formValid ||
+                                                        saving
+                                                    }
+                                                    onClick={() =>
+                                                        void saveClass()
+                                                    }
+                                                >
+                                                    {saving
+                                                        ? i18n.common.saving
+                                                        : c.saveChanges}
                                                 </Button>
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     disabled={!dirty || saving}
-                                                    onClick={() => setForm(classFormOf(selected))}
+                                                    onClick={() =>
+                                                        setForm(
+                                                            classFormOf(
+                                                                selected,
+                                                            ),
+                                                        )
+                                                    }
                                                 >
                                                     {c.cancel}
                                                 </Button>
@@ -655,18 +999,37 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                     </div>
                                 )}
 
-                                <div className="sis-branches-table" role="table" aria-label={c.sectionsTitle}>
-                                    <div className="sis-branches-table__row sis-branches-table__row--head" role="row">
-                                        <span role="columnheader" className="sis-branches-table__heading">
+                                <div
+                                    className="sis-branches-table"
+                                    role="table"
+                                    aria-label={c.sectionsTitle}
+                                >
+                                    <div
+                                        className="sis-branches-table__row sis-branches-table__row--head"
+                                        role="row"
+                                    >
+                                        <span
+                                            role="columnheader"
+                                            className="sis-branches-table__heading"
+                                        >
                                             {c.sectionsTitle}
-                                            <span className="sis-branches-count" dir="ltr">
+                                            <span
+                                                className="sis-branches-count"
+                                                dir="ltr"
+                                            >
                                                 {selected.sections.length}
                                             </span>
                                         </span>
                                     </div>
                                     {selected.sections.length === 0 ? (
-                                        <div className="sis-branches-table__row" role="row">
-                                            <span role="cell" className="sis-branches-empty">
+                                        <div
+                                            className="sis-branches-table__row"
+                                            role="row"
+                                        >
+                                            <span
+                                                role="cell"
+                                                className="sis-branches-empty"
+                                            >
                                                 {c.noSections}
                                             </span>
                                         </div>
@@ -675,38 +1038,83 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                             <div
                                                 key={section.id}
                                                 className={`sis-branches-table__row sis-branches-table__row--selectable${
-                                                    section.id === selectedSectionId ? ' is-selected' : ''
+                                                    section.id ===
+                                                    selectedSectionId
+                                                        ? ' is-selected'
+                                                        : ''
                                                 }${section.status === ACTIVE ? '' : ' sis-org-item--inactive'}`}
                                                 role="row"
                                                 tabIndex={0}
-                                                aria-selected={section.id === selectedSectionId}
-                                                onClick={() => setSelectedSectionId(section.id)}
-                                                onDoubleClick={() => openSection(section, !canManage)}
+                                                aria-selected={
+                                                    section.id ===
+                                                    selectedSectionId
+                                                }
+                                                onClick={() =>
+                                                    setSelectedSectionId(
+                                                        section.id,
+                                                    )
+                                                }
+                                                onDoubleClick={() =>
+                                                    openSection(
+                                                        section,
+                                                        !canManage,
+                                                    )
+                                                }
                                                 onKeyDown={(event) => {
-                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                    if (
+                                                        event.key === 'Enter' ||
+                                                        event.key === ' '
+                                                    ) {
                                                         event.preventDefault();
-                                                        setSelectedSectionId(section.id);
+                                                        setSelectedSectionId(
+                                                            section.id,
+                                                        );
                                                     }
                                                 }}
                                             >
-                                                <span role="cell" className="sis-branches-table__name">
-                                                    <LayoutGrid aria-hidden className="sis-branches-table__icon" />
+                                                <span
+                                                    role="cell"
+                                                    className="sis-branches-table__name"
+                                                >
+                                                    <LayoutGrid
+                                                        aria-hidden
+                                                        className="sis-branches-table__icon"
+                                                    />
                                                     <span className="sis-branches-item__text">
                                                         <span className="sis-branches-item__name">
                                                             {section.name}
-                                                            {section.status === ACTIVE ? null : <StatusPill status={section.status} />}
+                                                            {section.status ===
+                                                            ACTIVE ? null : (
+                                                                <StatusPill
+                                                                    status={
+                                                                        section.status
+                                                                    }
+                                                                />
+                                                            )}
                                                         </span>
                                                         <span className="sis-branches-item__meta">
                                                             {c.enrolled}:{' '}
                                                             <span dir="ltr">
-                                                                {section.enrolled} / {section.capacity ?? c.unlimited}
+                                                                {
+                                                                    section.enrolled
+                                                                }{' '}
+                                                                /{' '}
+                                                                {section.capacity ??
+                                                                    c.unlimited}
                                                             </span>
                                                             {' · '}
-                                                            <UserRound aria-hidden className="sis-branches-table__icon" />{' '}
+                                                            <UserRound
+                                                                aria-hidden
+                                                                className="sis-branches-table__icon"
+                                                            />{' '}
                                                             {c.homeroom}:{' '}
-                                                            {section.homeroom_teacher_id === null
+                                                            {section.homeroom_teacher_id ===
+                                                            null
                                                                 ? c.noHomeroom
-                                                                : (teacherName.get(section.homeroom_teacher_id) ?? `#${section.homeroom_teacher_id}`)}
+                                                                : (teacherName.get(
+                                                                      section.homeroom_teacher_id,
+                                                                  ) ??
+                                                                  `#${section.homeroom_teacher_id}`)}
                                                         </span>
                                                     </span>
                                                 </span>
@@ -715,7 +1123,11 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                     )}
                                 </div>
                                 {canManage && selected.status === ACTIVE ? (
-                                    <button type="button" className="sis-branches-add-row" onClick={openAddSection}>
+                                    <button
+                                        type="button"
+                                        className="sis-branches-add-row"
+                                        onClick={openAddSection}
+                                    >
                                         <Plus aria-hidden />
                                         {c.addSectionToClass}
                                     </button>
@@ -728,19 +1140,32 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
 
             {/* 1) Add class */}
             {addOpen ? (
-                <RegistrySheetDialog title={c.addClass} className="sis-branches-sheet" onClose={() => setAddOpen(false)}>
+                <RegistrySheetDialog
+                    title={c.addClass}
+                    className="sis-branches-sheet"
+                    onClose={() => setAddOpen(false)}
+                >
                     <SheetSection id="classes-add" title={c.addClass}>
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
                             {classFields(newClass, setNewClass, true)}
                         </div>
                     </SheetSection>
                     <div className="sis-admission-sheet__actions">
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setAddOpen(false)}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={saving}
+                            onClick={() => setAddOpen(false)}
+                        >
                             {c.cancel}
                         </Button>
                         <Button
                             type="button"
-                            disabled={saving || newClass.name.trim() === '' || newClass.grade_level_id === ''}
+                            disabled={
+                                saving ||
+                                newClass.name.trim() === '' ||
+                                newClass.grade_level_id === ''
+                            }
                             onClick={() => void createClass()}
                         >
                             {saving ? i18n.common.saving : c.add}
@@ -752,18 +1177,40 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
             {/* 2) Add / view / edit section (+ homeroom teacher) */}
             {sectionDraft !== null && selected !== null ? (
                 <RegistrySheetDialog
-                    title={sectionDraft.id === null ? c.addSectionToClass : sectionDraft.viewOnly ? c.viewSection : c.editSection}
+                    title={
+                        sectionDraft.id === null
+                            ? c.addSectionToClass
+                            : sectionDraft.viewOnly
+                              ? c.viewSection
+                              : c.editSection
+                    }
                     className="sis-branches-sheet"
                     onClose={() => setSectionDraft(null)}
                 >
-                    <SheetSection id="classes-section" title={`${c.class} ${selected.name}`}>
+                    <SheetSection
+                        id="classes-section"
+                        title={`${c.class} ${selected.name}`}
+                    >
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                            <RegistryTextField
+                            {/* «الشعبة» = one of the letters A / B / C (single source of truth with the enrollment pick-lists). */}
+                            <RegistryListField
                                 label={c.sectionName}
                                 editing={sectionDraft.viewOnly !== true}
                                 required
                                 value={sectionDraft.name}
-                                onChange={(name) => setSectionDraft((current) => (current === null ? current : { ...current, name }))}
+                                display={
+                                    sectionDraft.name === ''
+                                        ? '—'
+                                        : sectionDraft.name
+                                }
+                                options={sisSectionSelectOptions()}
+                                onChange={(name) =>
+                                    setSectionDraft((current) =>
+                                        current === null
+                                            ? current
+                                            : { ...current, name },
+                                    )
+                                }
                                 fieldClassName="sis-branches-field--wide"
                             />
                             <RegistryTextField
@@ -772,7 +1219,13 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                 type="number"
                                 dir="ltr"
                                 value={sectionDraft.capacity}
-                                onChange={(capacity) => setSectionDraft((current) => (current === null ? current : { ...current, capacity }))}
+                                onChange={(capacity) =>
+                                    setSectionDraft((current) =>
+                                        current === null
+                                            ? current
+                                            : { ...current, capacity },
+                                    )
+                                }
                                 fieldClassName="sis-branches-field--wide"
                             />
                             <RegistryListField
@@ -782,11 +1235,22 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                 display={
                                     sectionDraft.homeroom_teacher_id === ''
                                         ? c.noHomeroom
-                                        : (teacherName.get(Number(sectionDraft.homeroom_teacher_id)) ?? '—')
+                                        : (teacherName.get(
+                                              Number(
+                                                  sectionDraft.homeroom_teacher_id,
+                                              ),
+                                          ) ?? '—')
                                 }
                                 options={homeroomOptions}
                                 onChange={(homeroom_teacher_id) =>
-                                    setSectionDraft((current) => (current === null ? current : { ...current, homeroom_teacher_id }))
+                                    setSectionDraft((current) =>
+                                        current === null
+                                            ? current
+                                            : {
+                                                  ...current,
+                                                  homeroom_teacher_id,
+                                              },
+                                    )
                                 }
                                 fieldClassName="sis-branches-field--wide"
                             />
@@ -795,29 +1259,65 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
                                 editing={sectionDraft.viewOnly !== true}
                                 required
                                 value={sectionDraft.status}
-                                display={statusOptions.find((option) => option.value === sectionDraft.status)?.label ?? '—'}
+                                display={
+                                    statusOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            sectionDraft.status,
+                                    )?.label ?? '—'
+                                }
                                 options={statusOptions}
-                                onChange={(status) => setSectionDraft((current) => (current === null ? current : { ...current, status }))}
+                                onChange={(status) =>
+                                    setSectionDraft((current) =>
+                                        current === null
+                                            ? current
+                                            : { ...current, status },
+                                    )
+                                }
                                 fieldClassName="sis-branches-field--wide"
                             />
                         </div>
                     </SheetSection>
                     <div className="sis-admission-sheet__actions">
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setSectionDraft(null)}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={saving}
+                            onClick={() => setSectionDraft(null)}
+                        >
                             {c.cancel}
                         </Button>
                         {sectionDraft.viewOnly ? (
                             canManage ? (
                                 <Button
                                     type="button"
-                                    onClick={() => setSectionDraft((current) => (current === null ? current : { ...current, viewOnly: false }))}
+                                    onClick={() =>
+                                        setSectionDraft((current) =>
+                                            current === null
+                                                ? current
+                                                : {
+                                                      ...current,
+                                                      viewOnly: false,
+                                                  },
+                                        )
+                                    }
                                 >
                                     {i18n.common.edit}
                                 </Button>
                             ) : null
                         ) : (
-                            <Button type="button" disabled={saving || sectionDraft.name.trim() === ''} onClick={saveSection}>
-                                {saving ? i18n.common.saving : sectionDraft.id === null ? c.add : c.saveChanges}
+                            <Button
+                                type="button"
+                                disabled={
+                                    saving || sectionDraft.name.trim() === ''
+                                }
+                                onClick={saveSection}
+                            >
+                                {saving
+                                    ? i18n.common.saving
+                                    : sectionDraft.id === null
+                                      ? c.add
+                                      : c.saveChanges}
                             </Button>
                         )}
                     </div>
@@ -827,11 +1327,23 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
             {appearanceOpen && (selectedSection ?? selected) !== null ? (
                 <AppearanceDialog
                     title={i18n.appearance.edit}
-                    entityName={selectedSection !== null ? `${selected?.name ?? ''} — ${selectedSection.name}` : (selected?.name ?? '')}
-                    initial={{ abbreviation: (selectedSection ?? selected)?.abbreviation ?? '', color_hue: (selectedSection ?? selected)?.color_hue ?? null }}
+                    entityName={
+                        selectedSection !== null
+                            ? `${selected?.name ?? ''} — ${selectedSection.name}`
+                            : (selected?.name ?? '')
+                    }
+                    initial={{
+                        abbreviation:
+                            (selectedSection ?? selected)?.abbreviation ?? '',
+                        color_hue:
+                            (selectedSection ?? selected)?.color_hue ?? null,
+                    }}
                     suggested={(selectedSection ?? selected)?.name ?? null}
                     url="/organization/classes-sections/appearance"
-                    payload={{ target: selectedSection !== null ? 'section' : 'class', id: (selectedSection ?? selected)?.id ?? 0 }}
+                    payload={{
+                        target: selectedSection !== null ? 'section' : 'class',
+                        id: (selectedSection ?? selected)?.id ?? 0,
+                    }}
                     reloadProps={RELOAD_PROPS}
                     canEdit={canManage}
                     onClose={() => setAppearanceOpen(false)}
@@ -839,16 +1351,34 @@ function ClassesSectionsPage({ classes, gradeLevels, teachers, filters, authoriz
             ) : null}
             <ConfirmDialog
                 open={confirmDeactivate !== null && confirmTarget !== null}
-                title={confirmDeactivate === 'section' ? c.deactivateSection : c.deactivateClass}
-                description={confirmDeactivate === 'section' ? c.deactivateSectionConfirm : c.deactivateClassConfirm}
-                confirmLabel={confirmDeactivate === 'section' ? c.deactivateSection : c.deactivateClass}
+                title={
+                    confirmDeactivate === 'section'
+                        ? c.deactivateSection
+                        : c.deactivateClass
+                }
+                description={
+                    confirmDeactivate === 'section'
+                        ? c.deactivateSectionConfirm
+                        : c.deactivateClassConfirm
+                }
+                confirmLabel={
+                    confirmDeactivate === 'section'
+                        ? c.deactivateSection
+                        : c.deactivateClass
+                }
                 tone="danger"
                 confirmPending={saving}
                 onConfirm={() => {
                     const done = () => setConfirmDeactivate(null);
-                    if (confirmDeactivate === 'section' && selectedSection !== null) {
+                    if (
+                        confirmDeactivate === 'section' &&
+                        selectedSection !== null
+                    ) {
                         void setSectionStatus(selectedSection, false, done);
-                    } else if (confirmDeactivate === 'class' && selected !== null) {
+                    } else if (
+                        confirmDeactivate === 'class' &&
+                        selected !== null
+                    ) {
                         void setClassStatus(selected, false, done);
                     }
                 }}

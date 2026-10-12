@@ -28,6 +28,7 @@ import {
     type ReactNode,
 } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
 import {
     clipRowsToFitPageSize,
@@ -888,10 +889,35 @@ export function StudentList({
         enabled: true,
     });
     fitPageSizeRef.current = fitPageSize;
-    const displayRows = useMemo(
+    const pageRows = useMemo(
         () => clipRowsToFitPageSize(rows, fitPageSize),
         [fitPageSize, rows],
     );
+    // Header click sorts the page on screen (the list itself is paged on the server).
+    const { rows: displayRows, sort } = useTableSort(pageRows, (row, key) => {
+        switch (key) {
+            case 'name':
+                return studentQuadName(row);
+            case 'file':
+                return studentRecordCompletenessGaps(row as unknown as Record<string, unknown>).length;
+            case 'birth':
+                return row.birth_date;
+            case 'gender':
+                return genderLabel(row.gender, i18n);
+            case 'transfer':
+                return row.transfer_document_number == null ? null : String(row.transfer_document_number);
+            case 'previousSchool':
+                return row.previous_school_name;
+            case 'enrollment':
+                return row.is_enrolled;
+            case 'mobile':
+                return row.mobile;
+            case 'status':
+                return statusTabLabel(row.status, i18n);
+            default:
+                return null;
+        }
+    });
     const fitLastPage = fitAwareLastPage(
         pagination.total,
         fitPageSize,
@@ -1825,21 +1851,27 @@ export function StudentList({
                                                 <th className="sis-admission-drafts-table__num">
                                                     {i18n.students.seq}
                                                 </th>
-                                                <th className="sis-admission-drafts-table__name-head">
-                                                    {i18n.students.quadName}
+                                                <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(sort, 'name')}>
+                                                    <SortButton sort={sort} column="name">
+                                                        {i18n.students.quadName}
+                                                    </SortButton>
                                                 </th>
-                                                <th className="sis-admission-drafts-table__enroll-head">
-                                                    {i18n.workflow.studentFileColumn}
+                                                <th className="sis-admission-drafts-table__enroll-head" aria-sort={ariaSort(sort, 'file')}>
+                                                    <SortButton sort={sort} column="file">
+                                                        {i18n.workflow.studentFileColumn}
+                                                    </SortButton>
                                                 </th>
-                                                <th className="sis-students-table__birth">{i18n.students.birthDate}</th>
-                                                <th>{i18n.students.gender}</th>
-                                                <th>{i18n.students.transferDocumentNumber}</th>
-                                                <th>{i18n.students.previousSchoolName}</th>
-                                                <th className="sis-students-table__enrollment-head">
-                                                    {i18n.students.enrollmentColumn}
+                                                <th className="sis-students-table__birth" aria-sort={ariaSort(sort, 'birth')}><SortButton sort={sort} column="birth">{i18n.students.birthDate}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'gender')}><SortButton sort={sort} column="gender">{i18n.students.gender}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'transfer')}><SortButton sort={sort} column="transfer">{i18n.students.transferDocumentNumber}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'previousSchool')}><SortButton sort={sort} column="previousSchool">{i18n.students.previousSchoolName}</SortButton></th>
+                                                <th className="sis-students-table__enrollment-head" aria-sort={ariaSort(sort, 'enrollment')}>
+                                                    <SortButton sort={sort} column="enrollment">
+                                                        {i18n.students.enrollmentColumn}
+                                                    </SortButton>
                                                 </th>
-                                                <th className="sis-students-table__mobile">{i18n.students.mobile}</th>
-                                                <th>{i18n.students.statusTabsTitle}</th>
+                                                <th className="sis-students-table__mobile" aria-sort={ariaSort(sort, 'mobile')}><SortButton sort={sort} column="mobile">{i18n.students.mobile}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'status')}><SortButton sort={sort} column="status">{i18n.students.statusTabsTitle}</SortButton></th>
                                             </tr>
                                         </thead>
                                         <tbody>

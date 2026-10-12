@@ -1,5 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { useCallback } from 'react';
+import { TitleBarHistory } from '@/components/title-bar-history';
 import { WindowControls } from '@/components/window-controls';
 import { t } from '@/i18n';
 import { dashboard } from '@/routes';
@@ -8,7 +9,9 @@ export function TitleBarControls() {
     const i18n = t();
     const { component } = usePage();
     const isDashboard = component === 'dashboard';
-    const pageTitle = isDashboard ? i18n.modules.dashboard : i18n.window.controls;
+    const pageTitle = isDashboard
+        ? i18n.modules.dashboard
+        : i18n.window.controls;
 
     const onClose = useCallback(() => {
         if (isDashboard) {
@@ -18,18 +21,22 @@ export function TitleBarControls() {
         router.visit(dashboard());
     }, [isDashboard]);
 
+    // «رجوع» / «تقدم» sit just right of the close (X) button.
     return (
-        <WindowControls
-            className="sis-titlebar__controls shrink-0"
-            label={`${pageTitle} — ${i18n.window.controls}`}
-            minimizeLabel=""
-            maximizeLabel=""
-            restoreLabel=""
-            closeLabel={`${i18n.window.close}: ${pageTitle}`}
-            minimizable={false}
-            maximizable={false}
-            closable
-            onClose={onClose}
-        />
+        <>
+            <WindowControls
+                className="sis-titlebar__controls shrink-0"
+                label={`${pageTitle} — ${i18n.window.controls}`}
+                minimizeLabel=""
+                maximizeLabel=""
+                restoreLabel=""
+                closeLabel={`${i18n.window.close}: ${pageTitle}`}
+                minimizable={false}
+                maximizable={false}
+                closable
+                onClose={onClose}
+            />
+            <TitleBarHistory />
+        </>
     );
 }

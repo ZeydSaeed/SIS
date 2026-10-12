@@ -1,5 +1,13 @@
 import { usePage } from '@inertiajs/react';
-import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+    Fragment,
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import {
     ChevronDown,
@@ -15,6 +23,7 @@ import {
     GitBranch,
     Landmark,
     LayoutGrid,
+    Filter,
     CalendarCheck,
     CalendarDays,
     CalendarRange,
@@ -63,9 +72,16 @@ import {
     X,
     type LucideIcon,
 } from 'lucide-react';
-import { usePageRibbonGroups, usePageRibbonPinned, useSetPageRibbonPinned } from '@/components/sis/page-ribbon-context';
+import {
+    usePageRibbonGroups,
+    usePageRibbonPinned,
+    useSetPageRibbonPinned,
+} from '@/components/sis/page-ribbon-context';
 import { isTitlebarOpsAccentPath } from '@/components/sis/titlebar-ssot';
-import { usePageAlignment, type PageAlignment } from '@/hooks/use-page-alignment';
+import {
+    usePageAlignment,
+    type PageAlignment,
+} from '@/hooks/use-page-alignment';
 import { preservePageClipboardSelection } from '@/hooks/use-page-clipboard';
 import {
     usePageTextStyle,
@@ -159,9 +175,7 @@ export type ToolsRibbonActionId =
     | 'toolsStudentRequirements'
     | 'toolsTeacherRequirements';
 
-export type ReportsRibbonActionId =
-    | 'reportsStandard'
-    | 'reportsCharts';
+export type ReportsRibbonActionId = 'reportsStandard' | 'reportsCharts';
 
 export type HelpRibbonActionId =
     | 'helpLiveSupport'
@@ -191,13 +205,33 @@ type RibbonItem = {
      * Outline colour by meaning: authority (المديرية), education (المدرسة), growth (الفروع والاختصاصات);
      * by state (page commands): ok, warning, danger, active (working — spins).
      */
-    iconTone?: 'authority' | 'education' | 'growth' | 'ok' | 'warning' | 'danger' | 'active' | 'sky' | 'amber' | 'rose' | 'forest' | 'steel';
+    iconTone?:
+        | 'authority'
+        | 'education'
+        | 'growth'
+        | 'ok'
+        | 'warning'
+        | 'danger'
+        | 'active'
+        | 'sky'
+        | 'amber'
+        | 'rose'
+        | 'forest'
+        | 'steel';
     onSelect?: () => void;
 };
 
-
 /** Outline colours for commands that do not name one (governed palette tones, stable per command id). */
-const AUTO_ICON_TONES = ['authority', 'education', 'growth', 'sky', 'amber', 'rose', 'forest', 'steel'] as const;
+const AUTO_ICON_TONES = [
+    'authority',
+    'education',
+    'growth',
+    'sky',
+    'amber',
+    'rose',
+    'forest',
+    'steel',
+] as const;
 
 export function autoIconTone(id: string): (typeof AUTO_ICON_TONES)[number] {
     let hash = 0;
@@ -272,11 +306,36 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
         id: 'school',
         label: 'المديريات والمدارس',
         items: [
-            { id: 'directoratesSchools', label: 'المديريات والمدارس', icon: Landmark, iconTone: 'authority' },
-            { id: 'branchesDepartments', label: 'الفروع والاختصاصات', icon: GitBranch, iconTone: 'growth' },
-            { id: 'classesSections', label: 'الصفوف والشعب', icon: LayoutGrid, iconTone: 'education' },
-            { id: 'roomsCatalogue', label: 'الغرف الدراسية', icon: DoorOpen, iconTone: 'authority' },
-            { id: 'importCenter', label: 'استيراد Excel', icon: FileDown, iconTone: 'growth' },
+            {
+                id: 'directoratesSchools',
+                label: 'المديريات والمدارس',
+                icon: Landmark,
+                iconTone: 'authority',
+            },
+            {
+                id: 'branchesDepartments',
+                label: 'الفروع والاختصاصات',
+                icon: GitBranch,
+                iconTone: 'growth',
+            },
+            {
+                id: 'classesSections',
+                label: 'الصفوف والشعب',
+                icon: LayoutGrid,
+                iconTone: 'education',
+            },
+            {
+                id: 'roomsCatalogue',
+                label: 'الغرف الدراسية',
+                icon: DoorOpen,
+                iconTone: 'authority',
+            },
+            {
+                id: 'importCenter',
+                label: 'استيراد Excel',
+                icon: FileDown,
+                iconTone: 'growth',
+            },
         ],
     },
     {
@@ -314,7 +373,11 @@ const SETTINGS_RIBBON_GROUPS: RibbonGroup[] = [
         id: 'schedule',
         label: 'الجدولة',
         items: [
-            { id: 'settingsTimetable', label: 'الجدول الدراسي', icon: CalendarRange },
+            {
+                id: 'settingsTimetable',
+                label: 'الجدول الدراسي',
+                icon: CalendarRange,
+            },
             { id: 'settingsScheduling', label: 'الجدولة', icon: ClipboardList },
         ],
     },
@@ -372,7 +435,11 @@ const LISTS_RIBBON_GROUPS: RibbonGroup[] = [
         items: [
             { id: 'listWorkshops', label: 'الورش', icon: Hammer },
             { id: 'listEquipment', label: 'التجهيزات', icon: Package },
-            { id: 'listCommunications', label: 'الاتصالات', icon: MessagesSquare },
+            {
+                id: 'listCommunications',
+                label: 'الاتصالات',
+                icon: MessagesSquare,
+            },
         ],
     },
 ];
@@ -389,8 +456,16 @@ const TOOLS_RIBBON_GROUPS: RibbonGroup[] = [
         id: 'system',
         label: 'النظام',
         items: [
-            { id: 'toolsDbMaintenance', label: 'صيانة قاعدة البيانات', icon: Database },
-            { id: 'toolsMobileSync', label: 'تزامن الموبايل', icon: Smartphone },
+            {
+                id: 'toolsDbMaintenance',
+                label: 'صيانة قاعدة البيانات',
+                icon: Database,
+            },
+            {
+                id: 'toolsMobileSync',
+                label: 'تزامن الموبايل',
+                icon: Smartphone,
+            },
             { id: 'toolsInstallWizard', label: 'معالج التنصيب', icon: Wand2 },
         ],
     },
@@ -399,8 +474,16 @@ const TOOLS_RIBBON_GROUPS: RibbonGroup[] = [
         label: 'المتطلبات',
         items: [
             { id: 'toolsEvaluations', label: 'التقييمات', icon: ListChecks },
-            { id: 'toolsStudentRequirements', label: 'متطلبات الطلاب', icon: GraduationCap },
-            { id: 'toolsTeacherRequirements', label: 'متطلبات المعلمون', icon: Users },
+            {
+                id: 'toolsStudentRequirements',
+                label: 'متطلبات الطلاب',
+                icon: GraduationCap,
+            },
+            {
+                id: 'toolsTeacherRequirements',
+                label: 'متطلبات المعلمون',
+                icon: Users,
+            },
         ],
     },
 ];
@@ -432,8 +515,13 @@ function FontControls() {
     const fontId = useId();
     const sizeId = useId();
     const defaultLabel = t().common.fontDefault;
-    const { fontFamily, fontSize, setFontFamily, setFontSize, resetTypography } =
-        usePageTypography();
+    const {
+        fontFamily,
+        fontSize,
+        setFontFamily,
+        setFontSize,
+        resetTypography,
+    } = usePageTypography();
 
     return (
         <div className="sis-ribbon__font-controls">
@@ -452,15 +540,23 @@ function FontControls() {
                             return;
                         }
 
-                        setFontFamily(value as (typeof APPROVED_PAGE_FONTS)[number]);
+                        setFontFamily(
+                            value as (typeof APPROVED_PAGE_FONTS)[number],
+                        );
                     }}
                 >
                     {APPROVED_PAGE_FONTS.map((name) => (
-                        <option key={name} value={name} style={{ fontFamily: name }}>
+                        <option
+                            key={name}
+                            value={name}
+                            style={{ fontFamily: name }}
+                        >
                             {name}
                         </option>
                     ))}
-                    <option value={PAGE_TYPOGRAPHY_DEFAULT}>{defaultLabel}</option>
+                    <option value={PAGE_TYPOGRAPHY_DEFAULT}>
+                        {defaultLabel}
+                    </option>
                 </select>
             </label>
             <label className="sis-ribbon__field" htmlFor={sizeId}>
@@ -486,7 +582,9 @@ function FontControls() {
                             {value}
                         </option>
                     ))}
-                    <option value={PAGE_TYPOGRAPHY_DEFAULT}>{defaultLabel}</option>
+                    <option value={PAGE_TYPOGRAPHY_DEFAULT}>
+                        {defaultLabel}
+                    </option>
                 </select>
             </label>
         </div>
@@ -549,7 +647,11 @@ const STYLE_ACTIONS: {
 
 function StyleControls() {
     const { bold, italic, underline, toggleStyle } = usePageTextStyle();
-    const pressed: Record<PageTextStyleFlag, boolean> = { bold, italic, underline };
+    const pressed: Record<PageTextStyleFlag, boolean> = {
+        bold,
+        italic,
+        underline,
+    };
 
     return (
         <>
@@ -594,9 +696,7 @@ function buildHomeGroups(): RibbonGroup[] {
         {
             id: 'font',
             label: 'الخط',
-            custom: (
-                <FontControls />
-            ),
+            custom: <FontControls />,
         },
         {
             id: 'align',
@@ -631,19 +731,24 @@ export function TitleBarRibbon({
     const path = url.split('?')[0] ?? url;
     const isOpsAccentPage = isTitlebarOpsAccentPath(path);
     // «الجدول الدراسي»: no «النمط» group, so the home strip fits without a horizontal scroll.
-    const isTimetablePage = path === '/timetable' || path.startsWith('/timetable/');
+    const isTimetablePage =
+        path === '/timetable' || path.startsWith('/timetable/');
     // «الغرف الدراسية»: the same coloured command icons as the timetable page.
     const isRoomsPage = path === '/organization/rooms';
     // «الحضور»: the same coloured command icons and ribbon look as «الغرف الدراسية».
-    const isAttendancePage = path === '/attendance' || path.startsWith('/attendance/');
-    const isTeachersPage = path === '/teachers' || path.startsWith('/teachers/');
+    const isAttendancePage =
+        path === '/attendance' || path.startsWith('/attendance/');
+    const isTeachersPage =
+        path === '/teachers' || path.startsWith('/teachers/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
     const pageOwnsContentTab =
-        tabGroups.length > 0
-        && (tab === 'lists' || tab === 'tools' || tab === 'reports');
+        tabGroups.length > 0 &&
+        (tab === 'lists' || tab === 'tools' || tab === 'reports');
     const pageGroups =
-        tab === 'home' || tab === 'edit' || tab === 'add' || pageOwnsContentTab ? tabGroups : [];
+        tab === 'home' || tab === 'edit' || tab === 'add' || pageOwnsContentTab
+            ? tabGroups
+            : [];
     const staticGroups = pageOwnsContentTab
         ? []
         : tab === 'file'
@@ -662,43 +767,54 @@ export function TitleBarRibbon({
                       ? REPORTS_RIBBON_GROUPS
                       : tab === 'help'
                         ? HELP_RIBBON_GROUPS
-                        : buildHomeGroups().filter((group) => !(isTimetablePage && group.id === 'style'));
+                        : buildHomeGroups().filter(
+                              (group) =>
+                                  !(isTimetablePage && group.id === 'style'),
+                          );
     const groups: RibbonGroup[] = [
-        ...pageGroups.map(
-            (group): RibbonGroup => ({
-                id: group.id,
-                label: group.label,
-                custom: group.custom,
-                items: group.custom
-                    ? undefined
-                    : group.commands.map((command) => ({
-                          id: command.id,
-                          label: command.label,
-                          icon: command.icon,
-                          disabled: command.disabled,
-                          pressed: command.pressed,
-                          title: command.title,
-                          count: command.count,
-                          tone: command.tone,
-                          iconTone: command.iconTone,
-                          onSelect: command.onSelect,
-                      })),
-            }),
-        ),
+        ...pageGroups.map((group): RibbonGroup => ({
+            id: group.id,
+            label: group.label,
+            custom: group.custom,
+            items: group.custom
+                ? undefined
+                : group.commands.map((command) => ({
+                      id: command.id,
+                      label: command.label,
+                      icon: command.icon,
+                      disabled: command.disabled,
+                      pressed: command.pressed,
+                      title: command.title,
+                      count: command.count,
+                      tone: command.tone,
+                      iconTone: command.iconTone,
+                      onSelect: command.onSelect,
+                  })),
+        })),
         ...staticGroups,
     ];
     const isEnrollmentsRibbon = groups.some((group) =>
         group.id.startsWith('enrollment-'),
     );
     // Organization pages (المديريات والمدارس / الفروع والاختصاصات) share the students edit ribbon look.
-    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-') || group.id.startsWith('org-') || group.id.startsWith('rooms-') || group.id.startsWith('attendance-'));
-    const isCurriculumRibbon = groups.some((group) => group.id.startsWith('curriculum-'));
+    const isStudentsRibbon = groups.some(
+        (group) =>
+            group.id.startsWith('student-') ||
+            group.id.startsWith('org-') ||
+            group.id.startsWith('rooms-') ||
+            group.id.startsWith('attendance-'),
+    );
+    const isCurriculumRibbon = groups.some((group) =>
+        group.id.startsWith('curriculum-'),
+    );
     const isCurriculumPage =
         path === '/curriculum' || path.startsWith('/curriculum/');
     const isEnrollmentsPage =
         path === '/enrollments' || path.startsWith('/enrollments/');
     const isStudentsPage =
-        path === '/students' || path.startsWith('/students/') || path.startsWith('/organization/');
+        path === '/students' ||
+        path.startsWith('/students/') ||
+        path.startsWith('/organization/');
     const isAdmissionPage =
         path === '/admission' || path.startsWith('/admission/');
     const isAdmissionRibbon = groups.some(
@@ -709,12 +825,16 @@ export function TitleBarRibbon({
     const i18n = t();
     const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
-    // «تحرير»: never a horizontal scroll — groups that do not fit fold (last first) into an accordion button
-    // that opens their commands in a flyout under it.
+    // «تحرير» / «الصفحة الرئيسية»: never a horizontal scroll — groups that do not fit fold (last first) into an
+    // accordion button that opens their commands (or filters) in a flyout under it.
     const accordion = tab === 'edit';
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const [collapsedCount, setCollapsedCount] = useState(0);
-    const [flyout, setFlyout] = useState<{ id: string; top: number; right: number } | null>(null);
+    const [flyout, setFlyout] = useState<{
+        id: string;
+        top: number;
+        center: number;
+    } | null>(null);
     const flyoutRef = useRef<HTMLDivElement | null>(null);
     const groupsKey = `${tab}|${groups.map((group) => `${group.id}:${group.items?.length ?? 'c'}`).join('|')}`;
 
@@ -731,7 +851,9 @@ export function TitleBarRibbon({
         }
         const clipped =
             body.scrollWidth > body.clientWidth + 1 ||
-            Array.from(body.querySelectorAll<HTMLElement>('.sis-ribbon__items')).some((items) => items.scrollWidth > items.clientWidth + 1);
+            Array.from(
+                body.querySelectorAll<HTMLElement>('.sis-ribbon__items'),
+            ).some((items) => items.scrollWidth > items.clientWidth + 1);
         if (clipped) {
             setCollapsedCount((count) => count + 1);
         }
@@ -740,7 +862,11 @@ export function TitleBarRibbon({
     // A wider window may fit folded groups again: start over on every width change.
     useEffect(() => {
         const body = bodyRef.current;
-        if (!accordion || body === null || typeof ResizeObserver === 'undefined') {
+        if (
+            !accordion ||
+            body === null ||
+            typeof ResizeObserver === 'undefined'
+        ) {
             return;
         }
         let width = body.clientWidth;
@@ -756,6 +882,21 @@ export function TitleBarRibbon({
         return () => observer.disconnect();
     }, [accordion]);
 
+    // The flyout is centred under its accordion button and kept fully inside the window (never cut at an edge).
+    useLayoutEffect(() => {
+        const panel = flyoutRef.current;
+        if (flyout === null || panel === null) {
+            return;
+        }
+        const width = panel.getBoundingClientRect().width;
+        const left = Math.min(
+            Math.max(8, flyout.center - width / 2),
+            Math.max(8, window.innerWidth - width - 8),
+        );
+        panel.style.left = `${Math.round(left)}px`;
+        panel.style.visibility = 'visible';
+    }, [flyout]);
+
     useEffect(() => {
         if (flyout === null) {
             return;
@@ -766,7 +907,9 @@ export function TitleBarRibbon({
                 target !== null &&
                 (flyoutRef.current?.contains(target) ||
                     target.closest(`[data-ribbon-accordion="${flyout.id}"]`) ||
-                    target.closest('[data-sis-list-select-portal], [data-radix-popper-content-wrapper]'))
+                    target.closest(
+                        '[data-sis-list-select-portal], [data-radix-popper-content-wrapper]',
+                    ))
             ) {
                 return;
             }
@@ -786,7 +929,9 @@ export function TitleBarRibbon({
         };
     }, [flyout]);
 
-    const firstCollapsed = accordion ? groups.length - collapsedCount : groups.length;
+    const firstCollapsed = accordion
+        ? groups.length - collapsedCount
+        : groups.length;
     const groupClassName = (group: RibbonGroup): string =>
         group.id.includes('filter')
             ? 'sis-ribbon__group sis-ribbon__group--filters'
@@ -807,13 +952,14 @@ export function TitleBarRibbon({
         isRoomsPage || isAttendancePage ? 'sis-ribbon--coloured-icons' : '',
     ].filter(Boolean);
 
-    const renderItem = (item: RibbonItem, afterSelect?: () => void): ReactNode => {
+    const renderItem = (
+        item: RibbonItem,
+        afterSelect?: () => void,
+    ): ReactNode => {
         const Icon = item.icon;
         const iconTone = item.iconTone ?? autoIconTone(item.id);
         const isClipboard =
-            item.id === 'copy' ||
-            item.id === 'cut' ||
-            item.id === 'paste';
+            item.id === 'copy' || item.id === 'cut' || item.id === 'paste';
         const isSelectionCancel =
             item.id === 'cancel-admission-selection' ||
             item.id === 'cancel-student-selection' ||
@@ -833,9 +979,7 @@ export function TitleBarRibbon({
                 aria-label={item.title ?? item.label}
                 title={item.title ?? item.label}
                 aria-pressed={
-                    item.pressed === undefined
-                        ? undefined
-                        : item.pressed
+                    item.pressed === undefined ? undefined : item.pressed
                 }
                 onMouseDown={(event) => {
                     if (isClipboard || isSelectionCancel) {
@@ -863,10 +1007,7 @@ export function TitleBarRibbon({
                 }}
             >
                 {item.count !== undefined ? (
-                    <span
-                        className="sis-ribbon__count"
-                        dir="ltr"
-                    >
+                    <span className="sis-ribbon__count" dir="ltr">
                         {item.count}
                     </span>
                 ) : null}
@@ -874,19 +1015,23 @@ export function TitleBarRibbon({
                     className={`sis-ribbon__icon sis-ribbon__icon--tone-${iconTone}`}
                     aria-hidden
                 />
-                <span className="sis-ribbon__label">
-                    {item.label}
-                </span>
+                <span className="sis-ribbon__label">{item.label}</span>
             </button>
         );
     };
 
-    const renderItems = (group: RibbonGroup, afterSelect?: () => void): ReactNode =>
+    const renderItems = (
+        group: RibbonGroup,
+        afterSelect?: () => void,
+    ): ReactNode =>
         group.custom
             ? group.custom
             : group.items?.map((item) => renderItem(item, afterSelect));
 
-    const flyoutGroup = flyout === null ? null : (groups.find((group) => group.id === flyout.id) ?? null);
+    const flyoutGroup =
+        flyout === null
+            ? null
+            : (groups.find((group) => group.id === flyout.id) ?? null);
 
     return (
         <div
@@ -904,7 +1049,9 @@ export function TitleBarRibbon({
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
                 isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-                isRoomsPage || isAttendancePage ? 'sis-ribbon--coloured-icons' : '',
+                isRoomsPage || isAttendancePage
+                    ? 'sis-ribbon--coloured-icons'
+                    : '',
             ]
                 .filter(Boolean)
                 .join(' ')}
@@ -916,10 +1063,16 @@ export function TitleBarRibbon({
                 {groups.map((group, index) => (
                     <Fragment key={group.id}>
                         {index > 0 ? (
-                            <div className="sis-ribbon__separator" aria-hidden />
+                            <div
+                                className="sis-ribbon__separator"
+                                aria-hidden
+                            />
                         ) : null}
                         {index >= firstCollapsed ? (
-                            <div className="sis-ribbon__group sis-ribbon__group--collapsed" data-group-id={group.id}>
+                            <div
+                                className="sis-ribbon__group sis-ribbon__group--collapsed"
+                                data-group-id={group.id}
+                            >
                                 <div className="sis-ribbon__items">
                                     <button
                                         type="button"
@@ -934,59 +1087,100 @@ export function TitleBarRibbon({
 
                                                 return;
                                             }
-                                            const rect = event.currentTarget.getBoundingClientRect();
-                                            setFlyout({ id: group.id, top: rect.bottom + 4, right: Math.max(8, window.innerWidth - rect.right) });
+                                            const rect =
+                                                event.currentTarget.getBoundingClientRect();
+                                            setFlyout({
+                                                id: group.id,
+                                                top: rect.bottom + 4,
+                                                center:
+                                                    rect.left + rect.width / 2,
+                                            });
                                         }}
                                     >
                                         {(() => {
-                                            const Icon = group.items?.[0]?.icon ?? LayoutGrid;
+                                            const Icon =
+                                                group.items?.[0]?.icon ??
+                                                (group.custom
+                                                    ? Filter
+                                                    : LayoutGrid);
 
-                                            return <Icon className="sis-ribbon__icon" aria-hidden />;
+                                            return (
+                                                <Icon
+                                                    className="sis-ribbon__icon"
+                                                    aria-hidden
+                                                />
+                                            );
                                         })()}
                                         <span className="sis-ribbon__label">
                                             {group.label}
-                                            <ChevronDown className="sis-ribbon__accordion-chevron" aria-hidden />
+                                            <ChevronDown
+                                                className="sis-ribbon__accordion-chevron"
+                                                aria-hidden
+                                            />
                                         </span>
                                     </button>
                                 </div>
-                                <span className="sis-ribbon__group-label">{group.label}</span>
+                                <span className="sis-ribbon__group-label">
+                                    {group.label}
+                                </span>
                             </div>
                         ) : (
-                        <div
-                            className={groupClassName(group)}
-                            data-group-id={group.id}
-                        >
-                            <div className="sis-ribbon__items">
-                                {renderItems(group)}
+                            <div
+                                className={groupClassName(group)}
+                                data-group-id={group.id}
+                            >
+                                <div className="sis-ribbon__items">
+                                    {renderItems(group)}
+                                </div>
+                                <span className="sis-ribbon__group-label">
+                                    {group.label}
+                                </span>
                             </div>
-                            <span className="sis-ribbon__group-label">{group.label}</span>
-                        </div>
                         )}
                     </Fragment>
                 ))}
             </div>
-            {flyoutGroup !== null && flyout !== null && typeof document !== 'undefined'
+            {flyoutGroup !== null &&
+            flyout !== null &&
+            typeof document !== 'undefined'
                 ? createPortal(
                       <div
                           ref={flyoutRef}
-                          className={['sis-ribbon', 'sis-ribbon-flyout', ...ribbonModifiers].join(' ')}
+                          className={[
+                              'sis-ribbon',
+                              'sis-ribbon-flyout',
+                              ...ribbonModifiers,
+                          ].join(' ')}
                           role="group"
                           aria-label={flyoutGroup.label}
                           dir="rtl"
-                          style={{ top: flyout.top, right: flyout.right }}
+                          style={{
+                              top: flyout.top,
+                              left: 8,
+                              visibility: 'hidden',
+                          }}
                       >
-                          <div className={groupClassName(flyoutGroup)} data-group-id={flyoutGroup.id}>
+                          <div
+                              className={groupClassName(flyoutGroup)}
+                              data-group-id={flyoutGroup.id}
+                          >
                               <div className="sis-ribbon__items">
-                                  {renderItems(flyoutGroup, flyoutGroup.custom ? undefined : () => setFlyout(null))}
+                                  {renderItems(
+                                      flyoutGroup,
+                                      flyoutGroup.custom
+                                          ? undefined
+                                          : () => setFlyout(null),
+                                  )}
                               </div>
-                              <span className="sis-ribbon__group-label">{flyoutGroup.label}</span>
+                              <span className="sis-ribbon__group-label">
+                                  {flyoutGroup.label}
+                              </span>
                           </div>
                       </div>,
                       document.fullscreenElement ?? document.body,
                   )
                 : null}
             <div className="sis-ribbon__chrome-actions">
-
                 <button
                     type="button"
                     className={

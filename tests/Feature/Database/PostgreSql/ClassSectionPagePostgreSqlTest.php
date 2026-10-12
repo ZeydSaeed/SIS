@@ -98,7 +98,7 @@ final class ClassSectionPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
             ->withHeader('X-Idempotency-Key', 'cs-a-section')
             ->post('/organization/sections', [
                 'class_id' => $classId,
-                'name' => 'شعبة 1',
+                'name' => 'A',
                 'capacity' => 30,
                 'homeroom_teacher_id' => $teacherId,
             ])
@@ -106,7 +106,8 @@ final class ClassSectionPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
 
         $section = DB::table('enrollment.sections')->where('class_id', $classId)->first();
         $this->assertNotNull($section);
-        $this->assertSame('SEC-1', $section->code);
+        $this->assertSame('SEC-A', $section->code);
+        $this->assertSame('A', $section->name);
         $this->assertSame($teacherId, (int) $section->homeroom_teacher_id);
 
         $this->get('/organization/classes-sections?academic_year_id='.$yearId)

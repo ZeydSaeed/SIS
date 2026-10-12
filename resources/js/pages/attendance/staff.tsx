@@ -1,27 +1,34 @@
 import { router, usePage } from '@inertiajs/react';
 import {
     CalendarRange,
+    History,
     KeyRound,
     LogIn,
     Nfc,
-    PencilLine,
     QrCode,
     UserCog,
+    UsersRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
     AttendancePage,
     AttendanceTable,
     AttendanceWindow,
-    PageNotice,
     WindowFact,
     WindowTextArea,
+    WindowTimeField,
+    postEach,
+    selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
+    useAttendanceMessages,
     useAttendanceSearch,
+    useAttendanceSelection,
+    useRowViewer,
     useYearFilterSpec,
     visitWith,
     type AttendanceColumn,
+    type AttendanceMessage,
 } from '@/components/attendance/attendance-chrome';
 import {
     STAFF_NOT_RECORDED,
@@ -63,6 +70,7 @@ type StaffRow = {
 
 type CoverLesson = {
     schedule_id: number;
+    teacher_id: number;
     start_time: string;
     end_time: string;
     subject_name: string;
@@ -99,7 +107,7 @@ type Props = {
 
 type Via = 'code' | 'qr' | 'nfc';
 type Edit = {
-    row: StaffRow;
+    rows: StaffRow[];
     status: string;
     check_in: string;
     check_out: string;
@@ -170,7 +178,6 @@ function StaffPage({
         (usePage().props as { flash?: { attendanceResult?: IssuedResult } })
             .flash?.attendanceResult ?? null;
     const [busy, setBusy] = useState(false);
-    const [selectedId, setSelectedId] = useState<number | null>(null);
     const [statuses, setStatuses] = useState<number[]>([]);
     const [query, setQuery] = useState('');
     const [edit, setEdit] = useState<Edit | null>(null);
@@ -183,10 +190,10 @@ function StaffPage({
             : null,
     );
     const [shown, setShown] = useState<IssuedResult>(null);
+    const [panel, setPanel] = useState<'history' | 'cover' | null>(null);
     const [nfcState, setNfcState] = useState<
         'idle' | 'scanning' | 'writing' | 'written' | 'failed'
     >('idle');
-    const selected = day.rows.find((r) => r.teacher_id === selectedId) ?? null;
 
     useEffect(() => {
         if (issued?.action === 'code' || issued?.action === 'nfc_token') {
@@ -194,6 +201,22 @@ function StaffPage({
             setNfcState('idle');
         }
     }, [issued]);
+
+    const needle = query.trim().toLowerCase();
+    const rows = useMemo(
+        () =>
+            day.rows.filter(
+                (r) =>
+                    (statuses.length === 0 ||
+                        statuses.includes(r.status ?? 0)) &&
+                    (needle === '' ||
+                        r.full_name.toLowerCase().includes(needle) ||
+                        r.employee_code.toLowerCase().includes(needle)),
+            ),
+        [day.rows, statuses, needle],
+    );
+    const selection = useAttendanceSelection(rows, (r) => r.teacher_id);
+    const single = selection.targets.length === 1 ? selection.targets[0] : null;
 
     const post = (
         url: string,
@@ -211,39 +234,72 @@ function StaffPage({
         });
     };
 
-    const openEdit = (r: StaffRow) =>
+    const openEdit = (targets: StaffRow[]) => {
+        const first = targets[0];
         setEdit({
-            row: r,
-            status: String(r.status ?? 1),
-            check_in: r.check_in_at ? clock(r.check_in_at) : '',
-            check_out: r.check_out_at ? clock(r.check_out_at) : '',
-            minutes_late: r.minutes_late === null ? '' : String(r.minutes_late),
-            notes: r.notes ?? '',
+            rows: targets,
+            status: String(first.status ?? 1),
+            check_in:
+                targets.length === 1 && first.check_in_at
+                    ? clock(first.check_in_at)
+                    : '',
+            check_out:
+                targets.length === 1 && first.check_out_at
+                    ? clock(first.check_out_at)
+                    : '',
+            minutes_late:
+                targets.length === 1 && first.minutes_late !== null
+                    ? String(first.minutes_late)
+                    : '',
+            notes: targets.length === 1 ? (first.notes ?? '') : '',
             reason: '',
         });
+    };
+    const correcting =
+        edit !== null && edit.rows.some((r) => r.record_id !== null);
 
+    /** Record / correct one or several teachers' day (one request each; a correction needs the reason). */
     const saveEdit = () => {
         if (edit === null) return;
-        post(
-            '/attendance/staff',
+        setBusy(true);
+        postEach(
+            edit.rows,
+            (row) => ({
+                url: '/attendance/staff',
+                data: {
+                    teacher_id: row.teacher_id,
+                    work_date: day.date,
+                    attendance_status: Number(edit.status),
+                    check_in: edit.check_in || null,
+                    check_out: edit.check_out || null,
+                    minutes_late:
+                        edit.status === '3' && edit.minutes_late !== ''
+                            ? Number(edit.minutes_late)
+                            : null,
+                    notes: edit.notes.trim() || null,
+                    reason: edit.reason.trim() || null,
+                    version: row.version,
+                },
+                key: newKey(`staff-${row.teacher_id}`),
+            }),
             {
-                teacher_id: edit.row.teacher_id,
-                work_date: day.date,
-                attendance_status: Number(edit.status),
-                check_in: edit.check_in || null,
-                check_out: edit.check_out || null,
-                minutes_late:
-                    edit.status === '3' && edit.minutes_late !== ''
-                        ? Number(edit.minutes_late)
-                        : null,
-                notes: edit.notes.trim() || null,
-                reason: edit.reason.trim() || null,
-                version: edit.row.version,
+                onError: (errors) => showInertiaErrors(errors),
+                onDone: () => {
+                    setEdit(null);
+                },
+                onFinish: () => setBusy(false),
             },
-            'staff',
-            () => setEdit(null),
         );
     };
+
+    /** «الجدول الدراسي» of the given teachers only (all teachers when none is selected). */
+    const openTimetable = (teacherIds: number[]) =>
+        router.get(
+            '/timetable',
+            teacherIds.length > 0
+                ? { view: 'teacher', teacher_ids: teacherIds.join(',') }
+                : {},
+        );
 
     const submitCheckIn = (code: string, via: Via) =>
         post(
@@ -293,167 +349,6 @@ function StaffPage({
         }
     };
 
-    const editGroups = useMemo((): PageRibbonGroup[] => {
-        const groups: PageRibbonGroup[] = [];
-        const actions: PageRibbonGroup['commands'] = [];
-        if (abilities.staff_checkin) {
-            actions.push({
-                id: 'attendance-staff-checkin',
-                label: st.checkIn,
-                icon: LogIn,
-                iconTone: 'ok',
-                disabled: !linked,
-                title: linked ? undefined : st.notLinked,
-                onSelect: () => setCheckIn({ code: '', via: 'code' }),
-            });
-        }
-        if (abilities.record_staff) {
-            actions.push({
-                id: 'attendance-staff-record',
-                label: selected?.record_id ? st.edit : st.record,
-                icon: PencilLine,
-                iconTone: 'education',
-                disabled: selected === null,
-                title: selected === null ? c.needsSelection : undefined,
-                onSelect: () => selected && openEdit(selected),
-            });
-        }
-        if (abilities.link_account) {
-            actions.push({
-                id: 'attendance-staff-link',
-                label: st.linkAccount,
-                icon: UserCog,
-                iconTone: 'authority',
-                disabled: selected === null,
-                title: selected === null ? c.needsSelection : undefined,
-                onSelect: () =>
-                    selected &&
-                    setLink({
-                        row: selected,
-                        email: selected.account_email ?? '',
-                    }),
-            });
-        }
-        if (actions.length > 0) {
-            groups.push({
-                id: 'attendance-staff-actions',
-                label: c.actions,
-                commands: actions,
-            });
-        }
-        if (abilities.record_staff) {
-            groups.push({
-                id: 'attendance-staff-evidence',
-                label: st.evidence,
-                commands: [
-                    {
-                        id: 'attendance-staff-code',
-                        label: st.issueCode,
-                        icon: evidence.qr_enabled ? QrCode : KeyRound,
-                        iconTone: 'sky',
-                        disabled: busy,
-                        onSelect: () =>
-                            post('/attendance/staff/codes', {}, 'code'),
-                    },
-                    ...(evidence.nfc_enabled
-                        ? [
-                              {
-                                  id: 'attendance-staff-nfc',
-                                  label: st.issueNfc,
-                                  icon: Nfc,
-                                  iconTone: 'steel' as const,
-                                  disabled: busy,
-                                  onSelect: () =>
-                                      post(
-                                          '/attendance/staff/nfc-token',
-                                          { label: null },
-                                          'nfc-token',
-                                      ),
-                              },
-                          ]
-                        : []),
-                    {
-                        id: 'attendance-staff-timetable',
-                        label: st.openTimetable,
-                        icon: CalendarRange,
-                        iconTone: 'growth',
-                        onSelect: () => router.visit('/timetable'),
-                    },
-                ],
-            });
-        }
-
-        return groups;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selected, abilities, linked, evidence, busy]);
-    useAttendanceEditRibbon('staff', abilities, editGroups);
-
-    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
-        visitWith('/attendance/staff', { academic_year_id: year }),
-    );
-    useAttendanceHomeFilters(
-        [
-            yearSpec,
-            {
-                key: 'date',
-                date: true,
-                label: a.myDay.date,
-                value: day.date,
-                onChange: (date: string) =>
-                    visitWith('/attendance/staff', {
-                        academic_year_id: filters.academic_year_id,
-                        date,
-                    }),
-            },
-            ...(abilities.record_staff
-                ? [
-                      {
-                          key: 'status',
-                          type: 'multi' as const,
-                          label: st.status,
-                          allLabel: c.allStatuses,
-                          values: statuses.map(String),
-                          options: [STAFF_NOT_RECORDED, ...STAFF_STATUSES].map(
-                              (s) => ({
-                                  value: String(s.value),
-                                  label:
-                                      s.value === 0
-                                          ? st.notRecorded
-                                          : st.statuses[s.value],
-                              }),
-                          ),
-                          onChange: (values: string[]) =>
-                              setStatuses(values.map(Number)),
-                      },
-                  ]
-                : []),
-        ],
-        () => {
-            setStatuses([]);
-            setQuery('');
-            visitWith('/attendance/staff', {
-                academic_year_id: filters.academic_year_id,
-            });
-        },
-        [
-            filters.academic_year_id,
-            day.date,
-            statuses,
-            abilities.record_staff,
-            yearSpec.options.length,
-        ],
-    );
-    useAttendanceSearch(query, a.sheet.search, setQuery, setQuery);
-
-    const needle = query.trim().toLowerCase();
-    const rows = day.rows.filter(
-        (r) =>
-            (statuses.length === 0 || statuses.includes(r.status ?? 0)) &&
-            (needle === '' ||
-                r.full_name.toLowerCase().includes(needle) ||
-                r.employee_code.toLowerCase().includes(needle)),
-    );
-
     const statusColumn = <
         T extends { status: number | null },
     >(): AttendanceColumn<T> => ({
@@ -469,6 +364,8 @@ function StaffPage({
                 }
             />
         ),
+        text: (r) =>
+            r.status === null ? st.notRecorded : st.statuses[r.status],
     });
     const columns: AttendanceColumn<StaffRow>[] = [
         {
@@ -521,6 +418,12 @@ function StaffPage({
             header: st.lessonsToday,
             kind: 'num',
             cell: (r) => r.lessons_today,
+        },
+        {
+            id: 'notes',
+            header: st.notes,
+            kind: 'text',
+            cell: (r) => r.notes ?? '—',
         },
         ...(abilities.link_account
             ? [
@@ -604,13 +507,253 @@ function StaffPage({
             cell: (l) => l.teacher_name,
         },
     ];
+    const viewer = useRowViewer(columns, (r) => r.full_name);
+    const historySelection = useAttendanceSelection(
+        day.history,
+        (h) => h.id,
+        'staff-history',
+    );
+    const historyViewer = useRowViewer(historyColumns, (h) => h.work_date);
+
+    // A teacher without «تسجيل الدوام»: their own history is the page table.
+    const ownOnly = !abilities.record_staff;
+
+    const editGroups = useMemo((): PageRibbonGroup[] => {
+        const groups: PageRibbonGroup[] = [
+            ownOnly
+                ? selectionGroup(
+                      'attendance-staff-selection',
+                      historySelection.targets,
+                      historyViewer.open,
+                      null,
+                      { editTitle: st.ownHistoryReadOnly },
+                  )
+                : selectionGroup(
+                      'attendance-staff-selection',
+                      selection.targets,
+                      viewer.open,
+                      openEdit,
+                      {
+                          editLabel: single?.record_id ? st.edit : st.record,
+                          extra: abilities.link_account
+                              ? [
+                                    {
+                                        id: 'attendance-staff-link',
+                                        label: st.linkAccount,
+                                        icon: UserCog,
+                                        iconTone: 'authority',
+                                        disabled: single === null,
+                                        title:
+                                            single === null
+                                                ? c.needsOne
+                                                : undefined,
+                                        onSelect: () =>
+                                            single &&
+                                            setLink({
+                                                row: single,
+                                                email:
+                                                    single.account_email ?? '',
+                                            }),
+                                    },
+                                ]
+                              : [],
+                      },
+                  ),
+        ];
+        const actions: PageRibbonGroup['commands'] = [];
+        if (abilities.staff_checkin) {
+            actions.push({
+                id: 'attendance-staff-checkin',
+                label: st.checkIn,
+                icon: LogIn,
+                iconTone: 'ok',
+                disabled: !linked,
+                title: linked ? undefined : st.notLinked,
+                onSelect: () => setCheckIn({ code: '', via: 'code' }),
+            });
+            if (!ownOnly) {
+                actions.push({
+                    id: 'attendance-staff-history',
+                    label: st.history,
+                    icon: History,
+                    iconTone: 'steel',
+                    count: day.history.length,
+                    disabled: !linked,
+                    onSelect: () => setPanel('history'),
+                });
+            }
+        }
+        if (abilities.record_staff) {
+            actions.push({
+                id: 'attendance-staff-cover',
+                label: st.cover,
+                icon: UsersRound,
+                iconTone: 'warning',
+                count: day.cover.length,
+                onSelect: () => setPanel('cover'),
+            });
+        }
+        if (actions.length > 0) {
+            groups.push({
+                id: 'attendance-staff-actions',
+                label: c.actions,
+                commands: actions,
+            });
+        }
+        if (abilities.record_staff) {
+            groups.push({
+                id: 'attendance-staff-evidence',
+                label: st.evidence,
+                commands: [
+                    {
+                        id: 'attendance-staff-code',
+                        label: st.issueCode,
+                        icon: evidence.qr_enabled ? QrCode : KeyRound,
+                        iconTone: 'sky',
+                        disabled: busy,
+                        onSelect: () =>
+                            post('/attendance/staff/codes', {}, 'code'),
+                    },
+                    ...(evidence.nfc_enabled
+                        ? [
+                              {
+                                  id: 'attendance-staff-nfc',
+                                  label: st.issueNfc,
+                                  icon: Nfc,
+                                  iconTone: 'steel' as const,
+                                  disabled: busy,
+                                  onSelect: () =>
+                                      post(
+                                          '/attendance/staff/nfc-token',
+                                          { label: null },
+                                          'nfc-token',
+                                      ),
+                              },
+                          ]
+                        : []),
+                    {
+                        id: 'attendance-staff-timetable',
+                        label: st.openTimetable,
+                        icon: CalendarRange,
+                        iconTone: 'growth',
+                        title:
+                            selection.targets.length > 0
+                                ? `${st.openTimetable} (${selection.targets.length})`
+                                : st.openTimetable,
+                        onSelect: () =>
+                            openTimetable(
+                                selection.targets.map((r) => r.teacher_id),
+                            ),
+                    },
+                ],
+            });
+        }
+
+        return groups;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        selection.targets,
+        historySelection.targets,
+        abilities,
+        linked,
+        evidence,
+        busy,
+        day.history.length,
+        day.cover.length,
+    ]);
+    useAttendanceEditRibbon('staff', abilities, editGroups);
+
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
+        visitWith('/attendance/staff', { academic_year_id: year }),
+    );
+    useAttendanceHomeFilters(
+        [
+            yearSpec,
+            {
+                key: 'date',
+                date: true,
+                label: a.myDay.date,
+                value: day.date,
+                onChange: (date: string) =>
+                    visitWith('/attendance/staff', {
+                        academic_year_id: filters.academic_year_id,
+                        date,
+                    }),
+            },
+            ...(abilities.record_staff
+                ? [
+                      {
+                          key: 'status',
+                          type: 'multi' as const,
+                          label: st.status,
+                          allLabel: c.allStatuses,
+                          values: statuses.map(String),
+                          options: [STAFF_NOT_RECORDED, ...STAFF_STATUSES].map(
+                              (s) => ({
+                                  value: String(s.value),
+                                  label:
+                                      s.value === 0
+                                          ? st.notRecorded
+                                          : st.statuses[s.value],
+                              }),
+                          ),
+                          onChange: (values: string[]) =>
+                              setStatuses(values.map(Number)),
+                      },
+                  ]
+                : []),
+        ],
+        () => {
+            setStatuses([]);
+            setQuery('');
+            visitWith('/attendance/staff', {
+                academic_year_id: filters.academic_year_id,
+            });
+        },
+        [
+            filters.academic_year_id,
+            day.date,
+            statuses,
+            abilities.record_staff,
+            yearSpec.options.length,
+        ],
+    );
+    useAttendanceSearch(query, a.sheet.search, setQuery, setQuery);
+
+    const messages: AttendanceMessage[] = [
+        ...(abilities.staff_checkin && !linked
+            ? [
+                  {
+                      key: 'not-linked',
+                      tone: 'warning' as const,
+                      text: st.notLinked,
+                  },
+              ]
+            : []),
+        ...(abilities.record_staff && day.cover.length > 0
+            ? [
+                  {
+                      key: `cover:${day.cover.length}`,
+                      tone: 'warning' as const,
+                      text: `${st.cover}: ${day.cover.length} — ${st.coverHint}`,
+                  },
+              ]
+            : []),
+    ];
+    useAttendanceMessages(messages, st.title);
 
     const menuItems = (r: StaffRow): ContextMenuItem[] => [
         {
+            id: 'view',
+            label: c.view,
+            icon: History,
+            onSelect: () => viewer.open([r]),
+        },
+        {
             id: 'record',
             label: r.record_id === null ? st.record : st.edit,
-            icon: PencilLine,
-            onSelect: () => openEdit(r),
+            icon: LogIn,
+            onSelect: () => openEdit([r]),
         },
         ...(abilities.link_account
             ? [
@@ -625,97 +768,129 @@ function StaffPage({
             : []),
     ];
 
-    const timeField = (
-        label: string,
-        value: string,
-        onChange: (value: string) => void,
-    ) => (
-        <label className="sis-admission-sheet__field">
-            <span className="sis-admission-sheet__label">{label}</span>
-            <input
-                className={`sis-admission-sheet__control ${value !== '' ? 'sis-admission-draft-field--filled' : ''}`}
-                type="time"
-                dir="ltr"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-            />
-        </label>
-    );
-
     return (
-        <AttendancePage
-            title={st.title}
-            scroll
-            notices={
-                <PageNotice>
-                    {`${st.description} — ${st.dayStart.replace(':t', day.staff_day_start).replace(':g', String(day.grace_minutes))}`}
-                </PageNotice>
-            }
-        >
-            {abilities.record_staff ? (
+        <AttendancePage title={st.title}>
+            {ownOnly ? (
+                <AttendanceTable
+                    caption={st.history}
+                    storageKey="staff.history"
+                    rows={day.history}
+                    rowKey={(h) => h.id}
+                    columns={historyColumns}
+                    emptyText={st.noHistory}
+                    emptyAsDialog={linked}
+                    selection={historySelection}
+                    onOpen={(h) => historyViewer.open([h])}
+                />
+            ) : (
                 <AttendanceTable
                     caption={st.title}
+                    storageKey="staff.day"
                     rows={rows}
                     rowKey={(r) => r.teacher_id}
                     columns={columns}
                     emptyText={st.empty}
-                    selectedId={selectedId}
-                    onSelect={(r) => setSelectedId(r.teacher_id)}
-                    onOpen={openEdit}
+                    selection={selection}
+                    onOpen={(r) => openEdit([r])}
                     menuItems={menuItems}
                 />
-            ) : null}
+            )}
 
-            {abilities.staff_checkin ? (
-                <>
-                    <p className="sis-branches-page__notice mt-3">
-                        {linked ? st.history : st.notLinked}
-                    </p>
-                    {linked ? (
-                        <AttendanceTable
-                            caption={st.history}
-                            rows={day.history}
-                            rowKey={(h) => h.id}
-                            columns={historyColumns}
-                            emptyText={st.noHistory}
-                        />
-                    ) : null}
-                </>
-            ) : null}
+            {viewer.element}
+            {historyViewer.element}
 
-            {abilities.record_staff ? (
-                <>
-                    <p className="sis-branches-page__notice mt-3">{`${st.cover} — ${st.coverHint}`}</p>
-                    <AttendanceTable
-                        caption={st.cover}
-                        rows={day.cover}
-                        rowKey={(l) => l.schedule_id}
-                        columns={coverColumns}
-                        emptyText={st.noCover}
-                    />
-                </>
+            {panel !== null ? (
+                <AttendanceWindow
+                    wide
+                    title={panel === 'history' ? st.history : st.cover}
+                    onClose={() => setPanel(null)}
+                    footer={
+                        panel === 'cover' ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    openTimetable(
+                                        day.cover.length > 0
+                                            ? [
+                                                  ...new Set(
+                                                      day.cover.map(
+                                                          (l) => l.teacher_id,
+                                                      ),
+                                                  ),
+                                              ]
+                                            : [],
+                                    )
+                                }
+                            >
+                                {st.openTimetable}
+                            </Button>
+                        ) : null
+                    }
+                    sections={[
+                        {
+                            id: `att-staff-${panel}`,
+                            title:
+                                panel === 'history' ? st.history : st.coverHint,
+                            plain: true,
+                            content: (
+                                <div className="sis-branches-field--wide">
+                                    {panel === 'cover' ? (
+                                        <p className="sis-attendance-window__hint">
+                                            {st.coverHint}
+                                        </p>
+                                    ) : null}
+                                    {panel === 'history' ? (
+                                        <AttendanceTable
+                                            caption={st.history}
+                                            storageKey="staff.history"
+                                            rows={day.history}
+                                            rowKey={(h) => h.id}
+                                            columns={historyColumns}
+                                            emptyText={st.noHistory}
+                                            fit={false}
+                                            emptyAsDialog={false}
+                                        />
+                                    ) : (
+                                        <AttendanceTable
+                                            caption={st.cover}
+                                            storageKey="staff.cover"
+                                            rows={day.cover}
+                                            rowKey={(l) => l.schedule_id}
+                                            columns={coverColumns}
+                                            emptyText={st.noCover}
+                                            fit={false}
+                                            emptyAsDialog={false}
+                                        />
+                                    )}
+                                </div>
+                            ),
+                        },
+                    ]}
+                />
             ) : null}
 
             {edit !== null ? (
                 <AttendanceWindow
-                    title={(edit.row.record_id === null
-                        ? st.recordTitle
-                        : st.correctTitle
-                    ).replace(':name', edit.row.full_name)}
+                    title={
+                        edit.rows.length > 1
+                            ? `${correcting ? st.edit : st.record} (${edit.rows.length})`
+                            : (edit.rows[0].record_id === null
+                                  ? st.recordTitle
+                                  : st.correctTitle
+                              ).replace(':name', edit.rows[0].full_name)
+                    }
+                    columns={2}
                     pending={busy}
                     dirty
-                    confirmLabel={
-                        edit.row.record_id === null ? st.record : st.edit
-                    }
-                    confirmDisabled={
-                        edit.row.record_id !== null && edit.reason.trim() === ''
-                    }
+                    confirmLabel={correcting ? st.edit : st.record}
+                    confirmDisabled={correcting && edit.reason.trim() === ''}
                     onConfirm={saveEdit}
                     onClose={() => setEdit(null)}
                     sections={[
                         {
                             id: 'att-staff-record',
-                            title: `${edit.row.full_name} — ${day.date}`,
+                            title: `${edit.rows.length > 1 ? edit.rows.map((r) => r.full_name).join('، ') : edit.rows[0].full_name} — ${day.date}`,
                             content: (
                                 <>
                                     <RegistryListField
@@ -734,18 +909,6 @@ function StaffPage({
                                             setEdit({ ...edit, status })
                                         }
                                     />
-                                    {timeField(
-                                        st.checkInAt,
-                                        edit.check_in,
-                                        (check_in) =>
-                                            setEdit({ ...edit, check_in }),
-                                    )}
-                                    {timeField(
-                                        st.checkOutAt,
-                                        edit.check_out,
-                                        (check_out) =>
-                                            setEdit({ ...edit, check_out }),
-                                    )}
                                     {edit.status === '3' ? (
                                         <RegistryTextField
                                             label={st.minutesLate}
@@ -760,7 +923,34 @@ function StaffPage({
                                                 })
                                             }
                                         />
-                                    ) : null}
+                                    ) : (
+                                        <WindowFact
+                                            label={st.dayStartLabel}
+                                            value={st.dayStart
+                                                .replace(
+                                                    ':t',
+                                                    day.staff_day_start,
+                                                )
+                                                .replace(
+                                                    ':g',
+                                                    String(day.grace_minutes),
+                                                )}
+                                        />
+                                    )}
+                                    <WindowTimeField
+                                        label={st.checkInAt}
+                                        value={edit.check_in}
+                                        onChange={(check_in) =>
+                                            setEdit({ ...edit, check_in })
+                                        }
+                                    />
+                                    <WindowTimeField
+                                        label={st.checkOutAt}
+                                        value={edit.check_out}
+                                        onChange={(check_out) =>
+                                            setEdit({ ...edit, check_out })
+                                        }
+                                    />
                                     <RegistryTextField
                                         label={st.notes}
                                         editing
@@ -770,7 +960,7 @@ function StaffPage({
                                             setEdit({ ...edit, notes })
                                         }
                                     />
-                                    {edit.row.record_id !== null ? (
+                                    {correcting ? (
                                         <WindowTextArea
                                             label={st.reason}
                                             required
@@ -790,6 +980,7 @@ function StaffPage({
             {link !== null ? (
                 <AttendanceWindow
                     title={st.linkAccount}
+                    columns={2}
                     pending={busy}
                     dirty={link.email !== (link.row.account_email ?? '')}
                     confirmLabel={

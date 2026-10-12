@@ -10,6 +10,7 @@ use App\Application\Attendance\Support\AttendancePolicyResolver;
 use App\Application\Contracts\Query;
 use App\Application\Contracts\QueryHandler;
 use App\Domain\Attendance\Data\LessonSlot;
+use App\Domain\Attendance\ValueObjects\CalendarDate;
 use App\Domain\Attendance\ValueObjects\StaffAttendanceStatus;
 
 /**
@@ -32,7 +33,7 @@ final class GetStaffAttendanceDayHandler implements QueryHandler
 
         $policy = $this->policies->current($query->schoolId, $query->academicYearId);
         $today = $policy->localDate($this->clock->now());
-        $date = $query->date !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $query->date) === 1 ? $query->date : $today;
+        $date = CalendarDate::valid($query->date) ? (string) $query->date : $today;
         $base = ['date' => $date, 'today' => $today, 'staff_day_start' => $policy->staffDayStart, 'grace_minutes' => $policy->staffLateGraceMinutes];
 
         if (! $query->canManage) {

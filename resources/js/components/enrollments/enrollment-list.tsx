@@ -23,7 +23,11 @@ import {
 import {
     EnrollmentEditorRow,
     type EnrollmentRowHandle,
+    genderLabelFor,
+    statusLabel,
+    studentQuadName,
 } from '@/components/enrollments/enrollment-editor-row';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import type {
     EnrollmentFilterOptions,
     EnrollmentListItem,
@@ -358,10 +362,39 @@ export function EnrollmentList({
         enabled: true,
     });
     fitPageSizeRef.current = fitPageSize;
-    const displayRows = useMemo(
+    const pageRows = useMemo(
         () => clipRowsToFitPageSize(rows, fitPageSize),
         [fitPageSize, rows],
     );
+    // Header click sorts the page on screen (the list itself is paged on the server).
+    const { rows: displayRows, sort } = useTableSort(pageRows, (row, key) => {
+        switch (key) {
+            case 'name':
+                return studentQuadName(row);
+            case 'gender':
+                return genderLabelFor(row.student_gender, i18n);
+            case 'year':
+                return row.academic_year_name ?? row.academic_year_code;
+            case 'class':
+                return row.class_name ?? row.class_code;
+            case 'section':
+                return row.section_code ?? row.section_name;
+            case 'branch':
+                return row.branch_name ?? row.branch_code;
+            case 'department':
+                return row.department_name;
+            case 'stage':
+                return row.stage_name;
+            case 'from':
+                return row.effective_from;
+            case 'to':
+                return row.effective_to;
+            case 'status':
+                return statusLabel(row.student_status ?? 1, i18n);
+            default:
+                return null;
+        }
+    });
     const fitLastPage = fitAwareLastPage(
         pagination.total,
         fitPageSize,
@@ -1771,19 +1804,21 @@ export function EnrollmentList({
                                                 <th className="sis-admission-drafts-table__num">
                                                     {i18n.enrollments.seq}
                                                 </th>
-                                                <th className="sis-admission-drafts-table__name-head">
-                                                    {i18n.enrollments.quadName}
+                                                <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(sort, 'name')}>
+                                                    <SortButton sort={sort} column="name">
+                                                        {i18n.enrollments.quadName}
+                                                    </SortButton>
                                                 </th>
-                                                <th>{i18n.enrollments.gender}</th>
-                                                <th>{i18n.enrollments.academicYear}</th>
-                                                <th>{i18n.enrollments.className}</th>
-                                                <th>{i18n.enrollments.sectionName}</th>
-                                                <th>{i18n.enrollments.branchName}</th>
-                                                <th>{i18n.enrollments.departmentName}</th>
-                                                <th>{i18n.enrollments.stageName}</th>
-                                                <th>{i18n.enrollments.effectiveFrom}</th>
-                                                <th>{i18n.enrollments.effectiveTo}</th>
-                                                <th>{i18n.enrollments.statusTabsTitle}</th>
+                                                <th aria-sort={ariaSort(sort, 'gender')}><SortButton sort={sort} column="gender">{i18n.enrollments.gender}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'year')}><SortButton sort={sort} column="year">{i18n.enrollments.academicYear}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'class')}><SortButton sort={sort} column="class">{i18n.enrollments.className}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'section')}><SortButton sort={sort} column="section">{i18n.enrollments.sectionName}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'branch')}><SortButton sort={sort} column="branch">{i18n.enrollments.branchName}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'department')}><SortButton sort={sort} column="department">{i18n.enrollments.departmentName}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'stage')}><SortButton sort={sort} column="stage">{i18n.enrollments.stageName}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'from')}><SortButton sort={sort} column="from">{i18n.enrollments.effectiveFrom}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'to')}><SortButton sort={sort} column="to">{i18n.enrollments.effectiveTo}</SortButton></th>
+                                                <th aria-sort={ariaSort(sort, 'status')}><SortButton sort={sort} column="status">{i18n.enrollments.statusTabsTitle}</SortButton></th>
                                             </tr>
                                         </thead>
                                         <tbody>

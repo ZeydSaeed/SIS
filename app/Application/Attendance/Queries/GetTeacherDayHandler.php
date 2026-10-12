@@ -13,6 +13,7 @@ use App\Application\Contracts\QueryHandler;
 use App\Domain\Attendance\Data\LessonSlot;
 use App\Domain\Attendance\Repositories\AttendanceSheetRepositoryInterface;
 use App\Domain\Attendance\ValueObjects\AttendancePolicy;
+use App\Domain\Attendance\ValueObjects\CalendarDate;
 
 /**
  * The date is the school-local date computed on the server (the browser clock is never trusted). A reviewer may
@@ -36,7 +37,7 @@ final class GetTeacherDayHandler implements QueryHandler
         $policy = $this->policies->current($query->schoolId, $query->academicYearId);
         $now = $this->clock->now();
         $today = $policy->localDate($now);
-        $date = $query->date !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $query->date) === 1 ? $query->date : $today;
+        $date = CalendarDate::valid($query->date) ? (string) $query->date : $today;
         $teacherId = $query->actor->isReviewer && $query->teacherId !== null ? $query->teacherId : $query->actor->teacherId;
 
         $base = [

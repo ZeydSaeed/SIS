@@ -949,14 +949,37 @@ body.sis-table-col-resizing * {
     cursor: pointer;
 }
 
-/* Selected chrome tab — same fill as sidebar menu hover/active. */
+/* Selected chrome tab — same fill as the ribbon panel directly under it (per page). */
+.sis-chrome {
+    --sis-chrome-tab-fill: var(--sis-ribbon);
+}
+
+/* Word-tab pages: white ribbon (curriculum / students / admission / enrollments / timetable / teachers)… */
+.sis-chrome.sis-chrome--word-tabs {
+    --sis-chrome-tab-fill: var(--sis-curriculum-ribbon);
+}
+
+/* …unless the open ribbon keeps the default surface (attendance, organization / rooms). */
+.sis-chrome.sis-chrome--word-tabs:has(
+        .sis-ribbon:not(
+                .sis-ribbon--curriculum-page,
+                .sis-ribbon--students-page,
+                .sis-ribbon--admission-page,
+                .sis-ribbon--enrollments-page,
+                .sis-ribbon--timetable-page,
+                .sis-ribbon--teachers-page
+            )
+    ) {
+    --sis-chrome-tab-fill: var(--sis-ribbon);
+}
+
 .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active,
 .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:hover,
 .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:focus,
 .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:focus-visible,
 .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:active {
-    background: var(--sidebar-accent) !important;
-    background-color: var(--sidebar-accent) !important;
+    background: var(--sis-chrome-tab-fill) !important;
+    background-color: var(--sis-chrome-tab-fill) !important;
     color: var(--sidebar-accent-foreground) !important;
     box-shadow: none !important;
     opacity: 1 !important;
@@ -1020,9 +1043,9 @@ body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.si
 body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:focus-visible,
 body .sis-chrome.sis-chrome--word-tabs .sis-titlebar .sis-titlebar__menu-item.sis-titlebar__menu-item--active:active {
     z-index: 1;
-    /* Same token as the ribbon body on these pages (.sis-ribbon--*-page). */
-    background: var(--sis-curriculum-ribbon) !important;
-    background-color: var(--sis-curriculum-ribbon) !important;
+    /* Same fill as the ribbon panel under the tab on this page. */
+    background: var(--sis-chrome-tab-fill) !important;
+    background-color: var(--sis-chrome-tab-fill) !important;
     color: var(--sis-steel) !important;
     border-color: var(--sis-curriculum-tab-frame);
     border-bottom: 0;
@@ -18344,4 +18367,307 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     .sis-rooms-three.sis-rooms-three .sis-admission-sheet__body {
         grid-template-columns: minmax(0, 1fr);
     }
+}
+
+/* ═══ «إدارة الحضور والغياب» (2026-10-13) ═══════════════════════════════════════════════════════════════════════════
+   Home-tab filters: groups of three columns × two rows (the height the ribbon shows in full), side by side —
+   always visible, never folded; windows in two columns; tables that zoom
+   (ribbon «العرض») and whose columns / rows are resized by hand (column edges · row bottom edges). */
+.sis-ribbon__filters-stack--attendance {
+    --att-filter-w: 7.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, var(--att-filter-w));
+    grid-template-rows: repeat(2, 1.9rem);
+    grid-auto-flow: row;
+    gap: 0.35rem 0.45rem;
+    align-content: center;
+    justify-content: start;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+}
+
+.sis-ribbon__filters-stack--attendance .sis-ribbon__filter-field,
+.sis-students-page .sis-ribbon__filters-stack--attendance .sis-ribbon__filter-field {
+    width: var(--att-filter-w) !important;
+    min-width: var(--att-filter-w) !important;
+    max-width: var(--att-filter-w) !important;
+    margin: 0;
+}
+
+.sis-ribbon__filters-stack--attendance .sis-admission-select-fit,
+.sis-ribbon__filters-stack--attendance .sis-admission-year-control,
+.sis-ribbon__filters-stack--attendance .sis-list-select,
+.sis-ribbon__filters-stack--attendance .sis-list-select__trigger {
+    width: var(--att-filter-w) !important;
+    min-width: var(--att-filter-w) !important;
+    max-width: var(--att-filter-w) !important;
+    box-sizing: border-box;
+}
+
+.sis-ribbon__filters-stack--attendance .sis-ribbon__filter-field,
+.sis-ribbon__filters-stack--attendance .sis-list-select__trigger,
+.sis-ribbon__filters-stack--attendance input[type='date'] {
+    height: 1.9rem !important;
+    min-height: 1.9rem !important;
+    max-height: 1.9rem !important;
+}
+
+.sis-ribbon__filters-stack--attendance input[type='date'] {
+    width: var(--att-filter-w);
+    padding-block: 0;
+}
+
+.sis-ribbon__filters-stack--attendance .sis-admission-select-fit__mirror {
+    display: none !important;
+}
+
+.sis-ribbon__filters-stack--attendance .sis-list-select__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Windows (same rules as «الغرف الدراسية»): the section body is a grid — two equal columns («sis-attendance-two»)
+   or one («sis-narrow-form»); every field is its label above its control, full column width; wide fields (notes,
+   tables, buttons rows) span the whole row. «sis-attendance-wide» gives room to a table. */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-attendance-two.sis-attendance-two {
+    --sis-sheet-w: min(96vw, 40rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-attendance-wide.sis-attendance-wide.sis-attendance-wide {
+    --sis-sheet-w: min(96vw, 62rem);
+}
+
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__body,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__body {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.55rem 0.9rem;
+    padding: 0.55rem 0.9rem;
+}
+
+.sis-attendance-wide.sis-attendance-wide:not(.sis-attendance-two) .sis-admission-sheet__body {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__body > .sis-admission-sheet__row,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__body > .sis-admission-sheet__row {
+    display: contents !important;
+}
+
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__field,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__field {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin: 0;
+    grid-column: auto !important;
+}
+
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__field.sis-branches-field--wide,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__field.sis-branches-field--wide,
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__body .sis-branches-field--wide,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__body .sis-branches-field--wide {
+    grid-column: 1 / -1 !important;
+}
+
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__field > .sis-admission-sheet__label,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__field > .sis-admission-sheet__label {
+    margin: 0;
+    padding: 0;
+    font-weight: 700;
+    text-align: right;
+    white-space: normal;
+}
+
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__field > :not(.sis-admission-sheet__label),
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__field .sis-admission-sheet-list-select,
+.sis-attendance-two.sis-attendance-two .sis-admission-sheet__field .sis-list-select__trigger,
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__field > :not(.sis-admission-sheet__label),
+.sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__field .sis-list-select__trigger {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Read-only facts: same height as an input, long text wraps instead of being cut. */
+.sis-attendance-two .sis-admission-draft-readonly,
+.sis-attendance-wide .sis-admission-draft-readonly,
+.sis-narrow-form .sis-admission-draft-readonly {
+    min-height: 2rem;
+    height: auto;
+    padding-block: 0.3rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+}
+
+/* A row of buttons inside a window (e.g. «سجل الطالب التفصيلي» · «تحرير»). */
+.sis-attendance-window-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+@media (max-width: 40rem) {
+    .sis-attendance-two.sis-attendance-two .sis-admission-sheet__body,
+    .sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* Zoom + hand-sized rows: the row height and the text scale together (fit-to-height pagination reads the same
+   variable, so the page size follows the zoom). */
+.sis-attendance-table.sis-admission-drafts-table {
+    --sis-admission-drafts-row-h: calc(var(--att-row-h, 2.35rem) * var(--att-zoom, 1));
+}
+
+.sis-attendance-table.sis-admission-drafts-table.sis-admission-periods-table th,
+.sis-attendance-table.sis-admission-drafts-table.sis-admission-periods-table td {
+    font-size: calc(0.78rem * var(--att-zoom, 1));
+}
+
+.sis-attendance-table .sis-admission-drafts-table__select input[type='checkbox'] {
+    width: calc(0.95rem * var(--att-zoom, 1));
+    height: calc(0.95rem * var(--att-zoom, 1));
+}
+
+.sis-attendance-table.sis-attendance-table--row-hover tbody,
+.sis-attendance-table.sis-attendance-table--row-resizing tbody {
+    cursor: row-resize;
+}
+
+body.sis-table-row-resizing {
+    cursor: row-resize !important;
+    user-select: none;
+}
+
+/* «لوحة الحضور»: the SIS dashboard tiles («sis-dashboard-launch») with the indicator value; a tile opens its window. */
+.sis-attendance-dashboard .sis-dashboard-launch__tile {
+    font: inherit;
+    min-height: 8rem;
+}
+
+.sis-attendance-dashboard__value {
+    font-family: var(--sis-chrome-font);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--sis-night);
+}
+
+.sis-attendance-dashboard__hint {
+    font-family: var(--sis-chrome-font);
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: var(--sis-oxford);
+}
+
+/* ═══ Title bar «رجوع» / «تقدم» (2026-10-13): split buttons right of the close (X) button; the chevron lists up to 30
+   steps (navigation history of this tab). ═══ */
+.sis-titlebar__history-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    margin-inline-start: 0.15rem;
+}
+
+.sis-titlebar__history {
+    display: inline-flex;
+    align-items: center;
+}
+
+.sis-titlebar .sis-titlebar__history .sis-window__control {
+    width: 1.75rem;
+}
+
+.sis-titlebar .sis-titlebar__history .sis-titlebar__history-more {
+    width: 1rem;
+}
+
+.sis-titlebar__history .sis-window__control:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.sis-titlebar__history-list {
+    max-height: min(70vh, 32rem);
+    min-width: 16rem;
+    max-width: min(92vw, 28rem);
+    overflow-y: auto;
+}
+
+.sis-titlebar__history-list [role='menuitem'] {
+    display: grid;
+    grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.sis-titlebar__history-step {
+    text-align: center;
+    opacity: 0.7;
+}
+
+.sis-titlebar__history-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sis-titlebar__history-time {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* ═══ Attendance windows: a table is part of the window (no section banner, no inner card); the «الحالات» group of
+   the «تحرير» tab keeps a margin on its left. (2026-10-13) ═══ */
+.sis-attendance-window__plain {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    min-width: 0;
+}
+
+.sis-attendance-window__plain > .sis-branches-field--wide {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.sis-attendance-window__hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--sis-oxford);
+}
+
+.sis-attendance-window__plain .sis-admission-drafts-table.sis-attendance-table {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    margin: 0;
+    box-shadow: none;
+}
+
+.sis-attendance-window__plain .sis-admission-drafts-table.sis-attendance-table table {
+    border-top: 1px solid var(--sis-oxford);
+    border-bottom: 1px solid var(--sis-oxford);
+}
+
+.sis-ribbon__group[data-group-id$='-status'],
+.sis-ribbon__group[data-group-id='attendance-sheet-filter'],
+.sis-ribbon__group[data-group-id='attendance-settings-groups'] {
+    margin-inline-end: 0.85rem;
 }

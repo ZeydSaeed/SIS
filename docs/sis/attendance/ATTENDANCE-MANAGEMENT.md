@@ -100,6 +100,13 @@ Shown on every report and dashboard.
 
 Migration `2026_10_12_100000_extend_attendance_evidence_and_exports` — additive: policy flags (defaults keep current behaviour), `checkin_codes.kind/label`, new `attendance.report_exports` (FORCE RLS). Blueprint 108 → 109.
 
+## UI conventions and hardening (2026-10-13)
+
+- Shared chrome `resources/js/components/attendance/attendance-chrome.tsx`: every table has «تحديد» / «تحديد الكل», «عرض» (all columns, previous / next over several rows) and «تحرير» in the «المحدد» ribbon group; zoom («العرض»: تكبير / تصغير / 100%), columns resized on header edges, rows on their bottom edges (`use-resizable-table-rows.ts`), the page size fits the visible height (server `per_page` 3…100) with the standard pagination; pages scroll with a hidden scrollbar.
+- Guidance, warnings, empty results and refusals open in the shared message dialog (`useAttendanceMessages`), never as text on the page; the Home-tab filters are a three-column grid; windows use two columns.
+- Inputs: query-string dates must exist in the calendar (`CalendarDate`), free text and enumerations are read type-safely (`AttendanceFilterInput::text / date`), code filters are bounded to their SMALLINT range — malformed URLs return the page, never an HTTP 500.
+- Scenario matrix `AttendanceScenarioMatrixPostgreSqlTest` (group `scenario`): 20 teaching units (7 classes × A/B/C, 4 branches, 8 departments, theory / practical, co-teachers), a week of lessons, every lifecycle path plus staff, excuses, exceptional lessons and a 1,200-request fuzz; `SIS_ATTENDANCE_SCENARIO_SEED` replays another random walk. `AttendanceErrorDialogCoverageTest` guarantees every raised error code has its Arabic dialog text.
+
 ## Not implemented (by decision or dependency)
 
 - Kiosk / biometric adapters; geolocation (not collected by decision).

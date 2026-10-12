@@ -658,15 +658,17 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 |--------|------|-------------|
 | id | BIGINT | PK |
 | class_id | BIGINT | FK → classes |
-| code | VARCHAR(20) | NOT NULL |
-| name | VARCHAR(100) | NOT NULL |
+| code | VARCHAR(20) | NOT NULL — `SEC-<letter>` (follows the name; numbered `SEC-n` only for legacy names) |
+| name | VARCHAR(100) | NOT NULL — the section letter **A / B / C** (single source of truth with the UI pick-lists, 2026-10-13) |
 | capacity | SMALLINT | |
 | homeroom_teacher_id | BIGINT | FK → teachers.teachers, nullable |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`  
+**Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`
+
+**Section letters (2026-10-13, migration `2026_10_13_100000_normalize_section_letters`, data only — no schema change):** names spelled in Arabic (أ / ب / ج, «شعبة أ») were normalised to A / B / C and the code to `SEC-<letter>` when free in the class (ids, links and history unchanged; reversible). The rule is enforced in the application (`SectionLetter`, `EnrollmentStructureGuard::sectionNameError` → `enrollment.section_letter_invalid`), not by a CHECK constraint, so legacy / imported rows never block a migration.  
 **Security (ENR-U02):** FORCE RLS via parent `classes.school_id`. Hard DELETE rejected by trigger.
 
 **Writes (2026-10-06):** `CreateSectionHandler` / `UpdateSectionHandler`; codes `SEC-n` per class under advisory lock; name unique per class; capacity ≥ active enrollments. `homeroom_teacher_id` (رائد الصف) must be an active teacher of the school in the class's year (`HomeroomTeacherPort` → Teachers repository); an unchanged homeroom stays valid. No schema change. «الحالة» settable from the section form like classes (2026-10-09).

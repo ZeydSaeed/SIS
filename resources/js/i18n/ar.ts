@@ -650,6 +650,12 @@ export const ar = {
         cascade: 'ترتيب متدرج',
         taskbar: 'شريط النوافذ',
         workspace: 'مساحة العمل',
+        history: {
+            back: 'رجوع',
+            forward: 'تقدم',
+            backList: 'خطوات الرجوع',
+            forwardList: 'خطوات التقدم',
+        },
     },
     chrome: {
         utilities: 'أدوات الشريط',
@@ -745,6 +751,37 @@ export const ar = {
                 'لا يمكن الوصول إلى بيانات مدرسة أخرى.',
             'attendance.submit_confirm_required':
                 'أكّد مراجعة الكشف قبل الإرسال.',
+            'attendance.academic_year_date_out_of_bounds':
+                'التاريخ خارج حدود السنة الدراسية.',
+            'attendance.payload_too_large':
+                'عدد الطلاب في الطلب أكبر من المسموح — قسّم التسجيل.',
+            'attendance.record_not_found': 'سجل الحضور غير موجود.',
+            'attendance.duplicate_open_session_conflict':
+                'توجد جلسة حضور مفتوحة لهذه الشعبة في الحصة والتاريخ نفسيهما.',
+            'attendance.duplicate_student_in_payload':
+                'الطالب مكرر في الطلب نفسه.',
+            'attendance.empty_payload': 'لا توجد حالات لحفظها.',
+            'attendance.idempotency_payload_conflict':
+                'أُرسل الطلب نفسه سابقاً ببيانات مختلفة — أعد التحميل ثم أعد المحاولة.',
+            'attendance.invalid_cancellation_reason':
+                'سبب إلغاء الجلسة مطلوب (3 أحرف على الأقل).',
+            'attendance.invalid_correction_reason':
+                'سبب التصحيح مطلوب (3 أحرف على الأقل).',
+            'attendance.invalid_enrollment':
+                'التسجيل غير صالح لهذه الجلسة (ليس ضمن الشعبة أو السنة).',
+            'attendance.invalid_period_for_school':
+                'الحصة المختارة لا تتبع هذه المدرسة.',
+            'attendance.legacy_writer_quarantined':
+                'هذا المسار القديم للتسجيل موقوف — استخدم كشف الحضور.',
+            'attendance.school_resolution_failed':
+                'تعذّر تحديد المدرسة الحالية — اختر المدرسة ثم أعد المحاولة.',
+            'attendance.session_cancel_conflict':
+                'تغيّرت الجلسة قبل الإلغاء — أعد التحميل.',
+            'attendance.session_cancelled':
+                'الجلسة ملغاة ولا يمكن التعديل عليها.',
+            'attendance.session_close_conflict':
+                'تغيّرت الجلسة قبل الإغلاق — أعد التحميل.',
+            'attendance.session_not_found': 'جلسة الحضور غير موجودة.',
             'attendance.evidence_disabled':
                 'وسيلة إثبات الحضور هذه غير مفعّلة في سياسة المدرسة.',
             'attendance.exceptional_lesson_invalid':
@@ -1050,7 +1087,9 @@ export const ar = {
                 'لا يمكن تغيير المرحلة لصف فيه طلبة مسجلون — المنهج يُطبّق حسب المرحلة.',
             'enrollment.section_name_invalid':
                 'اسم الشعبة مطلوب (100 حرف كحد أقصى).',
-            'enrollment.section_name_taken': 'توجد شعبة بهذا الاسم في الصف.',
+            'enrollment.section_letter_invalid':
+                'الشعبة يجب أن تكون أحد الحروف A أو B أو C.',
+            'enrollment.section_name_taken': 'هذه الشعبة موجودة في الصف.',
             'enrollment.section_capacity_invalid':
                 'سعة الشعبة يجب أن تكون بين 1 و500.',
             'enrollment.section_capacity_below_enrolled':
@@ -2135,6 +2174,7 @@ export const ar = {
         dailyHead: 'ملخص الشعبة اليومي',
     },
     teachers: {
+        openTimetable: 'الجدول الدراسي للمحدد',
         academicTitle: 'اللقب العلمي',
         noAcademicTitle: 'بدون لقب',
         abbreviation: 'الاختصار (في الجدول)',

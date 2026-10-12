@@ -1,17 +1,27 @@
 import { router, usePage } from '@inertiajs/react';
-import { CalendarClock, ClipboardCheck, Eye, ShieldCheck } from 'lucide-react';
+import {
+    CalendarClock,
+    ClipboardCheck,
+    ClockAlert,
+    ExternalLink,
+    ShieldCheck,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AttendancePage,
     AttendanceTable,
     AttendanceWindow,
-    PageNotice,
     WindowFact,
+    selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
+    useAttendanceMessages,
+    useAttendanceSelection,
+    useRowViewer,
     useYearFilterSpec,
     visitWith,
     type AttendanceColumn,
+    type AttendanceMessage,
     type SectionKey,
 } from '@/components/attendance/attendance-chrome';
 import {
@@ -31,6 +41,7 @@ import type { ContextMenuItem } from '@/components/sis/context-menu';
 import { usePageError } from '@/components/sis/page-error-context';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import type { FilterSpec } from '@/components/sis/ribbon-filter';
+import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 
 export type BoardRow = {
@@ -76,6 +87,7 @@ export type BoardFilters = {
     origin: number[];
     late?: boolean;
     page: number;
+    per_page?: number;
     academic_year_id: number | null;
 };
 
@@ -106,6 +118,9 @@ export type BoardProps = {
     mode: 'review' | 'sessions';
 };
 
+const reviewable = (row: BoardRow) =>
+    row.sheet_status === 2 || row.sheet_status === 3;
+
 /** «مراجعة الكشوف» (review mode) and «كل الجلسات» (sessions mode) — the same server-filtered board. */
 export function SheetsBoard({
     board,
@@ -130,20 +145,16 @@ export function SheetsBoard({
             };
         }
     ).flash;
-    const [checked, setChecked] = useState<number[]>([]);
-    const [selectedId, setSelectedId] = useState<number | null>(null);
-    const [confirmBulk, setConfirmBulk] = useState(false);
+    const selection = useAttendanceSelection(board.data, (row) => row.id);
+    const [confirmBulk, setConfirmBulk] = useState<BoardRow[] | null>(null);
+    const [missingOpen, setMissingOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const canReview = abilities.review_sheet;
-    const reviewable = (row: BoardRow) =>
-        row.sheet_status === 2 || row.sheet_status === 3;
-    const selectedRows = board.data.filter(
-        (row) => checked.includes(row.id) && reviewable(row),
-    );
-    const selected = board.data.find((row) => row.id === selectedId) ?? null;
+    const targets = selection.targets;
+    const single = targets.length === 1 ? targets[0] : null;
+    const bulkRows = targets.filter(reviewable);
 
     const visit = (next: Partial<BoardFilters>) => {
-        setChecked([]);
         const merged = { ...filters, ...next, page: next.page ?? 1 };
         visitWith(path, {
             ...merged,
@@ -151,13 +162,20 @@ export function SheetsBoard({
                 merged.sheet_status.length === 0 ? [''] : merged.sheet_status,
         });
     };
+    const openSheet = (row: BoardRow) =>
+        router.visit(`/attendance/sheets/${row.id}`);
+    const teacherDay = (row: BoardRow) =>
+        router.visit(
+            `/attendance/my?date=${row.session_date}&teacher_id=${row.teacher_id}`,
+        );
 
     const bulkApprove = () => {
+        if (confirmBulk === null) return;
         setBusy(true);
         router.post(
             '/attendance/review/bulk-approve',
             {
-                items: selectedRows.map((row) => ({
+                items: confirmBulk.map((row) => ({
                     session_id: row.id,
                     version: row.version,
                 })),
@@ -166,8 +184,7 @@ export function SheetsBoard({
                 preserveScroll: true,
                 headers: { 'X-Idempotency-Key': newKey('bulk-approve') },
                 onSuccess: () => {
-                    setConfirmBulk(false);
-                    setChecked([]);
+                    setConfirmBulk(null);
                 },
                 onError: (errors) => showInertiaErrors(errors),
                 onFinish: () => setBusy(false),
@@ -175,83 +192,202 @@ export function SheetsBoard({
         );
     };
 
-    const editGroups = useMemo((): PageRibbonGroup[] => {
-        const actions: PageRibbonGroup = {
-            id: 'attendance-board-actions',
-            label: c.actions,
-            commands: [
-                {
-                    id: 'attendance-board-open',
-                    label: r.open,
-                    icon: Eye,
-                    iconTone: 'sky',
-                    disabled: selected === null,
-                    title: selected === null ? c.needsSelection : undefined,
-                    onSelect: () =>
-                        selected &&
-                        router.visit(`/attendance/sheets/${selected.id}`),
-                },
-                {
-                    id: 'attendance-board-day',
-                    label: a.myDay.chooseTeacher,
-                    icon: CalendarClock,
-                    iconTone: 'education',
-                    disabled: selected === null || !canReview,
-                    onSelect: () =>
-                        selected &&
-                        router.visit(
-                            `/attendance/my?date=${selected.session_date}&teacher_id=${selected.teacher_id}`,
-                        ),
-                },
-                ...(canReview
-                    ? [
-                          {
-                              id: 'attendance-board-bulk',
-                              label: r.bulkApprove,
-                              icon: ShieldCheck,
-                              iconTone: 'ok' as const,
-                              count: selectedRows.length,
-                              disabled: selectedRows.length === 0 || busy,
-                              title:
-                                  selectedRows.length === 0
-                                      ? r.selectHint
-                                      : undefined,
-                              onSelect: () => setConfirmBulk(true),
-                          },
-                          {
-                              id: 'attendance-board-review',
-                              label: a.sheet.startReview,
-                              icon: ClipboardCheck,
-                              iconTone: 'amber' as const,
-                              disabled:
-                                  selected === null || !reviewable(selected),
-                              onSelect: () =>
-                                  selected &&
-                                  router.visit(
-                                      `/attendance/sheets/${selected.id}`,
-                                  ),
-                          },
-                      ]
-                    : []),
-            ],
-        };
-        const statuses: PageRibbonGroup = {
-            id: 'attendance-board-status',
-            label: c.statuses,
-            commands: statusCommands(
-                'attendance-board-status',
-                SHEET_STATUSES,
-                a.sheetStatus,
-                board.totals,
-                filters.sheet_status,
-                (v) =>
-                    visit({ sheet_status: toggleIn(filters.sheet_status, v) }),
+    const columns: AttendanceColumn<BoardRow>[] = [
+        {
+            id: 'date',
+            header: r.date,
+            kind: 'text',
+            cell: (row) => (
+                <span dir="ltr">{`${row.session_date} ${row.start_time ?? ''}`}</span>
             ),
-        };
+        },
+        {
+            id: 'period',
+            header: a.myDay.period,
+            kind: 'num',
+            cell: (row) => <span dir="ltr">{row.period_number ?? '—'}</span>,
+        },
+        {
+            id: 'subject',
+            header: r.subject,
+            kind: 'name',
+            cell: (row) => row.subject_name ?? '—',
+        },
+        {
+            id: 'type',
+            header: r.lessonType,
+            kind: 'text',
+            cell: (row) =>
+                row.lesson_type ? a.lessonType[row.lesson_type] : '—',
+        },
+        {
+            id: 'class',
+            header: r.section,
+            kind: 'text',
+            cell: (row) =>
+                `${row.class_name ?? '—'} / ${row.section_name ?? '—'}`,
+        },
+        {
+            id: 'teacher',
+            header: r.teacher,
+            kind: 'text',
+            cell: (row) => row.teacher_name ?? '—',
+        },
+        {
+            id: 'counts',
+            header: a.sheet.recorded,
+            kind: 'text',
+            cell: (row) => countsText(row.counts),
+        },
+        {
+            id: 'status',
+            header: r.status,
+            kind: 'status',
+            tone: (row) => sheetStatusMeta(row.sheet_status)?.tone ?? 0,
+            cell: (row) => (
+                <StatusLabel
+                    meta={sheetStatusMeta(row.sheet_status)}
+                    label={`${sheetLabel(row.sheet_status)}${row.submission_count > 1 ? ` ×${row.submission_count}` : ''}${row.submitted_late ? ` · ${a.sheet.lateSubmission}` : ''}`}
+                />
+            ),
+        },
+        {
+            id: 'submitted',
+            header: r.submitted,
+            kind: 'text',
+            cell: (row) => dateTime(row.submitted_at),
+        },
+    ];
+    const viewer = useRowViewer(
+        columns,
+        (row) => `${a.sheet.sheetNo} ${row.id}`,
+        (row) => (
+            <div className="sis-admission-sheet__field sis-branches-field--wide">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => openSheet(row)}
+                >
+                    <ExternalLink aria-hidden />
+                    {r.open}
+                </Button>
+            </div>
+        ),
+    );
 
-        return [actions, statuses];
+    /** «تحرير»: one sheet opens for marking / review; several reviewable sheets go to «اعتماد المحدد». */
+    const edit = (rows: BoardRow[]) =>
+        rows.length === 1
+            ? openSheet(rows[0])
+            : setConfirmBulk(rows.filter(reviewable));
+
+    const editGroups = useMemo((): PageRibbonGroup[] => {
+        const multiEditable =
+            targets.length > 1 && (!canReview || bulkRows.length === 0);
+
+        return [
+            selectionGroup(
+                'attendance-board-selection',
+                targets,
+                viewer.open,
+                edit,
+                {
+                    editLabel: targets.length > 1 ? r.bulkApprove : c.edit,
+                    editDisabled: multiEditable,
+                    editTitle: multiEditable ? r.selectHint : undefined,
+                },
+            ),
+            {
+                id: 'attendance-board-actions',
+                label: c.actions,
+                commands: [
+                    {
+                        id: 'attendance-board-open',
+                        label: r.open,
+                        icon: ExternalLink,
+                        iconTone: 'education',
+                        disabled: single === null,
+                        title: single === null ? c.needsSelection : undefined,
+                        onSelect: () => single && openSheet(single),
+                    },
+                    {
+                        id: 'attendance-board-day',
+                        label: a.myDay.chooseTeacher,
+                        icon: CalendarClock,
+                        iconTone: 'growth',
+                        disabled: single === null || !canReview,
+                        onSelect: () => single && teacherDay(single),
+                    },
+                    ...(canReview
+                        ? [
+                              {
+                                  id: 'attendance-board-bulk',
+                                  label: r.bulkApprove,
+                                  icon: ShieldCheck,
+                                  iconTone: 'ok' as const,
+                                  count: bulkRows.length,
+                                  disabled: bulkRows.length === 0 || busy,
+                                  title:
+                                      bulkRows.length === 0
+                                          ? r.selectHint
+                                          : undefined,
+                                  onSelect: () => setConfirmBulk(bulkRows),
+                              },
+                              {
+                                  id: 'attendance-board-review',
+                                  label: a.sheet.startReview,
+                                  icon: ClipboardCheck,
+                                  iconTone: 'amber' as const,
+                                  disabled:
+                                      single === null || !reviewable(single),
+                                  onSelect: () => single && openSheet(single),
+                              },
+                          ]
+                        : []),
+                    ...(mode === 'review'
+                        ? [
+                              {
+                                  id: 'attendance-board-missing',
+                                  label: r.missing,
+                                  icon: ClockAlert,
+                                  iconTone: 'warning' as const,
+                                  count: board.missing.length,
+                                  disabled: !board.single_day,
+                                  title: board.single_day
+                                      ? r.missing
+                                      : r.missingHint,
+                                  onSelect: () => setMissingOpen(true),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+            {
+                id: 'attendance-board-status',
+                label: c.statuses,
+                commands: statusCommands(
+                    'attendance-board-status',
+                    SHEET_STATUSES,
+                    a.sheetStatus,
+                    board.totals,
+                    filters.sheet_status,
+                    (v) =>
+                        visit({
+                            sheet_status: toggleIn(filters.sheet_status, v),
+                        }),
+                ),
+            },
+        ];
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selected, selectedRows.length, busy, board.totals, filters, canReview]);
+    }, [
+        targets,
+        busy,
+        board.totals,
+        board.missing.length,
+        board.single_day,
+        filters,
+        canReview,
+    ]);
     useAttendanceEditRibbon(current, abilities, editGroups);
 
     const multi = (
@@ -362,79 +498,47 @@ export function SheetsBoard({
         [filters, lookups, yearSpec.options.length],
     );
 
-    const columns: AttendanceColumn<BoardRow>[] = [
-        {
-            id: 'date',
-            header: r.date,
-            kind: 'text',
-            cell: (row) => (
-                <span dir="ltr">{`${row.session_date} ${row.start_time ?? ''}`}</span>
-            ),
-        },
-        {
-            id: 'period',
-            header: a.myDay.period,
-            kind: 'num',
-            cell: (row) => <span dir="ltr">{row.period_number ?? '—'}</span>,
-        },
-        {
-            id: 'subject',
-            header: r.subject,
-            kind: 'name',
-            cell: (row) => row.subject_name ?? '—',
-        },
-        {
-            id: 'type',
-            header: r.lessonType,
-            kind: 'text',
-            cell: (row) =>
-                row.lesson_type ? a.lessonType[row.lesson_type] : '—',
-        },
-        {
-            id: 'class',
-            header: r.section,
-            kind: 'text',
-            cell: (row) =>
-                `${row.class_name ?? '—'} / ${row.section_name ?? '—'}`,
-        },
-        {
-            id: 'teacher',
-            header: r.teacher,
-            kind: 'text',
-            cell: (row) => row.teacher_name ?? '—',
-        },
-        {
-            id: 'counts',
-            header: a.sheet.recorded,
-            kind: 'text',
-            cell: (row) => countsText(row.counts),
-        },
-        {
-            id: 'status',
-            header: r.status,
-            kind: 'status',
-            tone: (row) => sheetStatusMeta(row.sheet_status)?.tone ?? 0,
-            cell: (row) => (
-                <StatusLabel
-                    meta={sheetStatusMeta(row.sheet_status)}
-                    label={`${sheetLabel(row.sheet_status)}${row.submission_count > 1 ? ` ×${row.submission_count}` : ''}${row.submitted_late ? ` · ${a.sheet.lateSubmission}` : ''}`}
-                />
-            ),
-        },
-        {
-            id: 'submitted',
-            header: r.submitted,
-            kind: 'text',
-            cell: (row) => dateTime(row.submitted_at),
-        },
+    const failed =
+        flash?.attendanceResult?.action === 'bulk_approve'
+            ? (flash.attendanceResult.failed ?? [])
+            : [];
+    const messages: AttendanceMessage[] = [
+        ...(failed.length > 0
+            ? [
+                  {
+                      key: `failed:${failed.map((f) => f.session_id).join(',')}`,
+                      tone: 'warning' as const,
+                      text: `${r.bulkFailed}: ${failed.map((f) => `#${f.session_id} (${(t().errors.codes as Record<string, string>)[f.code] ?? f.code})`).join('، ')}`,
+                  },
+              ]
+            : []),
+        ...(mode === 'review' && board.single_day && board.missing.length > 0
+            ? [
+                  {
+                      key: 'missing',
+                      tone: 'warning' as const,
+                      text: `${r.missing}: ${board.missing.length}`,
+                  },
+              ]
+            : []),
+        ...(mode === 'review' && !board.single_day
+            ? [{ key: 'missing-hint', text: r.missingHint }]
+            : []),
     ];
+    useAttendanceMessages(messages);
 
     const menuItems = (row: BoardRow): ContextMenuItem[] => [
         {
             id: 'open',
             label: r.open,
-            icon: Eye,
-            onSelect: () => router.visit(`/attendance/sheets/${row.id}`),
+            icon: ExternalLink,
+            onSelect: () => openSheet(row),
+        },
+        {
+            id: 'view',
+            label: c.view,
+            icon: ClipboardCheck,
+            onSelect: () => viewer.open([row]),
         },
         ...(canReview
             ? [
@@ -442,10 +546,7 @@ export function SheetsBoard({
                       id: 'day',
                       label: a.myDay.chooseTeacher,
                       icon: CalendarClock,
-                      onSelect: () =>
-                          router.visit(
-                              `/attendance/my?date=${row.session_date}&teacher_id=${row.teacher_id}`,
-                          ),
+                      onSelect: () => teacherDay(row),
                   },
               ]
             : []),
@@ -492,76 +593,76 @@ export function SheetsBoard({
         },
     ];
 
-    const failed =
-        flash?.attendanceResult?.action === 'bulk_approve'
-            ? (flash.attendanceResult.failed ?? [])
-            : [];
-
     return (
-        <AttendancePage
-            title={mode === 'review' ? r.title : a.nav.sessions}
-            notices={
-                <>
-                    {failed.length > 0 ? (
-                        <PageNotice>{`${r.bulkFailed}: ${failed.map((f) => `#${f.session_id} (${(t().errors.codes as Record<string, string>)[f.code] ?? f.code})`).join('، ')}`}</PageNotice>
-                    ) : null}
-                    {mode === 'review' && !board.single_day ? (
-                        <PageNotice>{r.missingHint}</PageNotice>
-                    ) : null}
-                </>
-            }
-        >
+        <AttendancePage title={mode === 'review' ? r.title : a.nav.sessions}>
             <AttendanceTable
                 caption={mode === 'review' ? r.title : a.nav.sessions}
+                storageKey={`board.${mode}`}
                 rows={board.data}
                 rowKey={(row) => row.id}
                 columns={columns}
                 emptyText={r.empty}
-                selectable={canReview ? reviewable : undefined}
-                checkedIds={checked}
-                selectedId={selectedId}
-                onToggle={(id) => setChecked((cur) => toggleIn(cur, id))}
-                onToggleAll={setChecked}
-                onSelect={(row) => setSelectedId(row.id)}
-                onOpen={(row) => router.visit(`/attendance/sheets/${row.id}`)}
+                selection={selection}
+                onOpen={openSheet}
                 menuItems={menuItems}
-                page={board.meta.page}
-                lastPage={board.meta.last_page}
-                onPage={(page) => visit({ page })}
-                numberOffset={(board.meta.page - 1) * board.meta.per_page}
+                server={{
+                    page: board.meta.page,
+                    perPage: board.meta.per_page,
+                    total: board.meta.total,
+                    lastPage: board.meta.last_page,
+                    onPage: (page, per_page) => visit({ page, per_page }),
+                }}
             />
 
-            {board.single_day && board.missing.length > 0 ? (
-                <>
-                    <p className="sis-branches-page__notice mt-3">
-                        {r.missing}
-                    </p>
-                    <AttendanceTable
-                        caption={r.missing}
-                        rows={board.missing}
-                        rowKey={(m) => m.schedule_id}
-                        columns={missingColumns}
-                        emptyText={r.noMissing}
-                        onOpen={(m) =>
-                            m.session_id !== null &&
-                            router.visit(`/attendance/sheets/${m.session_id}`)
-                        }
-                    />
-                </>
+            {viewer.element}
+
+            {missingOpen ? (
+                <AttendanceWindow
+                    wide
+                    title={r.missing}
+                    onClose={() => setMissingOpen(false)}
+                    sections={[
+                        {
+                            id: 'att-missing',
+                            title: `${r.missing} (${board.missing.length})`,
+                            plain: true,
+                            content: (
+                                <div className="sis-branches-field--wide">
+                                    <AttendanceTable
+                                        caption={r.missing}
+                                        storageKey="board.missing"
+                                        rows={board.missing}
+                                        rowKey={(m) => m.schedule_id}
+                                        columns={missingColumns}
+                                        emptyText={r.noMissing}
+                                        fit={false}
+                                        emptyAsDialog={false}
+                                        onOpen={(m) =>
+                                            m.session_id !== null &&
+                                            router.visit(
+                                                `/attendance/sheets/${m.session_id}`,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            ),
+                        },
+                    ]}
+                />
             ) : null}
 
-            {confirmBulk ? (
+            {confirmBulk !== null ? (
                 <AttendanceWindow
                     title={r.bulkTitle.replace(
                         ':n',
-                        String(selectedRows.length),
+                        String(confirmBulk.length),
                     )}
                     pending={busy}
                     confirmLabel={r.bulkApprove}
-                    confirmDisabled={selectedRows.length === 0}
+                    confirmDisabled={confirmBulk.length === 0}
                     onConfirm={bulkApprove}
-                    onClose={() => setConfirmBulk(false)}
-                    narrow={false}
+                    onClose={() => setConfirmBulk(null)}
+                    columns={2}
                     sections={[
                         {
                             id: 'att-bulk-desc',
@@ -576,10 +677,10 @@ export function SheetsBoard({
                         },
                         {
                             id: 'att-bulk-list',
-                            title: `${c.scope} (${selectedRows.length})`,
+                            title: `${c.scope} (${confirmBulk.length})`,
                             content: (
                                 <ul className="sis-branches-checklist sis-branches-field--wide">
-                                    {selectedRows.map((row) => (
+                                    {confirmBulk.map((row) => (
                                         <li key={row.id}>
                                             <span className="sis-branches-checklist__item">
                                                 <ShieldCheck

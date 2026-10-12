@@ -5,21 +5,27 @@ import {
     ChevronLeft,
     ChevronRight,
     DoorOpen,
-    Eye,
+    Link2,
+    MessageSquareWarning,
     PlayCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     AttendancePage,
     AttendanceTable,
     AttendanceWindow,
-    PageNotice,
+    WindowFact,
     WindowTextArea,
+    selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
+    useAttendanceMessages,
+    useAttendanceSelection,
+    useRowViewer,
     useYearFilterSpec,
     visitWith,
     type AttendanceColumn,
+    type AttendanceMessage,
 } from '@/components/attendance/attendance-chrome';
 import {
     StatusLabel,
@@ -31,10 +37,7 @@ import {
     type AttendanceAbilities,
     type StatusCounts,
 } from '@/components/attendance/attendance-ui';
-import {
-    RegistryListField,
-    RegistryTextField,
-} from '@/components/organization/registry-sheet';
+import { RegistryListField } from '@/components/organization/registry-sheet';
 import type { ContextMenuItem } from '@/components/sis/context-menu';
 import { usePageError } from '@/components/sis/page-error-context';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
@@ -118,6 +121,7 @@ type Props = {
     lookups: Lookups | null;
     abilities: AttendanceAbilities;
     linked: boolean;
+    account_email: string | null;
 };
 
 type Exceptional = {
@@ -156,20 +160,27 @@ function MyDayPage({
     lookups,
     abilities,
     linked,
+    account_email,
 }: Props) {
     const a = t().attendanceSystem;
     const m = a.myDay;
     const c = a.chrome;
-    const { showInertiaErrors } = usePageError();
-    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const { showInertiaErrors, showWarning } = usePageError();
     const [busy, setBusy] = useState(false);
     const [exceptional, setExceptional] = useState<Exceptional | null>(null);
+    const [notesOpen, setNotesOpen] = useState(false);
+    const [linkTeacher, setLinkTeacher] = useState<string | null>(null);
     const canWork =
         abilities.submit_sheet &&
         (linked || abilities.review_sheet) &&
         !day.holiday;
-    const selected =
-        day.lessons.find((l) => l.schedule_id === selectedId) ?? null;
+    const selection = useAttendanceSelection(day.lessons, (l) => l.schedule_id);
+    const single = selection.targets.length === 1 ? selection.targets[0] : null;
+    const canLink =
+        !linked &&
+        abilities.link_account === true &&
+        account_email !== null &&
+        teachers.length > 0;
 
     const go = (params: Record<string, unknown>) =>
         visitWith('/attendance/my', {
@@ -225,6 +236,67 @@ function MyDayPage({
         );
     };
 
+    /** «ربط حسابي»: this account (its e-mail) becomes the user account of the chosen teacher record. */
+    const linkMyAccount = () => {
+        if (
+            linkTeacher === null ||
+            linkTeacher === '' ||
+            account_email === null
+        )
+            return;
+        setBusy(true);
+        router.post(
+            `/attendance/staff/teachers/${linkTeacher}/account`,
+            { email: account_email },
+            {
+                headers: { 'X-Idempotency-Key': newKey('link-self') },
+                onSuccess: () => setLinkTeacher(null),
+                onError: (errors) => showInertiaErrors(errors),
+                onFinish: () => setBusy(false),
+            },
+        );
+    };
+
+    // An account without a teacher record: a warning dialog whose action opens «ربط حسابي».
+    const warnedRef = useRef(false);
+    useEffect(() => {
+        if (linked || filters.teacher_id !== null || warnedRef.current) {
+            return;
+        }
+        warnedRef.current = true;
+        showWarning({
+            description: m.notLinked,
+            ...(canLink
+                ? {
+                      action: {
+                          label: m.linkMine,
+                          onSelect: () => setLinkTeacher(''),
+                      },
+                  }
+                : {}),
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [linked, filters.teacher_id]);
+
+    const messages: AttendanceMessage[] = [
+        ...(day.holiday
+            ? [{ key: 'holiday', tone: 'warning' as const, text: m.holiday }]
+            : []),
+        ...(day.notices.length > 0
+            ? [
+                  {
+                      key: `notices:${day.notices.length}`,
+                      tone: 'warning' as const,
+                      text: `${m.notices}: ${day.notices.length}`,
+                  },
+              ]
+            : []),
+    ];
+    useAttendanceMessages(
+        linked || filters.teacher_id !== null ? messages : [],
+        m.title,
+    );
+
     const timing = (l: Lesson): string => {
         if (l.phase === 'upcoming' && day.date === day.today)
             return m.startsIn.replace(':n', String(l.minutes_to_start));
@@ -233,144 +305,6 @@ function MyDayPage({
 
         return a.phase[l.phase] ?? '';
     };
-
-    const editGroups = useMemo(
-        (): PageRibbonGroup[] => [
-            {
-                id: 'attendance-day-actions',
-                label: c.actions,
-                commands: [
-                    {
-                        id: 'attendance-day-open',
-                        label: selected?.session ? m.resume : m.open,
-                        icon: selected?.session ? PlayCircle : DoorOpen,
-                        iconTone: 'ok',
-                        title:
-                            selected === null
-                                ? c.needsSelection
-                                : selected.session === null && blocked(selected)
-                                  ? a.window[selected.window]
-                                  : undefined,
-                        disabled:
-                            selected === null ||
-                            busy ||
-                            (selected.session === null &&
-                                (!canWork || blocked(selected))),
-                        onSelect: () => selected && openLesson(selected),
-                    },
-                    {
-                        id: 'attendance-day-view',
-                        label: m.view,
-                        icon: Eye,
-                        iconTone: 'sky',
-                        disabled: selected?.session == null,
-                        onSelect: () =>
-                            selected?.session &&
-                            router.visit(
-                                `/attendance/sheets/${selected.session.session_id}`,
-                            ),
-                    },
-                    ...(abilities.review_sheet && lookups !== null
-                        ? [
-                              {
-                                  id: 'attendance-day-exceptional',
-                                  label: m.exceptional,
-                                  icon: CalendarPlus,
-                                  iconTone: 'rose' as const,
-                                  disabled: day.holiday,
-                                  onSelect: () =>
-                                      setExceptional({
-                                          section_id: '',
-                                          subject_id: '',
-                                          teacher_id: String(
-                                              filters.teacher_id ?? '',
-                                          ),
-                                          period_id: '',
-                                          reason: '',
-                                      }),
-                              },
-                          ]
-                        : []),
-                ],
-            },
-            {
-                id: 'attendance-day-nav',
-                label: m.date,
-                commands: [
-                    {
-                        id: 'attendance-day-prev',
-                        label: m.prevDay,
-                        icon: ChevronRight,
-                        iconTone: 'steel',
-                        onSelect: () => go({ date: shiftDate(day.date, -1) }),
-                    },
-                    {
-                        id: 'attendance-day-today',
-                        label: m.today,
-                        icon: CalendarDays,
-                        iconTone: 'education',
-                        pressed: day.date === day.today,
-                        onSelect: () => go({ date: day.today }),
-                    },
-                    {
-                        id: 'attendance-day-next',
-                        label: m.nextDay,
-                        icon: ChevronLeft,
-                        iconTone: 'steel',
-                        onSelect: () => go({ date: shiftDate(day.date, 1) }),
-                    },
-                ],
-            },
-        ],
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [selected, busy, canWork, day, abilities, lookups, filters.teacher_id],
-    );
-    useAttendanceEditRibbon('my', abilities, editGroups);
-
-    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
-        go({ academic_year_id: year }),
-    );
-    useAttendanceHomeFilters(
-        [
-            yearSpec,
-            {
-                key: 'date',
-                date: true,
-                label: m.date,
-                value: day.date,
-                onChange: (date: string) => go({ date }),
-            },
-            ...(teachers.length > 0
-                ? [
-                      {
-                          key: 'teacher',
-                          type: 'single' as const,
-                          label: m.chooseTeacher,
-                          value:
-                              filters.teacher_id === null
-                                  ? ''
-                                  : String(filters.teacher_id),
-                          options: [
-                              { value: '', label: m.myself },
-                              ...teachers.map((x) => ({
-                                  value: String(x.id),
-                                  label: x.full_name,
-                              })),
-                          ],
-                          onChange: (value: string) =>
-                              go({
-                                  teacher_id:
-                                      value === '' ? null : Number(value),
-                              }),
-                      },
-                  ]
-                : []),
-        ],
-        day.date !== day.today || filters.teacher_id !== null
-            ? () => go({ date: day.today, teacher_id: null })
-            : null,
-        [day.date, day.today, filters, teachers, yearSpec.options.length],
-    );
 
     const columns: AttendanceColumn<Lesson>[] = [
         {
@@ -442,6 +376,194 @@ function MyDayPage({
             cell: (l) => countsText(l.session?.counts),
         },
     ];
+    const viewer = useRowViewer(
+        columns,
+        (l) => `${l.subject_name} — ${l.class_name} / ${l.section_name}`,
+        (l) =>
+            l.session?.review_note ? (
+                <WindowFact
+                    wide
+                    label={a.sheet.reviewNote}
+                    value={l.session.review_note}
+                />
+            ) : null,
+    );
+
+    const editGroups = useMemo(
+        (): PageRibbonGroup[] => [
+            selectionGroup(
+                'attendance-day-selection',
+                selection.targets,
+                viewer.open,
+                (rows) => openLesson(rows[0]),
+                {
+                    editLabel: single?.session ? m.resume : m.open,
+                    editDisabled:
+                        single === null ||
+                        busy ||
+                        (single.session === null &&
+                            (!canWork || blocked(single))),
+                    editTitle:
+                        single === null
+                            ? c.needsOne
+                            : single.session === null && blocked(single)
+                              ? a.window[single.window]
+                              : undefined,
+                },
+            ),
+            {
+                id: 'attendance-day-actions',
+                label: c.actions,
+                commands: [
+                    {
+                        id: 'attendance-day-open',
+                        label: single?.session ? m.resume : m.open,
+                        icon: single?.session ? PlayCircle : DoorOpen,
+                        iconTone: 'ok',
+                        title:
+                            single === null
+                                ? c.needsOne
+                                : single.session === null && blocked(single)
+                                  ? a.window[single.window]
+                                  : undefined,
+                        disabled:
+                            single === null ||
+                            busy ||
+                            (single.session === null &&
+                                (!canWork || blocked(single))),
+                        onSelect: () => single && openLesson(single),
+                    },
+                    {
+                        id: 'attendance-day-notes',
+                        label: m.notices,
+                        icon: MessageSquareWarning,
+                        iconTone: 'warning',
+                        count: day.notices.length,
+                        disabled: day.notices.length === 0,
+                        onSelect: () => setNotesOpen(true),
+                    },
+                    ...(abilities.review_sheet && lookups !== null
+                        ? [
+                              {
+                                  id: 'attendance-day-exceptional',
+                                  label: m.exceptional,
+                                  icon: CalendarPlus,
+                                  iconTone: 'rose' as const,
+                                  disabled: day.holiday,
+                                  onSelect: () =>
+                                      setExceptional({
+                                          section_id: '',
+                                          subject_id: '',
+                                          teacher_id: String(
+                                              filters.teacher_id ?? '',
+                                          ),
+                                          period_id: '',
+                                          reason: '',
+                                      }),
+                              },
+                          ]
+                        : []),
+                    ...(canLink
+                        ? [
+                              {
+                                  id: 'attendance-day-link',
+                                  label: m.linkMine,
+                                  icon: Link2,
+                                  iconTone: 'authority' as const,
+                                  onSelect: () => setLinkTeacher(''),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+            {
+                id: 'attendance-day-nav',
+                label: `${dayOfWeekLabel(day.weekday)} ${day.date}`,
+                commands: [
+                    {
+                        id: 'attendance-day-prev',
+                        label: m.prevDay,
+                        icon: ChevronRight,
+                        iconTone: 'steel',
+                        onSelect: () => go({ date: shiftDate(day.date, -1) }),
+                    },
+                    {
+                        id: 'attendance-day-today',
+                        label: m.today,
+                        icon: CalendarDays,
+                        iconTone: 'education',
+                        pressed: day.date === day.today,
+                        title: m.timezoneNote.replace(':tz', day.timezone),
+                        onSelect: () => go({ date: day.today }),
+                    },
+                    {
+                        id: 'attendance-day-next',
+                        label: m.nextDay,
+                        icon: ChevronLeft,
+                        iconTone: 'steel',
+                        onSelect: () => go({ date: shiftDate(day.date, 1) }),
+                    },
+                ],
+            },
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [
+            selection.targets,
+            busy,
+            canWork,
+            day,
+            abilities,
+            lookups,
+            filters.teacher_id,
+            canLink,
+        ],
+    );
+    useAttendanceEditRibbon('my', abilities, editGroups);
+
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
+        go({ academic_year_id: year }),
+    );
+    useAttendanceHomeFilters(
+        [
+            yearSpec,
+            {
+                key: 'date',
+                date: true,
+                label: m.date,
+                value: day.date,
+                onChange: (date: string) => go({ date }),
+            },
+            ...(abilities.review_sheet && teachers.length > 0
+                ? [
+                      {
+                          key: 'teacher',
+                          type: 'single' as const,
+                          label: m.chooseTeacher,
+                          value:
+                              filters.teacher_id === null
+                                  ? ''
+                                  : String(filters.teacher_id),
+                          options: [
+                              { value: '', label: m.myself },
+                              ...teachers.map((x) => ({
+                                  value: String(x.id),
+                                  label: x.full_name,
+                              })),
+                          ],
+                          onChange: (value: string) =>
+                              go({
+                                  teacher_id:
+                                      value === '' ? null : Number(value),
+                              }),
+                      },
+                  ]
+                : []),
+        ],
+        day.date !== day.today || filters.teacher_id !== null
+            ? () => go({ date: day.today, teacher_id: null })
+            : null,
+        [day.date, day.today, filters, teachers, yearSpec.options.length],
+    );
 
     const menuItems = (l: Lesson): ContextMenuItem[] => [
         {
@@ -453,12 +575,9 @@ function MyDayPage({
         },
         {
             id: 'view',
-            label: m.view,
-            icon: Eye,
-            disabled: l.session === null,
-            onSelect: () =>
-                l.session &&
-                router.visit(`/attendance/sheets/${l.session.session_id}`),
+            label: c.view,
+            icon: CalendarDays,
+            onSelect: () => viewer.open([l]),
         },
     ];
 
@@ -514,11 +633,10 @@ function MyDayPage({
             value: String(s.id),
             label: s.name,
         })) ?? [];
-    const teacherOptions =
-        lookups?.teachers.map((s) => ({
-            value: String(s.id),
-            label: s.full_name,
-        })) ?? [];
+    const teacherOptions = (lookups?.teachers ?? teachers).map((s) => ({
+        value: String(s.id),
+        label: s.full_name,
+    }));
     const periodOptions =
         lookups?.periods.map((p) => ({
             value: String(p.id),
@@ -531,50 +649,115 @@ function MyDayPage({
 
     return (
         <AttendancePage
-            title={m.title}
-            notices={
-                <>
-                    <PageNotice>{`${day.teacher?.full_name ?? ''}${day.teacher ? ' · ' : ''}${dayOfWeekLabel(day.weekday)} ${day.date} · ${m.timezoneNote.replace(':tz', day.timezone)}`}</PageNotice>
-                    {!linked && filters.teacher_id === null ? (
-                        <PageNotice>{m.notLinked}</PageNotice>
-                    ) : null}
-                    {day.holiday ? <PageNotice>{m.holiday}</PageNotice> : null}
-                </>
+            title={
+                day.teacher ? `${m.title} — ${day.teacher.full_name}` : m.title
             }
         >
             <AttendanceTable
                 caption={m.title}
+                storageKey="my-day.lessons"
                 rows={day.lessons}
                 rowKey={(l) => l.schedule_id}
                 columns={columns}
-                emptyText={m.noLessons}
-                selectedId={selectedId}
-                onSelect={(l) => setSelectedId(l.schedule_id)}
+                emptyText={day.holiday ? m.holiday : m.noLessons}
+                emptyAsDialog={
+                    !day.holiday && (linked || filters.teacher_id !== null)
+                }
+                selection={selection}
                 onOpen={openLesson}
                 menuItems={menuItems}
                 menuLabel={m.title}
             />
-            {day.notices.length > 0 ? (
-                <>
-                    <p className="sis-branches-page__notice mt-3">
-                        {m.notices}
-                    </p>
-                    <AttendanceTable
-                        caption={m.notices}
-                        rows={day.notices}
-                        rowKey={(n) => n.session_id}
-                        columns={noticeColumns}
-                        emptyText={m.noNotices}
-                        onOpen={(n) =>
-                            router.visit(`/attendance/sheets/${n.session_id}`)
-                        }
-                    />
-                </>
+
+            {viewer.element}
+
+            {notesOpen ? (
+                <AttendanceWindow
+                    wide
+                    title={m.notices}
+                    onClose={() => setNotesOpen(false)}
+                    sections={[
+                        {
+                            id: 'att-day-notes',
+                            title: `${m.notices} (${day.notices.length})`,
+                            plain: true,
+                            content: (
+                                <div className="sis-branches-field--wide">
+                                    <AttendanceTable
+                                        caption={m.notices}
+                                        storageKey="my-day.notices"
+                                        rows={day.notices}
+                                        rowKey={(n) => n.session_id}
+                                        columns={noticeColumns}
+                                        emptyText={m.noNotices}
+                                        fit={false}
+                                        emptyAsDialog={false}
+                                        onOpen={(n) =>
+                                            router.visit(
+                                                `/attendance/sheets/${n.session_id}`,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            {linkTeacher !== null ? (
+                <AttendanceWindow
+                    title={m.linkMine}
+                    columns={2}
+                    pending={busy}
+                    confirmLabel={m.linkMine}
+                    confirmDisabled={linkTeacher === ''}
+                    onConfirm={linkMyAccount}
+                    onClose={() => setLinkTeacher(null)}
+                    sections={[
+                        {
+                            id: 'att-link-self',
+                            title: a.staff.linkAccount,
+                            content: (
+                                <>
+                                    <WindowFact
+                                        label={a.staff.email}
+                                        value={
+                                            <span dir="ltr">
+                                                {account_email ?? '—'}
+                                            </span>
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={c.teacher}
+                                        editing
+                                        required
+                                        value={linkTeacher}
+                                        display={pick(
+                                            teacherOptions,
+                                            linkTeacher,
+                                        )}
+                                        options={teacherOptions}
+                                        onChange={(value) =>
+                                            setLinkTeacher(value)
+                                        }
+                                    />
+                                    <WindowFact
+                                        wide
+                                        label={a.staff.linkAccount}
+                                        value={m.linkMineHint}
+                                    />
+                                </>
+                            ),
+                        },
+                    ]}
+                />
             ) : null}
 
             {exceptional !== null ? (
                 <AttendanceWindow
                     title={m.exceptionalTitle}
+                    columns={2}
                     pending={busy}
                     dirty={exceptional.reason !== ''}
                     confirmLabel={m.open}
@@ -593,12 +776,28 @@ function MyDayPage({
                             title: m.exceptionalLesson,
                             content: (
                                 <>
-                                    <RegistryTextField
+                                    <WindowFact
                                         label={m.date}
-                                        editing={false}
-                                        dir="ltr"
-                                        value={day.date}
-                                        onChange={() => undefined}
+                                        value={
+                                            <span dir="ltr">{day.date}</span>
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={m.period}
+                                        editing
+                                        required
+                                        value={exceptional.period_id}
+                                        display={pick(
+                                            periodOptions,
+                                            exceptional.period_id,
+                                        )}
+                                        options={periodOptions}
+                                        onChange={(period_id) =>
+                                            setExceptional({
+                                                ...exceptional,
+                                                period_id,
+                                            })
+                                        }
                                     />
                                     <RegistryListField
                                         label={c.section}
@@ -651,41 +850,18 @@ function MyDayPage({
                                             })
                                         }
                                     />
-                                    <RegistryListField
-                                        label={m.period}
-                                        editing
+                                    <WindowTextArea
+                                        label={m.exceptionalReason}
                                         required
-                                        value={exceptional.period_id}
-                                        display={pick(
-                                            periodOptions,
-                                            exceptional.period_id,
-                                        )}
-                                        options={periodOptions}
-                                        onChange={(period_id) =>
+                                        value={exceptional.reason}
+                                        onChange={(reason) =>
                                             setExceptional({
                                                 ...exceptional,
-                                                period_id,
+                                                reason,
                                             })
                                         }
                                     />
                                 </>
-                            ),
-                        },
-                        {
-                            id: 'att-exceptional-reason',
-                            title: a.sheet.reason,
-                            content: (
-                                <WindowTextArea
-                                    label={m.exceptionalReason}
-                                    required
-                                    value={exceptional.reason}
-                                    onChange={(reason) =>
-                                        setExceptional({
-                                            ...exceptional,
-                                            reason,
-                                        })
-                                    }
-                                />
                             ),
                         },
                     ]}

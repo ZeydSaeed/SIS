@@ -37,6 +37,7 @@ import {
     admissionSearchSegments,
 } from '@/components/admission/admission-workspace';
 import type { AdmissionSchoolOption } from '@/components/admission/admission-workspace';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import { t } from '@/i18n';
 import { dispatchAdmissionSchoolSelected } from '@/lib/organization-registry-event';
 
@@ -454,7 +455,7 @@ export function AdmissionPeriodsCard({
         () => [...periods].sort((left, right) => left.id - right.id),
         [periods],
     );
-    const visible = useMemo(() => {
+    const matching = useMemo(() => {
         if (searchQuery.trim() === '') {
             return sorted;
         }
@@ -466,6 +467,33 @@ export function AdmissionPeriodsCard({
             ),
         );
     }, [searchQuery, sorted]);
+    const { rows: visible, sort } = useTableSort(matching, (period, key) => {
+        const counts = periodCounts[period.id] ?? { total: 0, submitted: 0 };
+        switch (key) {
+            case 'directorate':
+                return period.directorate_name ?? i18n.admission.allDirectorates;
+            case 'year':
+                return years.find((year) => year.id === period.academic_year_id)?.name ?? period.academic_year_id;
+            case 'name':
+                return period.name;
+            case 'start':
+                return period.start_date;
+            case 'end':
+                return period.end_date;
+            case 'max':
+                return period.max_applications ?? Number.POSITIVE_INFINITY;
+            case 'count':
+                return counts.submitted;
+            case 'remaining':
+                return period.max_applications === null
+                    ? Number.POSITIVE_INFINITY
+                    : Math.max(0, period.max_applications - counts.total);
+            case 'status':
+                return periodStatusLabel(period.status);
+            default:
+                return null;
+        }
+    });
 
     useResizableTableColumns(tableRef, {
         storageKey: 'admission.periods',
@@ -741,18 +769,22 @@ export function AdmissionPeriodsCard({
                                 <thead>
                                     <tr>
                                         <th className="sis-admission-periods-table__num">#</th>
-                                        <th>{i18n.admission.directorate}</th>
-                                        <th>{i18n.admission.academicYear}</th>
-                                        <th>{i18n.admission.periodName}</th>
-                                        <th>{i18n.admission.startDate}</th>
-                                        <th>{i18n.admission.endDate}</th>
-                                        <th className="sis-admission-periods-table__max">
-                                            {i18n.admission.maxApplications}
+                                        <th aria-sort={ariaSort(sort, 'directorate')}><SortButton sort={sort} column="directorate">{i18n.admission.directorate}</SortButton></th>
+                                        <th aria-sort={ariaSort(sort, 'year')}><SortButton sort={sort} column="year">{i18n.admission.academicYear}</SortButton></th>
+                                        <th aria-sort={ariaSort(sort, 'name')}><SortButton sort={sort} column="name">{i18n.admission.periodName}</SortButton></th>
+                                        <th aria-sort={ariaSort(sort, 'start')}><SortButton sort={sort} column="start">{i18n.admission.startDate}</SortButton></th>
+                                        <th aria-sort={ariaSort(sort, 'end')}><SortButton sort={sort} column="end">{i18n.admission.endDate}</SortButton></th>
+                                        <th className="sis-admission-periods-table__max" aria-sort={ariaSort(sort, 'max')}>
+                                            <SortButton sort={sort} column="max">
+                                                {i18n.admission.maxApplications}
+                                            </SortButton>
                                         </th>
-                                        <th>{i18n.admission.periodApplicationsCount}</th>
-                                        <th>{i18n.admission.remainingInPeriod}</th>
-                                        <th className="sis-admission-periods-table__status">
-                                            {i18n.admission.periodStatus}
+                                        <th aria-sort={ariaSort(sort, 'count')}><SortButton sort={sort} column="count">{i18n.admission.periodApplicationsCount}</SortButton></th>
+                                        <th aria-sort={ariaSort(sort, 'remaining')}><SortButton sort={sort} column="remaining">{i18n.admission.remainingInPeriod}</SortButton></th>
+                                        <th className="sis-admission-periods-table__status" aria-sort={ariaSort(sort, 'status')}>
+                                            <SortButton sort={sort} column="status">
+                                                {i18n.admission.periodStatus}
+                                            </SortButton>
                                         </th>
                                     </tr>
                                 </thead>

@@ -3,6 +3,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { EmptyState } from '@/components/sis/empty-state';
 import { ErrorState } from '@/components/sis/error-state';
 import { LoadingState } from '@/components/sis/loading-state';
+import { ariaSort, cellSortValue, SortButton, useTableSort, type SortValue } from '@/components/sis/table-sort';
 import { cn } from '@/lib/utils';
 
 export type DataTableColumn<T> = {
@@ -11,6 +12,8 @@ export type DataTableColumn<T> = {
     cell: (row: T) => ReactNode;
     className?: string;
     hideOnMobile?: boolean;
+    /** Header-click sort value (defaults to the cell's text); `false` = not sortable. */
+    sort?: ((row: T) => SortValue) | false;
 };
 
 type DataTableProps<T> = {
@@ -47,6 +50,16 @@ export function DataTable<T>({
     isRowSelected,
 }: DataTableProps<T>) {
     const isMobile = useIsMobile();
+    const { rows: sortedRows, sort } = useTableSort(rows, (row, key) => {
+        const column = columns.find((c) => c.id === key);
+        if (!column || column.sort === false) {
+            return null;
+        }
+
+        return typeof column.sort === 'function' ? column.sort(row) : cellSortValue(column.cell(row));
+    });
+    const sortable = (column: DataTableColumn<T>): boolean =>
+        column.sort !== false && column.header !== null && column.header !== undefined && column.header !== '';
 
     if (loading) {
         return <LoadingState />;
@@ -63,7 +76,7 @@ export function DataTable<T>({
 
         return (
             <div className="flex flex-col gap-3" role="list">
-                {rows.map((row) => (
+                {sortedRows.map((row) => (
                     <div key={rowKey(row)} role="listitem">
                         {mobileCard(row)}
                     </div>
@@ -92,8 +105,15 @@ export function DataTable<T>({
                                     key={column.id}
                                     scope="col"
                                     className={column.className}
+                                    aria-sort={sortable(column) ? ariaSort(sort, column.id) : undefined}
                                 >
-                                    {column.header}
+                                    {sortable(column) ? (
+                                        <SortButton sort={sort} column={column.id}>
+                                            {column.header}
+                                        </SortButton>
+                                    ) : (
+                                        column.header
+                                    )}
                                 </th>
                             ))}
                         </tr>
@@ -112,7 +132,7 @@ export function DataTable<T>({
                             </td>
                         </tr>
                     ) : (
-                        rows.map((row) => (
+                        sortedRows.map((row) => (
                             <tr
                                 key={rowKey(row)}
                                 className={cn(

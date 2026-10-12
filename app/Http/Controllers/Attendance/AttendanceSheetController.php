@@ -15,6 +15,8 @@ use App\Application\Attendance\Commands\SaveAttendanceSheetHandler;
 use App\Application\Attendance\Commands\SubmitAttendanceSheetCommand;
 use App\Application\Attendance\Commands\SubmitAttendanceSheetHandler;
 use App\Application\Attendance\Contracts\AttendanceWorkspaceReadInterface;
+use App\Application\Attendance\Queries\GetAttendanceReportHandler;
+use App\Application\Attendance\Queries\GetAttendanceReportQuery;
 use App\Application\Attendance\Queries\GetAttendanceSheetHandler;
 use App\Application\Attendance\Queries\GetAttendanceSheetQuery;
 use App\Application\Attendance\Queries\GetTeacherDayHandler;
@@ -27,6 +29,7 @@ use App\Http\Requests\Attendance\OpenExceptionalAttendanceRequest;
 use App\Http\Requests\Attendance\OpenLessonAttendanceRequest;
 use App\Http\Requests\Attendance\ReviewAttendanceSheetRequest;
 use App\Http\Requests\Attendance\SaveAttendanceSheetRequest;
+use App\Http\Support\AttendanceFilterInput;
 use App\Http\Support\AttendanceRequestContext;
 use App\Infrastructure\Persistence\Eloquent\AttendanceSessionRecord;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -52,16 +55,19 @@ final class AttendanceSheetController extends Controller
         $yearId = $this->context->academicYearId($request);
         $actor = $this->context->actor($request, $yearId);
         $teacherId = $actor->isReviewer && $request->filled('teacher_id') ? (int) $request->query('teacher_id') : null;
+        $abilities = $this->context->abilities($request);
 
-        $day = $handler->handle(new GetTeacherDayQuery($this->context->schoolId(), $yearId, $request->query('date'), $actor, $teacherId));
+        $day = $handler->handle(new GetTeacherDayQuery($this->context->schoolId(), $yearId, AttendanceFilterInput::date($request, 'date'), $actor, $teacherId));
 
         return Inertia::render('attendance/my-day', [
             'day' => $day->toArray(),
             'filters' => ['academic_year_id' => $yearId, 'teacher_id' => $teacherId],
-            'teachers' => $actor->isReviewer ? $read->lookups($this->context->schoolId(), $yearId)['teachers'] : [],
+            // Reviewers pick any teacher's day; account managers pick the teacher to link their own account to.
+            'teachers' => $actor->isReviewer || $abilities['link_account'] ? $read->lookups($this->context->schoolId(), $yearId)['teachers'] : [],
             'lookups' => $actor->isReviewer ? $read->lookups($this->context->schoolId(), $yearId) : null,
-            'abilities' => $this->context->abilities($request),
+            'abilities' => $abilities,
             'linked' => $actor->teacherId !== null,
+            'account_email' => $request->user()?->email,
         ]);
     }
 
@@ -90,7 +96,7 @@ final class AttendanceSheetController extends Controller
         return redirect()->route('attendance.sheets.show', ['session' => $result->get('session_id')]);
     }
 
-    public function show(Request $request, int $session, GetAttendanceSheetHandler $handler): Response
+    public function show(Request $request, int $session, GetAttendanceSheetHandler $handler, GetAttendanceReportHandler $reports): Response
     {
         $this->authorize('viewAny', AttendanceSessionRecord::class);
         $yearId = $this->context->academicYearId($request);
@@ -102,7 +108,37 @@ final class AttendanceSheetController extends Controller
         ));
         $this->securityAudit->record(SecurityEventType::AttendanceDataAccess, 'attendance.web.sheet.show', 'allowed', $request->user(), "attendance_session:{$session}");
 
-        return Inertia::render('attendance/sheet', ['sheet' => $sheet->toArray(), 'abilities' => $abilities]);
+        $data = $sheet->toArray();
+
+        return Inertia::render('attendance/sheet', [
+            'sheet' => $data,
+            'abilities' => $abilities,
+            // «سجل الطالب التفصيلي» window: loaded on demand (partial reload with ?student=<id>).
+            'student_record' => Inertia::optional(fn (): ?array => $this->studentRecord($request, $data, $abilities, $reports)),
+        ]);
+    }
+
+    /**
+     * One roster student's attendance records of the year. Report viewers see every subject; a teacher sees the
+     * records of this sheet's subject only.
+     *
+     * @param  array<string, mixed>  $sheet
+     * @param  array<string, bool>  $abilities
+     * @return array<string, mixed>|null
+     */
+    private function studentRecord(Request $request, array $sheet, array $abilities, GetAttendanceReportHandler $reports): ?array
+    {
+        $studentId = (int) $request->query('student', '0');
+        $onRoster = in_array($studentId, array_map(static fn (array $row): int => (int) $row['student_id'], $sheet['rows']), true);
+        if ($studentId <= 0 || ! $onRoster) {
+            return null;
+        }
+        $session = $sheet['session'];
+        $filters = ['student_id' => [$studentId]] + ($abilities['view_reports'] ? [] : ['subject_id' => [(int) $session['subject_id']]]);
+
+        return ['student_id' => $studentId, 'all_subjects' => $abilities['view_reports']] + $reports->handle(new GetAttendanceReportQuery(
+            $this->context->schoolId(), (int) $session['academic_year_id'], 'student_detail', $filters, 1, 500,
+        ))->toArray();
     }
 
     public function saveDraft(SaveAttendanceSheetRequest $request, int $session, SaveAttendanceSheetHandler $handler): RedirectResponse|JsonResponse

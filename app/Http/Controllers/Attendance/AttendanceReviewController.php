@@ -37,7 +37,7 @@ final class AttendanceReviewController extends Controller
         $yearId = $this->context->academicYearId($request);
         $filters = AttendanceFilterInput::board($request, [2, 3]);
         $page = max(1, (int) $request->query('page', 1));
-        $board = $handler->handle(new ListAttendanceSheetsQuery($schoolId, $yearId, $filters, $page, (int) config('attendance.per_page.review', 25)));
+        $board = $handler->handle(new ListAttendanceSheetsQuery($schoolId, $yearId, $filters, $page, AttendanceFilterInput::perPage($request, 'review', 25)));
 
         return Inertia::render('attendance/review', [
             'board' => $board->toArray(),

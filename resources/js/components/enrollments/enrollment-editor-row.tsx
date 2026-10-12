@@ -55,7 +55,7 @@ function textOrDash(value: string | number | null | undefined): string {
     return String(value);
 }
 
-function studentQuadName(row: EnrollmentListItem): string {
+export function studentQuadName(row: EnrollmentListItem): string {
     const parts = [
         row.student_first_name,
         row.student_father_name,
@@ -97,7 +97,7 @@ function formatCivilDate(value: string | null | undefined): string {
     return `${match[2]}/${match[3]}/${match[1]}`;
 }
 
-function genderLabelFor(gender: number | null | undefined, i18n: ReturnType<typeof t>): string {
+export function genderLabelFor(gender: number | null | undefined, i18n: ReturnType<typeof t>): string {
     if (gender === 1) {
         return i18n.students.male;
     }
@@ -109,7 +109,7 @@ function genderLabelFor(gender: number | null | undefined, i18n: ReturnType<type
     return '—';
 }
 
-function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
+export function statusLabel(status: number, i18n: ReturnType<typeof t>): string {
     const labels: Record<number, string> = {
         0: i18n.status.inactive,
         1: i18n.status.active,

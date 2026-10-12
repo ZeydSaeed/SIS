@@ -20,6 +20,7 @@ use App\Application\Teachers\Commands\RegisterTeacherHandler;
 use App\Application\Teachers\Commands\SetTeachersEmploymentTypeCommand;
 use App\Application\Teachers\Commands\SetTeachersEmploymentTypeHandler;
 use App\Database\SchemaHelper;
+use App\Domain\Enrollment\ValueObjects\SectionLetter;
 use App\Domain\Teachers\ValueObjects\TeacherStatus;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -320,6 +321,11 @@ final class TeachersScenarioSeeder extends Seeder
             $this->classIds[$c->name] = (int) $c->id;
             foreach (DB::table(SchemaHelper::qualified('enrollment', 'sections'))->where('class_id', $c->id)->get(['id', 'name']) as $s) {
                 $this->sectionIds[$c->name.'|'.$s->name] = (int) $s->id;
+                // The plan below spells sections in Arabic (أ / ب / ج); stored names are the letters A / B / C.
+                $letter = SectionLetter::normalize((string) $s->name);
+                if ($letter !== null) {
+                    $this->sectionIds[$c->name.'|'.['A' => 'أ', 'B' => 'ب', 'C' => 'ج'][$letter]] = (int) $s->id;
+                }
             }
         }
 

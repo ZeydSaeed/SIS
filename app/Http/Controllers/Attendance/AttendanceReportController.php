@@ -45,7 +45,7 @@ final class AttendanceReportController extends Controller
         $yearId = $this->context->academicYearId($request);
         [$type, $filters] = $this->criteria($request);
         $page = max(1, (int) $request->query('page', 1));
-        $report = $handler->handle(new GetAttendanceReportQuery($schoolId, $yearId, $type, $filters, $page, (int) config('attendance.per_page.reports', 50)));
+        $report = $handler->handle(new GetAttendanceReportQuery($schoolId, $yearId, $type, $filters, $page, AttendanceFilterInput::perPage($request, 'reports', 50)));
 
         return Inertia::render('attendance/reports', [
             'report' => $report->toArray(),
@@ -122,8 +122,8 @@ final class AttendanceReportController extends Controller
      */
     private function criteria(Request $request): array
     {
-        $type = (string) $request->input('type', 'students');
-        $type = in_array($type, AttendanceReportReadInterface::TYPES, true) ? $type : 'students';
+        $type = $request->input('type', 'students');
+        $type = is_string($type) && in_array($type, AttendanceReportReadInterface::TYPES, true) ? $type : 'students';
         $source = $request->has('filters') && is_array($request->input('filters')) ? Request::create('/', 'GET', (array) $request->input('filters')) : $request;
         $filters = AttendanceFilterInput::from($source, self::LIST_FILTERS, ['date_from', 'date_to'], ['approved_only']);
         $filters['date_from'] ??= now()->subDays(29)->toDateString();

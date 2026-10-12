@@ -57,6 +57,7 @@ import {
 } from '@/components/admission/admission-workspace';
 import { formatAdmissionDateTime } from '@/components/admission/format-admission-datetime';
 import { usePageError } from '@/components/sis/page-error-context';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
@@ -707,10 +708,33 @@ export function AdmissionDraftsCard({
 
     // Server already filters by stage + Active periods and sorts by applicant name.
     const rows = workspace.applications;
-    const displayRows = useMemo(
+    const pageRows = useMemo(
         () => clipRowsToFitPageSize(rows, fitPageSize),
         [fitPageSize, rows],
     );
+    // Header click sorts the page on screen (the list itself is paged on the server).
+    const { rows: displayRows, sort } = useTableSort(pageRows, (app, key) => {
+        switch (key) {
+            case 'name':
+                return admissionApplicationFullName(app);
+            case 'grade':
+                return lookupName(workspace.grade_levels, app.grade_level_id, app.intended_grade_name);
+            case 'department':
+                return [app.branch_name, app.department_name].filter(Boolean).join(' / ') || app.department_name;
+            case 'period':
+                return lookupName(workspace.periods, app.application_period_id);
+            case 'submitted':
+                return app.created_at;
+            case 'reviewed':
+                return app.reviewed_at;
+            case 'notes':
+                return app.notes?.trim();
+            case 'documents':
+                return documentsForApplication(workspace, app.id).length || null;
+            default:
+                return null;
+        }
+    });
     const fitTotalPages = fitAwareLastPage(
         pagination.total,
         fitPageSize,
@@ -1230,17 +1254,17 @@ export function AdmissionDraftsCard({
                                     </th>
                                 ) : null}
                                 <th className="sis-admission-drafts-table__num">#</th>
-                                <th className="sis-admission-drafts-table__name-head">{i18n.admission.quadName}</th>
-                                <th title={i18n.admission.gradeLevel}>{i18n.admission.gradeLevelAbbr}</th>
-                                <th title={i18n.admission.department}>{i18n.admission.departmentAbbr}</th>
-                                <th title={i18n.admission.periodName}>{i18n.admission.periodNameAbbr}</th>
-                                <th className="sis-admission-drafts-table__when--submitted">{i18n.admission.submittedAt}</th>
-                                <th className="sis-admission-drafts-table__when--reviewed">{i18n.admission.reviewedAt}</th>
+                                <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(sort, 'name')}><SortButton sort={sort} column="name">{i18n.admission.quadName}</SortButton></th>
+                                <th title={i18n.admission.gradeLevel} aria-sort={ariaSort(sort, 'grade')}><SortButton sort={sort} column="grade">{i18n.admission.gradeLevelAbbr}</SortButton></th>
+                                <th title={i18n.admission.department} aria-sort={ariaSort(sort, 'department')}><SortButton sort={sort} column="department">{i18n.admission.departmentAbbr}</SortButton></th>
+                                <th title={i18n.admission.periodName} aria-sort={ariaSort(sort, 'period')}><SortButton sort={sort} column="period">{i18n.admission.periodNameAbbr}</SortButton></th>
+                                <th className="sis-admission-drafts-table__when--submitted" aria-sort={ariaSort(sort, 'submitted')}><SortButton sort={sort} column="submitted">{i18n.admission.submittedAt}</SortButton></th>
+                                <th className="sis-admission-drafts-table__when--reviewed" aria-sort={ariaSort(sort, 'reviewed')}><SortButton sort={sort} column="reviewed">{i18n.admission.reviewedAt}</SortButton></th>
                                 <th className="sis-admission-drafts-table__reviewer-cell" title={i18n.admission.reviewedBy}>
                                     {i18n.admission.reviewedByAbbr}
                                 </th>
-                                <th>{i18n.admission.notes}</th>
-                                <th>{i18n.admission.documentType}</th>
+                                <th aria-sort={ariaSort(sort, 'notes')}><SortButton sort={sort} column="notes">{i18n.admission.notes}</SortButton></th>
+                                <th aria-sort={ariaSort(sort, 'documents')}><SortButton sort={sort} column="documents">{i18n.admission.documentType}</SortButton></th>
                             </tr>
                         </thead>
                         <tbody>

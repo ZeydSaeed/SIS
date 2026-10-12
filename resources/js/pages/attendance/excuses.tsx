@@ -1,16 +1,19 @@
 import { router } from '@inertiajs/react';
-import { Ban, Eye, FileSearch, PlusCircle, ShieldCheck } from 'lucide-react';
+import { Ban, FileSearch, PlusCircle, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AttendancePage,
     AttendanceTable,
     AttendanceWindow,
-    PageNotice,
     WindowFact,
     WindowTextArea,
+    postEach,
+    selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
     useAttendanceSearch,
+    useAttendanceSelection,
+    useRowViewer,
     useYearFilterSpec,
     visitWith,
     type AttendanceColumn,
@@ -75,6 +78,7 @@ type Filters = {
     date_to?: string;
     q: string;
     page: number;
+    per_page?: number;
     student: string;
     academic_year_id: number;
 };
@@ -139,21 +143,18 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
     const x = a.excuses;
     const c = a.chrome;
     const { showInertiaErrors } = usePageError();
-    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const selection = useAttendanceSelection(excuses.data, (e) => e.id);
     const [form, setForm] = useState<Form | null>(
         filters.student !== '' ? { ...EMPTY_FORM } : null,
     );
     const [studentQuery, setStudentQuery] = useState(filters.student);
     const [decision, setDecision] = useState<{
-        excuse: Excuse;
+        items: Excuse[];
         approve: boolean;
         note: string;
     } | null>(null);
-    const [viewing, setViewing] = useState<Excuse | null>(null);
     const [busy, setBusy] = useState(false);
-    const selected = excuses.data.find((e) => e.id === selectedId) ?? null;
-    const pending =
-        selected !== null && selected.status === 1 && abilities.review_excuse;
+    const pendingTargets = selection.targets.filter((e) => e.status === 1);
 
     const visit = (next: Partial<Filters>) => {
         const merged = { ...filters, ...next, page: next.page ?? 1 };
@@ -188,175 +189,30 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
         );
     };
 
+    /** Approve / reject one or several pending excuses (one request each, stops at the first refusal). */
     const decide = () => {
         if (decision === null) return;
         setBusy(true);
-        router.post(
-            `/attendance/excuses/${decision.excuse.id}/decide`,
+        postEach(
+            decision.items,
+            (e) => ({
+                url: `/attendance/excuses/${e.id}/decide`,
+                data: {
+                    decision: decision.approve ? 'approve' : 'reject',
+                    version: e.version,
+                    note: decision.note.trim() || null,
+                },
+                key: newKey(`excuse-decide-${e.id}`),
+            }),
             {
-                decision: decision.approve ? 'approve' : 'reject',
-                version: decision.excuse.version,
-                note: decision.note.trim() || null,
-            },
-            {
-                preserveScroll: true,
-                headers: { 'X-Idempotency-Key': newKey('excuse-decide') },
-                onSuccess: () => setDecision(null),
-                onError: (e) => showInertiaErrors(e),
+                onError: (errors) => showInertiaErrors(errors),
+                onDone: () => {
+                    setDecision(null);
+                },
                 onFinish: () => setBusy(false),
             },
         );
     };
-
-    const editGroups = useMemo(
-        (): PageRibbonGroup[] => [
-            {
-                id: 'attendance-excuses-actions',
-                label: c.actions,
-                commands: [
-                    {
-                        id: 'attendance-excuses-view',
-                        label: c.view,
-                        icon: Eye,
-                        iconTone: 'sky',
-                        disabled: selected === null,
-                        title: selected === null ? c.needsSelection : undefined,
-                        onSelect: () => selected && setViewing(selected),
-                    },
-                    ...(abilities.submit_excuse
-                        ? [
-                              {
-                                  id: 'attendance-excuses-add',
-                                  label: x.add,
-                                  icon: PlusCircle,
-                                  iconTone: 'ok' as const,
-                                  onSelect: () => setForm({ ...EMPTY_FORM }),
-                              },
-                          ]
-                        : []),
-                    ...(abilities.review_excuse
-                        ? [
-                              {
-                                  id: 'attendance-excuses-approve',
-                                  label: x.approve,
-                                  icon: ShieldCheck,
-                                  iconTone: 'ok' as const,
-                                  disabled: !pending,
-                                  onSelect: () =>
-                                      selected &&
-                                      setDecision({
-                                          excuse: selected,
-                                          approve: true,
-                                          note: '',
-                                      }),
-                              },
-                              {
-                                  id: 'attendance-excuses-reject',
-                                  label: x.reject,
-                                  icon: Ban,
-                                  iconTone: 'danger' as const,
-                                  disabled: !pending,
-                                  onSelect: () =>
-                                      selected &&
-                                      setDecision({
-                                          excuse: selected,
-                                          approve: false,
-                                          note: '',
-                                      }),
-                              },
-                          ]
-                        : []),
-                ],
-            },
-            {
-                id: 'attendance-excuses-status',
-                label: c.statuses,
-                commands: statusCommands(
-                    'attendance-excuses-status',
-                    EXCUSE_STATUSES,
-                    x.statuses,
-                    {},
-                    filters.status,
-                    (v) => visit({ status: toggleIn(filters.status, v) }),
-                ).map((cmd) => ({ ...cmd, count: undefined })),
-            },
-        ],
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [selected, pending, abilities, filters],
-    );
-    useAttendanceEditRibbon('excuses', abilities, editGroups);
-
-    const multi = (
-        key: 'excuse_type' | 'class_id' | 'section_id',
-        label: string,
-        allLabel: string,
-        options: Array<{ value: string; label: string }>,
-    ): FilterSpec => ({
-        key,
-        type: 'multi',
-        label,
-        allLabel,
-        values: filters[key].map(String),
-        options,
-        onChange: (values: string[]) => visit({ [key]: values.map(Number) }),
-    });
-    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
-        visitWith('/attendance/excuses', { academic_year_id: year }),
-    );
-    useAttendanceHomeFilters(
-        [
-            yearSpec,
-            multi(
-                'excuse_type',
-                x.type,
-                c.allTypes,
-                EXCUSE_TYPES.map((v) => ({
-                    value: String(v),
-                    label: x.types[v],
-                })),
-            ),
-            multi(
-                'class_id',
-                c.class,
-                c.allClasses,
-                lookups.classes.map((cls) => ({
-                    value: String(cls.id),
-                    label: cls.name,
-                })),
-            ),
-            multi(
-                'section_id',
-                c.section,
-                c.allSections,
-                lookups.classes.flatMap((cls) =>
-                    cls.sections.map((s) => ({
-                        value: String(s.id),
-                        label: `${cls.name} / ${s.name}`,
-                    })),
-                ),
-            ),
-            {
-                key: 'date_from',
-                date: true,
-                label: x.dateFrom,
-                value: filters.date_from ?? '',
-                onChange: (date_from: string) => visit({ date_from }),
-            },
-            {
-                key: 'date_to',
-                date: true,
-                label: x.dateTo,
-                value: filters.date_to ?? '',
-                onChange: (date_to: string) => visit({ date_to }),
-            },
-        ],
-        () =>
-            visitWith('/attendance/excuses', {
-                academic_year_id: filters.academic_year_id,
-            }),
-        [filters, lookups, yearSpec.options.length],
-    );
-    useAttendanceSearch(filters.q, x.searchHint, (q) => visit({ q }));
 
     const columns: AttendanceColumn<Excuse>[] = [
         {
@@ -411,6 +267,7 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                     label={x.statuses[e.status]}
                 />
             ),
+            text: (e) => x.statuses[e.status],
         },
         {
             id: 'applied',
@@ -425,10 +282,205 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
             cell: (e) =>
                 `${e.submitted_by_name ?? '—'} · ${dateTime(e.submitted_at)}`,
         },
+        {
+            id: 'reviewed',
+            header: x.reviewedBy,
+            kind: 'text',
+            cell: (e) =>
+                `${e.reviewed_by_name ?? '—'} · ${dateTime(e.reviewed_at)}`,
+        },
+        {
+            id: 'decision',
+            header: x.decisionNote,
+            kind: 'text',
+            cell: (e) => e.decision_note ?? '—',
+        },
+        {
+            id: 'document',
+            header: x.documentId,
+            kind: 'num',
+            cell: (e) => e.document_file_id ?? '—',
+        },
     ];
+    const viewer = useRowViewer(
+        columns,
+        (e) => `${x.viewTitle} — ${e.full_name}`,
+    );
+
+    const editGroups = useMemo(
+        (): PageRibbonGroup[] => [
+            selectionGroup(
+                'attendance-excuses-selection',
+                selection.targets,
+                viewer.open,
+                abilities.review_excuse
+                    ? () =>
+                          setDecision({
+                              items: pendingTargets,
+                              approve: true,
+                              note: '',
+                          })
+                    : null,
+                {
+                    editLabel: x.decideTitle,
+                    editDisabled: pendingTargets.length === 0,
+                    editTitle:
+                        pendingTargets.length === 0 ? x.onlyPending : undefined,
+                },
+            ),
+            {
+                id: 'attendance-excuses-actions',
+                label: c.actions,
+                commands: [
+                    ...(abilities.submit_excuse
+                        ? [
+                              {
+                                  id: 'attendance-excuses-add',
+                                  label: x.add,
+                                  icon: PlusCircle,
+                                  iconTone: 'ok' as const,
+                                  onSelect: () => setForm({ ...EMPTY_FORM }),
+                              },
+                          ]
+                        : []),
+                    ...(abilities.review_excuse
+                        ? [
+                              {
+                                  id: 'attendance-excuses-approve',
+                                  label: x.approve,
+                                  icon: ShieldCheck,
+                                  iconTone: 'ok' as const,
+                                  count: pendingTargets.length || undefined,
+                                  disabled: pendingTargets.length === 0,
+                                  title:
+                                      pendingTargets.length === 0
+                                          ? x.onlyPending
+                                          : undefined,
+                                  onSelect: () =>
+                                      setDecision({
+                                          items: pendingTargets,
+                                          approve: true,
+                                          note: '',
+                                      }),
+                              },
+                              {
+                                  id: 'attendance-excuses-reject',
+                                  label: x.reject,
+                                  icon: Ban,
+                                  iconTone: 'danger' as const,
+                                  disabled: pendingTargets.length === 0,
+                                  title:
+                                      pendingTargets.length === 0
+                                          ? x.onlyPending
+                                          : undefined,
+                                  onSelect: () =>
+                                      setDecision({
+                                          items: pendingTargets,
+                                          approve: false,
+                                          note: '',
+                                      }),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+            {
+                id: 'attendance-excuses-status',
+                label: c.statuses,
+                commands: statusCommands(
+                    'attendance-excuses-status',
+                    EXCUSE_STATUSES,
+                    x.statuses,
+                    {},
+                    filters.status,
+                    (v) => visit({ status: toggleIn(filters.status, v) }),
+                ).map((cmd) => ({ ...cmd, count: undefined })),
+            },
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [selection.targets, abilities, filters],
+    );
+    useAttendanceEditRibbon('excuses', abilities, editGroups);
+
+    const multi = (
+        key: 'excuse_type' | 'class_id' | 'section_id',
+        label: string,
+        allLabel: string,
+        options: Array<{ value: string; label: string }>,
+    ): FilterSpec => ({
+        key,
+        type: 'multi',
+        label,
+        allLabel,
+        values: filters[key].map(String),
+        options,
+        onChange: (values: string[]) => visit({ [key]: values.map(Number) }),
+    });
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
+        visitWith('/attendance/excuses', { academic_year_id: year }),
+    );
+    useAttendanceHomeFilters(
+        [
+            yearSpec,
+            {
+                key: 'date_from',
+                date: true,
+                label: x.dateFrom,
+                value: filters.date_from ?? '',
+                onChange: (date_from: string) => visit({ date_from }),
+            },
+            {
+                key: 'date_to',
+                date: true,
+                label: x.dateTo,
+                value: filters.date_to ?? '',
+                onChange: (date_to: string) => visit({ date_to }),
+            },
+            multi(
+                'excuse_type',
+                x.type,
+                c.allTypes,
+                EXCUSE_TYPES.map((v) => ({
+                    value: String(v),
+                    label: x.types[v],
+                })),
+            ),
+            multi(
+                'class_id',
+                c.class,
+                c.allClasses,
+                lookups.classes.map((cls) => ({
+                    value: String(cls.id),
+                    label: cls.name,
+                })),
+            ),
+            multi(
+                'section_id',
+                c.section,
+                c.allSections,
+                lookups.classes.flatMap((cls) =>
+                    cls.sections.map((s) => ({
+                        value: String(s.id),
+                        label: `${cls.name} / ${s.name}`,
+                    })),
+                ),
+            ),
+        ],
+        () =>
+            visitWith('/attendance/excuses', {
+                academic_year_id: filters.academic_year_id,
+            }),
+        [filters, lookups, yearSpec.options.length],
+    );
+    useAttendanceSearch(filters.q, x.searchHint, (q) => visit({ q }));
 
     const menuItems = (e: Excuse): ContextMenuItem[] => [
-        { id: 'view', label: c.view, icon: Eye, onSelect: () => setViewing(e) },
+        {
+            id: 'view',
+            label: c.view,
+            icon: FileSearch,
+            onSelect: () => viewer.open([e]),
+        },
         ...(abilities.review_excuse && e.status === 1
             ? [
                   {
@@ -437,7 +489,7 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                       icon: ShieldCheck,
                       separator: true,
                       onSelect: () =>
-                          setDecision({ excuse: e, approve: true, note: '' }),
+                          setDecision({ items: [e], approve: true, note: '' }),
                   },
                   {
                       id: 'reject',
@@ -445,7 +497,7 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                       icon: Ban,
                       danger: true,
                       onSelect: () =>
-                          setDecision({ excuse: e, approve: false, note: '' }),
+                          setDecision({ items: [e], approve: false, note: '' }),
                   },
               ]
             : []),
@@ -457,29 +509,32 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
     }));
 
     return (
-        <AttendancePage
-            title={x.title}
-            notices={<PageNotice>{x.description}</PageNotice>}
-        >
+        <AttendancePage title={x.title}>
             <AttendanceTable
                 caption={x.title}
+                storageKey="excuses"
                 rows={excuses.data}
                 rowKey={(e) => e.id}
                 columns={columns}
                 emptyText={x.empty}
-                selectedId={selectedId}
-                onSelect={(e) => setSelectedId(e.id)}
-                onOpen={setViewing}
+                selection={selection}
+                onOpen={(e) => viewer.open([e])}
                 menuItems={menuItems}
-                page={excuses.meta.page}
-                lastPage={excuses.meta.last_page}
-                onPage={(page) => visit({ page })}
-                numberOffset={(excuses.meta.page - 1) * excuses.meta.per_page}
+                server={{
+                    page: excuses.meta.page,
+                    perPage: excuses.meta.per_page,
+                    total: excuses.meta.total,
+                    lastPage: excuses.meta.last_page,
+                    onPage: (page, per_page) => visit({ page, per_page }),
+                }}
             />
+
+            {viewer.element}
 
             {form !== null ? (
                 <AttendanceWindow
                     title={x.add}
+                    columns={2}
                     pending={busy}
                     dirty={form.reason !== '' || form.enrollment_id !== ''}
                     confirmLabel={x.add}
@@ -490,7 +545,6 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                     }
                     onConfirm={submit}
                     onClose={() => setForm(null)}
-                    narrow={false}
                     sections={[
                         {
                             id: 'att-excuse-student',
@@ -547,7 +601,10 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                                                 (o) =>
                                                     o.value ===
                                                     form.enrollment_id,
-                                            )?.label ?? '—'
+                                            )?.label ??
+                                            (studentOptions.length === 0
+                                                ? x.searchFirst
+                                                : '—')
                                         }
                                         options={studentOptions}
                                         onChange={(enrollment_id) =>
@@ -599,15 +656,7 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                                             setForm({ ...form, excuse_type })
                                         }
                                     />
-                                    <WindowTextArea
-                                        label={x.reason}
-                                        required
-                                        value={form.reason}
-                                        onChange={(reason) =>
-                                            setForm({ ...form, reason })
-                                        }
-                                    />
-                                    <label className="sis-admission-sheet__field sis-branches-field--wide">
+                                    <label className="sis-admission-sheet__field">
                                         <span className="sis-admission-sheet__label">
                                             {x.document}
                                         </span>
@@ -625,6 +674,14 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                                             }
                                         />
                                     </label>
+                                    <WindowTextArea
+                                        label={x.reason}
+                                        required
+                                        value={form.reason}
+                                        onChange={(reason) =>
+                                            setForm({ ...form, reason })
+                                        }
+                                    />
                                 </>
                             ),
                         },
@@ -634,33 +691,87 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
 
             {decision !== null ? (
                 <AttendanceWindow
-                    title={x.decideTitle}
+                    title={
+                        decision.items.length > 1
+                            ? `${x.decideTitle} (${decision.items.length})`
+                            : x.decideTitle
+                    }
+                    columns={2}
                     pending={busy}
                     danger={!decision.approve}
                     dirty={decision.note !== ''}
                     confirmLabel={decision.approve ? x.approve : x.reject}
                     confirmDisabled={
-                        !decision.approve && decision.note.trim() === ''
+                        decision.items.length === 0 ||
+                        (!decision.approve && decision.note.trim() === '')
                     }
                     onConfirm={decide}
                     onClose={() => setDecision(null)}
                     sections={[
                         {
                             id: 'att-excuse-decide',
-                            title: `${decision.excuse.full_name} — ${decision.excuse.date_from} → ${decision.excuse.date_to}`,
+                            title:
+                                decision.items.length === 1
+                                    ? `${decision.items[0].full_name} — ${decision.items[0].date_from} → ${decision.items[0].date_to}`
+                                    : `${x.decideTitle} (${decision.items.length})`,
                             content: (
                                 <>
-                                    <WindowFact
-                                        label={x.type}
+                                    <RegistryListField
+                                        label={x.decision}
+                                        editing
+                                        required
                                         value={
-                                            x.types[decision.excuse.excuse_type]
+                                            decision.approve
+                                                ? 'approve'
+                                                : 'reject'
+                                        }
+                                        display={
+                                            decision.approve
+                                                ? x.approve
+                                                : x.reject
+                                        }
+                                        options={[
+                                            {
+                                                value: 'approve',
+                                                label: x.approve,
+                                            },
+                                            {
+                                                value: 'reject',
+                                                label: x.reject,
+                                            },
+                                        ]}
+                                        onChange={(value) =>
+                                            setDecision({
+                                                ...decision,
+                                                approve: value === 'approve',
+                                            })
                                         }
                                     />
-                                    <WindowFact
-                                        wide
-                                        label={x.reason}
-                                        value={decision.excuse.reason}
-                                    />
+                                    {decision.items.length === 1 ? (
+                                        <WindowFact
+                                            label={x.type}
+                                            value={
+                                                x.types[
+                                                    decision.items[0]
+                                                        .excuse_type
+                                                ]
+                                            }
+                                        />
+                                    ) : (
+                                        <WindowFact
+                                            label={x.student}
+                                            value={decision.items
+                                                .map((e) => e.full_name)
+                                                .join('، ')}
+                                        />
+                                    )}
+                                    {decision.items.length === 1 ? (
+                                        <WindowFact
+                                            wide
+                                            label={x.reason}
+                                            value={decision.items[0].reason}
+                                        />
+                                    ) : null}
                                     {decision.approve ? (
                                         <WindowFact
                                             wide
@@ -679,81 +790,6 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
                                         onChange={(note) =>
                                             setDecision({ ...decision, note })
                                         }
-                                    />
-                                </>
-                            ),
-                        },
-                    ]}
-                />
-            ) : null}
-
-            {viewing !== null ? (
-                <AttendanceWindow
-                    title={x.viewTitle}
-                    onClose={() => setViewing(null)}
-                    sections={[
-                        {
-                            id: 'att-excuse-view',
-                            title: viewing.full_name,
-                            content: (
-                                <>
-                                    <WindowFact
-                                        label={a.sheet.code}
-                                        value={
-                                            <span dir="ltr">
-                                                {viewing.student_code}
-                                            </span>
-                                        }
-                                    />
-                                    <WindowFact
-                                        label={c.section}
-                                        value={`${viewing.class_name ?? ''} / ${viewing.section_name ?? ''}`}
-                                    />
-                                    <WindowFact
-                                        label={x.dateFrom}
-                                        value={
-                                            <span dir="ltr">
-                                                {viewing.date_from}
-                                            </span>
-                                        }
-                                    />
-                                    <WindowFact
-                                        label={x.dateTo}
-                                        value={
-                                            <span dir="ltr">
-                                                {viewing.date_to}
-                                            </span>
-                                        }
-                                    />
-                                    <WindowFact
-                                        label={x.type}
-                                        value={x.types[viewing.excuse_type]}
-                                    />
-                                    <WindowFact
-                                        label={x.status}
-                                        value={x.statuses[viewing.status]}
-                                    />
-                                    <WindowFact
-                                        wide
-                                        label={x.reason}
-                                        value={viewing.reason}
-                                    />
-                                    <WindowFact
-                                        label={x.submittedBy}
-                                        value={`${viewing.submitted_by_name ?? '—'} · ${dateTime(viewing.submitted_at)}`}
-                                    />
-                                    <WindowFact
-                                        label={x.reviewedBy}
-                                        value={`${viewing.reviewed_by_name ?? '—'} · ${dateTime(viewing.reviewed_at)}`}
-                                    />
-                                    <WindowFact
-                                        wide
-                                        label={x.decisionNote}
-                                        value={viewing.decision_note ?? '—'}
-                                    />
-                                    <WindowFact
-                                        label={x.documentId}
-                                        value={viewing.document_file_id ?? '—'}
                                     />
                                 </>
                             ),

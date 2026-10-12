@@ -2,6 +2,8 @@
 
 namespace App\Domain\Enrollment\Services;
 
+use App\Domain\Enrollment\ValueObjects\SectionLetter;
+
 /**
  * Rules for creating / editing classes (الصفوف) and sections (الشعب).
  * Returns the first violated rule as an error code, or null when the input is valid.
@@ -25,6 +27,16 @@ final class EnrollmentStructureGuard
         }
 
         return $taken ? $prefix.'_name_taken' : null;
+    }
+
+    /** A section name is one of the letters A / B / C (see SectionLetter), unique within its class. */
+    public function sectionNameError(string $name, bool $taken): ?string
+    {
+        if (SectionLetter::normalize($name) === null) {
+            return 'enrollment.section_letter_invalid';
+        }
+
+        return $taken ? 'enrollment.section_name_taken' : null;
     }
 
     public function capacityError(?int $capacity, int $activeEnrollments, string $prefix): ?string

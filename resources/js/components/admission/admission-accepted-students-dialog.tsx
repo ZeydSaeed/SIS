@@ -24,6 +24,7 @@ import {
 import { usePageError } from '@/components/sis/page-error-context';
 import { formatAcademicYearOptionLabel } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { ariaSort, SortButton, sortRows, useSortState } from '@/components/sis/table-sort';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -607,7 +608,27 @@ export function AdmissionAcceptedStudentsDialog({
         [filteredByYearPeriod],
     );
 
+    // Each column is its own list: a header click sorts that list only (the reason columns sort their list by reason).
+    const columnSort = useSortState();
     const tableRows = useMemo(() => {
+        const ordered = (list: RosterEntry[], nameKey: string, reasonKey?: 'rejection' | 'withdrawal'): RosterEntry[] =>
+            columnSort.key === nameKey
+                ? sortRows(list, (entry) => entry.full_name, columnSort.direction)
+                : reasonKey !== undefined && columnSort.key === reasonKey
+                  ? sortRows(
+                        list,
+                        (entry) => (reasonKey === 'rejection' ? entry.rejection_reason : entry.withdrawal_reason),
+                        columnSort.direction,
+                    )
+                  : list;
+        const vocationalList = ordered(vocationalStudents, 'vocational');
+        const transferList = ordered(transferStudents, 'transfer');
+        const submittedList = ordered(submittedStudents, 'submitted');
+        const underReviewList = ordered(underReviewStudents, 'underReview');
+        const interviewList = ordered(interviewStudents, 'interview');
+        const waitlistedList = ordered(waitlistedStudents, 'waitlisted');
+        const rejectedList = ordered(rejectedStudents, 'rejected', 'rejection');
+        const withdrawnList = ordered(withdrawnStudents, 'withdrawn', 'withdrawal');
         const rowCount = Math.max(
             vocationalStudents.length,
             transferStudents.length,
@@ -621,14 +642,14 @@ export function AdmissionAcceptedStudentsDialog({
         );
 
         return Array.from({ length: rowCount }, (_, index) => {
-            const vocational = displayEntry(vocationalStudents[index]);
-            const transfer = displayEntry(transferStudents[index]);
-            const submitted = displayEntry(submittedStudents[index]);
-            const underReview = displayEntry(underReviewStudents[index]);
-            const interview = displayEntry(interviewStudents[index]);
-            const waitlisted = displayEntry(waitlistedStudents[index]);
-            const rejected = displayEntry(rejectedStudents[index]);
-            const withdrawn = displayEntry(withdrawnStudents[index]);
+            const vocational = displayEntry(vocationalList[index]);
+            const transfer = displayEntry(transferList[index]);
+            const submitted = displayEntry(submittedList[index]);
+            const underReview = displayEntry(underReviewList[index]);
+            const interview = displayEntry(interviewList[index]);
+            const waitlisted = displayEntry(waitlistedList[index]);
+            const rejected = displayEntry(rejectedList[index]);
+            const withdrawn = displayEntry(withdrawnList[index]);
 
             return {
                 key: [
@@ -653,6 +674,8 @@ export function AdmissionAcceptedStudentsDialog({
             };
         });
     }, [
+        columnSort.key,
+        columnSort.direction,
         displayEntry,
         vocationalStudents,
         transferStudents,
@@ -852,9 +875,12 @@ export function AdmissionAcceptedStudentsDialog({
                                                     <th
                                                         scope="col"
                                                         className="sis-admission-accepted-sheet__channel"
+                                                        aria-sort={ariaSort(columnSort, column.key)}
                                                     >
                                                         <span className="sis-admission-accepted-sheet__col-label">
-                                                            {column.header}
+                                                            <SortButton sort={columnSort} column={column.key}>
+                                                                {column.header}
+                                                            </SortButton>
                                                         </span>
                                                         <span
                                                             className="sis-admission-accepted-sheet__col-count"
@@ -868,9 +894,12 @@ export function AdmissionAcceptedStudentsDialog({
                                                         <th
                                                             scope="col"
                                                             className="sis-admission-accepted-sheet__notes"
+                                                            aria-sort={ariaSort(columnSort, 'rejection')}
                                                         >
                                                             <span className="sis-admission-accepted-sheet__col-label">
-                                                                {admission.acceptedStatsRejectionReason}
+                                                                <SortButton sort={columnSort} column="rejection">
+                                                                    {admission.acceptedStatsRejectionReason}
+                                                                </SortButton>
                                                             </span>
                                                         </th>
                                                     ) : null}
@@ -878,9 +907,12 @@ export function AdmissionAcceptedStudentsDialog({
                                                         <th
                                                             scope="col"
                                                             className="sis-admission-accepted-sheet__notes"
+                                                            aria-sort={ariaSort(columnSort, 'withdrawal')}
                                                         >
                                                             <span className="sis-admission-accepted-sheet__col-label">
-                                                                {admission.acceptedStatsWithdrawalReason}
+                                                                <SortButton sort={columnSort} column="withdrawal">
+                                                                    {admission.acceptedStatsWithdrawalReason}
+                                                                </SortButton>
                                                             </span>
                                                         </th>
                                                     ) : null}

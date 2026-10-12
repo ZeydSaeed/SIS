@@ -28,6 +28,7 @@ import {
     type CurriculumEditFilter,
 } from '@/components/curriculum/curriculum-edit-controls';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { ariaSort, SortButton, sortRows, useSortState, type SortValue } from '@/components/sis/table-sort';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import {
     formatAcademicYearOptionLabel,
@@ -1033,13 +1034,50 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         });
     }, [filters.q, subjects.data, subjectsByName]);
 
-    const visibleSubjectRows = useMemo(
-        () =>
-            catalogSubjectRows.filter((row) =>
-                matchesCurriculumEditFilter(row, editFilter),
-            ),
-        [catalogSubjectRows, editFilter],
-    );
+    // Header click sorts the whole list (both views share the columns and the chosen sort).
+    const subjectSort = useSortState();
+    const subjectSortValue = (
+        row: {
+            name: string;
+            name_en: string;
+            subject_type: unknown;
+            credit_hours?: number | string | null;
+            max_grade?: number | string | null;
+            pass_grade?: number | string | null;
+            prerequisites?: string;
+            status: unknown;
+        },
+        key: string,
+    ): SortValue => {
+        switch (key) {
+            case 'name':
+                return row.name;
+            case 'nameEn':
+                return row.name_en.trim();
+            case 'type':
+                return subjectTypeLabel(row.subject_type as Parameters<typeof subjectTypeLabel>[0], c);
+            case 'hours':
+                return row.credit_hours === null || row.credit_hours === undefined ? null : Number(row.credit_hours);
+            case 'max':
+                return row.max_grade === null || row.max_grade === undefined ? null : Number(row.max_grade);
+            case 'pass':
+                return row.pass_grade === null || row.pass_grade === undefined ? null : Number(row.pass_grade);
+            case 'prereq':
+                return row.prerequisites?.trim();
+            case 'status':
+                return Number(row.status) === 1 ? 1 : 2;
+            default:
+                return null;
+        }
+    };
+
+    const visibleSubjectRows = useMemo(() => {
+        const rows = catalogSubjectRows.filter((row) => matchesCurriculumEditFilter(row, editFilter));
+        const key = subjectSort.key;
+
+        return key === null ? rows : sortRows(rows, (row) => subjectSortValue(row, key), subjectSort.direction);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [catalogSubjectRows, editFilter, subjectSort.key, subjectSort.direction]);
 
     const catalogCurriculumRows = useMemo(() => {
         const classLabels = splitSelection(selectedClass).map((key) => sisClassLabel(key));
@@ -1177,13 +1215,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         return out;
     }, [catalogCurriculumRows, subjectsByName]);
 
-    const visiblePlanSubjectRows = useMemo(
-        () =>
-            curriculumPlanSubjectRows.filter((row) =>
-                matchesCurriculumEditFilter(row, editFilter),
-            ),
-        [curriculumPlanSubjectRows, editFilter],
-    );
+    const visiblePlanSubjectRows = useMemo(() => {
+        const rows = curriculumPlanSubjectRows.filter((row) => matchesCurriculumEditFilter(row, editFilter));
+        const key = subjectSort.key;
+
+        return key === null ? rows : sortRows(rows, (row) => subjectSortValue(row, key), subjectSort.direction);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [curriculumPlanSubjectRows, editFilter, subjectSort.key, subjectSort.direction]);
 
     const subjectLastPage = Math.max(
         1,
@@ -1664,19 +1702,25 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                 <th className="sis-admission-drafts-table__num">
                                                     {c.seq}
                                                 </th>
-                                                <th className="sis-admission-drafts-table__name-head">
-                                                    {c.subjectName}
+                                                <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(subjectSort, 'name')}>
+                                                    <SortButton sort={subjectSort} column="name">
+                                                        {c.subjectName}
+                                                    </SortButton>
                                                 </th>
-                                                <th className="sis-admission-drafts-table__name-head sis-curriculum-name-en-col">
-                                                    {c.subjectNameEn}
+                                                <th className="sis-admission-drafts-table__name-head sis-curriculum-name-en-col" aria-sort={ariaSort(subjectSort, 'nameEn')}>
+                                                    <SortButton sort={subjectSort} column="nameEn">
+                                                        {c.subjectNameEn}
+                                                    </SortButton>
                                                 </th>
-                                                <th className="sis-curriculum-type-col">{c.subjectType}</th>
-                                                <th className="sis-curriculum-hours-col">{c.creditHours}</th>
-                                                <th>{c.maxGrade}</th>
-                                                <th>{c.passGrade}</th>
-                                                <th className="sis-curriculum-prereq-col">{c.prerequisitesColumn}</th>
-                                                <th className="sis-curriculum-subject-status">
-                                                    {c.subjectStatus}
+                                                <th className="sis-curriculum-type-col" aria-sort={ariaSort(subjectSort, 'type')}><SortButton sort={subjectSort} column="type">{c.subjectType}</SortButton></th>
+                                                <th className="sis-curriculum-hours-col" aria-sort={ariaSort(subjectSort, 'hours')}><SortButton sort={subjectSort} column="hours">{c.creditHours}</SortButton></th>
+                                                <th aria-sort={ariaSort(subjectSort, 'max')}><SortButton sort={subjectSort} column="max">{c.maxGrade}</SortButton></th>
+                                                <th aria-sort={ariaSort(subjectSort, 'pass')}><SortButton sort={subjectSort} column="pass">{c.passGrade}</SortButton></th>
+                                                <th className="sis-curriculum-prereq-col" aria-sort={ariaSort(subjectSort, 'prereq')}><SortButton sort={subjectSort} column="prereq">{c.prerequisitesColumn}</SortButton></th>
+                                                <th className="sis-curriculum-subject-status" aria-sort={ariaSort(subjectSort, 'status')}>
+                                                    <SortButton sort={subjectSort} column="status">
+                                                        {c.subjectStatus}
+                                                    </SortButton>
                                                 </th>
                                             </tr>
                                         </thead>
@@ -1866,17 +1910,23 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                             <th className="sis-admission-drafts-table__num">
                                                 {c.seq}
                                             </th>
-                                            <th className="sis-admission-drafts-table__name-head">
-                                                {c.subjectName}
+                                            <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(subjectSort, 'name')}>
+                                                <SortButton sort={subjectSort} column="name">
+                                                    {c.subjectName}
+                                                </SortButton>
                                             </th>
-                                            <th className="sis-admission-drafts-table__name-head sis-curriculum-name-en-col">
-                                                {c.subjectNameEn}
+                                            <th className="sis-admission-drafts-table__name-head sis-curriculum-name-en-col" aria-sort={ariaSort(subjectSort, 'nameEn')}>
+                                                <SortButton sort={subjectSort} column="nameEn">
+                                                    {c.subjectNameEn}
+                                                </SortButton>
                                             </th>
-                                            <th className="sis-curriculum-type-col">{c.subjectType}</th>
-                                            <th className="sis-curriculum-hours-col">{c.creditHours}</th>
-                                            <th>{c.maxGrade}</th>
-                                            <th className="sis-curriculum-subject-status">
-                                                {c.subjectStatus}
+                                            <th className="sis-curriculum-type-col" aria-sort={ariaSort(subjectSort, 'type')}><SortButton sort={subjectSort} column="type">{c.subjectType}</SortButton></th>
+                                            <th className="sis-curriculum-hours-col" aria-sort={ariaSort(subjectSort, 'hours')}><SortButton sort={subjectSort} column="hours">{c.creditHours}</SortButton></th>
+                                            <th aria-sort={ariaSort(subjectSort, 'max')}><SortButton sort={subjectSort} column="max">{c.maxGrade}</SortButton></th>
+                                            <th className="sis-curriculum-subject-status" aria-sort={ariaSort(subjectSort, 'status')}>
+                                                <SortButton sort={subjectSort} column="status">
+                                                    {c.subjectStatus}
+                                                </SortButton>
                                             </th>
                                         </tr>
                                     </thead>

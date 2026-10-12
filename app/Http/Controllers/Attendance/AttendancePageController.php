@@ -8,9 +8,9 @@ use App\Application\Attendance\Commands\CreateAttendanceSessionCommand;
 use App\Application\Attendance\Commands\CreateAttendanceSessionHandler;
 use App\Application\Attendance\Commands\MarkSectionAttendanceCommand;
 use App\Application\Attendance\Commands\MarkSectionAttendanceHandler;
+use App\Application\Attendance\Contracts\AttendanceWorkspaceReadInterface;
 use App\Application\Attendance\Queries\GetAttendanceSessionHandler;
 use App\Application\Attendance\Queries\GetAttendanceSessionQuery;
-use App\Application\Attendance\Contracts\AttendanceWorkspaceReadInterface;
 use App\Application\Attendance\Queries\ListAttendanceSheetsHandler;
 use App\Application\Attendance\Queries\ListAttendanceSheetsQuery;
 use App\Domain\Attendance\Exceptions\SessionNotFoundException;
@@ -53,7 +53,7 @@ final class AttendancePageController extends Controller
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear);
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = (int) config('attendance.per_page.review', 25);
+        $perPage = AttendanceFilterInput::perPage($request, 'review', 25);
         // «كل الجلسات»: every sheet status unless the user narrows it.
         $filters = AttendanceFilterInput::board($request, []);
 

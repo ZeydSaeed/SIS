@@ -56,11 +56,11 @@ final class AdmissionCatalogReference
         ['key' => '3', 'code' => 'CLS-3', 'name' => 'الثالث', 'grade_code' => 'G3'],
     ];
 
-    /** UI section codes → Arabic names. */
+    /** Sections — one source of truth: the name is the UI letter (SectionLetter), the code SEC-<letter>. */
     public const SECTIONS = [
-        ['code' => 'SEC-A', 'ui' => 'A', 'name' => 'أ'],
-        ['code' => 'SEC-B', 'ui' => 'B', 'name' => 'ب'],
-        ['code' => 'SEC-C', 'ui' => 'C', 'name' => 'ج'],
+        ['code' => 'SEC-A', 'ui' => 'A', 'name' => 'A'],
+        ['code' => 'SEC-B', 'ui' => 'B', 'name' => 'B'],
+        ['code' => 'SEC-C', 'ui' => 'C', 'name' => 'C'],
     ];
 
     public static function branchCode(string $branchName): string

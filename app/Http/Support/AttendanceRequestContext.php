@@ -70,6 +70,7 @@ final class AttendanceRequestContext
             'view_reports' => $can('viewReports'),
             'manage_alerts' => $can('manageAlerts'),
             'manage_policy' => $can('managePolicy'),
+            'link_account' => $can('linkTeacherAccount'),
         ];
     }
 }

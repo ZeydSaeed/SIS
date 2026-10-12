@@ -36,16 +36,16 @@ final class AttendanceExcuseController extends Controller
         $schoolId = $this->context->schoolId();
         $yearId = $this->context->academicYearId($request);
         $filters = AttendanceFilterInput::from($request, ['excuse_type', 'class_id', 'section_id'])
-            + ['status' => AttendanceFilterInput::statuses($request, 'status', [1]), 'q' => mb_substr(trim((string) $request->query('q', '')), 0, 100)];
+            + ['status' => AttendanceFilterInput::statuses($request, 'status', [1]), 'q' => AttendanceFilterInput::text($request, 'q')];
         $page = max(1, (int) $request->query('page', 1));
         $list = $handler->handle(new ListAttendanceExcusesQuery(
-            $schoolId, $yearId, $filters, $page, (int) config('attendance.per_page.excuses', 25),
-            $request->query('student') !== null ? mb_substr((string) $request->query('student'), 0, 100) : null,
+            $schoolId, $yearId, $filters, $page, AttendanceFilterInput::perPage($request, 'excuses', 25),
+            AttendanceFilterInput::text($request, 'student') !== '' ? AttendanceFilterInput::text($request, 'student') : null,
         ));
 
         return Inertia::render('attendance/excuses', [
             'excuses' => $list->toArray(),
-            'filters' => $filters + ['page' => $page, 'academic_year_id' => $yearId, 'student' => (string) $request->query('student', '')],
+            'filters' => $filters + ['page' => $page, 'academic_year_id' => $yearId, 'student' => AttendanceFilterInput::text($request, 'student')],
             'lookups' => $read->lookups($schoolId, $yearId),
             'abilities' => $this->context->abilities($request),
         ]);

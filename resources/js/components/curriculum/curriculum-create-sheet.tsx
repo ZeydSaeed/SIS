@@ -8,6 +8,7 @@ import {
 } from '@/components/sis/ops-year-filter';
 import { usePageError } from '@/components/sis/page-error-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { ariaSort, SortButton, useTableSort, type TableSort } from '@/components/sis/table-sort';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
@@ -92,12 +93,14 @@ function SubjectShuttleTable({
     pageSize,
     onToggle,
     subjectNameLabel,
+    sort,
 }: {
     rows: SubjectRow[];
     selectedIds: number[];
     pageSize: number;
     onToggle: (id: number) => void;
     subjectNameLabel: string;
+    sort: TableSort;
 }) {
     const padded = [...rows];
     while (padded.length < pageSize) {
@@ -120,8 +123,10 @@ function SubjectShuttleTable({
                     <th className="sis-curriculum-create-sheet__check" scope="col">
                         <span className="sr-only">{subjectNameLabel}</span>
                     </th>
-                    <th className="sis-curriculum-create-sheet__name-head" scope="col">
-                        {subjectNameLabel}
+                    <th className="sis-curriculum-create-sheet__name-head" scope="col" aria-sort={ariaSort(sort, 'name')}>
+                        <SortButton sort={sort} column="name">
+                            {subjectNameLabel}
+                        </SortButton>
                     </th>
                 </tr>
             </thead>
@@ -312,13 +317,16 @@ export function CurriculumCreateSheetDialog({
         setPlannedPage((page) => Math.min(page, plannedLastPage));
     }, [plannedLastPage]);
 
+    // Each pane sorts its whole list by name (header click), then pages it.
+    const { rows: sortedAvailable, sort: availableSort } = useTableSort(availableSubjects, (row) => row.name);
+    const { rows: sortedPlanned, sort: plannedSort } = useTableSort(plannedSubjects, (row) => row.name);
     const pagedAvailable = useMemo(
-        () => pageSlice(availableSubjects, availablePage, CREATE_SHEET_PAGE_SIZE),
-        [availablePage, availableSubjects],
+        () => pageSlice(sortedAvailable, availablePage, CREATE_SHEET_PAGE_SIZE),
+        [availablePage, sortedAvailable],
     );
     const pagedPlanned = useMemo(
-        () => pageSlice(plannedSubjects, plannedPage, CREATE_SHEET_PAGE_SIZE),
-        [plannedPage, plannedSubjects],
+        () => pageSlice(sortedPlanned, plannedPage, CREATE_SHEET_PAGE_SIZE),
+        [plannedPage, sortedPlanned],
     );
 
     const yearOptions = useMemo(
@@ -595,6 +603,7 @@ export function CurriculumCreateSheetDialog({
                             <div className="sis-curriculum-create-sheet__pane-body">
                                 <SubjectShuttleTable
                                     rows={pagedAvailable}
+                                    sort={availableSort}
                                     selectedIds={availableSelected}
                                     pageSize={CREATE_SHEET_PAGE_SIZE}
                                     onToggle={(id) =>
@@ -647,6 +656,7 @@ export function CurriculumCreateSheetDialog({
                             <div className="sis-curriculum-create-sheet__pane-body">
                                 <SubjectShuttleTable
                                     rows={pagedPlanned}
+                                    sort={plannedSort}
                                     selectedIds={plannedSelected}
                                     pageSize={CREATE_SHEET_PAGE_SIZE}
                                     onToggle={(id) =>

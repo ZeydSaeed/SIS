@@ -12,7 +12,11 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { lockChromePan } from '@/lib/lock-chrome-pan';
 
 void createInertiaApp({
-    title: () => 'Student Information System',
+    // The window title names the open page: «<page> — Student Information System».
+    title: (title) =>
+        title
+            ? `${title} — Student Information System`
+            : 'Student Information System',
     layout: (name) => {
         switch (true) {
             case name === 'welcome':

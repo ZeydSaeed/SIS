@@ -26,6 +26,7 @@ import { isContextMenuKey, SisContextMenu, useContextMenu, type ContextMenuItem 
 import { useRegisterPageRibbon, type PageRibbonCommand, type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { RibbonFilterField, type FilterSpec } from '@/components/sis/ribbon-filter';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import { tableActionIds, toggleTableRowChecked, toggleTableSelectAll } from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
@@ -130,6 +131,9 @@ const SORTABLE: Array<{ key: string; label: (r: ReturnType<typeof t>['rooms']) =
     { key: 'building', label: (r) => r.building },
     { key: 'floor', label: (r) => r.floor, num: true },
     { key: 'branch', label: (r) => r.branch },
+    { key: 'practical', label: (r) => r.practical },
+    { key: 'weekly_lessons', label: (r) => r.weeklyLessons, num: true },
+    { key: 'status', label: (r) => r.status },
 ];
 
 const text = (value: string | null | undefined) => value ?? '';
@@ -498,9 +502,6 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                             </button>
                                                         </th>
                                                     ))}
-                                                    <th>{r.practical}</th>
-                                                    <th className="sis-admission-drafts-table__num">{r.weeklyLessons}</th>
-                                                    <th>{r.status}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -850,6 +851,19 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
     const i18n = t();
     const r = i18n.rooms;
     const request = useRegistryRequest(RELOAD);
+    const { rows: sortedTypes, sort } = useTableSort(types, (type, key) =>
+        key === 'abbreviation'
+            ? (type.abbreviation ?? type.code)
+            : key === 'name'
+              ? type.name
+              : key === 'kind'
+                ? (r.kinds[type.kind] ?? '')
+                : key === 'practical'
+                  ? type.supports_practical
+                  : key === 'rooms'
+                    ? type.rooms
+                    : type.status === ACTIVE ? r.inService : r.outOfService,
+    );
     const [form, setForm] = useState<TypeForm | null>(null);
     const [saving, setSaving] = useState(false);
     const kindOptions = KINDS.map((kind) => ({ value: String(kind), label: r.kinds[kind] ?? String(kind) }));
@@ -886,17 +900,17 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
                         <table className="sis-rooms-types-table">
                             <thead>
                                 <tr>
-                                    <th>{r.abbreviationColumn}</th>
-                                    <th>{r.typeName}</th>
-                                    <th>{r.kind}</th>
-                                    <th>{r.practical}</th>
-                                    <th className="sis-admission-drafts-table__num">{r.typeRooms}</th>
-                                    <th>{r.status}</th>
+                                    <th aria-sort={ariaSort(sort, 'abbreviation')}><SortButton sort={sort} column="abbreviation">{r.abbreviationColumn}</SortButton></th>
+                                    <th aria-sort={ariaSort(sort, 'name')}><SortButton sort={sort} column="name">{r.typeName}</SortButton></th>
+                                    <th aria-sort={ariaSort(sort, 'kind')}><SortButton sort={sort} column="kind">{r.kind}</SortButton></th>
+                                    <th aria-sort={ariaSort(sort, 'practical')}><SortButton sort={sort} column="practical">{r.practical}</SortButton></th>
+                                    <th className="sis-admission-drafts-table__num" aria-sort={ariaSort(sort, 'rooms')}><SortButton sort={sort} column="rooms">{r.typeRooms}</SortButton></th>
+                                    <th aria-sort={ariaSort(sort, 'status')}><SortButton sort={sort} column="status">{r.status}</SortButton></th>
                                     <th aria-hidden="true" />
                                 </tr>
                             </thead>
                             <tbody>
-                                {types.map((type) => (
+                                {sortedTypes.map((type) => (
                                     <tr key={type.id}>
                                         <td>
                                             <span className="sis-timetable-card sis-timetable-card--tray" style={hueStyle(type.color_hue ?? 205)}>

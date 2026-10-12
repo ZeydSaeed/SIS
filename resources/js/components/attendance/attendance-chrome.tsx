@@ -3,16 +3,33 @@ import {
     BarChart3,
     BellRing,
     CalendarClock,
+    ChevronLeft,
+    ChevronRight,
     ClipboardCheck,
+    Eye,
     FileCheck2,
     FilterX,
     LayoutDashboard,
     ListChecks,
+    Pencil,
+    RotateCcw,
     Settings2,
     UserCheck,
+    ZoomIn,
+    ZoomOut,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
 import type { AttendanceAbilities } from '@/components/attendance/attendance-ui';
 import { RegistrySheetDialog } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
@@ -26,6 +43,14 @@ import {
     formatAcademicYearOptionLabel,
     type YearOption,
 } from '@/components/sis/ops-year-filter';
+import { usePageError } from '@/components/sis/page-error-context';
+import {
+    ariaSort,
+    cellSortValue,
+    SortButton,
+    useTableSort,
+    type SortValue,
+} from '@/components/sis/table-sort';
 import {
     useRegisterPageRibbon,
     type PageRibbonCommand,
@@ -37,8 +62,18 @@ import {
     RibbonFilterField,
     type FilterSpec,
 } from '@/components/sis/ribbon-filter';
+import {
+    tableActionIds,
+    toggleTableRowChecked,
+    toggleTableSelectAll,
+} from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
+import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
+import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useResizableTableRows } from '@/hooks/use-resizable-table-rows';
+import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
+import { useDebouncedFitPageSync } from '@/lib/sis-ribbon-layout';
 
 export type SectionKey =
     | 'my'
@@ -125,12 +160,114 @@ const SECTIONS: Array<{
     },
 ];
 
-/** «تحرير»: the page's own command groups, then the attendance sections. */
+// ── Zoom («العرض»): one level for every attendance table, kept in this browser ──────────────────────────────────────
+const ZOOM_KEY = 'sis.attendance.zoom';
+const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6];
+const zoomListeners = new Set<() => void>();
+let zoomLevel = (() => {
+    try {
+        const stored =
+            typeof window === 'undefined'
+                ? NaN
+                : Number(window.localStorage.getItem(ZOOM_KEY));
+
+        return ZOOM_STEPS.includes(stored) ? stored : 1;
+    } catch {
+        return 1;
+    }
+})();
+
+function setZoom(next: number): void {
+    zoomLevel = next;
+    try {
+        window.localStorage.setItem(ZOOM_KEY, String(next));
+    } catch {
+        // private mode — the zoom lasts for this page only
+    }
+    zoomListeners.forEach((listener) => listener());
+}
+
+export function useAttendanceZoom(): number {
+    return useSyncExternalStore(
+        (listener) => {
+            zoomListeners.add(listener);
+
+            return () => zoomListeners.delete(listener);
+        },
+        () => zoomLevel,
+        () => 1,
+    );
+}
+
+function zoomGroup(zoom: number): PageRibbonGroup {
+    const c = t().attendanceSystem.chrome;
+    const index = ZOOM_STEPS.indexOf(zoom);
+
+    return {
+        id: 'attendance-zoom',
+        label: c.zoom,
+        commands: [
+            {
+                id: 'attendance-zoom-in',
+                label: c.zoomIn,
+                icon: ZoomIn,
+                iconTone: 'sky',
+                disabled: index >= ZOOM_STEPS.length - 1,
+                onSelect: () =>
+                    setZoom(
+                        ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, index + 1)],
+                    ),
+            },
+            {
+                id: 'attendance-zoom-out',
+                label: c.zoomOut,
+                icon: ZoomOut,
+                iconTone: 'sky',
+                disabled: index <= 0,
+                onSelect: () => setZoom(ZOOM_STEPS[Math.max(0, index - 1)]),
+            },
+            {
+                id: 'attendance-zoom-reset',
+                label: `${Math.round(zoom * 100)}%`,
+                icon: RotateCcw,
+                iconTone: 'steel',
+                title: c.zoomReset,
+                disabled: zoom === 1,
+                onSelect: () => setZoom(1),
+            },
+        ],
+    };
+}
+
+/**
+ * Same order as the other pages: «عرض» / «تحرير» first, then the page's actions — the «المحدد» commands open the
+ * page's actions group (one group «الإجراءات»).
+ */
+function orderedGroups(groups: PageRibbonGroup[]): PageRibbonGroup[] {
+    const c = t().attendanceSystem.chrome;
+    const selection = groups.find((g) => g.id.endsWith('-selection'));
+    if (selection === undefined) {
+        return groups;
+    }
+    const actions = groups.find((g) => g.id.endsWith('-actions'));
+    const merged: PageRibbonGroup = {
+        ...(actions ?? selection),
+        label: c.actions,
+        commands: [...(selection.commands ?? []), ...(actions?.commands ?? [])],
+    };
+
+    return [merged, ...groups.filter((g) => g !== selection && g !== actions)];
+}
+
+/** «تحرير»: the page's own command groups, the zoom of its tables, then the attendance sections. */
 export function useAttendanceEditRibbon(
     current: SectionKey,
     abilities: AttendanceAbilities,
     pageGroups: PageRibbonGroup[],
+    options: { zoom?: boolean } = {},
 ): void {
+    const zoom = useAttendanceZoom();
+    const withZoom = options.zoom !== false;
     const groups = useMemo((): PageRibbonGroup[] => {
         const n = t().attendanceSystem.nav;
         const sections: PageRibbonGroup = {
@@ -149,9 +286,249 @@ export function useAttendanceEditRibbon(
             ),
         };
 
-        return [...pageGroups, sections];
-    }, [abilities, current, pageGroups]);
+        return [
+            ...orderedGroups(pageGroups),
+            ...(withZoom ? [zoomGroup(zoom)] : []),
+            sections,
+        ];
+    }, [abilities, current, pageGroups, withZoom, zoom]);
     useRegisterPageRibbon('edit', groups);
+}
+
+// ── Selection («تحديد» / «تحديد الكل») and the «عرض» / «تحرير» commands of the selected rows ────────────────────────
+export type AttendanceSelection<T> = {
+    checkedIds: number[];
+    selectedId: number | null;
+    /** The rows actions apply to: the checked rows, else the clicked row. */
+    targets: T[];
+    select: (id: number) => void;
+    toggle: (id: number) => void;
+    toggleAll: (ids: number[]) => void;
+    clear: () => void;
+};
+
+const SELECTION_KEY = 'sis.attendance.selection:';
+
+function readSelection(key: string): {
+    checkedIds: number[];
+    selectedId: number | null;
+} {
+    try {
+        const raw =
+            typeof window === 'undefined'
+                ? null
+                : window.sessionStorage.getItem(SELECTION_KEY + key);
+        const parsed =
+            raw === null
+                ? null
+                : (JSON.parse(raw) as {
+                      checkedIds?: unknown;
+                      selectedId?: unknown;
+                  });
+        const checkedIds = Array.isArray(parsed?.checkedIds)
+            ? parsed.checkedIds.filter(
+                  (id): id is number => typeof id === 'number',
+              )
+            : [];
+
+        return {
+            checkedIds,
+            selectedId:
+                typeof parsed?.selectedId === 'number'
+                    ? parsed.selectedId
+                    : null,
+        };
+    } catch {
+        return { checkedIds: [], selectedId: null };
+    }
+}
+
+/**
+ * The table selection stays as the user left it — through filters, paging, saves and reloads of the page (kept for
+ * the tab in sessionStorage, per page) — until the user changes it. Actions apply to the selected rows on screen.
+ */
+export function useAttendanceSelection<T>(
+    rows: T[],
+    rowKey: (row: T) => number,
+    scope?: string,
+): AttendanceSelection<T> {
+    const key =
+        scope ??
+        (typeof window === 'undefined' ? '' : window.location.pathname);
+    const [state, setState] = useState(() => readSelection(key));
+    const keyRef = useRef(rowKey);
+    keyRef.current = rowKey;
+
+    const update = (next: {
+        checkedIds: number[];
+        selectedId: number | null;
+    }) => {
+        setState(next);
+        try {
+            window.sessionStorage.setItem(
+                SELECTION_KEY + key,
+                JSON.stringify(next),
+            );
+        } catch {
+            // private mode — the selection lasts while the page is open
+        }
+    };
+
+    const targets = useMemo(() => {
+        const wanted = tableActionIds(state.checkedIds, state.selectedId);
+
+        return rows.filter((row) => wanted.includes(keyRef.current(row)));
+    }, [rows, state]);
+
+    return {
+        checkedIds: state.checkedIds,
+        selectedId: state.selectedId,
+        targets,
+        select: (id) => update({ selectedId: id, checkedIds: [id] }),
+        toggle: (id) => update(toggleTableRowChecked(state.checkedIds, id)),
+        toggleAll: (visible) =>
+            update(
+                toggleTableSelectAll(
+                    state.checkedIds,
+                    visible,
+                    state.selectedId,
+                ),
+            ),
+        clear: () => update({ checkedIds: [], selectedId: null }),
+    };
+}
+
+/**
+ * The «المحدد» group: «عرض» and «تحرير» for one or several selected rows (+ the page's own extra commands).
+ * `onEdit` null = the table is read-only here (the command stays visible, disabled, with the reason).
+ */
+export function selectionGroup<T>(
+    id: string,
+    targets: T[],
+    onView: (rows: T[]) => void,
+    onEdit: ((rows: T[]) => void) | null,
+    options: {
+        editLabel?: string;
+        editDisabled?: boolean;
+        editTitle?: string;
+        extra?: PageRibbonCommand[];
+    } = {},
+): PageRibbonGroup {
+    const c = t().attendanceSystem.chrome;
+    const none = targets.length === 0;
+
+    return {
+        id,
+        label: none ? c.selection : `${c.selection} (${targets.length})`,
+        commands: [
+            {
+                id: `${id}-view`,
+                label: c.view,
+                icon: Eye,
+                iconTone: 'sky',
+                disabled: none,
+                title: none ? c.needsSelection : c.view,
+                onSelect: () => !none && onView(targets),
+            },
+            {
+                id: `${id}-edit`,
+                label: options.editLabel ?? c.edit,
+                icon: Pencil,
+                iconTone: 'amber',
+                tone: 'edit',
+                disabled:
+                    none || onEdit === null || options.editDisabled === true,
+                title: none
+                    ? c.needsSelection
+                    : onEdit === null
+                      ? (options.editTitle ?? c.readOnly)
+                      : (options.editTitle ?? options.editLabel ?? c.edit),
+                onSelect: () => !none && onEdit?.(targets),
+            },
+            ...(options.extra ?? []),
+        ],
+    };
+}
+
+// ── Messages (guidance, warnings, empty results) as a dialog, once per page visit ────────────────────────────────
+export type AttendanceMessage = {
+    key: string;
+    text: string;
+    tone?: 'info' | 'warning' | 'error';
+};
+type ShowMessage = ReturnType<typeof usePageError>['showMessage'];
+const shownMessages = new Set<string>();
+let pendingMessages: {
+    messages: AttendanceMessage[];
+    title?: string;
+    show: ShowMessage;
+} | null = null;
+
+/** Messages raised by the same render (page + its tables) are merged into one dialog. */
+function enqueueMessages(
+    show: ShowMessage,
+    messages: AttendanceMessage[],
+    title?: string,
+): void {
+    if (pendingMessages === null) {
+        pendingMessages = { messages: [], title, show };
+        queueMicrotask(() => {
+            const batch = pendingMessages;
+            pendingMessages = null;
+            if (batch === null || batch.messages.length === 0) {
+                return;
+            }
+            const all = batch.messages;
+            const tone = all.some((m) => m.tone === 'error')
+                ? 'error'
+                : all.some((m) => m.tone === 'warning')
+                  ? 'warning'
+                  : 'info';
+            batch.show({
+                tone,
+                title: batch.title ?? t().attendanceSystem.chrome.notice,
+                description: all[0].text,
+                details: all.slice(1).map((m) => m.text),
+            });
+        });
+    }
+    pendingMessages.messages.push(...messages);
+    pendingMessages.title ??= title;
+}
+
+/**
+ * Every guidance / warning / empty-result message of the page opens in the shared message dialog (never as text on
+ * the page). A message set is shown once per URL; a flash (success / error) of the same visit takes precedence.
+ */
+export function useAttendanceMessages(
+    messages: AttendanceMessage[],
+    title?: string,
+): void {
+    const page = usePage();
+    const { showMessage } = usePageError();
+    const flash = (
+        page.props as {
+            flash?: { success?: string | null; error?: string | null };
+        }
+    ).flash;
+    const signature = messages.map((m) => m.key).join('|');
+
+    useEffect(() => {
+        if (messages.length === 0 || flash?.success || flash?.error) {
+            return;
+        }
+        // Paging (incl. the fit-to-height `per_page` sync) is the same visit for the user: never re-shown for it.
+        const visit = page.url
+            .replace(/([?&])(per_page|page)=[^&]*/g, '$1')
+            .replace(/[?&]+$/, '');
+        const key = `${visit}#${signature}`;
+        if (shownMessages.has(key)) {
+            return;
+        }
+        shownMessages.add(key);
+        enqueueMessages(showMessage, messages, title);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page.url, signature]);
 }
 
 /** A date field of the filter strip — same trigger look as the list filters. */
@@ -181,18 +558,19 @@ export function RibbonDateField({
     );
 }
 
-/** «الصفحة الرئيسية»: the page's filters (year first when the page has one), plus a clear button. */
+type FilterInput =
+    | FilterSpec
+    | {
+          key: string;
+          date: true;
+          label: string;
+          value: string;
+          onChange: (value: string) => void;
+      };
+
+/** «الصفحة الرئيسية»: the page's filters in three columns (year first when the page has one), plus a clear button. */
 export function useAttendanceHomeFilters(
-    specs: Array<
-        | FilterSpec
-        | {
-              key: string;
-              date: true;
-              label: string;
-              value: string;
-              onChange: (value: string) => void;
-          }
-    >,
+    specs: FilterInput[],
     onClear: (() => void) | null,
     deps: unknown[],
 ): void {
@@ -201,57 +579,61 @@ export function useAttendanceHomeFilters(
         if (specs.length === 0) {
             return [];
         }
+        // Three columns × two rows per group (the height the ribbon shows in full); more filters open the next group
+        // beside it — every group always shown, never folded.
+        const chunks: FilterInput[][] = [];
+        for (let i = 0; i < specs.length; i += 6) {
+            chunks.push(specs.slice(i, i + 6));
+        }
 
-        return [
-            {
-                id: 'attendance-filters',
-                label: a.filters,
-                commands: [],
-                custom: (
+        return chunks.map((chunk, index) => ({
+            id:
+                index === 0
+                    ? 'attendance-filters'
+                    : `attendance-filters-${index + 1}`,
+            label: a.filters,
+            commands: [],
+            custom: (
+                <div
+                    className="sis-ribbon__filters"
+                    aria-label={a.filters}
+                    dir="rtl"
+                >
                     <div
-                        className="sis-ribbon__filters"
-                        aria-label={a.filters}
-                        dir="rtl"
+                        className="sis-ribbon__filters-stack sis-ribbon__filters-stack--attendance"
+                        style={{
+                            gridTemplateColumns: `repeat(${Math.min(3, Math.ceil(chunk.length / 2))}, var(--att-filter-w))`,
+                        }}
                     >
-                        <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--curriculum">
-                            {specs.map((spec) =>
-                                'date' in spec ? (
-                                    <RibbonDateField
-                                        key={spec.key}
-                                        label={spec.label}
-                                        value={spec.value}
-                                        onChange={spec.onChange}
-                                    />
-                                ) : (
-                                    <RibbonFilterField
-                                        key={spec.key}
-                                        spec={spec}
-                                    />
-                                ),
-                            )}
-                        </div>
-                        {onClear !== null ? (
-                            <button
-                                type="button"
-                                className="sis-ribbon__item sis-ribbon__item--filter-clear"
-                                data-item-id="attendance-filters-clear"
-                                aria-label={a.clear}
-                                title={a.clear}
-                                onClick={onClear}
-                            >
-                                <FilterX
-                                    className="sis-ribbon__icon"
-                                    aria-hidden
+                        {chunk.map((spec) =>
+                            'date' in spec ? (
+                                <RibbonDateField
+                                    key={spec.key}
+                                    label={spec.label}
+                                    value={spec.value}
+                                    onChange={spec.onChange}
                                 />
-                                <span className="sis-ribbon__label">
-                                    {a.clear}
-                                </span>
-                            </button>
-                        ) : null}
+                            ) : (
+                                <RibbonFilterField key={spec.key} spec={spec} />
+                            ),
+                        )}
                     </div>
-                ),
-            },
-        ];
+                    {onClear !== null && index === chunks.length - 1 ? (
+                        <button
+                            type="button"
+                            className="sis-ribbon__item sis-ribbon__item--filter-clear"
+                            data-item-id="attendance-filters-clear"
+                            aria-label={a.clear}
+                            title={a.clear}
+                            onClick={onClear}
+                        >
+                            <FilterX className="sis-ribbon__icon" aria-hidden />
+                            <span className="sis-ribbon__label">{a.clear}</span>
+                        </button>
+                    ) : null}
+                </div>
+            ),
+        }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps);
     useRegisterPageRibbon('home', groups);
@@ -299,35 +681,26 @@ export function useAttendanceSearch(
     useRegisterPageTitlebarSearch(search);
 }
 
-/** Page shell — the same layout classes as «الغرف الدراسية» / «المعلمون». */
+/** Page shell — the same layout classes as «الغرف الدراسية» / «المعلمون»; scrolls with a hidden scrollbar. */
 export function AttendancePage({
     title,
-    notices,
     children,
-    scroll = false,
 }: {
     title: string;
-    notices?: ReactNode;
     children: ReactNode;
-    scroll?: boolean;
 }) {
     return (
         <>
             <Head title={title} />
             <div
-                className={`sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col pb-4 ${scroll ? 'overflow-y-auto' : 'overflow-hidden'}`}
+                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-scroll-hidden flex h-full min-h-0 flex-col pb-4"
                 dir="rtl"
                 lang="ar"
             >
-                {notices}
                 <div className="sis-admission-page-body">{children}</div>
             </div>
         </>
     );
-}
-
-export function PageNotice({ children }: { children: ReactNode }) {
-    return <p className="sis-branches-page__notice">{children}</p>;
 }
 
 export type AttendanceColumn<T> = {
@@ -338,70 +711,297 @@ export type AttendanceColumn<T> = {
     kind?: 'num' | 'name' | 'text' | 'status' | 'plain';
     /** For kind=status: 0..5 tone of the shared status palette. */
     tone?: (row: T) => number;
+    /** Value for the «عرض» window (defaults to the cell). */
+    text?: (row: T) => ReactNode;
+    /** Header-click sort value (defaults to the cell's text); `false` = not sortable (default for kind=plain). */
+    sort?: ((row: T) => SortValue) | false;
+};
+
+/** Server-side paging: the page size follows the visible height and is sent back as `per_page`. */
+export type ServerPaging = {
+    page: number;
+    perPage: number;
+    total: number;
+    lastPage: number;
+    onPage: (page: number, perPage: number) => void;
 };
 
 /**
- * The standard SIS table (same markup and classes as the rooms / teachers rosters): optional check-box selection,
- * click to select, double-click / Enter to open, right-click / Shift+F10 for the row's menu, pagination below.
+ * The standard SIS table (same markup and classes as the rooms / teachers rosters): «تحديد» + «تحديد الكل»,
+ * click to select, double-click / Enter to open, right-click / Shift+F10 for the row's menu; columns resized on the
+ * header edges, rows on their bottom edges, everything scaled by the ribbon zoom; the page size fits the visible
+ * height (server paging when `server` is given, else client paging) with the shared pagination below.
  */
 export function AttendanceTable<T>({
     caption,
+    storageKey,
     rows,
     rowKey,
     columns,
     emptyText,
-    selectable,
-    checkedIds = [],
-    selectedId = null,
-    onToggle,
-    onToggleAll,
-    onSelect,
+    selection,
+    canSelect,
     onOpen,
     menuItems,
     menuLabel,
-    page,
-    lastPage,
-    onPage,
-    numberOffset = 0,
+    server,
+    fit = true,
+    pageSize = 10,
+    emptyAsDialog = true,
 }: {
     caption: string;
+    /** Saved column widths / row height key. */
+    storageKey: string;
     rows: T[];
     rowKey: (row: T) => number;
     columns: AttendanceColumn<T>[];
     emptyText: string;
-    selectable?: (row: T) => boolean;
-    checkedIds?: number[];
-    selectedId?: number | null;
-    onToggle?: (id: number) => void;
-    onToggleAll?: (ids: number[]) => void;
-    onSelect?: (row: T) => void;
+    selection?: AttendanceSelection<T>;
+    /** Rows that may be checked (default: all). */
+    canSelect?: (row: T) => boolean;
     onOpen?: (row: T) => void;
     menuItems?: (row: T) => ContextMenuItem[];
     menuLabel?: string;
-    page?: number;
-    lastPage?: number;
-    onPage?: (page: number) => void;
-    numberOffset?: number;
+    server?: ServerPaging;
+    /** Fit the page size to the visible height (main table); false in windows. */
+    fit?: boolean;
+    pageSize?: number;
+    emptyAsDialog?: boolean;
 }) {
     const i18n = t();
+    const zoom = useAttendanceZoom();
     const menu = useContextMenu<T>();
+    const cardRef = useRef<HTMLDivElement | null>(null);
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
+    const tableRef = useRef<HTMLTableElement | null>(null);
     const selectAllRef = useRef<HTMLInputElement | null>(null);
-    const selectableIds = selectable ? rows.filter(selectable).map(rowKey) : [];
+    const [clientPage, setClientPage] = useState(1);
+    const sortable = (c: AttendanceColumn<T>): boolean =>
+        c.sort !== undefined ? c.sort !== false : c.kind !== 'plain';
+    const { rows: sortedRows, sort } = useTableSort(rows, (row, key) => {
+        const column = columns.find((c) => c.id === key);
+        if (!column) {
+            return null;
+        }
+
+        return typeof column.sort === 'function'
+            ? column.sort(row)
+            : cellSortValue(
+                  column.text ? column.text(row) : column.cell(row, 0),
+              );
+    });
+
+    const fitSize = useFitTablePageSize(scrollerRef, {
+        fallbackRows: server?.perPage ?? pageSize,
+        enabled: fit,
+        remountKey: rows.length === 0 ? 'empty' : 'rows',
+    });
+    const size = fit ? fitSize : pageSize;
+    const syncServer = useCallback(
+        (perPage: number) => server?.onPage(server.page, perPage),
+        [server],
+    );
+    useDebouncedFitPageSync(
+        fitSize,
+        server?.perPage ?? fitSize,
+        syncServer,
+        fit && server !== undefined && server.total > 0,
+    );
+
+    const lastPage = server
+        ? Math.max(
+              1,
+              server.total > 0
+                  ? Math.ceil(server.total / size)
+                  : server.lastPage,
+          )
+        : Math.max(1, Math.ceil(rows.length / size));
+    const page = server ? server.page : Math.min(clientPage, lastPage);
+    const shown = server
+        ? sortedRows.slice(0, size)
+        : sortedRows.slice((page - 1) * size, page * size);
+    const offset = (page - 1) * (server ? server.perPage : size);
+
+    const columnSignature = `v4:${selection ? 'sel' : 'ro'}:${columns.map((c) => c.id).join(',')}`;
+    const kinds = [
+        ...(selection ? ['select'] : []),
+        'num',
+        ...columns.map((c) => c.kind ?? 'text'),
+    ];
+    /**
+     * Initial widths: each column as wide as the longest text it shows (its header or any cell of the page; button
+     * columns: their buttons). When the columns do not all fit, they shrink in proportion — never below their header
+     * — so every column is on screen; the room left over goes to the main text column(s).
+     */
+    const measure = useCallback(
+        (cells: HTMLTableCellElement[]): number[] => {
+            const textWidth = (node: Element | null | undefined): number => {
+                if (!node) {
+                    return 0;
+                }
+                const range = document.createRange();
+                range.selectNodeContents(node);
+
+                return range.getBoundingClientRect().width;
+            };
+            const pad = (cell: Element) => {
+                const style = getComputedStyle(cell);
+
+                return (
+                    (Number.parseFloat(style.paddingLeft) || 0) +
+                    (Number.parseFloat(style.paddingRight) || 0) +
+                    12
+                );
+            };
+            const bodyRows = Array.from(
+                tableRef.current?.tBodies[0]?.rows ?? [],
+            );
+            const headers = cells.map((cell, index) =>
+                Math.ceil(
+                    Math.max(
+                        textWidth(cell) + pad(cell),
+                        kinds[index] === 'select' || kinds[index] === 'num'
+                            ? 36
+                            : 48,
+                    ),
+                ),
+            );
+            const needed = cells.map((cell, index) => {
+                if (kinds[index] === 'select' || kinds[index] === 'num') {
+                    return Math.max(
+                        headers[index],
+                        ...bodyRows.map((row) =>
+                            Math.ceil(textWidth(row.cells[index]) + pad(cell)),
+                        ),
+                    );
+                }
+                const content = bodyRows.reduce((max, row) => {
+                    const td = row.cells[index];
+                    const inner = td?.firstElementChild as HTMLElement | null;
+
+                    return Math.max(
+                        max,
+                        kinds[index] === 'plain'
+                            ? (inner?.scrollWidth ?? 0)
+                            : textWidth(inner ?? td),
+                    );
+                }, 0);
+
+                return Math.max(headers[index], Math.ceil(content + pad(cell)));
+            });
+            const room = (scrollerRef.current?.clientWidth ?? 0) - 2;
+            const total = needed.reduce((sum, w) => sum + w, 0);
+            if (room > 0 && total > room) {
+                // Shrink the text columns towards their header width, in proportion to what they can give.
+                const give = needed.map((w, i) =>
+                    kinds[i] === 'select' ||
+                    kinds[i] === 'num' ||
+                    kinds[i] === 'plain'
+                        ? 0
+                        : w - headers[i],
+                );
+                const spare = give.reduce((sum, g) => sum + g, 0);
+                const cut = Math.min(spare, total - room);
+
+                return needed.map((w, i) =>
+                    spare > 0 ? Math.floor(w - (give[i] * cut) / spare) : w,
+                );
+            }
+            const grow = kinds
+                .map((k, i) => (k === 'name' ? i : -1))
+                .filter((i) => i >= 0);
+            const targets =
+                grow.length > 0
+                    ? grow
+                    : kinds
+                          .map((k, i) => (k === 'text' ? i : -1))
+                          .filter((i) => i >= 0);
+            const widths = needed.slice();
+            if (room > total && targets.length > 0) {
+                targets.forEach(
+                    (i) =>
+                        (widths[i] += Math.floor(
+                            (room - total) / targets.length,
+                        )),
+                );
+            }
+
+            return widths;
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [columnSignature],
+    );
+    useResizableTableColumns(tableRef, {
+        storageKey: `attendance.${storageKey}`,
+        columnSignature,
+        enabled: shown.length > 0,
+        measure,
+    });
+    useResizableTableRows(tableRef, cardRef, {
+        storageKey: `attendance.${storageKey}`,
+        zoom,
+        enabled: shown.length > 0,
+    });
+    useSmoothVerticalScroll(scrollerRef, shown.length > 0);
+
+    // Every column at least as wide as its header text (after saved / hand-set widths and on every zoom): the header
+    // is always readable in full.
+    useLayoutEffect(() => {
+        const table = tableRef.current;
+        const cells = Array.from(table?.tHead?.rows[0]?.cells ?? []);
+        if (table === null || cells.length === 0) {
+            return;
+        }
+        let grew = false;
+        cells.forEach((cell) => {
+            const range = document.createRange();
+            range.selectNodeContents(cell);
+            const style = getComputedStyle(cell);
+            const needed = Math.ceil(
+                range.getBoundingClientRect().width +
+                    (Number.parseFloat(style.paddingLeft) || 0) +
+                    (Number.parseFloat(style.paddingRight) || 0) +
+                    6,
+            );
+            if (cell.getBoundingClientRect().width + 0.5 < needed) {
+                cell.style.width = `${needed}px`;
+                cell.style.minWidth = `${needed}px`;
+                cell.style.maxWidth = `${needed}px`;
+                grew = true;
+            }
+        });
+        if (grew && table.style.tableLayout === 'fixed') {
+            const total = cells.reduce(
+                (sum, cell) => sum + cell.getBoundingClientRect().width,
+                0,
+            );
+            table.style.width = `${Math.ceil(total)}px`;
+            table.style.minWidth = `${Math.ceil(total)}px`;
+        }
+    });
+
+    useEffect(() => setClientPage(1), [rows.length]);
+
+    const selectableIds = selection
+        ? shown.filter((row) => canSelect?.(row) ?? true).map(rowKey)
+        : [];
     const allChecked =
         selectableIds.length > 0 &&
-        selectableIds.every((id) => checkedIds.includes(id));
+        selectableIds.every((id) => selection?.checkedIds.includes(id));
     const someChecked =
-        !allChecked && selectableIds.some((id) => checkedIds.includes(id));
-
+        !allChecked &&
+        selectableIds.some((id) => selection?.checkedIds.includes(id));
     useEffect(() => {
         if (selectAllRef.current) {
             selectAllRef.current.indeterminate = someChecked;
         }
     }, [someChecked]);
 
-    if (rows.length === 0) {
-        return <p className="text-sm">{emptyText}</p>;
-    }
+    useAttendanceMessages(
+        emptyAsDialog && rows.length === 0
+            ? [{ key: `empty:${storageKey}`, text: emptyText }]
+            : [],
+    );
 
     const cellClass = (
         kind: AttendanceColumn<T>['kind'],
@@ -414,15 +1014,28 @@ export function AttendanceTable<T>({
                 ? 'sis-admission-drafts-table__text sis-students-table__nowrap'
                 : undefined;
 
+    const goTo = (next: number) =>
+        server ? server.onPage(next, size) : setClientPage(next);
+
     return (
         <section aria-label={caption} className="flex min-h-0 flex-1 flex-col">
-            <div className="sis-admission-periods-table sis-admission-drafts-table">
-                <div className="sis-admission-drafts-table__scroller">
-                    <table>
+            {!emptyAsDialog && rows.length === 0 ? (
+                <p className="text-sm">{emptyText}</p>
+            ) : null}
+            <div
+                ref={cardRef}
+                className="sis-admission-periods-table sis-admission-drafts-table sis-attendance-table"
+                style={{ '--att-zoom': zoom } as CSSProperties}
+            >
+                <div
+                    className="sis-admission-drafts-table__scroller"
+                    ref={scrollerRef}
+                >
+                    <table ref={tableRef}>
                         <caption className="sr-only">{caption}</caption>
                         <thead>
                             <tr>
-                                {selectable ? (
+                                {selection ? (
                                     <th className="sis-admission-drafts-table__select">
                                         <input
                                             ref={selectAllRef}
@@ -436,10 +1049,8 @@ export function AttendanceTable<T>({
                                                     .selectAll
                                             }
                                             onChange={() =>
-                                                onToggleAll?.(
-                                                    allChecked
-                                                        ? []
-                                                        : selectableIds,
+                                                selection.toggleAll(
+                                                    selectableIds,
                                                 )
                                             }
                                         />
@@ -458,17 +1069,33 @@ export function AttendanceTable<T>({
                                                   ? 'sis-admission-drafts-table__name-head'
                                                   : undefined
                                         }
+                                        aria-sort={
+                                            sortable(c)
+                                                ? ariaSort(sort, c.id)
+                                                : undefined
+                                        }
                                     >
-                                        {c.header}
+                                        {sortable(c) ? (
+                                            <SortButton
+                                                sort={sort}
+                                                column={c.id}
+                                            >
+                                                {c.header}
+                                            </SortButton>
+                                        ) : (
+                                            c.header
+                                        )}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.map((row, index) => {
+                            {shown.map((row, index) => {
                                 const id = rowKey(row);
-                                const checked = checkedIds.includes(id);
-                                const selected = selectedId === id || checked;
+                                const checked =
+                                    selection?.checkedIds.includes(id) ?? false;
+                                const selected =
+                                    selection?.selectedId === id || checked;
 
                                 return (
                                     <tr
@@ -480,11 +1107,13 @@ export function AttendanceTable<T>({
                                                 : undefined
                                         }
                                         aria-selected={selected}
-                                        onClick={() => onSelect?.(row)}
+                                        onClick={() => selection?.select(id)}
                                         onDoubleClick={() => onOpen?.(row)}
                                         onContextMenu={(event) => {
                                             if (menuItems) {
-                                                onSelect?.(row);
+                                                if (!checked) {
+                                                    selection?.select(id);
+                                                }
                                                 menu.open(event, row);
                                             }
                                         }}
@@ -494,7 +1123,9 @@ export function AttendanceTable<T>({
                                                 isContextMenuKey(event)
                                             ) {
                                                 event.preventDefault();
-                                                onSelect?.(row);
+                                                if (!checked) {
+                                                    selection?.select(id);
+                                                }
                                                 menu.openAt(
                                                     event.currentTarget,
                                                     row,
@@ -504,9 +1135,9 @@ export function AttendanceTable<T>({
                                             }
                                         }}
                                     >
-                                        {selectable ? (
+                                        {selection ? (
                                             <td className="sis-admission-drafts-table__select">
-                                                {selectable(row) ? (
+                                                {(canSelect?.(row) ?? true) ? (
                                                     <input
                                                         type="checkbox"
                                                         checked={checked}
@@ -515,7 +1146,7 @@ export function AttendanceTable<T>({
                                                             event.stopPropagation()
                                                         }
                                                         onChange={() =>
-                                                            onToggle?.(id)
+                                                            selection.toggle(id)
                                                         }
                                                     />
                                                 ) : null}
@@ -523,7 +1154,7 @@ export function AttendanceTable<T>({
                                         ) : null}
                                         <td className="sis-admission-drafts-table__num">
                                             <span dir="ltr">
-                                                {numberOffset + index + 1}
+                                                {offset + index + 1}
                                             </span>
                                         </td>
                                         {columns.map((c) =>
@@ -564,14 +1195,11 @@ export function AttendanceTable<T>({
                     </table>
                 </div>
             </div>
-            {page !== undefined &&
-            lastPage !== undefined &&
-            lastPage > 1 &&
-            onPage ? (
+            {lastPage > 1 ? (
                 <Pagination
                     page={page}
                     lastPage={lastPage}
-                    onPage={onPage}
+                    onPage={goTo}
                     label={i18n.common.page}
                 />
             ) : null}
@@ -654,7 +1282,7 @@ export function Pagination({
 
 /**
  * A window (same chrome as the rooms / teachers sheets): sections of fields, then «إلغاء» + the primary action.
- * Closing with unsaved input asks first when `dirty` is set.
+ * `columns={2}` lays the fields out in two columns (wide fields span both). Closing with unsaved input asks first.
  */
 export function AttendanceWindow({
     title,
@@ -665,19 +1293,31 @@ export function AttendanceWindow({
     pending = false,
     confirmDisabled = false,
     dirty = false,
-    narrow = true,
+    columns = 1,
+    wide = false,
     danger = false,
+    footer,
 }: {
     title: string;
-    sections: Array<{ id: string; title: string; content: ReactNode }>;
+    /** `plain`: the content is part of the window itself (a table) — no section banner, no inner card. */
+    sections: Array<{
+        id: string;
+        title: string;
+        content: ReactNode;
+        plain?: boolean;
+    }>;
     confirmLabel?: string;
     onConfirm?: () => void;
     onClose: () => void;
     pending?: boolean;
     confirmDisabled?: boolean;
     dirty?: boolean;
-    narrow?: boolean;
+    columns?: 1 | 2;
+    /** Room for a table (62rem). */
+    wide?: boolean;
     danger?: boolean;
+    /** Extra buttons before «إلغاء» (e.g. previous / next of a multi-row «عرض»). */
+    footer?: ReactNode;
 }) {
     const close = () => {
         if (pending) {
@@ -692,17 +1332,36 @@ export function AttendanceWindow({
     return (
         <RegistrySheetDialog
             title={title}
-            className={`sis-branches-sheet ${narrow ? 'sis-narrow-form' : ''}`.trim()}
+            className={[
+                'sis-branches-sheet',
+                columns === 2 ? 'sis-attendance-two' : '',
+                wide ? 'sis-attendance-wide' : '',
+                columns === 1 && !wide ? 'sis-narrow-form' : '',
+            ]
+                .filter(Boolean)
+                .join(' ')}
             onClose={close}
         >
-            {sections.map((s) => (
-                <SheetSection key={s.id} id={s.id} title={s.title}>
-                    <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+            {sections.map((s) =>
+                s.plain ? (
+                    <div
+                        key={s.id}
+                        className="sis-attendance-window__plain"
+                        role="group"
+                        aria-label={s.title}
+                    >
                         {s.content}
                     </div>
-                </SheetSection>
-            ))}
+                ) : (
+                    <SheetSection key={s.id} id={s.id} title={s.title}>
+                        <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                            {s.content}
+                        </div>
+                    </SheetSection>
+                ),
+            )}
             <div className="sis-admission-sheet__actions">
+                {footer}
                 <Button
                     type="button"
                     variant="outline"
@@ -763,7 +1422,7 @@ export function WindowTextArea({
     );
 }
 
-/** Read-only fact in a window / facts strip (same look as a read-only registry field). */
+/** Read-only fact in a window (same look as a read-only registry field). */
 export function WindowFact({
     label,
     value,
@@ -785,6 +1444,182 @@ export function WindowFact({
     );
 }
 
+/** A time field (hh:mm) with the registry field look. */
+export function WindowTimeField({
+    label,
+    value,
+    onChange,
+    editing = true,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    editing?: boolean;
+}) {
+    return (
+        <label className="sis-admission-sheet__field">
+            <span className="sis-admission-sheet__label">{label}</span>
+            <input
+                className={`sis-admission-sheet__control ${value !== '' ? 'sis-admission-draft-field--filled' : ''}`}
+                type="time"
+                dir="ltr"
+                disabled={!editing}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+            />
+        </label>
+    );
+}
+
+/**
+ * «عرض»: every column of the selected row(s) in a two-column window; several rows are stepped through with
+ * «السابق» / «التالي». `extra` adds page-specific facts / actions for the row shown.
+ */
+export function useRowViewer<T>(
+    columns: AttendanceColumn<T>[],
+    titleOf: (row: T) => string,
+    extra?: (row: T) => ReactNode,
+) {
+    const [state, setState] = useState<{ rows: T[]; index: number } | null>(
+        null,
+    );
+    const c = t().attendanceSystem.chrome;
+    const row = state === null ? null : (state.rows[state.index] ?? null);
+
+    const element =
+        state !== null && row !== null ? (
+            <AttendanceWindow
+                title={
+                    state.rows.length > 1
+                        ? `${titleOf(row)} (${state.index + 1} / ${state.rows.length})`
+                        : titleOf(row)
+                }
+                columns={2}
+                onClose={() => setState(null)}
+                footer={
+                    state.rows.length > 1 ? (
+                        <>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={state.index === 0}
+                                onClick={() =>
+                                    setState({
+                                        ...state,
+                                        index: state.index - 1,
+                                    })
+                                }
+                            >
+                                <ChevronRight aria-hidden />
+                                {c.previous}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={state.index >= state.rows.length - 1}
+                                onClick={() =>
+                                    setState({
+                                        ...state,
+                                        index: state.index + 1,
+                                    })
+                                }
+                            >
+                                {c.next}
+                                <ChevronLeft aria-hidden />
+                            </Button>
+                        </>
+                    ) : null
+                }
+                sections={[
+                    {
+                        id: 'att-row-view',
+                        title: c.details,
+                        content: (
+                            <>
+                                {columns.map((col) => (
+                                    <WindowFact
+                                        key={col.id}
+                                        label={
+                                            typeof col.header === 'string'
+                                                ? col.header
+                                                : col.id
+                                        }
+                                        value={(
+                                            col.text ??
+                                            ((r: T) => col.cell(r, state.index))
+                                        )(row)}
+                                    />
+                                ))}
+                                {extra?.(row)}
+                            </>
+                        ),
+                    },
+                ]}
+            />
+        ) : null;
+
+    return {
+        open: (rows: T[]) => rows.length > 0 && setState({ rows, index: 0 }),
+        close: () => setState(null),
+        element,
+    };
+}
+
+/**
+ * One server action for each selected row, one after the other (each with its own idempotency key); stops at the
+ * first refusal (its error opens in the dialog). `onDone` runs after the last success.
+ */
+export function postEach<T>(
+    items: T[],
+    request: (item: T) => {
+        url: string;
+        data: Record<string, unknown>;
+        key: string;
+    },
+    callbacks: {
+        onError: (errors: Record<string, string>) => void;
+        onDone: () => void;
+        onFinish?: () => void;
+    },
+): void {
+    const step = (index: number) => {
+        if (index >= items.length) {
+            callbacks.onDone();
+            callbacks.onFinish?.();
+
+            return;
+        }
+        const { url, data, key } = request(items[index]);
+        router.post(url, data as never, {
+            preserveScroll: true,
+            preserveState: true,
+            headers: { 'X-Idempotency-Key': key },
+            onSuccess: (page) => {
+                // A domain refusal comes back as a redirect with flash.error (shown by the page's message dialog).
+                if (
+                    (page.props as { flash?: { error?: string | null } }).flash
+                        ?.error
+                ) {
+                    callbacks.onFinish?.();
+
+                    return;
+                }
+                step(index + 1);
+            },
+            onError: (errors) => {
+                callbacks.onError(errors);
+                callbacks.onFinish?.();
+            },
+            onNetworkError: () => {
+                callbacks.onFinish?.();
+
+                return true;
+            },
+        });
+    };
+    step(0);
+}
+
 /** Visit the current page with merged query parameters (server filters / pagination). */
 export function visitWith(path: string, params: Record<string, unknown>): void {
     const clean: Record<string, string | string[]> = {};
@@ -801,7 +1636,12 @@ export function visitWith(path: string, params: Record<string, unknown>): void {
             clean[key] = value.map(String);
             continue;
         }
-        clean[key] = value === true ? '1' : String(value);
+        clean[key] =
+            value === true
+                ? '1'
+                : typeof value === 'object'
+                  ? JSON.stringify(value)
+                  : String(value as string | number);
     }
     router.get(path, clean, { preserveScroll: true, preserveState: true });
 }

@@ -12,6 +12,7 @@ use App\Domain\Enrollment\Contracts\HomeroomTeacherPort;
 use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Services\EnrollmentStructureGuard;
 use App\Domain\Enrollment\Support\EnrollmentIdempotencyGuard;
+use App\Domain\Enrollment\ValueObjects\SectionLetter;
 
 final class UpdateSectionHandler implements CommandHandler
 {
@@ -41,11 +42,8 @@ final class UpdateSectionHandler implements CommandHandler
             return UpdateSectionResult::failure('enrollment.section_not_found');
         }
 
-        $error = $this->guard->nameError(
-            $command->name,
-            $this->structure->sectionNameTaken($section->classId, $command->name, $command->sectionId),
-            'enrollment.section',
-        ) ?? $this->guard->capacityError(
+        $letter = SectionLetter::normalize($command->name) ?? trim($command->name);
+        $error = $this->guard->sectionNameError($command->name, $this->structure->sectionNameTaken($section->classId, $letter, $command->sectionId)) ?? $this->guard->capacityError(
             $command->capacity,
             $this->structure->countActiveEnrollmentsInSection($command->schoolId, $command->sectionId),
             'enrollment.section',
@@ -62,11 +60,11 @@ final class UpdateSectionHandler implements CommandHandler
         }
 
         $at = now()->toIso8601String();
-        $this->unitOfWork->transaction(function () use ($command, $key, $at, $section): void {
+        $this->unitOfWork->transaction(function () use ($command, $key, $at, $section, $letter): void {
             $this->structure->updateSection(
                 $command->schoolId,
                 $command->sectionId,
-                $command->name,
+                $letter,
                 $command->capacity,
                 $command->homeroomTeacherId,
                 $at,

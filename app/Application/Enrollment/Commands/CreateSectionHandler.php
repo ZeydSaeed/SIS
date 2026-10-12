@@ -13,6 +13,7 @@ use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Services\EnrollmentStructureGuard;
 use App\Domain\Enrollment\Support\EnrollmentIdempotencyGuard;
 use App\Domain\Enrollment\ValueObjects\EnrollmentStructureStatus;
+use App\Domain\Enrollment\ValueObjects\SectionLetter;
 
 final class CreateSectionHandler implements CommandHandler
 {
@@ -45,11 +46,8 @@ final class CreateSectionHandler implements CommandHandler
             return CreateSectionResult::failure('enrollment.class_inactive');
         }
 
-        $error = $this->guard->nameError(
-            $command->name,
-            $this->structure->sectionNameTaken($command->classId, $command->name),
-            'enrollment.section',
-        ) ?? $this->guard->capacityError($command->capacity, 0, 'enrollment.section');
+        $letter = SectionLetter::normalize($command->name) ?? trim($command->name);
+        $error = $this->guard->sectionNameError($command->name, $this->structure->sectionNameTaken($command->classId, $letter)) ?? $this->guard->capacityError($command->capacity, 0, 'enrollment.section');
         if ($error === null
             && $command->homeroomTeacherId !== null
             && ! $this->homeroomTeachers->isActiveTeacherOfSchoolYear($command->homeroomTeacherId, $command->schoolId, $class->academicYearId)) {
@@ -60,11 +58,11 @@ final class CreateSectionHandler implements CommandHandler
         }
 
         $at = now()->toIso8601String();
-        $sectionId = $this->unitOfWork->transaction(function () use ($command, $key, $at): int {
+        $sectionId = $this->unitOfWork->transaction(function () use ($command, $key, $at, $letter): int {
             $id = $this->structure->createSection(
                 $command->schoolId,
                 $command->classId,
-                $command->name,
+                $letter,
                 $command->capacity,
                 $command->homeroomTeacherId,
                 $at,

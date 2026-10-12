@@ -4,6 +4,7 @@ import { RegistrySheetDialog, useRegistryRequest } from '@/components/organizati
 import { AppearanceFields } from '@/components/sis/appearance-fields';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { EngineField, EngineRow, EngineSelect, TimetableSubWindow } from './engine/engine-ui';
@@ -84,6 +85,24 @@ export function SchoolDaySheet({ periods, lessonNumber, clock, onClose }: { peri
         p.period_type === LESSON ? `${tt.periodLabel} ${lessonNumber.get(p.id) ?? ''}` : `${p.name ?? tt.breakLabel} · ${length(p)} ${tt.minutesShort}`;
     const targetsText = (mask: number | undefined) =>
         (mask ?? EVERYWHERE) === EVERYWHERE ? d.everywhere : TARGETS.filter(([, bit]) => ((mask ?? EVERYWHERE) & bit) === bit).map(([key]) => d.targets[key]).join('، ') || d.nowhere;
+    const { rows: shownPeriods, sort } = useTableSort(periods, (p, key) => {
+        switch (key) {
+            case 'order':
+                return p.period_number;
+            case 'what':
+                return label(p);
+            case 'start':
+                return minutesOf(p.start_time);
+            case 'end':
+                return minutesOf(p.end_time);
+            case 'minutes':
+                return length(p);
+            case 'show':
+                return targetsText(p.show_in);
+            default:
+                return null;
+        }
+    });
     const afterOptions = [{ value: '', label: d.beforeFirst }, ...periods.map((p) => ({ value: String(p.id), label: `${d.after} ${label(p)}` }))];
 
     const targetBoxes = (value: number, onChange: (next: number) => void) => (
@@ -122,17 +141,17 @@ export function SchoolDaySheet({ periods, lessonNumber, clock, onClose }: { peri
                     <table>
                         <thead>
                             <tr>
-                                <th>{tt.periodOrder}</th>
-                                <th>{d.what}</th>
-                                <th>{tt.startTime}</th>
-                                <th>{tt.endTime}</th>
-                                <th>{d.minutes}</th>
-                                <th>{d.showIn}</th>
+                                <th aria-sort={ariaSort(sort, 'order')}><SortButton sort={sort} column="order">{tt.periodOrder}</SortButton></th>
+                                <th aria-sort={ariaSort(sort, 'what')}><SortButton sort={sort} column="what">{d.what}</SortButton></th>
+                                <th aria-sort={ariaSort(sort, 'start')}><SortButton sort={sort} column="start">{tt.startTime}</SortButton></th>
+                                <th aria-sort={ariaSort(sort, 'end')}><SortButton sort={sort} column="end">{tt.endTime}</SortButton></th>
+                                <th aria-sort={ariaSort(sort, 'minutes')}><SortButton sort={sort} column="minutes">{d.minutes}</SortButton></th>
+                                <th aria-sort={ariaSort(sort, 'show')}><SortButton sort={sort} column="show">{d.showIn}</SortButton></th>
                                 <th aria-hidden="true" />
                             </tr>
                         </thead>
                         <tbody>
-                            {periods.map((p) => (
+                            {shownPeriods.map((p) => (
                                 <tr key={p.id} className={p.period_type === LESSON ? '' : 'sis-timetable-periods__break'} onDoubleClick={() => setEditor({ kind: 'edit', period: p, start: p.start_time.slice(0, 5), end: p.end_time.slice(0, 5), cascade: true, name: p.name ?? '', appearance: { abbreviation: p.abbreviation ?? '', color_hue: p.color_hue ?? null }, show: p.show_in ?? EVERYWHERE, print: p.print_in ?? EVERYWHERE })}>
                                     <td dir="ltr">{p.period_number}</td>
                                     <td>{label(p)}</td>
