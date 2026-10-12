@@ -121,7 +121,7 @@ final class EloquentAttendanceWriteRepository implements AttendanceWriteReposito
 
     public function lockSessionStatus(int $sessionId): ?AttendanceSessionSnapshot
     {
-        return $this->mapSessionRow($this->sessionQuery()->where('sess.id', $sessionId)->first());
+        return $this->mapSessionRow($this->sessionQuery()->where('sess.id', $sessionId)->lockForUpdate()->first());
     }
 
     public function loadEnrollmentForMark(int $enrollmentId): ?EnrollmentAttendanceContext
@@ -189,6 +189,13 @@ final class EloquentAttendanceWriteRepository implements AttendanceWriteReposito
                 $unique,
                 ['status', 'notes', 'recorded_by', 'updated_at'],
             );
+        }
+
+        // Legacy marking also advances the sheet version so an open sheet editor sees the change as a conflict.
+        if (SchemaHelper::isPostgreSql()) {
+            DB::table($this->sessionsTable())
+                ->whereIn('id', array_values(array_unique(array_map(static fn (UpsertAttendanceRecordData $row): int => $row->sessionId, $rows))))
+                ->update(['version' => DB::raw('version + 1'), 'updated_at' => $now]);
         }
 
         return count($rows);
@@ -318,14 +325,15 @@ final class EloquentAttendanceWriteRepository implements AttendanceWriteReposito
                 ?,
                 ?,
                 ?::date,
-                COUNT(*)::SMALLINT,
+                COUNT(*) FILTER (WHERE r.status > 0)::SMALLINT,
                 COUNT(*) FILTER (WHERE r.status = 1)::SMALLINT,
                 COUNT(*) FILTER (WHERE r.status = 2)::SMALLINT,
                 COUNT(*) FILTER (WHERE r.status = 3)::SMALLINT,
                 NOW()
             FROM {$records} r
             JOIN {$sessions} s ON s.id = r.session_id
-            WHERE s.section_id = ? AND r.attendance_date = ?::date
+            -- unmarked draft rows, cancelled sessions and rejected sheets never count
+            WHERE s.section_id = ? AND r.attendance_date = ?::date AND s.status <> 3 AND s.sheet_status <> 6
             ON CONFLICT (section_id, attendance_date)
             DO UPDATE SET
                 total_students = EXCLUDED.total_students,
@@ -385,7 +393,8 @@ final class EloquentAttendanceWriteRepository implements AttendanceWriteReposito
                 'sess.teacher_id',
                 'sess.status',
                 'sess.school_id as resolved_school_id',
-            ]);
+            ])
+            ->when(SchemaHelper::isPostgreSql(), static fn ($query) => $query->addSelect('sess.sheet_status'));
     }
 
     private function mapSessionRow(mixed $row): ?AttendanceSessionSnapshot
@@ -404,6 +413,7 @@ final class EloquentAttendanceWriteRepository implements AttendanceWriteReposito
             teacherId: (int) $row->teacher_id,
             status: (int) $row->status,
             resolvedSchoolId: isset($row->resolved_school_id) ? (int) $row->resolved_school_id : null,
+            sheetStatus: isset($row->sheet_status) ? (int) $row->sheet_status : 1,
         );
     }
 

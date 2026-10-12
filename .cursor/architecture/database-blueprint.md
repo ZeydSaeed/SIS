@@ -1,11 +1,11 @@
 # Database Blueprint — Reference Only
 
 > **Status:** Architecture reference. Migrations are created from approved phases — not blindly from this file.  
-> **Target:** **102** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
+> **Target:** **109** blueprint objects (tables + reporting MVs) across **25** PostgreSQL schemas.  
 > **Not counted here:** `intelligence.*` platform tables (see section at end).  
 > **PK convention:** `id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` (ADR-003, ADR-020 D1)  
 > **Timestamps:** All transactional tables include `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ`  
-> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**; +1 `teachers.teaching_assignments` (2026-10-06) → **97**; timetable workbench (2026-10-08/09): +1 `teachers.academic_titles`, +1 `organization.room_types`, +1 `timetable.test_marks`, +2 `documents.import_batches` / `documents.import_rows` → **102**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
+> **SSOT note:** Prior 87 reconciled 2026-09-10; +1 `gpa_results` (7.5-U01); +2 ranking snapshot tables (7.5-U05) → **90**; +1 `vocational.workshops` (TV-U12) → **91**; +3 `hr.*` (HR-U01) → **94**; +1 `vocational.workshop_equipment` (TV-U13) → **95**; +1 `admission.application_transfers` (2026-10-06) → **96**; +1 `teachers.teaching_assignments` (2026-10-06) → **97**; timetable workbench (2026-10-08/09): +1 `teachers.academic_titles`, +1 `organization.room_types`, +1 `timetable.test_marks`, +2 `documents.import_batches` / `documents.import_rows` → **102**; attendance & absence management (2026-10-11, migration `2026_10_11_100000`): +6 `attendance.policies`, `attendance.sheet_events`, `attendance.excuses`, `attendance.staff_records`, `attendance.checkin_codes`, `attendance.alerts` → **108**; attendance evidence & exports (2026-10-12, migration `2026_10_12_100000`): +1 `attendance.report_exports`; `attendance.policies` + `qr_enabled` / `nfc_enabled`; `attendance.checkin_codes` + `kind` / `label` → **109**. `results.transcripts` physicalized in 7.5-U07 (was sketch; count unchanged).
 
 ---
 
@@ -650,7 +650,7 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 **Indexes:** `BTREE(school_id, academic_year_id)`, `UNIQUE(school_id, academic_year_id, code)`  
 **Security (ENR-U02):** FORCE RLS school isolation on `school_id`. Hard DELETE rejected by trigger.
 
-**Writes (2026-10-06, «الصفوف والشعب» `/organization/classes-sections`):** create / edit via `CreateClassHandler` / `UpdateClassHandler` (`EnrollmentStructureGuard`); codes `CLS-n` generated per school/year under `pg_advisory_xact_lock`. Name unique per school/year (app-level), capacity 1…500 and ≥ active enrollments, `grade_level_id` changes only while the class has no active enrollments (curriculum matches by grade). Delete = deactivate (status 2). No schema change.
+**Writes (2026-10-06, «الصفوف والشعب» `/organization/classes-sections`):** create / edit via `CreateClassHandler` / `UpdateClassHandler` (`EnrollmentStructureGuard`); codes `CLS-n` generated per school/year under `pg_advisory_xact_lock`. Name unique per school/year (app-level), capacity 1…500 and ≥ active enrollments, `grade_level_id` changes only while the class has no active enrollments (curriculum matches by grade). Delete = deactivate (status 2). No schema change. «الحالة» (نشط 1 / غير نشط 2) can also be set on the add / edit form (2026-10-09): applied in the save transaction with the same transition + outbox event as deactivate / reactivate (`ApplyStructureStatusChange`).
 
 ### `enrollment.sections`
 
@@ -669,7 +669,7 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 **Indexes:** `BTREE(class_id)`, `UNIQUE(class_id, code)`  
 **Security (ENR-U02):** FORCE RLS via parent `classes.school_id`. Hard DELETE rejected by trigger.
 
-**Writes (2026-10-06):** `CreateSectionHandler` / `UpdateSectionHandler`; codes `SEC-n` per class under advisory lock; name unique per class; capacity ≥ active enrollments. `homeroom_teacher_id` (رائد الصف) must be an active teacher of the school in the class's year (`HomeroomTeacherPort` → Teachers repository); an unchanged homeroom stays valid. No schema change.
+**Writes (2026-10-06):** `CreateSectionHandler` / `UpdateSectionHandler`; codes `SEC-n` per class under advisory lock; name unique per class; capacity ≥ active enrollments. `homeroom_teacher_id` (رائد الصف) must be an active teacher of the school in the class's year (`HomeroomTeacherPort` → Teachers repository); an unchanged homeroom stays valid. No schema change. «الحالة» settable from the section form like classes (2026-10-09).
 
 ### `enrollment.enrollments`
 
@@ -980,6 +980,8 @@ Seeded: مدرس، مدرس أول، مدرس مساعد، أستاذ، أستا
 
 **Engine columns (2026-10-07, migration `2026_10_07_100200`, additive):** `activity_id` (FK activities), `group_id` (FK division_groups, NULL = whole section), `week_no` (1–4, NULL = every week), `co_teacher_id` (FK teachers, CHECK ≠ teacher_id), `joined_to_schedule_id` (FK self — joined classes: other sections' rows point at the lead row), `locked_at` / `locked_by`. Partial uniques re-keyed (same names): section `(section, year, day, period, COALESCE(group,0), COALESCE(week,0))`; teacher / room per week on lead rows only (`joined_to_schedule_id IS NULL`); new `schedules_co_teacher_slot_active_uidx`. Division compatibility and week overlap enforced in Domain (`TimetableBoard::sectionLessonsClash`). Locked lessons refuse manual move / cancel (`timetable.schedule_locked`).
 
+**Clash rules (2026-10-09, no schema change):** single writes (place / edit / move / swap / reactivate) check the slot for the section (group lanes), teacher and co-teacher (lead or co anywhere), room and **workshop** — a lesson whose activity is held in a workshop occupies the workshop and the workshop's room, and a lesson booked straight in that room clashes with it (`timetable.workshop_slot_conflict` / `timetable.room_slot_conflict`). Reactivation checks the lesson with its co-teacher, group, week and activity. Bulk writes (`replaceGrid`: apply a generation run, restore a version) re-check the inserted lead lessons against the whole school-year grid (teacher ∪ co-teacher, room ∪ workshop room, workshop, section lanes) before commit — the partial uniques cover one column each. Branches and departments of a school share one grid, so a teacher / room clash is caught across sections, classes, branches and departments. **Cross-school / availability / substitutes (2026-10-10, no schema change; approved by the user — «حل كل احتمالات التضارب»):** a teacher shared with another school is refused when one of their active lessons there (lead or co, same year, weeks that meet) overlaps the period's clock time — `timetable.teacher_busy_other_school`, single and bulk writes. Read through `TeacherElsewhereRepositoryInterface` (Infrastructure `EloquentTeacherElsewhereRepository`): each other active school is read under its own transaction-local `app.current_school_id`, only teacher id · day · start/end · week leave it, and the caller's context is restored in `finally`. The board loader adds those times as external «غير متاح» teacher marks (engine never places there; audit / test report `teacher_busy_other_school`; not shown in the availability window). Slots marked «غير متاح» (`availability.kind` 1) are a hard stop for placed lessons too (`timetable.{teacher|room|workshop|section}_unavailable_slot`). A substitute teacher / room (`schedule_exceptions`) must be free in that slot on that date — own lesson (unless replaced that day), another substitution of the date, or (teacher) a lesson in another school — `timetable.substitute_teacher_busy` / `substitute_room_busy`; week-specific lessons count as meeting (conservative).
+
 ### `timetable.schedule_exceptions`
 
 > **Phase TV-U03:** Per-date substitute teacher/room for a schedule. FORCE RLS; reject hard DELETE.
@@ -1024,7 +1026,7 @@ All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` o
 
 ---
 
-## Schema: `attendance` (3 tables)
+## Schema: `attendance` (10 tables — review lifecycle, policies, excuses, staff attendance, alerts 2026-10-11; report exports 2026-10-12)
 
 ### `attendance.sessions`
 
@@ -1038,12 +1040,25 @@ All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` o
 | session_date | DATE | NOT NULL |
 | period_id | SMALLINT | FK → timetable.periods, nullable |
 | teacher_id | BIGINT | FK → teachers.teachers |
-| status | SMALLINT | NOT NULL DEFAULT 1; **CHECK status IN (1,2,3)** (R1.8A vocabulary) |
+| status | SMALLINT | NOT NULL DEFAULT 1; **CHECK status IN (1,2,3)** (R1.8A vocabulary) — 1 open (marking possible) · 2 closed · 3 cancelled |
+| sheet_status | SMALLINT | NOT NULL DEFAULT 1; CHECK 1..6 — 1 draft · 2 submitted · 3 under review · 4 approved · 5 returned for correction · 6 rejected (transitions only via Domain `AttendanceSheetWorkflow`) |
+| version | INTEGER | NOT NULL DEFAULT 1 — optimistic concurrency; bumped by every sheet write, legacy mark, official correction and excuse application |
+| origin | SMALLINT | NOT NULL DEFAULT 1; CHECK IN (1,2,3) — 1 manual · 2 timetable lesson · 3 exceptional |
+| schedule_id | BIGINT | FK → timetable.schedules, nullable — the lesson the sheet was opened from |
+| group_id | BIGINT | FK → timetable.division_groups, nullable — group lesson (roster = active group members) |
+| lesson_type | SMALLINT | nullable; CHECK IN (1,2) — 1 theory · 2 practical (practical subject or lab / workshop room) |
+| lesson_snapshot | JSONB | nullable — lesson frozen at open (times, room, teacher, names); later timetable edits never rewrite it |
+| policy_id | BIGINT | FK → attendance.policies, nullable (null = defaults) — governing policy version |
+| submission_count | SMALLINT | NOT NULL DEFAULT 0 (> 1 = resubmitted after correction) |
+| submitted_at / submitted_by / submitted_late | TIMESTAMPTZ / BIGINT FK users / BOOLEAN | submission stamps |
+| reviewed_at / reviewed_by / review_note | TIMESTAMPTZ / BIGINT FK users / TEXT | last review step (return / reject reason is mandatory) |
+| opened_by | BIGINT | FK → users, nullable |
 | created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NOT NULL DEFAULT NOW() |
 
-**Indexes:** `BTREE(section_id, session_date)`, `BTREE(academic_year_id, session_date)`, `BTREE(school_id)` (RLS)
+**Indexes:** `BTREE(section_id, session_date)`, `BTREE(academic_year_id, session_date)`, `BTREE(school_id)` (RLS), `BTREE(school_id, sheet_status, session_date)` (review board), `BTREE(teacher_id, session_date)` (teacher day), partial UNIQUE `(school_id, schedule_id, session_date) WHERE schedule_id IS NOT NULL AND status <> 3` (one live sheet per lesson and date)
 
-**Integrity (R1.8A):** Partial UNIQUE `attendance_sessions_open_natural_key_uidx` ON `(school_id, academic_year_id, section_id, subject_id, session_date, period_id) NULLS NOT DISTINCT WHERE status = 1` — at most one OPEN session per natural key; CLOSED recreation allowed; NULL period is its own bucket.
+**Integrity (R1.8A):** Partial UNIQUE `attendance_sessions_open_natural_key_uidx` ON `(school_id, academic_year_id, section_id, subject_id, session_date, period_id) NULLS NOT DISTINCT WHERE status = 1` — at most one OPEN session per natural key; CLOSED recreation allowed; NULL period is its own bucket. **2026-10-11:** key extended with `COALESCE(schedule_id, 0)` so two timetable lessons (practical groups) of one section, subject and period can both be open; legacy rows (schedule_id NULL) keep the original semantics.
 
 **RLS (R1.7):** ENABLE + FORCE; fail-closed `school_id = app.current_school_id`; SELECT/INSERT/UPDATE only (DELETE denied under RLS).
 
@@ -1058,7 +1073,10 @@ All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` o
 | academic_year_id | BIGINT | FK → academic_years, **PARTITION KEY** |
 | school_id | BIGINT | FK → organization.schools (denormalized for RLS) |
 | attendance_date | DATE | NOT NULL |
-| status | SMALLINT | NOT NULL |
+| status | SMALLINT | NOT NULL; **CHECK 0..5** (2026-10-11) — 0 unmarked (draft only) · 1 present · 2 absent · 3 late · 4 excused absence · 5 left early |
+| minutes_late | SMALLINT | nullable; CHECK 0..600 |
+| marked_via | SMALLINT | NOT NULL DEFAULT 1; CHECK 1..9 — evidence method (1 teacher · 2 administrative · 3 excuse application · 4 check-in code; 5–7 reserved kiosk / QR / NFC) |
+| excuse_id | BIGINT | FK → attendance.excuses, nullable — the approved excuse that made this absence excused |
 | notes | TEXT | |
 | recorded_by | BIGINT | FK → users |
 | created_at | TIMESTAMPTZ | NOT NULL |
@@ -1098,7 +1116,134 @@ All: `school_id NOT NULL` FK schools, **FORCE RLS** `{table}_school_isolation` o
 - `BTREE(school_id, attendance_date)` — school daily report
 - `BTREE(academic_year_id, attendance_date)` — directorate report
 
-**Refresh:** After each batch attendance write — see batch-write-patterns.md
+**Refresh:** After each batch attendance write — see batch-write-patterns.md. **2026-10-11:** totals count decided rows only (status > 0) and exclude cancelled sessions and rejected sheets.
+
+### `attendance.policies` (2026-10-11)
+
+Versioned attendance rules per school and academic year. A save closes the current row (`effective_to`) and inserts the next `version_no`; sessions keep the `policy_id` of the version that governed them.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id | BIGINT | FK → schools / academic_years, NOT NULL |
+| version_no | INTEGER | NOT NULL ≥ 1; UNIQUE (school_id, academic_year_id, version_no) |
+| timezone | VARCHAR(64) | NOT NULL — school-local time for lesson windows (the application clock stays UTC) |
+| qr_enabled | BOOLEAN | NOT NULL DEFAULT TRUE (2026-10-12) — the rotating check-in code is also shown as a QR (same-site URL) |
+| nfc_enabled | BOOLEAN | NOT NULL DEFAULT FALSE (2026-10-12) — NFC station tokens accepted; no location is collected |
+| open_before_minutes / submit_deadline_minutes / edit_window_days | SMALLINT | NOT NULL; CHECK 0..240 / 0..1440 / 0..30 |
+| late_grace_minutes / late_as_absent_minutes | SMALLINT | NOT NULL 0..120 / nullable 1..240 |
+| require_complete / teacher_can_mark_excused | BOOLEAN | NOT NULL |
+| default_mark | SMALLINT | NOT NULL; CHECK IN (0,1) |
+| absence_alert_count / absence_alert_window_days / absence_rate_alert_percent / late_alert_count / returned_alert_count | SMALLINT | NOT NULL, bounded CHECKs |
+| staff_day_start / staff_late_grace_minutes / checkin_code_ttl_minutes | TIME / SMALLINT / SMALLINT | NOT NULL |
+| effective_from / effective_to | TIMESTAMPTZ | NOT NULL / nullable; partial UNIQUE (school_id, academic_year_id) WHERE effective_to IS NULL |
+| created_by / created_at | BIGINT FK users / TIMESTAMPTZ | |
+
+### `attendance.sheet_events` (2026-10-11)
+
+Append-only review history (UPDATE and DELETE rejected by trigger).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id / session_id | BIGINT | FK, NOT NULL |
+| event_type | SMALLINT | NOT NULL 1..9 — opened · draft saved · submitted · review started · approved · returned · rejected · corrected · resubmitted |
+| from_status / to_status | SMALLINT | sheet status before / after |
+| version | INTEGER | NOT NULL — sheet version after the event |
+| actor_user_id | BIGINT | FK → users |
+| note | TEXT | reason / `on_behalf` / excuse reference |
+| counts | JSONB | status counts at the event |
+| created_at | TIMESTAMPTZ | NOT NULL |
+
+**Indexes:** `(session_id, id)`, `(school_id, created_at DESC)`
+
+### `attendance.excuses` (2026-10-11)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id / student_id / enrollment_id | BIGINT | FK, NOT NULL |
+| date_from / date_to | DATE | NOT NULL; CHECK date_to ≥ date_from AND ≤ 90 days |
+| session_id | BIGINT | FK → sessions, nullable (single-lesson excuse) |
+| excuse_type | SMALLINT | NOT NULL 1..9 |
+| reason | TEXT | NOT NULL, 1..2000 chars |
+| document_file_id | BIGINT | FK → documents.files, nullable (metadata only — no blobs) |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1 pending · 2 approved · 3 rejected (decision_note required) · 4 withdrawn |
+| submitted_by / submitted_at / reviewed_by / reviewed_at / decision_note | | review stamps |
+| applied_records | INTEGER | absences converted on approval |
+| version / created_at / updated_at | INTEGER / TIMESTAMPTZ | |
+
+**Indexes:** `(school_id, status, date_from)`, `(student_id, date_from)`
+
+### `attendance.staff_records` (2026-10-11)
+
+Teacher work attendance (separate from lesson attendance).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id / teacher_id | BIGINT | FK, NOT NULL |
+| work_date | DATE | NOT NULL; UNIQUE (school_id, teacher_id, work_date) |
+| status | SMALLINT | NOT NULL 1..7 — present · absent · late · left early · approved leave · official mission · excused absence |
+| check_in_at / check_out_at | TIMESTAMPTZ | CHECK out ≥ in |
+| minutes_late | SMALLINT | nullable 0..1440 |
+| method | SMALLINT | NOT NULL 1..9 — evidence (2 administrative · 4 check-in code · …) |
+| notes / recorded_by / version / created_at / updated_at | | corrections require version + reason (audited) |
+
+**Indexes:** UNIQUE `(school_id, teacher_id, work_date)`, `(school_id, work_date)`
+
+### `attendance.checkin_codes` (2026-10-11)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK, NOT NULL |
+| code_hash | VARCHAR(128) | NOT NULL — HMAC-SHA256(app key, school:code); the plain code is never stored |
+| kind | SMALLINT | NOT NULL DEFAULT 1, CHECK IN (1, 2) — 1 rotating code (typed / QR) · 2 NFC station token (2026-10-12) |
+| label | VARCHAR(100) | nullable — station name for NFC tokens (no personal data) |
+| valid_from / valid_until / revoked_at | TIMESTAMPTZ | CHECK valid_until > valid_from |
+| created_by / created_at | | |
+
+**Indexes:** `(school_id, valid_until)`
+
+### `attendance.alerts` (2026-10-11)
+
+Rule hits for human review (never automatic decisions).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id | BIGINT | FK, NOT NULL |
+| rule_code | VARCHAR(50) | NOT NULL — see `AttendanceAlertRules` |
+| severity | SMALLINT | 1..3 |
+| subject_type / subject_id | VARCHAR(20) / BIGINT | student · teacher · session · section · subject |
+| period_start / period_end | DATE | detection window |
+| metric / threshold | NUMERIC(8,2) | measured value vs configured threshold |
+| details | JSONB | |
+| status | SMALLINT | 1 open · 2 acknowledged · 3 resolved · 4 dismissed (note required) |
+| resolved_by / resolved_at / resolution_note / created_at / updated_at | | |
+
+**Indexes:** UNIQUE `(school_id, rule_code, subject_type, subject_id, period_end)` (dedupe), `(school_id, status, created_at DESC)`
+
+**Security (all six new tables):** ENABLE + FORCE RLS fail-closed on `school_id = app.current_school_id` (SELECT / INSERT / UPDATE policies, no DELETE policy) plus a `BEFORE DELETE` reject trigger.
+
+### `attendance.report_exports` (2026-10-12)
+
+Queued report files (CSV / PDF) built by `GenerateAttendanceReportExportJob`; the file lives on the private `local` disk, downloadable only by its requester in the same school.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id | BIGINT | FK, NOT NULL |
+| requested_by | BIGINT | FK → users, ON DELETE SET NULL |
+| report_type | VARCHAR(30) | NOT NULL — `AttendanceReportReadInterface::TYPES` |
+| format | SMALLINT | 1 CSV · 2 PDF |
+| filters | JSONB | NOT NULL — the exact criteria used (reproducible) |
+| status | SMALLINT | 1 queued · 2 running · 3 ready · 4 failed |
+| row_count / truncated / storage_key / error / created_at / finished_at | | |
+
+**Indexes:** `(school_id, requested_by, created_at DESC)`  
+**Security:** ENABLE + FORCE RLS (SELECT / INSERT / UPDATE, fail-closed). Operational (not an academic record): no delete trigger; files are not removed automatically.
 
 ---
 
@@ -2217,7 +2362,7 @@ curriculum.subjects
 | teachers | 4 |
 | curriculum | 4 |
 | timetable | 14 |
-| attendance | 3 |
+| attendance | 10 |
 | exams | 5 |
 | results | 6 |
 | promotion | 2 |
@@ -2232,7 +2377,7 @@ curriculum.subjects
 | security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **105** |
+| **Total** | **112** |
 
 ## Partition Strategy (⚡)
 

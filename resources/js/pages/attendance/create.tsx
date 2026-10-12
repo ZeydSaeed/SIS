@@ -24,13 +24,23 @@ export default function AttendanceCreate({ defaults }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.attendance.createTitle} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
+            <div
+                className="sis-ops-hub flex flex-col gap-4 p-4"
+                dir="rtl"
+                lang="ar"
+            >
                 <PageHeader
                     title={i18n.attendance.createTitle}
                     description={i18n.attendance.createDesc}
                     icon={<CalendarCheck className="size-6" aria-hidden />}
                 />
-                <Link href="/attendance" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
+                <Link
+                    href="/attendance"
+                    className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
+                    dir="rtl"
+                    lang="ar"
+                    prefetch
+                >
                     {i18n.common.backToList}
                 </Link>
                 <Form
@@ -51,7 +61,9 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                                     type="number"
                                     min={1}
                                     required
-                                    defaultValue={defaults.academic_year_id ?? undefined}
+                                    defaultValue={
+                                        defaults.academic_year_id ?? undefined
+                                    }
                                     error={errors.academic_year_id}
                                 />
                             </OpsFormField>
@@ -122,9 +134,13 @@ export default function AttendanceCreate({ defaults }: PageProps) {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar"
+                                className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                                dir="rtl"
+                                lang="ar"
                             >
-                                {processing ? i18n.common.saving : i18n.attendance.createSessionSubmit}
+                                {processing
+                                    ? i18n.common.saving
+                                    : i18n.attendance.createSessionSubmit}
                             </button>
                         </>
                     )}

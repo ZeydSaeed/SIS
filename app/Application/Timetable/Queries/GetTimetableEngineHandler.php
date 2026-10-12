@@ -35,7 +35,8 @@ final class GetTimetableEngineHandler
             settings: $board->settings->toArray(),
             activities: $board->activities,
             groups: array_values($board->groups),
-            availability: $board->availability,
+            // Marks the user set (other-school busy times are engine-only, not editable here).
+            availability: array_values(array_filter($board->availability, static fn (array $a): bool => ($a['external'] ?? false) !== true)),
             rules: $board->rules,
             catalogue: array_map(static fn (string $type): array => [
                 'type' => $type,

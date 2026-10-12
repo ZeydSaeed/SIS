@@ -1,11 +1,23 @@
 import { useState, type ReactNode } from 'react';
-import { useRegistryRequest } from '@/components/organization/registry-sheet';
+import { RegistrySheetDialog, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { t } from '@/i18n';
 
+/**
+ * A form opened from a button of a timetable window: its own window (same chrome as every system window, above the
+ * one that opened it, sized to its content) — never an editor unfolding under the list.
+ */
+export function TimetableSubWindow({ title, onClose, children, size = 'form' }: { title: string; onClose: () => void; children: ReactNode; size?: 'form' | 'wide' }) {
+    return (
+        <RegistrySheetDialog title={title} className={`sis-branches-sheet sis-timetable-sheet sis-timetable-subsheet sis-timetable-subsheet--${size}`} onClose={onClose}>
+            {children}
+        </RegistrySheetDialog>
+    );
+}
+
 /** Props the engine writes refresh (the grid follows when a run is applied or a version restored). */
-export const ENGINE_RELOAD = ['engine', 'schedules', 'issues', 'advice', 'workload', 'quality', 'flash', 'errors'];
+export const ENGINE_RELOAD = ['engine', 'schedules', 'periods', 'display', 'issues', 'advice', 'workload', 'quality', 'flash', 'errors'];
 
 /** Engine writes: idempotency key + partial reload + shared error display (same channel as the builder). */
 export function useEngineRequest() {

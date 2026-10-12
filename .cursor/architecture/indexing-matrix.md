@@ -66,7 +66,10 @@
 | (section_id, session_date) | COMPOSITE | Section day lookup |
 | (academic_year_id, session_date) | COMPOSITE | Year/date reports |
 | (school_id) | B-Tree | RLS predicate |
-| (school_id, academic_year_id, section_id, subject_id, session_date, period_id) WHERE status=1 NULLS NOT DISTINCT | PARTIAL UNIQUE (R1.8A) | At most one OPEN session per natural key; concurrency authority |
+| (school_id, academic_year_id, section_id, subject_id, session_date, period_id, COALESCE(schedule_id, 0)) WHERE status=1 NULLS NOT DISTINCT | PARTIAL UNIQUE (R1.8A, re-keyed 2026-10-11) | At most one OPEN session per natural key; timetable lessons of different groups in one slot stay distinct |
+| (school_id, schedule_id, session_date) WHERE schedule_id IS NOT NULL AND status <> 3 | PARTIAL UNIQUE (2026-10-11) | One live sheet per timetable lesson and date — arbiter of the race-safe `INSERT … ON CONFLICT DO NOTHING` open |
+| (school_id, sheet_status, session_date) | COMPOSITE (2026-10-11) | Review board filter + status totals |
+| (teacher_id, session_date) | COMPOSITE (2026-10-11) | Teacher day / teacher notices |
 
 ### `attendance.records` ⚡
 
@@ -75,6 +78,56 @@
 | (student_id, attendance_date) | COMPOSITE | Student attendance history |
 | (session_id, student_id) | UNIQUE | Prevent duplicates |
 | (academic_year_id, attendance_date) | COMPOSITE | Year/date reports |
+| (session_id) | B-Tree per partition (2026-10-11) | Sheet roster reads, per-sheet counts (review board, teacher day) |
+
+### `attendance.sheet_events` (2026-10-11)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (session_id, id) | COMPOSITE | Sheet history in order |
+| (school_id, created_at DESC) | COMPOSITE | RLS + recent activity |
+
+### `attendance.policies` (2026-10-11)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (school_id, academic_year_id, version_no) | UNIQUE | Version history |
+| (school_id, academic_year_id) WHERE effective_to IS NULL | PARTIAL UNIQUE | Exactly one current policy |
+
+### `attendance.excuses` (2026-10-11)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (school_id, status, date_from) | COMPOSITE | Pending queue / status filter |
+| (student_id, date_from) | COMPOSITE | Student excuse history |
+
+### `attendance.staff_records` (2026-10-11)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (school_id, teacher_id, work_date) | UNIQUE | One work-attendance row per teacher · day (check-in race authority) |
+| (school_id, work_date) | COMPOSITE | Staff day roster |
+
+### `attendance.checkin_codes` (2026-10-11)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (school_id, valid_until) | COMPOSITE | Valid-code lookup at check-in (filtered by `kind` 1 code / 2 NFC — few rows per school, no extra index) |
+
+### `attendance.report_exports` (2026-10-12)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (school_id, requested_by, created_at DESC) | COMPOSITE | «ملفات التصدير» list of the requester (latest 10) |
+
+### `attendance.alerts` (2026-10-11)
+
+| Column(s) | Type | Reason |
+|-----------|------|--------|
+| (school_id, rule_code, subject_type, subject_id, period_end) | UNIQUE | Detection dedupe (`INSERT … ON CONFLICT DO NOTHING`) |
+| (school_id, status, created_at DESC) | COMPOSITE | Open-alert list |
+
+> Indexes above are workload-driven by the new query paths (each listed reason is a real WHERE / ORDER BY of the 2026-10-11 handlers). No EXPLAIN baseline exists yet for these new paths — capture one under load before any further tuning (DATABASE-ADAPTIVE-GOVERNANCE).
 
 ### `exams.student_grades` ⚡
 

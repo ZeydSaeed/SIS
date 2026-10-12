@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import { RUN_ACTIVE, RUN_SUCCEEDED, type RunDetail } from './engine-types';
-import { EngineField, EngineNumber, EngineRow, EngineSelect, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineNumber, EngineRow, EngineSelect, useEngineRequest, engineSheetClass, TimetableSubWindow } from './engine-ui';
 
 type Scenario = { type: 'teacher_absent' | 'workshop_closed' | 'room_closed'; id: string; days: number[] };
 
@@ -245,106 +245,108 @@ export function GenerateSheet({
                 </SheetSection>
 
                 {detail !== null && detail.result !== null ? (
-                    <SheetSection id="timetable-generate-review" title={`${r.title} #${detail.id}`}>
-                        <ul className="sis-timetable-audit__items sis-branches-field--wide">
-                            {(
-                                [
-                                    [r.required, detail.result.stats.required ?? detail.activities_total],
-                                    [r.rows, detail.result.stats.rows],
-                                    [r.placed, detail.placed],
-                                    [r.remaining, detail.unplaced],
-                                    [r.teachers, detail.result.stats.teachers],
-                                    [r.subjects, detail.result.stats.subjects],
-                                    [r.sections, detail.result.stats.sections],
-                                    [r.rooms, detail.result.stats.rooms],
-                                    [r.breaks, detail.result.stats.breaks],
-                                    [r.conflicts, detail.hard_violations],
-                                    [r.warnings, (detail.result.issues ?? []).filter((i) => i.severity === 'warning').length],
-                                    [r.score, detail.quality?.overall != null ? `${detail.quality.overall}%` : '—'],
-                                    [r.success, detail.activities_total ? `${Math.round((100 * (detail.placed ?? 0)) / detail.activities_total)}%` : '—'],
-                                    [r.time, `${(detail.result.stats.elapsed_ms / 1000).toFixed(1)}s`],
-                                    [r.attempts, detail.result.stats.attempts !== undefined ? `${detail.result.stats.best_attempt ?? 1} / ${detail.result.stats.attempts}` : null],
-                                    [r.strategy, detail.result.stats.complexity ? `${lv.complexities[detail.result.stats.complexity]?.split(' — ')[0] ?? ''}${detail.result.stats.constraint_level ? ` · ${lv.levels[detail.result.stats.constraint_level]?.split(' — ')[0] ?? ''}` : ''}` : null],
-                                ] as Array<[string, string | number | null | undefined]>
-                            )
-                                .filter(([, v]) => v !== null && v !== undefined)
-                                .map(([label, value]) => (
-                                    <li key={label} className="sis-timetable-audit__item">
-                                        <span className="sis-timetable-audit__text">{label}</span>
-                                        <bdi dir="ltr">{value}</bdi>
-                                    </li>
-                                ))}
-                        </ul>
-                        {ctx.can.generate ? (
+                    <TimetableSubWindow title={`${r.title} #${detail.id}`} onClose={() => setReviewId(null)}>
+                        <SheetSection id="timetable-generate-review" title={`${r.title} #${detail.id}`}>
+                            <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                                {(
+                                    [
+                                        [r.required, detail.result.stats.required ?? detail.activities_total],
+                                        [r.rows, detail.result.stats.rows],
+                                        [r.placed, detail.placed],
+                                        [r.remaining, detail.unplaced],
+                                        [r.teachers, detail.result.stats.teachers],
+                                        [r.subjects, detail.result.stats.subjects],
+                                        [r.sections, detail.result.stats.sections],
+                                        [r.rooms, detail.result.stats.rooms],
+                                        [r.breaks, detail.result.stats.breaks],
+                                        [r.conflicts, detail.hard_violations],
+                                        [r.warnings, (detail.result.issues ?? []).filter((i) => i.severity === 'warning').length],
+                                        [r.score, detail.quality?.overall != null ? `${detail.quality.overall}%` : '—'],
+                                        [r.success, detail.activities_total ? `${Math.round((100 * (detail.placed ?? 0)) / detail.activities_total)}%` : '—'],
+                                        [r.time, `${(detail.result.stats.elapsed_ms / 1000).toFixed(1)}s`],
+                                        [r.attempts, detail.result.stats.attempts !== undefined ? `${detail.result.stats.best_attempt ?? 1} / ${detail.result.stats.attempts}` : null],
+                                        [r.strategy, detail.result.stats.complexity ? `${lv.complexities[detail.result.stats.complexity]?.split(' — ')[0] ?? ''}${detail.result.stats.constraint_level ? ` · ${lv.levels[detail.result.stats.constraint_level]?.split(' — ')[0] ?? ''}` : ''}` : null],
+                                    ] as Array<[string, string | number | null | undefined]>
+                                )
+                                    .filter(([, v]) => v !== null && v !== undefined)
+                                    .map(([label, value]) => (
+                                        <li key={label} className="sis-timetable-audit__item">
+                                            <span className="sis-timetable-audit__text">{label}</span>
+                                            <bdi dir="ltr">{value}</bdi>
+                                        </li>
+                                    ))}
+                            </ul>
+                            {ctx.can.generate ? (
+                                <div className="sis-timetable-audit__bar">
+                                    <Button type="button" size="sm" variant="outline" disabled={saving || active !== undefined} onClick={() => void start()}>
+                                        {r.regenerate}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={saving || active !== undefined}
+                                        onClick={() => {
+                                            setMode('4');
+                                            void start('4');
+                                        }}
+                                    >
+                                        {r.optimize}
+                                    </Button>
+                                </div>
+                            ) : null}
                             <div className="sis-timetable-audit__bar">
-                                <Button type="button" size="sm" variant="outline" disabled={saving || active !== undefined} onClick={() => void start()}>
-                                    {r.regenerate}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={saving || active !== undefined}
-                                    onClick={() => {
-                                        setMode('4');
-                                        void start('4');
-                                    }}
-                                >
-                                    {r.optimize}
-                                </Button>
+                                <span className={`sis-timetable-badge sis-timetable-badge--${detail.unplaced === 0 && detail.hard_violations === 0 ? 'info' : 'error'}`}>
+                                    {e.placed} {detail.placed} · {e.unplaced} {detail.unplaced}
+                                </span>
+                                <span className="sis-timetable-badge sis-timetable-badge--info">{e.quality}: <bdi dir="ltr">{detail.quality?.overall ?? '—'}%</bdi></span>
+                                <span className="sis-timetable-badge sis-timetable-badge--info">{e.elapsed}: <bdi dir="ltr">{(detail.result.stats.elapsed_ms / 1000).toFixed(1)}s</bdi></span>
                             </div>
-                        ) : null}
-                        <div className="sis-timetable-audit__bar">
-                            <span className={`sis-timetable-badge sis-timetable-badge--${detail.unplaced === 0 && detail.hard_violations === 0 ? 'info' : 'error'}`}>
-                                {e.placed} {detail.placed} · {e.unplaced} {detail.unplaced}
-                            </span>
-                            <span className="sis-timetable-badge sis-timetable-badge--info">{e.quality}: <bdi dir="ltr">{detail.quality?.overall ?? '—'}%</bdi></span>
-                            <span className="sis-timetable-badge sis-timetable-badge--info">{e.elapsed}: <bdi dir="ltr">{(detail.result.stats.elapsed_ms / 1000).toFixed(1)}s</bdi></span>
-                        </div>
-                        {detail.result.diff !== null ? (
-                            <p className="sis-timetable-sheet__hint">
-                                {e.diffTitle}: {Object.entries(detail.result.diff.counts).reduce<string>((text, [k, v]) => text.replace(`{${k}}`, String(v)), e.diffLine)}
-                            </p>
-                        ) : null}
-                        {detail.result.unplaced.length > 0 ? (
-                            <ul className="sis-timetable-audit__items sis-branches-field--wide">
-                                {detail.result.unplaced.map((u) => (
-                                    <li key={u.card_id} className="sis-timetable-audit__item sis-timetable-audit__item--error">
-                                        <span className="sis-timetable-audit__text">
-                                            {ctx.subjectName(u.subject_id)} · {ctx.teacherName(u.teacher_id)} · {u.section_ids.map((s) => ctx.sectionLabel(s)).join(' + ')}
-                                            {' — '}
-                                            {Object.entries(u.reasons).slice(0, 3).map(([r, n]) => `${reasonText(r)} ×${n}`).join('، ')}
-                                            {u.suggestions.length > 0 ? ` — ${e.suggestionsTitle}: ${u.suggestions.slice(0, 2).map((s) => `${reasonText(s.reason)}${s.day ? ` (${ctx.dayLabel(s.day)} · ${s.lesson})` : ''}`).join('، ')}` : ''}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : null}
-                        {detail.result.violations.length > 0 ? (
-                            <ul className="sis-timetable-audit__items sis-branches-field--wide">
-                                {detail.result.violations.slice(0, 12).map((v, i) => (
-                                    <li key={i} className={`sis-timetable-audit__item sis-timetable-audit__item--${v.hard ? 'error' : 'warning'}`}>
-                                        <span className="sis-timetable-audit__text">
-                                            {e.ruleTypes[v.rule_type] ?? v.rule_type} ×{v.count} · {e.priorities[v.priority]} · {e.sources[v.source] ?? v.source}
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : null}
-                        {ctx.can.generate ? (
-                            <div className="sis-admission-sheet__actions">
-                                {detail.status === RUN_SUCCEEDED && !detail.is_what_if ? (
-                                    <Button type="button" disabled={saving} onClick={() => void runAction(detail.id, 'apply')}>{e.applyRun}</Button>
-                                ) : null}
-                                {detail.status === 6 && ctx.can.publish ? (
-                                    <Button type="button" variant="outline" disabled={saving} onClick={() => void saveVersion(detail.id)}>{e.saveAsVersion}</Button>
-                                ) : null}
-                                {detail.status === RUN_SUCCEEDED || detail.status === 5 ? (
-                                    <Button type="button" variant="outline" disabled={saving} onClick={() => void runAction(detail.id, 'discard')}>{e.discard}</Button>
-                                ) : null}
-                            </div>
-                        ) : null}
-                    </SheetSection>
+                            {detail.result.diff !== null ? (
+                                <p className="sis-timetable-sheet__hint">
+                                    {e.diffTitle}: {Object.entries(detail.result.diff.counts).reduce<string>((text, [k, v]) => text.replace(`{${k}}`, String(v)), e.diffLine)}
+                                </p>
+                            ) : null}
+                            {detail.result.unplaced.length > 0 ? (
+                                <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                                    {detail.result.unplaced.map((u) => (
+                                        <li key={u.card_id} className="sis-timetable-audit__item sis-timetable-audit__item--error">
+                                            <span className="sis-timetable-audit__text">
+                                                {ctx.subjectName(u.subject_id)} · {ctx.teacherName(u.teacher_id)} · {u.section_ids.map((s) => ctx.sectionLabel(s)).join(' + ')}
+                                                {' — '}
+                                                {Object.entries(u.reasons).slice(0, 3).map(([r, n]) => `${reasonText(r)} ×${n}`).join('، ')}
+                                                {u.suggestions.length > 0 ? ` — ${e.suggestionsTitle}: ${u.suggestions.slice(0, 2).map((s) => `${reasonText(s.reason)}${s.day ? ` (${ctx.dayLabel(s.day)} · ${s.lesson})` : ''}`).join('، ')}` : ''}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
+                            {detail.result.violations.length > 0 ? (
+                                <ul className="sis-timetable-audit__items sis-branches-field--wide">
+                                    {detail.result.violations.slice(0, 12).map((v, i) => (
+                                        <li key={i} className={`sis-timetable-audit__item sis-timetable-audit__item--${v.hard ? 'error' : 'warning'}`}>
+                                            <span className="sis-timetable-audit__text">
+                                                {e.ruleTypes[v.rule_type] ?? v.rule_type} ×{v.count} · {e.priorities[v.priority]} · {e.sources[v.source] ?? v.source}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
+                            {ctx.can.generate ? (
+                                <div className="sis-admission-sheet__actions">
+                                    {detail.status === RUN_SUCCEEDED && !detail.is_what_if ? (
+                                        <Button type="button" disabled={saving} onClick={() => void runAction(detail.id, 'apply')}>{e.applyRun}</Button>
+                                    ) : null}
+                                    {detail.status === 6 && ctx.can.publish ? (
+                                        <Button type="button" variant="outline" disabled={saving} onClick={() => void saveVersion(detail.id)}>{e.saveAsVersion}</Button>
+                                    ) : null}
+                                    {detail.status === RUN_SUCCEEDED || detail.status === 5 ? (
+                                        <Button type="button" variant="outline" disabled={saving} onClick={() => void runAction(detail.id, 'discard')}>{e.discard}</Button>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        </SheetSection>
+                    </TimetableSubWindow>
                 ) : null}
             </div>
             <div className="sis-admission-sheet__actions">

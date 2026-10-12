@@ -65,6 +65,8 @@ class HandleInertiaRequests extends Middleware
                 // Timetable engine: what the last write did (id), and the advisor blockers that stopped a generation.
                 'engineResult' => fn () => $request->session()->get('engineResult'),
                 'engineBlockers' => fn () => $request->session()->get('engineBlockers'),
+                // Attendance: the confirmed server outcome of the last sheet / code action (sheet no., version, time, code once).
+                'attendanceResult' => fn () => $request->session()->get('attendanceResult'),
             ],
         ];
     }

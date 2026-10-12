@@ -7,6 +7,7 @@ use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\UpdateSectionResult;
+use App\Application\Enrollment\Services\ApplyStructureStatusChange;
 use App\Domain\Enrollment\Contracts\HomeroomTeacherPort;
 use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Services\EnrollmentStructureGuard;
@@ -22,6 +23,7 @@ final class UpdateSectionHandler implements CommandHandler
         private readonly EnrollmentStructureGuard $guard,
         private readonly HomeroomTeacherPort $homeroomTeachers,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplyStructureStatusChange $statusChange,
     ) {}
 
     public function handle(Command $command): UpdateSectionResult
@@ -60,7 +62,7 @@ final class UpdateSectionHandler implements CommandHandler
         }
 
         $at = now()->toIso8601String();
-        $this->unitOfWork->transaction(function () use ($command, $key, $at): void {
+        $this->unitOfWork->transaction(function () use ($command, $key, $at, $section): void {
             $this->structure->updateSection(
                 $command->schoolId,
                 $command->sectionId,
@@ -69,6 +71,7 @@ final class UpdateSectionHandler implements CommandHandler
                 $command->homeroomTeacherId,
                 $at,
             );
+            $this->statusChange->forSection($command->schoolId, $command->sectionId, $section->classId, $section->status, $command->status, $at);
             $this->idempotency->store($key, self::COMMAND_NAME, ['section_id' => $command->sectionId]);
         });
 

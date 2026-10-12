@@ -8,6 +8,7 @@ use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\OutboxRepository;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Attendance\Results\CorrectAttendanceRecordResult;
+use App\Application\Attendance\Support\SheetCorrectionHistory;
 use App\Domain\Attendance\Events\AttendanceCorrected;
 use App\Domain\Attendance\Exceptions\AttendanceRecordNotFoundException;
 use App\Domain\Attendance\Exceptions\CrossSchoolAttendanceAccessException;
@@ -15,6 +16,7 @@ use App\Domain\Attendance\Exceptions\InvalidAttendanceStatusException;
 use App\Domain\Attendance\Exceptions\InvalidCorrectionReasonException;
 use App\Domain\Attendance\Exceptions\SessionCancelledException;
 use App\Domain\Attendance\Exceptions\SessionNotFoundException;
+use App\Domain\Attendance\Repositories\AttendanceSheetRepositoryInterface;
 use App\Domain\Attendance\Repositories\AttendanceWriteRepositoryInterface;
 use App\Domain\Attendance\ValueObjects\AttendanceRecordStatus;
 use App\Domain\Attendance\ValueObjects\SessionStatus;
@@ -28,6 +30,7 @@ final class CorrectAttendanceRecordHandler implements CommandHandler
         private readonly AttendanceWriteRepositoryInterface $attendance,
         private readonly OutboxRepository $outbox,
         private readonly IdempotencyStore $idempotency,
+        private readonly ?AttendanceSheetRepositoryInterface $sheets = null,
     ) {}
 
     public function handle(Command $command): CorrectAttendanceRecordResult
@@ -101,6 +104,11 @@ final class CorrectAttendanceRecordHandler implements CommandHandler
                 $command->academicYearId,
                 $session->sessionDate,
             );
+
+            // Sheet history + version: an approved sheet changes only through this audited path.
+            SheetCorrectionHistory::record($this->sheets, $command->schoolId, $command->academicYearId, $command->sessionId, $command->recordedBy, $command->reason, [
+                'student_id' => $command->studentId, 'from' => $previousStatus, 'to' => $command->newStatus,
+            ]);
 
             $this->outbox->stage(new AttendanceCorrected(
                 recordId: $record->id,

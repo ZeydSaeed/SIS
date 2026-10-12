@@ -395,12 +395,24 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                     ]),
             },
             {
+                id: 'rooms-manage',
+                label: r.manage,
+                commands: [{ id: 'rooms-types', label: r.types, icon: Shapes, iconTone: 'authority', count: types.length, onSelect: () => setTypesOpen(true) }],
+            },
+        ];
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [i18n, targets, selected, canManage, saving, filters, stats, branches, types]);
+    useRegisterPageRibbon('edit', ribbon);
+
+    // The filters live on the home tab (the edit tab keeps the actions).
+    const homeRibbon = useMemo((): PageRibbonGroup[] => [
+            {
                 id: 'rooms-filters',
                 label: r.branch,
                 commands: [],
                 custom: (
                     <div className="sis-ribbon__filters" dir="rtl">
-                        <div className="sis-ribbon__filters-stack">
+                        <div className="sis-ribbon__filters-stack sis-ribbon__filters-stack--curriculum">
                             {[
                                 {
                                     key: 'branch',
@@ -427,15 +439,11 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                     </div>
                 ),
             },
-            {
-                id: 'rooms-manage',
-                label: r.manage,
-                commands: [{ id: 'rooms-types', label: r.types, icon: Shapes, iconTone: 'authority', count: types.length, onSelect: () => setTypesOpen(true) }],
-            },
-        ];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [i18n, targets, selected, canManage, saving, filters, stats, branches, types]);
-    useRegisterPageRibbon('edit', ribbon);
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [i18n, filters, branches, types]);
+    useRegisterPageRibbon('home', homeRibbon);
+
 
     const titlebarSearch = useMemo(
         () => ({

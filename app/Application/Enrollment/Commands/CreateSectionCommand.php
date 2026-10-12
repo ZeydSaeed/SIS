@@ -14,5 +14,7 @@ final readonly class CreateSectionCommand implements Command
         /** رائد الصف — an active teacher of the school in the class's academic year. */
         public ?int $homeroomTeacherId,
         public ?string $idempotencyKey,
+        /** «الحالة» from the form: 1 نشط · 2 غير نشط; null keeps it (new rows start active). */
+        public ?int $status = null,
     ) {}
 }

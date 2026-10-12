@@ -7,9 +7,11 @@ use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\CreateClassResult;
+use App\Application\Enrollment\Services\ApplyStructureStatusChange;
 use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Services\EnrollmentStructureGuard;
 use App\Domain\Enrollment\Support\EnrollmentIdempotencyGuard;
+use App\Domain\Enrollment\ValueObjects\EnrollmentStructureStatus;
 
 final class CreateClassHandler implements CommandHandler
 {
@@ -20,6 +22,7 @@ final class CreateClassHandler implements CommandHandler
         private readonly EnrollmentStructureRepositoryInterface $structure,
         private readonly EnrollmentStructureGuard $guard,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplyStructureStatusChange $statusChange,
     ) {}
 
     public function handle(Command $command): CreateClassResult
@@ -54,6 +57,7 @@ final class CreateClassHandler implements CommandHandler
                 $command->capacity,
                 $at,
             );
+            $this->statusChange->forClass($command->schoolId, $id, EnrollmentStructureStatus::Active->value, $command->status, $at);
             $this->idempotency->store($key, self::COMMAND_NAME, ['class_id' => $id]);
 
             return $id;

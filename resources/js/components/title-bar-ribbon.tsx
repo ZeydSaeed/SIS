@@ -634,6 +634,8 @@ export function TitleBarRibbon({
     const isTimetablePage = path === '/timetable' || path.startsWith('/timetable/');
     // «الغرف الدراسية»: the same coloured command icons as the timetable page.
     const isRoomsPage = path === '/organization/rooms';
+    // «الحضور»: the same coloured command icons and ribbon look as «الغرف الدراسية».
+    const isAttendancePage = path === '/attendance' || path.startsWith('/attendance/');
     const isTeachersPage = path === '/teachers' || path.startsWith('/teachers/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
@@ -689,7 +691,7 @@ export function TitleBarRibbon({
         group.id.startsWith('enrollment-'),
     );
     // Organization pages (المديريات والمدارس / الفروع والاختصاصات) share the students edit ribbon look.
-    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-') || group.id.startsWith('org-') || group.id.startsWith('rooms-'));
+    const isStudentsRibbon = groups.some((group) => group.id.startsWith('student-') || group.id.startsWith('org-') || group.id.startsWith('rooms-') || group.id.startsWith('attendance-'));
     const isCurriculumRibbon = groups.some((group) => group.id.startsWith('curriculum-'));
     const isCurriculumPage =
         path === '/curriculum' || path.startsWith('/curriculum/');
@@ -802,7 +804,7 @@ export function TitleBarRibbon({
         isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
         isTimetablePage ? 'sis-ribbon--timetable-page' : '',
         isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-        isRoomsPage ? 'sis-ribbon--coloured-icons' : '',
+        isRoomsPage || isAttendancePage ? 'sis-ribbon--coloured-icons' : '',
     ].filter(Boolean);
 
     const renderItem = (item: RibbonItem, afterSelect?: () => void): ReactNode => {
@@ -902,7 +904,7 @@ export function TitleBarRibbon({
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
                 isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-                isRoomsPage ? 'sis-ribbon--coloured-icons' : '',
+                isRoomsPage || isAttendancePage ? 'sis-ribbon--coloured-icons' : '',
             ]
                 .filter(Boolean)
                 .join(' ')}

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import type { EngineActivity } from './engine-types';
-import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineConfirm, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineConfirm, useEngineRequest, engineSheetClass, TimetableSubWindow } from './engine-ui';
 
 type Form = {
     subject: string;
@@ -222,7 +222,11 @@ export function ActivitiesSheet({ ctx, sectionId, onClose }: { ctx: EngineContex
                         ))}
                     </ul>
                 </SheetSection>
-                {editing !== null && ctx.can.manage ? editor : null}
+                {editing !== null && ctx.can.manage ? (
+                    <TimetableSubWindow title={editing === 'new' ? e.newActivity : e.edit} size="wide" onClose={() => setEditing(null)}>
+                        {editor}
+                    </TimetableSubWindow>
+                ) : null}
                 <SheetSection id="timetable-groups" title={e.groups}>
                     {sectionId === null ? (
                         <p className="sis-timetable-audit__clean">{e.pickSection}</p>

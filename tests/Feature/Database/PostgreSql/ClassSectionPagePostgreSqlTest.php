@@ -41,6 +41,33 @@ final class ClassSectionPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
     }
 
     #[Test]
+    public function the_form_sets_class_and_section_status(): void
+    {
+        [$schoolId, $yearId, $gradeId] = $this->seedSchool('CS-ST');
+        $this->actingAsEnrollmentManagerForSchool($schoolId);
+        $go = fn (string $method, string $uri, array $payload, string $key) => $this->from('/organization/classes-sections')
+            ->withHeader('X-Idempotency-Key', $key)->{$method}($uri, $payload);
+
+        // Added as «غير نشط» straight from the add form.
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الثاني', 'status' => 2], 'cs-st-c')
+            ->assertSessionHas('success', 'flash.structure.classCreated');
+        $class = DB::table('enrollment.classes')->where('school_id', $schoolId)->first(['id', 'status']);
+        $this->assertSame(2, (int) $class->status);
+
+        // Edited back to «نشط», then a section added inactive and switched on from its edit form.
+        $go('patch', '/organization/classes/'.$class->id, ['grade_level_id' => $gradeId, 'name' => 'الثاني', 'status' => 1], 'cs-st-c2');
+        $this->assertSame(1, (int) DB::table('enrollment.classes')->where('id', $class->id)->value('status'));
+        $go('post', '/organization/sections', ['class_id' => $class->id, 'name' => 'أ', 'status' => 2], 'cs-st-s');
+        $sectionId = (int) DB::table('enrollment.sections')->where('class_id', $class->id)->value('id');
+        $this->assertSame(2, (int) DB::table('enrollment.sections')->where('id', $sectionId)->value('status'));
+        $go('patch', '/organization/sections/'.$sectionId, ['name' => 'أ', 'status' => 1], 'cs-st-s2');
+        $this->assertSame(1, (int) DB::table('enrollment.sections')->where('id', $sectionId)->value('status'));
+
+        // Only 1 / 2 are accepted.
+        $go('patch', '/organization/sections/'.$sectionId, ['name' => 'أ', 'status' => 3], 'cs-st-s3')->assertSessionHasErrors('status');
+    }
+
+    #[Test]
     public function guest_is_redirected(): void
     {
         $this->get('/organization/classes-sections')->assertRedirect('/login');

@@ -8,6 +8,7 @@ use App\Security\Authorization\EnrollmentSchoolAccessService;
 use App\Security\Authorization\Permission;
 use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
 
 /** «الصفوف والشعب» — create (POST, class_id required) or edit (PATCH) a section and its homeroom teacher. */
 class SaveSectionRequest extends FormRequest
@@ -35,7 +36,10 @@ class SaveSectionRequest extends FormRequest
             'homeroom_teacher_id' => ['nullable', 'integer', 'min:1'],
             'school_id' => ['prohibited'],
             'code' => ['prohibited'],
-            'status' => ['prohibited'],
-        ], SecuritySensitiveFieldGuard::prohibitedRules());
+            'status' => ['sometimes', 'integer', 'in:1,2'],
+        ],
+            // «الحالة» (نشط / غير نشط) is part of this form (in:1,2 above) — every other sensitive field stays prohibited.
+            Arr::except(SecuritySensitiveFieldGuard::prohibitedRules(), ['status']),
+        );
     }
 }

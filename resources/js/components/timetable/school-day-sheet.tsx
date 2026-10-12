@@ -6,7 +6,7 @@ import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
-import { EngineField, EngineRow, EngineSelect } from './engine/engine-ui';
+import { EngineField, EngineRow, EngineSelect, TimetableSubWindow } from './engine/engine-ui';
 
 export type DayPeriod = {
     id: number;
@@ -31,7 +31,7 @@ export const TARGETS = [
     ['rooms', 16],
 ] as const;
 const EVERYWHERE = 31;
-const RELOAD = ['periods', 'issues', 'advice', 'workload', 'quality', 'flash', 'display'];
+const RELOAD = ['periods', 'schedules', 'engine', 'issues', 'advice', 'workload', 'quality', 'flash', 'display'];
 
 const minutesOf = (time: string) => {
     const [h, m] = time.split(':').map(Number);
@@ -143,6 +143,7 @@ export function SchoolDaySheet({ periods, lessonNumber, clock, onClose }: { peri
                                     <td className="sis-timetable-periods__actions">
                                         <Button type="button" size="sm" variant="outline" title={d.edit} disabled={saving} onClick={() => setEditor({ kind: 'edit', period: p, start: p.start_time.slice(0, 5), end: p.end_time.slice(0, 5), cascade: true, name: p.name ?? '', appearance: { abbreviation: p.abbreviation ?? '', color_hue: p.color_hue ?? null }, show: p.show_in ?? EVERYWHERE, print: p.print_in ?? EVERYWHERE })}>
                                             <Pencil aria-hidden />
+                                            {d.edit}
                                         </Button>
                                         <Button type="button" size="sm" variant="outline" title={d.insertAfter} disabled={saving} onClick={() => setEditor({ kind: 'insert', after: p.id, minutes: '15', name: '', appearance: { abbreviation: '', color_hue: null }, show: EVERYWHERE, print: EVERYWHERE })}>
                                             <Coffee aria-hidden />
@@ -154,6 +155,7 @@ export function SchoolDaySheet({ periods, lessonNumber, clock, onClose }: { peri
                                                 </Button>
                                                 <Button type="button" size="sm" variant="outline" title={d.remove} disabled={saving} onClick={() => setConfirmRemove(p)}>
                                                     <Trash2 aria-hidden />
+                                                    {d.remove}
                                                 </Button>
                                             </>
                                         ) : null}
@@ -176,129 +178,135 @@ export function SchoolDaySheet({ periods, lessonNumber, clock, onClose }: { peri
             </SheetSection>
 
             {editor?.kind === 'edit' ? (
-                <SheetSection id="timetable-day-edit" title={`${d.edit} — ${label(editor.period)}`}>
-                    <EngineRow>
-                        <EngineField label={tt.startTime}>
-                            <input className="sis-admission-sheet__control" type="time" dir="ltr" value={editor.start} onChange={(e) => setEditor({ ...editor, start: e.target.value })} />
-                        </EngineField>
-                        <EngineField label={tt.endTime}>
-                            <input className="sis-admission-sheet__control" type="time" dir="ltr" value={editor.end} onChange={(e) => setEditor({ ...editor, end: e.target.value })} />
-                        </EngineField>
-                        <EngineField label={d.cascade}>
-                            <label className="sis-timetable-audit__filter">
-                                <input type="checkbox" checked={editor.cascade} onChange={(e) => setEditor({ ...editor, cascade: e.target.checked })} />
-                                {d.cascadeHint}
-                            </label>
-                        </EngineField>
-                    </EngineRow>
-                    <EngineRow>
-                        <EngineField label={d.name} wide>
-                            <input className="sis-admission-sheet__control" value={editor.name} maxLength={60} placeholder={d.namePlaceholder} onChange={(e) => setEditor({ ...editor, name: e.target.value })} />
-                        </EngineField>
-                    </EngineRow>
-                    <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                        <AppearanceFields value={editor.appearance} onChange={(appearance) => setEditor({ ...editor, appearance })} editing previewTitle={label(editor.period)} />
-                    </div>
-                    <EngineRow>
-                        <EngineField label={d.showIn} wide>
-                            {targetBoxes(editor.show, (show) => setEditor({ ...editor, show }))}
-                        </EngineField>
-                        <EngineField label={d.printIn} wide>
-                            {targetBoxes(editor.print, (print) => setEditor({ ...editor, print }))}
-                        </EngineField>
-                    </EngineRow>
-                    <div className="sis-admission-sheet__actions">
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setEditor(null)}>
-                            {tt.cancelEdit}
-                        </Button>
-                        <Button
-                            type="button"
-                            disabled={saving || editor.start === '' || editor.end === ''}
-                            onClick={() =>
-                                void reshape({
-                                    operation: 'retime',
-                                    period_id: editor.period.id,
-                                    start_time: editor.start.slice(0, 5),
-                                    end_time: editor.end.slice(0, 5),
-                                    cascade: editor.cascade,
-                                    ...presentation(editor.name, editor.appearance, editor.show, editor.print),
-                                })
-                            }
-                        >
-                            {saving ? i18n.common.saving : tt.savePeriod}
-                        </Button>
-                    </div>
-                </SheetSection>
+                <TimetableSubWindow title={`${d.edit} — ${label(editor.period)}`} onClose={() => setEditor(null)}>
+                    <SheetSection id="timetable-day-edit" title={`${d.edit} — ${label(editor.period)}`}>
+                        <EngineRow>
+                            <EngineField label={tt.startTime}>
+                                <input className="sis-admission-sheet__control" type="time" dir="ltr" value={editor.start} onChange={(e) => setEditor({ ...editor, start: e.target.value })} />
+                            </EngineField>
+                            <EngineField label={tt.endTime}>
+                                <input className="sis-admission-sheet__control" type="time" dir="ltr" value={editor.end} onChange={(e) => setEditor({ ...editor, end: e.target.value })} />
+                            </EngineField>
+                            <EngineField label={d.cascade}>
+                                <label className="sis-timetable-audit__filter">
+                                    <input type="checkbox" checked={editor.cascade} onChange={(e) => setEditor({ ...editor, cascade: e.target.checked })} />
+                                    {d.cascadeHint}
+                                </label>
+                            </EngineField>
+                        </EngineRow>
+                        <EngineRow>
+                            <EngineField label={d.name} wide>
+                                <input className="sis-admission-sheet__control" value={editor.name} maxLength={60} placeholder={d.namePlaceholder} onChange={(e) => setEditor({ ...editor, name: e.target.value })} />
+                            </EngineField>
+                        </EngineRow>
+                        <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                            <AppearanceFields value={editor.appearance} onChange={(appearance) => setEditor({ ...editor, appearance })} editing previewTitle={label(editor.period)} />
+                        </div>
+                        <EngineRow>
+                            <EngineField label={d.showIn} wide>
+                                {targetBoxes(editor.show, (show) => setEditor({ ...editor, show }))}
+                            </EngineField>
+                            <EngineField label={d.printIn} wide>
+                                {targetBoxes(editor.print, (print) => setEditor({ ...editor, print }))}
+                            </EngineField>
+                        </EngineRow>
+                        <div className="sis-admission-sheet__actions">
+                            <Button type="button" variant="outline" disabled={saving} onClick={() => setEditor(null)}>
+                                {tt.cancelEdit}
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={saving || editor.start === '' || editor.end === ''}
+                                onClick={() =>
+                                    void reshape({
+                                        operation: 'retime',
+                                        period_id: editor.period.id,
+                                        start_time: editor.start.slice(0, 5),
+                                        end_time: editor.end.slice(0, 5),
+                                        cascade: editor.cascade,
+                                        ...presentation(editor.name, editor.appearance, editor.show, editor.print),
+                                    })
+                                }
+                            >
+                                {saving ? i18n.common.saving : tt.savePeriod}
+                            </Button>
+                        </div>
+                    </SheetSection>
+                </TimetableSubWindow>
             ) : null}
 
             {editor?.kind === 'insert' ? (
-                <SheetSection id="timetable-day-insert" title={d.newBreak}>
-                    <EngineRow>
-                        <EngineField label={d.position}>
-                            <EngineSelect value={editor.after === null ? '' : String(editor.after)} label={d.position} onChange={(v) => setEditor({ ...editor, after: v === '' ? null : Number(v) })} options={afterOptions} />
-                        </EngineField>
-                        <EngineField label={d.minutes}>
-                            <input className="sis-admission-sheet__control" type="number" min={1} max={180} dir="ltr" value={editor.minutes} onChange={(e) => setEditor({ ...editor, minutes: e.target.value })} />
-                        </EngineField>
-                    </EngineRow>
-                    <EngineRow>
-                        <EngineField label={d.name} wide>
-                            <input className="sis-admission-sheet__control" value={editor.name} maxLength={60} placeholder={d.namePlaceholder} onChange={(e) => setEditor({ ...editor, name: e.target.value })} />
-                        </EngineField>
-                    </EngineRow>
-                    <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
-                        <AppearanceFields value={editor.appearance} onChange={(appearance) => setEditor({ ...editor, appearance })} editing previewTitle={editor.name || tt.breakLabel} />
-                    </div>
-                    <EngineRow>
-                        <EngineField label={d.showIn} wide>
-                            {targetBoxes(editor.show, (show) => setEditor({ ...editor, show }))}
-                        </EngineField>
-                        <EngineField label={d.printIn} wide>
-                            {targetBoxes(editor.print, (print) => setEditor({ ...editor, print }))}
-                        </EngineField>
-                    </EngineRow>
-                    <p className="sis-timetable-sheet__hint">{d.insertHint}</p>
-                    <div className="sis-admission-sheet__actions">
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setEditor(null)}>
-                            {tt.cancelEdit}
-                        </Button>
-                        <Button
-                            type="button"
-                            disabled={saving || editor.minutes === ''}
-                            onClick={() => void reshape({ operation: 'insert_break', after_period_id: editor.after, minutes: Number(editor.minutes), ...presentation(editor.name, editor.appearance, editor.show, editor.print) })}
-                        >
-                            {saving ? i18n.common.saving : d.addBreak}
-                        </Button>
-                    </div>
-                </SheetSection>
+                <TimetableSubWindow title={d.newBreak} onClose={() => setEditor(null)}>
+                    <SheetSection id="timetable-day-insert" title={d.newBreak}>
+                        <EngineRow>
+                            <EngineField label={d.position}>
+                                <EngineSelect value={editor.after === null ? '' : String(editor.after)} label={d.position} onChange={(v) => setEditor({ ...editor, after: v === '' ? null : Number(v) })} options={afterOptions} />
+                            </EngineField>
+                            <EngineField label={d.minutes}>
+                                <input className="sis-admission-sheet__control" type="number" min={1} max={180} dir="ltr" value={editor.minutes} onChange={(e) => setEditor({ ...editor, minutes: e.target.value })} />
+                            </EngineField>
+                        </EngineRow>
+                        <EngineRow>
+                            <EngineField label={d.name} wide>
+                                <input className="sis-admission-sheet__control" value={editor.name} maxLength={60} placeholder={d.namePlaceholder} onChange={(e) => setEditor({ ...editor, name: e.target.value })} />
+                            </EngineField>
+                        </EngineRow>
+                        <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                            <AppearanceFields value={editor.appearance} onChange={(appearance) => setEditor({ ...editor, appearance })} editing previewTitle={editor.name || tt.breakLabel} />
+                        </div>
+                        <EngineRow>
+                            <EngineField label={d.showIn} wide>
+                                {targetBoxes(editor.show, (show) => setEditor({ ...editor, show }))}
+                            </EngineField>
+                            <EngineField label={d.printIn} wide>
+                                {targetBoxes(editor.print, (print) => setEditor({ ...editor, print }))}
+                            </EngineField>
+                        </EngineRow>
+                        <p className="sis-timetable-sheet__hint">{d.insertHint}</p>
+                        <div className="sis-admission-sheet__actions">
+                            <Button type="button" variant="outline" disabled={saving} onClick={() => setEditor(null)}>
+                                {tt.cancelEdit}
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={saving || editor.minutes === ''}
+                                onClick={() => void reshape({ operation: 'insert_break', after_period_id: editor.after, minutes: Number(editor.minutes), ...presentation(editor.name, editor.appearance, editor.show, editor.print) })}
+                            >
+                                {saving ? i18n.common.saving : d.addBreak}
+                            </Button>
+                        </div>
+                    </SheetSection>
+                </TimetableSubWindow>
             ) : null}
 
             {editor?.kind === 'move' ? (
-                <SheetSection id="timetable-day-move" title={`${d.move} — ${label(editor.period)}`}>
-                    <EngineRow>
-                        <EngineField label={d.position}>
-                            <EngineSelect value={editor.after} label={d.position} onChange={(v) => setEditor({ ...editor, after: v })} options={afterOptions.filter((o) => o.value !== String(editor.period.id))} />
-                        </EngineField>
-                        <EngineField label={d.minutes}>
-                            <span className="sis-timetable-audit__bar">
-                                {[5, 10, 15, 20, 30].map((m) => (
-                                    <Button key={m} type="button" size="sm" variant={length(editor.period) === m ? 'default' : 'outline'} disabled={saving} onClick={() => void reshape({ operation: 'resize', period_id: editor.period.id, minutes: m })}>
-                                        {m}
-                                    </Button>
-                                ))}
-                            </span>
-                        </EngineField>
-                    </EngineRow>
-                    <p className="sis-timetable-sheet__hint">{d.moveHint}</p>
-                    <div className="sis-admission-sheet__actions">
-                        <Button type="button" variant="outline" disabled={saving} onClick={() => setEditor(null)}>
-                            {tt.cancelEdit}
-                        </Button>
-                        <Button type="button" disabled={saving} onClick={() => void reshape({ operation: 'move_break', period_id: editor.period.id, after_period_id: editor.after === '' ? null : Number(editor.after) })}>
-                            {d.move}
-                        </Button>
-                    </div>
-                </SheetSection>
+                <TimetableSubWindow title={`${d.move} — ${label(editor.period)}`} onClose={() => setEditor(null)}>
+                    <SheetSection id="timetable-day-move" title={`${d.move} — ${label(editor.period)}`}>
+                        <EngineRow>
+                            <EngineField label={d.position}>
+                                <EngineSelect value={editor.after} label={d.position} onChange={(v) => setEditor({ ...editor, after: v })} options={afterOptions.filter((o) => o.value !== String(editor.period.id))} />
+                            </EngineField>
+                            <EngineField label={d.minutes}>
+                                <span className="sis-timetable-audit__bar">
+                                    {[5, 10, 15, 20, 30].map((m) => (
+                                        <Button key={m} type="button" size="sm" variant={length(editor.period) === m ? 'default' : 'outline'} disabled={saving} onClick={() => void reshape({ operation: 'resize', period_id: editor.period.id, minutes: m })}>
+                                            {m}
+                                        </Button>
+                                    ))}
+                                </span>
+                            </EngineField>
+                        </EngineRow>
+                        <p className="sis-timetable-sheet__hint">{d.moveHint}</p>
+                        <div className="sis-admission-sheet__actions">
+                            <Button type="button" variant="outline" disabled={saving} onClick={() => setEditor(null)}>
+                                {tt.cancelEdit}
+                            </Button>
+                            <Button type="button" disabled={saving} onClick={() => void reshape({ operation: 'move_break', period_id: editor.period.id, after_period_id: editor.after === '' ? null : Number(editor.after) })}>
+                                {d.move}
+                            </Button>
+                        </div>
+                    </SheetSection>
+                </TimetableSubWindow>
             ) : null}
 
             <div className="sis-admission-sheet__actions">

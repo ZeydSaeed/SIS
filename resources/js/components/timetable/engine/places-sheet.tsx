@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import type { EngineContext } from './engine-context';
 import type { EnginePlaceRoom, EnginePlaceWorkshop } from './engine-types';
-import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineConfirm, useEngineRequest, engineSheetClass } from './engine-ui';
+import { EngineField, EngineNumber, EngineRow, EngineSelect, toInt, useEngineConfirm, useEngineRequest, engineSheetClass, TimetableSubWindow } from './engine-ui';
 
 type RoomForm = { branch: string; code: string; name: string; capacity: string; type: string };
 type WorkshopForm = { code: string; name: string; capacity: string; safety: string; room: string };
@@ -115,33 +115,35 @@ export function PlacesSheet({ ctx, onClose }: { ctx: EngineContext; onClose: () 
                     </ul>
                 </SheetSection>
                 {room !== null && ctx.can.manage ? (
-                    <SheetSection id="timetable-places-room-form" title={room.id === null ? e.newRoom : e.editRoom}>
-                        <EngineRow two>
-                            <EngineField label={e.placeBranch}>
-                                <EngineSelect value={room.form.branch} label={e.placeBranch} onChange={(v) => setRoom({ ...room, form: { ...room.form, branch: v } })} options={ctx.branches.map((b) => ({ value: String(b.id), label: b.name }))} />
-                            </EngineField>
-                            <EngineField label={e.placeCode}>
-                                <input className="sis-admission-sheet__control" dir="ltr" value={room.form.code} maxLength={30} disabled={room.id !== null} onChange={(ev) => setRoom({ ...room, form: { ...room.form, code: ev.target.value } })} />
-                            </EngineField>
-                            <EngineField label={e.placeName}>
-                                <input className="sis-admission-sheet__control" value={room.form.name} maxLength={150} onChange={(ev) => setRoom({ ...room, form: { ...room.form, name: ev.target.value } })} />
-                            </EngineField>
-                            <EngineField label={e.roomType}>
-                                <EngineSelect value={room.form.type} label={e.roomType} onChange={(v) => setRoom({ ...room, form: { ...room.form, type: v } })} options={[1, 2].map((n) => ({ value: String(n), label: typeName(n) }))} />
-                            </EngineField>
-                            <EngineField label={e.capacity}>
-                                <EngineNumber value={room.form.capacity} onChange={(v) => setRoom({ ...room, form: { ...room.form, capacity: v } })} min={1} max={500} label={e.capacity} />
-                            </EngineField>
-                        </EngineRow>
-                        <div className="sis-admission-sheet__actions">
-                            <Button type="button" disabled={saving || room.form.name.trim() === '' || (room.id === null && (room.form.code.trim() === '' || room.form.branch === ''))} onClick={() => void saveRoom()}>
-                                {saving ? i18n.common.saving : e.save}
-                            </Button>
-                            <Button type="button" variant="outline" onClick={() => setRoom(null)}>
-                                {i18n.timetable.cancelEdit}
-                            </Button>
-                        </div>
-                    </SheetSection>
+                    <TimetableSubWindow title={room.id === null ? e.newRoom : e.editRoom} onClose={() => setRoom(null)}>
+                        <SheetSection id="timetable-places-room-form" title={room.id === null ? e.newRoom : e.editRoom}>
+                            <EngineRow two>
+                                <EngineField label={e.placeBranch}>
+                                    <EngineSelect value={room.form.branch} label={e.placeBranch} onChange={(v) => setRoom({ ...room, form: { ...room.form, branch: v } })} options={ctx.branches.map((b) => ({ value: String(b.id), label: b.name }))} />
+                                </EngineField>
+                                <EngineField label={e.placeCode}>
+                                    <input className="sis-admission-sheet__control" dir="ltr" value={room.form.code} maxLength={30} disabled={room.id !== null} onChange={(ev) => setRoom({ ...room, form: { ...room.form, code: ev.target.value } })} />
+                                </EngineField>
+                                <EngineField label={e.placeName}>
+                                    <input className="sis-admission-sheet__control" value={room.form.name} maxLength={150} onChange={(ev) => setRoom({ ...room, form: { ...room.form, name: ev.target.value } })} />
+                                </EngineField>
+                                <EngineField label={e.roomType}>
+                                    <EngineSelect value={room.form.type} label={e.roomType} onChange={(v) => setRoom({ ...room, form: { ...room.form, type: v } })} options={[1, 2].map((n) => ({ value: String(n), label: typeName(n) }))} />
+                                </EngineField>
+                                <EngineField label={e.capacity}>
+                                    <EngineNumber value={room.form.capacity} onChange={(v) => setRoom({ ...room, form: { ...room.form, capacity: v } })} min={1} max={500} label={e.capacity} />
+                                </EngineField>
+                            </EngineRow>
+                            <div className="sis-admission-sheet__actions">
+                                <Button type="button" disabled={saving || room.form.name.trim() === '' || (room.id === null && (room.form.code.trim() === '' || room.form.branch === ''))} onClick={() => void saveRoom()}>
+                                    {saving ? i18n.common.saving : e.save}
+                                </Button>
+                                <Button type="button" variant="outline" onClick={() => setRoom(null)}>
+                                    {i18n.timetable.cancelEdit}
+                                </Button>
+                            </div>
+                        </SheetSection>
+                    </TimetableSubWindow>
                 ) : null}
                 <SheetSection id="timetable-places-workshops" title={`${e.placesWorkshops} (${places.workshops.length})`}>
                     {ctx.can.manage ? (
@@ -171,34 +173,36 @@ export function PlacesSheet({ ctx, onClose }: { ctx: EngineContext; onClose: () 
                     </ul>
                 </SheetSection>
                 {workshop !== null && ctx.can.manage ? (
-                    <SheetSection id="timetable-places-workshop-form" title={workshop.id === null ? e.newWorkshop : e.editWorkshop}>
-                        <EngineRow two>
-                            <EngineField label={e.placeCode}>
-                                <input className="sis-admission-sheet__control" dir="ltr" value={workshop.form.code} maxLength={30} disabled={workshop.id !== null} onChange={(ev) => setWorkshop({ ...workshop, form: { ...workshop.form, code: ev.target.value } })} />
-                            </EngineField>
-                            <EngineField label={e.placeName}>
-                                <input className="sis-admission-sheet__control" value={workshop.form.name} maxLength={150} onChange={(ev) => setWorkshop({ ...workshop, form: { ...workshop.form, name: ev.target.value } })} />
-                            </EngineField>
-                            <EngineField label={e.capacity}>
-                                <EngineNumber value={workshop.form.capacity} onChange={(v) => setWorkshop({ ...workshop, form: { ...workshop.form, capacity: v } })} min={1} max={500} label={e.capacity} />
-                            </EngineField>
-                            <EngineField label={e.safetyCapacity}>
-                                <EngineNumber value={workshop.form.safety} onChange={(v) => setWorkshop({ ...workshop, form: { ...workshop.form, safety: v } })} min={1} max={500} label={e.safetyCapacity} />
-                            </EngineField>
-                            <EngineField label={e.room}>
-                                <EngineSelect value={workshop.form.room} label={e.room} includeBlank onChange={(v) => setWorkshop({ ...workshop, form: { ...workshop.form, room: v } })} options={places.rooms.filter((r) => r.status === IN_SERVICE).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` }))} />
-                            </EngineField>
-                        </EngineRow>
-                        <p className="sis-timetable-sheet__hint">{e.safetyHint}</p>
-                        <div className="sis-admission-sheet__actions">
-                            <Button type="button" disabled={saving || workshop.form.name.trim() === '' || (workshop.id === null && workshop.form.code.trim() === '')} onClick={() => void saveWorkshop()}>
-                                {saving ? i18n.common.saving : e.save}
-                            </Button>
-                            <Button type="button" variant="outline" onClick={() => setWorkshop(null)}>
-                                {i18n.timetable.cancelEdit}
-                            </Button>
-                        </div>
-                    </SheetSection>
+                    <TimetableSubWindow title={workshop.id === null ? e.newWorkshop : e.editWorkshop} onClose={() => setWorkshop(null)}>
+                        <SheetSection id="timetable-places-workshop-form" title={workshop.id === null ? e.newWorkshop : e.editWorkshop}>
+                            <EngineRow two>
+                                <EngineField label={e.placeCode}>
+                                    <input className="sis-admission-sheet__control" dir="ltr" value={workshop.form.code} maxLength={30} disabled={workshop.id !== null} onChange={(ev) => setWorkshop({ ...workshop, form: { ...workshop.form, code: ev.target.value } })} />
+                                </EngineField>
+                                <EngineField label={e.placeName}>
+                                    <input className="sis-admission-sheet__control" value={workshop.form.name} maxLength={150} onChange={(ev) => setWorkshop({ ...workshop, form: { ...workshop.form, name: ev.target.value } })} />
+                                </EngineField>
+                                <EngineField label={e.capacity}>
+                                    <EngineNumber value={workshop.form.capacity} onChange={(v) => setWorkshop({ ...workshop, form: { ...workshop.form, capacity: v } })} min={1} max={500} label={e.capacity} />
+                                </EngineField>
+                                <EngineField label={e.safetyCapacity}>
+                                    <EngineNumber value={workshop.form.safety} onChange={(v) => setWorkshop({ ...workshop, form: { ...workshop.form, safety: v } })} min={1} max={500} label={e.safetyCapacity} />
+                                </EngineField>
+                                <EngineField label={e.room}>
+                                    <EngineSelect value={workshop.form.room} label={e.room} includeBlank onChange={(v) => setWorkshop({ ...workshop, form: { ...workshop.form, room: v } })} options={places.rooms.filter((r) => r.status === IN_SERVICE).map((r) => ({ value: String(r.id), label: `${r.code} — ${r.name}` }))} />
+                                </EngineField>
+                            </EngineRow>
+                            <p className="sis-timetable-sheet__hint">{e.safetyHint}</p>
+                            <div className="sis-admission-sheet__actions">
+                                <Button type="button" disabled={saving || workshop.form.name.trim() === '' || (workshop.id === null && workshop.form.code.trim() === '')} onClick={() => void saveWorkshop()}>
+                                    {saving ? i18n.common.saving : e.save}
+                                </Button>
+                                <Button type="button" variant="outline" onClick={() => setWorkshop(null)}>
+                                    {i18n.timetable.cancelEdit}
+                                </Button>
+                            </div>
+                        </SheetSection>
+                    </TimetableSubWindow>
                 ) : null}
             </div>
             <div className="sis-admission-sheet__actions">

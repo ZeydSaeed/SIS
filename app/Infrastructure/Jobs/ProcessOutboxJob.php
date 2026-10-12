@@ -2,9 +2,11 @@
 
 namespace App\Infrastructure\Jobs;
 
+use App\Domain\Attendance\Events\AttendanceWorkflowEvent;
 use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
 use App\Domain\Enrollment\Events\StudentEnrolled;
+use App\Infrastructure\Events\AttendanceWorkflowBridgeEvent;
 use App\Infrastructure\Events\EnrollmentCancelledBridgeEvent;
 use App\Infrastructure\Events\EnrollmentPlacementUpdatedBridgeEvent;
 use App\Infrastructure\Events\StudentEnrolledBridgeEvent;
@@ -41,6 +43,10 @@ final class ProcessOutboxJob implements ShouldQueue
 
                 if ($event instanceof EnrollmentPlacementUpdated) {
                     Event::dispatch(new EnrollmentPlacementUpdatedBridgeEvent($event));
+                }
+
+                if ($event instanceof AttendanceWorkflowEvent) {
+                    Event::dispatch(new AttendanceWorkflowBridgeEvent($event));
                 }
 
                 $outbox->markProcessed((int) $message->id);

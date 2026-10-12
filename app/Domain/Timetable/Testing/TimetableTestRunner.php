@@ -40,6 +40,7 @@ final class TimetableTestRunner
     /** Auditor issue → [severity, category]. */
     private const AUDITOR = [
         'teacher_double_booked' => [TestIssue::ERROR, 'teachers'],
+        'teacher_busy_other_school' => [TestIssue::ERROR, 'teachers'],
         'section_double_booked' => [TestIssue::ERROR, 'sections'],
         'teacher_inactive' => [TestIssue::ERROR, 'teachers'],
         'teacher_not_assigned' => [TestIssue::ERROR, 'teachers'],

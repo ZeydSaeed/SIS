@@ -70,6 +70,24 @@ final class Permission
 
     public const ATTENDANCE_SESSION_CANCEL = 'attendance.session.cancel';
 
+    public const ATTENDANCE_SHEET_SUBMIT = 'attendance.sheet.submit';
+
+    public const ATTENDANCE_SHEET_REVIEW = 'attendance.sheet.review';
+
+    public const ATTENDANCE_EXCUSE_SUBMIT = 'attendance.excuse.submit';
+
+    public const ATTENDANCE_EXCUSE_REVIEW = 'attendance.excuse.review';
+
+    public const ATTENDANCE_STAFF_RECORD = 'attendance.staff.record';
+
+    public const ATTENDANCE_STAFF_CHECKIN = 'attendance.staff.checkin';
+
+    public const ATTENDANCE_REPORTS_VIEW = 'attendance.reports.view';
+
+    public const ATTENDANCE_ALERTS_MANAGE = 'attendance.alerts.manage';
+
+    public const ATTENDANCE_POLICY_MANAGE = 'attendance.policy.manage';
+
     public const TIMETABLE_SCHEDULE_CREATE = 'timetable.schedule.create';
 
     public const TIMETABLE_VIEW = 'timetable.view';
@@ -200,6 +218,15 @@ final class Permission
             self::ATTENDANCE_CORRECT,
             self::ATTENDANCE_SESSION_CLOSE,
             self::ATTENDANCE_SESSION_CANCEL,
+            self::ATTENDANCE_SHEET_SUBMIT,
+            self::ATTENDANCE_SHEET_REVIEW,
+            self::ATTENDANCE_EXCUSE_SUBMIT,
+            self::ATTENDANCE_EXCUSE_REVIEW,
+            self::ATTENDANCE_STAFF_RECORD,
+            self::ATTENDANCE_STAFF_CHECKIN,
+            self::ATTENDANCE_REPORTS_VIEW,
+            self::ATTENDANCE_ALERTS_MANAGE,
+            self::ATTENDANCE_POLICY_MANAGE,
             self::TIMETABLE_SCHEDULE_CREATE,
             self::TIMETABLE_VIEW,
             self::TIMETABLE_SCHEDULE_UPDATE,

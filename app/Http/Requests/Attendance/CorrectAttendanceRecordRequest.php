@@ -28,7 +28,7 @@ class CorrectAttendanceRecordRequest extends FormRequest
     {
         return array_merge([
             'academic_year_id' => ['required', 'integer', 'min:1'],
-            'new_status' => ['required', 'integer', 'in:1,2,3'],
+            'new_status' => ['required', 'integer', 'in:1,2,3,4,5'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
             'enrollment_id' => ['prohibited'],

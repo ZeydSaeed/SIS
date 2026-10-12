@@ -7,6 +7,7 @@ use App\Application\Contracts\CommandHandler;
 use App\Application\Contracts\IdempotencyStore;
 use App\Application\Contracts\UnitOfWork;
 use App\Application\Enrollment\Results\CreateSectionResult;
+use App\Application\Enrollment\Services\ApplyStructureStatusChange;
 use App\Domain\Enrollment\Contracts\HomeroomTeacherPort;
 use App\Domain\Enrollment\Repositories\EnrollmentStructureRepositoryInterface;
 use App\Domain\Enrollment\Services\EnrollmentStructureGuard;
@@ -23,6 +24,7 @@ final class CreateSectionHandler implements CommandHandler
         private readonly EnrollmentStructureGuard $guard,
         private readonly HomeroomTeacherPort $homeroomTeachers,
         private readonly IdempotencyStore $idempotency,
+        private readonly ApplyStructureStatusChange $statusChange,
     ) {}
 
     public function handle(Command $command): CreateSectionResult
@@ -67,6 +69,7 @@ final class CreateSectionHandler implements CommandHandler
                 $command->homeroomTeacherId,
                 $at,
             );
+            $this->statusChange->forSection($command->schoolId, $id, $command->classId, EnrollmentStructureStatus::Active->value, $command->status, $at);
             $this->idempotency->store($key, self::COMMAND_NAME, ['section_id' => $id]);
 
             return $id;

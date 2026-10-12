@@ -141,7 +141,7 @@ function ImportsPage({ kinds, batches, batch, rows, filters }: Props) {
     return (
         <>
             <Head title={x.title} />
-            <div className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-auto pb-4" dir="rtl" lang="ar">
+            <div className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-imports-page flex h-full min-h-0 flex-col overflow-hidden pb-4" dir="rtl" lang="ar">
                 <div className="sis-admission-page-body">
                     {kinds.length === 0 ? <p className="sis-branches-page__notice">{x.noAccess}</p> : null}
                     {current !== null ? (

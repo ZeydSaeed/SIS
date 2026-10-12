@@ -2,7 +2,14 @@
 
 use App\Http\Controllers\Admission\AdmissionPageController;
 use App\Http\Controllers\Admission\ApplicationTransferPageController;
+use App\Http\Controllers\Attendance\AttendanceAlertController;
+use App\Http\Controllers\Attendance\AttendanceExcuseController;
 use App\Http\Controllers\Attendance\AttendancePageController;
+use App\Http\Controllers\Attendance\AttendancePolicyController;
+use App\Http\Controllers\Attendance\AttendanceReportController;
+use App\Http\Controllers\Attendance\AttendanceReviewController;
+use App\Http\Controllers\Attendance\AttendanceSheetController;
+use App\Http\Controllers\Attendance\StaffAttendanceController;
 use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\ClassSectionPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
@@ -177,6 +184,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::prefix('attendance')->name('attendance.')->middleware('require.school.context')->group(function (): void {
+        // Attendance & absence management (teacher day → sheet → review), staff, excuses, reports, alerts, policy.
+        Route::get('/my', [AttendanceSheetController::class, 'myDay'])->name('my');
+        Route::post('/lessons/open', [AttendanceSheetController::class, 'openLesson'])->name('lessons.open');
+        Route::post('/lessons/exceptional', [AttendanceSheetController::class, 'openExceptional'])->name('lessons.exceptional');
+        Route::get('/sheets/{session}', [AttendanceSheetController::class, 'show'])->whereNumber('session')->name('sheets.show');
+        Route::post('/sheets/{session}/draft', [AttendanceSheetController::class, 'saveDraft'])->whereNumber('session')->name('sheets.draft');
+        Route::post('/sheets/{session}/submit', [AttendanceSheetController::class, 'submit'])->whereNumber('session')->name('sheets.submit');
+        Route::post('/sheets/{session}/review', [AttendanceSheetController::class, 'review'])->whereNumber('session')->name('sheets.review');
+        Route::post('/sheets/{session}/students/{student}/correct', [AttendanceSheetController::class, 'correct'])
+            ->whereNumber(['session', 'student'])->name('sheets.correct');
+        Route::get('/review', [AttendanceReviewController::class, 'index'])->name('review');
+        Route::post('/review/bulk-approve', [AttendanceReviewController::class, 'bulkApprove'])->name('review.bulk-approve');
+        Route::get('/dashboard', [AttendanceReviewController::class, 'dashboard'])->name('dashboard');
+        Route::get('/excuses', [AttendanceExcuseController::class, 'index'])->name('excuses.index');
+        Route::post('/excuses', [AttendanceExcuseController::class, 'store'])->name('excuses.store');
+        Route::post('/excuses/{excuse}/decide', [AttendanceExcuseController::class, 'decide'])->whereNumber('excuse')->name('excuses.decide');
+        Route::get('/staff', [StaffAttendanceController::class, 'index'])->name('staff.index');
+        Route::post('/staff', [StaffAttendanceController::class, 'store'])->name('staff.store');
+        Route::post('/staff/check-in', [StaffAttendanceController::class, 'checkIn'])->middleware('throttle:10,1')->name('staff.check-in');
+        Route::post('/staff/codes', [StaffAttendanceController::class, 'issueCode'])->middleware('throttle:20,1')->name('staff.codes');
+        Route::post('/staff/nfc-token', [StaffAttendanceController::class, 'issueNfcToken'])->middleware('throttle:10,1')->name('staff.nfc-token');
+        Route::post('/staff/teachers/{teacher}/account', [StaffAttendanceController::class, 'linkAccount'])->whereNumber('teacher')->name('staff.teacher-account');
+        Route::get('/reports', [AttendanceReportController::class, 'index'])->name('reports');
+        Route::get('/reports/export', [AttendanceReportController::class, 'export'])->middleware('throttle:20,1')->name('reports.export');
+        Route::post('/reports/exports', [AttendanceReportController::class, 'requestExport'])->middleware('throttle:10,1')->name('reports.exports.store');
+        Route::get('/reports/exports/{export}/download', [AttendanceReportController::class, 'download'])->whereNumber('export')->name('reports.exports.download');
+        Route::get('/alerts', [AttendanceAlertController::class, 'index'])->name('alerts.index');
+        Route::post('/alerts/detect', [AttendanceAlertController::class, 'detect'])->middleware('throttle:6,1')->name('alerts.detect');
+        Route::post('/alerts/{alert}', [AttendanceAlertController::class, 'update'])->whereNumber('alert')->name('alerts.update');
+        Route::get('/settings', [AttendancePolicyController::class, 'edit'])->name('settings');
+        Route::post('/settings', [AttendancePolicyController::class, 'update'])->name('settings.update');
+
         Route::get('/', [AttendancePageController::class, 'index'])->name('index');
         Route::get('/create', [AttendancePageController::class, 'create'])->name('create');
         Route::post('/', [AttendancePageController::class, 'store'])->name('store');

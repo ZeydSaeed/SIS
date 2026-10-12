@@ -13,5 +13,7 @@ final readonly class CreateClassCommand implements Command
         public string $name,
         public ?int $capacity,
         public ?string $idempotencyKey,
+        /** «الحالة» from the form: 1 نشط · 2 غير نشط; null keeps it (new rows start active). */
+        public ?int $status = null,
     ) {}
 }

@@ -14,6 +14,7 @@ final readonly class AttendanceSessionSnapshot
         public int $teacherId,
         public int $status,
         public ?int $resolvedSchoolId = null,
+        public int $sheetStatus = 1,
     ) {}
 
     public function statusValue(): int

@@ -8,6 +8,7 @@ use App\Security\Authorization\EnrollmentSchoolAccessService;
 use App\Security\Authorization\Permission;
 use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
 
 /** «الصفوف والشعب» — create (POST, academic_year_id required) or edit (PATCH) a class. */
 class SaveClassRequest extends FormRequest
@@ -35,7 +36,10 @@ class SaveClassRequest extends FormRequest
             'capacity' => ['nullable', 'integer', 'min:1', 'max:'.EnrollmentStructureGuard::MAX_CAPACITY],
             'school_id' => ['prohibited'],
             'code' => ['prohibited'],
-            'status' => ['prohibited'],
-        ], SecuritySensitiveFieldGuard::prohibitedRules());
+            'status' => ['sometimes', 'integer', 'in:1,2'],
+        ],
+            // «الحالة» (نشط / غير نشط) is part of this form (in:1,2 above) — every other sensitive field stays prohibited.
+            Arr::except(SecuritySensitiveFieldGuard::prohibitedRules(), ['status']),
+        );
     }
 }

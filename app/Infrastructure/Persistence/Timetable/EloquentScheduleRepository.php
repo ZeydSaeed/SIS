@@ -11,6 +11,7 @@ use App\Domain\Timetable\Exceptions\ScheduleNotFoundException;
 use App\Domain\Timetable\Exceptions\ScheduleSlotConflictException;
 use App\Domain\Timetable\Exceptions\ScheduleValidationException;
 use App\Domain\Timetable\Repositories\ScheduleRepositoryInterface;
+use App\Domain\Timetable\Repositories\TeacherElsewhereRepositoryInterface;
 use App\Domain\Timetable\ValueObjects\PeriodType;
 use App\Domain\Timetable\ValueObjects\ScheduleLifecycleStatus;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -18,6 +19,12 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentScheduleRepository implements ScheduleRepositoryInterface
 {
+    private const UNAVAILABLE = 1;
+
+    public function __construct(
+        private readonly TeacherElsewhereRepositoryInterface $elsewhere,
+    ) {}
+
     public function assertWritableRefs(PersistScheduleData $data): void
     {
         if ($data->dayOfWeek < 1 || $data->dayOfWeek > 7) {
@@ -88,8 +95,10 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
 
     /**
      * The slot must be free for the lesson's section (another group of the same division may share it),
-     * its teacher and co-teacher (lead or co elsewhere; joined-class rows count once, on the lead row) and its
-     * room — in the weeks the lessons meet (a lesson every week meets every week).
+     * its teacher and co-teacher (lead or co elsewhere; joined-class rows count once, on the lead row), its
+     * room and its workshop — in the weeks the lessons meet (a lesson every week meets every week). A lesson
+     * held in a workshop occupies the workshop and the room the workshop sits in; a lesson placed in that room
+     * directly clashes with it too.
      */
     public function assertNoActiveSlotConflicts(PersistScheduleData $data, ?int $excludeScheduleId = null): void
     {
@@ -122,8 +131,185 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             throw ScheduleSlotConflictException::forTeacher();
         }
 
-        if ($data->roomId !== null && (clone $leadRows)->where('room_id', $data->roomId)->exists()) {
+        $workshop = $this->workshopOfActivity($data->schoolId, $data->activityId);
+        $rooms = array_values(array_unique(array_filter([$data->roomId, $workshop['room_id'] ?? null], static fn (?int $id): bool => $id !== null)));
+        $activities = SchemaHelper::qualified('timetable', 'activities');
+        $workshops = SchemaHelper::qualified('vocational', 'workshops');
+
+        if ($rooms !== [] && (clone $leadRows)->where(static function ($q) use ($rooms, $activities, $workshops): void {
+            $q->whereIn('room_id', $rooms)
+                ->orWhereIn('activity_id', static fn ($sub) => $sub->select('a.id')->from($activities.' as a')
+                    ->join($workshops.' as w', 'w.id', '=', 'a.workshop_id')
+                    ->whereIn('w.room_id', $rooms));
+        })->exists()) {
             throw ScheduleSlotConflictException::forRoom();
+        }
+
+        if ($workshop !== null && (clone $leadRows)->whereIn('activity_id', static fn ($sub) => $sub->select('id')->from($activities)
+            ->where('workshop_id', $workshop['id']))->exists()) {
+            throw ScheduleSlotConflictException::forWorkshop();
+        }
+
+        $this->assertNotMarkedUnavailable($data, $teachers, $rooms, $workshop['id'] ?? null);
+        $this->assertTeachersFreeElsewhere($data->schoolId, $data->academicYearId, [[
+            'teachers' => $teachers, 'day' => $data->dayOfWeek, 'period_id' => $data->periodId, 'week_no' => $data->weekNo,
+        ]]);
+    }
+
+    /**
+     * «غير متاح» (timetable.availability kind 1) is a hard stop for a placed lesson too, not only for the engine:
+     * the teacher / co-teacher, the room (or the workshop's room), the workshop and the section.
+     *
+     * @param  list<int>  $teachers
+     * @param  list<int>  $rooms
+     */
+    private function assertNotMarkedUnavailable(PersistScheduleData $data, array $teachers, array $rooms, ?int $workshopId): void
+    {
+        $marks = DB::table(SchemaHelper::qualified('timetable', 'availability'))
+            ->where('school_id', $data->schoolId)
+            ->where('academic_year_id', $data->academicYearId)
+            ->where('status', 1)
+            ->where('kind', self::UNAVAILABLE)
+            ->where('day_of_week', $data->dayOfWeek)
+            ->where('period_id', $data->periodId);
+        if ($data->weekNo !== null) {
+            $marks->where(static fn ($q) => $q->whereNull('week_no')->orWhere('week_no', $data->weekNo));
+        }
+        $checks = [
+            'teacher' => static fn ($q) => $q->whereIn('teacher_id', $teachers),
+            'room' => static fn ($q) => $q->whereIn('room_id', $rooms === [] ? [0] : $rooms),
+            'workshop' => static fn ($q) => $q->where('workshop_id', $workshopId ?? 0),
+            'section' => static fn ($q) => $q->where('section_id', $data->sectionId),
+        ];
+        foreach ($checks as $target => $where) {
+            if ((clone $marks)->where($where)->exists()) {
+                throw ScheduleSlotConflictException::unavailable($target);
+            }
+        }
+    }
+
+    /**
+     * A teacher shared with another school may not be placed while teaching there: the other school's lessons
+     * (lead or co, same year, weeks that meet) whose clock times overlap this period.
+     *
+     * @param  list<array{teachers: list<int>, day: int, period_id: int, week_no: int|null}>  $lessons
+     */
+    private function assertTeachersFreeElsewhere(int $schoolId, int $academicYearId, array $lessons): void
+    {
+        $teacherIds = array_values(array_unique(array_merge(...array_map(static fn (array $l): array => $l['teachers'], $lessons))));
+        $busy = $this->elsewhere->busyElsewhere($schoolId, $academicYearId, $teacherIds);
+        if ($busy === []) {
+            return;
+        }
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $schoolId]);
+        $times = [];
+        foreach (DB::table(SchemaHelper::qualified('timetable', 'periods'))->where('school_id', $schoolId)->get(['id', 'start_time', 'end_time']) as $p) {
+            $times[(int) $p->id] = [substr((string) $p->start_time, 0, 5), substr((string) $p->end_time, 0, 5)];
+        }
+        foreach ($lessons as $lesson) {
+            [$start, $end] = $times[$lesson['period_id']] ?? [null, null];
+            if ($start === null) {
+                continue;
+            }
+            foreach ($busy as $b) {
+                if (in_array($b['teacher_id'], $lesson['teachers'], true)
+                    && $b['day'] === $lesson['day']
+                    && ($b['week_no'] === null || $lesson['week_no'] === null || $b['week_no'] === $lesson['week_no'])
+                    && $b['start'] < $end && $start < $b['end']) {
+                    throw ScheduleSlotConflictException::forTeacherElsewhere();
+                }
+            }
+        }
+    }
+
+    /** @return array{id: int, room_id: int|null}|null the workshop an activity is held in */
+    private function workshopOfActivity(int $schoolId, ?int $activityId): ?array
+    {
+        if ($activityId === null) {
+            return null;
+        }
+        $row = DB::table(SchemaHelper::qualified('timetable', 'activities').' as a')
+            ->join(SchemaHelper::qualified('vocational', 'workshops').' as w', 'w.id', '=', 'a.workshop_id')
+            ->where('a.id', $activityId)
+            ->where('a.school_id', $schoolId)
+            ->first(['w.id', 'w.room_id']);
+
+        return $row === null ? null : ['id' => (int) $row->id, 'room_id' => $row->room_id !== null ? (int) $row->room_id : null];
+    }
+
+    /**
+     * Bulk writes (apply a generation run, restore a version) are checked as a whole once inserted: none of the
+     * new lead lessons may share a slot and week with another active lesson of the same teacher (lead or co),
+     * room (direct or the workshop's room), workshop, or section (except different groups of one division).
+     * The unique indexes only cover part of this (one column each); any clash rolls the transaction back.
+     *
+     * @param  list<int>  $ids  the inserted lead lessons
+     */
+    private function assertNoClashesAmong(int $schoolId, int $academicYearId, array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+        $schedules = SchemaHelper::qualified('timetable', 'schedules');
+        $activities = SchemaHelper::qualified('timetable', 'activities');
+        $workshops = SchemaHelper::qualified('vocational', 'workshops');
+        $groups = SchemaHelper::qualified('timetable', 'division_groups');
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $active = 's.school_id = ? AND s.academic_year_id = ? AND s.cancelled_at IS NULL';
+        $weeksMeet = '(a.week_no IS NULL OR b.week_no IS NULL OR a.week_no = b.week_no)';
+        $sameSlot = 'a.day_of_week = b.day_of_week AND a.period_id = b.period_id AND a.id <> b.id';
+        $touchesNew = "(a.id IN ({$placeholders}) OR b.id IN ({$placeholders}))";
+        $bind = static fn (int $times): array => array_merge(...array_fill(0, $times, [$schoolId, $academicYearId]));
+
+        $checks = [
+            'teacher' => "
+                WITH busy AS (
+                    SELECT s.id, s.day_of_week, s.period_id, s.week_no, s.teacher_id AS who FROM {$schedules} s
+                    WHERE {$active} AND s.joined_to_schedule_id IS NULL
+                    UNION ALL
+                    SELECT s.id, s.day_of_week, s.period_id, s.week_no, s.co_teacher_id FROM {$schedules} s
+                    WHERE {$active} AND s.joined_to_schedule_id IS NULL AND s.co_teacher_id IS NOT NULL
+                )
+                SELECT 1 FROM busy a JOIN busy b ON a.who = b.who AND {$sameSlot} AND {$weeksMeet} WHERE {$touchesNew} LIMIT 1",
+            'room' => "
+                WITH used AS (
+                    SELECT s.id, s.day_of_week, s.period_id, s.week_no, s.room_id AS place FROM {$schedules} s
+                    WHERE {$active} AND s.joined_to_schedule_id IS NULL AND s.room_id IS NOT NULL
+                    UNION
+                    SELECT s.id, s.day_of_week, s.period_id, s.week_no, w.room_id FROM {$schedules} s
+                    JOIN {$activities} ac ON ac.id = s.activity_id JOIN {$workshops} w ON w.id = ac.workshop_id
+                    WHERE {$active} AND s.joined_to_schedule_id IS NULL AND w.room_id IS NOT NULL
+                )
+                SELECT 1 FROM used a JOIN used b ON a.place = b.place AND {$sameSlot} AND {$weeksMeet} WHERE {$touchesNew} LIMIT 1",
+            'workshop' => "
+                WITH used AS (
+                    SELECT s.id, s.day_of_week, s.period_id, s.week_no, ac.workshop_id AS place FROM {$schedules} s
+                    JOIN {$activities} ac ON ac.id = s.activity_id
+                    WHERE {$active} AND s.joined_to_schedule_id IS NULL AND ac.workshop_id IS NOT NULL
+                )
+                SELECT 1 FROM used a JOIN used b ON a.place = b.place AND {$sameSlot} AND {$weeksMeet} WHERE {$touchesNew} LIMIT 1",
+            'section' => "
+                WITH lanes AS (
+                    SELECT s.id, s.section_id, s.day_of_week, s.period_id, s.week_no, s.group_id, g.division_id FROM {$schedules} s
+                    LEFT JOIN {$groups} g ON g.id = s.group_id
+                    WHERE {$active}
+                )
+                SELECT 1 FROM lanes a JOIN lanes b ON a.section_id = b.section_id AND {$sameSlot} AND {$weeksMeet}
+                WHERE {$touchesNew}
+                  AND NOT (a.group_id IS NOT NULL AND b.group_id IS NOT NULL AND a.group_id <> b.group_id AND a.division_id = b.division_id)
+                LIMIT 1",
+        ];
+        $unions = ['teacher' => 2, 'room' => 2, 'workshop' => 1, 'section' => 1];
+
+        foreach ($checks as $kind => $sql) {
+            if (DB::selectOne($sql, [...$bind($unions[$kind]), ...$ids, ...$ids]) !== null) {
+                throw match ($kind) {
+                    'teacher' => ScheduleSlotConflictException::forTeacher(),
+                    'room' => ScheduleSlotConflictException::forRoom(),
+                    'workshop' => ScheduleSlotConflictException::forWorkshop(),
+                    default => ScheduleSlotConflictException::forSection(),
+                };
+            }
         }
     }
 
@@ -259,6 +445,11 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
         } catch (UniqueConstraintViolationException) {
             throw ScheduleSlotConflictException::fromDatabase();
         }
+        $this->assertNoClashesAmong($schoolId, $academicYearId, array_values($leadIds));
+        $this->assertTeachersFreeElsewhere($schoolId, $academicYearId, array_values(array_map(static fn (array $r): array => [
+            'teachers' => array_values(array_filter([$r['teacher_id'], $r['co_teacher_id']], static fn (?int $id): bool => $id !== null)),
+            'day' => $r['day_of_week'], 'period_id' => $r['period_id'], 'week_no' => $r['week_no'],
+        ], array_filter($rows, static fn (array $r): bool => $r['is_lead']))));
 
         return count($rows);
     }
@@ -396,6 +587,10 @@ final class EloquentScheduleRepository implements ScheduleRepositoryInterface
             at: $reactivatedAt,
             correlationId: null,
             createdBy: null,
+            groupId: $current->groupId,
+            weekNo: $current->weekNo,
+            coTeacherId: $current->coTeacherId,
+            activityId: $current->activityId,
         );
         $this->assertNoActiveSlotConflicts($probe, $scheduleId);
 

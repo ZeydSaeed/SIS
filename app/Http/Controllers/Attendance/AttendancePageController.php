@@ -10,14 +10,17 @@ use App\Application\Attendance\Commands\MarkSectionAttendanceCommand;
 use App\Application\Attendance\Commands\MarkSectionAttendanceHandler;
 use App\Application\Attendance\Queries\GetAttendanceSessionHandler;
 use App\Application\Attendance\Queries\GetAttendanceSessionQuery;
-use App\Application\Attendance\Queries\ListAttendanceSessionsHandler;
-use App\Application\Attendance\Queries\ListAttendanceSessionsQuery;
+use App\Application\Attendance\Contracts\AttendanceWorkspaceReadInterface;
+use App\Application\Attendance\Queries\ListAttendanceSheetsHandler;
+use App\Application\Attendance\Queries\ListAttendanceSheetsQuery;
 use App\Domain\Attendance\Exceptions\SessionNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\CloseAttendanceSessionRequest;
 use App\Http\Requests\Attendance\CreateAttendanceSessionRequest;
 use App\Http\Requests\Attendance\MarkSectionAttendanceWebRequest;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Http\Support\AttendanceFilterInput;
+use App\Http\Support\AttendanceRequestContext;
 use App\Infrastructure\Persistence\Eloquent\AttendanceSessionRecord;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -37,7 +40,7 @@ final class AttendancePageController extends Controller
         private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
-    public function index(Request $request, ListAttendanceSessionsHandler $handler): Response
+    public function index(Request $request, ListAttendanceSheetsHandler $handler, AttendanceRequestContext $attendanceContext, AttendanceWorkspaceReadInterface $read): Response
     {
         $this->authorize('viewAny', AttendanceSessionRecord::class);
 
@@ -50,25 +53,13 @@ final class AttendancePageController extends Controller
             : null;
         $academicYearId = $this->academicYears->resolve($requestedYear);
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', 25)), 100);
+        $perPage = (int) config('attendance.per_page.review', 25);
+        // «كل الجلسات»: every sheet status unless the user narrows it.
+        $filters = AttendanceFilterInput::board($request, []);
 
-        $sessions = [
-            'data' => [],
-            'meta' => ['page' => $page, 'per_page' => $perPage, 'total' => 0, 'last_page' => 1],
-        ];
-
+        $board = ['data' => [], 'meta' => ['page' => $page, 'per_page' => $perPage, 'total' => 0, 'last_page' => 1], 'totals' => [], 'missing' => [], 'single_day' => false];
         if ($academicYearId !== null) {
-            $result = $handler->handle(new ListAttendanceSessionsQuery(
-                schoolId: $schoolId,
-                academicYearId: $academicYearId,
-                sectionId: $request->filled('section_id') ? (int) $request->query('section_id') : null,
-                dateFrom: $request->query('date_from'),
-                dateTo: $request->query('date_to'),
-                status: $request->filled('status') ? (int) $request->query('status') : null,
-                page: $page,
-                perPage: $perPage,
-            ));
-            $sessions = $result->toArray();
+            $board = $handler->handle(new ListAttendanceSheetsQuery($schoolId, $academicYearId, $filters, $page, $perPage))->toArray();
         }
 
         $this->securityAudit->record(
@@ -81,12 +72,16 @@ final class AttendancePageController extends Controller
         );
 
         return Inertia::render('attendance/index', [
-            'sessions' => $sessions,
-            'filters' => [
+            'abilities' => $attendanceContext->abilities($request),
+            'board' => $board,
+            'sessions' => ['data' => $board['data'], 'meta' => $board['meta']],
+            'filters' => $filters + [
                 'academic_year_id' => $academicYearId,
                 'page' => $page,
                 'per_page' => $perPage,
             ],
+            'lookups' => $academicYearId !== null ? $read->lookups($schoolId, $academicYearId) : ['periods' => [], 'classes' => [], 'subjects' => [], 'teachers' => []],
+            'mode' => 'sessions',
         ]);
     }
 

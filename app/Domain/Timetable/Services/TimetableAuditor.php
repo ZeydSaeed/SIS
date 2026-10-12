@@ -60,6 +60,26 @@ final class TimetableAuditor
             }
         }
 
+        // A shared teacher teaching in another school at that time (the board's external «غير متاح» marks).
+        $elsewhere = [];
+        foreach ($board->availability as $a) {
+            if (($a['external'] ?? false) === true && $a['teacher_id'] !== null) {
+                $elsewhere[$a['teacher_id'].':'.$a['day'].':'.$a['period_id']][] = $a['week_no'];
+            }
+        }
+        if ($elsewhere !== []) {
+            foreach ($board->schedules as $s) {
+                foreach (TimetableBoard::busyTeachers($s) as $teacherId) {
+                    foreach ($elsewhere[$teacherId.':'.$s['day_of_week'].':'.$s['period_id']] ?? [] as $week) {
+                        if (TimetableBoard::weeksMeet($week, $s['week_no'] ?? null)) {
+                            $issues[] = self::issue('error', 'teacher_busy_other_school', ['teacher_id' => $teacherId] + $s);
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
         $bySectionSlot = [];
         foreach ($board->schedules as $s) {
             $bySectionSlot[$s['section_id'].':'.$s['day_of_week'].':'.$s['period_id']][] = $s;

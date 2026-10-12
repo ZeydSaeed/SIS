@@ -152,6 +152,7 @@ final class ClassSectionPageController extends Controller
             name: (string) $request->validated('name'),
             capacity: $this->nullableInt($request->validated('capacity')),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            status: $this->nullableInt($request->validated('status')),
         ));
 
         return $this->respond($request, $result, 'enrollment.web.class.store', 'class', 'flash.structure.classCreated');
@@ -166,6 +167,7 @@ final class ClassSectionPageController extends Controller
             name: (string) $request->validated('name'),
             capacity: $this->nullableInt($request->validated('capacity')),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            status: $this->nullableInt($request->validated('status')),
         ));
 
         return $this->respond($request, $result, 'enrollment.web.class.update', 'class', 'flash.structure.classUpdated');
@@ -202,6 +204,7 @@ final class ClassSectionPageController extends Controller
             capacity: $this->nullableInt($request->validated('capacity')),
             homeroomTeacherId: $this->nullableInt($request->validated('homeroom_teacher_id')),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            status: $this->nullableInt($request->validated('status')),
         ));
 
         return $this->respond($request, $result, 'enrollment.web.section.store', 'section', 'flash.structure.sectionCreated');
@@ -216,6 +219,7 @@ final class ClassSectionPageController extends Controller
             capacity: $this->nullableInt($request->validated('capacity')),
             homeroomTeacherId: $this->nullableInt($request->validated('homeroom_teacher_id')),
             idempotencyKey: $request->header('X-Idempotency-Key'),
+            status: $this->nullableInt($request->validated('status')),
         ));
 
         return $this->respond($request, $result, 'enrollment.web.section.update', 'section', 'flash.structure.sectionUpdated');

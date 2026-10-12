@@ -1,0 +1,696 @@
+import { router } from '@inertiajs/react';
+import {
+    CalendarDays,
+    CalendarPlus,
+    ChevronLeft,
+    ChevronRight,
+    DoorOpen,
+    Eye,
+    PlayCircle,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    AttendancePage,
+    AttendanceTable,
+    AttendanceWindow,
+    PageNotice,
+    WindowTextArea,
+    useAttendanceEditRibbon,
+    useAttendanceHomeFilters,
+    useYearFilterSpec,
+    visitWith,
+    type AttendanceColumn,
+} from '@/components/attendance/attendance-chrome';
+import {
+    StatusLabel,
+    countsText,
+    dateTime,
+    newKey,
+    sheetLabel,
+    sheetStatusMeta,
+    type AttendanceAbilities,
+    type StatusCounts,
+} from '@/components/attendance/attendance-ui';
+import {
+    RegistryListField,
+    RegistryTextField,
+} from '@/components/organization/registry-sheet';
+import type { ContextMenuItem } from '@/components/sis/context-menu';
+import { usePageError } from '@/components/sis/page-error-context';
+import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { dayOfWeekLabel } from '@/components/sis/status-chip';
+import { t } from '@/i18n';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
+
+type LessonSession = {
+    session_id: number;
+    sheet_status: number;
+    status: number;
+    version: number;
+    counts: StatusCounts;
+    submitted_at: string | null;
+    review_note: string | null;
+};
+
+type Lesson = {
+    schedule_id: number;
+    date: string;
+    period_number: number;
+    start_time: string;
+    end_time: string;
+    subject_name: string;
+    class_name: string;
+    section_name: string;
+    room_name: string | null;
+    group_name: string | null;
+    lesson_type: number;
+    substitute_teacher_id: number | null;
+    co_teacher_id: number | null;
+    window: string;
+    phase: 'upcoming' | 'running' | 'ended';
+    minutes_to_start: number;
+    minutes_to_end: number;
+    session: LessonSession | null;
+};
+
+type AdminNotice = {
+    session_id: number;
+    sheet_status: number;
+    review_note: string | null;
+    reviewed_at: string | null;
+    subject_name: string;
+    section_name: string;
+    class_name: string;
+    session_date: string;
+};
+
+type Lookups = {
+    periods: Array<{
+        id: number;
+        period_number: number;
+        start_time: string;
+        end_time: string;
+    }>;
+    classes: Array<{
+        id: number;
+        name: string;
+        sections: Array<{ id: number; name: string }>;
+    }>;
+    subjects: Array<{ id: number; name: string }>;
+    teachers: Array<{ id: number; full_name: string }>;
+};
+
+type Props = {
+    day: {
+        date: string;
+        today: string;
+        now: string;
+        weekday: number;
+        timezone: string;
+        holiday: boolean;
+        teacher: { id: number; full_name: string } | null;
+        lessons: Lesson[];
+        notices: AdminNotice[];
+    };
+    filters: { academic_year_id: number; teacher_id: number | null };
+    teachers: Array<{ id: number; full_name: string }>;
+    lookups: Lookups | null;
+    abilities: AttendanceAbilities;
+    linked: boolean;
+};
+
+type Exceptional = {
+    section_id: string;
+    subject_id: string;
+    teacher_id: string;
+    period_id: string;
+    reason: string;
+};
+
+function shiftDate(date: string, days: number): string {
+    const d = new Date(`${date}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+
+    return d.toISOString().slice(0, 10);
+}
+
+export default function AttendanceMyDay(props: Props) {
+    const a = t().attendanceSystem;
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: t().attendance.title, href: '/attendance' },
+        { title: a.myDay.title, href: '/attendance/my' },
+    ];
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <MyDayPage {...props} />
+        </AppLayout>
+    );
+}
+
+function MyDayPage({
+    day,
+    filters,
+    teachers,
+    lookups,
+    abilities,
+    linked,
+}: Props) {
+    const a = t().attendanceSystem;
+    const m = a.myDay;
+    const c = a.chrome;
+    const { showInertiaErrors } = usePageError();
+    const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [exceptional, setExceptional] = useState<Exceptional | null>(null);
+    const canWork =
+        abilities.submit_sheet &&
+        (linked || abilities.review_sheet) &&
+        !day.holiday;
+    const selected =
+        day.lessons.find((l) => l.schedule_id === selectedId) ?? null;
+
+    const go = (params: Record<string, unknown>) =>
+        visitWith('/attendance/my', {
+            date: day.date,
+            teacher_id: filters.teacher_id,
+            academic_year_id: filters.academic_year_id,
+            ...params,
+        });
+
+    const blocked = (l: Lesson) =>
+        l.session === null &&
+        (l.window === 'not_yet_open' || l.window === 'closed') &&
+        !abilities.review_sheet;
+    const openLesson = (l: Lesson) => {
+        if (l.session !== null) {
+            router.visit(`/attendance/sheets/${l.session.session_id}`);
+
+            return;
+        }
+        if (!canWork || blocked(l)) {
+            return;
+        }
+        setBusy(true);
+        router.post(
+            '/attendance/lessons/open',
+            { schedule_id: l.schedule_id, date: l.date },
+            {
+                headers: { 'X-Idempotency-Key': newKey('open') },
+                onError: (errors) => showInertiaErrors(errors),
+                onFinish: () => setBusy(false),
+            },
+        );
+    };
+
+    const saveExceptional = () => {
+        if (exceptional === null) return;
+        setBusy(true);
+        router.post(
+            '/attendance/lessons/exceptional',
+            {
+                date: day.date,
+                section_id: Number(exceptional.section_id),
+                subject_id: Number(exceptional.subject_id),
+                teacher_id: Number(exceptional.teacher_id),
+                period_id: Number(exceptional.period_id),
+                reason: exceptional.reason.trim(),
+            },
+            {
+                headers: { 'X-Idempotency-Key': newKey('exceptional') },
+                onError: (errors) => showInertiaErrors(errors),
+                onFinish: () => setBusy(false),
+            },
+        );
+    };
+
+    const timing = (l: Lesson): string => {
+        if (l.phase === 'upcoming' && day.date === day.today)
+            return m.startsIn.replace(':n', String(l.minutes_to_start));
+        if (l.phase === 'running')
+            return `${a.phase.running} · ${m.endsIn.replace(':n', String(l.minutes_to_end))}`;
+
+        return a.phase[l.phase] ?? '';
+    };
+
+    const editGroups = useMemo(
+        (): PageRibbonGroup[] => [
+            {
+                id: 'attendance-day-actions',
+                label: c.actions,
+                commands: [
+                    {
+                        id: 'attendance-day-open',
+                        label: selected?.session ? m.resume : m.open,
+                        icon: selected?.session ? PlayCircle : DoorOpen,
+                        iconTone: 'ok',
+                        title:
+                            selected === null
+                                ? c.needsSelection
+                                : selected.session === null && blocked(selected)
+                                  ? a.window[selected.window]
+                                  : undefined,
+                        disabled:
+                            selected === null ||
+                            busy ||
+                            (selected.session === null &&
+                                (!canWork || blocked(selected))),
+                        onSelect: () => selected && openLesson(selected),
+                    },
+                    {
+                        id: 'attendance-day-view',
+                        label: m.view,
+                        icon: Eye,
+                        iconTone: 'sky',
+                        disabled: selected?.session == null,
+                        onSelect: () =>
+                            selected?.session &&
+                            router.visit(
+                                `/attendance/sheets/${selected.session.session_id}`,
+                            ),
+                    },
+                    ...(abilities.review_sheet && lookups !== null
+                        ? [
+                              {
+                                  id: 'attendance-day-exceptional',
+                                  label: m.exceptional,
+                                  icon: CalendarPlus,
+                                  iconTone: 'rose' as const,
+                                  disabled: day.holiday,
+                                  onSelect: () =>
+                                      setExceptional({
+                                          section_id: '',
+                                          subject_id: '',
+                                          teacher_id: String(
+                                              filters.teacher_id ?? '',
+                                          ),
+                                          period_id: '',
+                                          reason: '',
+                                      }),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+            {
+                id: 'attendance-day-nav',
+                label: m.date,
+                commands: [
+                    {
+                        id: 'attendance-day-prev',
+                        label: m.prevDay,
+                        icon: ChevronRight,
+                        iconTone: 'steel',
+                        onSelect: () => go({ date: shiftDate(day.date, -1) }),
+                    },
+                    {
+                        id: 'attendance-day-today',
+                        label: m.today,
+                        icon: CalendarDays,
+                        iconTone: 'education',
+                        pressed: day.date === day.today,
+                        onSelect: () => go({ date: day.today }),
+                    },
+                    {
+                        id: 'attendance-day-next',
+                        label: m.nextDay,
+                        icon: ChevronLeft,
+                        iconTone: 'steel',
+                        onSelect: () => go({ date: shiftDate(day.date, 1) }),
+                    },
+                ],
+            },
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [selected, busy, canWork, day, abilities, lookups, filters.teacher_id],
+    );
+    useAttendanceEditRibbon('my', abilities, editGroups);
+
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
+        go({ academic_year_id: year }),
+    );
+    useAttendanceHomeFilters(
+        [
+            yearSpec,
+            {
+                key: 'date',
+                date: true,
+                label: m.date,
+                value: day.date,
+                onChange: (date: string) => go({ date }),
+            },
+            ...(teachers.length > 0
+                ? [
+                      {
+                          key: 'teacher',
+                          type: 'single' as const,
+                          label: m.chooseTeacher,
+                          value:
+                              filters.teacher_id === null
+                                  ? ''
+                                  : String(filters.teacher_id),
+                          options: [
+                              { value: '', label: m.myself },
+                              ...teachers.map((x) => ({
+                                  value: String(x.id),
+                                  label: x.full_name,
+                              })),
+                          ],
+                          onChange: (value: string) =>
+                              go({
+                                  teacher_id:
+                                      value === '' ? null : Number(value),
+                              }),
+                      },
+                  ]
+                : []),
+        ],
+        day.date !== day.today || filters.teacher_id !== null
+            ? () => go({ date: day.today, teacher_id: null })
+            : null,
+        [day.date, day.today, filters, teachers, yearSpec.options.length],
+    );
+
+    const columns: AttendanceColumn<Lesson>[] = [
+        {
+            id: 'period',
+            header: m.period,
+            kind: 'num',
+            cell: (l) => <span dir="ltr">{l.period_number}</span>,
+        },
+        {
+            id: 'time',
+            header: m.time,
+            kind: 'text',
+            cell: (l) => (
+                <span dir="ltr">{`${l.start_time}–${l.end_time}`}</span>
+            ),
+        },
+        {
+            id: 'subject',
+            header: m.subject,
+            kind: 'name',
+            cell: (l) =>
+                `${l.subject_name}${l.substitute_teacher_id !== null ? ` · ${m.substitute}` : ''}${l.co_teacher_id !== null ? ` · ${m.coTeacher}` : ''}`,
+        },
+        {
+            id: 'type',
+            header: m.type,
+            kind: 'text',
+            cell: (l) => a.lessonType[l.lesson_type],
+        },
+        {
+            id: 'class',
+            header: m.classSection,
+            kind: 'text',
+            cell: (l) =>
+                `${l.class_name} / ${l.section_name}${l.group_name ? ` · ${l.group_name}` : ''}`,
+        },
+        {
+            id: 'room',
+            header: m.room,
+            kind: 'text',
+            cell: (l) => l.room_name ?? '—',
+        },
+        {
+            id: 'phase',
+            header: m.lessonStatus,
+            kind: 'text',
+            cell: (l) => timing(l),
+        },
+        {
+            id: 'sheet',
+            header: m.sheetStatus,
+            kind: 'status',
+            tone: (l) => sheetStatusMeta(l.session?.sheet_status)?.tone ?? 0,
+            cell: (l) => (
+                <StatusLabel
+                    meta={sheetStatusMeta(l.session?.sheet_status)}
+                    label={
+                        l.session === null
+                            ? a.window[l.window]
+                            : sheetLabel(l.session.sheet_status)
+                    }
+                />
+            ),
+        },
+        {
+            id: 'counts',
+            header: a.sheet.recorded,
+            kind: 'text',
+            cell: (l) => countsText(l.session?.counts),
+        },
+    ];
+
+    const menuItems = (l: Lesson): ContextMenuItem[] => [
+        {
+            id: 'open',
+            label: l.session ? m.resume : m.open,
+            icon: l.session ? PlayCircle : DoorOpen,
+            disabled: l.session === null && (!canWork || blocked(l)),
+            onSelect: () => openLesson(l),
+        },
+        {
+            id: 'view',
+            label: m.view,
+            icon: Eye,
+            disabled: l.session === null,
+            onSelect: () =>
+                l.session &&
+                router.visit(`/attendance/sheets/${l.session.session_id}`),
+        },
+    ];
+
+    const noticeColumns: AttendanceColumn<AdminNotice>[] = [
+        {
+            id: 'date',
+            header: m.date,
+            kind: 'text',
+            cell: (n) => <span dir="ltr">{n.session_date}</span>,
+        },
+        {
+            id: 'lesson',
+            header: m.subject,
+            kind: 'name',
+            cell: (n) =>
+                `${n.subject_name} · ${n.class_name} / ${n.section_name}`,
+        },
+        {
+            id: 'status',
+            header: m.sheetStatus,
+            kind: 'status',
+            tone: (n) => sheetStatusMeta(n.sheet_status)?.tone ?? 0,
+            cell: (n) => (
+                <StatusLabel
+                    meta={sheetStatusMeta(n.sheet_status)}
+                    label={sheetLabel(n.sheet_status)}
+                />
+            ),
+        },
+        {
+            id: 'note',
+            header: a.sheet.reviewNote,
+            kind: 'text',
+            cell: (n) => n.review_note ?? '—',
+        },
+        {
+            id: 'at',
+            header: a.sheet.reviewedAt,
+            kind: 'text',
+            cell: (n) => dateTime(n.reviewed_at),
+        },
+    ];
+
+    const sectionOptions =
+        lookups?.classes.flatMap((cls) =>
+            cls.sections.map((s) => ({
+                value: String(s.id),
+                label: `${cls.name} / ${s.name}`,
+            })),
+        ) ?? [];
+    const subjectOptions =
+        lookups?.subjects.map((s) => ({
+            value: String(s.id),
+            label: s.name,
+        })) ?? [];
+    const teacherOptions =
+        lookups?.teachers.map((s) => ({
+            value: String(s.id),
+            label: s.full_name,
+        })) ?? [];
+    const periodOptions =
+        lookups?.periods.map((p) => ({
+            value: String(p.id),
+            label: `${p.period_number} (${p.start_time}–${p.end_time})`,
+        })) ?? [];
+    const pick = (
+        list: Array<{ value: string; label: string }>,
+        value: string,
+    ) => list.find((o) => o.value === value)?.label ?? '—';
+
+    return (
+        <AttendancePage
+            title={m.title}
+            notices={
+                <>
+                    <PageNotice>{`${day.teacher?.full_name ?? ''}${day.teacher ? ' · ' : ''}${dayOfWeekLabel(day.weekday)} ${day.date} · ${m.timezoneNote.replace(':tz', day.timezone)}`}</PageNotice>
+                    {!linked && filters.teacher_id === null ? (
+                        <PageNotice>{m.notLinked}</PageNotice>
+                    ) : null}
+                    {day.holiday ? <PageNotice>{m.holiday}</PageNotice> : null}
+                </>
+            }
+        >
+            <AttendanceTable
+                caption={m.title}
+                rows={day.lessons}
+                rowKey={(l) => l.schedule_id}
+                columns={columns}
+                emptyText={m.noLessons}
+                selectedId={selectedId}
+                onSelect={(l) => setSelectedId(l.schedule_id)}
+                onOpen={openLesson}
+                menuItems={menuItems}
+                menuLabel={m.title}
+            />
+            {day.notices.length > 0 ? (
+                <>
+                    <p className="sis-branches-page__notice mt-3">
+                        {m.notices}
+                    </p>
+                    <AttendanceTable
+                        caption={m.notices}
+                        rows={day.notices}
+                        rowKey={(n) => n.session_id}
+                        columns={noticeColumns}
+                        emptyText={m.noNotices}
+                        onOpen={(n) =>
+                            router.visit(`/attendance/sheets/${n.session_id}`)
+                        }
+                    />
+                </>
+            ) : null}
+
+            {exceptional !== null ? (
+                <AttendanceWindow
+                    title={m.exceptionalTitle}
+                    pending={busy}
+                    dirty={exceptional.reason !== ''}
+                    confirmLabel={m.open}
+                    confirmDisabled={
+                        exceptional.section_id === '' ||
+                        exceptional.subject_id === '' ||
+                        exceptional.teacher_id === '' ||
+                        exceptional.period_id === '' ||
+                        exceptional.reason.trim().length < 3
+                    }
+                    onConfirm={saveExceptional}
+                    onClose={() => setExceptional(null)}
+                    sections={[
+                        {
+                            id: 'att-exceptional-lesson',
+                            title: m.exceptionalLesson,
+                            content: (
+                                <>
+                                    <RegistryTextField
+                                        label={m.date}
+                                        editing={false}
+                                        dir="ltr"
+                                        value={day.date}
+                                        onChange={() => undefined}
+                                    />
+                                    <RegistryListField
+                                        label={c.section}
+                                        editing
+                                        required
+                                        value={exceptional.section_id}
+                                        display={pick(
+                                            sectionOptions,
+                                            exceptional.section_id,
+                                        )}
+                                        options={sectionOptions}
+                                        onChange={(section_id) =>
+                                            setExceptional({
+                                                ...exceptional,
+                                                section_id,
+                                            })
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={c.subject}
+                                        editing
+                                        required
+                                        value={exceptional.subject_id}
+                                        display={pick(
+                                            subjectOptions,
+                                            exceptional.subject_id,
+                                        )}
+                                        options={subjectOptions}
+                                        onChange={(subject_id) =>
+                                            setExceptional({
+                                                ...exceptional,
+                                                subject_id,
+                                            })
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={c.teacher}
+                                        editing
+                                        required
+                                        value={exceptional.teacher_id}
+                                        display={pick(
+                                            teacherOptions,
+                                            exceptional.teacher_id,
+                                        )}
+                                        options={teacherOptions}
+                                        onChange={(teacher_id) =>
+                                            setExceptional({
+                                                ...exceptional,
+                                                teacher_id,
+                                            })
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={m.period}
+                                        editing
+                                        required
+                                        value={exceptional.period_id}
+                                        display={pick(
+                                            periodOptions,
+                                            exceptional.period_id,
+                                        )}
+                                        options={periodOptions}
+                                        onChange={(period_id) =>
+                                            setExceptional({
+                                                ...exceptional,
+                                                period_id,
+                                            })
+                                        }
+                                    />
+                                </>
+                            ),
+                        },
+                        {
+                            id: 'att-exceptional-reason',
+                            title: a.sheet.reason,
+                            content: (
+                                <WindowTextArea
+                                    label={m.exceptionalReason}
+                                    required
+                                    value={exceptional.reason}
+                                    onChange={(reason) =>
+                                        setExceptional({
+                                            ...exceptional,
+                                            reason,
+                                        })
+                                    }
+                                />
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+        </AttendancePage>
+    );
+}

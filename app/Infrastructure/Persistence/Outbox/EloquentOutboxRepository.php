@@ -7,6 +7,7 @@ use App\Domain\Attendance\Events\AttendanceCorrected;
 use App\Domain\Attendance\Events\AttendanceSessionCancelled;
 use App\Domain\Attendance\Events\AttendanceSessionClosed;
 use App\Domain\Attendance\Events\AttendanceSessionCreated;
+use App\Domain\Attendance\Events\AttendanceWorkflowEvent;
 use App\Domain\Attendance\Events\SectionAttendanceMarked;
 use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
@@ -380,6 +381,7 @@ final class EloquentOutboxRepository implements OutboxRepository
                 cancelledBy: isset($payload['cancelled_by']) ? (int) $payload['cancelled_by'] : null,
                 occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
             ),
+            AttendanceWorkflowEvent::class => AttendanceWorkflowEvent::fromPayload($payload),
             default => null,
         };
     }

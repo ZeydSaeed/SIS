@@ -1,3 +1,5 @@
+import { arAttendance } from '@/i18n/ar-attendance';
+
 /**
  * Arabic-first operational UI strings — single source of truth (SSOT) for:
  * labels, guidance, warnings, errors, flash/toast copy, and workflow notices.
@@ -18,7 +20,8 @@ export const ar = {
         cascade: 'ترتيب متدرج',
         closeAll: 'إغلاق الكل',
         closeAllTitle: 'إغلاق جميع النوافذ؟',
-        closeAllDesc: 'سيتم إغلاق نوافذ الوحدات المفتوحة. قد تُفقد التعديلات غير المحفوظة داخل النافذة.',
+        closeAllDesc:
+            'سيتم إغلاق نوافذ الوحدات المفتوحة. قد تُفقد التعديلات غير المحفوظة داخل النافذة.',
         loginRequired: 'يتطلب تسجيل الدخول',
         embedded: 'لوحة مضمّنة',
         desktopMenu: 'قائمة سطح المكتب',
@@ -98,8 +101,10 @@ export const ar = {
             applicationTransferred: 'تم نقل طلب القبول.',
         },
         enrollment: {
-            bulkStatusPartial: 'تم تحديث :updated تسجيل وتخطي :skipped (تعارض أو طالب غير مؤهل).',
-            bulkStatusNone: 'لم يُحدَّث أي تسجيل — تحقق من أهلية الطالب أو وجود تسجيل نشط آخر لنفس السنة.',
+            bulkStatusPartial:
+                'تم تحديث :updated تسجيل وتخطي :skipped (تعارض أو طالب غير مؤهل).',
+            bulkStatusNone:
+                'لم يُحدَّث أي تسجيل — تحقق من أهلية الطالب أو وجود تسجيل نشط آخر لنفس السنة.',
             created: 'تم إنشاء التسجيل بنجاح.',
             updated: 'تم تحديث التوزيع بنجاح.',
             statusesUpdated: 'تم تحديث حالات التسجيل.',
@@ -115,6 +120,31 @@ export const ar = {
             sectionSaved: 'تم حفظ حضور الشعبة.',
             sessionClosed: 'تم إغلاق جلسة الحضور.',
             sessionCreated: 'تم إنشاء جلسة الحضور.',
+            sheetSubmitted: 'تم إرسال كشف الحضور للمراجعة.',
+            review: {
+                start_review: 'بدأت مراجعة الكشف.',
+                approve: 'تم اعتماد الكشف.',
+                return: 'أُعيد الكشف إلى المعلم للتصحيح.',
+                reject: 'تم رفض الكشف.',
+            },
+            bulkApproved:
+                'اعتُمد :approved كشف، ولم يُعتمد :failed (تغيّرت أو لا تسمح حالتها).',
+            recordCorrected: 'تم تصحيح الحالة عبر المسار الرسمي.',
+            excuseSubmitted: 'تم تسجيل العذر بانتظار المراجعة.',
+            excuseApproved: 'تم اعتماد العذر وتطبيقه على :count حالة غياب.',
+            excuseRejected: 'تم رفض العذر.',
+            staffRecorded: 'تم تسجيل الدوام.',
+            staffCorrected: 'تم تصحيح سجل الدوام.',
+            checkedIn: 'تم تسجيل حضورك.',
+            checkedOut: 'تم تسجيل انصرافك.',
+            alertUpdated: 'تم تحديث التنبيه.',
+            alertsQueued:
+                'بدأ فحص التنبيهات في الخلفية؛ أعد تحميل الصفحة بعد قليل.',
+            policySaved: 'تم حفظ إصدار جديد من سياسة الحضور.',
+            accountLinked: 'تم ربط حساب المستخدم بسجل المعلم.',
+            accountUnlinked: 'تم فك ربط حساب المستخدم عن سجل المعلم.',
+            exportQueued:
+                'بدأ تجهيز ملف التقرير في الخلفية؛ يظهر في «ملفات التصدير» عند جاهزيته.',
         },
         curriculum: {
             created: 'تم إنشاء البرنامج الدراسي.',
@@ -132,7 +162,8 @@ export const ar = {
             prerequisiteDeactivated: 'تم تعطيل المتطلب السابق.',
             prerequisiteReactivated: 'تم إعادة تفعيل المتطلب السابق.',
             enrollmentSubjectAssigned: 'تم تعيين المادة للتسجيل.',
-            appliedToEnrollmentsQueued: 'بدأ تطبيق المنهج على طلاب الصف في الخلفية — ستظهر المواد الإلزامية في سجلاتهم خلال لحظات.',
+            appliedToEnrollmentsQueued:
+                'بدأ تطبيق المنهج على طلاب الصف في الخلفية — ستظهر المواد الإلزامية في سجلاتهم خلال لحظات.',
         },
         organization: {
             schoolCreated: 'تمت إضافة المدرسة وربط حسابك بها.',
@@ -168,7 +199,8 @@ export const ar = {
             periodAdded: 'تمت إضافة الحصة إلى توقيت الدوام.',
             periodUpdated: 'تم حفظ توقيت الحصة.',
             autoPlaced: 'تم توزيع حصص الشعبة تلقائياً.',
-            autoPlacedPartly: 'تم توزيع ما أمكن — بقيت حصص لم تجد خانة مناسبة (راجع «تدقيق الجدول»).',
+            autoPlacedPartly:
+                'تم توزيع ما أمكن — بقيت حصص لم تجد خانة مناسبة (راجع «تدقيق الجدول»).',
             dayArranged: 'تم توزيع الاستراحات وإعادة توقيت اليوم الدراسي.',
             dayReshaped: 'تم تحديث اليوم الدراسي وإعادة حساب الأوقات.',
             displaySaved: 'تم حفظ تنسيق الجدول.',
@@ -230,12 +262,21 @@ export const ar = {
     imports: {
         title: 'مركز الاستيراد',
         kinds: 'نوع البيانات',
-        kindNames: { teachers: 'المعلمون', structure: 'الفروع والاختصاصات', students: 'الطلاب', subjects: 'المواد والمناهج' } as Record<string, string>,
+        kindNames: {
+            teachers: 'المعلمون',
+            structure: 'الفروع والاختصاصات',
+            students: 'الطلاب',
+            subjects: 'المواد والمناهج',
+        } as Record<string, string>,
         kindHints: {
-            teachers: 'صف لكل معلم بالرقم الوظيفي: رقم جديد يُسجّل المعلم، ورقم موجود في المدرسة يُحدّث بياناته (الخلايا الفارغة لا تغيّر شيئاً).',
-            structure: 'صف لكل فرع أو فرع › اختصاص: يُنشأ الناقص ويُحدّث الاختصار للموجود.',
-            students: 'يُسجّل الطلاب الجدد فقط؛ الطالب الموجود (بالرمز أو الرقم الوطني) يُتخطى ولا تُعدّل بياناته.',
-            subjects: 'صف لكل مادة برمزها: رمز جديد يُنشئ المادة، والموجود يُحدّث. «المنهج» + «الحصص الأسبوعية» يربطان المادة بمنهج السنة.',
+            teachers:
+                'صف لكل معلم بالرقم الوظيفي: رقم جديد يُسجّل المعلم، ورقم موجود في المدرسة يُحدّث بياناته (الخلايا الفارغة لا تغيّر شيئاً).',
+            structure:
+                'صف لكل فرع أو فرع › اختصاص: يُنشأ الناقص ويُحدّث الاختصار للموجود.',
+            students:
+                'يُسجّل الطلاب الجدد فقط؛ الطالب الموجود (بالرمز أو الرقم الوطني) يُتخطى ولا تُعدّل بياناته.',
+            subjects:
+                'صف لكل مادة برمزها: رمز جديد يُنشئ المادة، والموجود يُحدّث. «المنهج» + «الحصص الأسبوعية» يربطان المادة بمنهج السنة.',
         } as Record<string, string>,
         columns: 'أعمدة القالب',
         column: 'العمود',
@@ -246,13 +287,33 @@ export const ar = {
         template: 'تنزيل القالب',
         upload: 'رفع ملف Excel',
         file: 'الملف',
-        flowHint: 'بعد الرفع يُفحص الملف ويظهر للمعاينة مع أخطاء كل صف والمكرر — لا يُستورد شيء قبل «اعتماد الاستيراد».',
+        flowHint:
+            'بعد الرفع يُفحص الملف ويظهر للمعاينة مع أخطاء كل صف والمكرر — لا يُستورد شيء قبل «اعتماد الاستيراد».',
         preview: 'المعاينة',
         total: 'الصفوف',
-        statuses: { 1: 'جارٍ الفحص…', 2: 'جاهز للمعاينة', 3: 'جارٍ الاستيراد…', 4: 'تم الاستيراد', 5: 'فشل', 6: 'ملغى' } as Record<number, string>,
-        rowStatuses: { 1: 'صالحة', 2: 'أخطاء', 3: 'مكررة', 4: 'مستوردة', 5: 'فشلت' } as Record<number, string>,
+        statuses: {
+            1: 'جارٍ الفحص…',
+            2: 'جاهز للمعاينة',
+            3: 'جارٍ الاستيراد…',
+            4: 'تم الاستيراد',
+            5: 'فشل',
+            6: 'ملغى',
+        } as Record<number, string>,
+        rowStatuses: {
+            1: 'صالحة',
+            2: 'أخطاء',
+            3: 'مكررة',
+            4: 'مستوردة',
+            5: 'فشلت',
+        } as Record<number, string>,
         actions: { 1: 'إضافة', 2: 'تحديث', 3: 'تخطٍ' } as Record<number, string>,
-        report: { created: 'المضاف', updated: 'المحدث', skipped: 'المتجاهل', failed: 'فشل أثناء الاستيراد', errors: 'صفوف بأخطاء' } as Record<string, string>,
+        report: {
+            created: 'المضاف',
+            updated: 'المحدث',
+            skipped: 'المتجاهل',
+            failed: 'فشل أثناء الاستيراد',
+            errors: 'صفوف بأخطاء',
+        } as Record<string, string>,
         row: 'الصف',
         action: 'الإجراء',
         status: 'الحالة',
@@ -262,7 +323,8 @@ export const ar = {
         cancel: 'إلغاء',
         commit: 'اعتماد الاستيراد ({n})',
         commitTitle: 'اعتماد الاستيراد',
-        commitConfirm: 'سيُستورد {n} صفاً صالحاً عبر صفحات أصحابها وقواعدها. الصفوف ذات الأخطاء والمكررة لا تُستورد.',
+        commitConfirm:
+            'سيُستورد {n} صفاً صالحاً عبر صفحات أصحابها وقواعدها. الصفوف ذات الأخطاء والمكررة لا تُستورد.',
         history: 'عمليات الاستيراد',
         noBatches: 'لا توجد عمليات استيراد بعد.',
         kind: 'النوع',
@@ -310,7 +372,13 @@ export const ar = {
         inService: 'في الخدمة',
         outOfService: 'خارج الخدمة',
         kind: 'الفئة',
-        kinds: { 1: 'صف دراسي', 2: 'مختبر', 3: 'ورشة', 4: 'قاعة', 9: 'أخرى' } as Record<number, string>,
+        kinds: {
+            1: 'صف دراسي',
+            2: 'مختبر',
+            3: 'ورشة',
+            4: 'قاعة',
+            9: 'أخرى',
+        } as Record<number, string>,
         isLab: 'مختبر',
         isWorkshop: 'ورشة',
         isHall: 'قاعة',
@@ -326,11 +394,13 @@ export const ar = {
         cancel: 'إلغاء',
         close: 'إغلاق',
         deactivate: 'إخراج من الخدمة',
-        deactivateConfirm: 'ستخرج الغرفة من الخدمة ولن تُقترح للحصص. يبقى سجلها محفوظاً، ولا يمكن ذلك ما دامت حصص أو أنشطة أو ورش تستخدمها.',
+        deactivateConfirm:
+            'ستخرج الغرفة من الخدمة ولن تُقترح للحصص. يبقى سجلها محفوظاً، ولا يمكن ذلك ما دامت حصص أو أنشطة أو ورش تستخدمها.',
         reactivate: 'إعادة إلى الخدمة',
         openTimetable: 'عرض جدول الغرفة',
         types: 'أنواع الغرف',
-        typesHint: 'الأنواع الأساسية مشتركة بين المدارس للقراءة فقط؛ أضف أنواع مدرستك الخاصة.',
+        typesHint:
+            'الأنواع الأساسية مشتركة بين المدارس للقراءة فقط؛ أضف أنواع مدرستك الخاصة.',
         systemType: 'أساسي',
         addType: 'إضافة نوع',
         editType: 'تعديل النوع',
@@ -393,9 +463,11 @@ export const ar = {
         viewSection: 'بيانات الشعبة',
         editSection: 'تعديل الشعبة',
         deactivateClass: 'تعطيل الصف',
-        deactivateClassConfirm: 'سيُعطّل الصف ولن يُستخدم في التسجيلات الجديدة. يبقى سجله وتسجيلاته محفوظة.',
+        deactivateClassConfirm:
+            'سيُعطّل الصف ولن يُستخدم في التسجيلات الجديدة. يبقى سجله وتسجيلاته محفوظة.',
         deactivateSection: 'تعطيل الشعبة',
-        deactivateSectionConfirm: 'ستُعطّل الشعبة ولن تُستخدم في التسجيلات الجديدة. يبقى سجلها محفوظاً.',
+        deactivateSectionConfirm:
+            'ستُعطّل الشعبة ولن تُستخدم في التسجيلات الجديدة. يبقى سجلها محفوظاً.',
         reactivate: 'تفعيل',
         statusActive: 'نشط',
         statusInactive: 'غير نشط',
@@ -477,7 +549,8 @@ export const ar = {
         selectedCount: 'المحدد',
         of: 'من',
         noSearchDepartments: 'لا توجد اختصاصات مطابقة للبحث.',
-        deleteSelectedConfirm: 'سيتم حذف الاختصاصات المحددة وإخفاؤها من القوائم دون حذف السجلات المرتبطة بها. عدد الاختصاصات',
+        deleteSelectedConfirm:
+            'سيتم حذف الاختصاصات المحددة وإخفاؤها من القوائم دون حذف السجلات المرتبطة بها. عدد الاختصاصات',
         close: 'إغلاق',
         chooseBranch: 'اختر الفرع',
         searchDepartments: 'ابحث عن الاختصاص...',
@@ -485,9 +558,11 @@ export const ar = {
         collapse: 'طي التفاصيل',
         expand: 'عرض التفاصيل',
         deleteBranchTitle: 'حذف الفرع',
-        deleteBranchConfirm: 'سيتم حذف الفرع بأرشفته (الحالة: مؤرشف) وإخفاؤه من القوائم دون حذف السجلات المرتبطة به. هل تريد المتابعة؟',
+        deleteBranchConfirm:
+            'سيتم حذف الفرع بأرشفته (الحالة: مؤرشف) وإخفاؤه من القوائم دون حذف السجلات المرتبطة به. هل تريد المتابعة؟',
         deleteDepartmentTitle: 'حذف الاختصاص',
-        deleteDepartmentConfirm: 'سيتم حذف الاختصاص بأرشفته (الحالة: مؤرشف) وإخفاؤه من القوائم دون حذف السجلات المرتبطة به. هل تريد المتابعة؟',
+        deleteDepartmentConfirm:
+            'سيتم حذف الاختصاص بأرشفته (الحالة: مؤرشف) وإخفاؤه من القوائم دون حذف السجلات المرتبطة به. هل تريد المتابعة؟',
         readOnly: 'عرض فقط — لا تملك صلاحية تعديل الفروع والاختصاصات.',
         school: 'المدرسة',
     },
@@ -623,48 +698,133 @@ export const ar = {
         requiredFields: 'أكمل الحقول المطلوبة قبل المتابعة.',
         missingClassSection: 'يجب اختيار الصف والشعبة قبل الحفظ.',
         codes: {
-            'enrollment.bulk_status_empty': 'اختر تسجيلاً واحداً على الأقل لتغيير الحالة.',
+            'attendance.sheet_transition_invalid':
+                'لا يسمح وضع الكشف الحالي بهذا الإجراء.',
+            'attendance.sheet_version_conflict':
+                'تغيّر الكشف من مكان آخر منذ فتحه. أعد التحميل ثم أعد تعديلاتك.',
+            'attendance.sheet_not_editable':
+                'الكشف مرسل أو معتمد ولا يمكن تعديله الآن.',
+            'attendance.sheet_incomplete':
+                'يوجد طلاب بلا حالة — حدّد حالة كل طالب قبل الإرسال.',
+            'attendance.sheet_roster_empty':
+                'لا يوجد طلاب مسجلون في هذه الشعبة بتاريخ الحصة.',
+            'attendance.student_not_in_roster': 'الطالب ليس ضمن طلاب هذه الحصة.',
+            'attendance.status_not_allowed':
+                'هذه الحالة غير مسموحة لك وفق سياسة الحضور.',
+            'attendance.reason_required': 'السبب مطلوب.',
+            'attendance.lesson_not_found':
+                'الحصة غير موجودة في الجدول الدراسي لهذا التاريخ.',
+            'attendance.lesson_access_denied': 'هذه الحصة ليست من حصصك.',
+            'attendance.teacher_profile_missing':
+                'حسابك غير مرتبط بسجل معلم في هذه المدرسة.',
+            'attendance.lesson_window_not_open':
+                'لم يُفتح تسجيل الحضور لهذه الحصة بعد.',
+            'attendance.lesson_window_closed':
+                'انتهت مهلة تسجيل الحضور لهذه الحصة.',
+            'attendance.date_is_holiday': 'هذا التاريخ عطلة — لا يُسجَّل الحضور.',
+            'attendance.date_outside_year': 'التاريخ خارج السنة الدراسية.',
+            'attendance.excuse_not_pending':
+                'العذر لم يعد قيد المراجعة (رُوجع أو تغيّر).',
+            'attendance.excuse_invalid':
+                'بيانات العذر غير صالحة (التواريخ / الحصة / المستند).',
+            'attendance.excuse_not_found': 'العذر غير موجود.',
+            'attendance.checkin_code_invalid':
+                'رمز الحضور غير صحيح أو انتهت صلاحيته.',
+            'attendance.already_checked_in_conflict':
+                'سُجّل حضورك وانصرافك لهذا اليوم مسبقاً.',
+            'attendance.staff_record_not_found': 'سجل الدوام غير موجود.',
+            'attendance.staff_record_conflict':
+                'تغيّر سجل الدوام منذ عرضه. أعد التحميل.',
+            'attendance.teacher_not_in_school':
+                'المعلم لا يعمل في هذه المدرسة لهذه السنة.',
+            'attendance.alert_not_found': 'التنبيه غير موجود أو مغلق.',
+            'attendance.policy_invalid': 'قيمة غير صالحة في سياسة الحضور.',
+            'attendance.report_type_invalid': 'نوع التقرير غير معروف.',
+            'attendance.session_not_open': 'الجلسة ليست مفتوحة.',
+            'attendance.cross_school_access':
+                'لا يمكن الوصول إلى بيانات مدرسة أخرى.',
+            'attendance.submit_confirm_required':
+                'أكّد مراجعة الكشف قبل الإرسال.',
+            'attendance.evidence_disabled':
+                'وسيلة إثبات الحضور هذه غير مفعّلة في سياسة المدرسة.',
+            'attendance.exceptional_lesson_invalid':
+                'بيانات الحصة الاستثنائية غير صالحة (الشعبة / المادة / المعلم / الحصة).',
+            'attendance.duplicate_lesson_conflict':
+                'توجد حصة مسجلة لهذه الشعبة في الحصة والتاريخ نفسيهما.',
+            'attendance.export_not_found':
+                'ملف التصدير غير موجود أو غير جاهز أو لا يخصك.',
+            'teachers.account_teacher_not_in_school':
+                'المعلم لا يعمل في هذه المدرسة لهذه السنة.',
+            'teachers.account_email_unknown':
+                'لا يوجد مستخدم بهذا البريد الإلكتروني.',
+            'teachers.account_already_linked_conflict':
+                'هذا الحساب مرتبط بمعلم آخر.',
+            'enrollment.bulk_status_empty':
+                'اختر تسجيلاً واحداً على الأقل لتغيير الحالة.',
             'enrollment.invalid_status': 'حالة التسجيل غير صالحة.',
-            'enrollment.already_enrolled': 'الطالب مسجّل مسبقاً لهذه السنة الدراسية ولا يمكن تسجيله مرة أخرى.',
-            'enrollment.student_has_active_enrollment': 'الطالب لديه تسجيل نشط مسبقاً في هذه السنة.',
-            'enrollment.student_not_eligible': 'لا يمكن تفعيل التسجيل — حالة الطالب ليست نشطة (موقوف / منسحب / غير نشط / متخرج).',
+            'enrollment.already_enrolled':
+                'الطالب مسجّل مسبقاً لهذه السنة الدراسية ولا يمكن تسجيله مرة أخرى.',
+            'enrollment.student_has_active_enrollment':
+                'الطالب لديه تسجيل نشط مسبقاً في هذه السنة.',
+            'enrollment.student_not_eligible':
+                'لا يمكن تفعيل التسجيل — حالة الطالب ليست نشطة (موقوف / منسحب / غير نشط / متخرج).',
             'enrollment.not_active': 'التسجيل غير نشط ولا يمكن تنفيذ العملية.',
             'enrollment.invalid_effective_to': 'تاريخ انتهاء التسجيل غير صالح.',
-            'enrollment.bulk_placement_empty': 'اختر تسجيلاً واحداً على الأقل لتحديث التوزيع.',
-            'enrollment.bulk_placement_empty_fields': 'اختر حقلاً واحداً على الأقل لتحديث التوزيع.',
-            'enrollment.invalid_placement': 'التوزيع غير صالح: تأكد أن الطالب والصف والشعبة والفرع والاختصاص تتبع هذه المدرسة، وأن الشعبة تتبع الصف المختار.',
-            'timetable.place_code_invalid': 'رمز المكان مطلوب ولا يزيد عن 30 حرفاً.',
-            'timetable.place_name_invalid': 'اسم المكان مطلوب ولا يزيد عن 150 حرفاً.',
+            'enrollment.bulk_placement_empty':
+                'اختر تسجيلاً واحداً على الأقل لتحديث التوزيع.',
+            'enrollment.bulk_placement_empty_fields':
+                'اختر حقلاً واحداً على الأقل لتحديث التوزيع.',
+            'enrollment.invalid_placement':
+                'التوزيع غير صالح: تأكد أن الطالب والصف والشعبة والفرع والاختصاص تتبع هذه المدرسة، وأن الشعبة تتبع الصف المختار.',
+            'timetable.place_code_invalid':
+                'رمز المكان مطلوب ولا يزيد عن 30 حرفاً.',
+            'timetable.place_name_invalid':
+                'اسم المكان مطلوب ولا يزيد عن 150 حرفاً.',
             'timetable.place_capacity_invalid': 'السعة يجب أن تكون بين 1 و500.',
-            'timetable.room_type_invalid': 'نوع القاعة غير صالح. اختر قاعة دراسية أو ورشة / مختبر.',
-            'timetable.place_branch_invalid': 'الفرع غير نشط أو لا يتبع هذه المدرسة. اختر فرعاً من القائمة.',
-            'timetable.place_code_taken': 'الرمز مستخدم لمكان آخر في الفرع (أو المدرسة للورش). اختر رمزاً مختلفاً.',
-            'timetable.workshop_safety_invalid': 'السعة الآمنة يجب أن تكون بين 1 وسعة الورشة.',
-            'timetable.workshop_room_invalid': 'القاعة المختارة غير موجودة أو خارج الخدمة. اختر قاعة فعّالة أو اتركها فارغة.',
+            'timetable.room_type_invalid':
+                'نوع القاعة غير صالح. اختر قاعة دراسية أو ورشة / مختبر.',
+            'timetable.place_branch_invalid':
+                'الفرع غير نشط أو لا يتبع هذه المدرسة. اختر فرعاً من القائمة.',
+            'timetable.place_code_taken':
+                'الرمز مستخدم لمكان آخر في الفرع (أو المدرسة للورش). اختر رمزاً مختلفاً.',
+            'timetable.workshop_safety_invalid':
+                'السعة الآمنة يجب أن تكون بين 1 وسعة الورشة.',
+            'timetable.workshop_room_invalid':
+                'القاعة المختارة غير موجودة أو خارج الخدمة. اختر قاعة فعّالة أو اتركها فارغة.',
             'timetable.workshop_not_found': 'الورشة غير موجودة. حدّث الصفحة.',
-            'timetable.room_not_found': 'القاعة غير موجودة في هذه المدرسة. حدّث الصفحة.',
-            'timetable.place_in_use': 'لا يمكن إيقاف المكان: توجد حصص أو أنشطة أو ورش تستخدمه. انقلها إلى مكان آخر أولاً.',
+            'timetable.room_not_found':
+                'القاعة غير موجودة في هذه المدرسة. حدّث الصفحة.',
+            'timetable.place_in_use':
+                'لا يمكن إيقاف المكان: توجد حصص أو أنشطة أو ورش تستخدمه. انقلها إلى مكان آخر أولاً.',
             'timetable.place_status_invalid': 'حالة المكان غير صالحة.',
             'import.kind_invalid': 'نوع الاستيراد غير معروف.',
             'import.year_required': 'اختر السنة الدراسية أولاً.',
             'import.file_size_invalid': 'الملف فارغ أو أكبر من 5 ميغابايت.',
-            'import.file_type_invalid': 'الملف يجب أن يكون Excel (.xlsx) أو CSV.',
-            'import.file_unreadable': 'تعذّرت قراءة الملف — احفظه بصيغة .xlsx أو CSV (UTF-8).',
+            'import.file_type_invalid':
+                'الملف يجب أن يكون Excel (.xlsx) أو CSV.',
+            'import.file_unreadable':
+                'تعذّرت قراءة الملف — احفظه بصيغة .xlsx أو CSV (UTF-8).',
             'import.missing_columns': 'أعمدة إلزامية غير موجودة في الملف',
             'import.no_rows': 'الملف لا يحتوي صفوف بيانات.',
             'import.batch_not_found': 'عملية الاستيراد غير موجودة.',
-            'import.batch_not_previewed': 'لا يمكن تنفيذ هذا الإجراء في حالة العملية الحالية.',
+            'import.batch_not_previewed':
+                'لا يمكن تنفيذ هذا الإجراء في حالة العملية الحالية.',
             'import.nothing_to_import': 'لا توجد صفوف صالحة للاستيراد.',
             'import.required': 'حقل إلزامي فارغ',
             'import.date_invalid': 'تاريخ غير صالح',
             'import.number_invalid': 'رقم غير صالح',
             'import.status_invalid': 'الحالة غير صالحة (نشط / غير نشط).',
-            'import.employment_type_invalid': 'نوع التعيين غير صالح (ملاك، مكلف، تنسيب، محاضر، عقد).',
-            'import.academic_title_unknown': 'اللقب العلمي غير موجود في القائمة.',
+            'import.employment_type_invalid':
+                'نوع التعيين غير صالح (ملاك، مكلف، تنسيب، محاضر، عقد).',
+            'import.academic_title_unknown':
+                'اللقب العلمي غير موجود في القائمة.',
             'import.subject_unknown': 'مادة غير موجودة',
-            'import.teacher_other_school': 'الرقم الوظيفي مسجل لمعلم في مدرسة أخرى.',
-            'import.subject_type_invalid': 'نوع المادة غير صالح (نظري، اختياري، عملي).',
-            'import.curriculum_unknown': 'المنهج غير موجود أو غير فعّال في السنة الدراسية.',
+            'import.teacher_other_school':
+                'الرقم الوظيفي مسجل لمعلم في مدرسة أخرى.',
+            'import.subject_type_invalid':
+                'نوع المادة غير صالح (نظري، اختياري، عملي).',
+            'import.curriculum_unknown':
+                'المنهج غير موجود أو غير فعّال في السنة الدراسية.',
             'import.gender_invalid': 'الجنس غير صالح (ذكر / أنثى).',
             'import.religion_invalid': 'الديانة غير صالحة.',
             'import.too_long': 'قيمة أطول من المسموح',
@@ -673,32 +833,52 @@ export const ar = {
             'appearance.abbreviation_too_long': 'الاختصار لا يزيد عن 20 حرفاً.',
             'appearance.color_invalid': 'اللون غير صالح — اختر لوناً من اللوحة.',
             'appearance.target_invalid': 'العنصر غير معروف.',
-            'appearance.not_found': 'العنصر غير موجود في هذه المدرسة. حدّث الصفحة.',
-            'organization.room_code_invalid': 'رمز الغرفة مطلوب (حروف وأرقام بلا مسافات) ولا يزيد عن 20 حرفاً.',
-            'organization.room_branch_invalid': 'الفرع غير نشط أو لا يتبع هذه المدرسة.',
+            'appearance.not_found':
+                'العنصر غير موجود في هذه المدرسة. حدّث الصفحة.',
+            'organization.room_code_invalid':
+                'رمز الغرفة مطلوب (حروف وأرقام بلا مسافات) ولا يزيد عن 20 حرفاً.',
+            'organization.room_branch_invalid':
+                'الفرع غير نشط أو لا يتبع هذه المدرسة.',
             'organization.room_code_taken': 'الرمز مستخدم لغرفة أخرى في الفرع.',
-            'organization.room_not_found': 'الغرفة غير موجودة في هذه المدرسة. حدّث الصفحة.',
-            'organization.room_name_invalid': 'اسم الغرفة مطلوب ولا يزيد عن 100 حرف.',
-            'organization.room_capacity_invalid': 'السعة يجب أن تكون بين 1 و500.',
-            'organization.room_floor_invalid': 'الطابق يجب أن يكون بين -5 و100.',
-            'organization.room_text_too_long': 'أحد الحقول النصية أطول من المسموح.',
+            'organization.room_not_found':
+                'الغرفة غير موجودة في هذه المدرسة. حدّث الصفحة.',
+            'organization.room_name_invalid':
+                'اسم الغرفة مطلوب ولا يزيد عن 100 حرف.',
+            'organization.room_capacity_invalid':
+                'السعة يجب أن تكون بين 1 و500.',
+            'organization.room_floor_invalid':
+                'الطابق يجب أن يكون بين -5 و100.',
+            'organization.room_text_too_long':
+                'أحد الحقول النصية أطول من المسموح.',
             'organization.room_type_invalid': 'نوع الغرفة غير موجود أو معطّل.',
             'organization.room_department_invalid': 'القسم لا يتبع فرع الغرفة.',
-            'organization.room_in_use': 'لا يمكن إخراج الغرفة من الخدمة: توجد حصص أو أنشطة أو ورش تستخدمها.',
-            'organization.room_type_code_invalid': 'رمز النوع مطلوب (حروف وأرقام بلا مسافات) ولا يزيد عن 30 حرفاً.',
+            'organization.room_in_use':
+                'لا يمكن إخراج الغرفة من الخدمة: توجد حصص أو أنشطة أو ورش تستخدمها.',
+            'organization.room_type_code_invalid':
+                'رمز النوع مطلوب (حروف وأرقام بلا مسافات) ولا يزيد عن 30 حرفاً.',
             'organization.room_type_code_taken': 'رمز النوع مستخدم.',
-            'organization.room_type_system': 'الأنواع الأساسية مشتركة ولا تُعدّل — أضف نوعاً خاصاً بالمدرسة.',
-            'organization.room_type_name_invalid': 'اسم النوع مطلوب ولا يزيد عن 100 حرف.',
+            'organization.room_type_system':
+                'الأنواع الأساسية مشتركة ولا تُعدّل — أضف نوعاً خاصاً بالمدرسة.',
+            'organization.room_type_name_invalid':
+                'اسم النوع مطلوب ولا يزيد عن 100 حرف.',
             'organization.room_kind_invalid': 'فئة النوع غير صالحة.',
-            'organization.room_type_in_use': 'لا يمكن تعطيل النوع: توجد غرف في الخدمة من هذا النوع.',
-            'enrollment.class_capacity_below_sections': 'حُفظ التعديل، لكن سعة الصف (:class) أقل من مجموع سعات شعبه (:sections)، فلن تمتلئ بعض الشعب. ارفع سعة الصف أو خفّض سعات الشعب.',
-            'enrollment.no_curriculum_for_placement': 'تم التسجيل، لكن لا يوجد منهج فعّال لهذا الاختصاص والصف في السنة المختارة، فلم تُسند مواد للطالب. أنشئ المنهج من صفحة المناهج ثم طبّقه على التسجيلات.',
-            'enrollment.date_outside_year': 'تاريخ بدء التسجيل خارج السنة الدراسية المختارة. اختر تاريخاً بين بداية السنة ونهايتها.',
-            'enrollment.capacity_reached': 'لا يمكن التسجيل — الصف أو الشعبة وصل إلى السعة القصوى.',
-            'enrollment.prerequisite_not_met': 'لا يمكن تعيين المادة — لم يجتز الطالب المتطلبات السابقة بنجاح.',
-            'enrollment.subject_not_in_curriculum': 'لا يمكن تعيين المادة كإلزامية — ليست ضمن منهج صف وسنة واختصاص الطالب. يمكن تعيينها كمادة اختيارية.',
+            'organization.room_type_in_use':
+                'لا يمكن تعطيل النوع: توجد غرف في الخدمة من هذا النوع.',
+            'enrollment.class_capacity_below_sections':
+                'حُفظ التعديل، لكن سعة الصف (:class) أقل من مجموع سعات شعبه (:sections)، فلن تمتلئ بعض الشعب. ارفع سعة الصف أو خفّض سعات الشعب.',
+            'enrollment.no_curriculum_for_placement':
+                'تم التسجيل، لكن لا يوجد منهج فعّال لهذا الاختصاص والصف في السنة المختارة، فلم تُسند مواد للطالب. أنشئ المنهج من صفحة المناهج ثم طبّقه على التسجيلات.',
+            'enrollment.date_outside_year':
+                'تاريخ بدء التسجيل خارج السنة الدراسية المختارة. اختر تاريخاً بين بداية السنة ونهايتها.',
+            'enrollment.capacity_reached':
+                'لا يمكن التسجيل — الصف أو الشعبة وصل إلى السعة القصوى.',
+            'enrollment.prerequisite_not_met':
+                'لا يمكن تعيين المادة — لم يجتز الطالب المتطلبات السابقة بنجاح.',
+            'enrollment.subject_not_in_curriculum':
+                'لا يمكن تعيين المادة كإلزامية — ليست ضمن منهج صف وسنة واختصاص الطالب. يمكن تعيينها كمادة اختيارية.',
             'enrollment.subject_assign_failed': 'تعذّر تعيين المادة للتسجيل.',
-            'curriculum.subject_not_found': 'المادة غير موجودة أو حالتها لا تسمح بهذه العملية.',
+            'curriculum.subject_not_found':
+                'المادة غير موجودة أو حالتها لا تسمح بهذه العملية.',
             'curriculum.subject_create_failed': 'تعذّر إنشاء المادة.',
             'curriculum.subject_update_failed': 'تعذّر تحديث المادة.',
             'curriculum.subject_update_empty': 'لا توجد حقول لتحديثها.',
@@ -708,107 +888,179 @@ export const ar = {
             'curriculum.subject_code_taken': 'رمز المادة مستخدم مسبقاً.',
             'curriculum.subject_name_invalid': 'اسم المادة غير صالح.',
             'curriculum.subject_type_invalid': 'نوع المادة غير صالح.',
-            'curriculum.subject_credit_hours_invalid': 'عدد الساعات المعتمدة غير صالح.',
-            'curriculum.subject_grades_invalid': 'درجات المادة غير صالحة (النجاح يجب ألا يتجاوز الدرجة العظمى).',
+            'curriculum.subject_credit_hours_invalid':
+                'عدد الساعات المعتمدة غير صالح.',
+            'curriculum.subject_grades_invalid':
+                'درجات المادة غير صالحة (النجاح يجب ألا يتجاوز الدرجة العظمى).',
             'curriculum.subject_order_invalid': 'ترتيب المادة غير صالح.',
-            'curriculum.curriculum_not_found': 'البرنامج الدراسي غير موجود أو غير نشط.',
-            'curriculum.curriculum_create_failed': 'تعذّر إنشاء البرنامج الدراسي.',
-            'curriculum.curriculum_update_failed': 'تعذّر تحديث البرنامج الدراسي.',
-            'curriculum.curriculum_update_empty': 'لا توجد حقول لتحديثها في البرنامج الدراسي.',
-            'curriculum.curriculum_deactivate_failed': 'تعذّر تعطيل البرنامج الدراسي.',
-            'curriculum.curriculum_reactivate_failed': 'تعذّر إعادة تفعيل البرنامج الدراسي.',
-            'curriculum.curriculum_name_invalid': 'اسم البرنامج الدراسي غير صالح.',
+            'curriculum.curriculum_not_found':
+                'البرنامج الدراسي غير موجود أو غير نشط.',
+            'curriculum.curriculum_create_failed':
+                'تعذّر إنشاء البرنامج الدراسي.',
+            'curriculum.curriculum_update_failed':
+                'تعذّر تحديث البرنامج الدراسي.',
+            'curriculum.curriculum_update_empty':
+                'لا توجد حقول لتحديثها في البرنامج الدراسي.',
+            'curriculum.curriculum_deactivate_failed':
+                'تعذّر تعطيل البرنامج الدراسي.',
+            'curriculum.curriculum_reactivate_failed':
+                'تعذّر إعادة تفعيل البرنامج الدراسي.',
+            'curriculum.curriculum_name_invalid':
+                'اسم البرنامج الدراسي غير صالح.',
             'curriculum.academic_year_invalid': 'السنة الدراسية غير صالحة.',
             'curriculum.grade_level_invalid': 'الصف غير صالح.',
-            'curriculum.curriculum_exists': 'يوجد منهج فعّال لهذا الاختصاص والصف في السنة المختارة. عدّل المنهج الموجود أو عطّله قبل إنشاء منهج آخر.',
-            'curriculum.department_invalid': 'الاختصاص غير صالح أو لا يتبع هذه المدرسة.',
+            'curriculum.curriculum_exists':
+                'يوجد منهج فعّال لهذا الاختصاص والصف في السنة المختارة. عدّل المنهج الموجود أو عطّله قبل إنشاء منهج آخر.',
+            'curriculum.department_invalid':
+                'الاختصاص غير صالح أو لا يتبع هذه المدرسة.',
             'curriculum.specialization_invalid': 'التخصص غير صالح.',
             'curriculum.weekly_hours_invalid': 'عدد الحصص الأسبوعية غير صالح.',
-            'curriculum.curriculum_subject_not_found': 'ربط المادة بالبرنامج غير موجود.',
-            'curriculum.curriculum_subject_link_failed': 'تعذّر ربط المادة بالبرنامج.',
-            'curriculum.curriculum_subject_deactivate_failed': 'تعذّر تعطيل ربط المادة.',
-            'curriculum.curriculum_subject_reactivate_failed': 'تعذّر إعادة تفعيل ربط المادة.',
+            'curriculum.curriculum_subject_not_found':
+                'ربط المادة بالبرنامج غير موجود.',
+            'curriculum.curriculum_subject_link_failed':
+                'تعذّر ربط المادة بالبرنامج.',
+            'curriculum.curriculum_subject_deactivate_failed':
+                'تعذّر تعطيل ربط المادة.',
+            'curriculum.curriculum_subject_reactivate_failed':
+                'تعذّر إعادة تفعيل ربط المادة.',
             'curriculum.prerequisite_not_found': 'المتطلب السابق غير موجود.',
-            'curriculum.prerequisite_create_failed': 'تعذّر إضافة المتطلب السابق.',
+            'curriculum.prerequisite_create_failed':
+                'تعذّر إضافة المتطلب السابق.',
             'curriculum.prerequisite_add_failed': 'تعذّر إضافة المتطلب السابق.',
-            'curriculum.prerequisite_deactivate_failed': 'تعذّر تعطيل المتطلب السابق.',
-            'curriculum.prerequisite_reactivate_failed': 'تعذّر إعادة تفعيل المتطلب السابق.',
-            'curriculum.prerequisite_invalid': 'بيانات المتطلب السابق غير صالحة.',
-            'curriculum.prerequisite_self': 'لا يمكن أن تكون المادة متطلباً سابقاً لنفسها.',
-            'curriculum.prerequisite_subject_not_found': 'مادة المتطلب السابق غير موجودة.',
-            'curriculum.prerequisite_cycle': 'لا يمكن إضافة المتطلب — يؤدي إلى حلقة دائرية.',
-            'student.bulk_status_empty': 'اختر طالباً واحداً على الأقل لتغيير الحالة.',
+            'curriculum.prerequisite_deactivate_failed':
+                'تعذّر تعطيل المتطلب السابق.',
+            'curriculum.prerequisite_reactivate_failed':
+                'تعذّر إعادة تفعيل المتطلب السابق.',
+            'curriculum.prerequisite_invalid':
+                'بيانات المتطلب السابق غير صالحة.',
+            'curriculum.prerequisite_self':
+                'لا يمكن أن تكون المادة متطلباً سابقاً لنفسها.',
+            'curriculum.prerequisite_subject_not_found':
+                'مادة المتطلب السابق غير موجودة.',
+            'curriculum.prerequisite_cycle':
+                'لا يمكن إضافة المتطلب — يؤدي إلى حلقة دائرية.',
+            'student.bulk_status_empty':
+                'اختر طالباً واحداً على الأقل لتغيير الحالة.',
             'student.invalid_status': 'حالة الطالب غير صالحة.',
             'student.cannot_activate_graduated': 'لا يمكن تفعيل طالب متخرج.',
             'student.cannot_suspend_graduated': 'لا يمكن إيقاف طالب متخرج.',
-            'student.placement.department_unknown': 'القسم المختار غير موجود في فروع المدرسة.',
-            'student.placement.department_branch_mismatch': 'القسم المختار لا يتبع الفرع المختار.',
-            'student.placement.grade_unknown': 'الصف المختار غير موجود في المدرسة.',
-            'student.placement.grade_locked': 'الطالب مسجّل في صف وشعبة — غيّر الصف من صفحة التسجيل (تغيير التسكين).',
-            'student.national_id_exists': 'الرقم الوطني مسجّل مسبقاً لطالب آخر. ابحث عن ذلك الطالب وافتح سجله، أو صحّح الرقم المُدخل.',
-            'student.code_exists': 'رمز الطالب مستخدم لطالب آخر. اترك الحقل فارغاً ليُولَّد رمز جديد تلقائياً.',
-            'student.not_found': 'الطالب غير موجود في هذه المدرسة. حدّث الصفحة وتأكد أنه لم يُنقل.',
-            'student.document_file_empty': 'الملف المرفوع فارغ. اختر ملفاً يحتوي على بيانات.',
-            'student.document_file_name_invalid': 'اسم الملف غير صالح. أعد تسميته بحروف وأرقام دون رموز خاصة ثم ارفعه من جديد.',
-            'student.document_file_too_large': 'حجم الملف أكبر من الحد المسموح (10 ميجابايت). صغّر الملف أو قسّمه ثم أعد الرفع.',
-            'student.document_file_hash_invalid': 'تعذّر التحقق من سلامة الملف. أعد رفعه.',
-            'student.document_file_size_invalid': 'حجم الملف غير صالح. أعد رفعه.',
-            'student.document_metadata_required': 'بيانات الوثيقة ناقصة (نوعها واسم الملف). أكملها ثم أعد المحاولة.',
-            'student.document_mime_type_not_allowed': 'نوع الملف غير مسموح. المسموح: PDF أو صورة (JPG / PNG / WebP) أو ملف نصي.',
-            'student.document_type_invalid': 'نوع الوثيقة غير صالح. اختر نوعاً من القائمة.',
+            'student.placement.department_unknown':
+                'القسم المختار غير موجود في فروع المدرسة.',
+            'student.placement.department_branch_mismatch':
+                'القسم المختار لا يتبع الفرع المختار.',
+            'student.placement.grade_unknown':
+                'الصف المختار غير موجود في المدرسة.',
+            'student.placement.grade_locked':
+                'الطالب مسجّل في صف وشعبة — غيّر الصف من صفحة التسجيل (تغيير التسكين).',
+            'student.national_id_exists':
+                'الرقم الوطني مسجّل مسبقاً لطالب آخر. ابحث عن ذلك الطالب وافتح سجله، أو صحّح الرقم المُدخل.',
+            'student.code_exists':
+                'رمز الطالب مستخدم لطالب آخر. اترك الحقل فارغاً ليُولَّد رمز جديد تلقائياً.',
+            'student.not_found':
+                'الطالب غير موجود في هذه المدرسة. حدّث الصفحة وتأكد أنه لم يُنقل.',
+            'student.document_file_empty':
+                'الملف المرفوع فارغ. اختر ملفاً يحتوي على بيانات.',
+            'student.document_file_name_invalid':
+                'اسم الملف غير صالح. أعد تسميته بحروف وأرقام دون رموز خاصة ثم ارفعه من جديد.',
+            'student.document_file_too_large':
+                'حجم الملف أكبر من الحد المسموح (10 ميجابايت). صغّر الملف أو قسّمه ثم أعد الرفع.',
+            'student.document_file_hash_invalid':
+                'تعذّر التحقق من سلامة الملف. أعد رفعه.',
+            'student.document_file_size_invalid':
+                'حجم الملف غير صالح. أعد رفعه.',
+            'student.document_metadata_required':
+                'بيانات الوثيقة ناقصة (نوعها واسم الملف). أكملها ثم أعد المحاولة.',
+            'student.document_mime_type_not_allowed':
+                'نوع الملف غير مسموح. المسموح: PDF أو صورة (JPG / PNG / WebP) أو ملف نصي.',
+            'student.document_type_invalid':
+                'نوع الوثيقة غير صالح. اختر نوعاً من القائمة.',
             'student.document_not_found': 'الوثيقة غير موجودة أو سبق حذفها.',
-            'student.document_upload_failed': 'تعذّر رفع الوثيقة. حاول مرة أخرى، وإن تكرر الخطأ أبلغ المسؤول.',
-            'student.document_register_failed': 'تعذّر تسجيل الوثيقة. حاول مرة أخرى، وإن تكرر الخطأ أبلغ المسؤول.',
-            'student.document_restore_failed': 'تعذّرت إعادة الوثيقة. حدّث الصفحة وحاول مرة أخرى.',
-            'student.document_void_failed': 'تعذّر إلغاء الوثيقة. حدّث الصفحة وحاول مرة أخرى.',
-            'enrollment.already_open': 'للطالب تسجيل مفتوح في هذه السنة. أنهِه أو عدّل تسكينه بدل إنشاء تسجيل آخر.',
-            'enrollment.not_reopenable': 'لا يمكن إعادة فتح هذا التسجيل لأن حالته لا تسمح بذلك أو لأن للطالب تسجيلاً أحدث. راجع سجل التسكين.',
-            'enrollment.reopen_failed': 'تعذّرت إعادة فتح التسجيل. تحقق من حالة الطالب والشعبة ثم حاول مرة أخرى.',
-            'enrollment.student_ineligible': 'الطالب غير نشط (موقوف أو منسحب أو متخرج) فلا يمكن تسجيله. فعّله أولاً من صفحة الطلبة.',
+            'student.document_upload_failed':
+                'تعذّر رفع الوثيقة. حاول مرة أخرى، وإن تكرر الخطأ أبلغ المسؤول.',
+            'student.document_register_failed':
+                'تعذّر تسجيل الوثيقة. حاول مرة أخرى، وإن تكرر الخطأ أبلغ المسؤول.',
+            'student.document_restore_failed':
+                'تعذّرت إعادة الوثيقة. حدّث الصفحة وحاول مرة أخرى.',
+            'student.document_void_failed':
+                'تعذّر إلغاء الوثيقة. حدّث الصفحة وحاول مرة أخرى.',
+            'enrollment.already_open':
+                'للطالب تسجيل مفتوح في هذه السنة. أنهِه أو عدّل تسكينه بدل إنشاء تسجيل آخر.',
+            'enrollment.not_reopenable':
+                'لا يمكن إعادة فتح هذا التسجيل لأن حالته لا تسمح بذلك أو لأن للطالب تسجيلاً أحدث. راجع سجل التسكين.',
+            'enrollment.reopen_failed':
+                'تعذّرت إعادة فتح التسجيل. تحقق من حالة الطالب والشعبة ثم حاول مرة أخرى.',
+            'enrollment.student_ineligible':
+                'الطالب غير نشط (موقوف أو منسحب أو متخرج) فلا يمكن تسجيله. فعّله أولاً من صفحة الطلبة.',
             'enrollment.not_found': 'التسجيل غير موجود. حدّث الصفحة.',
-            'enrollment.subject_link_not_found': 'ربط المادة بهذا التسجيل غير موجود. حدّث الصفحة.',
-            'enrollment.subject_deactivate_failed': 'تعذّر إيقاف المادة لهذا التسجيل. حدّث الصفحة وحاول مرة أخرى.',
-            'enrollment.subject_reactivate_failed': 'تعذّرت إعادة المادة لهذا التسجيل. حدّث الصفحة وحاول مرة أخرى.',
-            'enrollment.apply_curriculum_failed': 'سُجّل الطالب لكن تعذّر إسناد مواد المنهج تلقائياً. أعد تطبيق المنهج من صفحة المناهج.',
-            'enrollment.apply_curriculum_after_placement_failed': 'تغيّر التسكين لكن تعذّر تحديث مواد المنهج. أعد تطبيق المنهج من صفحة المناهج.',
+            'enrollment.subject_link_not_found':
+                'ربط المادة بهذا التسجيل غير موجود. حدّث الصفحة.',
+            'enrollment.subject_deactivate_failed':
+                'تعذّر إيقاف المادة لهذا التسجيل. حدّث الصفحة وحاول مرة أخرى.',
+            'enrollment.subject_reactivate_failed':
+                'تعذّرت إعادة المادة لهذا التسجيل. حدّث الصفحة وحاول مرة أخرى.',
+            'enrollment.apply_curriculum_failed':
+                'سُجّل الطالب لكن تعذّر إسناد مواد المنهج تلقائياً. أعد تطبيق المنهج من صفحة المناهج.',
+            'enrollment.apply_curriculum_after_placement_failed':
+                'تغيّر التسكين لكن تعذّر تحديث مواد المنهج. أعد تطبيق المنهج من صفحة المناهج.',
             'organization.school_name_invalid': 'اسم المدرسة مطلوب.',
-            'organization.directorate_invalid': 'المديرية غير صالحة أو غير نشطة.',
+            'organization.directorate_invalid':
+                'المديرية غير صالحة أو غير نشطة.',
             'organization.branch_name_invalid': 'اسم الفرع مطلوب.',
-            'organization.status_invalid': 'الحالة غير صالحة (نشط، غير نشط، مؤرشف).',
-            'organization.branch_not_active': 'لا يكون الاختصاص نشطاً في فرع غير نشط — فعّل الفرع أولاً.',
+            'organization.status_invalid':
+                'الحالة غير صالحة (نشط، غير نشط، مؤرشف).',
+            'organization.branch_not_active':
+                'لا يكون الاختصاص نشطاً في فرع غير نشط — فعّل الفرع أولاً.',
             'organization.branch_name_taken': 'يوجد فرع بهذا الاسم في المدرسة.',
             'organization.branch_not_found': 'الفرع غير موجود أو محذوف.',
-            'organization.branch_has_departments': 'لا يمكن حذف فرع له اختصاصات — احذف اختصاصاته أولاً.',
-            'organization.branch_in_use': 'لا يمكن حذف الفرع — توجد تسجيلات نشطة عليه.',
+            'organization.branch_has_departments':
+                'لا يمكن حذف فرع له اختصاصات — احذف اختصاصاته أولاً.',
+            'organization.branch_in_use':
+                'لا يمكن حذف الفرع — توجد تسجيلات نشطة عليه.',
             'organization.department_name_invalid': 'اسم الاختصاص مطلوب.',
-            'organization.department_name_taken': 'يوجد اختصاص بهذا الاسم في الفرع.',
+            'organization.department_name_taken':
+                'يوجد اختصاص بهذا الاسم في الفرع.',
             'organization.department_not_found': 'الاختصاص غير موجود أو محذوف.',
-            'organization.department_in_use': 'الاختصاص مستخدم في تسجيلات أو مناهج نشطة — لا يمكن حذفه أو نقله لفرع آخر.',
-            'organization.department_selection_empty': 'اختر اختصاصاً واحداً على الأقل.',
+            'organization.department_in_use':
+                'الاختصاص مستخدم في تسجيلات أو مناهج نشطة — لا يمكن حذفه أو نقله لفرع آخر.',
+            'organization.department_selection_empty':
+                'اختر اختصاصاً واحداً على الأقل.',
             'organization.structure_failed': 'تعذّر حفظ الفروع والاختصاصات.',
             'organization.school_not_found': 'المدرسة غير موجودة.',
-            'organization.school_update_empty': 'لا توجد حقول لتحديثها في المدرسة.',
+            'organization.school_update_empty':
+                'لا توجد حقول لتحديثها في المدرسة.',
             'organization.school_create_failed': 'تعذّر إضافة المدرسة.',
             'organization.school_update_failed': 'تعذّر تحديث بيانات المدرسة.',
             'organization.school_status_invalid': 'حالة المدرسة غير صالحة.',
-            'admission.period_directorate_mismatch': 'فترة القبول تتبع مديرية أخرى — اختر مدرسة من مديرية الفترة.',
+            'admission.period_directorate_mismatch':
+                'فترة القبول تتبع مديرية أخرى — اختر مدرسة من مديرية الفترة.',
             'enrollment.class_not_found': 'الصف غير موجود في هذه المدرسة.',
             'enrollment.section_not_found': 'الشعبة غير موجودة في هذه المدرسة.',
             'enrollment.class_inactive': 'الصف معطّل — فعّله قبل إضافة شعب إليه.',
-            'enrollment.class_name_invalid': 'اسم الصف مطلوب (100 حرف كحد أقصى).',
-            'enrollment.class_name_taken': 'يوجد صف بهذا الاسم في السنة الدراسية.',
-            'enrollment.class_capacity_invalid': 'سعة الصف يجب أن تكون بين 1 و500.',
-            'enrollment.class_capacity_below_enrolled': 'سعة الصف أقل من عدد الطلبة المسجلين فيه.',
-            'enrollment.class_grade_level_invalid': 'المرحلة الدراسية غير صالحة.',
-            'enrollment.class_grade_level_locked': 'لا يمكن تغيير المرحلة لصف فيه طلبة مسجلون — المنهج يُطبّق حسب المرحلة.',
-            'enrollment.section_name_invalid': 'اسم الشعبة مطلوب (100 حرف كحد أقصى).',
+            'enrollment.class_name_invalid':
+                'اسم الصف مطلوب (100 حرف كحد أقصى).',
+            'enrollment.class_name_taken':
+                'يوجد صف بهذا الاسم في السنة الدراسية.',
+            'enrollment.class_capacity_invalid':
+                'سعة الصف يجب أن تكون بين 1 و500.',
+            'enrollment.class_capacity_below_enrolled':
+                'سعة الصف أقل من عدد الطلبة المسجلين فيه.',
+            'enrollment.class_grade_level_invalid':
+                'المرحلة الدراسية غير صالحة.',
+            'enrollment.class_grade_level_locked':
+                'لا يمكن تغيير المرحلة لصف فيه طلبة مسجلون — المنهج يُطبّق حسب المرحلة.',
+            'enrollment.section_name_invalid':
+                'اسم الشعبة مطلوب (100 حرف كحد أقصى).',
             'enrollment.section_name_taken': 'توجد شعبة بهذا الاسم في الصف.',
-            'enrollment.section_capacity_invalid': 'سعة الشعبة يجب أن تكون بين 1 و500.',
-            'enrollment.section_capacity_below_enrolled': 'سعة الشعبة أقل من عدد الطلبة المسجلين فيها.',
-            'enrollment.section_homeroom_invalid': 'رائد الصف يجب أن يكون معلماً نشطاً في هذه المدرسة والسنة الدراسية.',
+            'enrollment.section_capacity_invalid':
+                'سعة الشعبة يجب أن تكون بين 1 و500.',
+            'enrollment.section_capacity_below_enrolled':
+                'سعة الشعبة أقل من عدد الطلبة المسجلين فيها.',
+            'enrollment.section_homeroom_invalid':
+                'رائد الصف يجب أن يكون معلماً نشطاً في هذه المدرسة والسنة الدراسية.',
             'enrollment.structure_failed': 'تعذّر حفظ الصفوف والشعب.',
             'teachers.not_found': 'المعلم غير موجود في هذه المدرسة.',
-            'teachers.not_in_school_year': 'المعلم غير مرتبط بهذه المدرسة في السنة الدراسية المختارة.',
+            'teachers.not_in_school_year':
+                'المعلم غير مرتبط بهذه المدرسة في السنة الدراسية المختارة.',
             'teachers.employee_code_required': 'الرمز الوظيفي مطلوب.',
             'teachers.employee_code_taken': 'الرمز الوظيفي مستخدم لمعلم آخر.',
             'teachers.name_required': 'الاسم الأول واللقب مطلوبان.',
@@ -816,149 +1068,238 @@ export const ar = {
             'teachers.subject_not_found': 'المادة غير موجودة.',
             'teachers.save_failed': 'تعذّر حفظ بيانات المعلم.',
             'teachers.employment_type_invalid': 'نوع التعيين غير صالح.',
-            'teachers.deactivated_with_lessons': 'أُوقف المعلم، لكن بقيت له :count حصة على الجدول الدراسي. استبدله فيها من صفحة الجدول وإلا ظهرت أخطاء في تدقيق الجدول.',
-            'teachers.national_id_taken': 'الرقم الوطني مسجّل لمعلم آخر. افتح سجل ذلك المعلم أو صحّح الرقم.',
-            'teachers.workload_year_required': 'اختر السنة الدراسية قبل حفظ حصص المعلم.',
-            'teachers.workload_weekly_max_invalid': 'الحد الأعلى الأسبوعي يجب أن يكون بين 1 و60 حصة.',
-            'teachers.workload_weekly_min_invalid': 'الحد الأدنى الأسبوعي يجب أن يكون بين 0 و60 حصة.',
-            'teachers.workload_daily_max_invalid': 'الحد الأعلى اليومي يجب أن يكون بين 1 و12 حصة.',
-            'teachers.workload_min_above_max': 'الحد الأدنى الأسبوعي أكبر من الحد الأعلى. صحّح أحدهما.',
-            'teachers.workload_daily_above_weekly': 'الحد اليومي أكبر من الحد الأسبوعي. خفّض اليومي أو ارفع الأسبوعي.',
-            'teachers.selection_invalid': 'اختر معلماً واحداً على الأقل (200 كحد أقصى).',
+            'teachers.deactivated_with_lessons':
+                'أُوقف المعلم، لكن بقيت له :count حصة على الجدول الدراسي. استبدله فيها من صفحة الجدول وإلا ظهرت أخطاء في تدقيق الجدول.',
+            'teachers.national_id_taken':
+                'الرقم الوطني مسجّل لمعلم آخر. افتح سجل ذلك المعلم أو صحّح الرقم.',
+            'teachers.workload_year_required':
+                'اختر السنة الدراسية قبل حفظ حصص المعلم.',
+            'teachers.workload_weekly_max_invalid':
+                'الحد الأعلى الأسبوعي يجب أن يكون بين 1 و60 حصة.',
+            'teachers.workload_weekly_min_invalid':
+                'الحد الأدنى الأسبوعي يجب أن يكون بين 0 و60 حصة.',
+            'teachers.workload_daily_max_invalid':
+                'الحد الأعلى اليومي يجب أن يكون بين 1 و12 حصة.',
+            'teachers.workload_min_above_max':
+                'الحد الأدنى الأسبوعي أكبر من الحد الأعلى. صحّح أحدهما.',
+            'teachers.workload_daily_above_weekly':
+                'الحد اليومي أكبر من الحد الأسبوعي. خفّض اليومي أو ارفع الأسبوعي.',
+            'teachers.selection_invalid':
+                'اختر معلماً واحداً على الأقل (200 كحد أقصى).',
             'teachers.status_invalid': 'حالة المعلم غير صالحة.',
-            'teachers.assignment_branch_invalid': 'الفرع غير نشط أو لا يتبع هذه المدرسة.',
-            'teachers.assignment_department_invalid': 'الاختصاص غير نشط أو لا يتبع الفرع المختار.',
+            'teachers.assignment_branch_invalid':
+                'الفرع غير نشط أو لا يتبع هذه المدرسة.',
+            'teachers.assignment_department_invalid':
+                'الاختصاص غير نشط أو لا يتبع الفرع المختار.',
             'teachers.assignment_section_needs_class': 'اختر الصف قبل الشعبة.',
-            'teachers.assignment_class_invalid': 'الصف غير نشط أو لا يتبع هذه المدرسة والسنة الدراسية.',
-            'teachers.assignment_section_invalid': 'الشعبة غير نشطة أو لا تتبع الصف المختار.',
-            'teachers.assignment_subject_not_in_curriculum': 'المادة ليست ضمن منهج الاختصاص (أو الفرع) في هذه السنة الدراسية.',
+            'teachers.assignment_class_invalid':
+                'الصف غير نشط أو لا يتبع هذه المدرسة والسنة الدراسية.',
+            'teachers.assignment_section_invalid':
+                'الشعبة غير نشطة أو لا تتبع الصف المختار.',
+            'teachers.assignment_subject_not_in_curriculum':
+                'المادة ليست ضمن منهج الاختصاص (أو الفرع) في هذه السنة الدراسية.',
             'teachers.assignment_exists': 'هذا التدريس مسند للمعلم مسبقاً.',
             'teachers.assignment_not_found': 'التدريس غير موجود لهذا المعلم.',
             'teachers.assignment_not_active': 'التدريس منتهٍ مسبقاً.',
-            'timetable.section_slot_conflict': 'للشعبة حصة أخرى في هذا اليوم وهذه الحصة.',
-            'timetable.teacher_slot_conflict': 'المعلم مشغول بحصة في شعبة أخرى في هذا الوقت.',
+            'timetable.section_slot_conflict':
+                'للشعبة حصة أخرى في هذا اليوم وهذه الحصة.',
+            'timetable.teacher_slot_conflict':
+                'المعلم مشغول بحصة في شعبة أخرى في هذا الوقت.',
             'timetable.room_slot_conflict': 'القاعة محجوزة في هذا الوقت.',
-            'timetable.workshop_slot_conflict': 'الورشة مشغولة بحصة أخرى في هذا الوقت.',
-            'timetable.teacher_busy_other_school': 'المعلم لديه حصة في مدرسة أخرى في هذا الوقت.',
-            'timetable.teacher_unavailable_slot': 'هذا الوقت محدد «غير متاح» للمعلم.',
-            'timetable.room_unavailable_slot': 'هذا الوقت محدد «غير متاح» للقاعة.',
-            'timetable.workshop_unavailable_slot': 'هذا الوقت محدد «غير متاح» للورشة.',
-            'timetable.section_unavailable_slot': 'هذا الوقت محدد «غير متاح» للشعبة.',
-            'timetable.substitute_teacher_busy': 'المعلم البديل لديه حصة أخرى في هذا الوقت.',
-            'timetable.substitute_room_busy': 'القاعة البديلة محجوزة في هذا الوقت.',
-            'timetable.schedule_slot_conflict': 'تعارض في الجدول: الخانة محجوزة.',
+            'timetable.workshop_slot_conflict':
+                'الورشة مشغولة بحصة أخرى في هذا الوقت.',
+            'timetable.teacher_busy_other_school':
+                'المعلم لديه حصة في مدرسة أخرى في هذا الوقت.',
+            'timetable.teacher_unavailable_slot':
+                'هذا الوقت محدد «غير متاح» للمعلم.',
+            'timetable.room_unavailable_slot':
+                'هذا الوقت محدد «غير متاح» للقاعة.',
+            'timetable.workshop_unavailable_slot':
+                'هذا الوقت محدد «غير متاح» للورشة.',
+            'timetable.section_unavailable_slot':
+                'هذا الوقت محدد «غير متاح» للشعبة.',
+            'timetable.substitute_teacher_busy':
+                'المعلم البديل لديه حصة أخرى في هذا الوقت.',
+            'timetable.substitute_room_busy':
+                'القاعة البديلة محجوزة في هذا الوقت.',
+            'timetable.schedule_slot_conflict':
+                'تعارض في الجدول: الخانة محجوزة.',
             'timetable.invalid_day_of_week': 'يوم الأسبوع غير صالح.',
-            'timetable.section_not_in_school_year': 'الشعبة لا تتبع هذه المدرسة والسنة الدراسية.',
-            'timetable.period_not_in_school': 'الحصة غير معرّفة في توقيت دوام هذه المدرسة.',
-            'timetable.period_not_lesson': 'لا توضع حصص دراسية في فترة الاستراحة.',
+            'timetable.section_not_in_school_year':
+                'الشعبة لا تتبع هذه المدرسة والسنة الدراسية.',
+            'timetable.period_not_in_school':
+                'الحصة غير معرّفة في توقيت دوام هذه المدرسة.',
+            'timetable.period_not_lesson':
+                'لا توضع حصص دراسية في فترة الاستراحة.',
             'timetable.subject_not_found': 'المادة غير موجودة.',
-            'timetable.teacher_not_in_school_year': 'المعلم غير مرتبط بهذه المدرسة في السنة الدراسية.',
-            'timetable.teacher_not_assigned_subject': 'المادة غير مسندة لهذا المعلم — أسندها من صفحة المعلمين أولاً.',
+            'timetable.teacher_not_in_school_year':
+                'المعلم غير مرتبط بهذه المدرسة في السنة الدراسية.',
+            'timetable.teacher_not_assigned_subject':
+                'المادة غير مسندة لهذا المعلم — أسندها من صفحة المعلمين أولاً.',
             'timetable.room_not_in_school': 'القاعة لا تتبع هذه المدرسة.',
             'timetable.schedule_not_found': 'الحصة غير موجودة في الجدول.',
             'timetable.schedule_not_active': 'الحصة ملغاة مسبقاً.',
-            'timetable.schedule_idempotency_key_required': 'تعذّر إرسال الطلب — أعد المحاولة.',
-            'timetable.period_number_invalid': 'رقم الحصة يجب أن يكون بين 1 و20.',
+            'timetable.schedule_idempotency_key_required':
+                'تعذّر إرسال الطلب — أعد المحاولة.',
+            'timetable.period_number_invalid':
+                'رقم الحصة يجب أن يكون بين 1 و20.',
             'timetable.period_type_invalid': 'نوع الفترة غير صالح.',
-            'timetable.period_time_invalid': 'وقت البداية يجب أن يسبق وقت النهاية.',
+            'timetable.period_time_invalid':
+                'وقت البداية يجب أن يسبق وقت النهاية.',
             'timetable.period_number_taken': 'يوجد حصة بهذا الرقم مسبقاً.',
             'timetable.period_overlap': 'هذا الوقت يتداخل مع حصة أخرى.',
-            'timetable.period_has_lessons': 'في هذه الحصة دروس موزّعة — انقلها قبل تحويلها إلى استراحة.',
+            'timetable.period_has_lessons':
+                'في هذه الحصة دروس موزّعة — انقلها قبل تحويلها إلى استراحة.',
             'timetable.break_minutes_invalid': 'مدة الاستراحة بين 1 و180 دقيقة.',
             'timetable.lesson_minutes_invalid': 'مدة الحصة بين 5 و180 دقيقة.',
-            'timetable.period_limit_reached': 'لا يزيد اليوم عن 20 حصة واستراحة.',
+            'timetable.period_limit_reached':
+                'لا يزيد اليوم عن 20 حصة واستراحة.',
             'timetable.break_not_found': 'الاستراحة غير موجودة. حدّث الصفحة.',
             'timetable.break_move_invalid': 'اختر موضعاً آخر للاستراحة.',
-            'timetable.day_past_midnight': 'اليوم يتجاوز منتصف الليل — قلّل المدد أو قدّم بداية اليوم.',
+            'timetable.day_past_midnight':
+                'اليوم يتجاوز منتصف الليل — قلّل المدد أو قدّم بداية اليوم.',
             'timetable.day_operation_invalid': 'العملية غير معروفة.',
             'timetable.period_name_too_long': 'العنوان لا يزيد عن 60 حرفاً.',
-            'timetable.period_targets_invalid': 'اختيار أماكن الظهور / الطباعة غير صالح.',
+            'timetable.period_targets_invalid':
+                'اختيار أماكن الظهور / الطباعة غير صالح.',
             'timetable.test_issue_invalid': 'المشكلة غير معروفة — أعد الاختبار.',
             'timetable.test_mark_invalid': 'الوسم غير صالح.',
-            'teachers.academic_title_invalid': 'اللقب العلمي غير موجود أو معطّل.',
+            'teachers.academic_title_invalid':
+                'اللقب العلمي غير موجود أو معطّل.',
             'timetable.period_save_failed': 'تعذّر حفظ توقيت الحصة.',
             'timetable.swap_same_lesson': 'اختر حصة أخرى للاستبدال.',
-            'timetable.swap_other_section': 'الاستبدال يكون بين حصتين من الشعبة نفسها.',
+            'timetable.swap_other_section':
+                'الاستبدال يكون بين حصتين من الشعبة نفسها.',
             'timetable.shift_invalid': 'تعذّر زحف الحصة.',
-            'timetable.shift_no_room': 'لا توجد خانة فارغة في هذا الاتجاه من اليوم — الزحف غير ممكن.',
-            'timetable.auto_no_lessons': 'لا توجد مواد مسندة لهذه الشعبة لتوزيعها.',
+            'timetable.shift_no_room':
+                'لا توجد خانة فارغة في هذا الاتجاه من اليوم — الزحف غير ممكن.',
+            'timetable.auto_no_lessons':
+                'لا توجد مواد مسندة لهذه الشعبة لتوزيعها.',
             'timetable.auto_no_periods': 'عرّف توقيت الحصص أولاً.',
-            'timetable.arrange_no_lessons': 'لا توجد حصص دراسية في توقيت الدوام لتوزيع الاستراحات بينها.',
-            'timetable.arrange_extra_breaks': 'عدد الاستراحات المعرّفة أكبر مما يحتاجه اليوم — حوّل الزائد منها إلى حصص أو عدّله يدوياً.',
-            'timetable.schedule_locked': 'الحصة مثبّتة — ألغِ تثبيتها أولاً لتحريكها أو حذفها.',
+            'timetable.arrange_no_lessons':
+                'لا توجد حصص دراسية في توقيت الدوام لتوزيع الاستراحات بينها.',
+            'timetable.arrange_extra_breaks':
+                'عدد الاستراحات المعرّفة أكبر مما يحتاجه اليوم — حوّل الزائد منها إلى حصص أو عدّله يدوياً.',
+            'timetable.schedule_locked':
+                'الحصة مثبّتة — ألغِ تثبيتها أولاً لتحريكها أو حذفها.',
             'timetable.engine_error': 'تعذّر تنفيذ العملية على الجدول.',
-            'timetable.reference_not_in_school': 'أحد العناصر المختارة لا يتبع هذه المدرسة أو السنة الدراسية.',
+            'timetable.reference_not_in_school':
+                'أحد العناصر المختارة لا يتبع هذه المدرسة أو السنة الدراسية.',
             'timetable.settings_days_invalid': 'اختر يوم دوام واحداً على الأقل.',
             'timetable.activity_not_found': 'النشاط غير موجود أو منتهٍ.',
             'timetable.activity_not_active': 'النشاط منتهٍ مسبقاً.',
-            'timetable.activity_load_invalid': 'عدد الحصص الأسبوعية أو طول الكتلة غير صالح (الكتلة لا تتجاوز الحصص الأسبوعية).',
-            'timetable.activity_distribution_invalid': 'التوزيع يجب أن يكون مثل 2+2+1 ومجموعه يساوي الحصص الأسبوعية.',
+            'timetable.activity_load_invalid':
+                'عدد الحصص الأسبوعية أو طول الكتلة غير صالح (الكتلة لا تتجاوز الحصص الأسبوعية).',
+            'timetable.activity_distribution_invalid':
+                'التوزيع يجب أن يكون مثل 2+2+1 ومجموعه يساوي الحصص الأسبوعية.',
             'timetable.activity_type_invalid': 'نوع النشاط غير صالح.',
-            'timetable.activity_week_invalid': 'نمط الأسبوع لا يناسب دورة الجدول (اجعل الدورة أسبوعين أو أكثر).',
-            'timetable.activity_room_ambiguous': 'اختر قاعة محددة أو نوع قاعة أو ورشة — واحداً فقط.',
-            'timetable.activity_targets_invalid': 'اختر شعبة واحدة على الأقل دون تكرار.',
-            'timetable.activity_group_not_in_section': 'المجموعة المختارة لا تتبع تلك الشعبة.',
-            'timetable.activity_teachers_invalid': 'يلزم معلم رئيسي واحد بالضبط، دون تكرار، وحصص المعلم المساعد ضمن حصص النشاط.',
-            'timetable.split_invalid': 'حدد اسم التقسيم وعدد مجموعات بين 2 و10 أو سعة صالحة.',
+            'timetable.activity_week_invalid':
+                'نمط الأسبوع لا يناسب دورة الجدول (اجعل الدورة أسبوعين أو أكثر).',
+            'timetable.activity_room_ambiguous':
+                'اختر قاعة محددة أو نوع قاعة أو ورشة — واحداً فقط.',
+            'timetable.activity_targets_invalid':
+                'اختر شعبة واحدة على الأقل دون تكرار.',
+            'timetable.activity_group_not_in_section':
+                'المجموعة المختارة لا تتبع تلك الشعبة.',
+            'timetable.activity_teachers_invalid':
+                'يلزم معلم رئيسي واحد بالضبط، دون تكرار، وحصص المعلم المساعد ضمن حصص النشاط.',
+            'timetable.split_invalid':
+                'حدد اسم التقسيم وعدد مجموعات بين 2 و10 أو سعة صالحة.',
             'timetable.division_not_found': 'التقسيم غير موجود أو منتهٍ.',
             'timetable.availability_invalid': 'بيانات الإتاحة غير صالحة.',
             'timetable.rule_type_unknown': 'نوع القيد غير معروف.',
             'timetable.rule_priority_invalid': 'أولوية القيد غير صالحة.',
-            'timetable.rule_scope_not_allowed': 'هذا القيد لا يُطبّق على النطاق المختار.',
-            'timetable.rule_scope_required': 'هذا القيد يحتاج تحديد النشاط/المعلم/المادة المطلوب.',
+            'timetable.rule_scope_not_allowed':
+                'هذا القيد لا يُطبّق على النطاق المختار.',
+            'timetable.rule_scope_required':
+                'هذا القيد يحتاج تحديد النشاط/المعلم/المادة المطلوب.',
             'timetable.rule_params_invalid': 'قيم القيد غير صالحة.',
             'timetable.rule_same_activity': 'اختر نشاطين مختلفين.',
             'timetable.rule_same_teacher': 'اختر معلمين مختلفين.',
             'timetable.rule_not_found': 'القيد غير موجود أو منتهٍ.',
             'timetable.lock_invalid': 'اختر حصة واحدة على الأقل للتثبيت.',
             'timetable.generation_mode_invalid': 'نمط التوليد غير صالح.',
-            'timetable.generation_blocked': 'لا يمكن التوليد: توجد عوائق في البيانات — راجع «الجاهزية والجودة».',
-            'timetable.generation_running': 'توجد عملية توليد جارية لهذه السنة — انتظر انتهاءها أو ألغها.',
+            'timetable.generation_blocked':
+                'لا يمكن التوليد: توجد عوائق في البيانات — راجع «الجاهزية والجودة».',
+            'timetable.generation_running':
+                'توجد عملية توليد جارية لهذه السنة — انتظر انتهاءها أو ألغها.',
             'timetable.generation_scope_empty': 'النطاق المختار لا يحتوي شعباً.',
-            'timetable.generation_not_queued': 'عملية التوليد لم تعد في الانتظار.',
+            'timetable.generation_not_queued':
+                'عملية التوليد لم تعد في الانتظار.',
             'timetable.generation_not_active': 'عملية التوليد ليست جارية.',
-            'timetable.generation_not_appliable': 'لا يمكن اعتماد هذه النتيجة (غير مكتملة أو اعتُمدت).',
-            'timetable.generation_what_if': 'نتيجة «ماذا لو» للمحاكاة فقط ولا تُعتمد.',
-            'timetable.generation_stale': 'تغيّر الجدول منذ التوليد — أعد التوليد.',
+            'timetable.generation_not_appliable':
+                'لا يمكن اعتماد هذه النتيجة (غير مكتملة أو اعتُمدت).',
+            'timetable.generation_what_if':
+                'نتيجة «ماذا لو» للمحاكاة فقط ولا تُعتمد.',
+            'timetable.generation_stale':
+                'تغيّر الجدول منذ التوليد — أعد التوليد.',
             'timetable.generation_not_discardable': 'لا يمكن تجاهل هذه العملية.',
-            'timetable.version_name_invalid': 'اسم الإصدار مطلوب (حتى 150 حرفاً).',
+            'timetable.version_name_invalid':
+                'اسم الإصدار مطلوب (حتى 150 حرفاً).',
             'timetable.version_empty': 'لا توجد حصص في الجدول لحفظها كإصدار.',
             'timetable.version_not_found': 'الإصدار غير موجود.',
-            'timetable.version_not_submittable': 'لا يمكن إرسال هذا الإصدار للاعتماد في حالته الحالية.',
-            'timetable.version_has_errors': 'في الإصدار أخطاء (تعارضات) — أصلحها واحفظ إصداراً جديداً.',
+            'timetable.version_not_submittable':
+                'لا يمكن إرسال هذا الإصدار للاعتماد في حالته الحالية.',
+            'timetable.version_has_errors':
+                'في الإصدار أخطاء (تعارضات) — أصلحها واحفظ إصداراً جديداً.',
             'timetable.version_not_in_review': 'الإصدار ليس قيد الاعتماد.',
             'timetable.version_not_approved': 'لا يُنشر إلا إصدار معتمد.',
             'timetable.version_not_archivable': 'لا يمكن أرشفة هذا الإصدار.',
             'timetable.publish_date_invalid': 'تاريخ السريان غير صالح.',
-            'timetable.publish_date_before_current': 'تاريخ السريان يجب أن يكون بعد سريان الإصدار المنشور الحالي.',
-            'workflow.step_role_mismatch': 'لا تملك دور هذه الخطوة في مسار الاعتماد.',
-            'workflow.approval_request_open_exists': 'يوجد طلب اعتماد مفتوح لهذا العنصر.',
-            'admission.application_missing': 'طلب القبول غير موجود. حدّث الصفحة فقد يكون حُذف أو نُقل.',
-            'admission.application_not_convertible': 'لا يمكن تحويل هذا الطلب إلى طالب في حالته الحالية. اقبل الطلب أولاً (مسودة ← مقدَّم ← قيد المراجعة ← مقابلة ← مقبول).',
-            'admission.invalid_transition': 'لا يمكن نقل الطلب إلى هذه الحالة من حالته الحالية. تابع المراحل بالترتيب: مسودة ← مقدَّم ← قيد المراجعة ← مقابلة ← مقبول، أو ارفض/اسحب الطلب.',
-            'admission.period_capacity_reached': 'بلغت فترة القبول حدّها الأعلى من الطلبات. ارفع الحد من إعدادات الفترة أو افتح فترة جديدة.',
-            'admission.period_closed': 'فترة القبول غير مفتوحة لطلبات جديدة. افتح الفترة أو اختر فترة مفتوحة.',
-            'admission.period_missing': 'فترة القبول غير موجودة. حدّث الصفحة واختر فترة من القائمة.',
-            'admission.period_out_of_scope': 'فترة القبول تتبع مديرية غير مرتبطة بحسابك — لا يمكنك تعديلها.',
-            'admission.period_academic_year_locked': 'لا يمكن تغيير السنة الدراسية لفترة قبول قائمة — أرشِف الفترة وافتح فترة جديدة في السنة المطلوبة.',
-            'admission.transfer_application_not_found': 'طلب القبول غير موجود في هذه المدرسة.',
-            'admission.transfer_application_converted': 'لا يمكن نقل طلب تم تحويله إلى طالب.',
-            'admission.transfer_request_kind_invalid': 'نوع طلب القبول غير صالح.',
-            'admission.transfer_school_not_allowed': 'المدرسة المختارة غير مرتبطة بحسابك أو غير نشطة.',
-            'admission.transfer_period_invalid': 'فترة القبول المختارة غير موجودة أو غير نشطة.',
-            'admission.transfer_nothing_changed': 'لم يتغير شيء — اختر مدرسة أو نوع طلب أو سنة دراسية مختلفة.',
+            'timetable.publish_date_before_current':
+                'تاريخ السريان يجب أن يكون بعد سريان الإصدار المنشور الحالي.',
+            'workflow.step_role_mismatch':
+                'لا تملك دور هذه الخطوة في مسار الاعتماد.',
+            'workflow.approval_request_open_exists':
+                'يوجد طلب اعتماد مفتوح لهذا العنصر.',
+            'admission.application_missing':
+                'طلب القبول غير موجود. حدّث الصفحة فقد يكون حُذف أو نُقل.',
+            'admission.application_not_convertible':
+                'لا يمكن تحويل هذا الطلب إلى طالب في حالته الحالية. اقبل الطلب أولاً (مسودة ← مقدَّم ← قيد المراجعة ← مقابلة ← مقبول).',
+            'admission.invalid_transition':
+                'لا يمكن نقل الطلب إلى هذه الحالة من حالته الحالية. تابع المراحل بالترتيب: مسودة ← مقدَّم ← قيد المراجعة ← مقابلة ← مقبول، أو ارفض/اسحب الطلب.',
+            'admission.period_capacity_reached':
+                'بلغت فترة القبول حدّها الأعلى من الطلبات. ارفع الحد من إعدادات الفترة أو افتح فترة جديدة.',
+            'admission.period_closed':
+                'فترة القبول غير مفتوحة لطلبات جديدة. افتح الفترة أو اختر فترة مفتوحة.',
+            'admission.period_missing':
+                'فترة القبول غير موجودة. حدّث الصفحة واختر فترة من القائمة.',
+            'admission.period_out_of_scope':
+                'فترة القبول تتبع مديرية غير مرتبطة بحسابك — لا يمكنك تعديلها.',
+            'admission.period_academic_year_locked':
+                'لا يمكن تغيير السنة الدراسية لفترة قبول قائمة — أرشِف الفترة وافتح فترة جديدة في السنة المطلوبة.',
+            'admission.transfer_application_not_found':
+                'طلب القبول غير موجود في هذه المدرسة.',
+            'admission.transfer_application_converted':
+                'لا يمكن نقل طلب تم تحويله إلى طالب.',
+            'admission.transfer_request_kind_invalid':
+                'نوع طلب القبول غير صالح.',
+            'admission.transfer_school_not_allowed':
+                'المدرسة المختارة غير مرتبطة بحسابك أو غير نشطة.',
+            'admission.transfer_period_invalid':
+                'فترة القبول المختارة غير موجودة أو غير نشطة.',
+            'admission.transfer_nothing_changed':
+                'لم يتغير شيء — اختر مدرسة أو نوع طلب أو سنة دراسية مختلفة.',
             'admission.transfer_failed': 'تعذّر نقل طلب القبول.',
             'organization.directorate_name_invalid': 'اسم المديرية مطلوب.',
             'organization.directorate_not_found': 'المديرية غير موجودة.',
-            'organization.directorate_update_empty': 'لا توجد حقول لتحديثها في المديرية.',
+            'organization.directorate_update_empty':
+                'لا توجد حقول لتحديثها في المديرية.',
             'organization.directorate_create_failed': 'تعذّر إضافة المديرية.',
-            'organization.directorate_update_failed': 'تعذّر تحديث بيانات المديرية.',
-            'organization.ministry_missing': 'لا توجد وزارة نشطة لربط المديرية بها.',
-            'organization.school_not_linked': 'لا يمكن نقل مدرسة غير مرتبطة بحسابك.',
-            'organization.directorate_school_removal': 'لا يمكن إخراج مدرسة من المديرية — انقلها باختيارها في مديرية أخرى.',
-            'organization.directorate_inactive': 'المديرية معطّلة ولا يمكن إضافة مدارس إليها.',
-            'organization.directorate_status_invalid': 'حالة المديرية غير صالحة.',
-            'organization.directorate_has_schools': 'لا يمكن تعطيل مديرية ما زالت فيها مدارس نشطة.',
+            'organization.directorate_update_failed':
+                'تعذّر تحديث بيانات المديرية.',
+            'organization.ministry_missing':
+                'لا توجد وزارة نشطة لربط المديرية بها.',
+            'organization.school_not_linked':
+                'لا يمكن نقل مدرسة غير مرتبطة بحسابك.',
+            'organization.directorate_school_removal':
+                'لا يمكن إخراج مدرسة من المديرية — انقلها باختيارها في مديرية أخرى.',
+            'organization.directorate_inactive':
+                'المديرية معطّلة ولا يمكن إضافة مدارس إليها.',
+            'organization.directorate_status_invalid':
+                'حالة المديرية غير صالحة.',
+            'organization.directorate_has_schools':
+                'لا يمكن تعطيل مديرية ما زالت فيها مدارس نشطة.',
         } as Record<string, string>,
     },
     common: {
@@ -1039,7 +1380,8 @@ export const ar = {
     },
     students: {
         title: 'الطلاب',
-        description: 'دليل الطلاب ضمن نطاق المدرسة — بيانات السجل المدني والقبول.',
+        description:
+            'دليل الطلاب ضمن نطاق المدرسة — بيانات السجل المدني والقبول.',
         showDesc: 'ملف الطالب — بيانات السجل المدني والقبول.',
         code: 'الرمز',
         name: 'الاسم',
@@ -1097,7 +1439,8 @@ export const ar = {
         tableHeading: 'جدول الطلاب',
         emptyTitle: 'لا يوجد طلاب',
         emptySearch: 'جرّب مصطلح بحث آخر.',
-        emptyDesc: 'لا يوجد طلاب في المدرسة الحالية بعد. حوّل طلباً مقبولاً إلى طالب من صفحة القبول، أو أضف طالباً مباشرة من الشريط.',
+        emptyDesc:
+            'لا يوجد طلاب في المدرسة الحالية بعد. حوّل طلباً مقبولاً إلى طالب من صفحة القبول، أو أضف طالباً مباشرة من الشريط.',
         detailsTitle: 'تفاصيل الطالب',
         detailsDesc: 'معاينة سطح المكتب — المسار الرسمي يبقى /students/:id.',
         openProfile: 'فتح الملف',
@@ -1117,11 +1460,14 @@ export const ar = {
         studySection: 'القبول والدراسة',
         contactSection: 'الاتصال',
         statusConfirmTitle: 'تغيير حالة الطلبة',
-        statusConfirmBody: 'ستتغير حالة {count} طالب إلى «{status}». الطالب غير النشط لا يمكن تسجيله، وتتوقف تسجيلاته النشطة تبعاً لذلك. يمكنك إعادته إلى «نشط» لاحقاً. هل تريد المتابعة؟',
+        statusConfirmBody:
+            'ستتغير حالة {count} طالب إلى «{status}». الطالب غير النشط لا يمكن تسجيله، وتتوقف تسجيلاته النشطة تبعاً لذلك. يمكنك إعادته إلى «نشط» لاحقاً. هل تريد المتابعة؟',
         statusConfirmAction: 'تغيير الحالة',
         deleteTitle: 'حذف الطالب',
-        deleteConfirm: 'سيتم تعليم الطالب كمنسحب دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
-        piiHidden: 'الحقول الحساسة مخفية — ظهور البيانات الشخصية يخضع لتخويل الخادم.',
+        deleteConfirm:
+            'سيتم تعليم الطالب كمنسحب دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
+        piiHidden:
+            'الحقول الحساسة مخفية — ظهور البيانات الشخصية يخضع لتخويل الخادم.',
         accessDenied: 'الوصول مرفوض',
         accessDeniedDesc: 'غير مسموح لك بعرض هذا الطالب.',
         notFound: 'الطالب غير موجود',
@@ -1134,7 +1480,8 @@ export const ar = {
         requestKindAcademicTransfer: 'تحويل أكاديمي',
         allGenders: 'الكل',
         clearFilters: 'إلغاء الفلترة',
-        clearFiltersAria: 'إلغاء فلاتر الجنس والتسجيل ونوع التقديم والبحث الحالية',
+        clearFiltersAria:
+            'إلغاء فلاتر الجنس والتسجيل ونوع التقديم والبحث الحالية',
         clearSelection: 'إلغاء التحديد',
         clearSelectionAria: 'إلغاء تحديد صفوف الجدول',
         structureFiltersTitle: 'فلاتر الطلاب',
@@ -1147,7 +1494,8 @@ export const ar = {
         enrollmentNo: 'غير مسجّل',
         enrollAction: 'تسجيل',
         enrollNeedsSelection: 'اختر طالباً واحداً أو أكثر ثم اضغط تسجيل',
-        enrollNeedsEligible: 'لا يوجد ضمن التحديد طلاب نشطون غير مسجّلين لهذه السنة',
+        enrollNeedsEligible:
+            'لا يوجد ضمن التحديد طلاب نشطون غير مسجّلين لهذه السنة',
         enrollDialogTitle: 'تسجيل الطلاب',
         enrollDialogHint: 'أكمل حقول التوزيع السنوي للطلاب المحددين.',
         enrollDialogRequired: 'بيانات التسجيل',
@@ -1167,18 +1515,25 @@ export const ar = {
         enrollEmptyEffectiveFrom: 'حدّد تاريخ سريان التسجيل.',
         enrollEmptyYear: 'حدّد السنة الدراسية قبل التسجيل.',
         enrollEmptyStudents: 'لا يوجد طلاب لتسجيلهم.',
-        enrollClassNotFound: 'الصف المختار غير موجود في بيانات السنة الدراسية الحالية.',
-        enrollSectionNotFound: 'الشعبة المختارة غير متوفرة لهذا الصف في بيانات السنة.',
-        enrollBranchRequiredWithDept: 'عند اختيار الاختصاص يجب اختيار الفرع أولاً.',
-        enrollBranchMissingInYear: 'الفرع المختار غير موجود ضمن فروع المدرسة لهذه السنة.',
+        enrollClassNotFound:
+            'الصف المختار غير موجود في بيانات السنة الدراسية الحالية.',
+        enrollSectionNotFound:
+            'الشعبة المختارة غير متوفرة لهذا الصف في بيانات السنة.',
+        enrollBranchRequiredWithDept:
+            'عند اختيار الاختصاص يجب اختيار الفرع أولاً.',
+        enrollBranchMissingInYear:
+            'الفرع المختار غير موجود ضمن فروع المدرسة لهذه السنة.',
         enrollDepartmentMissingInBranch: 'الاختصاص المختار لا يتبع الفرع المحدد.',
-        enrollNoClassesInYear: 'لا توجد صفوف معرّفة لهذه السنة الدراسية — راجع إعدادات التسجيل.',
+        enrollNoClassesInYear:
+            'لا توجد صفوف معرّفة لهذه السنة الدراسية — راجع إعدادات التسجيل.',
         enrollNoSectionsForClass: 'لا توجد شعب متاحة للصف المختار في هذه السنة.',
-        enrollNoBranchesHint: 'لا توجد فروع معرّفة — يمكن إكمال التسجيل بالصف والشعبة فقط.',
+        enrollNoBranchesHint:
+            'لا توجد فروع معرّفة — يمكن إكمال التسجيل بالصف والشعبة فقط.',
         enrollSelectClassFirst: 'اختر الصف أولاً ثم تظهر الشعب المتاحة.',
         enrollSuccessNamed: 'تم تسجيل ({count}) طالب بنجاح.',
         enrollPartialFailed: 'توقف التسجيل بعد نجاح جزء من الطلاب بسبب خطأ لاحق.',
-        enrollServerError: 'تعذّر إتمام التسجيل من الخادم — راجع البيانات ثم أعد المحاولة.',
+        enrollServerError:
+            'تعذّر إتمام التسجيل من الخادم — راجع البيانات ثم أعد المحاولة.',
         enrollAlreadyRegisteredTitle: 'طالب مسجّل مسبقاً',
         enrollAlreadyRegistered:
             'لا يمكن تسجيل الطالب مرة أخرى لأنه مسجّل مسبقاً لهذه السنة الدراسية.',
@@ -1244,11 +1599,14 @@ export const ar = {
         description: 'توزيعات الطلاب للسنة الدراسية المحددة.',
         enrollStudent: 'تسجيل طالب',
         handoffPendingTitle: 'طلاب بانتظار التسجيل',
-        handoffPendingHint: 'اختر الفرع والاختصاص والصف والشعبة من شريط الفلاتر لإكمال التسجيل.',
+        handoffPendingHint:
+            'اختر الفرع والاختصاص والصف والشعبة من شريط الفلاتر لإكمال التسجيل.',
         handoffClear: 'إلغاء التسليم',
-        handoffNeedsPlacement: 'اختر الصف والشعبة من شريط الفلاتر لتسجيل الطلاب المحددين.',
+        handoffNeedsPlacement:
+            'اختر الصف والشعبة من شريط الفلاتر لتسجيل الطلاب المحددين.',
         placementDialogTitle: 'توزيع الطلاب',
-        placementDialogHint: 'حدّد الفرع والاختصاص والصف والشعبة من شريط الفلاتر. اختيار «الكل» لا يغيّر التوزيع.',
+        placementDialogHint:
+            'حدّد الفرع والاختصاص والصف والشعبة من شريط الفلاتر. اختيار «الكل» لا يغيّر التوزيع.',
         handoffNeedsYear: 'حدّد السنة الدراسية قبل التسجيل.',
         enrollmentNumber: 'رقم التسجيل',
         student: 'الطالب',
@@ -1280,7 +1638,8 @@ export const ar = {
         allDepartments: 'الاختصاص',
         allSpecializations: 'الاختصاص',
         applyPlacement: 'تطبيق التوزيع',
-        placementNeedsSelection: 'اختر تسجيلاً واحداً أو أكثر ثم حدّد الصف والشعبة والتوزيع',
+        placementNeedsSelection:
+            'اختر تسجيلاً واحداً أو أكثر ثم حدّد الصف والشعبة والتوزيع',
         structureFiltersTitle: 'فلاتر التوزيع',
         filterModeLabel: 'وضع التصفية',
         editModeLabel: 'وضع التعديل',
@@ -1296,7 +1655,8 @@ export const ar = {
         ribbonSuperseded: 'توزيع سابق',
         ribbonProgress: 'تقدم',
         placementHistoryTitle: 'سجل التوزيع السابق',
-        placementHistoryDesc: 'التسلسل الزمني لتوزيع الطالب على الفرع والاختصاص والصف والشعبة.',
+        placementHistoryDesc:
+            'التسلسل الزمني لتوزيع الطالب على الفرع والاختصاص والصف والشعبة.',
         placementHistoryEmpty: 'لا يوجد سجل توزيع لهذا الطالب في السنة المحددة.',
         placementHistoryOngoing: 'حتى الآن',
         placementHistoryStep: 'المرحلة',
@@ -1322,7 +1682,8 @@ export const ar = {
         overallProgress: 'النسبة الإجمالية',
         emptyTitle: 'لا توجد تسجيلات',
         emptySearch: 'لا توجد نتائج مطابقة للبحث.',
-        emptyDesc: 'لا توجد تسجيلات لهذه السنة بعد. حوّل الطلبات المقبولة إلى طلبة من صفحة القبول، ثم سجّلهم في صفوفهم وشعبهم.',
+        emptyDesc:
+            'لا توجد تسجيلات لهذه السنة بعد. حوّل الطلبات المقبولة إلى طلبة من صفحة القبول، ثم سجّلهم في صفوفهم وشعبهم.',
         updatePlacement: 'تحديث التوزيع',
         viewResults: 'عرض النتائج',
         createTitle: 'تسجيل طالب',
@@ -1345,20 +1706,25 @@ export const ar = {
         viewManyTitle: 'معلومات التسجيلات',
         viewDialogDesc: 'معاينة وتعديل توزيع التسجيل حسب التحديد الحالي.',
         statusConfirmTitle: 'تغيير حالة التسجيلات',
-        statusConfirmBody: 'ستتغير حالة {count} تسجيل إلى «{status}» وينتهي تسجيله النشط اليوم، فيخرج الطالب من شعبته. السجل يبقى محفوظاً ويمكن إعادة فتحه لاحقاً. هل تريد المتابعة؟',
+        statusConfirmBody:
+            'ستتغير حالة {count} تسجيل إلى «{status}» وينتهي تسجيله النشط اليوم، فيخرج الطالب من شعبته. السجل يبقى محفوظاً ويمكن إعادة فتحه لاحقاً. هل تريد المتابعة؟',
         statusConfirmAction: 'تغيير الحالة',
         deleteTitle: 'إلغاء التسجيل',
-        deleteConfirm: 'سيتم تعليم التسجيل كملغى دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
+        deleteConfirm:
+            'سيتم تعليم التسجيل كملغى دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
     },
     admission: {
         confirmConvertTitle: 'تحويل الطلبات إلى طلبة',
-        confirmConvertBody: 'سيُنشأ سجل طالب رسمي لكل طلب من الطلبات المحددة ({count}) بالبيانات المسجّلة فيها. راجع الأسماء والرقم الوطني والاختصاص قبل المتابعة، فالتصحيح بعد التحويل يتم من صفحة الطلبة. هل تريد المتابعة؟',
+        confirmConvertBody:
+            'سيُنشأ سجل طالب رسمي لكل طلب من الطلبات المحددة ({count}) بالبيانات المسجّلة فيها. راجع الأسماء والرقم الوطني والاختصاص قبل المتابعة، فالتصحيح بعد التحويل يتم من صفحة الطلبة. هل تريد المتابعة؟',
         confirmConvertAction: 'تحويل إلى طلبة',
         confirmAcceptTitle: 'قبول الطلبات',
-        confirmAcceptBody: 'سيُقبل {count} طلب. بعد القبول لا يعود الطلب إلى المراجعة؛ إن لم يُقبل فارفضه أو اسحبه بسبب مكتوب. هل تريد المتابعة؟',
+        confirmAcceptBody:
+            'سيُقبل {count} طلب. بعد القبول لا يعود الطلب إلى المراجعة؛ إن لم يُقبل فارفضه أو اسحبه بسبب مكتوب. هل تريد المتابعة؟',
         confirmAcceptAction: 'قبول',
         title: 'القبول',
-        description: 'فترات التقديم وطلبات القبول — من الإرسال حتى القبول أو الانسحاب أو الرفض.',
+        description:
+            'فترات التقديم وطلبات القبول — من الإرسال حتى القبول أو الانسحاب أو الرفض.',
         workflowTitle: 'مراحل سير العمل',
         periodMax: 'الحد',
         submittedInPeriod: 'مقدّم',
@@ -1367,7 +1733,8 @@ export const ar = {
         unlimitedCapacity: 'غير محدود',
         noActivePeriod: 'لا توجد فترة نشطة',
         overallProgress: 'التقدم الإجمالي',
-        workflowHint: 'المسار الرئيسي للطلب يشمل القبول والانسحاب والرفض. التحويل إلى طالب يتم من مرحلة المقبول مباشرة.',
+        workflowHint:
+            'المسار الرئيسي للطلب يشمل القبول والانسحاب والرفض. التحويل إلى طالب يتم من مرحلة المقبول مباشرة.',
         periodsTitle: 'فترات تسجيل الطلاب',
         ribbonFilters: 'فلاتر',
         periodName: 'اسم فترة القبول',
@@ -1395,12 +1762,14 @@ export const ar = {
         yearLabel: 'السنة',
         academicYearId: 'معرّف السنة الدراسية',
         academicYear: 'السنة الدراسية',
-        periodDatesOutsideYear: 'تاريخ البداية وتاريخ النهاية يجب أن يقعا داخل السنة الدراسية المختارة.',
+        periodDatesOutsideYear:
+            'تاريخ البداية وتاريخ النهاية يجب أن يقعا داخل السنة الدراسية المختارة.',
         applicationsTitle: 'طلبات القبول',
         applicationNumber: 'رقم الطلب',
         draftDialogTitle: 'طلب قبول جديد',
         academicTransferDialogTitle: 'تحويل من الدراسة الاكاديمية الى المهني',
-        draftDialogSubtitle: 'نموذج تسجيل بيانات المتقدم للقبول للسنة الدراسية الحالية',
+        draftDialogSubtitle:
+            'نموذج تسجيل بيانات المتقدم للقبول للسنة الدراسية الحالية',
         sheetRegistrationInfo: 'معلومات التسجيل والمدرسة',
         sheetPersonalInfo: 'البيانات الشخصية',
         sheetParentsInfo: 'معلومات الوالدين',
@@ -1519,11 +1888,15 @@ export const ar = {
         selectApplication: 'اختيار الطلب',
         selectAllApplications: 'اختيار الكل',
         transitionsNeedSelection: 'اختر طالباً واحداً أو أكثر ثم اختر الانتقال',
-        emptyPeriods: 'لا توجد فترات تسجيل طلاب لهذه السنة. افتح فترة قبول أولاً ثم أضف الطلبات إليها.',
+        emptyPeriods:
+            'لا توجد فترات تسجيل طلاب لهذه السنة. افتح فترة قبول أولاً ثم أضف الطلبات إليها.',
         emptySearch: 'لا توجد نتائج مطابقة للبحث.',
-        emptyApplications: 'لا توجد طلبات قبول لهذه السنة. ابدأ بـ«طلب جديد»، ويلزم لذلك وجود فترة قبول مفتوحة.',
-        emptyDrafts: 'لا توجد مسودات لهذه السنة. المسودة طلب لم يُرسل بعد؛ أنشئ طلباً جديداً لتظهر هنا.',
-        emptySubmitted: 'لا توجد طلبات مُرسلة لهذه السنة. أرسل المسودات الجاهزة لتنتقل إلى هذه المرحلة.',
+        emptyApplications:
+            'لا توجد طلبات قبول لهذه السنة. ابدأ بـ«طلب جديد»، ويلزم لذلك وجود فترة قبول مفتوحة.',
+        emptyDrafts:
+            'لا توجد مسودات لهذه السنة. المسودة طلب لم يُرسل بعد؛ أنشئ طلباً جديداً لتظهر هنا.',
+        emptySubmitted:
+            'لا توجد طلبات مُرسلة لهذه السنة. أرسل المسودات الجاهزة لتنتقل إلى هذه المرحلة.',
         emptyUnderReview: 'لا توجد طلبات قيد التدقيق لهذه السنة.',
         emptyInterview: 'لا توجد طلبات في مرحلة المقابلة لهذه السنة.',
         emptyWaitlisted: 'لا توجد طلبات في الاحتياط لهذه السنة.',
@@ -1541,9 +1914,11 @@ export const ar = {
         savePeriod: 'حفظ الفترة',
         deletePeriod: 'حذف',
         archivePeriodTitle: 'أرشفة فترة التسجيل',
-        archivePeriodConfirm: 'سيتم أرشفة الفترة وإيقافها دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
+        archivePeriodConfirm:
+            'سيتم أرشفة الفترة وإيقافها دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
         withdrawDraftTitle: 'سحب الطلب',
-        withdrawDraftConfirm: 'سيتم سحب الطلب وتغيير حالته إلى منسحب دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
+        withdrawDraftConfirm:
+            'سيتم سحب الطلب وتغيير حالته إلى منسحب دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
         withdrawDraft: 'سحب',
         statusAdmissionRequest: 'طلب قبول',
         statusDraft: 'مسودة',
@@ -1593,7 +1968,8 @@ export const ar = {
         closeSession: 'إغلاق الجلسة',
         closing: 'جارٍ الإغلاق…',
         closeConfirmTitle: 'إغلاق جلسة الحضور؟',
-        closeConfirmDesc: 'الإغلاق يمنع المزيد من التسجيل على هذه الجلسة. قد يبقى التصحيح مسموحاً حسب السياسة.',
+        closeConfirmDesc:
+            'الإغلاق يمنع المزيد من التسجيل على هذه الجلسة. قد يبقى التصحيح مسموحاً حسب السياسة.',
         markedRecords: 'السجلات المسجّلة',
         noRecords: 'لا توجد سجلات حضور بعد.',
         open: 'مفتوحة',
@@ -1605,7 +1981,8 @@ export const ar = {
         markTitle: 'تسجيل حضور الشعبة',
         saveMarks: 'حفظ الحضور',
         saveConfirmTitle: 'حفظ حضور الشعبة؟',
-        saveConfirmDesc: 'سيتم كتابة العلامات لهذه الجلسة المفتوحة عبر معالج التطبيق.',
+        saveConfirmDesc:
+            'سيتم كتابة العلامات لهذه الجلسة المفتوحة عبر معالج التطبيق.',
         studentRow: 'صف الطالب',
         studentId: 'معرّف الطالب',
         enrollmentId: 'معرّف التسجيل',
@@ -1624,6 +2001,7 @@ export const ar = {
         sessionHead: 'جلسة',
         markPageTitle: 'تسجيل حضور · جلسة',
     },
+    attendanceSystem: arAttendance,
     results: {
         title: 'النتائج الرسمية للفصل',
         description: 'قراءة نتائج المواد الرسمية لتسجيل طالب.',
@@ -1641,7 +2019,8 @@ export const ar = {
         noResults: 'لا توجد نتائج فصل رسمية',
         noResultsDesc: 'لا توجد صفوف رسمية لهذا التسجيل والسنة.',
         summaryTitle: 'ملخص نتائج التسجيل',
-        summaryDesc: 'صفوف الفصل الرسمية والنتيجة السنوية ومعدل السنة لتسجيل واحد.',
+        summaryDesc:
+            'صفوف الفصل الرسمية والنتيجة السنوية ومعدل السنة لتسجيل واحد.',
         loadSummary: 'تحميل الملخص',
         annual: 'النتيجة السنوية',
         yearGpa: 'معدل السنة',
@@ -1716,9 +2095,11 @@ export const ar = {
         newScore: 'الدرجة الجديدة',
         reason: 'السبب',
         voidConfirmTitle: 'إبطال هذه الدرجة؟',
-        voidConfirmDesc: 'الإبطال يجعل الدرجة غير حالية. هذا إجراء أكاديمي مُدقَّق.',
+        voidConfirmDesc:
+            'الإبطال يجعل الدرجة غير حالية. هذا إجراء أكاديمي مُدقَّق.',
         finalizeConfirmTitle: 'اعتماد هذه الدرجة؟',
-        finalizeConfirmDesc: 'الدرجات المعتمدة تصبح رسمية. التعديل لاحقاً يتطلب مسار التصحيح.',
+        finalizeConfirmDesc:
+            'الدرجات المعتمدة تصبح رسمية. التعديل لاحقاً يتطلب مسار التصحيح.',
         finalizeDesc: 'الاعتماد يقفل إصدار الدرجة الحالي للاستخدام الرسمي.',
         enterTitle: 'إدخال درجة طالب',
         notFinalized: 'غير معتمدة',
@@ -1793,7 +2174,8 @@ export const ar = {
         weeklyMax: 'الحد الأعلى الأسبوعي (حصة)',
         weeklyMin: 'الحد الأدنى الأسبوعي (حصة)',
         dailyMax: 'الحد الأعلى اليومي (حصة)',
-        workloadHint: 'اتركها فارغة إذا لا يوجد حد خاص: يُطبَّق عندها الحد اليومي العام للمدرسة. يستعملها الجدول عند التوزيع وفي تقرير الجاهزية.',
+        workloadHint:
+            'اتركها فارغة إذا لا يوجد حد خاص: يُطبَّق عندها الحد اليومي العام للمدرسة. يستعملها الجدول عند التوزيع وفي تقرير الجاهزية.',
         selectAll: 'تحديد كل المعلمين في الصفحة',
         selectTeacher: 'تحديد المعلم',
         selectedCount: 'المحدد',
@@ -1801,7 +2183,8 @@ export const ar = {
         needsSingle: 'حدد معلماً واحداً',
         teaching: 'التدريس',
         teachingTitle: 'تدريس المعلم',
-        teachingHint: 'أين يدرّس المعلم: المادة ضمن فرع واختصاص، ويمكن تحديد الصف والشعبة.',
+        teachingHint:
+            'أين يدرّس المعلم: المادة ضمن فرع واختصاص، ويمكن تحديد الصف والشعبة.',
         branch: 'الفرع',
         department: 'الاختصاص',
         allDepartments: 'كل اختصاصات الفرع',
@@ -1823,7 +2206,8 @@ export const ar = {
         progressLabel: 'المعلمون الذين حُدّد تدريسهم',
         school: 'المدرسة',
         listTitle: 'الكادر التدريسي',
-        noTeachers: 'لا يوجد معلمون في هذه السنة الدراسية بعد. أضف معلماً من الشريط، ثم أسند له المواد والصفوف.',
+        noTeachers:
+            'لا يوجد معلمون في هذه السنة الدراسية بعد. أضف معلماً من الشريط، ثم أسند له المواد والصفوف.',
         noSearchResult: 'لا يوجد معلمون مطابقون للبحث.',
         noYear: 'لا توجد سنة دراسية حالية — اختر سنة من شريط «الصفحة الرئيسية».',
         readOnly: 'عرض فقط — لا تملك صلاحية تعديل المعلمين.',
@@ -1842,9 +2226,11 @@ export const ar = {
         subject: 'المادة',
         noFreeSubjects: 'كل المواد النشطة مسندة لهذا المعلم.',
         unlinkSubject: 'إلغاء إسناد المادة',
-        unlinkSubjectConfirm: 'سيُلغى إسناد المادة المحددة لهذا المعلم في السنة الدراسية الحالية.',
+        unlinkSubjectConfirm:
+            'سيُلغى إسناد المادة المحددة لهذا المعلم في السنة الدراسية الحالية.',
         deactivate: 'إيقاف المعلم',
-        deactivateConfirm: 'سيُوقف المعلم ويبقى سجله محفوظاً ويمكن إعادة تفعيله لاحقاً. إن كانت له حصص على الجدول الدراسي فستبقى فيه حتى تستبدله منها.',
+        deactivateConfirm:
+            'سيُوقف المعلم ويبقى سجله محفوظاً ويمكن إعادة تفعيله لاحقاً. إن كانت له حصص على الجدول الدراسي فستبقى فيه حتى تستبدله منها.',
         reactivate: 'إعادة تفعيل',
         statusActive: 'نشط',
         statusInactive: 'موقوف',
@@ -1863,7 +2249,8 @@ export const ar = {
         expandSubjects: 'عرض أماكن التدريس',
         collapseSubjects: 'طي المواد في سطر واحد',
         ribbonFilters: 'تصفية المعلمين',
-        filtersTitle: 'تصفية المعلمين حسب السنة والتخصص والفرع والاختصاص والمادة',
+        filtersTitle:
+            'تصفية المعلمين حسب السنة والتخصص والفرع والاختصاص والمادة',
         allSpecializations: 'كل التخصصات',
         allBranches: 'كل الفروع',
         allBranchDepartments: 'كل الاختصاصات',
@@ -1938,7 +2325,8 @@ export const ar = {
         departments: 'الاختصاصات',
         count: 'العدد',
         manageBranches: 'إدارة فروع واختصاصات المدرسة',
-        manageBranchesHint: 'ينقلك إلى صفحة الفروع والاختصاصات بعد اختيار هذه المدرسة كمدرسة حالية.',
+        manageBranchesHint:
+            'ينقلك إلى صفحة الفروع والاختصاصات بعد اختيار هذه المدرسة كمدرسة حالية.',
         more: 'المزيد',
         manageTitle: 'إدارة مدارس المديرية',
         chooseDirectorate: 'اختر المديرية',
@@ -1951,16 +2339,20 @@ export const ar = {
         noUserSchools: 'لا توجد مدارس مرتبطة بحسابك.',
         alreadyInDirectorate: 'ضمن هذه المديرية',
         currentDirectorate: 'المديرية الحالية',
-        moveHint: 'حدّد المدارس لنقلها إلى هذه المديرية. لإخراج مدرسة منها انقلها إلى مديرية أخرى.',
+        moveHint:
+            'حدّد المدارس لنقلها إلى هذه المديرية. لإخراج مدرسة منها انقلها إلى مديرية أخرى.',
         moveSelected: 'نقل المحدد إلى المديرية',
-        inactiveDirectorateHint: 'المديرية غير نشطة — أعد تفعيلها لإضافة مدارس إليها.',
+        inactiveDirectorateHint:
+            'المديرية غير نشطة — أعد تفعيلها لإضافة مدارس إليها.',
         noActiveDirectorates: 'أضف مديرية نشطة أولاً.',
         collapse: 'طي التفاصيل',
         expand: 'عرض التفاصيل',
         deleteDirectorateTitle: 'حذف المديرية',
-        deleteDirectorateConfirm: 'ستُحذف المديرية بأرشفتها (الحالة: مؤرشف) دون حذف أي بيانات، ولن تظهر عند اختيار مديرية لمدرسة. لا يمكن ذلك ما دامت فيها مدارس نشطة. هل تريد المتابعة؟',
+        deleteDirectorateConfirm:
+            'ستُحذف المديرية بأرشفتها (الحالة: مؤرشف) دون حذف أي بيانات، ولن تظهر عند اختيار مديرية لمدرسة. لا يمكن ذلك ما دامت فيها مدارس نشطة. هل تريد المتابعة؟',
         deleteSchoolTitle: 'حذف المدرسة',
-        deleteSchoolConfirm: 'ستُحذف المدرسة بأرشفتها (الحالة: مؤرشف) دون حذف أي بيانات أو فروع، ويمكن إعادة تفعيلها لاحقاً. هل تريد المتابعة؟',
+        deleteSchoolConfirm:
+            'ستُحذف المدرسة بأرشفتها (الحالة: مؤرشف) دون حذف أي بيانات أو فروع، ويمكن إعادة تفعيلها لاحقاً. هل تريد المتابعة؟',
         readOnly: 'عرض فقط — لا تملك صلاحية تعديل المديريات أو المدارس.',
         editGroup: 'المدرسة',
     },
@@ -1980,14 +2372,16 @@ export const ar = {
         clearFilters: 'إلغاء الفلترة',
         clearFiltersAria: 'إلغاء فلاتر السنة والفرع والاختصاص والصف الحالية',
         showAllCurricula: 'كل المناهج',
-        showAllCurriculaAria: 'عرض جميع المناهج لكل السنوات والفروع والاختصاصات والصفوف',
+        showAllCurriculaAria:
+            'عرض جميع المناهج لكل السنوات والفروع والاختصاصات والصفوف',
         filterStatus: 'الحالة',
         filterAllStatus: 'الكل',
         department: 'الاختصاص',
         plansTitle: 'المناهج الدراسية',
         plansCaption: 'قائمة البرامج الدراسية',
         plansEmptyTitle: 'لا توجد مناهج',
-        plansEmptyDesc: 'لا توجد مناهج دراسية لهذه السنة بعد. عرّف الفروع والاختصاصات والمواد أولاً، ثم أنشئ منهجاً لكل اختصاص وصف.',
+        plansEmptyDesc:
+            'لا توجد مناهج دراسية لهذه السنة بعد. عرّف الفروع والاختصاصات والمواد أولاً، ثم أنشئ منهجاً لكل اختصاص وصف.',
         planName: 'اسم المنهج',
         seq: '#',
         subjectsColumn: 'المواد',
@@ -2004,7 +2398,8 @@ export const ar = {
         viewCurricula: 'المناهج الدراسية',
         allCurriculaHeading: 'كل المناهج',
         subjectsEmptyTitle: 'لا توجد مواد',
-        subjectsEmptyDesc: 'لا توجد مواد مسجّلة بعد. أضف المواد من الشريط قبل ربطها بالمناهج.',
+        subjectsEmptyDesc:
+            'لا توجد مواد مسجّلة بعد. أضف المواد من الشريط قبل ربطها بالمناهج.',
         subjectCode: 'رمز المادة',
         subjectName: 'اسم المادة',
         subjectType: 'نوع المادة',
@@ -2024,7 +2419,8 @@ export const ar = {
         addSelectedSubjects: 'إضافة المواد المحددة إلى المنهج',
         removeSelectedSubjects: 'إزالة المواد المحددة من المنهج',
         saveCurriculum: 'حفظ',
-        createCurriculumHint: 'اختر السنة والفرع والاختصاص والصف، ثم انقل المواد إلى المنهج.',
+        createCurriculumHint:
+            'اختر السنة والفرع والاختصاص والصف، ثم انقل المواد إلى المنهج.',
         editPlan: 'تعديل البرنامج',
         planDetailsSection: 'بيانات المنهج',
         planPlacementSection: 'الفرع والاختصاص',
@@ -2044,8 +2440,10 @@ export const ar = {
         linkedSubjectsTitle: 'مواد البرنامج',
         linkedSubjectsCaption: 'المواد المرتبطة بالبرنامج المحدد',
         linkedEmptyTitle: 'لا توجد مواد مرتبطة',
-        linkedEmptyDesc: 'اختر برنامجاً ثم أضف مواداً من الكتالوج أو حسب الاختصاص.',
-        selectPlanHint: 'انقر «عرض» لفتح تفاصيل البرنامج وإدارة مواده ومتطلباته.',
+        linkedEmptyDesc:
+            'اختر برنامجاً ثم أضف مواداً من الكتالوج أو حسب الاختصاص.',
+        selectPlanHint:
+            'انقر «عرض» لفتح تفاصيل البرنامج وإدارة مواده ومتطلباته.',
         weeklyHours: 'الساعات',
         isRequired: 'إلزامية',
         subjectOrder: 'الترتيب',
@@ -2064,7 +2462,8 @@ export const ar = {
         confirmDeactivateLink: 'هل تريد تعطيل ربط هذه المادة بالبرنامج؟',
         confirmReactivateLink: 'هل تريد إعادة تفعيل ربط المادة؟',
         confirmDeactivatePrerequisite: 'هل تريد تعطيل هذا المتطلب السابق؟',
-        confirmReactivatePrerequisite: 'هل تريد إعادة تفعيل هذا المتطلب السابق؟',
+        confirmReactivatePrerequisite:
+            'هل تريد إعادة تفعيل هذا المتطلب السابق؟',
         statusField: 'حالة المادة الدراسية',
         subjectStatus: 'حالة المادة',
         prerequisitesColumn: 'المتطلبات',
@@ -2073,7 +2472,8 @@ export const ar = {
         filterDefault: 'افتراضي',
         tableContextAria: 'سياق التصفية الحالي للمنهج',
         suggestFromCatalog: 'تعبئة من كتالوج الاختصاص',
-        autoLinkHint: 'عند اختيار اختصاص تُربط مواد الكتالوج تلقائياً بالبرنامج عند الإنشاء.',
+        autoLinkHint:
+            'عند اختيار اختصاص تُربط مواد الكتالوج تلقائياً بالبرنامج عند الإنشاء.',
         codeHint: 'رمز فريد للمادة (لا يمكن تعديله لاحقاً)',
         actions: 'إجراءات',
         ribbonStatus: 'حالة',
@@ -2096,14 +2496,17 @@ export const ar = {
             'سيتم تعطيل :count مواد محددة دون حذف السجل الأكاديمي. هل تريد المتابعة؟',
         deleteAlreadyInactive: 'المواد المحددة معطّلة مسبقاً أو غير قابلة للحذف.',
         showTitle: 'تفاصيل المنهج',
-        showDescription: 'بيانات البرنامج والمواد والمتطلبات وتعيين مواد التسجيل.',
+        showDescription:
+            'بيانات البرنامج والمواد والمتطلبات وتعيين مواد التسجيل.',
         tabPlan: 'بيانات المنهج',
         tabSubjects: 'المواد',
         tabPrerequisites: 'المتطلبات السابقة',
         tabStudents: 'الطلاب',
         applyToEnrollments: 'تطبيق المنهج على الطلاب',
-        confirmApplyToEnrollments: 'ستُسنَد المواد الإلزامية لهذا المنهج إلى كل التسجيلات النشطة المطابقة لاختصاصه وصفه. المواد المسندة سابقاً لا تتغير ولا تُحذف مادة. هل تريد المتابعة؟',
-        applyToEnrollmentsTitle: 'إسناد المواد الإلزامية لكل طلاب هذا المنهج (المواد المسندة سابقاً لا تتغير)',
+        confirmApplyToEnrollments:
+            'ستُسنَد المواد الإلزامية لهذا المنهج إلى كل التسجيلات النشطة المطابقة لاختصاصه وصفه. المواد المسندة سابقاً لا تتغير ولا تُحذف مادة. هل تريد المتابعة؟',
+        applyToEnrollmentsTitle:
+            'إسناد المواد الإلزامية لكل طلاب هذا المنهج (المواد المسندة سابقاً لا تتغير)',
         prerequisitesTitle: 'المتطلبات السابقة',
         prerequisitesCaption: 'متطلبات المواد ضمن البرنامج',
         prerequisitesEmptyTitle: 'لا توجد متطلبات سابقة',
@@ -2114,8 +2517,10 @@ export const ar = {
         enrollmentsTitle: 'طلاب البرنامج',
         enrollmentsCaption: 'التسجيلات المطابقة للاختصاص/الفرع',
         enrollmentsEmptyTitle: 'لا يوجد طلاب',
-        enrollmentsEmptyDesc: 'لا توجد تسجيلات نشطة مطابقة لهذا البرنامج. سجّل طلبة في اختصاص وصف هذا البرنامج ليظهروا هنا.',
-        selectEnrollmentHint: 'اختر تسجيلاً لعرض المواد المعيّنة وتعيين مواد البرنامج.',
+        enrollmentsEmptyDesc:
+            'لا توجد تسجيلات نشطة مطابقة لهذا البرنامج. سجّل طلبة في اختصاص وصف هذا البرنامج ليظهروا هنا.',
+        selectEnrollmentHint:
+            'اختر تسجيلاً لعرض المواد المعيّنة وتعيين مواد البرنامج.',
         enrollmentNumber: 'رقم التسجيل',
         studentName: 'اسم الطالب',
         classSection: 'الصف / الشعبة',
@@ -2134,27 +2539,72 @@ export const ar = {
             headerSample: 'الحصة 4',
             layoutTitle: 'تخطيط الخلية',
             layout: 'التخطيط',
-            layouts: { corner: 'المادة رئيسية والمعلم أسفلها', columns: 'المادة والمعلم في عمودين', subject: 'المادة فقط', full: 'المعلم + المادة + الغرفة' } as Record<string, string>,
+            layouts: {
+                corner: 'المادة رئيسية والمعلم أسفلها',
+                columns: 'المادة والمعلم في عمودين',
+                subject: 'المادة فقط',
+                full: 'المعلم + المادة + الغرفة',
+            } as Record<string, string>,
             colorBy: 'لوّن الحصص حسب',
-            colorByOptions: { subject: 'المادة', teacher: 'المعلم', section: 'الشعبة', room: 'الغرفة', none: 'بدون تلوين' } as Record<string, string>,
+            colorByOptions: {
+                subject: 'المادة',
+                teacher: 'المعلم',
+                section: 'الشعبة',
+                room: 'الغرفة',
+                none: 'بدون تلوين',
+            } as Record<string, string>,
             fields: 'المعلومات الظاهرة',
             abbreviate: 'اعرض بالاختصار',
-            fieldNames: { subject: 'المادة', teacher: 'المعلم', room: 'الغرفة', class: 'الصف', section: 'الشعبة', students: 'عدد الطلاب', group: 'المجموعة', branch: 'الفرع', department: 'الاختصاص', subject_type: 'نوع المادة' } as Record<string, string>,
+            fieldNames: {
+                subject: 'المادة',
+                teacher: 'المعلم',
+                room: 'الغرفة',
+                class: 'الصف',
+                section: 'الشعبة',
+                students: 'عدد الطلاب',
+                group: 'المجموعة',
+                branch: 'الفرع',
+                department: 'الاختصاص',
+                subject_type: 'نوع المادة',
+            } as Record<string, string>,
             teacherTitle: 'اللقب العلمي قبل اسم المعلم',
             titleStyle: 'عرض اللقب العلمي',
-            titleStyles: { abbreviation: 'الاختصار', full: 'اللقب كاملاً' } as Record<string, string>,
+            titleStyles: {
+                abbreviation: 'الاختصار',
+                full: 'اللقب كاملاً',
+            } as Record<string, string>,
             textTitle: 'النص والخط',
             alignV: 'الموضع العمودي',
-            alignVOptions: { top: 'أعلى', middle: 'وسط', bottom: 'أسفل' } as Record<string, string>,
+            alignVOptions: {
+                top: 'أعلى',
+                middle: 'وسط',
+                bottom: 'أسفل',
+            } as Record<string, string>,
             alignH: 'الموضع الأفقي',
-            alignHOptions: { start: 'يمين', center: 'وسط', end: 'يسار' } as Record<string, string>,
+            alignHOptions: {
+                start: 'يمين',
+                center: 'وسط',
+                end: 'يسار',
+            } as Record<string, string>,
             font: 'نوع الخط',
-            fonts: { segoe: 'Segoe UI', tahoma: 'Tahoma', calibri: 'Calibri', aptos: 'Aptos' } as Record<string, string>,
+            fonts: {
+                segoe: 'Segoe UI',
+                tahoma: 'Tahoma',
+                calibri: 'Calibri',
+                aptos: 'Aptos',
+            } as Record<string, string>,
             fontScale: 'حجم الخط',
             weight: 'وزن اسم المادة',
-            weights: { '700': 'عريض', '600': 'متوسط', '400': 'عادي' } as Record<string, string>,
+            weights: { '700': 'عريض', '600': 'متوسط', '400': 'عادي' } as Record<
+                string,
+                string
+            >,
             textColor: 'لون النص',
-            textColors: { oxford: 'أكسفورد (الافتراضي)', night: 'ليلي', steel: 'فولاذي' } as Record<string, string>,
+            textColors: {
+                oxford: 'أكسفورد (الافتراضي)',
+                night: 'ليلي',
+                steel: 'فولاذي',
+            } as Record<string, string>,
             style: 'النمط',
             secondaryMuted: 'النص الثانوي باهت',
             italic: 'مائل',
@@ -2168,12 +2618,16 @@ export const ar = {
             showTime: 'إظهار الوقت',
             timeMuted: 'الوقت باهت',
             clock: 'الساعة',
-            clocks: { '12': '12 ساعة (ص / م)', '24': '24 ساعة' } as Record<string, string>,
+            clocks: { '12': '12 ساعة (ص / م)', '24': '24 ساعة' } as Record<
+                string,
+                string
+            >,
             reset: 'الافتراضي',
             apply: 'تطبيق على الشاشة',
             applyHint: 'يغيّر عرضك الآن فقط دون حفظ.',
             save: 'حفظ للجميع',
-            saveHint: 'يحفظ التنسيق لهذه السنة الدراسية لكل المستخدمين والطباعة.',
+            saveHint:
+                'يحفظ التنسيق لهذه السنة الدراسية لكل المستخدمين والطباعة.',
             lens: 'عدسة المعاينة والتنسيق',
         },
         test: {
@@ -2183,9 +2637,30 @@ export const ar = {
             running: 'جارٍ الاختبار…',
             notRun: 'لم يُجرَ الاختبار بعد',
             score: 'الجاهزية',
-            verdicts: { blocked: 'لا يمكن الإنشاء — توجد مشكلات حرجة', ready_with_issues: 'يمكن الإنشاء مع ملاحظات', ready: 'جاهز للإنشاء' } as Record<string, string>,
-            severities: { critical: 'حرجة', error: 'أخطاء', warning: 'تحذيرات', suggestion: 'اقتراحات', optimization: 'تحسينات' } as Record<string, string>,
-            categories: { teachers: 'المعلمون', subjects: 'المواد', classes: 'الصفوف', sections: 'الشعب', rooms: 'الغرف', periods: 'الحصص', days: 'الأيام', breaks: 'الاستراحات', constraints: 'القيود', data: 'البيانات' } as Record<string, string>,
+            verdicts: {
+                blocked: 'لا يمكن الإنشاء — توجد مشكلات حرجة',
+                ready_with_issues: 'يمكن الإنشاء مع ملاحظات',
+                ready: 'جاهز للإنشاء',
+            } as Record<string, string>,
+            severities: {
+                critical: 'حرجة',
+                error: 'أخطاء',
+                warning: 'تحذيرات',
+                suggestion: 'اقتراحات',
+                optimization: 'تحسينات',
+            } as Record<string, string>,
+            categories: {
+                teachers: 'المعلمون',
+                subjects: 'المواد',
+                classes: 'الصفوف',
+                sections: 'الشعب',
+                rooms: 'الغرف',
+                periods: 'الحصص',
+                days: 'الأيام',
+                breaks: 'الاستراحات',
+                constraints: 'القيود',
+                data: 'البيانات',
+            } as Record<string, string>,
             category: 'الفئة',
             allCategories: 'كل الفئات',
             showIgnored: 'إظهار المتجاهلة',
@@ -2199,10 +2674,14 @@ export const ar = {
             alternatives: 'البدائل',
             apply: 'تطبيق الحل',
             ignore: 'تجاهل',
-            ignoreHint: 'يُخفي المشكلة من التقرير؛ المشكلة الحرجة تبقى مانعة للإنشاء.',
+            ignoreHint:
+                'يُخفي المشكلة من التقرير؛ المشكلة الحرجة تبقى مانعة للإنشاء.',
             review: 'مراجعة لاحقاً',
             unmark: 'إلغاء الوسم',
-            marks: { ignored: 'متجاهلة', review: 'للمراجعة لاحقاً' } as Record<string, string>,
+            marks: { ignored: 'متجاهلة', review: 'للمراجعة لاحقاً' } as Record<
+                string,
+                string
+            >,
             rerun: 'إعادة الاختبار',
             export: 'تنزيل التقرير',
             generate: 'إنشاء الجدول',
@@ -2214,42 +2693,79 @@ export const ar = {
             csvProblem: 'المشكلة',
             csvCause: 'السبب',
             csvFix: 'الحلول المقترحة',
-            fixButtons: { patch_schedule: 'تطبيق', cancel_schedule: 'إزالة', reshape_day: 'تعديل اليوم', update_settings: 'تعديل الإعداد', auto_place: 'توزيع', apply_abbreviations: 'اعتماد', appearance: 'تعديل', open: 'فتح', open_periods: 'فتح التوقيت', open_engine: 'فتح', generate: 'تحسين' } as Record<string, string>,
+            fixButtons: {
+                patch_schedule: 'تطبيق',
+                cancel_schedule: 'إزالة',
+                reshape_day: 'تعديل اليوم',
+                update_settings: 'تعديل الإعداد',
+                auto_place: 'توزيع',
+                apply_abbreviations: 'اعتماد',
+                appearance: 'تعديل',
+                open: 'فتح',
+                open_periods: 'فتح التوقيت',
+                open_engine: 'فتح',
+                generate: 'تحسين',
+            } as Record<string, string>,
             codes: {
-                room_double_booked: 'الغرفة {room} محجوزة لحصتين في الوقت نفسه ({day} · {period}).',
-                room_capacity_exceeded: 'الغرفة {room} تتسع لـ {limit} وفيها {count} طالباً ({section} · {day} · {period}).',
-                practical_in_classroom: 'حصة عملية ({subject}) في غرفة لا تدعم العملي: {room} ({day} · {period}).',
-                no_practical_rooms: 'توجد {count} مادة عملية مسندة ولا توجد غرفة تدعم العملي.',
-                section_over_capacity: '{section}: {count} طالباً والسعة {limit}.',
-                lesson_length_unusual: 'مدة {period} غير معتادة: {count} دقيقة.',
-                lesson_lengths_vary: 'أطوال الحصص مختلفة ({count} أطوال) — توقيت متغير.',
-                unexplained_gap: 'فراغ {count} دقيقة قبل {period} بلا استراحة معرّفة.',
-                break_at_day_edge: 'استراحة في بداية اليوم أو نهايته ({period}).',
+                room_double_booked:
+                    'الغرفة {room} محجوزة لحصتين في الوقت نفسه ({day} · {period}).',
+                room_capacity_exceeded:
+                    'الغرفة {room} تتسع لـ {limit} وفيها {count} طالباً ({section} · {day} · {period}).',
+                practical_in_classroom:
+                    'حصة عملية ({subject}) في غرفة لا تدعم العملي: {room} ({day} · {period}).',
+                no_practical_rooms:
+                    'توجد {count} مادة عملية مسندة ولا توجد غرفة تدعم العملي.',
+                section_over_capacity:
+                    '{section}: {count} طالباً والسعة {limit}.',
+                lesson_length_unusual:
+                    'مدة {period} غير معتادة: {count} دقيقة.',
+                lesson_lengths_vary:
+                    'أطوال الحصص مختلفة ({count} أطوال) — توقيت متغير.',
+                unexplained_gap:
+                    'فراغ {count} دقيقة قبل {period} بلا استراحة معرّفة.',
+                break_at_day_edge:
+                    'استراحة في بداية اليوم أو نهايته ({period}).',
                 consecutive_breaks: 'استراحتان متتاليتان ({period}).',
-                long_run_without_break: '{count} حصص متتالية دون استراحة (المستحسن {limit} كحد أقصى).',
-                no_main_break: 'يوم من {count} حصص دون استراحة رئيسية (15 دقيقة أو أكثر).',
-                section_days_unbalanced: '{section}: توزيع غير متوازن — أكثر يوم {count} حصص وأقل يوم {limit}.',
-                teacher_days_unbalanced: '{teacher}: توزيع غير متوازن — أكثر يوم {count} حصص وأقل يوم {limit}.',
-                duplicate_abbreviation: '{count} عناصر تُطبع بالاختصار نفسه ({detail}).',
-                abbreviation_missing: '{count} عنصراً بلا اختصار ({detail}) — يُطبع الاختصار المقترح.',
-                activity_blocked: 'نشاط لا يمكن وضعه: {subject} · {teacher} · {section} ({detail}).',
-                teacher_time_off_overbooked: '{teacher}: {count} حصة وإتاحته بعد الإجازات {limit} خانة.',
-                facility_overbooked: 'المكان {detail} مطلوب {count} حصة ومتاح {limit}.',
+                long_run_without_break:
+                    '{count} حصص متتالية دون استراحة (المستحسن {limit} كحد أقصى).',
+                no_main_break:
+                    'يوم من {count} حصص دون استراحة رئيسية (15 دقيقة أو أكثر).',
+                section_days_unbalanced:
+                    '{section}: توزيع غير متوازن — أكثر يوم {count} حصص وأقل يوم {limit}.',
+                teacher_days_unbalanced:
+                    '{teacher}: توزيع غير متوازن — أكثر يوم {count} حصص وأقل يوم {limit}.',
+                duplicate_abbreviation:
+                    '{count} عناصر تُطبع بالاختصار نفسه ({detail}).',
+                abbreviation_missing:
+                    '{count} عنصراً بلا اختصار ({detail}) — يُطبع الاختصار المقترح.',
+                activity_blocked:
+                    'نشاط لا يمكن وضعه: {subject} · {teacher} · {section} ({detail}).',
+                teacher_time_off_overbooked:
+                    '{teacher}: {count} حصة وإتاحته بعد الإجازات {limit} خانة.',
+                facility_overbooked:
+                    'المكان {detail} مطلوب {count} حصة ومتاح {limit}.',
             } as Record<string, string>,
             causes: {
-                teacher_overbooked: 'عبء المعلم الأسبوعي أكبر مما يسمح به حده اليومي × أيام الدوام.',
+                teacher_overbooked:
+                    'عبء المعلم الأسبوعي أكبر مما يسمح به حده اليومي × أيام الدوام.',
                 teacher_over_quota: 'الإسناد يتجاوز الحد الأسبوعي الشخصي للمعلم.',
-                section_overbooked: 'مجموع نصاب مواد الشعبة أكبر من عدد خانات الأسبوع.',
-                subject_over_daily_limit: 'نصاب المادة لا يتسع ضمن حد المادة اليومي.',
-                practical_no_double_slot: 'كل حصتين متتاليتين يفصل بينهما فاصل أطول من مدة التبديل المسموحة للحصة المزدوجة.',
+                section_overbooked:
+                    'مجموع نصاب مواد الشعبة أكبر من عدد خانات الأسبوع.',
+                subject_over_daily_limit:
+                    'نصاب المادة لا يتسع ضمن حد المادة اليومي.',
+                practical_no_double_slot:
+                    'كل حصتين متتاليتين يفصل بينهما فاصل أطول من مدة التبديل المسموحة للحصة المزدوجة.',
                 teacher_double_booked: 'حصتان للمعلم نفسه في الخانة نفسها.',
-                teacher_busy_other_school: 'المعلم يدرّس في مدرسة أخرى في الوقت نفسه.',
+                teacher_busy_other_school:
+                    'المعلم يدرّس في مدرسة أخرى في الوقت نفسه.',
                 section_double_booked: 'حصتان للشعبة نفسها في الخانة نفسها.',
                 room_shared_slot: 'حصتان في الغرفة نفسها في الخانة نفسها.',
-                room_too_small: 'عدد طلاب الشعبة أو المجموعة أكبر من سعة الغرفة.',
+                room_too_small:
+                    'عدد طلاب الشعبة أو المجموعة أكبر من سعة الغرفة.',
                 room_not_practical: 'الغرفة ليست مختبراً أو ورشة.',
                 practical_needs_lab: 'المواد العملية تحتاج غرفاً تدعم العملي.',
-                more_students_than_capacity: 'التسجيلات النشطة أكثر من سعة الشعبة المحددة.',
+                more_students_than_capacity:
+                    'التسجيلات النشطة أكثر من سعة الشعبة المحددة.',
                 lesson_length: 'الحصة أقصر من 30 أو أطول من 90 دقيقة.',
                 variable_timing: 'ليست كل الحصص بالمدة نفسها.',
                 gap_without_break: 'وقت غير مستغل بين حصتين لم يُعرّف كاستراحة.',
@@ -2258,10 +2774,13 @@ export const ar = {
                 students_need_rest: 'سلسلة طويلة من الحصص دون راحة كافية.',
                 long_day_no_main_break: 'اليوم طويل ولا توجد استراحة رئيسية.',
                 uneven_week: 'الحصص مكدّسة في أيام وقليلة في أخرى.',
-                same_short_label: 'سيظهر الاختصار نفسه لعناصر مختلفة في الجدول المطبوع.',
-                suggested_abbreviation_printed: 'لم يُحدد اختصار في صفحة العنصر الأصلية.',
+                same_short_label:
+                    'سيظهر الاختصار نفسه لعناصر مختلفة في الجدول المطبوع.',
+                suggested_abbreviation_printed:
+                    'لم يُحدد اختصار في صفحة العنصر الأصلية.',
                 weekly_load_missing: 'المنهج لا يحدد عدد الحصص الأسبوعية للمادة.',
-                teacher_not_qualified: 'المادة غير مسندة للمعلم في صفحة المعلمين.',
+                teacher_not_qualified:
+                    'المادة غير مسندة للمعلم في صفحة المعلمين.',
                 lesson_under_placed: 'حصص مطلوبة لم توزع بعد.',
             } as Record<string, string>,
             fixes: {
@@ -2272,9 +2791,12 @@ export const ar = {
                 auto_place_section: 'توزيع حصص {section} المتبقية تلقائياً',
                 reassign_section: 'إسناد {subject} في {section} إلى {teacher}',
                 shorten_break: 'تقليص الاستراحة إلى {to} دقائق',
-                raise_changeover: 'رفع مدة التبديل المسموحة إلى {double_changeover_minutes} دقيقة',
-                raise_subject_limit: 'رفع حد المادة اليومي إلى {max_subject_per_day}',
-                add_lesson_periods: 'إضافة {per_day} حصة يومياً (نقص {deficit} خانة)',
+                raise_changeover:
+                    'رفع مدة التبديل المسموحة إلى {double_changeover_minutes} دقيقة',
+                raise_subject_limit:
+                    'رفع حد المادة اليومي إلى {max_subject_per_day}',
+                add_lesson_periods:
+                    'إضافة {per_day} حصة يومياً (نقص {deficit} خانة)',
                 open_teacher: 'فتح صفحة المعلم {teacher}',
                 open_curriculum: 'فتح المنهج وتحديد النصاب',
                 setup_periods: 'إعداد توقيت الحصص',
@@ -2289,15 +2811,21 @@ export const ar = {
                 fixed_pattern: 'توحيد أطوال الحصص بنمط ثابت',
                 insert_break: 'إضافة استراحة {minutes} دقيقة في منتصف اليوم',
                 edit_appearance: 'تعديل الاختصارات المكررة',
-                apply_suggested_abbreviations: 'اعتماد الاختصارات المقترحة ({detail})',
+                apply_suggested_abbreviations:
+                    'اعتماد الاختصارات المقترحة ({detail})',
             } as Record<string, string>,
             why: {
-                move_lesson: 'الخانة شاغرة للشعبة والمعلم والغرفة، ولا تُحدث فراغاً جديداً.',
+                move_lesson:
+                    'الخانة شاغرة للشعبة والمعلم والغرفة، ولا تُحدث فراغاً جديداً.',
                 change_room: 'الغرفة شاغرة في هذه الخانة وسعتها تكفي الطلاب.',
-                reassign_section: 'المعلم مؤهل للمادة وعبؤه {load} من {capacity} — يتسع لـ {weekly} حصص إضافية.',
-                shorten_break: 'الاستراحة الحالية {minutes} دقيقة؛ تقليصها يجعل الحصتين حولها حصة مزدوجة للعملي.',
-                raise_subject_limit: 'يلزم {needed} حصص يومياً على الأقل ليتسع نصاب المادة في الأسبوع.',
-                add_lesson_periods: 'الشعبة تحتاج {deficit} خانة إضافية في الأسبوع.',
+                reassign_section:
+                    'المعلم مؤهل للمادة وعبؤه {load} من {capacity} — يتسع لـ {weekly} حصص إضافية.',
+                shorten_break:
+                    'الاستراحة الحالية {minutes} دقيقة؛ تقليصها يجعل الحصتين حولها حصة مزدوجة للعملي.',
+                raise_subject_limit:
+                    'يلزم {needed} حصص يومياً على الأقل ليتسع نصاب المادة في الأسبوع.',
+                add_lesson_periods:
+                    'الشعبة تحتاج {deficit} خانة إضافية في الأسبوع.',
             } as Record<string, string>,
             alternativeNames: {
                 raise_teacher_limit: 'رفع الحد اليومي للمعلم',
@@ -2316,7 +2844,8 @@ export const ar = {
             hint: 'إضافة ونقل وتزحيف الاستراحات مع إعادة حساب الأوقات تلقائياً.',
             fixedTitle: 'النمط الثابت',
             applyFixed: 'تطبيق النمط الثابت',
-            fixedHint: 'كل الحصص بالمدة نفسها من بداية اليوم، والاستراحات تحتفظ بأطوالها.',
+            fixedHint:
+                'كل الحصص بالمدة نفسها من بداية اليوم، والاستراحات تحتفظ بأطوالها.',
             periodsTitle: 'حصص اليوم واستراحاته (نقرتان للتعديل)',
             what: 'الحصة / الاستراحة',
             minutes: 'المدة (دقيقة)',
@@ -2324,7 +2853,13 @@ export const ar = {
             printIn: 'تُطبع في',
             everywhere: 'كل الجداول',
             nowhere: 'لا شيء',
-            targets: { general: 'الجدول العام', teachers: 'جداول المعلمين', sections: 'جداول الشعب', students: 'جداول الطلاب', rooms: 'جداول الغرف' } as Record<string, string>,
+            targets: {
+                general: 'الجدول العام',
+                teachers: 'جداول المعلمين',
+                sections: 'جداول الشعب',
+                students: 'جداول الطلاب',
+                rooms: 'جداول الغرف',
+            } as Record<string, string>,
             edit: 'تعديل',
             insertAfter: 'إضافة استراحة بعدها',
             insertFirst: 'استراحة قبل الحصة الأولى',
@@ -2333,7 +2868,8 @@ export const ar = {
             move: 'نقل / تغيير المدة',
             moveHint: 'تُعاد أوقات الحصص بعد الموضع القديم والجديد تلقائياً.',
             remove: 'حذف الاستراحة',
-            removeConfirm: 'تُزال الاستراحة وتتقدم الحصص التي بعدها بمدتها. يبقى سجلها محفوظاً.',
+            removeConfirm:
+                'تُزال الاستراحة وتتقدم الحصص التي بعدها بمدتها. يبقى سجلها محفوظاً.',
             position: 'الموضع',
             beforeFirst: 'قبل الحصة الأولى',
             after: 'بعد',
@@ -2345,7 +2881,16 @@ export const ar = {
         },
         cell: {
             title: 'تحرير الخلية',
-            tabs: { content: 'المحتوى', format: 'التنسيق', teacher: 'المعلم', subject: 'المادة', room: 'الغرفة', section: 'الشعبة', view: 'العرض', print: 'الطباعة' } as Record<string, string>,
+            tabs: {
+                content: 'المحتوى',
+                format: 'التنسيق',
+                teacher: 'المعلم',
+                subject: 'المادة',
+                room: 'الغرفة',
+                section: 'الشعبة',
+                view: 'العرض',
+                print: 'الطباعة',
+            } as Record<string, string>,
             room: 'الغرفة',
             noRoom: 'بدون غرفة',
             roomBusy: 'محجوزة',
@@ -2355,8 +2900,10 @@ export const ar = {
             students: 'الطلاب',
             capacity: 'السعة',
             practicalRoom: 'تدعم العملي',
-            viewHint: 'إظهار أو إخفاء المعلومات في كل الخلايا (تطبيق على الشاشة).',
-            printHint: 'أين تُطبع هذه الحصة؟ يسري على كل حصص هذا الموضع من اليوم.',
+            viewHint:
+                'إظهار أو إخفاء المعلومات في كل الخلايا (تطبيق على الشاشة).',
+            printHint:
+                'أين تُطبع هذه الحصة؟ يسري على كل حصص هذا الموضع من اليوم.',
             formatHint: 'التنسيق موحد لكل الجدول لضمان طباعة متسقة.',
         },
         menu: {
@@ -2393,13 +2940,34 @@ export const ar = {
             none: 'لا توجد خانة شاغرة للمعلم والشعبة هذا الأسبوع.',
             place: 'ضعها هنا',
         },
-        zoom: { in: 'تكبير', out: 'تصغير', fitPage: 'ملاءمة للصفحة', fitWidth: 'ملاءمة للعرض', reset: '100%', kind: 'نوع الجدول' },
-        editRibbon: { format: 'التنسيق', cell: 'الخلية', show: 'إظهار', print: 'الطباعة', printPreview: 'معاينة الطباعة' },
+        zoom: {
+            in: 'تكبير',
+            out: 'تصغير',
+            fitPage: 'ملاءمة للصفحة',
+            fitWidth: 'ملاءمة للعرض',
+            reset: '100%',
+            kind: 'نوع الجدول',
+        },
+        editRibbon: {
+            format: 'التنسيق',
+            cell: 'الخلية',
+            show: 'إظهار',
+            print: 'الطباعة',
+            printPreview: 'معاينة الطباعة',
+        },
         level: {
             complexity: 'تعقيد الإنشاء',
-            complexities: { normal: 'عادي — قيود أساسية وتوليد سريع', large: 'كبير — محاولتان وتحسين أعمق', huge: 'ضخم — ثلاث محاولات وأعمق بحث' } as Record<string, string>,
+            complexities: {
+                normal: 'عادي — قيود أساسية وتوليد سريع',
+                large: 'كبير — محاولتان وتحسين أعمق',
+                huge: 'ضخم — ثلاث محاولات وأعمق بحث',
+            } as Record<string, string>,
             constraints: 'مستوى القيود',
-            levels: { basic: 'مبدئي — القيود الصلبة فقط', relaxed: 'متسامح — الحرجة فقط صلبة', strict: 'دقيق — لا مخالفة للقيود الصلبة' } as Record<string, string>,
+            levels: {
+                basic: 'مبدئي — القيود الصلبة فقط',
+                relaxed: 'متسامح — الحرجة فقط صلبة',
+                strict: 'دقيق — لا مخالفة للقيود الصلبة',
+            } as Record<string, string>,
             hint: 'التعقيد يغيّر عدد المحاولات وعمق البحث؛ المستوى يحدد ما يُعامل كقيد صلب.',
         },
         result: {
@@ -2465,9 +3033,11 @@ export const ar = {
         noYear: 'لا توجد سنة دراسية — اختر سنة لعرض الجدول.',
         readOnly: 'عرض فقط — لا تملك صلاحية تعديل الجدول.',
         tray: 'الحصص غير الموزّعة',
-        trayHint: 'اسحب البطاقة إلى خانة في الجدول، أو اختر خانة فارغة ثم البطاقة.',
+        trayHint:
+            'اسحب البطاقة إلى خانة في الجدول، أو اختر خانة فارغة ثم البطاقة.',
         trayEmpty: 'كل حصص الشعبة موزّعة.',
-        trayNoLessons: 'لا توجد مواد مسندة لهذه الشعبة — أسند التدريس من صفحة المعلمين.',
+        trayNoLessons:
+            'لا توجد مواد مسندة لهذه الشعبة — أسند التدريس من صفحة المعلمين.',
         remaining: 'متبقٍ',
         weeklyHours: 'حصص أسبوعياً',
         weeklyUnknown: 'غير محدد في المنهج',
@@ -2497,22 +3067,27 @@ export const ar = {
         sectionsCount: '{n} شعبة',
         noMatch: 'لا توجد شعب تطابق الفلترة.',
         focusHint: 'اضغط على جدول شعبة لتظهر حصصها غير الموزّعة.',
-        autoPlaceAllHint: 'يوزّع الحصص المتبقية لكل الشعب المعروضة حسب الساعات الأسبوعية لكل مادة، مع مراعاة انشغال المعلم والحد اليومي، والعملي حصتين متتاليتين.',
+        autoPlaceAllHint:
+            'يوزّع الحصص المتبقية لكل الشعب المعروضة حسب الساعات الأسبوعية لكل مادة، مع مراعاة انشغال المعلم والحد اليومي، والعملي حصتين متتاليتين.',
         arrangeDay: 'توزيع الاستراحات تلقائياً',
-        arrangeHint: 'يعيد توقيت اليوم بالحصص نفسها: استراحات 5 و10 و15 دقيقة (الرئيسية في منتصف الدوام). الحصص الموزّعة تبقى في أماكنها.',
+        arrangeHint:
+            'يعيد توقيت اليوم بالحصص نفسها: استراحات 5 و10 و15 دقيقة (الرئيسية في منتصف الدوام). الحصص الموزّعة تبقى في أماكنها.',
         dayStart: 'بداية الدوام',
         lessonMinutes: 'مدة الحصة (دقيقة)',
         minutesShort: 'د',
         periodOrder: 'الترتيب',
         clearFilters: 'إلغاء الفلترة',
         showAll: 'عرض الكل',
-        showAllHint: 'كل الفروع والاختصاصات والصفوف والشعب — الجدول مجزأ حسب الفرع › الاختصاص.',
+        showAllHint:
+            'كل الفروع والاختصاصات والصفوف والشعب — الجدول مجزأ حسب الفرع › الاختصاص.',
         preview: 'معاينة ملء الشاشة',
-        previewHint: 'يعرض الجدول بملء الشاشة للقراءة أو العرض — Esc أو «إلغاء المعاينة» للرجوع.',
+        previewHint:
+            'يعرض الجدول بملء الشاشة للقراءة أو العرض — Esc أو «إلغاء المعاينة» للرجوع.',
         previewClose: 'إلغاء المعاينة',
         a3Layout: 'تخطيط الطباعة',
         a3LayoutBack: 'معاينة الشاشة',
-        a3LayoutHint: 'الجدول المعروض حسب الفلاتر على ورقة بالحجم والهوامش المختارة — ما يظهر هو ما يُطبع.',
+        a3LayoutHint:
+            'الجدول المعروض حسب الفلاتر على ورقة بالحجم والهوامش المختارة — ما يظهر هو ما يُطبع.',
         printSetup: {
             paperSection: 'الورقة والعرض',
             marginsSection: 'الهوامش',
@@ -2522,7 +3097,12 @@ export const ar = {
             orientation: 'اتجاه الورقة',
             landscape: 'أفقي',
             portrait: 'عمودي',
-            margins: { top: 'الهامش العلوي (مم)', bottom: 'الهامش السفلي (مم)', right: 'الهامش الأيمن (مم)', left: 'الهامش الأيسر (مم)' },
+            margins: {
+                top: 'الهامش العلوي (مم)',
+                bottom: 'الهامش السفلي (مم)',
+                right: 'الهامش الأيمن (مم)',
+                left: 'الهامش الأيسر (مم)',
+            },
             fit: 'الملاءمة',
             fitPage: 'الجدول كاملاً في ورقة واحدة',
             fitWidth: 'عرض الورقة (يُكمل في أوراق تالية)',
@@ -2539,7 +3119,8 @@ export const ar = {
         am: 'ص',
         pm: 'م',
         autoPlace: 'توزيع تلقائي',
-        autoPlaceHint: 'يوزّع الحصص المتبقية للشعبة على الخانات الفارغة مع مراعاة انشغال المعلم والحد اليومي، والعملي حصتين متتاليتين.',
+        autoPlaceHint:
+            'يوزّع الحصص المتبقية للشعبة على الخانات الفارغة مع مراعاة انشغال المعلم والحد اليومي، والعملي حصتين متتاليتين.',
         audit: 'تدقيق الجدول',
         auditHint: 'أخطاء الجدول وتحذيراته وملاحظاته لكل الشعب والمعلمين.',
         auditClean: 'لا توجد ملاحظات — الجدول سليم.',
@@ -2550,7 +3131,8 @@ export const ar = {
         auditFilterAll: 'الكل',
         auditFilterSection: 'هذه الشعبة فقط',
         readiness: 'الجاهزية والجودة',
-        readinessHint: 'هل تتسع الحصص للأسبوع قبل التوزيع، وجودة الجدول الحالي، وعبء كل معلم.',
+        readinessHint:
+            'هل تتسع الحصص للأسبوع قبل التوزيع، وجودة الجدول الحالي، وعبء كل معلم.',
         readinessReady: 'جاهز للتوزيع',
         readinessBlocked: 'متوقف — توجد عوائق',
         readinessBlockers: 'عوائق',
@@ -2561,25 +3143,42 @@ export const ar = {
         readinessQualified: 'إسناد المعلمين للمواد',
         readinessSections: 'الشعب التي لها حصص',
         readinessCapacity: 'الشعب والمعلمون ضمن سعة الأسبوع',
-        readinessTotals: '{sections} شعبة · {teachers} معلم · {lessons} حصة أسبوعياً · {slots} خانة لكل شعبة في الأسبوع',
+        readinessTotals:
+            '{sections} شعبة · {teachers} معلم · {lessons} حصة أسبوعياً · {slots} خانة لكل شعبة في الأسبوع',
         findings: {
-            no_lesson_periods: 'لا توجد حصص دراسية في توقيت اليوم — أضف الحصص أولاً.',
-            section_overbooked: '{section}: {count} حصة أسبوعياً والأسبوع يتسع لـ {limit} فقط.',
-            teacher_overbooked: '{teacher}: {count} حصة أسبوعياً وسعته {limit} (الحد اليومي × أيام الدوام).',
-            subject_over_daily_limit: '{subject} في {section}: {count} حصة أسبوعياً تتجاوز الحد اليومي × الأيام ({limit}).',
-            practical_no_double_slot: 'المادة العملية {subject} تحتاج حصتين متتاليتين، ولا توجد حصتان متتاليتان في اليوم دون استراحة طويلة.',
-            teacher_inactive: '{teacher} غير نشط هذه السنة ومسند إليه {subject} في {section}.',
-            teacher_not_qualified: 'المادة {subject} غير مسندة إلى {teacher} ({section}).',
-            weekly_load_missing: '{subject} في {section}: لا يحدد المنهج عدد حصصها الأسبوعية.',
-            subject_split_between_teachers: '{subject} في {section} مسندة إلى {count} معلمين — تُحسب الحصص كاملة لكل منهم.',
+            no_lesson_periods:
+                'لا توجد حصص دراسية في توقيت اليوم — أضف الحصص أولاً.',
+            section_overbooked:
+                '{section}: {count} حصة أسبوعياً والأسبوع يتسع لـ {limit} فقط.',
+            teacher_overbooked:
+                '{teacher}: {count} حصة أسبوعياً وسعته {limit} (الحد اليومي × أيام الدوام).',
+            subject_over_daily_limit:
+                '{subject} في {section}: {count} حصة أسبوعياً تتجاوز الحد اليومي × الأيام ({limit}).',
+            practical_no_double_slot:
+                'المادة العملية {subject} تحتاج حصتين متتاليتين، ولا توجد حصتان متتاليتان في اليوم دون استراحة طويلة.',
+            teacher_inactive:
+                '{teacher} غير نشط هذه السنة ومسند إليه {subject} في {section}.',
+            teacher_not_qualified:
+                'المادة {subject} غير مسندة إلى {teacher} ({section}).',
+            weekly_load_missing:
+                '{subject} في {section}: لا يحدد المنهج عدد حصصها الأسبوعية.',
+            subject_split_between_teachers:
+                '{subject} في {section} مسندة إلى {count} معلمين — تُحسب الحصص كاملة لكل منهم.',
             section_without_lessons: '{section}: لا توجد حصص مسندة لهذه الشعبة.',
-            teacher_tight: '{teacher}: {count} من {limit} حصة — الأسبوع شبه ممتلئ.',
-            teacher_over_quota: '{teacher}: {count} حصة أسبوعياً تتجاوز حصته المقررة ({limit}). خفّض إسناده أو ارفع حده من صفحة المعلمين.',
-            teacher_under_quota: '{teacher}: {count} حصة أسبوعياً وأقل من الحد الأدنى المقرر ({limit}). أسند إليه مواد أو صفوفاً إضافية.',
+            teacher_tight:
+                '{teacher}: {count} من {limit} حصة — الأسبوع شبه ممتلئ.',
+            teacher_over_quota:
+                '{teacher}: {count} حصة أسبوعياً تتجاوز حصته المقررة ({limit}). خفّض إسناده أو ارفع حده من صفحة المعلمين.',
+            teacher_under_quota:
+                '{teacher}: {count} حصة أسبوعياً وأقل من الحد الأدنى المقرر ({limit}). أسند إليه مواد أو صفوفاً إضافية.',
         },
         quality: 'جودة الجدول',
         qualityOverall: 'الجودة',
-        qualityGrades: { infeasible: 'غير صالح', incomplete: 'غير مكتمل', complete: 'مكتمل' },
+        qualityGrades: {
+            infeasible: 'غير صالح',
+            incomplete: 'غير مكتمل',
+            complete: 'مكتمل',
+        },
         qualityMetrics: {
             completeness: 'الحصص الموزعة من المطلوب',
             teacher_compactness: 'تقارب حصص المعلمين (دون انتظار)',
@@ -2589,14 +3188,19 @@ export const ar = {
             workload_balance: 'أيام المعلمين ضمن الحد اليومي',
         },
         workload: 'عبء المدرسين',
-        workloadEmpty: 'لا توجد إسنادات تدريس لهذه السنة. أسند المواد للمعلمين من صفحة المعلمين ليظهر عبئهم هنا.',
+        workloadEmpty:
+            'لا توجد إسنادات تدريس لهذه السنة. أسند المواد للمعلمين من صفحة المعلمين ليظهر عبئهم هنا.',
         workloadRequired: 'المطلوب/السعة',
         workloadPlaced: 'الموزع',
         workloadMaxDay: 'أقصى يوم',
         workloadGaps: 'انتظار',
         workloadConsecutive: 'أطول تتابع',
         workloadStatus: 'الحالة',
-        workloadStatuses: { over: 'فوق السعة', incomplete: 'غير مكتمل', ok: 'سليم' },
+        workloadStatuses: {
+            over: 'فوق السعة',
+            incomplete: 'غير مكتمل',
+            ok: 'سليم',
+        },
         heading: {
             open: 'ترويسة الجدول',
             title: 'ترويسة الجدول',
@@ -2623,20 +3227,29 @@ export const ar = {
             lessonOnly: 'الدرس فقط',
             lessonOnlyHint: 'جدول الدروس الأسبوعي: عمود الدرس فقط لكل شعبة',
             lessonTeacher: 'الدرس والمدرس',
-            lessonTeacherHint: 'جدول الدروس الأسبوعي: عمود الدرس وعمود اسم المدرس لكل شعبة',
+            lessonTeacherHint:
+                'جدول الدروس الأسبوعي: عمود الدرس وعمود اسم المدرس لكل شعبة',
         },
         engine: {
             ribbonEngine: 'محرك الجدول',
             confirmTitle: 'تأكيد الإجراء',
-            confirmEndActivity: 'سيُنهى النشاط ولا يدخل في التوزيع القادم. تبقى حصصه الحالية على الجدول إلى أن يُعاد التوليد. هل تريد المتابعة؟',
-            confirmEndDivision: 'سيُنهى تقسيم الشعبة إلى مجموعات، وتحتاج الأنشطة المرتبطة بالمجموعات إلى مراجعة. هل تريد المتابعة؟',
-            confirmEndRule: 'سيُنهى القيد ولن يُراعى في التوزيع القادم، وقد يتغير ترتيب الحصص عند إعادة التوليد. هل تريد المتابعة؟',
-            confirmDisablePlace: 'سيخرج المكان من الخدمة ولن يظهر في قوائم الأنشطة والتوزيع. يمكنك إعادته لاحقاً. هل تريد المتابعة؟',
-            confirmPublish: 'سيُنشر هذا الإصدار ويصير جدول المدرسة الفعلي للمعلمين والطلبة ابتداءً من {date}. هل تريد المتابعة؟',
-            confirmArchive: 'سيُؤرشف الإصدار فلا يعود متاحاً للاعتماد أو النشر، ويبقى محفوظاً في السجل. هل تريد المتابعة؟',
-            confirmArrange: 'سيُعاد توزيع الاستراحات وتوقيت كل حصص اليوم الدراسي، وتتبع حصص كل الشعب الأوقات الجديدة. هل تريد المتابعة؟',
+            confirmEndActivity:
+                'سيُنهى النشاط ولا يدخل في التوزيع القادم. تبقى حصصه الحالية على الجدول إلى أن يُعاد التوليد. هل تريد المتابعة؟',
+            confirmEndDivision:
+                'سيُنهى تقسيم الشعبة إلى مجموعات، وتحتاج الأنشطة المرتبطة بالمجموعات إلى مراجعة. هل تريد المتابعة؟',
+            confirmEndRule:
+                'سيُنهى القيد ولن يُراعى في التوزيع القادم، وقد يتغير ترتيب الحصص عند إعادة التوليد. هل تريد المتابعة؟',
+            confirmDisablePlace:
+                'سيخرج المكان من الخدمة ولن يظهر في قوائم الأنشطة والتوزيع. يمكنك إعادته لاحقاً. هل تريد المتابعة؟',
+            confirmPublish:
+                'سيُنشر هذا الإصدار ويصير جدول المدرسة الفعلي للمعلمين والطلبة ابتداءً من {date}. هل تريد المتابعة؟',
+            confirmArchive:
+                'سيُؤرشف الإصدار فلا يعود متاحاً للاعتماد أو النشر، ويبقى محفوظاً في السجل. هل تريد المتابعة؟',
+            confirmArrange:
+                'سيُعاد توزيع الاستراحات وتوقيت كل حصص اليوم الدراسي، وتتبع حصص كل الشعب الأوقات الجديدة. هل تريد المتابعة؟',
             places: 'الأماكن',
-            placesHint: 'القاعات والورش التي تُعقد فيها الحصص: إضافة وتعديل وإيقاف.',
+            placesHint:
+                'القاعات والورش التي تُعقد فيها الحصص: إضافة وتعديل وإيقاف.',
             placesRooms: 'القاعات',
             placesWorkshops: 'الورش',
             newRoom: 'قاعة جديدة',
@@ -2651,29 +3264,38 @@ export const ar = {
             placeOut: 'خارج الخدمة',
             placeDisable: 'إيقاف',
             placeEnable: 'إعادة تفعيل',
-            placeInUseHint: 'لا يمكن إيقافها: توجد حصص أو أنشطة أو ورش تستخدمها. انقلها أولاً.',
+            placeInUseHint:
+                'لا يمكن إيقافها: توجد حصص أو أنشطة أو ورش تستخدمها. انقلها أولاً.',
             safetyCapacity: 'السعة الآمنة',
-            safetyHint: 'السعة الآمنة هي أقصى عدد طلبة يعملون في الورشة بأمان، ولا تزيد عن سعتها.',
+            safetyHint:
+                'السعة الآمنة هي أقصى عدد طلبة يعملون في الورشة بأمان، ولا تزيد عن سعتها.',
             ribbonChecks: 'الفحص',
             runAwaitingReview: 'نتيجة توليد مكتملة بانتظار المراجعة والاعتماد.',
             versionsAwaiting: 'إصدارات بانتظار الاعتماد.',
             generate: 'توليد الجدول',
-            generateHint: 'يولّد الجدول آلياً وفق الأنشطة والقيود والإتاحة، ويعرض النتيجة للمراجعة قبل اعتمادها.',
+            generateHint:
+                'يولّد الجدول آلياً وفق الأنشطة والقيود والإتاحة، ويعرض النتيجة للمراجعة قبل اعتمادها.',
             activities: 'الأنشطة والمجموعات',
-            activitiesHint: 'ما يُدرَّس لكل شعبة أو مجموعة، ومن يدرّسه، وطول الكتلة وعدد مراتها، والقاعة أو الورشة.',
+            activitiesHint:
+                'ما يُدرَّس لكل شعبة أو مجموعة، ومن يدرّسه، وطول الكتلة وعدد مراتها، والقاعة أو الورشة.',
             constraints: 'القيود',
-            constraintsHint: 'قيود إلزامية ومرنة بأولويات، على مستوى المدرسة أو الفرع أو الشعبة أو المعلم أو المادة.',
+            constraintsHint:
+                'قيود إلزامية ومرنة بأولويات، على مستوى المدرسة أو الفرع أو الشعبة أو المعلم أو المادة.',
             availability: 'الإتاحة',
-            availabilityHint: 'الأوقات غير المتاحة أو المفضّلة للمعلم أو القاعة أو الشعبة أو الورشة.',
+            availabilityHint:
+                'الأوقات غير المتاحة أو المفضّلة للمعلم أو القاعة أو الشعبة أو الورشة.',
             versions: 'الإصدارات والنشر',
-            versionsHint: 'حفظ الجدول كإصدار، وإرساله للاعتماد، ونشره بتاريخ سريان، ومقارنة الإصدارات.',
+            versionsHint:
+                'حفظ الجدول كإصدار، وإرساله للاعتماد، ونشره بتاريخ سريان، ومقارنة الإصدارات.',
             settings: 'إعدادات الجدول',
-            settingsHint: 'أيام الدوام، دورة الأسابيع، الحد اليومي للمعلم والمادة.',
+            settingsHint:
+                'أيام الدوام، دورة الأسابيع، الحد اليومي للمعلم والمادة.',
             byRoom: 'حسب القاعة',
             room: 'القاعة',
             noRooms: 'لا توجد قاعات معرّفة لهذه المدرسة.',
             exportCsv: 'تصدير CSV',
-            staleBanner: 'تغيّرت بيانات المصدر (المنهج أو الإسناد أو الشعب أو التوقيت) بعد نشر الجدول — قد يحتاج إلى إعادة توليد.',
+            staleBanner:
+                'تغيّرت بيانات المصدر (المنهج أو الإسناد أو الشعب أو التوقيت) بعد نشر الجدول — قد يحتاج إلى إعادة توليد.',
             viewingVersion: 'عرض الإصدار {no} «{name}» — للقراءة فقط.',
             backToWorking: 'العودة إلى الجدول الحالي',
             locked: 'مثبّتة',
@@ -2685,7 +3307,8 @@ export const ar = {
             coTeacher: 'معلم مشارك',
             joined: 'مدمجة',
             suggest: 'اقتراح أماكن',
-            suggestHint: 'أفضل الخانات لنقل الحصة أو استبدالها، مع أثر كل اقتراح على جودة الجدول.',
+            suggestHint:
+                'أفضل الخانات لنقل الحصة أو استبدالها، مع أثر كل اقتراح على جودة الجدول.',
             suggestNone: 'لا توجد أماكن بديلة مناسبة.',
             suggestBlock: 'الحصة جزء من كتلة متتالية — تُنقل بالتوليد.',
             moveTo: 'نقل إلى {day} · {period}',
@@ -2695,7 +3318,8 @@ export const ar = {
             impactWorse: 'يقلّل الجودة قليلاً',
             apply: 'تطبيق',
             substitute: 'بديل ليوم',
-            substituteHint: 'المعلمون المتاحون لتغطية الحصة في تاريخ محدد، مرتّبون حسب التوافق.',
+            substituteHint:
+                'المعلمون المتاحون لتغطية الحصة في تاريخ محدد، مرتّبون حسب التوافق.',
             substituteDate: 'التاريخ',
             substituteFind: 'بحث',
             substituteNone: 'لا يوجد معلم متاح في هذا الوقت.',
@@ -2712,10 +3336,20 @@ export const ar = {
             scopeSection: 'الشعبة المحددة',
             scopeTeacher: 'المعلم المحدد',
             mode: 'نمط التوليد',
-            modes: { 1: 'صارم — لا يخفف أي قيد مهم', 2: 'متوازن — الأفضل عموماً', 3: 'مرن — يخفف القيود منخفضة الأولوية', 4: 'تحسين الجدول الحالي دون حذف حصص', 5: 'إصلاح التعارضات فقط' } as Record<string, string>,
+            modes: {
+                1: 'صارم — لا يخفف أي قيد مهم',
+                2: 'متوازن — الأفضل عموماً',
+                3: 'مرن — يخفف القيود منخفضة الأولوية',
+                4: 'تحسين الجدول الحالي دون حذف حصص',
+                5: 'إصلاح التعارضات فقط',
+            } as Record<string, string>,
             timeBudget: 'مدة البحث (ثانية)',
             objectives: 'الأهداف',
-            objectiveLabels: { minimize_teacher_gaps: 'تقليل انتظار المعلمين', avoid_last_lesson: 'تجنّب الحصة الأخيرة', morning_practicals: 'العملي صباحاً' } as Record<string, string>,
+            objectiveLabels: {
+                minimize_teacher_gaps: 'تقليل انتظار المعلمين',
+                avoid_last_lesson: 'تجنّب الحصة الأخيرة',
+                morning_practicals: 'العملي صباحاً',
+            } as Record<string, string>,
             whatIf: 'ماذا لو؟ (محاكاة لا تُعتمد)',
             whatIfTeacher: 'غياب معلم',
             whatIfWorkshop: 'إغلاق ورشة',
@@ -2723,10 +3357,19 @@ export const ar = {
             whatIfDays: 'الأيام',
             addScenario: 'إضافة',
             preview: 'معاينة قبل التوليد',
-            previewLine: '{sections} شعبة · {teachers} معلم · {activities} نشاط · {lessons} حصة أسبوعياً · {rules} قيد · {locked} حصة مثبّتة',
+            previewLine:
+                '{sections} شعبة · {teachers} معلم · {activities} نشاط · {lessons} حصة أسبوعياً · {rules} قيد · {locked} حصة مثبّتة',
             start: 'ابدأ التوليد',
             runs: 'عمليات التوليد',
-            runStatus: { 1: 'في الانتظار', 2: 'جارٍ', 3: 'مكتمل', 4: 'فشل', 5: 'أُوقف', 6: 'معتمد', 7: 'متجاهَل' } as Record<string, string>,
+            runStatus: {
+                1: 'في الانتظار',
+                2: 'جارٍ',
+                3: 'مكتمل',
+                4: 'فشل',
+                5: 'أُوقف',
+                6: 'معتمد',
+                7: 'متجاهَل',
+            } as Record<string, string>,
             progress: 'وُضع {placed} من {total}',
             review: 'مراجعة',
             cancel: 'إيقاف',
@@ -2744,7 +3387,8 @@ export const ar = {
             suggestionsTitle: 'لو أزيل هذا العائق وحده لأمكن الوضع',
             violationsTitle: 'قيود خُففت أو خولفت',
             diffTitle: 'الفرق عن الجدول الحالي',
-            diffLine: 'نُقلت {moved} · تغيّر المعلم {teacher_changed} · أُضيفت {added} · أزيلت {removed} · بقيت {unchanged}',
+            diffLine:
+                'نُقلت {moved} · تغيّر المعلم {teacher_changed} · أُضيفت {added} · أزيلت {removed} · بقيت {unchanged}',
             reasons: {
                 teacher_busy: 'المعلم مشغول',
                 teacher_unavailable: 'المعلم غير متاح',
@@ -2763,18 +3407,40 @@ export const ar = {
             ruleReason: 'قيد «{rule}»',
             // Activities
             fromCurriculum: 'إنشاء من المنهج',
-            fromCurriculumHint: 'ينشئ نشاطاً لكل مادة مسندة لم يُعرَّف لها نشاط بعد (النظري حصص مفردة، العملي حصتان متتاليتان).',
+            fromCurriculumHint:
+                'ينشئ نشاطاً لكل مادة مسندة لم يُعرَّف لها نشاط بعد (النظري حصص مفردة، العملي حصتان متتاليتان).',
             newActivity: 'نشاط جديد',
             subject: 'المادة',
             activityType: 'نوع النشاط',
-            activityTypes: { 1: 'نظري', 2: 'عملي', 3: 'مختبر', 4: 'ورشة', 5: 'حلقة نقاش', 6: 'تقوية', 7: 'امتحان', 8: 'استشارة', 9: 'تحضير', 10: 'اجتماع', 11: 'مناوبة', 12: 'احتياط', 13: 'نشاط خاص', 14: 'اختياري (مسار)', 15: 'اختياري', 16: 'محجوز', 17: 'فعالية' } as Record<string, string>,
+            activityTypes: {
+                1: 'نظري',
+                2: 'عملي',
+                3: 'مختبر',
+                4: 'ورشة',
+                5: 'حلقة نقاش',
+                6: 'تقوية',
+                7: 'امتحان',
+                8: 'استشارة',
+                9: 'تحضير',
+                10: 'اجتماع',
+                11: 'مناوبة',
+                12: 'احتياط',
+                13: 'نشاط خاص',
+                14: 'اختياري (مسار)',
+                15: 'اختياري',
+                16: 'محجوز',
+                17: 'فعالية',
+            } as Record<string, string>,
             weekly: 'مرات أسبوعياً',
             block: 'طول الكتلة',
             distribution: 'التوزيع (مثل 2+2+1)',
             roomSource: 'المكان',
             roomNone: 'دون قاعة محددة',
             roomType: 'نوع القاعة',
-            roomTypeNames: { 1: 'قاعة دراسية', 2: 'ورشة / مختبر' } as Record<number, string>,
+            roomTypeNames: { 1: 'قاعة دراسية', 2: 'ورشة / مختبر' } as Record<
+                number,
+                string
+            >,
             workshop: 'الورشة',
             weekPattern: 'الأسبوع',
             everyWeek: 'كل أسبوع',
@@ -2802,7 +3468,14 @@ export const ar = {
             newRule: 'قيد جديد',
             ruleType: 'نوع القيد',
             priority: 'الأولوية',
-            priorities: { 1: 'إلزامي', 2: 'عالٍ جداً', 3: 'عالٍ', 4: 'متوسط', 5: 'منخفض', 6: 'منخفض جداً' } as Record<string, string>,
+            priorities: {
+                1: 'إلزامي',
+                2: 'عالٍ جداً',
+                3: 'عالٍ',
+                4: 'متوسط',
+                5: 'منخفض',
+                6: 'منخفض جداً',
+            } as Record<string, string>,
             ruleTypes: {
                 teacher_max_per_day: 'أقصى حصص للمعلم يومياً',
                 teacher_min_per_day: 'أدنى حصص للمعلم في يوم دوامه',
@@ -2825,26 +3498,73 @@ export const ar = {
                 activity_spread: 'توزيع كتل النشاط على أيام مختلفة',
             } as Record<string, string>,
             scopes: {
-                branch_id: 'الفرع', department_id: 'الاختصاص', grade_level_id: 'المرحلة', class_id: 'الصف', section_id: 'الشعبة',
-                teacher_id: 'المعلم', subject_id: 'المادة', room_id: 'القاعة', activity_id: 'النشاط', other_activity_id: 'النشاط الثاني',
+                branch_id: 'الفرع',
+                department_id: 'الاختصاص',
+                grade_level_id: 'المرحلة',
+                class_id: 'الصف',
+                section_id: 'الشعبة',
+                teacher_id: 'المعلم',
+                subject_id: 'المادة',
+                room_id: 'القاعة',
+                activity_id: 'النشاط',
+                other_activity_id: 'النشاط الثاني',
             } as Record<string, string>,
-            params: { max: 'الحد الأقصى', min: 'الحد الأدنى', lesson: 'آخر حصة', days: 'الأيام', lessons: 'الحصص', other_teacher_id: 'المعلم الآخر' } as Record<string, string>,
-            sources: { system: 'افتراضي النظام', school: 'المدرسة', branch: 'الفرع', department: 'الاختصاص', grade: 'المرحلة', class: 'الصف', section: 'الشعبة', subject: 'المادة', teacher: 'المعلم', room: 'القاعة', activity: 'النشاط' } as Record<string, string>,
+            params: {
+                max: 'الحد الأقصى',
+                min: 'الحد الأدنى',
+                lesson: 'آخر حصة',
+                days: 'الأيام',
+                lessons: 'الحصص',
+                other_teacher_id: 'المعلم الآخر',
+            } as Record<string, string>,
+            sources: {
+                system: 'افتراضي النظام',
+                school: 'المدرسة',
+                branch: 'الفرع',
+                department: 'الاختصاص',
+                grade: 'المرحلة',
+                class: 'الصف',
+                section: 'الشعبة',
+                subject: 'المادة',
+                teacher: 'المعلم',
+                room: 'القاعة',
+                activity: 'النشاط',
+            } as Record<string, string>,
             appliesTo: 'ينطبق على',
             everyone: 'الجميع',
             reasonLabel: 'السبب',
-            noRules: 'لا توجد قيود مضافة — تعمل الحدود الافتراضية (6 حصص للمعلم يومياً، مرتان للمادة، دون فراغ للشعبة).',
+            noRules:
+                'لا توجد قيود مضافة — تعمل الحدود الافتراضية (6 حصص للمعلم يومياً، مرتان للمادة، دون فراغ للشعبة).',
             // Availability
             target: 'الجهة',
-            targetTypes: { teacher: 'معلم', room: 'قاعة', section: 'شعبة', workshop: 'ورشة' } as Record<string, string>,
-            kinds: { 0: 'متاح', 1: 'غير متاح', 2: 'يُفضّل تجنبه', 3: 'مفضّل' } as Record<string, string>,
-            cellHint: 'انقر الخانة للتنقّل: متاح ← غير متاح ← يُفضّل تجنبه ← مفضّل.',
+            targetTypes: {
+                teacher: 'معلم',
+                room: 'قاعة',
+                section: 'شعبة',
+                workshop: 'ورشة',
+            } as Record<string, string>,
+            kinds: {
+                0: 'متاح',
+                1: 'غير متاح',
+                2: 'يُفضّل تجنبه',
+                3: 'مفضّل',
+            } as Record<string, string>,
+            cellHint:
+                'انقر الخانة للتنقّل: متاح ← غير متاح ← يُفضّل تجنبه ← مفضّل.',
             saveAvailability: 'حفظ الإتاحة',
             // Versions
             newVersion: 'حفظ الجدول الحالي كإصدار',
             versionName: 'اسم الإصدار',
             versionReason: 'سبب التغيير',
-            versionStatus: { 1: 'مسودة', 2: 'قيد الاعتماد', 3: 'معتمد', 4: 'مرفوض', 5: 'منشور', 6: 'مستبدل', 7: 'مؤرشف' } as Record<string, string>,
+            versionStatus: {
+                1: 'مسودة',
+                2: 'قيد الاعتماد',
+                3: 'معتمد',
+                4: 'مرفوض',
+                5: 'منشور',
+                6: 'مستبدل',
+                7: 'مؤرشف',
+            } as Record<string, string>,
             entries: 'حصة',
             effective: 'السريان',
             effectiveFrom: 'يسري من',
@@ -2856,12 +3576,14 @@ export const ar = {
             publish: 'نشر',
             archive: 'أرشفة',
             restore: 'استعادة',
-            restoreConfirm: 'يصبح الجدول الحالي نسخة من هذا الإصدار (الحصص غير المثبّتة تُلغى وتبقى في السجل). متابعة؟',
+            restoreConfirm:
+                'يصبح الجدول الحالي نسخة من هذا الإصدار (الحصص غير المثبّتة تُلغى وتبقى في السجل). متابعة؟',
             view: 'عرض',
             compare: 'مقارنة',
             compareWorking: 'الجدول الحالي',
             compareResult: 'المقارنة',
-            noVersions: 'لا توجد إصدارات بعد. احفظ الجدول الحالي كإصدار، ثم أرسله للاعتماد.',
+            noVersions:
+                'لا توجد إصدارات بعد. احفظ الجدول الحالي كإصدار، ثم أرسله للاعتماد.',
             // Settings
             workingDays: 'أيام الدوام',
             cycleWeeks: 'دورة الجدول (أسابيع)',
@@ -2878,7 +3600,8 @@ export const ar = {
         deleteLesson: 'حذف الحصة',
         shiftLater: 'زحف للأمام',
         shiftEarlier: 'زحف للخلف',
-        shiftHint: 'تزحف الحصة ومعها الحصص الملاصقة لها حتى أول خانة فارغة في اليوم.',
+        shiftHint:
+            'تزحف الحصة ومعها الحصص الملاصقة لها حتى أول خانة فارغة في اليوم.',
         swapTitle: 'استبدال حصة بأخرى',
         swapConfirm: 'تتبادل «{a}» و«{b}» مكانيهما في الجدول. متابعة؟',
         swapAction: 'استبدال',
@@ -2886,18 +3609,30 @@ export const ar = {
         teacherBusyShort: 'مشغول',
         noOtherTeacher: 'لا يوجد معلم آخر مسند لهذه المادة.',
         issues: {
-            teacher_double_booked: 'المعلم {teacher} في حصتين بالوقت نفسه ({day} · {period}).',
-            teacher_busy_other_school: 'المعلم {teacher} لديه حصة في مدرسة أخرى في الوقت نفسه ({day} · {period}).',
-            section_double_booked: 'للشعبة {section} حصتان بالوقت نفسه ({day} · {period}).',
-            teacher_inactive: '{teacher} غير نشط في هذه السنة ولديه حصة {subject} في {section} ({day} · {period}).',
-            teacher_not_assigned: 'المادة {subject} لم تعد مسندة إلى {teacher} — حصتها في {section} ({day} · {period}).',
-            lesson_in_break: 'حصة {subject} في {section} موضوعة في فترة استراحة ({day}).',
-            lesson_over_placed: '{subject} ({teacher}) في {section}: موزّعة أكثر من حصصها الأسبوعية بـ {count}.',
-            teacher_day_overload: '{teacher}: {count} حصص يوم {day} — الحد 6 حصص يومياً.',
-            subject_day_repeat: '{subject} مكررة {count} مرات يوم {day} في {section} — الحد مرتان.',
-            section_day_gap: '{section}: فراغ {count} حصة بين الدروس يوم {day}.',
-            lesson_under_placed: '{subject} ({teacher}) في {section}: متبقٍ {count} حصة لم توزّع.',
-            practical_split: 'المادة العملية {subject} في {section} يوم {day} ليست حصتين متتاليتين.',
+            teacher_double_booked:
+                'المعلم {teacher} في حصتين بالوقت نفسه ({day} · {period}).',
+            teacher_busy_other_school:
+                'المعلم {teacher} لديه حصة في مدرسة أخرى في الوقت نفسه ({day} · {period}).',
+            section_double_booked:
+                'للشعبة {section} حصتان بالوقت نفسه ({day} · {period}).',
+            teacher_inactive:
+                '{teacher} غير نشط في هذه السنة ولديه حصة {subject} في {section} ({day} · {period}).',
+            teacher_not_assigned:
+                'المادة {subject} لم تعد مسندة إلى {teacher} — حصتها في {section} ({day} · {period}).',
+            lesson_in_break:
+                'حصة {subject} في {section} موضوعة في فترة استراحة ({day}).',
+            lesson_over_placed:
+                '{subject} ({teacher}) في {section}: موزّعة أكثر من حصصها الأسبوعية بـ {count}.',
+            teacher_day_overload:
+                '{teacher}: {count} حصص يوم {day} — الحد 6 حصص يومياً.',
+            subject_day_repeat:
+                '{subject} مكررة {count} مرات يوم {day} في {section} — الحد مرتان.',
+            section_day_gap:
+                '{section}: فراغ {count} حصة بين الدروس يوم {day}.',
+            lesson_under_placed:
+                '{subject} ({teacher}) في {section}: متبقٍ {count} حصة لم توزّع.',
+            practical_split:
+                'المادة العملية {subject} في {section} يوم {day} ليست حصتين متتاليتين.',
             teacher_gap: '{teacher}: انتظار {count} حصص بين دروسه يوم {day}.',
         },
         emptyTitle: 'لا توجد جداول',
@@ -2914,7 +3649,8 @@ export const ar = {
         lead: 'يبدأ العمل المدرسي اليومي من هنا. يتوقف الإثراء عند اجتياز بوابات G1–G8 — وليس عند ظهور الرواتب أو المخزون أو سطح المكتب.',
         available: 'متاح الآن',
         gateSection: 'بوابة الانتقال التشغيلي',
-        gateLead: 'عندما تكون كل بوابة ناجحة: أوقف الإثراء وادخل المرحلة التشغيلية.',
+        gateLead:
+            'عندما تكون كل بوابة ناجحة: أوقف الإثراء وادخل المرحلة التشغيلية.',
         openWindows: 'فتح الوحدات كنوافذ',
         search: 'بحـــــــــث ...',
         searchAria: 'بحث وحدات لوحة التحكم',

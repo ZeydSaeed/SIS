@@ -17,6 +17,7 @@ use App\Domain\Attendance\Exceptions\SessionNotOpenException;
 use App\Domain\Attendance\Repositories\AttendanceWriteRepositoryInterface;
 use App\Domain\Attendance\Services\AttendanceEnrollmentGuard;
 use App\Domain\Attendance\Services\AttendanceMarkPayloadGuard;
+use App\Domain\Attendance\Services\AttendanceSheetWorkflow;
 use App\Domain\Attendance\ValueObjects\SessionStatus;
 
 final class MarkSectionAttendanceHandler implements CommandHandler
@@ -87,6 +88,8 @@ final class MarkSectionAttendanceHandler implements CommandHandler
         if ($locked->status !== SessionStatus::Open->value) {
             throw SessionNotOpenException::forId($command->sessionId, $locked->status);
         }
+        // A submitted / approved sheet changes only through review or the audited correction path.
+        AttendanceSheetWorkflow::assertEditable($locked->sheetStatus, $command->sessionId);
 
         $built = $this->buildRows($command, $locked, $resolvedSchoolId);
         $count = $this->attendance->upsertAttendanceRecords($built['rows']);

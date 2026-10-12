@@ -53,7 +53,9 @@ function buildInitialRows(records: AttendanceRecord[]): DraftRow[] {
 export default function AttendanceMark({ session }: PageProps) {
     const i18n = t();
     const records = session.records ?? [];
-    const [rows, setRows] = useState<DraftRow[]>(() => buildInitialRows(records));
+    const [rows, setRows] = useState<DraftRow[]>(() =>
+        buildInitialRows(records),
+    );
     const [confirmSave, setConfirmSave] = useState(false);
     const allowSubmitRef = useRef(false);
 
@@ -63,13 +65,20 @@ export default function AttendanceMark({ session }: PageProps) {
             title: `${i18n.attendance.sessionHead} ${session.id}`,
             href: `/attendance/${session.id}`,
         },
-        { title: i18n.attendance.markBreadcrumb, href: `/attendance/${session.id}/mark` },
+        {
+            title: i18n.attendance.markBreadcrumb,
+            href: `/attendance/${session.id}/mark`,
+        },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${i18n.attendance.markPageTitle} ${session.id}`} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
+            <div
+                className="sis-ops-hub flex flex-col gap-4 p-4"
+                dir="rtl"
+                lang="ar"
+            >
                 <PageHeader
                     title={i18n.attendance.markTitle}
                     description={`${session.session_date} · ${i18n.attendance.section} ${session.section_id} · ${i18n.attendance.subject} ${session.subject_id}`}
@@ -80,7 +89,9 @@ export default function AttendanceMark({ session }: PageProps) {
                 </div>
                 <Link
                     href={`/attendance/${session.id}`}
-                    className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar"
+                    className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
+                    dir="rtl"
+                    lang="ar"
                     prefetch
                 >
                     {i18n.common.backToSession}
@@ -104,14 +115,20 @@ export default function AttendanceMark({ session }: PageProps) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <input type="hidden" name="academic_year_id" value={session.academic_year_id} />
+                            <input
+                                type="hidden"
+                                name="academic_year_id"
+                                value={session.academic_year_id}
+                            />
                             {errors.academic_year_id ? (
                                 <span className="text-sm text-[color:var(--sis-powder-blush)]">
                                     {errors.academic_year_id}
                                 </span>
                             ) : null}
                             {errors.records ? (
-                                <span className="text-sm text-[color:var(--sis-powder-blush)]">{errors.records}</span>
+                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
+                                    {errors.records}
+                                </span>
                             ) : null}
                             <div className="flex flex-col gap-3">
                                 {rows.map((row, index) => (
@@ -124,26 +141,36 @@ export default function AttendanceMark({ session }: PageProps) {
                                             <span dir="ltr">{index + 1}</span>
                                         </legend>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>{i18n.attendance.studentId}</span>
+                                            <span>
+                                                {i18n.attendance.studentId}
+                                            </span>
                                             <input
                                                 name={`records[${index}][student_id]`}
                                                 type="number"
                                                 min={1}
                                                 required
-                                                defaultValue={row.student_id === '' ? undefined : row.student_id}
+                                                defaultValue={
+                                                    row.student_id === ''
+                                                        ? undefined
+                                                        : row.student_id
+                                                }
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                                 dir="ltr"
                                             />
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm">
-                                            <span>{i18n.attendance.enrollmentId}</span>
+                                            <span>
+                                                {i18n.attendance.enrollmentId}
+                                            </span>
                                             <input
                                                 name={`records[${index}][enrollment_id]`}
                                                 type="number"
                                                 min={1}
                                                 required
                                                 defaultValue={
-                                                    row.enrollment_id === '' ? undefined : row.enrollment_id
+                                                    row.enrollment_id === ''
+                                                        ? undefined
+                                                        : row.enrollment_id
                                                 }
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                                 dir="ltr"
@@ -153,12 +180,20 @@ export default function AttendanceMark({ session }: PageProps) {
                                             <span>{i18n.common.status}</span>
                                             <select
                                                 name={`records[${index}][status]`}
-                                                defaultValue={String(row.status)}
+                                                defaultValue={String(
+                                                    row.status,
+                                                )}
                                                 className="sis-ops-hub__link min-h-11 px-3 py-2"
                                             >
-                                                <option value="1">{i18n.attendance.present}</option>
-                                                <option value="2">{i18n.attendance.absent}</option>
-                                                <option value="3">{i18n.attendance.late}</option>
+                                                <option value="1">
+                                                    {i18n.attendance.present}
+                                                </option>
+                                                <option value="2">
+                                                    {i18n.attendance.absent}
+                                                </option>
+                                                <option value="3">
+                                                    {i18n.attendance.late}
+                                                </option>
                                             </select>
                                         </label>
                                         <label className="flex flex-col gap-1 text-sm sm:col-span-2">
@@ -175,11 +210,18 @@ export default function AttendanceMark({ session }: PageProps) {
                             </div>
                             <button
                                 type="button"
-                                className="sis-ops-hub__link w-fit px-4 py-2 text-sm" dir="rtl" lang="ar"
+                                className="sis-ops-hub__link w-fit px-4 py-2 text-sm"
+                                dir="rtl"
+                                lang="ar"
                                 onClick={() =>
                                     setRows((current) => [
                                         ...current,
-                                        { student_id: '', enrollment_id: '', status: 1, notes: '' },
+                                        {
+                                            student_id: '',
+                                            enrollment_id: '',
+                                            status: 1,
+                                            notes: '',
+                                        },
                                     ])
                                 }
                             >
@@ -188,9 +230,13 @@ export default function AttendanceMark({ session }: PageProps) {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm" dir="rtl" lang="ar"
+                                className="sis-ops-hub__link min-h-11 w-fit px-4 py-2 text-sm"
+                                dir="rtl"
+                                lang="ar"
                             >
-                                {processing ? i18n.common.saving : i18n.attendance.saveMarks}
+                                {processing
+                                    ? i18n.common.saving
+                                    : i18n.attendance.saveMarks}
                             </button>
                             <ConfirmDialog
                                 open={confirmSave}
