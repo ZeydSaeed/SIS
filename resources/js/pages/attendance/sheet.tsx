@@ -411,14 +411,10 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
         const offBefore = router.on('before', (event) => {
             const method = (event.detail.visit.method ?? 'get').toLowerCase();
             const partial = (event.detail.visit.only ?? []).length > 0;
-            if (
-                dirty &&
-                sync !== 'queued' &&
-                method === 'get' &&
-                !partial &&
-                !window.confirm(sh.leaveConfirm)
-            ) {
-                event.preventDefault();
+            // Leaving with unsaved marks: no question — they are kept on this device and sent as a draft
+            // (same version + idempotency key) by the background sync; nothing is lost, nothing is overwritten.
+            if (dirty && sync !== 'queued' && method === 'get' && !partial) {
+                void storeOffline(newKey('draft-leave'));
             }
         });
         const onUnload = (event: BeforeUnloadEvent) => {
@@ -430,7 +426,7 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
             offBefore();
             window.removeEventListener('beforeunload', onUnload);
         };
-    }, [dirty, sync, sh.leaveConfirm]);
+    }, [dirty, sync, storeOffline]);
 
     const send = useCallback(
         (kind: 'draft' | 'submit') => {
@@ -1021,14 +1017,6 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                   },
               ]
             : []),
-        ...(!perms.can_edit
-            ? [
-                  {
-                      key: 'read-only',
-                      text: `${sh.readOnly} (${sheetLabel(session.sheet_status)})`,
-                  },
-              ]
-            : []),
         ...(session.review_note && session.sheet_status === 5
             ? [
                   {
@@ -1037,18 +1025,6 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                       text: `${sh.reviewNote}: ${session.review_note}`,
                   },
               ]
-            : []),
-        ...(sheet.off_roster.length > 0
-            ? [
-                  {
-                      key: 'off-roster',
-                      tone: 'warning' as const,
-                      text: `${sh.offRoster}: ${sheet.off_roster.map((r) => `${r.full_name} (${recordLabel(r.status)})`).join('، ')}`,
-                  },
-              ]
-            : []),
-        ...(sync === 'queued'
-            ? [{ key: 'queued', text: sh.savedOnDevice }]
             : []),
     ];
     useAttendanceMessages(messages, `${sh.title} ${session.id}`);
@@ -1389,6 +1365,18 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                                             wide
                                             label={sh.reviewNote}
                                             value={session.review_note}
+                                        />
+                                    ) : null}
+                                    {sheet.off_roster.length > 0 ? (
+                                        <WindowFact
+                                            wide
+                                            label={sh.offRoster}
+                                            value={sheet.off_roster
+                                                .map(
+                                                    (r) =>
+                                                        `${r.full_name} (${recordLabel(r.status)})`,
+                                                )
+                                                .join('، ')}
                                         />
                                     ) : null}
                                 </>

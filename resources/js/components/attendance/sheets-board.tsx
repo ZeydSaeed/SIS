@@ -502,8 +502,8 @@ export function SheetsBoard({
         flash?.attendanceResult?.action === 'bulk_approve'
             ? (flash.attendanceResult.failed ?? [])
             : [];
-    const messages: AttendanceMessage[] = [
-        ...(failed.length > 0
+    const messages: AttendanceMessage[] =
+        failed.length > 0
             ? [
                   {
                       key: `failed:${failed.map((f) => f.session_id).join(',')}`,
@@ -511,20 +511,7 @@ export function SheetsBoard({
                       text: `${r.bulkFailed}: ${failed.map((f) => `#${f.session_id} (${(t().errors.codes as Record<string, string>)[f.code] ?? f.code})`).join('، ')}`,
                   },
               ]
-            : []),
-        ...(mode === 'review' && board.single_day && board.missing.length > 0
-            ? [
-                  {
-                      key: 'missing',
-                      tone: 'warning' as const,
-                      text: `${r.missing}: ${board.missing.length}`,
-                  },
-              ]
-            : []),
-        ...(mode === 'review' && !board.single_day
-            ? [{ key: 'missing-hint', text: r.missingHint }]
-            : []),
-    ];
+            : [];
     useAttendanceMessages(messages);
 
     const menuItems = (row: BoardRow): ContextMenuItem[] => [

@@ -18671,3 +18671,24 @@ body.sis-table-row-resizing {
 .sis-ribbon__group[data-group-id='attendance-settings-groups'] {
     margin-inline-end: 0.85rem;
 }
+
+/* Tables inside a window: same column rules as the page tables (longest text, never below the header, spare room to
+   the name column); the window widens to show every column; rows scroll vertically with the hidden scrollbar. */
+.sis-attendance-table--embedded .sis-admission-drafts-table__scroller {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    max-height: min(60vh, 36rem);
+    scrollbar-width: none;
+}
+
+.sis-attendance-table--embedded .sis-admission-drafts-table__scroller::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.sis-attendance-table__empty td {
+    text-align: center;
+    color: var(--sis-oxford);
+    opacity: 0.8;
+}

@@ -703,6 +703,27 @@ export function AttendancePage({
     );
 }
 
+let measureCanvas: HTMLCanvasElement | null = null;
+
+/** The width a header cell needs to show its text on one line (canvas metrics + the cell padding). */
+function headerTextWidth(cell: HTMLElement): number {
+    const ctx = (measureCanvas ??= document.createElement('canvas')).getContext(
+        '2d',
+    );
+    const style = getComputedStyle(cell);
+    if (ctx === null) {
+        return cell.scrollWidth;
+    }
+    ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+
+    return Math.ceil(
+        ctx.measureText((cell.textContent ?? '').trim()).width +
+            (Number.parseFloat(style.paddingLeft) || 0) +
+            (Number.parseFloat(style.paddingRight) || 0) +
+            14,
+    );
+}
+
 export type AttendanceColumn<T> = {
     id: string;
     header: ReactNode;
@@ -732,6 +753,8 @@ export type ServerPaging = {
  * header edges, rows on their bottom edges, everything scaled by the ribbon zoom; the page size fits the visible
  * height (server paging when `server` is given, else client paging) with the shared pagination below.
  */
+const SELECT_COLUMN_PX = 52;
+
 export function AttendanceTable<T>({
     caption,
     storageKey,
@@ -747,7 +770,7 @@ export function AttendanceTable<T>({
     server,
     fit = true,
     pageSize = 10,
-    emptyAsDialog = true,
+    emptyAsDialog = false,
 }: {
     caption: string;
     /** Saved column widths / row height key. */
@@ -796,7 +819,8 @@ export function AttendanceTable<T>({
         enabled: fit,
         remountKey: rows.length === 0 ? 'empty' : 'rows',
     });
-    const size = fit ? fitSize : pageSize;
+    // In a window (fit=false) the table shows every row and scrolls vertically — no pages, no horizontal scroll.
+    const size = fit ? fitSize : Math.max(1, rows.length);
     const syncServer = useCallback(
         (perPage: number) => server?.onPage(server.page, perPage),
         [server],
@@ -835,60 +859,30 @@ export function AttendanceTable<T>({
      */
     const measure = useCallback(
         (cells: HTMLTableCellElement[]): number[] => {
-            const textWidth = (node: Element | null | undefined): number => {
-                if (!node) {
-                    return 0;
-                }
-                const range = document.createRange();
-                range.selectNodeContents(node);
-
-                return range.getBoundingClientRect().width;
-            };
-            const pad = (cell: Element) => {
-                const style = getComputedStyle(cell);
-
-                return (
-                    (Number.parseFloat(style.paddingLeft) || 0) +
-                    (Number.parseFloat(style.paddingRight) || 0) +
-                    12
-                );
-            };
-            const bodyRows = Array.from(
-                tableRef.current?.tBodies[0]?.rows ?? [],
-            );
+            // Layout sizes only (offsetWidth / canvas text) — never the on-screen rectangles, which a window's open
+            // animation scales. The table is measured in automatic layout: each column then takes its longest text.
+            const table = tableRef.current;
+            cells.forEach((cell) => {
+                cell.style.width = '';
+                cell.style.minWidth = '';
+                cell.style.maxWidth = '';
+            });
+            if (table) {
+                table.style.tableLayout = '';
+                table.style.width = '';
+                table.style.minWidth = '';
+            }
             const headers = cells.map((cell, index) =>
-                Math.ceil(
-                    Math.max(
-                        textWidth(cell) + pad(cell),
-                        kinds[index] === 'select' || kinds[index] === 'num'
-                            ? 36
-                            : 48,
-                    ),
+                Math.max(
+                    headerTextWidth(cell),
+                    kinds[index] === 'select' || kinds[index] === 'num'
+                        ? 36
+                        : 48,
                 ),
             );
-            const needed = cells.map((cell, index) => {
-                if (kinds[index] === 'select' || kinds[index] === 'num') {
-                    return Math.max(
-                        headers[index],
-                        ...bodyRows.map((row) =>
-                            Math.ceil(textWidth(row.cells[index]) + pad(cell)),
-                        ),
-                    );
-                }
-                const content = bodyRows.reduce((max, row) => {
-                    const td = row.cells[index];
-                    const inner = td?.firstElementChild as HTMLElement | null;
-
-                    return Math.max(
-                        max,
-                        kinds[index] === 'plain'
-                            ? (inner?.scrollWidth ?? 0)
-                            : textWidth(inner ?? td),
-                    );
-                }, 0);
-
-                return Math.max(headers[index], Math.ceil(content + pad(cell)));
-            });
+            const needed = cells.map((cell, index) =>
+                Math.max(headers[index], cell.offsetWidth),
+            );
             const room = (scrollerRef.current?.clientWidth ?? 0) - 2;
             const total = needed.reduce((sum, w) => sum + w, 0);
             if (room > 0 && total > room) {
@@ -903,9 +897,22 @@ export function AttendanceTable<T>({
                 const spare = give.reduce((sum, g) => sum + g, 0);
                 const cut = Math.min(spare, total - room);
 
-                return needed.map((w, i) =>
+                const shrunk = needed.map((w, i) =>
                     spare > 0 ? Math.floor(w - (give[i] * cut) / spare) : w,
                 );
+                const left = shrunk.reduce((sum, w) => sum + w, 0);
+                // In a window: the window grows (up to the screen) so every column keeps at least its header width.
+                if (!fit && left > room) {
+                    const dialog = scrollerRef.current?.closest<HTMLElement>(
+                        '.sis-admission-sheet-dialog',
+                    );
+                    dialog?.style.setProperty(
+                        '--sis-sheet-w',
+                        `min(96vw, ${Math.ceil(left + (dialog.offsetWidth - room) + 4)}px)`,
+                    );
+                }
+
+                return shrunk;
             }
             const grow = kinds
                 .map((k, i) => (k === 'name' ? i : -1))
@@ -931,11 +938,14 @@ export function AttendanceTable<T>({
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [columnSignature],
     );
+    // «تحديد»: a wider fixed column (scaled with the zoom like the checkbox itself).
+    const selectWidth = Math.round(SELECT_COLUMN_PX * zoom);
     useResizableTableColumns(tableRef, {
         storageKey: `attendance.${storageKey}`,
         columnSignature,
         enabled: shown.length > 0,
         measure,
+        fixedColumns: selection ? { 0: selectWidth } : undefined,
     });
     useResizableTableRows(tableRef, cardRef, {
         storageKey: `attendance.${storageKey}`,
@@ -953,17 +963,12 @@ export function AttendanceTable<T>({
             return;
         }
         let grew = false;
-        cells.forEach((cell) => {
-            const range = document.createRange();
-            range.selectNodeContents(cell);
-            const style = getComputedStyle(cell);
-            const needed = Math.ceil(
-                range.getBoundingClientRect().width +
-                    (Number.parseFloat(style.paddingLeft) || 0) +
-                    (Number.parseFloat(style.paddingRight) || 0) +
-                    6,
-            );
-            if (cell.getBoundingClientRect().width + 0.5 < needed) {
+        cells.forEach((cell, index) => {
+            if (selection && index === 0) {
+                return;
+            }
+            const needed = headerTextWidth(cell);
+            if (cell.offsetWidth + 0.5 < needed) {
                 cell.style.width = `${needed}px`;
                 cell.style.minWidth = `${needed}px`;
                 cell.style.maxWidth = `${needed}px`;
@@ -972,7 +977,7 @@ export function AttendanceTable<T>({
         });
         if (grew && table.style.tableLayout === 'fixed') {
             const total = cells.reduce(
-                (sum, cell) => sum + cell.getBoundingClientRect().width,
+                (sum, cell) => sum + cell.offsetWidth,
                 0,
             );
             table.style.width = `${Math.ceil(total)}px`;
@@ -1019,12 +1024,9 @@ export function AttendanceTable<T>({
 
     return (
         <section aria-label={caption} className="flex min-h-0 flex-1 flex-col">
-            {!emptyAsDialog && rows.length === 0 ? (
-                <p className="text-sm">{emptyText}</p>
-            ) : null}
             <div
                 ref={cardRef}
-                className="sis-admission-periods-table sis-admission-drafts-table sis-attendance-table"
+                className={`sis-admission-periods-table sis-admission-drafts-table sis-attendance-table${fit ? '' : ' sis-attendance-table--embedded'}`}
                 style={{ '--att-zoom': zoom } as CSSProperties}
             >
                 <div
@@ -1090,6 +1092,17 @@ export function AttendanceTable<T>({
                             </tr>
                         </thead>
                         <tbody>
+                            {rows.length === 0 && !emptyAsDialog ? (
+                                <tr className="sis-attendance-table__empty">
+                                    <td
+                                        colSpan={
+                                            columns.length + (selection ? 2 : 1)
+                                        }
+                                    >
+                                        {emptyText}
+                                    </td>
+                                </tr>
+                            ) : null}
                             {shown.map((row, index) => {
                                 const id = rowKey(row);
                                 const checked =
@@ -1292,7 +1305,6 @@ export function AttendanceWindow({
     onClose,
     pending = false,
     confirmDisabled = false,
-    dirty = false,
     columns = 1,
     wide = false,
     danger = false,
@@ -1311,6 +1323,7 @@ export function AttendanceWindow({
     onClose: () => void;
     pending?: boolean;
     confirmDisabled?: boolean;
+    /** Unsaved input (informative; closing never asks). */
     dirty?: boolean;
     columns?: 1 | 2;
     /** Room for a table (62rem). */
@@ -1323,9 +1336,7 @@ export function AttendanceWindow({
         if (pending) {
             return;
         }
-        if (dirty && !window.confirm(t().attendanceSystem.sheet.leaveConfirm)) {
-            return;
-        }
+        // No «unsaved changes» question: closing a window is the user's explicit choice.
         onClose();
     };
 

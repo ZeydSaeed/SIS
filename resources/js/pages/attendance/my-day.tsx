@@ -278,20 +278,9 @@ function MyDayPage({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [linked, filters.teacher_id]);
 
-    const messages: AttendanceMessage[] = [
-        ...(day.holiday
-            ? [{ key: 'holiday', tone: 'warning' as const, text: m.holiday }]
-            : []),
-        ...(day.notices.length > 0
-            ? [
-                  {
-                      key: `notices:${day.notices.length}`,
-                      tone: 'warning' as const,
-                      text: `${m.notices}: ${day.notices.length}`,
-                  },
-              ]
-            : []),
-    ];
+    const messages: AttendanceMessage[] = day.holiday
+        ? [{ key: 'holiday', tone: 'warning' as const, text: m.holiday }]
+        : [];
     useAttendanceMessages(
         linked || filters.teacher_id !== null ? messages : [],
         m.title,

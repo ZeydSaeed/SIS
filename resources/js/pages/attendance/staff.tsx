@@ -720,8 +720,8 @@ function StaffPage({
     );
     useAttendanceSearch(query, a.sheet.search, setQuery, setQuery);
 
-    const messages: AttendanceMessage[] = [
-        ...(abilities.staff_checkin && !linked
+    const messages: AttendanceMessage[] =
+        abilities.staff_checkin && !linked
             ? [
                   {
                       key: 'not-linked',
@@ -729,17 +729,7 @@ function StaffPage({
                       text: st.notLinked,
                   },
               ]
-            : []),
-        ...(abilities.record_staff && day.cover.length > 0
-            ? [
-                  {
-                      key: `cover:${day.cover.length}`,
-                      tone: 'warning' as const,
-                      text: `${st.cover}: ${day.cover.length} — ${st.coverHint}`,
-                  },
-              ]
-            : []),
-    ];
+            : [];
     useAttendanceMessages(messages, st.title);
 
     const menuItems = (r: StaffRow): ContextMenuItem[] => [

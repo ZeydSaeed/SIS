@@ -5,11 +5,12 @@ import {
     useId,
     useLayoutEffect,
     useMemo,
+    useRef,
     useState,
     type ReactNode,
 } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { ChromeTabId } from '@/components/sis/chrome-tabs';
+import { CHROME_TAB_IDS, type ChromeTabId } from '@/components/sis/chrome-tabs';
 
 export type PageRibbonTab = ChromeTabId;
 
@@ -63,6 +64,8 @@ const COMMAND_PRIORITY = ['view', 'edit', 'save', 'cancel', 'delete'] as const;
 /** Lower = earlier in RTL ribbon (right / start). Actions first, then status/distribution/filters. */
 const GROUP_PRIORITY = ['actions', 'status', 'distribution', 'filter'] as const;
 const RIBBON_PIN_STORAGE_KEY = 'sis.ribbon.pinned';
+/** The open tab of a pinned ribbon: pages mount their own layout, so it must survive page changes. */
+const RIBBON_PINNED_TAB_STORAGE_KEY = 'sis.ribbon.pinnedTab';
 
 const PageRibbonContext = createContext<PageRibbonApi | null>(null);
 
@@ -80,6 +83,30 @@ function writePinnedPreference(pinned: boolean): void {
             window.sessionStorage.setItem(RIBBON_PIN_STORAGE_KEY, '1');
         } else {
             window.sessionStorage.removeItem(RIBBON_PIN_STORAGE_KEY);
+        }
+    } catch {
+        // Ignore storage failures (private mode / quota).
+    }
+}
+
+function readPinnedTab(): PageRibbonTab | null {
+    try {
+        const tab = window.sessionStorage.getItem(RIBBON_PINNED_TAB_STORAGE_KEY);
+
+        return tab !== null && (CHROME_TAB_IDS as readonly string[]).includes(tab)
+            ? (tab as PageRibbonTab)
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+function writePinnedTab(tab: PageRibbonTab | null): void {
+    try {
+        if (tab !== null) {
+            window.sessionStorage.setItem(RIBBON_PINNED_TAB_STORAGE_KEY, tab);
+        } else {
+            window.sessionStorage.removeItem(RIBBON_PINNED_TAB_STORAGE_KEY);
         }
     } catch {
         // Ignore storage failures (private mode / quota).
@@ -165,10 +192,17 @@ function groupsByTabFromOwners(
 
 export function PageRibbonProvider({ children }: { children: ReactNode }) {
     const [owners, setOwners] = useState<PageRibbonOwners>({});
-    const [activeTab, setActiveTabState] = useState<PageRibbonTab | null>(null);
     const [pinned, setPinnedState] = useState<boolean>(() =>
         typeof window === 'undefined' ? false : readPinnedPreference(),
     );
+    // A pinned ribbon reopens on the next page (each page mounts its own layout) — it stays until folded by hand.
+    const [activeTab, setActiveTabState] = useState<PageRibbonTab | null>(() =>
+        typeof window !== 'undefined' && readPinnedPreference() ? (readPinnedTab() ?? 'home') : null,
+    );
+    const activeTabRef = useRef(activeTab);
+    useLayoutEffect(() => {
+        activeTabRef.current = activeTab;
+    }, [activeTab]);
     const groupsByTab = useMemo(() => groupsByTabFromOwners(owners), [owners]);
     const setOwner = useCallback((ownerId: string, next: PageRibbonRegistration | null) => {
         setOwners((current) => {
@@ -188,6 +222,7 @@ export function PageRibbonProvider({ children }: { children: ReactNode }) {
     const setPinned = useCallback((next: boolean) => {
         setPinnedState(next);
         writePinnedPreference(next);
+        writePinnedTab(next ? activeTabRef.current : null);
     }, []);
     const setActiveTab = useCallback(
         (tab: PageRibbonTab | null, options?: SetPageRibbonTabOptions) => {
@@ -202,6 +237,9 @@ export function PageRibbonProvider({ children }: { children: ReactNode }) {
             }
 
             setActiveTabState(tab);
+            if (pinned && tab !== null) {
+                writePinnedTab(tab);
+            }
         },
         [pinned, setPinned],
     );

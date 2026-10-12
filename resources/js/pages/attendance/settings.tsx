@@ -17,7 +17,6 @@ import {
     selectionGroup,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
-    useAttendanceMessages,
     useAttendanceSelection,
     useRowViewer,
     useYearFilterSpec,
@@ -359,16 +358,6 @@ function SettingsPage({ settings, filters, abilities }: Props) {
         ],
         groupFilter.length > 0 ? () => setGroupFilter([]) : null,
         [filters.academic_year_id, groupFilter, yearSpec.options.length],
-    );
-
-    useAttendanceMessages(
-        [
-            ...(settings.is_default
-                ? [{ key: 'default', text: st.isDefault }]
-                : []),
-            ...(!editable ? [{ key: 'read-only', text: st.readOnly }] : []),
-        ],
-        st.title,
     );
 
     /** One field of the edit window (the control matches the setting's type). */

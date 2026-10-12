@@ -235,10 +235,14 @@ export function AppSidebarHeader({
     const closeRibbon = useCallback(() => {
         setActiveRibbon(null, { force: true });
     }, [setActiveRibbon]);
+    // Leaving for another page: a pinned ribbon stays open (only folding it by hand closes it).
+    const dismissRibbon = useCallback(() => {
+        setActiveRibbon(null);
+    }, [setActiveRibbon]);
 
     const onRibbonAction = useCallback((id: RibbonActionId) => {
         if (id === 'addStudent') {
-            closeRibbon();
+            dismissRibbon();
             router.visit('/admission/converted?create_student=1');
 
             return;
@@ -272,42 +276,42 @@ export function AppSidebarHeader({
 
         const addHref = ADD_ROUTES[id];
         if (addHref) {
-            closeRibbon();
+            dismissRibbon();
             router.visit(addHref);
             return;
         }
 
         const settingsHref = SETTINGS_ROUTES[id];
         if (settingsHref) {
-            closeRibbon();
+            dismissRibbon();
             router.visit(settingsHref);
             return;
         }
 
         const listsHref = LISTS_ROUTES[id];
         if (listsHref) {
-            closeRibbon();
+            dismissRibbon();
             router.visit(listsHref);
             return;
         }
 
         const toolsHref = TOOLS_ROUTES[id];
         if (toolsHref) {
-            closeRibbon();
+            dismissRibbon();
             router.visit(toolsHref);
             return;
         }
 
         const reportsHref = REPORTS_ROUTES[id];
         if (reportsHref) {
-            closeRibbon();
+            dismissRibbon();
             router.visit(reportsHref);
             return;
         }
 
         const helpHref = HELP_ROUTES[id];
         if (helpHref) {
-            closeRibbon();
+            dismissRibbon();
             router.visit(helpHref);
             return;
         }
@@ -317,15 +321,15 @@ export function AppSidebarHeader({
                 window.print();
                 break;
             case 'account':
-                closeRibbon();
+                dismissRibbon();
                 router.visit(profileEdit.url());
                 break;
             case 'options':
-                closeRibbon();
+                dismissRibbon();
                 router.visit(appearance.edit.url());
                 break;
             case 'close':
-                closeRibbon();
+                dismissRibbon();
                 router.visit(dashboard());
                 break;
             case 'copy':
@@ -361,7 +365,7 @@ export function AppSidebarHeader({
             default:
                 break;
         }
-    }, [closeRibbon, page.url]);
+    }, [dismissRibbon, page.url]);
 
     const titlebarSearch = useTitlebarSearchSlot();
 

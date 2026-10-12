@@ -13,6 +13,8 @@ type Options = {
     enabled?: boolean;
     /** Initial widths when none are saved (default: the rendered widths). */
     measure?: (cells: HTMLTableCellElement[]) => number[];
+    /** Column index → width (px) kept fixed: overrides saved / measured widths and is not hand-resizable. */
+    fixedColumns?: Record<number, number>;
 };
 
 function isRtl(element: Element): boolean {
@@ -146,9 +148,14 @@ export function useResizableTableColumns(
         minWidth = DEFAULT_MIN_WIDTH,
         enabled = true,
         measure = measureWidths,
+        fixedColumns,
     }: Options,
 ): void {
+    const fixedKey = JSON.stringify(fixedColumns ?? {});
     useLayoutEffect(() => {
+        const fixed = JSON.parse(fixedKey) as Record<string, number>;
+        const withFixed = (list: number[]): number[] =>
+            list.map((width, index) => fixed[index] ?? width);
         if (!enabled) {
             return;
         }
@@ -178,6 +185,7 @@ export function useResizableTableColumns(
             widths = measure(cells);
         }
 
+        widths = withFixed(widths);
         applyWidths(table, widths);
 
         let dragIndex: number | null = null;
@@ -213,7 +221,7 @@ export function useResizableTableColumns(
 
             const hit = findResizeCell(table, event.clientX);
 
-            if (hit === null) {
+            if (hit === null || fixed[hit.index] !== undefined) {
                 return;
             }
 
@@ -284,7 +292,7 @@ export function useResizableTableColumns(
 
             event.preventDefault();
             clearWidths(table);
-            activeWidths = measure(headerCells(table));
+            activeWidths = withFixed(measure(headerCells(table)));
             applyWidths(table, activeWidths);
             writeStored(storageKey, columnSignature, activeWidths);
         };
@@ -310,5 +318,5 @@ export function useResizableTableColumns(
             scroller?.classList.remove('sis-table-scroller--resizable');
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `measure` is a stable strategy per table
-    }, [tableRef, storageKey, columnSignature, minWidth, enabled]);
+    }, [tableRef, storageKey, columnSignature, minWidth, enabled, fixedKey]);
 }
