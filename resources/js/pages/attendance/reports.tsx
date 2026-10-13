@@ -687,11 +687,6 @@ function ReportsPage({
                                             </span>
                                         }
                                     />
-                                    <WindowFact
-                                        wide
-                                        label={a.dashboard.formula}
-                                        value={report.formula}
-                                    />
                                 </>
                             ),
                         },

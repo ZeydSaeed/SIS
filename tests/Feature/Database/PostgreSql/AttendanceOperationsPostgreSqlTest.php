@@ -196,7 +196,11 @@ final class AttendanceOperationsPostgreSqlTest extends PostgreSqlIntegrationTest
         $this->assertStringContainsString('student_code', $csv);
 
         $this->get('/attendance/dashboard')->assertSuccessful()
-            ->assertInertia(fn ($page) => $page->component('attendance/dashboard')->where('scope', 'school')->has('dashboard.month_totals'));
+            ->assertInertia(fn ($page) => $page->component('attendance/dashboard')->where('scope', 'school')->has('dashboard.month_totals')->has('board.periods')->has('board.cells')->where('board.date', fn ($d) => is_string($d)));
+        // A date that does not exist falls back to today; a real one is honoured.
+        $this->get('/attendance/dashboard?date=2026-02-30')->assertSuccessful()->assertInertia(fn ($page) => $page->where('board.date', fn ($d) => $d !== '2026-02-30'));
+        $this->get('/attendance/dashboard?date='.self::LESSON_DATE)->assertSuccessful()
+            ->assertInertia(fn ($page) => $page->where('board.date', self::LESSON_DATE)->has('board.cells', 1)->where('board.cells.0.schedule_id', $g['schedule_id']));
         $this->assertSame(1, (int) DB::table('attendance.sessions')->where('id', $sessionId)->value('submission_count'));
     }
 

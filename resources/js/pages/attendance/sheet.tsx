@@ -689,23 +689,22 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                           <span
                               role="radiogroup"
                               aria-label={`${sh.status}: ${r.full_name}`}
-                              className="inline-flex gap-1"
+                              className="sis-att-mark"
                               onClick={(event) => event.stopPropagation()}
                               onDoubleClick={(event) => event.stopPropagation()}
                           >
                               {allowedStatuses.map((st) => {
                                   const Icon = st.icon;
-                                  const active = statusOf(r) === st.value;
 
                                   return (
-                                      <Button
+                                      <button
                                           key={st.value}
                                           type="button"
-                                          size="sm"
                                           role="radio"
-                                          aria-checked={active}
-                                          variant={
-                                              active ? 'default' : 'outline'
+                                          className="sis-att-mark__btn"
+                                          data-status={st.value}
+                                          aria-checked={
+                                              statusOf(r) === st.value
                                           }
                                           title={recordLabel(st.value)}
                                           aria-label={recordLabel(st.value)}
@@ -717,7 +716,7 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                                           }
                                       >
                                           <Icon aria-hidden />
-                                      </Button>
+                                      </button>
                                   );
                               })}
                           </span>
@@ -728,18 +727,83 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
         {
             id: 'late',
             header: sh.minutesLate,
-            kind: 'num',
-            cell: (r) => (
-                <span dir="ltr">
-                    {marks[r.enrollment_id]?.minutes_late ?? '—'}
-                </span>
-            ),
+            kind: perms.can_edit ? 'plain' : 'num',
+            text: (r) => marks[r.enrollment_id]?.minutes_late ?? '—',
+            cell: (r) =>
+                perms.can_edit ? (
+                    <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        dir="ltr"
+                        className="sis-att-cell-input"
+                        style={{ width: '5rem' }}
+                        aria-label={`${sh.minutesLate}: ${r.full_name}`}
+                        value={marks[r.enrollment_id]?.minutes_late ?? ''}
+                        onClick={(event) => event.stopPropagation()}
+                        onDoubleClick={(event) => event.stopPropagation()}
+                        onChange={(event) => {
+                            const raw = event.target.value;
+                            const minutes =
+                                raw === ''
+                                    ? null
+                                    : Math.max(
+                                          0,
+                                          Math.min(
+                                              600,
+                                              Math.trunc(Number(raw)),
+                                          ),
+                                      );
+                            // Minutes late make the student «متأخر»; clearing them keeps the status.
+                            apply((cur) => ({
+                                ...cur,
+                                [r.enrollment_id]: {
+                                    ...cur[r.enrollment_id],
+                                    minutes_late: minutes,
+                                    status:
+                                        minutes !== null && minutes > 0
+                                            ? 3
+                                            : cur[r.enrollment_id].status,
+                                },
+                            }));
+                        }}
+                    />
+                ) : (
+                    <span dir="ltr">
+                        {marks[r.enrollment_id]?.minutes_late ?? '—'}
+                    </span>
+                ),
         },
         {
             id: 'note',
             header: sh.note,
-            kind: 'text',
-            cell: (r) => (marks[r.enrollment_id]?.note ?? '').trim() || '—',
+            kind: perms.can_edit ? 'plain' : 'text',
+            text: (r) => (marks[r.enrollment_id]?.note ?? '').trim() || '—',
+            cell: (r) =>
+                perms.can_edit ? (
+                    <input
+                        type="text"
+                        maxLength={500}
+                        className="sis-att-cell-input"
+                        style={{ minWidth: '11rem' }}
+                        aria-label={`${sh.note}: ${r.full_name}`}
+                        value={marks[r.enrollment_id]?.note ?? ''}
+                        onClick={(event) => event.stopPropagation()}
+                        onDoubleClick={(event) => event.stopPropagation()}
+                        onChange={(event) => {
+                            const note = event.target.value;
+                            apply((cur) => ({
+                                ...cur,
+                                [r.enrollment_id]: {
+                                    ...cur[r.enrollment_id],
+                                    note,
+                                },
+                            }));
+                        }}
+                    />
+                ) : (
+                    (marks[r.enrollment_id]?.note ?? '').trim() || '—'
+                ),
         },
         {
             id: 'updated',

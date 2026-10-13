@@ -18692,3 +18692,743 @@ body.sis-table-row-resizing {
     color: var(--sis-oxford);
     opacity: 0.8;
 }
+
+/* Tables inside a window are part of it: no frame of their own (the window rules otherwise win). */
+.sis-admission-sheet-dialog .sis-attendance-window__plain .sis-admission-drafts-table.sis-attendance-table {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Button columns (e.g. «تحديد المختارين» of the sheet): buttons centred, the same space on the right and the left. */
+.sis-attendance-table td.sis-attendance-table__plain {
+    text-align: center;
+    padding-inline: 0.75rem !important;
+}
+
+.sis-attendance-table td.sis-attendance-table__plain > [role='radiogroup'] {
+    display: inline-flex;
+    justify-content: center;
+    gap: 0.3rem;
+}
+
+/* ═══ «لوحة الحضور»: the day as a schedule board — periods down, sections across, lessons as coloured blocks, a side
+   panel with the calendar, totals and the lessons still waiting (appointment-book layout). (2026-10-13) ═══ */
+.sis-att-board {
+    --att-board-line: color-mix(in srgb, var(--sis-oxford) 35%, transparent);
+    display: grid;
+    grid-template-columns: 14.5rem minmax(0, 1fr) 4rem;
+    gap: 0.6rem;
+    align-items: stretch;
+    padding: 0.6rem 0.75rem 0.9rem;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+    color: var(--sis-oxford);
+    font-family: var(--sis-font-stack);
+    overflow: hidden;
+}
+
+.sis-att-board__side,
+.sis-att-board__main,
+.sis-att-board__rail {
+    min-height: 0;
+    max-height: 100%;
+}
+
+.sis-att-board__side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.sis-att-board__side::-webkit-scrollbar {
+    display: none;
+}
+
+/* The board scrolls sideways under the card: a very thin bar (vertical scrolling stays on the wheel). */
+.sis-att-board__main::-webkit-scrollbar {
+    width: 0;
+    height: 6px;
+}
+
+.sis-att-board__main::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--sis-oxford) 8%, transparent);
+    border-radius: 3px;
+}
+
+.sis-att-board__main::-webkit-scrollbar-thumb {
+    background: var(--sis-steel);
+    border-radius: 3px;
+}
+
+.sis-att-board__main::-webkit-scrollbar-thumb:hover {
+    background: var(--sis-oxford);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    .sis-att-board__main {
+        scrollbar-width: thin;
+        scrollbar-color: var(--sis-steel) transparent;
+    }
+}
+
+.sis-att-board__day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-steel);
+    color: var(--sis-pearl);
+}
+
+.sis-att-board__day-name {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.sis-att-board__day-date {
+    font-size: 0.82rem;
+    opacity: 0.9;
+}
+
+.sis-att-board__nav-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.3rem;
+}
+
+.sis-att-board__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 1.9rem;
+    padding: 0 0.3rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.sis-att-board__btn:hover:not(:disabled),
+.sis-att-board__btn--primary:not(:disabled) {
+    background: var(--sis-oxford);
+    color: var(--sis-pearl);
+}
+
+.sis-att-board__btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.sis-att-board__calendar {
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: #fff;
+    padding: 0.3rem;
+}
+
+.sis-att-board__calendar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    padding-bottom: 0.2rem;
+}
+
+.sis-att-board__nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    cursor: pointer;
+}
+
+.sis-att-board__nav:hover {
+    background: var(--sis-pearl);
+}
+
+.sis-att-board__calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    text-align: center;
+}
+
+.sis-att-board__calendar-dow {
+    font-size: 0.7rem;
+    color: var(--sis-steel);
+    padding: 0.1rem 0;
+}
+
+.sis-att-board__calendar-day {
+    height: 1.6rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--sis-oxford);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.sis-att-board__calendar-day[data-out='yes'] {
+    color: color-mix(in srgb, var(--sis-oxford) 40%, transparent);
+}
+
+.sis-att-board__calendar-day[data-today='yes'] {
+    border-color: var(--sis-admission-status-5);
+}
+
+.sis-att-board__calendar-day[data-selected='yes'] {
+    background: var(--sis-steel);
+    color: var(--sis-pearl);
+    border-color: var(--sis-oxford);
+}
+
+.sis-att-board__calendar-day:hover:not([data-selected='yes']) {
+    background: var(--sis-pearl);
+}
+
+.sis-att-board__totals {
+    margin: 0;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: #fff;
+    overflow: hidden;
+}
+
+.sis-att-board__total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.82rem;
+    border-bottom: 1px solid var(--att-board-line);
+}
+
+.sis-att-board__total:last-child {
+    border-bottom: 0;
+}
+
+.sis-att-board__total dt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+
+.sis-att-board__total dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.sis-att-board__total--main {
+    background: color-mix(in srgb, var(--sis-admission-status-4) 18%, #fff);
+}
+
+.sis-att-board__waiting {
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: #fff;
+    overflow: hidden;
+}
+
+.sis-att-board__waiting h2 {
+    margin: 0;
+    padding: 0.25rem 0.5rem;
+    background: var(--sis-steel);
+    color: var(--sis-pearl);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.sis-att-board__waiting ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 13rem;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.sis-att-board__waiting li[data-status='0'] {
+    box-shadow: inset 3px 0 0 var(--sis-mist);
+}
+
+.sis-att-board__waiting li[data-status='1'] {
+    box-shadow: inset 3px 0 0 var(--sis-admission-status-5);
+}
+
+.sis-att-board__waiting li[data-status='5'] {
+    box-shadow: inset 3px 0 0 var(--sis-admission-status-1);
+}
+
+.sis-att-board__waiting li button {
+    display: grid;
+    grid-template-columns: 2.7rem minmax(0, 1fr) auto;
+    gap: 0.35rem;
+    width: 100%;
+    align-items: center;
+    padding: 0.22rem 0.5rem;
+    border: 0;
+    border-bottom: 1px solid var(--att-board-line);
+    background: transparent;
+    color: var(--sis-oxford);
+    font-size: 0.76rem;
+    text-align: start;
+    cursor: pointer;
+}
+
+.sis-att-board__waiting li button:hover {
+    background: var(--sis-pearl);
+}
+
+.sis-att-board__waiting-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sis-att-board__waiting-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.sis-att-board__main {
+    overflow: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--sis-oxford);
+    border-radius: 0.4rem;
+    background: #fff;
+}
+
+.sis-att-board__grid {
+    display: grid;
+    min-width: max-content;
+    width: 100%;
+}
+
+.sis-att-board__corner,
+.sis-att-board__column {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.6rem;
+    padding: 0.15rem 0.3rem;
+    border-bottom: 1px solid var(--sis-oxford);
+    border-inline-start: 1px solid var(--att-board-line);
+    background: var(--sis-pearl);
+    color: var(--sis-night);
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+.sis-att-board__column strong {
+    font-size: 0.95rem;
+}
+
+.sis-att-board__corner {
+    inset-inline-start: 0;
+    z-index: 4;
+    font-weight: 700;
+}
+
+.sis-att-board__time {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.05rem;
+    padding: 0.3rem 0.2rem;
+    border-bottom: 1px solid var(--att-board-line);
+    background: var(--sis-pearl);
+    color: var(--sis-night);
+    font-size: 0.78rem;
+}
+
+.sis-att-board__time strong {
+    font-size: 0.95rem;
+}
+
+.sis-att-board__time small {
+    opacity: 0.75;
+}
+
+.sis-att-board__time em {
+    margin-top: 0.15rem;
+    font-style: normal;
+    font-size: 0.7rem;
+    color: var(--sis-steel);
+}
+
+.sis-att-board__slot {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 5.1rem;
+    padding: 2px;
+    border-bottom: 1px solid var(--att-board-line);
+    border-inline-start: 1px solid var(--att-board-line);
+    background: #fff;
+}
+
+.sis-att-board__slot[data-empty='yes'] {
+    background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--sis-mist) 14%, transparent) 6px 7px);
+}
+
+/* The lesson block: a stripe + soft fill in the sheet-state colour (existing status tokens only). */
+.sis-att-board__lesson {
+    --att-lesson: var(--sis-mist);
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+    padding: 0.28rem 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--att-lesson) 70%, var(--sis-oxford));
+    border-inline-start: 5px solid var(--att-lesson);
+    border-radius: 0.3rem;
+    background: color-mix(in srgb, var(--att-lesson) 24%, #fff);
+    color: var(--sis-night);
+    text-align: start;
+    font-size: 0.74rem;
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+.sis-att-board__lesson:hover,
+.sis-att-board__lesson:focus-visible {
+    background: color-mix(in srgb, var(--att-lesson) 30%, #fff);
+    outline: none;
+}
+
+.sis-att-board__lesson[data-status='0'] {
+    --att-lesson: var(--sis-mist);
+    border-style: dashed;
+    background: color-mix(in srgb, var(--sis-mist) 14%, #fff);
+}
+
+/* مسودة: orange · مرسل: sky blue · قيد المراجعة: steel blue · معتمد: green · معاد: red · مرفوض: dark red */
+.sis-att-board__lesson[data-status='1'] {
+    --att-lesson: var(--sis-admission-status-5);
+}
+
+.sis-att-board__lesson[data-status='2'] {
+    --att-lesson: var(--sis-admission-status-0);
+}
+
+.sis-att-board__lesson[data-status='3'] {
+    --att-lesson: var(--sis-steel);
+}
+
+.sis-att-board__lesson[data-status='4'] {
+    --att-lesson: var(--sis-admission-status-4);
+}
+
+.sis-att-board__lesson[data-status='5'] {
+    --att-lesson: var(--sis-admission-status-1);
+}
+
+.sis-att-board__lesson[data-status='6'] {
+    --att-lesson: var(--sis-admission-status-7);
+}
+
+.sis-att-board__lesson[data-late='yes'] {
+    box-shadow: inset 0 0 0 1px var(--sis-admission-status-1);
+}
+
+.sis-att-board__lesson[data-dim='yes'] {
+    opacity: 0.28;
+}
+
+.sis-att-board__lesson-title {
+    font-weight: 700;
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+}
+
+.sis-att-board__lesson-sub {
+    overflow-wrap: anywhere;
+    font-size: 0.7rem;
+    opacity: 0.85;
+}
+
+.sis-att-board__lesson-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--att-lesson) 62%, var(--sis-night));
+}
+
+.sis-att-board__lesson-counts {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-self: flex-start;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.sis-att-board__lesson-counts > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.sis-att-board__rail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.sis-att-board__rail button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.4rem 0.15rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-size: 0.68rem;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+}
+
+.sis-att-board__rail button:hover {
+    background: var(--sis-oxford);
+    color: var(--sis-pearl);
+}
+
+.sis-att-board__hover {
+    position: fixed;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    max-width: 18rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-pearl);
+    color: var(--sis-night);
+    font-size: 0.78rem;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--sis-night) 28%, transparent);
+    pointer-events: none;
+}
+
+@media (max-width: 64rem) {
+    .sis-att-board {
+        grid-template-columns: minmax(0, 1fr);
+        overflow-y: auto;
+    }
+
+    .sis-att-board__rail {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .sis-att-board__rail button {
+        flex: 1 1 5rem;
+    }
+}
+
+/* ═══ Tables inside windows (2026-10-13): framed on every side, never wider than the window, full text (cells wrap),
+   columns resizable; a table of a window never keeps the 64rem minimum of the page tables. ═══ */
+.sis-attendance-table--embedded.sis-admission-drafts-table table,
+.sis-students-page .sis-attendance-table--embedded.sis-admission-drafts-table table {
+    min-width: 0 !important;
+    width: 100%;
+}
+
+.sis-admission-sheet-dialog .sis-attendance-window__plain .sis-admission-drafts-table.sis-attendance-table {
+    border: 1px solid var(--sis-oxford) !important;
+    border-radius: 0.4rem !important;
+    background: #fff !important;
+    overflow: hidden;
+}
+
+.sis-attendance-table--embedded td,
+.sis-attendance-table--embedded th {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    height: auto !important;
+    line-height: 1.4;
+}
+
+.sis-attendance-table--embedded .sis-students-table__cell-scroll {
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+    height: auto;
+}
+
+.sis-attendance-table--embedded td.sis-students-table__nowrap {
+    white-space: normal !important;
+}
+
+.sis-attendance-table--embedded td,
+.sis-attendance-table--embedded th {
+    border-inline-start: 1px solid color-mix(in srgb, var(--sis-oxford) 45%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--sis-oxford) 45%, transparent);
+}
+
+.sis-attendance-table--embedded td:first-child,
+.sis-attendance-table--embedded th:first-child {
+    border-inline-start: 0;
+}
+
+.sis-attendance-table--embedded tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+/* «تحديد المختارين»: status buttons are bare, coloured outline icons (no box) — the colour is the status. */
+.sis-att-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+}
+
+.sis-att-mark__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.3rem;
+    background: transparent !important;
+    box-shadow: none !important;
+    cursor: pointer;
+    --att-mark: var(--sis-steel);
+    color: var(--att-mark);
+}
+
+.sis-att-mark__btn svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    fill: none !important;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    opacity: 0.8;
+    transition: opacity 0.12s, transform 0.12s;
+}
+
+.sis-att-mark__btn:hover svg,
+.sis-att-mark__btn:focus-visible svg {
+    opacity: 1;
+    transform: scale(1.12);
+}
+
+.sis-att-mark__btn:focus-visible {
+    outline: 1px solid var(--att-mark);
+    outline-offset: 1px;
+}
+
+.sis-att-mark__btn[aria-checked='true'] svg {
+    opacity: 1;
+    stroke-width: 2.4;
+    transform: scale(1.18);
+}
+
+.sis-att-mark__btn[data-status='1'] {
+    --att-mark: var(--sis-admission-status-4);
+}
+
+.sis-att-mark__btn[data-status='2'] {
+    --att-mark: var(--sis-admission-status-7);
+}
+
+.sis-att-mark__btn[data-status='3'] {
+    --att-mark: var(--sis-admission-status-5);
+}
+
+.sis-att-mark__btn[data-status='4'] {
+    --att-mark: var(--sis-admission-status-0);
+}
+
+.sis-att-mark__btn[data-status='5'] {
+    --att-mark: var(--sis-admission-status-1);
+}
+
+/* Editable cells of the sheet table (minutes late, note): a quiet input that fills the cell. */
+.sis-att-cell-input {
+    width: 100%;
+    min-width: 0;
+    height: 1.9rem;
+    padding: 0 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--sis-oxford) 45%, transparent);
+    border-radius: 0.3rem;
+    background: #fff;
+    color: var(--sis-oxford);
+    font: inherit;
+    font-size: 0.8rem;
+}
+
+.sis-att-cell-input:focus {
+    border-color: var(--sis-steel);
+    outline: 1px solid var(--sis-steel);
+}
+
+.sis-att-cell-input:disabled {
+    background: transparent;
+    border-color: transparent;
+}
+
+/* While the column widths are measured the cells keep their text on one line. */
+.sis-attendance-table--embedded table.sis-attendance-table--measuring td,
+.sis-attendance-table--embedded table.sis-attendance-table--measuring th,
+.sis-attendance-table--embedded table.sis-attendance-table--measuring .sis-students-table__cell-scroll {
+    white-space: nowrap !important;
+}
+
+/* Tone colours of the board's icons (the same meaning-to-colour map as the ribbon icons; system tokens only). */
+.sis-att-tone--ok { color: var(--sis-admission-status-4); }
+.sis-att-tone--danger { color: var(--sis-admission-status-7); }
+.sis-att-tone--warning,
+.sis-att-tone--amber { color: var(--sis-admission-status-5); }
+.sis-att-tone--sky,
+.sis-att-tone--education { color: var(--sis-admission-status-0); }
+.sis-att-tone--rose { color: var(--sis-admission-status-1); }
+.sis-att-tone--forest { color: var(--sis-admission-status-6); }
+.sis-att-tone--growth { color: var(--sis-admission-status-4); }
+.sis-att-tone--authority { color: var(--sis-curriculum-chrome); }
+.sis-att-tone--steel { color: var(--sis-steel); }
+
+.sis-att-board__rail button svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.sis-att-board__rail button:hover .sis-att-tone {
+    color: inherit;
+}

@@ -16,6 +16,32 @@ import {
     type HistoryEntry,
 } from '@/lib/navigation-history';
 
+const DETAIL_PARAMS = [
+    'date',
+    'date_from',
+    'date_to',
+    'type',
+    'view',
+    'page',
+    'q',
+    'search',
+];
+
+/** «لوحة الحضور — 2026-10-14»: the page, and what tells two steps of the same page apart. */
+function stepLabel(entry: HistoryEntry): string {
+    const title = entry.title || entry.url.split('?')[0];
+    try {
+        const params = new URL(entry.url, 'http://x').searchParams;
+        const detail = DETAIL_PARAMS.map((key) => params.get(key))
+            .filter((v): v is string => v !== null && v !== '' && v !== '1')
+            .join(' · ');
+
+        return detail === '' ? title : `${title} — ${detail}`;
+    } catch {
+        return title;
+    }
+}
+
 function when(at: number): string {
     return new Date(at).toLocaleTimeString('ar', {
         hour: '2-digit',
@@ -45,15 +71,9 @@ function HistoryButton({
                 className="sis-window__control"
                 disabled={first === undefined}
                 aria-label={
-                    first
-                        ? `${label}: ${first.entry.title || first.entry.url}`
-                        : label
+                    first ? `${label}: ${stepLabel(first.entry)}` : label
                 }
-                title={
-                    first
-                        ? `${label}: ${first.entry.title || first.entry.url}`
-                        : label
-                }
+                title={first ? `${label}: ${stepLabel(first.entry)}` : label}
                 onClick={() => first && travelTo(first.index)}
             >
                 <Icon className="size-3.5" aria-hidden />
@@ -91,7 +111,7 @@ function HistoryButton({
                                 {n + 1}
                             </span>
                             <span className="sis-titlebar__history-title">
-                                {entry.title || entry.url}
+                                {stepLabel(entry)}
                             </span>
                             <span
                                 className="sis-titlebar__history-time"

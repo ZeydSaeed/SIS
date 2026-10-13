@@ -53,17 +53,39 @@ function pageTitle(): string {
         .trim();
 }
 
-/** The page title is set after the page renders: give the current step its title a moment later. */
-function titleSoon(): void {
-    window.setTimeout(() => {
-        const current = state.entries[state.index];
-        const title = pageTitle();
-        if (current && title !== '' && current.title !== title) {
-            const entries = state.entries.slice();
-            entries[state.index] = { ...current, title };
-            save({ entries, index: state.index });
-        }
-    }, 80);
+const currentUrl = (): string =>
+    window.location.pathname + window.location.search;
+
+/** The title of the step being shown: kept in step with <title> (pages set it after they render). */
+function syncTitle(): void {
+    const current = state.entries[state.index];
+    const title = pageTitle();
+    if (
+        current &&
+        title !== '' &&
+        current.title !== title &&
+        current.url === currentUrl()
+    ) {
+        const entries = state.entries.slice();
+        entries[state.index] = { ...current, title };
+        save({ entries, index: state.index });
+    }
+}
+
+/** A «replace» (filters, paging written to the URL) changes the current step; it never adds one. */
+function syncReplacedUrl(): void {
+    const current = state.entries[state.index];
+    const now = currentUrl();
+    if (
+        current &&
+        pending === null &&
+        current.url !== now &&
+        current.url.split('?')[0] === now.split('?')[0]
+    ) {
+        const entries = state.entries.slice();
+        entries[state.index] = { ...current, url: now };
+        save({ entries, index: state.index });
+    }
 }
 
 function record(url: string): void {
@@ -87,7 +109,7 @@ function record(url: string): void {
             index: kept.length,
         });
     }
-    titleSoon();
+    window.setTimeout(syncTitle, 120);
 }
 
 /** Start listening to Inertia visits (once, from the app shell). */
@@ -97,8 +119,23 @@ export function startNavigationHistory(): void {
     }
     started = true;
     state = load();
-    record(window.location.pathname + window.location.search);
+    record(currentUrl());
     router.on('navigate', (event) => record(event.detail.page.url));
+
+    const replaceState = window.history.replaceState.bind(window.history);
+    window.history.replaceState = (
+        data: unknown,
+        unused: string,
+        url?: string | URL | null,
+    ) => {
+        replaceState(data, unused, url);
+        syncReplacedUrl();
+    };
+    new MutationObserver(syncTitle).observe(document.head, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+    });
 }
 
 /** Go to step `target` (an index of the list). */

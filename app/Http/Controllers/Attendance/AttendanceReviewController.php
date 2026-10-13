@@ -7,6 +7,8 @@ use App\Application\Attendance\Commands\BulkApproveAttendanceSheetsHandler;
 use App\Application\Attendance\Contracts\AttendanceWorkspaceReadInterface;
 use App\Application\Attendance\Queries\GetAttendanceDashboardHandler;
 use App\Application\Attendance\Queries\GetAttendanceDashboardQuery;
+use App\Application\Attendance\Queries\GetAttendanceDayBoardHandler;
+use App\Application\Attendance\Queries\GetAttendanceDayBoardQuery;
 use App\Application\Attendance\Queries\ListAttendanceSheetsHandler;
 use App\Application\Attendance\Queries\ListAttendanceSheetsQuery;
 use App\Http\Controllers\Controller;
@@ -63,7 +65,7 @@ final class AttendanceReviewController extends Controller
             ->with('attendanceResult', ['action' => 'bulk_approve'] + $result->data);
     }
 
-    public function dashboard(Request $request, GetAttendanceDashboardHandler $handler, SchoolScopeService $schoolScope): Response
+    public function dashboard(Request $request, GetAttendanceDashboardHandler $handler, GetAttendanceDayBoardHandler $boards, SchoolScopeService $schoolScope): Response
     {
         $this->authorize('viewReports', AttendanceSessionRecord::class);
         $user = $request->user();
@@ -74,8 +76,11 @@ final class AttendanceReviewController extends Controller
         $dashboard = $handler->handle(new GetAttendanceDashboardQuery($this->context->schoolId(), $yearId, $central));
         $this->securityAudit->record(SecurityEventType::AttendanceDataAccess, 'attendance.web.dashboard', 'allowed', $user, 'attendance_dashboard', ['central' => count($central)]);
 
+        $board = $boards->handle(new GetAttendanceDayBoardQuery($this->context->schoolId(), $yearId, AttendanceFilterInput::date($request, 'date')));
+
         return Inertia::render('attendance/dashboard', [
             'dashboard' => $dashboard->toArray(),
+            'board' => $board->toArray(),
             'scope' => $central === [] ? 'school' : 'central',
             'can_central' => count($schoolScope->allowedSchoolIds($user)) > 1,
             'filters' => ['academic_year_id' => $yearId],

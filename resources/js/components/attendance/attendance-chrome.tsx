@@ -846,7 +846,8 @@ export function AttendanceTable<T>({
         : sortedRows.slice((page - 1) * size, page * size);
     const offset = (page - 1) * (server ? server.perPage : size);
 
-    const columnSignature = `v4:${selection ? 'sel' : 'ro'}:${columns.map((c) => c.id).join(',')}`;
+    // A window's table is measured again when its rows arrive (the student record loads after the window opens).
+    const columnSignature = `v5:${selection ? 'sel' : 'ro'}:${columns.map((c) => c.id).join(',')}${fit ? '' : `:n${rows.length}`}`;
     const kinds = [
         ...(selection ? ['select'] : []),
         'num',
@@ -857,7 +858,7 @@ export function AttendanceTable<T>({
      * columns: their buttons). When the columns do not all fit, they shrink in proportion — never below their header
      * — so every column is on screen; the room left over goes to the main text column(s).
      */
-    const measure = useCallback(
+    const measureWidths = useCallback(
         (cells: HTMLTableCellElement[]): number[] => {
             // Layout sizes only (offsetWidth / canvas text) — never the on-screen rectangles, which a window's open
             // animation scales. The table is measured in automatic layout: each column then takes its longest text.
@@ -869,8 +870,10 @@ export function AttendanceTable<T>({
             });
             if (table) {
                 table.style.tableLayout = '';
-                table.style.width = '';
                 table.style.minWidth = '';
+                table.style.maxWidth = '';
+                // The stylesheet stretches tables to 100%: measure the content width instead.
+                table.style.setProperty('width', 'max-content', 'important');
             }
             const headers = cells.map((cell, index) =>
                 Math.max(
@@ -880,10 +883,16 @@ export function AttendanceTable<T>({
                         : 48,
                 ),
             );
+            // Button columns: their buttons plus the same space on both sides.
             const needed = cells.map((cell, index) =>
-                Math.max(headers[index], cell.offsetWidth),
+                Math.max(
+                    headers[index],
+                    cell.offsetWidth + (kinds[index] === 'plain' ? 24 : 0),
+                ),
             );
-            const room = (scrollerRef.current?.clientWidth ?? 0) - 2;
+            table?.style.removeProperty('width');
+            const room =
+                (scrollerRef.current?.clientWidth ?? 0) - cells.length - 4;
             const total = needed.reduce((sum, w) => sum + w, 0);
             if (room > 0 && total > room) {
                 // Shrink the text columns towards their header width, in proportion to what they can give.
@@ -938,12 +947,26 @@ export function AttendanceTable<T>({
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [columnSignature],
     );
+    const measure = useCallback(
+        (cells: HTMLTableCellElement[]): number[] => {
+            // Measured with text on one line (the wrapping window cells would report the narrowest possible width).
+            const probe = tableRef.current;
+            probe?.classList.add('sis-attendance-table--measuring');
+            try {
+                return measureWidths(cells);
+            } finally {
+                probe?.classList.remove('sis-attendance-table--measuring');
+            }
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [columnSignature],
+    );
     // «تحديد»: a wider fixed column (scaled with the zoom like the checkbox itself).
     const selectWidth = Math.round(SELECT_COLUMN_PX * zoom);
     useResizableTableColumns(tableRef, {
         storageKey: `attendance.${storageKey}`,
         columnSignature,
-        enabled: shown.length > 0,
+        enabled: shown.length > 0 || !fit,
         measure,
         fixedColumns: selection ? { 0: selectWidth } : undefined,
     });
@@ -954,34 +977,58 @@ export function AttendanceTable<T>({
     });
     useSmoothVerticalScroll(scrollerRef, shown.length > 0);
 
-    // Every column at least as wide as its header text (after saved / hand-set widths and on every zoom): the header
-    // is always readable in full.
+    // After saved / hand-set widths and on every zoom: every column at least as wide as its header text, and the
+    // table no wider than its card — what does not fit is taken back from the main text column(s), never below their
+    // header. Works on the intended widths (style), not offsetWidth (cell borders would inflate it on every pass).
     useLayoutEffect(() => {
         const table = tableRef.current;
         const cells = Array.from(table?.tHead?.rows[0]?.cells ?? []);
-        if (table === null || cells.length === 0) {
+        if (
+            table === null ||
+            cells.length === 0 ||
+            table.style.tableLayout !== 'fixed'
+        ) {
             return;
         }
-        let grew = false;
+        const kindOf = [
+            ...(selection ? ['select'] : []),
+            'num',
+            ...columns.map((c) => c.kind ?? 'text'),
+        ];
+        const minOf = cells.map((cell, index) =>
+            kindOf[index] === 'select' ? 0 : headerTextWidth(cell),
+        );
+        const widths = cells.map((cell, index) =>
+            Math.max(
+                Number.parseFloat(cell.style.width) || cell.offsetWidth,
+                minOf[index],
+            ),
+        );
+        const room = (scrollerRef.current?.clientWidth ?? 0) - cells.length - 4;
+        let over = widths.reduce((sum, w) => sum + w, 0) - room;
+        if (room > 0 && over > 0) {
+            kindOf.forEach((kind, index) => {
+                if (kind === 'name' && over > 0) {
+                    const give = Math.min(over, widths[index] - minOf[index]);
+                    widths[index] -= give;
+                    over -= give;
+                }
+            });
+        }
+        let changed = false;
         cells.forEach((cell, index) => {
-            if (selection && index === 0) {
-                return;
-            }
-            const needed = headerTextWidth(cell);
-            if (cell.offsetWidth + 0.5 < needed) {
-                cell.style.width = `${needed}px`;
-                cell.style.minWidth = `${needed}px`;
-                cell.style.maxWidth = `${needed}px`;
-                grew = true;
+            const width = `${Math.round(widths[index])}px`;
+            if (cell.style.width !== width) {
+                cell.style.width = width;
+                cell.style.minWidth = width;
+                cell.style.maxWidth = width;
+                changed = true;
             }
         });
-        if (grew && table.style.tableLayout === 'fixed') {
-            const total = cells.reduce(
-                (sum, cell) => sum + cell.offsetWidth,
-                0,
-            );
-            table.style.width = `${Math.ceil(total)}px`;
-            table.style.minWidth = `${Math.ceil(total)}px`;
+        const total = `${Math.round(widths.reduce((sum, w) => sum + w, 0))}px`;
+        if (changed || table.style.width !== total) {
+            table.style.width = total;
+            table.style.minWidth = total;
         }
     });
 
@@ -1017,7 +1064,9 @@ export function AttendanceTable<T>({
               ? 'sis-admission-drafts-table__name'
               : kind === 'text'
                 ? 'sis-admission-drafts-table__text sis-students-table__nowrap'
-                : undefined;
+                : kind === 'plain'
+                  ? 'sis-attendance-table__plain'
+                  : undefined;
 
     const goTo = (next: number) =>
         server ? server.onPage(next, size) : setClientPage(next);

@@ -32,7 +32,12 @@ import {
     type AttendanceColumn,
     type IconTone,
 } from '@/components/attendance/attendance-chrome';
-import type { AttendanceAbilities } from '@/components/attendance/attendance-ui';
+import { DayBoard, type Board } from '@/components/attendance/day-board';
+import {
+    SHEET_STATUSES,
+    sheetLabel,
+    type AttendanceAbilities,
+} from '@/components/attendance/attendance-ui';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
@@ -92,6 +97,7 @@ type Props = {
         excuses_pending: number;
         central: CentralRow[];
     };
+    board: Board;
     scope: 'school' | 'central';
     can_central: boolean;
     filters: { academic_year_id: number };
@@ -119,19 +125,6 @@ type Tile = {
     detail: Detail | null;
     href?: string;
 };
-
-/** Same palette and rhythm as the SIS dashboard («لوحة التحكم»): one icon colour per row, cards rotated. */
-const ROW_ICON_COLORS = [
-    '#809BCE',
-    '#95B8D1',
-    '#B8E0D2',
-    '#D6EADF',
-    '#EAC4D5',
-] as const;
-const cardBackgroundForRow = (row: number): string =>
-    ROW_ICON_COLORS[
-        (row - 1 + ROW_ICON_COLORS.length) % ROW_ICON_COLORS.length
-    ];
 
 const pct = (v: number | null) => (v === null ? '—' : `${v}%`);
 
@@ -169,6 +162,7 @@ function reasonText(reasons: string): string {
 
 function DashboardPage({
     dashboard,
+    board,
     scope,
     can_central,
     filters,
@@ -179,6 +173,8 @@ function DashboardPage({
     const today = dashboard.today_totals;
     const month = dashboard.month_totals;
     const [detail, setDetail] = useState<Detail | null>(null);
+    const [classIds, setClassIds] = useState<number[]>([]);
+    const [statusIds, setStatusIds] = useState<number[]>([]);
     const highRisk = dashboard.top_risk.filter((r) => r.band === 'high').length;
 
     /** The tiles, row by row (five per row, as on the SIS dashboard). */
@@ -466,11 +462,67 @@ function DashboardPage({
             scope: scope === 'central' ? 'central' : null,
         }),
     );
-    useAttendanceHomeFilters([yearSpec], null, [
-        filters.academic_year_id,
-        scope,
-        yearSpec.options.length,
-    ]);
+    const goDate = (date: string) =>
+        visitWith('/attendance/dashboard', {
+            date,
+            academic_year_id: filters.academic_year_id,
+            scope: scope === 'central' ? 'central' : null,
+        });
+    useAttendanceHomeFilters(
+        [
+            yearSpec,
+            {
+                key: 'date',
+                date: true,
+                label: d.date,
+                value: board.date,
+                onChange: goDate,
+            },
+            {
+                key: 'class',
+                type: 'multi',
+                label: a.chrome.class,
+                allLabel: a.chrome.allClasses,
+                values: classIds.map(String),
+                options: board.classes.map((cls) => ({
+                    value: String(cls.id),
+                    label: cls.name,
+                })),
+                onChange: (values: string[]) => setClassIds(values.map(Number)),
+            },
+            {
+                key: 'status',
+                type: 'multi',
+                label: d.sheetState,
+                allLabel: a.chrome.allStatuses,
+                values: statusIds.map(String),
+                options: [
+                    { value: '0', label: d.board.notOpened },
+                    ...SHEET_STATUSES.map((st) => ({
+                        value: String(st.value),
+                        label: sheetLabel(st.value),
+                    })),
+                ],
+                onChange: (values: string[]) =>
+                    setStatusIds(values.map(Number)),
+            },
+        ],
+        classIds.length > 0 || statusIds.length > 0
+            ? () => {
+                  setClassIds([]);
+                  setStatusIds([]);
+              }
+            : null,
+        [
+            filters.academic_year_id,
+            scope,
+            yearSpec.options.length,
+            board.date,
+            board.classes,
+            classIds,
+            statusIds,
+        ],
+    );
 
     const studentReport = (studentId: number) =>
         router.visit(
@@ -704,17 +756,6 @@ function DashboardPage({
             title: `${d.today} — ${dashboard.today}`,
             sections: [
                 { id: 'd-today', title: d.today, content: totalsFacts(today) },
-                {
-                    id: 'd-formula',
-                    title: d.formula,
-                    content: (
-                        <WindowFact
-                            wide
-                            label={d.formula}
-                            value={dashboard.formula}
-                        />
-                    ),
-                },
             ],
             action: {
                 label: a.nav.reports,
@@ -725,17 +766,6 @@ function DashboardPage({
             title: `${d.last30} — ${dashboard.period.from} → ${dashboard.period.to}`,
             sections: [
                 { id: 'd-month', title: d.last30, content: totalsFacts(month) },
-                {
-                    id: 'd-formula',
-                    title: d.formula,
-                    content: (
-                        <WindowFact
-                            wide
-                            label={d.formula}
-                            value={dashboard.formula}
-                        />
-                    ),
-                },
             ],
             action: {
                 label: a.nav.reports,
@@ -784,17 +814,6 @@ function DashboardPage({
                     riskColumns,
                     (s) => studentReport(s.student_id),
                 ),
-                {
-                    id: 'd-risk-method',
-                    title: d.formula,
-                    content: (
-                        <WindowFact
-                            wide
-                            label={d.formula}
-                            value={dashboard.risk_method}
-                        />
-                    ),
-                },
             ],
             action: {
                 label: a.nav.reports,
@@ -864,67 +883,19 @@ function DashboardPage({
         <>
             <Head title={d.title} />
             <div
-                className="sis-dashboard sis-dashboard-launch sis-attendance-dashboard"
-                lang="ar"
+                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden"
                 dir="rtl"
+                lang="ar"
             >
-                <ul className="sis-dashboard-launch__grid" aria-label={d.title}>
-                    {rows.flatMap((row, r) =>
-                        row.tiles.map((tile) => {
-                            const Icon = tile.icon;
-
-                            return (
-                                <li key={tile.id}>
-                                    <button
-                                        type="button"
-                                        className="sis-dashboard-launch__tile"
-                                        style={{
-                                            backgroundColor:
-                                                cardBackgroundForRow(r),
-                                        }}
-                                        title={
-                                            tile.hint
-                                                ? `${tile.label} — ${tile.hint}`
-                                                : tile.label
-                                        }
-                                        onClick={() => openTile(tile)}
-                                    >
-                                        <span
-                                            className="sis-dashboard-launch__icon"
-                                            style={{
-                                                backgroundColor:
-                                                    ROW_ICON_COLORS[
-                                                        r %
-                                                            ROW_ICON_COLORS.length
-                                                    ],
-                                            }}
-                                            aria-hidden
-                                        >
-                                            <Icon
-                                                className="size-7"
-                                                strokeWidth={1.75}
-                                            />
-                                        </span>
-                                        <span
-                                            className="sis-attendance-dashboard__value"
-                                            dir="ltr"
-                                        >
-                                            {tile.value}
-                                        </span>
-                                        <span className="sis-dashboard-launch__label">
-                                            {tile.label}
-                                        </span>
-                                        {tile.hint ? (
-                                            <span className="sis-attendance-dashboard__hint">
-                                                {tile.hint}
-                                            </span>
-                                        ) : null}
-                                    </button>
-                                </li>
-                            );
-                        }),
-                    )}
-                </ul>
+                <DayBoard
+                    board={board}
+                    abilities={abilities}
+                    yearId={filters.academic_year_id}
+                    scope={scope}
+                    totals={today}
+                    classIds={classIds}
+                    statusIds={statusIds}
+                />
             </div>
 
             {open !== null ? (
