@@ -12,7 +12,6 @@ import {
     AttendancePage,
     AttendanceTable,
     AttendanceWindow,
-    WindowFact,
     WindowTimeField,
     selectionGroup,
     useAttendanceEditRibbon,
@@ -504,20 +503,7 @@ function SettingsPage({ settings, filters, abilities }: Props) {
                                         )}
                                 </>
                             ),
-                        }))
-                        .concat([
-                            {
-                                id: 'att-settings-version',
-                                title: st.versionTitle,
-                                content: (
-                                    <WindowFact
-                                        wide
-                                        label={st.versionTitle}
-                                        value={st.versionHint}
-                                    />
-                                ),
-                            },
-                        ])}
+                        }))}
                 />
             ) : null}
         </AttendancePage>

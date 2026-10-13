@@ -7,7 +7,6 @@ import {
     type PointerEvent as ReactPointerEvent,
     type ReactNode,
 } from 'react';
-import { readSisChromeBottom } from '@/lib/sis-ribbon-layout';
 
 type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
@@ -81,14 +80,8 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
 
         boxRef.current = box;
         node.setAttribute('data-placed', 'true');
-        // Word-tab pages: never slide under the title bar + ribbon (also when it grows later).
-        node.style.setProperty(
-            'top',
-            readSisChromeBottom() === null
-                ? `${Math.round(box.top)}px`
-                : `max(${Math.round(box.top)}px, var(--sis-chrome-bottom))`,
-            'important',
-        );
+        // Sheets sit above the title bar + ribbon (z-index): a large window may cover the tab strip.
+        node.style.setProperty('top', `${Math.round(box.top)}px`, 'important');
         node.style.setProperty('left', `${Math.round(box.left)}px`, 'important');
         node.style.setProperty('right', 'auto', 'important');
         node.style.setProperty('bottom', 'auto', 'important');
@@ -223,13 +216,12 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
                 return;
             }
 
-            const minTop = readSisChromeBottom() ?? Number.NEGATIVE_INFINITY;
-
             applyBox({
                 ...box,
                 left: dragStart.current.left + (event.clientX - dragStart.current.pointerX),
+                // Only the viewport top bounds it, so the title bar can never be lost off-screen.
                 top: Math.max(
-                    minTop,
+                    0,
                     dragStart.current.top + (event.clientY - dragStart.current.pointerY),
                 ),
             });
@@ -309,10 +301,9 @@ export function useSmoothDialogDrag(open: boolean, options: Options = {}) {
                 height = Math.max(minSize.height, state.height - dy);
                 top = state.top + (state.height - height);
 
-                const minTop = readSisChromeBottom();
-                if (minTop !== null && top < minTop) {
-                    height -= minTop - top;
-                    top = minTop;
+                if (top < 0) {
+                    height += top;
+                    top = 0;
                 }
             }
 

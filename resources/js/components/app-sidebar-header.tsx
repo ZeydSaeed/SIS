@@ -10,6 +10,7 @@ import {
 } from '@/components/title-bar-ribbon';
 import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SisSearchField } from '@/components/sis/sis-search-field';
+import { usePageSearchHighlight } from '@/hooks/use-page-search-highlight';
 import {
     usePageTitlebarSearch,
     type PageTitlebarSearchConfig,
@@ -43,23 +44,47 @@ import { edit as profileEdit } from '@/routes/profile';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
-const idleTitlebarSearchCommit = (): void => {
-    // Idle chrome — page did not register a search adapter.
-};
-
+/**
+ * The titlebar search of the page. A page that registers its own search keeps it; any other page gets a working
+ * default — the word is highlighted in yellow and the table rows without it are hidden (client side).
+ * The typed word (draft) is highlighted immediately on every page.
+ */
 function useTitlebarSearchSlot(): PageTitlebarSearchConfig {
     const i18n = t();
     const registered = usePageTitlebarSearch();
+    const path = usePage().url.split('?')[0];
+    const [idleQuery, setIdleQuery] = useState('');
+    const [draft, setDraft] = useState('');
+
+    // A new page starts with an empty search.
+    useEffect(() => {
+        setIdleQuery('');
+        setDraft('');
+    }, [path]);
+
+    usePageSearchHighlight(
+        draft.trim() !== ''
+            ? draft
+            : (registered?.committedQuery ?? idleQuery),
+        registered === null,
+    );
 
     if (registered) {
-        return registered;
+        return {
+            ...registered,
+            onDraftChange: (query: string) => {
+                setDraft(query);
+                registered.onDraftChange?.(query);
+            },
+        };
     }
 
     return {
-        committedQuery: '',
+        committedQuery: idleQuery,
         label: i18n.chrome.searchAria,
-        placeholder: i18n.chrome.search,
-        onCommit: idleTitlebarSearchCommit,
+        placeholder: i18n.chrome.searchPage,
+        onCommit: setIdleQuery,
+        onDraftChange: setDraft,
     };
 }
 
@@ -376,8 +401,18 @@ export function AppSidebarHeader({
         (base) => currentPath === base || currentPath.startsWith(`${base}/`),
     );
 
-    // «الغرف الدراسية» / «الجدول المدرسي» / «المعلمون»: windows open above the tab strip (not confined below it).
-    const sheetsAboveChrome = ['/organization/rooms', '/timetable', '/teachers', '/attendance'].some(
+    // القبول / الطلاب / التسجيل / المناهج / المعلمون / الغرف الدراسية / الجدول المدرسي / الحضور:
+    // windows open centred and fully visible in the viewport; maximized they cover the title bar + ribbon.
+    const sheetsAboveChrome = [
+        '/admission',
+        '/students',
+        '/enrollments',
+        '/curriculum',
+        '/organization/rooms',
+        '/timetable',
+        '/teachers',
+        '/attendance',
+    ].some(
         (base) => currentPath === base || currentPath.startsWith(`${base}/`),
     );
 

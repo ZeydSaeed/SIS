@@ -296,6 +296,7 @@ export const arAttendance = {
         sheetState: 'حالة الكشف',
         board: {
             side: 'اليوم',
+            search: 'بحث في الحصص: المادة، المعلم، القاعة، المجموعة، الوقت',
             time: 'الوقت',
             period: 'الحصة',
             notOpened: 'لم تُفتح',
@@ -597,9 +598,6 @@ export const arAttendance = {
         reload: 'تحديث',
         groupsLabel: 'المجموعات',
         allGroups: 'كل المجموعات',
-        versionTitle: 'الإصدار',
-        versionHint:
-            'الحفظ يُنشئ إصداراً جديداً من السياسة؛ الكشوف السابقة تبقى على سياستها.',
         version: 'الإصدار :v',
         save: 'حفظ إصدار جديد',
         discard: 'تجاهل التعديلات',

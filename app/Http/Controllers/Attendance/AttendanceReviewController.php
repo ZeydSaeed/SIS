@@ -73,10 +73,11 @@ final class AttendanceReviewController extends Controller
         $yearId = $this->context->academicYearId($request);
         $central = $request->query('scope') === 'central' ? array_values(array_map('intval', $schoolScope->allowedSchoolIds($user))) : [];
 
-        $dashboard = $handler->handle(new GetAttendanceDashboardQuery($this->context->schoolId(), $yearId, $central));
-        $this->securityAudit->record(SecurityEventType::AttendanceDataAccess, 'attendance.web.dashboard', 'allowed', $user, 'attendance_dashboard', ['central' => count($central)]);
-
         $board = $boards->handle(new GetAttendanceDayBoardQuery($this->context->schoolId(), $yearId, AttendanceFilterInput::date($request, 'date')));
+        // The day card follows the day the board shows, not just «today».
+        $boardDate = (string) ($board->toArray()['date'] ?? '');
+        $dashboard = $handler->handle(new GetAttendanceDashboardQuery($this->context->schoolId(), $yearId, $central, $boardDate !== '' ? $boardDate : null));
+        $this->securityAudit->record(SecurityEventType::AttendanceDataAccess, 'attendance.web.dashboard', 'allowed', $user, 'attendance_dashboard', ['central' => count($central)]);
 
         return Inertia::render('attendance/dashboard', [
             'dashboard' => $dashboard->toArray(),

@@ -31,6 +31,11 @@ import {
     type ReactNode,
 } from 'react';
 import type { AttendanceAbilities } from '@/components/attendance/attendance-ui';
+import {
+    AttendanceRail,
+    DaySidePanel,
+    type Totals,
+} from '@/components/attendance/day-board';
 import { RegistrySheetDialog } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import {
@@ -73,6 +78,7 @@ import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
 import { useResizableTableRows } from '@/hooks/use-resizable-table-rows';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
+import { searchIncludes, searchNeedle } from '@/lib/search-normalize';
 import { useDebouncedFitPageSync } from '@/lib/sis-ribbon-layout';
 
 export type SectionKey =
@@ -689,6 +695,10 @@ export function AttendancePage({
     title: string;
     children: ReactNode;
 }) {
+    const shell = usePage<{
+        attendanceShell?: AttendanceShell | null;
+    }>().props.attendanceShell;
+
     return (
         <>
             <Head title={title} />
@@ -697,10 +707,65 @@ export function AttendancePage({
                 dir="rtl"
                 lang="ar"
             >
-                <div className="sis-admission-page-body">{children}</div>
+                <div className="sis-admission-page-body">
+                    {shell ? (
+                        <div className="sis-att-shell">
+                            <aside
+                                className="sis-att-board__side"
+                                aria-label={t().attendanceSystem.dashboard.board.side}
+                            >
+                                <DaySidePanel
+                                    date={shell.date}
+                                    today={shell.today}
+                                    weekday={shell.weekday}
+                                    now={shell.now}
+                                    totals={shell.totals}
+                                    onGo={goToDate}
+                                />
+                            </aside>
+                            <div className="sis-att-shell__main">{children}</div>
+                            <AttendanceRail
+                                abilities={shell.abilities}
+                                date={
+                                    shell.date === shell.today
+                                        ? null
+                                        : shell.date
+                                }
+                            />
+                        </div>
+                    ) : (
+                        children
+                    )}
+                </div>
             </div>
         </>
     );
+}
+
+/** The fixed attendance shell's server payload (one source: AttendanceShellData). */
+type AttendanceShell = {
+    date: string;
+    today: string;
+    now: string;
+    weekday: number;
+    totals: Totals;
+    abilities: AttendanceAbilities;
+};
+
+/** A day picked in the side calendar: the same page, the same filters, another `date`. */
+function goToDate(date: string): void {
+    const params: Record<string, string | string[]> = {};
+    new URLSearchParams(window.location.search).forEach((_, key) => {
+        params[key] = new URLSearchParams(window.location.search).getAll(key);
+    });
+    // Every page reads the day it needs: the day board / staff list use `date`, the sheet lists and reports a range.
+    params.date = date;
+    params.date_from = date;
+    params.date_to = date;
+    router.get(window.location.pathname, params, {
+        preserveScroll: true,
+        preserveState: true,
+    });
 }
 
 let measureCanvas: HTMLCanvasElement | null = null;
@@ -732,6 +797,8 @@ export type AttendanceColumn<T> = {
     kind?: 'num' | 'name' | 'text' | 'status' | 'plain';
     /** For kind=status: 0..5 tone of the shared status palette. */
     tone?: (row: T) => number;
+    /** For kind=status: the status' ribbon icon tone — the cell takes exactly that colour as its background. */
+    iconTone?: (row: T) => string | undefined;
     /** Value for the «عرض» window (defaults to the cell). */
     text?: (row: T) => ReactNode;
     /** Header-click sort value (defaults to the cell's text); `false` = not sortable (default for kind=plain). */
@@ -801,7 +868,51 @@ export function AttendanceTable<T>({
     const [clientPage, setClientPage] = useState(1);
     const sortable = (c: AttendanceColumn<T>): boolean =>
         c.sort !== undefined ? c.sort !== false : c.kind !== 'plain';
-    const { rows: sortedRows, sort } = useTableSort(rows, (row, key) => {
+
+    // The titlebar search of the page (a page that registers its own search later wins): filters the rows here,
+    // on the text of every column; the placeholder names what is searched.
+    const [tableQuery, setTableQuery] = useState('');
+    const searchable = fit && server === undefined;
+    const searchConfig = useMemo(() => {
+        if (!searchable) {
+            return null;
+        }
+        const names = columns
+            .map((c) => c.header)
+            .filter((h): h is string => typeof h === 'string' && h !== '')
+            .slice(0, 5)
+            .join('، ');
+        const placeholder = i18n.chrome.searchTable
+            .replace(':caption', caption)
+            .replace(':columns', names);
+
+        return {
+            committedQuery: tableQuery,
+            label: placeholder,
+            placeholder,
+            onDraftChange: setTableQuery,
+            onCommit: setTableQuery,
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchable, tableQuery, caption, columns.length]);
+    useRegisterPageTitlebarSearch(searchConfig);
+    const filteredRows = useMemo(() => {
+        const q = searchNeedle(tableQuery);
+        if (!searchable || q === '') {
+            return rows;
+        }
+
+        return rows.filter((row) =>
+            columns.some((c) => {
+                const value = c.text ? c.text(row) : c.cell(row, 0);
+
+                return searchIncludes(String(cellSortValue(value)), q);
+            }),
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rows, tableQuery, searchable]);
+
+    const { rows: sortedRows, sort } = useTableSort(filteredRows, (row, key) => {
         const column = columns.find((c) => c.id === key);
         if (!column) {
             return null;
@@ -839,7 +950,7 @@ export function AttendanceTable<T>({
                   ? Math.ceil(server.total / size)
                   : server.lastPage,
           )
-        : Math.max(1, Math.ceil(rows.length / size));
+        : Math.max(1, Math.ceil(filteredRows.length / size));
     const page = server ? server.page : Math.min(clientPage, lastPage);
     const shown = server
         ? sortedRows.slice(0, size)
@@ -1032,7 +1143,7 @@ export function AttendanceTable<T>({
         }
     });
 
-    useEffect(() => setClientPage(1), [rows.length]);
+    useEffect(() => setClientPage(1), [rows.length, tableQuery]);
 
     const selectableIds = selection
         ? shown.filter((row) => canSelect?.(row) ?? true).map(rowKey)
@@ -1227,6 +1338,9 @@ export function AttendanceTable<T>({
                                                     data-status={
                                                         c.tone?.(row) ?? 0
                                                     }
+                                                    data-icon-tone={c.iconTone?.(
+                                                        row,
+                                                    )}
                                                 >
                                                     <div className="sis-students-table__cell-scroll">
                                                         {c.cell(row, index)}

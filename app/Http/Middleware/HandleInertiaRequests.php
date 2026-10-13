@@ -55,6 +55,8 @@ class HandleInertiaRequests extends Middleware
             'academicYears' => $this->academicYearsPayload(),
             'academicYearId' => $this->currentAcademicYearId($request),
             'opsBootstrap' => $this->opsBootstrapPayload($request),
+            // Attendance pages: the fixed side calendar + day card + rail share one server payload.
+            'attendanceShell' => fn () => $request->is('attendance', 'attendance/*') ? app(\App\Http\Support\AttendanceShellData::class)->build($request) : null,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

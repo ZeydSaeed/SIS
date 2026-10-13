@@ -14,5 +14,7 @@ final readonly class GetTeacherDayQuery implements Query
         public ?string $date,
         public SheetActor $actor,
         public ?int $teacherId = null,
+        /** A reviewer may combine several teachers' days (the lessons are merged by time). */
+        public array $teacherIds = [],
     ) {}
 }

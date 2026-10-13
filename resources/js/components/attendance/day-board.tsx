@@ -12,9 +12,11 @@ import {
     Clock3,
     ExternalLink,
     FileCheck2,
+    LayoutDashboard,
     ListChecks,
     Percent,
     PlayCircle,
+    Settings,
     UserCheck,
     UserRound,
     type LucideIcon,
@@ -38,6 +40,7 @@ import {
 import { usePageError } from '@/components/sis/page-error-context';
 import { dayOfWeekLabel } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
+import { searchIncludes, searchNeedle } from '@/lib/search-normalize';
 
 export type BoardLesson = {
     schedule_id: number;
@@ -95,7 +98,7 @@ export type Board = {
     waiting: BoardLesson[];
 };
 
-type Totals = {
+export type Totals = {
     attendance_rate: number | null;
     present: number;
     absent: number;
@@ -114,6 +117,9 @@ const HEADER_COLORS = [
     '#EAC4D5',
 ] as const;
 const MONTH_DAYS = 42;
+
+const recordMeta = (status: number) =>
+    RECORD_STATUSES.find((s) => s.value === status);
 
 const shiftDay = (date: string, days: number): string => {
     const d = new Date(`${date}T12:00:00Z`);
@@ -219,6 +225,287 @@ function ToneIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: string }) {
 }
 
 /**
+ * The side panel of the day: the weekday + date, previous / today / next, the month calendar and the day's totals
+ * card (attendance rate + each status as count · share of the decided marks). Used by «لوحة الحضور» and «حصصي اليوم».
+ */
+export function DaySidePanel({
+    date,
+    today,
+    weekday,
+    now,
+    totals,
+    onGo,
+}: {
+    date: string;
+    today: string;
+    weekday: number;
+    now: string;
+    totals: Totals;
+    onGo: (date: string) => void;
+}) {
+    const a = t().attendanceSystem;
+    const d = a.dashboard;
+    const b = d.board;
+    const go = onGo;
+    const pct =
+        totals.attendance_rate === null ? '—' : `${totals.attendance_rate}%`;
+    /** «n٪» of the marks decided that day (— when nothing was marked). */
+    const share = (count: number): string =>
+        totals.decided > 0
+            ? `${Math.round((count * 1000) / totals.decided) / 10}%`
+            : '—';
+    const totalRows: Array<{
+        id: string;
+        label: string;
+        value: string | number;
+        /** Share of the day's decided marks (the card shows count · percent). */
+        share?: string;
+        icon: LucideIcon;
+        tone: string;
+        main?: boolean;
+    }> = [
+        {
+            id: 'rate',
+            label: d.attendanceRate,
+            value: pct,
+            icon: Percent,
+            tone: 'ok',
+            main: true,
+        },
+        {
+            id: 'present',
+            label: a.sheet.present,
+            value: totals.present,
+            share: share(totals.present),
+            icon: recordMeta(1)?.icon ?? Percent,
+            tone: recordMeta(1)?.iconTone ?? 'ok',
+        },
+        {
+            id: 'absent',
+            label: a.sheet.absent,
+            value: totals.absent,
+            share: share(totals.absent),
+            icon: recordMeta(2)?.icon ?? Percent,
+            tone: recordMeta(2)?.iconTone ?? 'danger',
+        },
+        {
+            id: 'late',
+            label: a.sheet.late,
+            value: totals.late,
+            share: share(totals.late),
+            icon: recordMeta(3)?.icon ?? Percent,
+            tone: recordMeta(3)?.iconTone ?? 'amber',
+        },
+        {
+            id: 'excused',
+            label: a.sheet.excused,
+            value: totals.excused,
+            share: share(totals.excused),
+            icon: recordMeta(4)?.icon ?? Percent,
+            tone: recordMeta(4)?.iconTone ?? 'sky',
+        },
+        {
+            id: 'left_early',
+            label: a.sheet.leftEarly,
+            value: totals.left_early,
+            share: share(totals.left_early),
+            icon: recordMeta(5)?.icon ?? Percent,
+            tone: recordMeta(5)?.iconTone ?? 'rose',
+        },
+        {
+            id: 'sheets',
+            label: d.sheets,
+            value: totals.sheets,
+            icon: ClipboardList,
+            tone: 'steel',
+        },
+        {
+            id: 'now',
+            label: b.now,
+            value: now,
+            icon: Clock3,
+            tone: 'education',
+        },
+    ];
+
+    return (
+        <>
+            <div className="sis-att-board__day">
+                <span className="sis-att-board__day-name">
+                    {dayOfWeekLabel(weekday)}
+                </span>
+                <span className="sis-att-board__day-date" dir="ltr">
+                    {date}
+                </span>
+            </div>
+            <div className="sis-att-board__nav-row">
+                <button
+                    type="button"
+                    className="sis-att-board__btn"
+                    onClick={() => go(shiftDay(date, -1))}
+                >
+                    <ChevronRight className="size-3.5" aria-hidden />
+                    {d.prevDay}
+                </button>
+                <button
+                    type="button"
+                    className="sis-att-board__btn sis-att-board__btn--primary"
+                    disabled={date === today}
+                    onClick={() => go(today)}
+                >
+                    <CalendarDays className="size-3.5" aria-hidden />
+                    {d.today}
+                </button>
+                <button
+                    type="button"
+                    className="sis-att-board__btn"
+                    onClick={() => go(shiftDay(date, 1))}
+                >
+                    {d.nextDay}
+                    <ChevronLeft className="size-3.5" aria-hidden />
+                </button>
+            </div>
+
+            <MiniCalendar
+                key={date.slice(0, 7)}
+                date={date}
+                today={today}
+                onPick={go}
+            />
+
+            <dl className="sis-att-board__totals">
+                {totalRows.map((row) => (
+                    <div
+                        key={row.id}
+                        className={`sis-att-board__total${row.main ? ' sis-att-board__total--main' : ''}`}
+                    >
+                        <dt>
+                            <ToneIcon icon={row.icon} tone={row.tone} />
+                            {row.label}
+                        </dt>
+                        <dd dir="ltr">
+                            {row.value}
+                            {row.share !== undefined ? (
+                                <span className="sis-att-board__share">
+                                    {' '}
+                                    · {row.share}
+                                </span>
+                            ) : null}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+        </>
+    );
+}
+
+/** The quick-link rail (my day · review · excuses · alerts · staff · reports): the same on every attendance page. */
+export function AttendanceRail({
+    abilities,
+    date = null,
+}: {
+    abilities: AttendanceAbilities;
+    /** The day chosen in the side calendar: each page opens on that day. */
+    date?: string | null;
+}) {
+    const a = t().attendanceSystem;
+    const rail = [
+        {
+            href: '/attendance/my',
+            label: a.nav.myDay,
+            icon: CalendarClock,
+            tone: 'education',
+            show: true,
+        },
+        {
+            href: '/attendance',
+            label: a.nav.sessions,
+            icon: ListChecks,
+            tone: 'sky',
+            show: true,
+        },
+        {
+            href: '/attendance/review',
+            label: a.nav.review,
+            icon: ClipboardCheck,
+            tone: 'amber',
+            show: abilities.review_sheet,
+        },
+        {
+            href: '/attendance/dashboard',
+            label: a.nav.dashboard,
+            icon: LayoutDashboard,
+            tone: 'ok',
+            show: abilities.view_reports,
+        },
+        {
+            href: '/attendance/staff',
+            label: a.nav.staff,
+            icon: UserCheck,
+            tone: 'forest',
+            show: true,
+        },
+        {
+            href: '/attendance/excuses',
+            label: a.nav.excuses,
+            icon: FileCheck2,
+            tone: 'rose',
+            show: abilities.submit_excuse || abilities.review_excuse,
+        },
+        {
+            href: '/attendance/reports',
+            label: a.nav.reports,
+            icon: BarChart3,
+            tone: 'steel',
+            show: abilities.view_reports,
+        },
+        {
+            href: '/attendance/alerts',
+            label: a.nav.alerts,
+            icon: BellRing,
+            tone: 'warning',
+            show: abilities.manage_alerts,
+        },
+        {
+            href: '/attendance/settings',
+            label: a.nav.settings,
+            icon: Settings,
+            tone: 'authority',
+            show: true,
+        },
+    ].filter((item) => item.show);
+
+    return (
+        <nav className="sis-att-board__rail" aria-label={a.nav.label}>
+            {rail.map((item) => (
+                <button
+                    key={item.href}
+                    type="button"
+                    onClick={() =>
+                        router.visit(
+                            item.href,
+                            date
+                                ? {
+                                      data: {
+                                          date,
+                                          date_from: date,
+                                          date_to: date,
+                                      },
+                                  }
+                                : {},
+                        )
+                    }
+                    title={item.label}
+                >
+                    <ToneIcon icon={item.icon} tone={item.tone} />
+                    <span>{item.label}</span>
+                </button>
+            ))}
+        </nav>
+    );
+}
+
+/**
  * «لوحة الحضور»: the day as a schedule board (periods down, sections across) — the layout of an appointment book.
  * A lesson is a coloured block (colour = sheet state); hover shows its card, click opens (or opens-then-marks) it,
  * right-click opens its menu. Side panel: the day, a month calendar, the day's totals and the lessons still waiting.
@@ -231,6 +518,7 @@ export function DayBoard({
     totals,
     classIds,
     statusIds,
+    query = '',
 }: {
     board: Board;
     abilities: AttendanceAbilities;
@@ -239,6 +527,8 @@ export function DayBoard({
     totals: Totals;
     classIds: number[];
     statusIds: number[];
+    /** Titlebar search: lessons that do not match (subject, teacher, room, group) are dimmed. */
+    query?: string;
 }) {
     const a = t().attendanceSystem;
     const d = a.dashboard;
@@ -389,177 +679,30 @@ export function DayBoard({
 
     const statusOf = (lesson: BoardLesson): number =>
         lesson.session?.sheet_status ?? 0;
+    const needle = searchNeedle(query);
     const dimmed = (lesson: BoardLesson) =>
-        statusIds.length > 0 && !statusIds.includes(statusOf(lesson));
-    const rail = [
-        {
-            href: '/attendance/my',
-            label: a.nav.myDay,
-            icon: CalendarClock,
-            tone: 'education',
-            show: true,
-        },
-        {
-            href: '/attendance/review',
-            label: a.nav.review,
-            icon: ClipboardCheck,
-            tone: 'amber',
-            show: abilities.review_sheet,
-        },
-        {
-            href: '/attendance/excuses',
-            label: a.nav.excuses,
-            icon: FileCheck2,
-            tone: 'rose',
-            show: abilities.submit_excuse || abilities.review_excuse,
-        },
-        {
-            href: '/attendance/alerts',
-            label: a.nav.alerts,
-            icon: BellRing,
-            tone: 'warning',
-            show: abilities.manage_alerts,
-        },
-        {
-            href: '/attendance/staff',
-            label: a.nav.staff,
-            icon: UserCheck,
-            tone: 'forest',
-            show: true,
-        },
-        {
-            href: '/attendance/reports',
-            label: a.nav.reports,
-            icon: BarChart3,
-            tone: 'steel',
-            show: abilities.view_reports,
-        },
-    ].filter((item) => item.show);
+        (statusIds.length > 0 && !statusIds.includes(statusOf(lesson))) ||
+        (needle !== '' &&
+            ![
+                lesson.subject_name,
+                lesson.teacher_name,
+                lesson.room_name,
+                lesson.group_name,
+                lesson.start_time,
+            ].some((v) => searchIncludes(v ?? '', needle)));
 
-    const pct =
-        totals.attendance_rate === null ? '—' : `${totals.attendance_rate}%`;
-    const recordMeta = (status: number) =>
-        RECORD_STATUSES.find((s) => s.value === status);
-    const totalRows: Array<{
-        id: string;
-        label: string;
-        value: string | number;
-        icon: LucideIcon;
-        tone: string;
-        main?: boolean;
-    }> = [
-        {
-            id: 'rate',
-            label: d.attendanceRate,
-            value: pct,
-            icon: Percent,
-            tone: 'ok',
-            main: true,
-        },
-        {
-            id: 'present',
-            label: a.sheet.present,
-            value: totals.present,
-            icon: recordMeta(1)?.icon ?? Percent,
-            tone: recordMeta(1)?.iconTone ?? 'ok',
-        },
-        {
-            id: 'absent',
-            label: a.sheet.absent,
-            value: totals.absent,
-            icon: recordMeta(2)?.icon ?? Percent,
-            tone: recordMeta(2)?.iconTone ?? 'danger',
-        },
-        {
-            id: 'late',
-            label: a.sheet.late,
-            value: totals.late,
-            icon: recordMeta(3)?.icon ?? Percent,
-            tone: recordMeta(3)?.iconTone ?? 'amber',
-        },
-        {
-            id: 'excused',
-            label: a.sheet.excused,
-            value: totals.excused,
-            icon: recordMeta(4)?.icon ?? Percent,
-            tone: recordMeta(4)?.iconTone ?? 'sky',
-        },
-        {
-            id: 'sheets',
-            label: d.sheets,
-            value: totals.sheets,
-            icon: ClipboardList,
-            tone: 'steel',
-        },
-        {
-            id: 'now',
-            label: b.now,
-            value: board.now,
-            icon: Clock3,
-            tone: 'education',
-        },
-    ];
 
     return (
         <div className="sis-att-board" dir="rtl" lang="ar">
             <aside className="sis-att-board__side" aria-label={b.side}>
-                <div className="sis-att-board__day">
-                    <span className="sis-att-board__day-name">
-                        {dayOfWeekLabel(board.weekday)}
-                    </span>
-                    <span className="sis-att-board__day-date" dir="ltr">
-                        {board.date}
-                    </span>
-                </div>
-                <div className="sis-att-board__nav-row">
-                    <button
-                        type="button"
-                        className="sis-att-board__btn"
-                        onClick={() => go(shiftDay(board.date, -1))}
-                    >
-                        <ChevronRight className="size-3.5" aria-hidden />
-                        {d.prevDay}
-                    </button>
-                    <button
-                        type="button"
-                        className="sis-att-board__btn sis-att-board__btn--primary"
-                        disabled={board.date === board.today}
-                        onClick={() => go(board.today)}
-                    >
-                        <CalendarDays className="size-3.5" aria-hidden />
-                        {d.today}
-                    </button>
-                    <button
-                        type="button"
-                        className="sis-att-board__btn"
-                        onClick={() => go(shiftDay(board.date, 1))}
-                    >
-                        {d.nextDay}
-                        <ChevronLeft className="size-3.5" aria-hidden />
-                    </button>
-                </div>
-
-                <MiniCalendar
-                    key={board.date.slice(0, 7)}
+                <DaySidePanel
                     date={board.date}
                     today={board.today}
-                    onPick={go}
+                    weekday={board.weekday}
+                    now={board.now}
+                    totals={totals}
+                    onGo={go}
                 />
-
-                <dl className="sis-att-board__totals">
-                    {totalRows.map((row) => (
-                        <div
-                            key={row.id}
-                            className={`sis-att-board__total${row.main ? ' sis-att-board__total--main' : ''}`}
-                        >
-                            <dt>
-                                <ToneIcon icon={row.icon} tone={row.tone} />
-                                {row.label}
-                            </dt>
-                            <dd dir="ltr">{row.value}</dd>
-                        </div>
-                    ))}
-                </dl>
 
                 <section
                     className="sis-att-board__waiting"
@@ -870,19 +1013,10 @@ export function DayBoard({
                 </div>
             </section>
 
-            <nav className="sis-att-board__rail" aria-label={a.nav.label}>
-                {rail.map((item) => (
-                    <button
-                        key={item.href}
-                        type="button"
-                        onClick={() => router.visit(item.href)}
-                        title={item.label}
-                    >
-                        <ToneIcon icon={item.icon} tone={item.tone} />
-                        <span>{item.label}</span>
-                    </button>
-                ))}
-            </nav>
+            <AttendanceRail
+                abilities={abilities}
+                date={board.date === board.today ? null : board.date}
+            />
 
             <SisContextMenu
                 controller={menu}

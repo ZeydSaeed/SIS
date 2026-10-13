@@ -54,14 +54,25 @@ final class AttendanceSheetController extends Controller
         $this->authorize('viewAny', AttendanceSessionRecord::class);
         $yearId = $this->context->academicYearId($request);
         $actor = $this->context->actor($request, $yearId);
-        $teacherId = $actor->isReviewer && $request->filled('teacher_id') ? (int) $request->query('teacher_id') : null;
+        // Reviewers may combine several teachers (`teacher_ids[]`); the single `teacher_id` form still works.
+        $teacherIds = [];
+        if ($actor->isReviewer) {
+            $teacherIds = array_slice(array_values(array_unique(array_filter(
+                array_map('intval', (array) $request->query('teacher_ids', [])),
+                static fn (int $id): bool => $id > 0,
+            ))), 0, 20);
+            if ($teacherIds === [] && $request->filled('teacher_id')) {
+                $teacherIds = [(int) $request->query('teacher_id')];
+            }
+        }
+        $teacherId = count($teacherIds) === 1 ? $teacherIds[0] : null;
         $abilities = $this->context->abilities($request);
 
-        $day = $handler->handle(new GetTeacherDayQuery($this->context->schoolId(), $yearId, AttendanceFilterInput::date($request, 'date'), $actor, $teacherId));
+        $day = $handler->handle(new GetTeacherDayQuery($this->context->schoolId(), $yearId, AttendanceFilterInput::date($request, 'date'), $actor, $teacherId, $teacherIds));
 
         return Inertia::render('attendance/my-day', [
             'day' => $day->toArray(),
-            'filters' => ['academic_year_id' => $yearId, 'teacher_id' => $teacherId],
+            'filters' => ['academic_year_id' => $yearId, 'teacher_id' => $teacherId, 'teacher_ids' => $teacherIds],
             // Reviewers pick any teacher's day; account managers pick the teacher to link their own account to.
             'teachers' => $actor->isReviewer || $abilities['link_account'] ? $read->lookups($this->context->schoolId(), $yearId)['teachers'] : [],
             'lookups' => $actor->isReviewer ? $read->lookups($this->context->schoolId(), $yearId) : null,
@@ -197,7 +208,7 @@ final class AttendanceSheetController extends Controller
             newNotes: $request->validated('notes'),
             reason: (string) $request->validated('reason'),
             recordedBy: $request->user()?->id,
-            idempotencyKey: 'u'.$request->user()?->id.':correct:'.trim((string) $request->header('X-Idempotency-Key')),
+            idempotencyKey: 'u'.$request->user()?->id.':'.substr(hash('sha256', "correct:{$session}:{$student} ".trim((string) $request->header('X-Idempotency-Key'))), 0, 32),
         ));
         $this->audit($request, 'attendance.web.record.correct', 'corrected', $session);
 

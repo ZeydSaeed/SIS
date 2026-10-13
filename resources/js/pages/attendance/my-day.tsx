@@ -75,6 +75,9 @@ type Lesson = {
     minutes_to_start: number;
     minutes_to_end: number;
     session: LessonSession | null;
+    /** Set on every row — shown as a column when several teachers are combined. */
+    teacher_id?: number;
+    teacher_name?: string | null;
 };
 
 type AdminNotice = {
@@ -113,10 +116,15 @@ type Props = {
         timezone: string;
         holiday: boolean;
         teacher: { id: number; full_name: string } | null;
+        teachers?: Array<{ id: number; full_name: string }>;
         lessons: Lesson[];
         notices: AdminNotice[];
     };
-    filters: { academic_year_id: number; teacher_id: number | null };
+    filters: {
+        academic_year_id: number;
+        teacher_id: number | null;
+        teacher_ids?: number[];
+    };
     teachers: Array<{ id: number; full_name: string }>;
     lookups: Lookups | null;
     abilities: AttendanceAbilities;
@@ -131,6 +139,10 @@ type Exceptional = {
     period_id: string;
     reason: string;
 };
+
+/** One row per (teacher, lesson): several teachers may be combined on the page. */
+const lessonKey = (l: Lesson): number =>
+    (l.teacher_id ?? 0) * 1_000_000 + l.schedule_id;
 
 function shiftDate(date: string, days: number): string {
     const d = new Date(`${date}T12:00:00Z`);
@@ -174,7 +186,10 @@ function MyDayPage({
         abilities.submit_sheet &&
         (linked || abilities.review_sheet) &&
         !day.holiday;
-    const selection = useAttendanceSelection(day.lessons, (l) => l.schedule_id);
+    const selection = useAttendanceSelection(
+        day.lessons,
+        lessonKey,
+    );
     const single = selection.targets.length === 1 ? selection.targets[0] : null;
     const canLink =
         !linked &&
@@ -182,10 +197,13 @@ function MyDayPage({
         account_email !== null &&
         teachers.length > 0;
 
+    const teacherIds = filters.teacher_ids ?? [];
+    const combined = teacherIds.length > 1;
+
     const go = (params: Record<string, unknown>) =>
         visitWith('/attendance/my', {
             date: day.date,
-            teacher_id: filters.teacher_id,
+            teacher_ids: teacherIds,
             academic_year_id: filters.academic_year_id,
             ...params,
         });
@@ -260,7 +278,7 @@ function MyDayPage({
     // An account without a teacher record: a warning dialog whose action opens «ربط حسابي».
     const warnedRef = useRef(false);
     useEffect(() => {
-        if (linked || filters.teacher_id !== null || warnedRef.current) {
+        if (linked || teacherIds.length > 0 || warnedRef.current) {
             return;
         }
         warnedRef.current = true;
@@ -276,13 +294,13 @@ function MyDayPage({
                 : {}),
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [linked, filters.teacher_id]);
+    }, [linked, filters.teacher_id, teacherIds.length]);
 
     const messages: AttendanceMessage[] = day.holiday
         ? [{ key: 'holiday', tone: 'warning' as const, text: m.holiday }]
         : [];
     useAttendanceMessages(
-        linked || filters.teacher_id !== null ? messages : [],
+        linked || teacherIds.length > 0 ? messages : [],
         m.title,
     );
 
@@ -310,6 +328,16 @@ function MyDayPage({
                 <span dir="ltr">{`${l.start_time}–${l.end_time}`}</span>
             ),
         },
+        ...(combined
+            ? [
+                  {
+                      id: 'teacher',
+                      header: m.teacher,
+                      kind: 'text' as const,
+                      cell: (l: Lesson) => l.teacher_name ?? '—',
+                  },
+              ]
+            : []),
         {
             id: 'subject',
             header: m.subject,
@@ -526,30 +554,22 @@ function MyDayPage({
                 ? [
                       {
                           key: 'teacher',
-                          type: 'single' as const,
-                          label: m.chooseTeacher,
-                          value:
-                              filters.teacher_id === null
-                                  ? ''
-                                  : String(filters.teacher_id),
-                          options: [
-                              { value: '', label: m.myself },
-                              ...teachers.map((x) => ({
-                                  value: String(x.id),
-                                  label: x.full_name,
-                              })),
-                          ],
-                          onChange: (value: string) =>
-                              go({
-                                  teacher_id:
-                                      value === '' ? null : Number(value),
-                              }),
+                          type: 'multi' as const,
+                          label: m.myself,
+                          allLabel: m.myself,
+                          values: teacherIds.map(String),
+                          options: teachers.map((x) => ({
+                              value: String(x.id),
+                              label: x.full_name,
+                          })),
+                          onChange: (values: string[]) =>
+                              go({ teacher_ids: values.map(Number) }),
                       },
                   ]
                 : []),
         ],
-        day.date !== day.today || filters.teacher_id !== null
-            ? () => go({ date: day.today, teacher_id: null })
+        day.date !== day.today || teacherIds.length > 0
+            ? () => go({ date: day.today, teacher_ids: [] })
             : null,
         [day.date, day.today, filters, teachers, yearSpec.options.length],
     );
@@ -639,24 +659,28 @@ function MyDayPage({
     return (
         <AttendancePage
             title={
-                day.teacher ? `${m.title} — ${day.teacher.full_name}` : m.title
+                day.teacher
+                    ? `${m.title} — ${day.teacher.full_name}`
+                    : combined
+                      ? `${m.title} — ${(day.teachers ?? []).map((x) => x.full_name).join('، ')}`
+                      : m.title
             }
         >
-            <AttendanceTable
-                caption={m.title}
-                storageKey="my-day.lessons"
-                rows={day.lessons}
-                rowKey={(l) => l.schedule_id}
-                columns={columns}
-                emptyText={day.holiday ? m.holiday : m.noLessons}
-                emptyAsDialog={
-                    !day.holiday && (linked || filters.teacher_id !== null)
-                }
-                selection={selection}
-                onOpen={openLesson}
-                menuItems={menuItems}
-                menuLabel={m.title}
-            />
+                    <AttendanceTable
+                        caption={m.title}
+                        storageKey="my-day.lessons"
+                        rows={day.lessons}
+                        rowKey={lessonKey}
+                        columns={columns}
+                        emptyText={day.holiday ? m.holiday : m.noLessons}
+                        emptyAsDialog={
+                            !day.holiday && (linked || teacherIds.length > 0)
+                        }
+                        selection={selection}
+                        onOpen={openLesson}
+                        menuItems={menuItems}
+                        menuLabel={m.title}
+                    />
 
             {viewer.element}
 

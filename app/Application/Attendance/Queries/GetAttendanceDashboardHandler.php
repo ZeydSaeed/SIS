@@ -38,12 +38,16 @@ final class GetAttendanceDashboardHandler implements QueryHandler
 
         $todayTotals = $this->reports->schoolTotals($query->schoolId, $query->academicYearId, $today, $today);
         $monthTotals = $this->reports->schoolTotals($query->schoolId, $query->academicYearId, $monthAgo, $today);
+        $day = $query->date ?? $today;
+        $dayTotals = $day === $today ? $todayTotals : $this->reports->schoolTotals($query->schoolId, $query->academicYearId, $day, $day);
 
         return new AttendanceViewDTO([
             'today' => $today,
             'period' => ['from' => $monthAgo, 'to' => $today],
             'formula' => AttendanceStatistics::FORMULA,
             'today_totals' => $todayTotals + AttendanceStatistics::rates($todayTotals),
+            'day' => $day,
+            'day_totals' => $dayTotals + AttendanceStatistics::rates($dayTotals),
             'month_totals' => $monthTotals + AttendanceStatistics::rates($monthTotals),
             'top_absentees' => $this->reports->topAbsentees($query->schoolId, $query->academicYearId, $monthAgo, $today, 10),
             'top_risk' => $this->risk->rows($query->schoolId, $query->academicYearId, [], 10, 0)['rows'],

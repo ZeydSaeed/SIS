@@ -670,6 +670,7 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
             header: sh.status,
             kind: 'status',
             tone: (r) => recordStatusMeta(statusOf(r)).tone,
+            iconTone: (r) => recordStatusMeta(statusOf(r)).iconTone,
             cell: (r) => (
                 <StatusLabel
                     meta={recordStatusMeta(statusOf(r))}
@@ -934,6 +935,21 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                                 setStatusEdit({
                                     ids: sheet.rows.map((r) => r.enrollment_id),
                                     status: '1',
+                                    minutes_late: '',
+                                    note: '',
+                                    keepNote: true,
+                                }),
+                        },
+                        {
+                            id: 'attendance-sheet-all-absent',
+                            label: sh.allAbsent,
+                            icon: XCircle,
+                            iconTone: 'danger',
+                            disabled: sheet.rows.length === 0,
+                            onSelect: () =>
+                                setStatusEdit({
+                                    ids: sheet.rows.map((r) => r.enrollment_id),
+                                    status: '2',
                                     minutes_late: '',
                                     note: '',
                                     keepNote: true,

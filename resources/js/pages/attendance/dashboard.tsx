@@ -27,6 +27,7 @@ import {
     WindowFact,
     useAttendanceEditRibbon,
     useAttendanceHomeFilters,
+    useAttendanceSearch,
     useYearFilterSpec,
     visitWith,
     type AttendanceColumn,
@@ -89,6 +90,9 @@ type Props = {
         period: { from: string; to: string };
         formula: string;
         today_totals: Totals;
+        /** The totals of the day the board shows (`day`), not only today. */
+        day: string;
+        day_totals: Totals;
         month_totals: Totals;
         top_absentees: Absentee[];
         top_risk: RiskRow[];
@@ -175,6 +179,8 @@ function DashboardPage({
     const [detail, setDetail] = useState<Detail | null>(null);
     const [classIds, setClassIds] = useState<number[]>([]);
     const [statusIds, setStatusIds] = useState<number[]>([]);
+    const [query, setQuery] = useState('');
+    useAttendanceSearch(query, d.board.search, setQuery, setQuery);
     const highRisk = dashboard.top_risk.filter((r) => r.band === 'high').length;
 
     /** The tiles, row by row (five per row, as on the SIS dashboard). */
@@ -892,9 +898,10 @@ function DashboardPage({
                     abilities={abilities}
                     yearId={filters.academic_year_id}
                     scope={scope}
-                    totals={today}
+                    totals={dashboard.day_totals ?? today}
                     classIds={classIds}
                     statusIds={statusIds}
+                    query={query}
                 />
             </div>
 

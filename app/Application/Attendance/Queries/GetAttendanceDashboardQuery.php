@@ -12,10 +12,12 @@ final readonly class GetAttendanceDashboardQuery implements Query
 {
     /**
      * @param  list<int>  $centralSchoolIds  authorised schools for the central comparison (empty = school view only)
+     * @param  string|null  $date  the day the board shows (Y-m-d); the day card is computed for it (null = today)
      */
     public function __construct(
         public int $schoolId,
         public int $academicYearId,
         public array $centralSchoolIds = [],
+        public ?string $date = null,
     ) {}
 }

@@ -680,6 +680,10 @@ export const ar = {
         /** Always-visible titlebar search — pages override via useRegisterPageTitlebarSearch. */
         search: 'بحـــــــــث ...',
         searchAria: 'بحث في الصفحة',
+        /** Default titlebar search (pages without their own): what is searched. */
+        searchPage: 'بحث في هذه الصفحة: الأسماء، الأرقام، الحالات',
+        /** Placeholder of the table search: what is searched — «بحث في «الحصص»: الرقم، المادة …». */
+        searchTable: 'بحث في «:caption»: :columns',
     },
     dialog: {
         confirm: 'تأكيد',
