@@ -126,7 +126,7 @@ function AlertsPage({ alerts, filters, abilities }: Props) {
 
     const subject = (x: Alert) => {
         if (x.subject_type === 'student')
-            return `${x.student_name ?? x.subject_id} (${x.student_code ?? ''})`;
+            return String(x.student_name ?? x.subject_id);
         if (x.subject_type === 'teacher')
             return x.teacher_name ?? String(x.subject_id);
         if (x.subject_type === 'section')

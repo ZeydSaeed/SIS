@@ -8,6 +8,7 @@ use App\Domain\Attendance\Repositories\AttendanceSheetRepositoryInterface;
 use App\Domain\Attendance\Repositories\AttendanceWriteRepositoryInterface;
 use App\Domain\Attendance\Services\SheetMarksGuard;
 use App\Domain\Attendance\Services\SheetTally;
+use App\Domain\Attendance\ValueObjects\AttendanceRecordStatus;
 use App\Domain\Attendance\ValueObjects\EvidenceMethod;
 
 /** Writes a sheet's marks against its roster and returns the resulting tally. */
@@ -20,9 +21,10 @@ final class SheetMarkWriter
 
     /**
      * @param  list<SheetMark>  $marks
+     * @param  bool  $presentRest  submit: only the exceptions need marking — every student left unmarked is recorded present
      * @return array{counts: array<string, int>, normalized: int}
      */
-    public function write(SheetContext $context, array $marks): array
+    public function write(SheetContext $context, array $marks, bool $presentRest = false): array
     {
         $sheet = $context->sheet;
         $roster = $this->sheets->roster($sheet->schoolId, $sheet->academicYearId, $sheet->sectionId, $sheet->groupId, $sheet->sessionDate);
@@ -37,8 +39,25 @@ final class SheetMarkWriter
             $this->attendance->refreshDailySectionSummary($sheet->sectionId, $sheet->schoolId, $sheet->academicYearId, $sheet->sessionDate);
         }
 
+        $statuses = $this->sheets->statuses($sheet->id, $sheet->academicYearId);
+        if ($presentRest) {
+            $rest = [];
+            foreach ($roster as $entry) {
+                if (($statuses[$entry->enrollmentId] ?? 0) === 0) {
+                    $rest[] = new SheetMark($entry->enrollmentId, AttendanceRecordStatus::Present->value);
+                }
+            }
+            if ($rest !== []) {
+                $via = $context->actorIsTeacher() ? EvidenceMethod::TeacherManual : EvidenceMethod::Administrative;
+                $restMarks = SheetMarksGuard::normalize($rest, $roster, $context->policy, $context->actor->isReviewer);
+                $this->sheets->saveMarks($sheet, $restMarks['marks'], $context->actor->userId, $via->value);
+                $this->attendance->refreshDailySectionSummary($sheet->sectionId, $sheet->schoolId, $sheet->academicYearId, $sheet->sessionDate);
+                $statuses = $this->sheets->statuses($sheet->id, $sheet->academicYearId);
+            }
+        }
+
         return [
-            'counts' => SheetTally::of($roster, $this->sheets->statuses($sheet->id, $sheet->academicYearId)),
+            'counts' => SheetTally::of($roster, $statuses),
             'normalized' => $normalized['normalized'],
         ];
     }

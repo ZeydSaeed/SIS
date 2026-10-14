@@ -49,10 +49,8 @@ final class SubmitAttendanceSheetHandler implements CommandHandler
             $context = $this->gate->forTeacherWork($command->sessionId, $command->schoolId, $command->academicYearId, $command->expectedVersion, $command->actor);
             $from = $context->sheet->sheet();
             $to = AttendanceSheetWorkflow::next($from, SheetAction::Submit);
-            $counts = $this->writer->write($context, $command->marks)['counts'];
-            if ($context->policy->requireComplete && $counts['unmarked'] > 0) {
-                throw AttendanceRuleViolation::incomplete($counts['unmarked']);
-            }
+            // Only the exceptions are marked (absent / late / excused / left early): the rest are present.
+            $counts = $this->writer->write($context, $command->marks, true)['counts'];
 
             $now = $this->clock->now();
             $resubmission = $context->sheet->submissionCount > 0;

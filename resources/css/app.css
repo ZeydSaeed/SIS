@@ -19545,3 +19545,23 @@ body.sis-table-row-resizing {
     overflow-y: auto;
     scrollbar-width: none;
 }
+
+/* Day card (weekday + date): the colour of the table header row. */
+.sis-att-board__day {
+    background: var(--sis-curriculum-chrome) !important;
+    color: #ffffff;
+}
+
+/* The sequence («#») column is centred on every table. */
+th.sis-admission-drafts-table__num,
+td.sis-admission-drafts-table__num,
+th.sis-admission-periods-table__num,
+td.sis-admission-periods-table__num {
+    text-align: center !important;
+}
+
+.sis-admission-drafts-table__num > span,
+.sis-admission-periods-table__num > span {
+    display: block;
+    text-align: center;
+}

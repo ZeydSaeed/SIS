@@ -49,7 +49,7 @@ final class AttendanceFilterInput
      */
     public static function board(Request $request, array $defaultStatuses): array
     {
-        return self::from($request, ['teacher_id', 'subject_id', 'section_id', 'class_id', 'lesson_type', 'origin'], ['date_from', 'date_to'], ['late'])
+        return self::from($request, ['teacher_id', 'subject_id', 'section_id', 'class_id', 'branch_id', 'department_id', 'lesson_type', 'origin'], ['date_from', 'date_to'], ['late'])
             + ['sheet_status' => self::statuses($request, 'sheet_status', $defaultStatuses)];
     }
 

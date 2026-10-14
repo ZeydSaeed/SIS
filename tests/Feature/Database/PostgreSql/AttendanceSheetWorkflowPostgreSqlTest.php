@@ -92,16 +92,15 @@ final class AttendanceSheetWorkflowPostgreSqlTest extends PostgreSqlIntegrationT
             ->assertSessionHas('error', 'attendance.sheet_version_conflict');
         $this->assertSame(1, (int) DB::table('attendance.records')->where('session_id', $sessionId)->where('enrollment_id', $e1)->value('status'));
 
-        // Submit needs the explicit confirmation and a complete sheet.
+        // Submit needs the explicit confirmation; students left unmarked are recorded present (only exceptions are marked).
         $this->post("/attendance/sheets/{$sessionId}/submit", $this->marksPayload(2, [$e1, $e2], [1, 2]), ['X-Idempotency-Key' => 's0'])
             ->assertSessionHasErrors('confirm');
-        $this->post("/attendance/sheets/{$sessionId}/submit", $this->marksPayload(2, [$e1, $e2], [1, 0], true), ['X-Idempotency-Key' => 's-incomplete'])
-            ->assertSessionHas('error', 'attendance.sheet_incomplete');
         $this->assertSame(1, (int) $this->sheet($sessionId)->sheet_status);
 
-        $this->post("/attendance/sheets/{$sessionId}/submit", $this->marksPayload(2, [$e1, $e2], [1, 2], true), ['X-Idempotency-Key' => 's1'])
+        $this->post("/attendance/sheets/{$sessionId}/submit", $this->marksPayload(2, [$e1, $e2], [2, 0], true), ['X-Idempotency-Key' => 's1'])
             ->assertSessionHas('success', 'flash.attendance.sheetSubmitted')
             ->assertSessionHas('attendanceResult.sheet_status', 2);
+        $this->assertSame(1, (int) DB::table('attendance.records')->where('session_id', $sessionId)->where('enrollment_id', $e2)->value('status'));
         $this->assertSame(2, (int) $this->sheet($sessionId)->sheet_status);
         // Double click: same key replays; a second key fails the version guard — still one submission.
         $this->post("/attendance/sheets/{$sessionId}/submit", $this->marksPayload(2, [$e1, $e2], [1, 2], true), ['X-Idempotency-Key' => 's1'])

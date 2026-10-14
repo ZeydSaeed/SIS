@@ -122,6 +122,7 @@ const HIDDEN = new Set([
     'subject_id',
     'teacher_id',
     'school_id',
+    'student_code',
     '__i',
 ]);
 

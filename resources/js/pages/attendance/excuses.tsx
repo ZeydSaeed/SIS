@@ -222,12 +222,6 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
             cell: (e) => e.full_name,
         },
         {
-            id: 'code',
-            header: a.sheet.code,
-            kind: 'text',
-            cell: (e) => <span dir="ltr">{e.student_code}</span>,
-        },
-        {
             id: 'class',
             header: c.section,
             kind: 'text',
@@ -505,7 +499,7 @@ function ExcusesPage({ excuses, filters, lookups, abilities }: Props) {
 
     const studentOptions = excuses.students.map((s) => ({
         value: String(s.enrollment_id),
-        label: `${s.full_name} (${s.student_code}) — ${s.class_name ?? ''} / ${s.section_name ?? ''}`,
+        label: `${s.full_name} — ${s.class_name ?? ''} / ${s.section_name ?? ''}`,
     }));
 
     return (

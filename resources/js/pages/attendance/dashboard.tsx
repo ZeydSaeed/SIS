@@ -536,12 +536,6 @@ function DashboardPage({
         );
     const absenteeColumns: AttendanceColumn<Absentee>[] = [
         {
-            id: 'code',
-            header: a.sheet.code,
-            kind: 'text',
-            cell: (s) => <span dir="ltr">{s.student_code}</span>,
-        },
-        {
             id: 'name',
             header: a.sheet.student,
             kind: 'name',
@@ -567,12 +561,6 @@ function DashboardPage({
         },
     ];
     const riskColumns: AttendanceColumn<RiskRow>[] = [
-        {
-            id: 'code',
-            header: a.sheet.code,
-            kind: 'text',
-            cell: (s) => <span dir="ltr">{s.student_code}</span>,
-        },
         {
             id: 'name',
             header: a.sheet.student,

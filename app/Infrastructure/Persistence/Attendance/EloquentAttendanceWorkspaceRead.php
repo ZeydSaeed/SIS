@@ -346,6 +346,8 @@ final class EloquentAttendanceWorkspaceRead implements AttendanceWorkspaceReadIn
                 ->selectRaw("id, period_number, to_char(start_time, 'HH24:MI') AS start_time, to_char(end_time, 'HH24:MI') AS end_time")
                 ->get()->map(static fn (object $r): array => (array) $r)->all(),
             'classes' => array_values($classes),
+            'branches' => DB::table('organization.branches')->where('school_id', $schoolId)->orderBy('name')->get(['id', 'name'])->map(static fn (object $r): array => (array) $r)->all(),
+            'departments' => DB::table('organization.departments')->where('school_id', $schoolId)->orderBy('name')->get(['id', 'name'])->map(static fn (object $r): array => (array) $r)->all(),
             'subjects' => DB::table('curriculum.subjects')->whereIn('id', $subjectIds)->orderBy('name')->get(['id', 'name'])->map(static fn (object $r): array => (array) $r)->all(),
             'teachers' => DB::table('teachers.teachers as t')->join('teachers.teacher_schools as ts', 'ts.teacher_id', '=', 't.id')
                 ->where('ts.school_id', $schoolId)->where('ts.academic_year_id', $academicYearId)->whereNull('ts.left_at')
@@ -391,6 +393,8 @@ final class EloquentAttendanceWorkspaceRead implements AttendanceWorkspaceReadIn
             ->when($ids('lesson_type') !== [], static fn (Builder $q) => $q->whereIn('s.lesson_type', $ids('lesson_type')))
             ->when($ids('origin') !== [], static fn (Builder $q) => $q->whereIn('s.origin', $ids('origin')))
             ->when(! empty($filters['late']), static fn (Builder $q) => $q->where('s.submitted_late', true))
+            ->when($ids('branch_id') !== [], static fn (Builder $q) => $q->whereIn('s.section_id', static fn (Builder $sub) => $sub->select('section_id')->from('enrollment.enrollments')->where('academic_year_id', $academicYearId)->whereIn('branch_id', $ids('branch_id'))))
+            ->when($ids('department_id') !== [], static fn (Builder $q) => $q->whereIn('s.section_id', static fn (Builder $sub) => $sub->select('section_id')->from('enrollment.enrollments')->where('academic_year_id', $academicYearId)->whereIn('department_id', $ids('department_id'))))
             ->when($ids('class_id') !== [], static fn (Builder $q) => $q->whereIn('s.section_id', static fn (Builder $sub) => $sub->select('id')->from('enrollment.sections')->whereIn('class_id', $ids('class_id'))));
     }
 }

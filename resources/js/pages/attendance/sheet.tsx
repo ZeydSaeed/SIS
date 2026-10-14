@@ -653,12 +653,6 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
     const statusOf = (r: Row) => marks[r.enrollment_id]?.status ?? 0;
     const columns: AttendanceColumn<Row>[] = [
         {
-            id: 'code',
-            header: sh.code,
-            kind: 'text',
-            cell: (r) => <span dir="ltr">{r.student_code}</span>,
-        },
-        {
             id: 'name',
             header: sh.student,
             kind: 'name',
@@ -1182,10 +1176,7 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                     columns={2}
                     pending={busy === 'submitting'}
                     confirmLabel={sh.submit}
-                    confirmDisabled={
-                        !confirmed ||
-                        (sheet.policy.require_complete && counts[0] > 0)
-                    }
+                    confirmDisabled={!confirmed}
                     onConfirm={() => send('submit')}
                     onClose={() => {
                         setSubmitOpen(false);
@@ -1205,33 +1196,34 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                                             </span>
                                         }
                                     />
-                                    <WindowFact
-                                        label={sh.unmarked}
-                                        value={
-                                            <span dir="ltr">{counts[0]}</span>
-                                        }
-                                    />
+                                    {counts[0] > 0 ? (
+                                        <WindowFact
+                                            label={sh.unmarkedAsPresent}
+                                            value={
+                                                <span dir="ltr">
+                                                    {counts[0]}
+                                                </span>
+                                            }
+                                        />
+                                    ) : null}
+                                    {/* Students left unmarked are recorded present on submit: the final tally. */}
                                     {RECORD_STATUSES.map((st) => (
                                         <WindowFact
                                             key={st.value}
                                             label={recordLabel(st.value)}
                                             value={
                                                 <span dir="ltr">
-                                                    {counts[st.value]}
+                                                    {counts[st.value] +
+                                                        (st.value === 1
+                                                            ? counts[0]
+                                                            : 0)}
                                                 </span>
                                             }
                                         />
                                     ))}
                                     <WindowFact
                                         label={sh.check}
-                                        value={
-                                            counts[0] > 0
-                                                ? sh.reviewIncomplete.replace(
-                                                      ':n',
-                                                      String(counts[0]),
-                                                  )
-                                                : sh.reviewOk
-                                        }
+                                        value={sh.reviewOk}
                                     />
                                     {sheet.window === 'late' ? (
                                         <WindowFact
@@ -1559,14 +1551,6 @@ function SheetPage({ sheet, student_record, abilities }: Props) {
                                     />
                                 ) : (
                                     <>
-                                        <WindowFact
-                                            label={sh.code}
-                                            value={
-                                                <span dir="ltr">
-                                                    {recordFor.student_code}
-                                                </span>
-                                            }
-                                        />
                                         <WindowFact
                                             label={sh.recorded}
                                             value={

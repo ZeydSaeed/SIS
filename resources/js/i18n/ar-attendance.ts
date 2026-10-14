@@ -139,6 +139,7 @@ export const arAttendance = {
         late: 'متأخر',
         excused: 'بعذر',
         leftEarly: 'خروج مبكر',
+        unmarkedAsPresent: 'غير محدد (يُسجَّلون حاضرين عند الإرسال)',
         unmarked: 'غير محدد',
         search: 'بحث بالاسم أو الرقم',
         filterAll: 'الكل',
