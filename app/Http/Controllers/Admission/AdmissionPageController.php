@@ -184,6 +184,21 @@ final class AdmissionPageController extends Controller
         );
     }
 
+    /**
+     * «متابعة طلبات التقديم»: the follow-up roster of every application, by status and admission channel.
+     */
+    public function followUp(Request $request, GetAdmissionWorkspaceHandler $handler): Response
+    {
+        return $this->workspacePage(
+            $request,
+            $handler,
+            'admission/follow-up',
+            'admission.web.follow_up',
+            includeApplications: false,
+            includeAcceptedRoster: true,
+        );
+    }
+
     private function stageWorkspacePage(
         Request $request,
         GetAdmissionWorkspaceHandler $handler,
@@ -219,6 +234,7 @@ final class AdmissionPageController extends Controller
         array $extra = [],
         ?int $statusFilter = null,
         bool $includeApplications = true,
+        bool $includeAcceptedRoster = false,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -260,7 +276,7 @@ final class AdmissionPageController extends Controller
             perPage: $perPage,
             search: $search,
             enrollmentStatus: $enrollmentStatus,
-            includeAcceptedStudents: $request->boolean('include_accepted_roster'),
+            includeAcceptedStudents: $includeAcceptedRoster || $request->boolean('include_accepted_roster'),
             allowedSchoolIds: $this->schoolScope->allowedSchoolIds($user),
         ));
 

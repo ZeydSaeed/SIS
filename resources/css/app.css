@@ -771,8 +771,8 @@ body.sis-table-col-resizing * {
     align-items: center;
     gap: 0.125rem;
     min-width: 0;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
+    /* The tab strip never scrolls sideways (2026-10-16). */
+    overflow: hidden;
 }
 
 /* Menu | search fills gap to utilities | window utilities (Monitor next to search) */
@@ -18601,6 +18601,37 @@ body.sis-table-row-resizing {
 .sis-titlebar__history .sis-window__control:disabled {
     opacity: 0.4;
     cursor: default;
+}
+
+.sis-titlebar__page-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    margin-inline-start: 0.15rem;
+}
+
+.sis-titlebar .sis-titlebar__page-nav .sis-window__control {
+    width: 1.6rem;
+}
+
+.sis-titlebar__page-nav .sis-window__control:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.sis-titlebar .sis-titlebar__language.sis-window__control {
+    width: auto;
+    gap: 0.35rem;
+    padding-inline: 0.5rem;
+    margin-inline-start: 0.25rem;
+    border-inline-start: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-radius: 0;
+}
+
+.sis-titlebar__language-text {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .sis-titlebar__history-list {

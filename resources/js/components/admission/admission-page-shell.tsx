@@ -21,7 +21,6 @@ import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { SchoolEditRibbon } from '@/components/organization/school-edit-ribbon';
-import { sisSmoothMutation, sisToggleQueryFlag } from '@/lib/sis-ui-perf';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -35,12 +34,6 @@ const AdmissionRequestTypeDialog = lazy(async () => {
     const mod = await import('@/components/admission/admission-request-type-dialog');
 
     return { default: mod.AdmissionRequestTypeDialog };
-});
-
-const AdmissionAcceptedStudentsDialog = lazy(async () => {
-    const mod = await import('@/components/admission/admission-accepted-students-dialog');
-
-    return { default: mod.AdmissionAcceptedStudentsDialog };
 });
 
 type DraftDialogMode = 'draft' | 'createStudent' | 'academicTransfer';
@@ -171,8 +164,6 @@ function AdmissionPageShellInner({
     const [draftOpen, setDraftOpen] = useState(false);
     const [requestTypeOpen, setRequestTypeOpen] = useState(false);
     const [draftMode, setDraftMode] = useState<DraftDialogMode>('draft');
-    const [acceptedOpen, setAcceptedOpen] = useState(false);
-    const [acceptedRosterLoading, setAcceptedRosterLoading] = useState(false);
     const filtersQ = searchFromPageFilters(page.props.filters);
     const searchDraftRef = useRef(filtersQ);
     const academicYearIdRef = useRef(academicYearId);
@@ -335,17 +326,13 @@ function AdmissionPageShellInner({
             return;
         }
 
+        // «متابعة طلبات التقديم» is a page of its own (its own ribbon); X brings the user back here.
         if (status === ADMISSION_STATUS_ACCEPTED) {
-            setAcceptedOpen(true);
-            if (workspace.accepted_students_included !== true) {
-                setAcceptedRosterLoading(true);
-                router.visit(sisToggleQueryFlag(page.url, 'include_accepted_roster', true), {
-                    ...sisSmoothMutation(['workspace']),
-                    replace: true,
-                    showProgress: false,
-                    onFinish: () => setAcceptedRosterLoading(false),
-                });
-            }
+            router.visit(
+                academicYearId === null
+                    ? '/admission/follow-up'
+                    : `/admission/follow-up?academic_year_id=${academicYearId}`,
+            );
 
             return;
         }
@@ -378,9 +365,7 @@ function AdmissionPageShellInner({
 
     const ribbonActiveStatus = draftOpen || requestTypeOpen
         ? ADMISSION_STATUS_REQUEST
-        : acceptedOpen
-            ? ADMISSION_STATUS_ACCEPTED
-            : activeStatus;
+        : activeStatus;
 
     return (
         <>
@@ -435,37 +420,6 @@ function AdmissionPageShellInner({
                     </Suspense>
                 ) : null}
 
-                {acceptedOpen ? (
-                    <Suspense fallback={null}>
-                        <AdmissionAcceptedStudentsDialog
-                            open={acceptedOpen}
-                            onOpenChange={(open) => {
-                                setAcceptedOpen(open);
-                                if (!open) {
-                                    setAcceptedRosterLoading(false);
-                                    if (page.url.includes('include_accepted_roster=')) {
-                                        router.visit(
-                                            sisToggleQueryFlag(page.url, 'include_accepted_roster', false),
-                                            {
-                                                ...sisSmoothMutation(['workspace']),
-                                                replace: true,
-                                                showProgress: false,
-                                            },
-                                        );
-                                    }
-                                }
-                            }}
-                            students={workspace.accepted_students ?? []}
-                            loading={acceptedRosterLoading && workspace.accepted_students_included !== true}
-                            defaultAcademicYearId={academicYearId}
-                            canManage={authorization.can_manage}
-                            schools={workspace.school_options ?? []}
-                            defaultSchoolId={
-                                (page.props.schoolContext as { schoolId?: number | null } | undefined)?.schoolId ?? null
-                            }
-                        />
-                    </Suspense>
-                ) : null}
                 <SchoolEditRibbon canManageSchools={authorization.can_manage_schools === true} />
                 <div className="sis-admission-page-body">
                     <AdmissionSearchProvider value={filtersQ}>{children}</AdmissionSearchProvider>

@@ -151,6 +151,25 @@ export function travelTo(target: number): void {
     });
 }
 
+/**
+ * «إغلاق» (X): the step this page was opened from — the last earlier step on another page (filters, tabs and paging
+ * of the same page are skipped). Null when the page was the first one of this tab.
+ */
+export function closingTarget(): number | null {
+    const current = state.entries[state.index];
+    if (current === undefined) {
+        return null;
+    }
+    const path = current.url.split('?')[0];
+    for (let i = state.index - 1; i >= 0; i--) {
+        if (state.entries[i].url.split('?')[0] !== path) {
+            return i;
+        }
+    }
+
+    return null;
+}
+
 export function useNavigationHistory(): State {
     return useSyncExternalStore(
         (listener) => {

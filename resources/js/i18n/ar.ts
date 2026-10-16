@@ -650,11 +650,25 @@ export const ar = {
         cascade: 'ترتيب متدرج',
         taskbar: 'شريط النوافذ',
         workspace: 'مساحة العمل',
+        /** «رجوع» / «تقدم»: unsaved edits of the open page; the arrows move between pages. */
         history: {
             back: 'رجوع',
             forward: 'تقدم',
             backList: 'خطوات الرجوع',
             forwardList: 'خطوات التقدم',
+            empty: 'لا توجد تعديلات غير محفوظة في هذه الصفحة',
+            field: 'حقل',
+            blank: '(فارغ)',
+            checked: 'محدد',
+            unchecked: 'غير محدد',
+            pages: 'التنقل بين الصفحات',
+            previousPage: 'الصفحة السابقة',
+            nextPage: 'الصفحة التالية',
+        },
+        language: {
+            label: 'لغة الواجهة',
+            switchTo: 'English',
+            switchHint: 'Switch the interface to English',
         },
     },
     chrome: {

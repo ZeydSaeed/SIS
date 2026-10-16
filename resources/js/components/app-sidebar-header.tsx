@@ -8,7 +8,6 @@ import {
     type RibbonActionId,
     type RibbonTab,
 } from '@/components/title-bar-ribbon';
-import { TitleBarUtilities } from '@/components/title-bar-utilities';
 import { SisSearchField } from '@/components/sis/sis-search-field';
 import { usePageSearchHighlight } from '@/hooks/use-page-search-highlight';
 import {
@@ -33,7 +32,7 @@ import {
     SIS_CHROME_BOTTOM_VAR,
     sisRibbonLayoutSettleMs,
 } from '@/lib/sis-ribbon-layout';
-import { t } from '@/i18n';
+import { direction, t } from '@/i18n';
 import {
     dispatchOpenCreateCurriculum,
     dispatchOpenCreateSubject,
@@ -465,7 +464,7 @@ export function AppSidebarHeader({
         <div ref={chromeRef} className={chromeClassName}>
             <header
                 className="sis-titlebar sis-titlebar--with-search min-h-10 shrink-0 items-center px-3 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-10 md:px-3"
-                dir="rtl"
+                dir={direction()}
             >
                 <div className="sis-titlebar__start">
                     <SidebarTrigger className="sis-titlebar__trigger size-7 shrink-0" />
@@ -489,7 +488,6 @@ export function AppSidebarHeader({
                 <div className="sis-titlebar__leading flex shrink-0 items-center gap-1" dir="ltr">
                     <TitleBarControls />
                     <TitleBarHome />
-                    <TitleBarUtilities />
                 </div>
             </header>
             {renderedRibbonTab ? (

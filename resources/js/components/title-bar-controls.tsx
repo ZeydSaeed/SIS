@@ -1,8 +1,11 @@
 import { router, usePage } from '@inertiajs/react';
 import { useCallback } from 'react';
 import { TitleBarHistory } from '@/components/title-bar-history';
+import { TitleBarLanguage } from '@/components/title-bar-language';
+import { TitleBarPageNav } from '@/components/title-bar-page-nav';
 import { WindowControls } from '@/components/window-controls';
 import { t } from '@/i18n';
+import { closingTarget, travelTo } from '@/lib/navigation-history';
 import { dashboard } from '@/routes';
 
 export function TitleBarControls() {
@@ -13,15 +16,20 @@ export function TitleBarControls() {
         ? i18n.modules.dashboard
         : i18n.window.controls;
 
+    // X closes the page: back to the page it was opened from; with none (first page of the tab), the dashboard.
     const onClose = useCallback(() => {
-        if (isDashboard) {
+        const target = closingTarget();
+        if (target !== null) {
+            travelTo(target);
+
             return;
         }
-
-        router.visit(dashboard());
+        if (!isDashboard) {
+            router.visit(dashboard());
+        }
     }, [isDashboard]);
 
-    // «رجوع» / «تقدم» sit just right of the close (X) button.
+    // Right of the close (X) button: «التالية» / «السابقة» page arrows, then «رجوع» / «تقدم» (unsaved edits), then «English» / «عربي».
     return (
         <>
             <WindowControls
@@ -36,7 +44,9 @@ export function TitleBarControls() {
                 closable
                 onClose={onClose}
             />
+            <TitleBarPageNav />
             <TitleBarHistory />
+            <TitleBarLanguage />
         </>
     );
 }

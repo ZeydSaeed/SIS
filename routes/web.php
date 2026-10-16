@@ -16,13 +16,13 @@ use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Imports\ImportPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
 use App\Http\Controllers\Ops\OpsModulePageController;
 use App\Http\Controllers\Organization\BranchStructurePageController;
-use App\Http\Controllers\Organization\RoomCataloguePageController;
-use App\Http\Controllers\Imports\ImportPageController;
 use App\Http\Controllers\Organization\DirectorateRegistryController;
 use App\Http\Controllers\Organization\DirectorateSchoolPageController;
+use App\Http\Controllers\Organization\RoomCataloguePageController;
 use App\Http\Controllers\Organization\SchoolRegistryController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
@@ -140,6 +140,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/withdrawn', [AdmissionPageController::class, 'withdrawn'])->name('withdrawn');
         Route::get('/rejected', [AdmissionPageController::class, 'rejected'])->name('rejected');
         Route::get('/converted', [AdmissionPageController::class, 'converted'])->name('converted');
+        // «متابعة طلبات التقديم»: a full page with its own ribbon (was a window over the admission page).
+        Route::get('/follow-up', [AdmissionPageController::class, 'followUp'])->name('follow-up');
         Route::post('/periods', [AdmissionPageController::class, 'storePeriod'])->name('periods.store');
         Route::put('/periods/{period}', [AdmissionPageController::class, 'updatePeriod'])
             ->whereNumber('period')

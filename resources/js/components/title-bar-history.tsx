@@ -7,62 +7,69 @@ import {
     DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { t } from '@/i18n';
+import { direction, locale, t } from '@/i18n';
 import {
-    HISTORY_STEPS,
-    startNavigationHistory,
-    travelTo,
-    useNavigationHistory,
-    type HistoryEntry,
-} from '@/lib/navigation-history';
+    EDIT_STEPS,
+    redoEdits,
+    startEditHistory,
+    undoEdits,
+    useEditHistory,
+    type EditStep,
+} from '@/lib/edit-history';
 
-const DETAIL_PARAMS = [
-    'date',
-    'date_from',
-    'date_to',
-    'type',
-    'view',
-    'page',
-    'q',
-    'search',
-];
-
-/** «لوحة الحضور — 2026-10-14»: the page, and what tells two steps of the same page apart. */
-function stepLabel(entry: HistoryEntry): string {
-    const title = entry.title || entry.url.split('?')[0];
-    try {
-        const params = new URL(entry.url, 'http://x').searchParams;
-        const detail = DETAIL_PARAMS.map((key) => params.get(key))
-            .filter((v): v is string => v !== null && v !== '' && v !== '1')
-            .join(' · ');
-
-        return detail === '' ? title : `${title} — ${detail}`;
-    } catch {
-        return title;
+function shown(value: string | boolean): string {
+    const h = t().window.history;
+    if (typeof value === 'boolean') {
+        return value ? h.checked : h.unchecked;
     }
+    const text = value.trim();
+
+    return text === ''
+        ? h.blank
+        : text.length > 24
+          ? `${text.slice(0, 24)}…`
+          : text;
+}
+
+/** «الاسم: أحمد ← محمد» (RTL) / «Name: Ahmed → Mohammed» (LTR): the field, and what the step changes it from and to. */
+function stepLabel(step: EditStep): string {
+    const field = step.label || t().window.history.field;
+    if (step.previous) {
+        return field;
+    }
+
+    const arrow = direction() === 'rtl' ? '←' : '→';
+
+    return `${field}: ${shown(step.before)} ${arrow} ${shown(step.after)}`;
 }
 
 function when(at: number): string {
-    return new Date(at).toLocaleTimeString('ar', {
+    return new Date(at).toLocaleTimeString(locale(), {
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
         hour12: false,
         numberingSystem: 'latn',
     });
 }
 
-/** One split button: the arrow takes one step, the chevron lists up to 30 steps to jump to (as in Office). */
+/** One split button: the arrow takes one step, the chevron lists up to 30 steps (as in Office). */
 function HistoryButton({
-    direction,
+    direction: way,
     steps,
 }: {
     direction: 'back' | 'forward';
-    steps: Array<{ entry: HistoryEntry; index: number }>;
+    steps: EditStep[];
 }) {
     const h = t().window.history;
-    const Icon = direction === 'back' ? Undo2 : Redo2;
-    const label = direction === 'back' ? h.back : h.forward;
+    const Icon = way === 'back' ? Undo2 : Redo2;
+    const label = way === 'back' ? h.back : h.forward;
+    const list = way === 'back' ? h.backList : h.forwardList;
+    const take = way === 'back' ? undoEdits : redoEdits;
     const first = steps[0];
+    const firstLabel = first
+        ? `${label}: ${stepLabel(first)}`
+        : `${label} — ${h.empty}`;
 
     return (
         <div className="sis-titlebar__history" role="group" aria-label={label}>
@@ -70,25 +77,19 @@ function HistoryButton({
                 type="button"
                 className="sis-window__control"
                 disabled={first === undefined}
-                aria-label={
-                    first ? `${label}: ${stepLabel(first.entry)}` : label
-                }
-                title={first ? `${label}: ${stepLabel(first.entry)}` : label}
-                onClick={() => first && travelTo(first.index)}
+                aria-label={firstLabel}
+                title={firstLabel}
+                onClick={() => take(1)}
             >
                 <Icon className="size-3.5" aria-hidden />
             </button>
-            <DropdownMenu dir="rtl">
+            <DropdownMenu dir={direction()}>
                 <DropdownMenuTrigger asChild disabled={first === undefined}>
                     <button
                         type="button"
                         className="sis-window__control sis-titlebar__history-more"
-                        aria-label={
-                            direction === 'back' ? h.backList : h.forwardList
-                        }
-                        title={
-                            direction === 'back' ? h.backList : h.forwardList
-                        }
+                        aria-label={list}
+                        title={list}
                     >
                         <ChevronDown className="size-3" aria-hidden />
                     </button>
@@ -97,12 +98,11 @@ function HistoryButton({
                     align="end"
                     className="sis-titlebar__history-list"
                 >
-                    <DropdownMenuLabel>{`${direction === 'back' ? h.backList : h.forwardList} (${steps.length})`}</DropdownMenuLabel>
-                    {steps.map(({ entry, index }, n) => (
+                    <DropdownMenuLabel>{`${list} (${steps.length})`}</DropdownMenuLabel>
+                    {steps.map((step, n) => (
                         <DropdownMenuItem
-                            key={`${index}-${entry.at}`}
-                            onSelect={() => travelTo(index)}
-                            title={entry.url}
+                            key={`${n}-${step.at}`}
+                            onSelect={() => take(n + 1)}
                         >
                             <span
                                 className="sis-titlebar__history-step"
@@ -111,13 +111,13 @@ function HistoryButton({
                                 {n + 1}
                             </span>
                             <span className="sis-titlebar__history-title">
-                                {stepLabel(entry)}
+                                {stepLabel(step)}
                             </span>
                             <span
                                 className="sis-titlebar__history-time"
                                 dir="ltr"
                             >
-                                {when(entry.at)}
+                                {when(step.at)}
                             </span>
                         </DropdownMenuItem>
                     ))}
@@ -127,26 +127,24 @@ function HistoryButton({
     );
 }
 
-/** «رجوع» / «تقدم» between the pages and views of this session (navigation only — never undoes a saved change). */
+/**
+ * «رجوع» / «تقدم»: the unsaved edits of the open page (typing, choosing, ticking, clearing a field). Never reverses a
+ * saved operation; page-to-page movement is the arrows of TitleBarPageNav.
+ */
 export function TitleBarHistory() {
-    const { entries, index } = useNavigationHistory();
-    useEffect(() => startNavigationHistory(), []);
-
-    const back = entries
-        .slice(Math.max(0, index - HISTORY_STEPS), Math.max(0, index))
-        .map((entry, i) => ({
-            entry,
-            index: Math.max(0, index - HISTORY_STEPS) + i,
-        }))
-        .reverse();
-    const forward = entries
-        .slice(index + 1, index + 1 + HISTORY_STEPS)
-        .map((entry, i) => ({ entry, index: index + 1 + i }));
+    const { done, undone } = useEditHistory();
+    useEffect(() => startEditHistory(), []);
 
     return (
         <div className="sis-titlebar__history-group" dir="ltr">
-            <HistoryButton direction="back" steps={back} />
-            <HistoryButton direction="forward" steps={forward} />
+            <HistoryButton
+                direction="back"
+                steps={done.slice(-EDIT_STEPS).reverse()}
+            />
+            <HistoryButton
+                direction="forward"
+                steps={undone.slice(-EDIT_STEPS).reverse()}
+            />
         </div>
     );
 }

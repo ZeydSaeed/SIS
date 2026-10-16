@@ -4,6 +4,7 @@ use App\Domain\Shared\Exceptions\SisDomainException;
 use App\Http\Middleware\CorrelationIdMiddleware;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\HandleLocale;
 use App\Http\Middleware\RequestTelemetryMiddleware;
 use App\Security\Middleware\RequireSchoolContextMiddleware;
 use App\Security\Middleware\SchoolContextMiddleware;
@@ -22,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->encryptCookies(except: ['appearance', 'locale', 'sidebar_state']);
 
         $middleware->api(prepend: [
             CorrelationIdMiddleware::class,
@@ -43,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             CorrelationIdMiddleware::class,
             SchoolContextMiddleware::class,
             HandleAppearance::class,
+            HandleLocale::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
@@ -77,7 +79,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->with('error', $exception->errorCode());
         });
 
-        $exceptions->render(function (\DomainException $exception, Request $request) {
+        $exceptions->render(function (DomainException $exception, Request $request) {
             if ($exception instanceof SisDomainException) {
                 return null;
             }

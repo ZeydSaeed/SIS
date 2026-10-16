@@ -33,6 +33,13 @@ final class OpsWorkflowPagesSmokePostgreSqlTest extends PostgreSqlIntegrationTes
             ->has('workspace.school_options', 1)
             ->has('workspace.school_options.0.branches'));
 
+        // «متابعة طلبات التقديم»: a page of its own, always with the follow-up roster.
+        $this->get('/admission/follow-up')->assertOk()->assertInertia(fn ($page) => $page
+            ->component('admission/follow-up')
+            ->where('workspace.accepted_students_included', true)
+            ->has('workspace.accepted_students')
+            ->has('workspace.school_options', 1));
+
         // «المديريات والمدارس»: directorates → the user's schools → branches.
         $this->get('/organization/directorates-schools')->assertOk()->assertInertia(fn ($page) => $page
             ->component('organization/directorates-schools')

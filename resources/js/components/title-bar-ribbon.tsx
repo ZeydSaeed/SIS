@@ -796,10 +796,12 @@ export function TitleBarRibbon({
     const isEnrollmentsRibbon = groups.some((group) =>
         group.id.startsWith('enrollment-'),
     );
-    // Organization pages (المديريات والمدارس / الفروع والاختصاصات) share the students edit ribbon look.
+    // Organization pages (المديريات والمدارس / الفروع والاختصاصات) and «متابعة طلبات التقديم» share the students
+    // edit ribbon look.
     const isStudentsRibbon = groups.some(
         (group) =>
             group.id.startsWith('student-') ||
+            group.id.startsWith('follow-up-') ||
             group.id.startsWith('org-') ||
             group.id.startsWith('rooms-') ||
             group.id.startsWith('attendance-'),
@@ -811,12 +813,15 @@ export function TitleBarRibbon({
         path === '/curriculum' || path.startsWith('/curriculum/');
     const isEnrollmentsPage =
         path === '/enrollments' || path.startsWith('/enrollments/');
+    const isFollowUpPage = path === '/admission/follow-up';
     const isStudentsPage =
         path === '/students' ||
         path.startsWith('/students/') ||
-        path.startsWith('/organization/');
+        path.startsWith('/organization/') ||
+        isFollowUpPage;
     const isAdmissionPage =
-        path === '/admission' || path.startsWith('/admission/');
+        (path === '/admission' || path.startsWith('/admission/')) &&
+        !isFollowUpPage;
     const isAdmissionRibbon = groups.some(
         (group) =>
             group.id.startsWith('admission-') || group.id === 'page-actions',
@@ -825,9 +830,9 @@ export function TitleBarRibbon({
     const i18n = t();
     const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
-    // «تحرير» / «الصفحة الرئيسية»: never a horizontal scroll — groups that do not fit fold (last first) into an
-    // accordion button that opens their commands (or filters) in a flyout under it.
-    const accordion = tab === 'edit';
+    // Every tab: never a horizontal scroll — groups that do not fit fold (last first) into an accordion button that
+    // opens their commands (or filters) in a flyout under it.
+    const accordion = true;
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const [collapsedCount, setCollapsedCount] = useState(0);
     const [flyout, setFlyout] = useState<{
@@ -1037,7 +1042,7 @@ export function TitleBarRibbon({
         <div
             className={[
                 'sis-ribbon',
-                tab === 'edit' ? 'sis-ribbon--fit' : '',
+                'sis-ribbon--fit',
                 isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
                 isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
                 isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
