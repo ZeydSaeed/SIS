@@ -1989,6 +1989,9 @@ export const ar = {
         acceptedStudentName: 'اسم الطالب',
         sheetAcceptedFilters: 'تصفية طلبات التقديم',
         acceptedStatsVocational: 'الطلبة المقبولين للمدارس المهنية',
+        /** Short names for the follow-up table's category cell (no «الطلبة»). */
+        acceptedStatsVocationalShort: 'مقبول (مهني)',
+        acceptedStatsTransferShort: 'مقبول (تحويل)',
         acceptedStatsTransfer: 'الطلبة المقبولين من الاكاديمي الى المهني',
         acceptedStatsSubmitted: 'الطلبة المرسلين',
         acceptedStatsUnderReview: 'الطلبة قيد التدقيق',

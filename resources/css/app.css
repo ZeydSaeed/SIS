@@ -881,7 +881,8 @@ body.sis-table-col-resizing * {
     min-height: 1.95rem;
     padding-block: 0.12rem;
     padding-inline: 0.8rem;
-    border: 1px solid color-mix(in srgb, var(--sis-pearl) 13%, transparent);
+    /* Page-background tone, faint. */
+    border: 1px solid color-mix(in srgb, var(--sis-curriculum-page) 32%, transparent);
     border-radius: 999px;
     background:
         linear-gradient(
@@ -900,7 +901,7 @@ body.sis-table-col-resizing * {
 }
 
 .sis-titlebar__search .sis-admission-search--pill:hover {
-    border-color: color-mix(in srgb, var(--sis-pearl) 22%, transparent);
+    border-color: color-mix(in srgb, var(--sis-curriculum-page) 48%, transparent);
 }
 
 .sis-titlebar__search .sis-admission-search--pill:focus-within {
@@ -965,13 +966,9 @@ body.sis-table-col-resizing * {
 .sis-titlebar__search .sis-admission-search__brand-mark {
     width: 1.2rem;
     height: 1.2rem;
-    background-color: var(--sis-pearl);
-    opacity: 0.45;
-    transition: opacity 180ms ease;
-}
-
-.sis-titlebar__search .sis-admission-search--pill:focus-within .sis-admission-search__brand-mark {
-    opacity: 0.8;
+    /* Same yellow as the sidebar logo mark. */
+    background-color: #ffff00;
+    opacity: 1;
 }
 
 .sis-titlebar__search .sis-admission-search__clear {
@@ -1720,6 +1717,12 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
     max-width: 21rem;
     padding-inline: 0.4rem;
     overflow: visible;
+}
+
+/* Fixed-size 2×2 filter grid (follow-up, rooms): the group takes the grid's whole width — capped, it overflowed by a
+   few pixels and the ribbon folded every group. */
+.sis-ribbon--students-edit .sis-ribbon__group--filters:has(.sis-ribbon__filters-stack--curriculum) {
+    max-width: none;
 }
 
 .sis-ribbon--students-edit .sis-ribbon__group--filters > .sis-ribbon__group-label {
@@ -19683,41 +19686,65 @@ td.sis-admission-periods-table__num {
    table token. ═══ */
 .sis-follow-up-tone--submitted {
     --follow-up-tone: var(--sis-follow-up-submitted);
+    --follow-up-bg: #eaf2ff; /* the EXAMIS status cell's background */
+    --follow-up-icon: #1447e6; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-dark);
 }
 
 .sis-follow-up-tone--under-review {
     --follow-up-tone: var(--sis-follow-up-under-review);
+    --follow-up-bg: #fdf3d9; /* the EXAMIS status cell's background */
+    --follow-up-icon: #894b00; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-light);
 }
 
 .sis-follow-up-tone--interview {
     --follow-up-tone: var(--sis-follow-up-interview);
+    --follow-up-bg: #e5f8f6; /* the EXAMIS status cell's background */
+    --follow-up-icon: #00786f; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-light);
 }
 
 .sis-follow-up-tone--waitlisted {
     --follow-up-tone: var(--sis-follow-up-waitlisted);
+    --follow-up-bg: #fff0e5; /* the EXAMIS status cell's background */
+    --follow-up-icon: #ca3500; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-dark);
 }
 
 .sis-follow-up-tone--vocational {
     --follow-up-tone: var(--sis-follow-up-vocational);
+    --follow-up-bg: #e5faee; /* the EXAMIS status cell's background */
+    --follow-up-icon: #008236; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-dark);
 }
 
 .sis-follow-up-tone--transfer {
     --follow-up-tone: var(--sis-follow-up-transfer);
+    --follow-up-bg: #e5faee; /* the EXAMIS status cell's background */
+    --follow-up-icon: #008236; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-dark);
 }
 
 .sis-follow-up-tone--rejected {
     --follow-up-tone: var(--sis-follow-up-rejected);
+    --follow-up-bg: #ffeaeb; /* the EXAMIS status cell's background */
+    --follow-up-icon: #c10007; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-dark);
 }
 
 .sis-follow-up-tone--withdrawn {
     --follow-up-tone: var(--sis-follow-up-withdrawn);
+    --follow-up-bg: #f2f1f0; /* the EXAMIS status cell's background */
+    --follow-up-icon: #44403b; /* its icon outline and text */
+    --follow-up-text: var(--follow-up-icon);
     --follow-up-on-tone: var(--sis-admission-status-text-dark);
 }
 
@@ -20718,7 +20745,7 @@ td.sis-admission-periods-table__num {
         background: var(--sis-curriculum-table) !important;
     }
 
-    .sis-follow-up-page :is(.sis-follow-up-table, .sis-follow-up-table__caption, .sis-follow-up-table th, .sis-follow-up-table td, .sis-follow-up-badge__dot, .sis-follow-up-legend__dot, .sis-follow-up-card, .sis-follow-up-card__avatar, .sis-follow-up-bar__segment, .sis-follow-up-status) {
+    .sis-follow-up-page :is(.sis-follow-up-table, .sis-follow-up-table__caption, .sis-follow-up-table th, .sis-follow-up-table td, .sis-follow-up-badge__dot, .sis-follow-up-legend__dot, .sis-follow-up-card, .sis-follow-up-card__avatar, .sis-follow-up-roster__category, .sis-follow-up-bar__segment, .sis-follow-up-status) {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -20799,21 +20826,53 @@ td.sis-admission-periods-table__num {
     margin-inline-start: 0;
 }
 
+/* Sequence column: wider than the students list's 1.5rem, so three-digit numbers sit comfortably. */
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table.sis-follow-up-roster th.sis-admission-drafts-table__num,
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table.sis-follow-up-roster td.sis-admission-drafts-table__num {
+    width: 3rem;
+    min-width: 3rem;
+    max-width: 3rem;
+    padding-inline: 0.25rem;
+    font-size: 0.85rem;
+}
+
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th.sis-follow-up-roster__category,
 .sis-students-page .sis-admission-drafts-table.sis-admission-periods-table td.sis-follow-up-roster__category {
     width: 9.5rem;
     min-width: 9.5rem;
 }
 
+/* Follow-up list: the sequence («#») column is roomier, with space at both sides; every other cell (not the select box)
+   has space at both sides too. The category column keeps its width whatever the name's length (the badge's minimum). */
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table.sis-follow-up-roster th.sis-admission-drafts-table__num,
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table.sis-follow-up-roster td.sis-admission-drafts-table__num {
+    width: 3.5rem;
+    min-width: 3.5rem;
+    max-width: 3.5rem;
+    padding-inline: 1.1rem;
+    font-size: 0.9rem;
+}
+
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table.sis-follow-up-roster :is(th, td):not(.sis-admission-drafts-table__select, .sis-admission-drafts-table__num) {
+    padding-inline: 1.25rem;
+}
+
 .sis-students-page .sis-admission-periods-table td.sis-follow-up-roster__category,
 .sis-students-page .sis-admission-periods-table tbody tr:hover td.sis-follow-up-roster__category,
 .sis-students-page .sis-admission-periods-table tbody tr.sis-admission-periods-table__row--selected td.sis-follow-up-roster__category {
-    /* A light tint of the category colour; the text in the same colour, deeper. */
-    background: color-mix(in srgb, var(--follow-up-tone, transparent) 12%, var(--sis-curriculum-table));
-    color: color-mix(in srgb, var(--follow-up-tone, var(--sis-oxford)) 62%, #000000);
-    font-weight: 600;
+    /* As the EXAMIS «الحالة» cell: its flat background (--follow-up-bg), and the icon outline and the name in one
+       colour (--follow-up-icon / --follow-up-text). */
+    background: var(--follow-up-bg, var(--sis-curriculum-table));
+    color: var(--follow-up-text, var(--sis-oxford));
+    font-weight: 500 !important;
+    white-space: nowrap;
     text-align: center;
     vertical-align: middle;
+}
+
+/* One category listed: the title line takes that category's text colour. */
+.sis-follow-up-table__caption.sis-follow-up-roster__caption[class*='sis-follow-up-tone--'] {
+    color: var(--follow-up-text);
 }
 
 /* Centred both ways in the cell. */
@@ -20826,18 +20885,20 @@ td.sis-admission-periods-table__num {
 .sis-follow-up-roster__badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: center;
+    min-inline-size: 16.5rem; /* keeps the column's width whatever the name's length */
+    gap: 0.375rem;
 }
 
-/* The category icon: outline only (no fill), in the cell's text colour. */
+/* The category icon, before the name: outline only (no background), in the category's icon colour. */
 .sis-follow-up-roster__icon {
     display: inline-grid;
     flex-shrink: 0;
     place-items: center;
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1rem;
+    height: 1rem;
     background: none;
-    color: inherit;
+    color: var(--follow-up-icon, currentColor);
 }
 
 .sis-follow-up-roster__icon svg {

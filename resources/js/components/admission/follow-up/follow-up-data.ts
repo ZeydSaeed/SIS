@@ -41,6 +41,8 @@ export type FollowUpCategoryKey =
 export type FollowUpCategory = {
     key: FollowUpCategoryKey;
     label: string;
+    /** The name alone («مُرسل», «مقبول (مهني)»…), for the list's category cell. */
+    shortLabel: string;
     icon: LucideIcon;
     /** The reason column shown next to the name on the list (rejected / withdrawn). */
     reason?: 'rejection_reason' | 'withdrawal_reason';
@@ -61,30 +63,35 @@ export function followUpCategories(): FollowUpCategory[] {
         {
             key: 'submitted',
             label: a.acceptedStatsSubmitted,
+            shortLabel: a.statusSubmitted,
             icon: Send,
             matches: (s) => s.status === ADMISSION_STATUS_SUBMITTED,
         },
         {
             key: 'underReview',
             label: a.acceptedStatsUnderReview,
+            shortLabel: a.statusUnderReview,
             icon: SearchCheck,
             matches: (s) => s.status === ADMISSION_STATUS_UNDER_REVIEW,
         },
         {
             key: 'interview',
             label: a.acceptedStatsInterview,
+            shortLabel: a.statusInterview,
             icon: MessagesSquare,
             matches: (s) => s.status === ADMISSION_STATUS_INTERVIEW,
         },
         {
             key: 'waitlisted',
             label: a.acceptedStatsWaitlisted,
+            shortLabel: a.statusWaitlisted,
             icon: Hourglass,
             matches: (s) => s.status === ADMISSION_STATUS_WAITLISTED,
         },
         {
             key: 'vocational',
             label: a.acceptedStatsVocational,
+            shortLabel: a.acceptedStatsVocationalShort,
             icon: GraduationCap,
             matches: (s) =>
                 s.status === ADMISSION_STATUS_CONVERTED &&
@@ -93,6 +100,7 @@ export function followUpCategories(): FollowUpCategory[] {
         {
             key: 'transfer',
             label: a.acceptedStatsTransfer,
+            shortLabel: a.acceptedStatsTransferShort,
             icon: ArrowLeftRight,
             matches: (s) =>
                 s.status === ADMISSION_STATUS_CONVERTED &&
@@ -101,6 +109,7 @@ export function followUpCategories(): FollowUpCategory[] {
         {
             key: 'rejected',
             label: a.acceptedStatsRejected,
+            shortLabel: a.statusRejected,
             icon: XOctagon,
             reason: 'rejection_reason',
             matches: (s) => s.status === ADMISSION_STATUS_REJECTED,
@@ -108,6 +117,7 @@ export function followUpCategories(): FollowUpCategory[] {
         {
             key: 'withdrawn',
             label: a.acceptedStatsWithdrawn,
+            shortLabel: a.statusWithdrawn,
             icon: LogOut,
             reason: 'withdrawal_reason',
             matches: (s) => s.status === ADMISSION_STATUS_WITHDRAWN,

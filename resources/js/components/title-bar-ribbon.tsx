@@ -858,7 +858,10 @@ export function TitleBarRibbon({
         const clipped =
             body.scrollWidth > body.clientWidth + 1 ||
             Array.from(
-                body.querySelectorAll<HTMLElement>('.sis-ribbon__items'),
+                // A folded group's own button never counts: folding more would not help it.
+                body.querySelectorAll<HTMLElement>(
+                    '.sis-ribbon__group:not(.sis-ribbon__group--collapsed) .sis-ribbon__items',
+                ),
             ).some((items) => items.scrollWidth > items.clientWidth + 1);
         if (clipped) {
             setCollapsedCount((count) => count + 1);

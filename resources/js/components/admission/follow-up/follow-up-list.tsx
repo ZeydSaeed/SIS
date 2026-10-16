@@ -589,14 +589,6 @@ export function FollowUpList({
             });
         }
     }
-    if (query.q !== '') {
-        chips.push({
-            key: 'q',
-            label: `«${query.q}»`,
-            remove: () => visit({ q: '' }),
-        });
-    }
-
     const goPage = (next: number) => {
         if (next >= 1 && next <= lastPage && next !== page) {
             visit({ page: next });
@@ -651,7 +643,11 @@ export function FollowUpList({
                     <>
                         {/* The table's title band: what is listed and how many (over every page). */}
                         <div
-                            className="sis-follow-up-table__caption sis-follow-up-roster__caption"
+                            className={`sis-follow-up-table__caption sis-follow-up-roster__caption${
+                                chosenCategories.length === 1
+                                    ? ` sis-follow-up-tone--${categoryToken(chosenCategories[0].key)}`
+                                    : ''
+                            }`}
                             aria-hidden
                         >
                             <span>{title}</span>
@@ -928,19 +924,19 @@ export function FollowUpList({
                                                         CategoryIcon ? (
                                                             <CellScroll>
                                                                 <span className="sis-follow-up-roster__badge">
-                                                                    {/* The icon of the category's overview card, in the card's colour. */}
+                                                                    {/* The icon of the category's overview card, before the name, in its colour (as EXAMIS). */}
                                                                     <span
                                                                         className="sis-follow-up-roster__icon"
                                                                         aria-hidden
                                                                     >
                                                                         <CategoryIcon
                                                                             strokeWidth={
-                                                                                2.25
+                                                                                2
                                                                             }
                                                                         />
                                                                     </span>
                                                                     {
-                                                                        rowCategory.label
+                                                                        rowCategory.shortLabel
                                                                     }
                                                                 </span>
                                                             </CellScroll>
