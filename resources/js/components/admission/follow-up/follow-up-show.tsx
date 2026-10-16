@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { FileText, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { documentTypeLabel } from '@/components/admission/admission-document-types';
 import type { AdmissionAcceptedStudent } from '@/components/admission/admission-workspace';
@@ -390,13 +390,6 @@ export function FollowUpShow({ application, canManage, canViewPii }: Props) {
                     />
                     <div className="sis-follow-up-table sis-follow-up-table--summary">
                         <table>
-                            <caption className="sis-follow-up-table__caption">
-                                <FileText className="size-4" aria-hidden />
-                                <span>{a.followUpDocuments}</span>
-                                <CaptionCount
-                                    count={application.documents.length}
-                                />
-                            </caption>
                             {application.documents.length === 0 ? (
                                 <tbody>
                                     <tr>

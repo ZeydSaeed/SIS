@@ -20072,8 +20072,9 @@ td.sis-admission-periods-table__num {
     position: sticky;
     top: 0;
     z-index: 2;
-    background: var(--sis-night);
-    color: var(--sis-pearl);
+    /* Same header colour as the follow-up list (the students table). */
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
     font-weight: var(--sis-table-header-weight);
 }
 
@@ -20512,12 +20513,8 @@ td.sis-admission-periods-table__num {
 .sis-follow-up-table__caption {
     caption-side: top;
     padding: 0.5rem 0.75rem 0.45rem;
-    border-block-end: 3px solid var(--sis-follow-up-caption-edge);
-    background: linear-gradient(
-        to bottom,
-        color-mix(in srgb, var(--sis-follow-up-caption) 82%, #ffffff),
-        var(--sis-follow-up-caption)
-    );
+    border-block-end: 0;
+    background: var(--sidebar); /* same as the sidebar */
     color: #ffffff;
     font-size: 0.9375rem;
     font-weight: 700;
@@ -20541,7 +20538,7 @@ td.sis-admission-periods-table__num {
 }
 
 .sis-follow-up-table__caption-count {
-    display: inline-block;
+    display: none;
     /* Clear space between the title and its count («الطلبة الاحتياط   3»). */
     margin-inline-start: 1rem;
     min-width: 1.9rem;
@@ -20611,23 +20608,11 @@ td.sis-admission-periods-table__num {
 }
 
 /* «عرض» window: one application at a time, sliding between them — nothing scrolls. */
-.sis-follow-up-sheet.sis-student-sheet-dialog {
-    width: min(68rem, calc(100vw - 2rem));
-}
-
-.sis-follow-up-sheet__sheet {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    max-height: calc(100vh - 2rem);
-    overflow: hidden !important;
-}
-
+/* Same window as «طلب قبول جديد» (size, colours, scrolling form) — only the slide stage is its own. */
 .sis-follow-up-sheet__stage {
     position: relative;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
+    flex: 0 0 auto;
+    overflow-x: hidden;
 }
 
 .sis-follow-up-sheet__page {
@@ -20794,6 +20779,7 @@ td.sis-admission-periods-table__num {
 }
 
 .sis-follow-up-roster__caption .sis-follow-up-table__caption-count {
+    display: inline-block;
     margin-inline-start: 0;
 }
 
@@ -20802,23 +20788,8 @@ td.sis-admission-periods-table__num {
 }
 
 /* «عرض» window: the same green band (title and count, centred) over each table. */
-.sis-admission-sheet__banner.sis-follow-up-sheet__table-title {
-    padding: 0.3rem 0.55rem 0.25rem;
-    border-block-end: 3px solid var(--sis-follow-up-caption-edge);
-    background: linear-gradient(
-        to bottom,
-        color-mix(in srgb, var(--sis-follow-up-caption) 82%, #ffffff),
-        var(--sis-follow-up-caption)
-    );
-    color: #ffffff;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    text-align: center;
-}
-
 .sis-follow-up-sheet__table-title .sis-follow-up-table__caption-count {
     margin-inline-start: 0.75rem;
-    font-size: 0.75rem;
 }
 
 .sis-follow-up-roster__chips {
@@ -20922,4 +20893,40 @@ td.sis-admission-periods-table__num {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
+}
+
+/* «عرض الطلب» page: every table's title band takes the documents table's header colour. */
+.sis-follow-up-show .sis-follow-up-table__caption {
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+}
+
+/* «عرض» window: the title bar and the «عرض» / «إغلاق» buttons take the documents table header colour (chrome navy);
+   the table titles take the colour of the section bands («معلومات الوالدين»). */
+.sis-admission-sheet-dialog.sis-follow-up-sheet .sis-admission-sheet__hero {
+    background: var(--sis-curriculum-chrome) !important;
+    color: #ffffff !important;
+}
+
+.sis-admission-sheet-dialog.sis-follow-up-sheet .sis-follow-up-sheet__actions button:not(.sis-follow-up-sheet__pager button) {
+    background: var(--sis-curriculum-chrome) !important;
+    border-color: var(--sis-curriculum-chrome) !important;
+    color: #ffffff !important;
+}
+
+/* «عرض» window: «عرض» / «إغلاق» sit at the very bottom of the form, whatever the height of the content. */
+.sis-follow-up-sheet__sheet > .sis-follow-up-sheet__actions {
+    margin-top: auto;
+}
+
+/* Student info sheet: the form fills the whole window (the generic 92vh cap left a strip under the buttons), so
+   «إغلاق» / «تعديل» sit at the very bottom of the window. */
+.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-admission-sheet-dialog.sis-student-info-sheet:not(.sis-admission-sheet-dialog--maximized):not([data-placed='true'])
+    > .sis-admission-sheet.sis-admission-sheet.sis-admission-sheet {
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+.sis-student-sheet-dialog.sis-student-info-sheet .sis-student-record-form > .sis-admission-sheet__actions {
+    margin-top: auto !important;
 }

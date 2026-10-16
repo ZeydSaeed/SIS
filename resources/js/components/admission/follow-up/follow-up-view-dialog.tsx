@@ -104,50 +104,107 @@ function ApplicationSheet({
     canViewPii: boolean;
 }) {
     const a = t().admission;
-    const fullName = [
-        application.first_name,
-        application.father_name,
-        application.grandfather_name,
-        application.great_grandfather_name,
-        application.last_name,
-    ]
-        .filter(Boolean)
-        .join(' ');
+    const id = application.id;
 
     return (
         <>
             <SheetSection
-                id={`follow-up-applicant-${application.id}`}
-                title={a.followUpApplicantData}
+                id={`follow-up-registration-${id}`}
+                title={a.sheetRegistrationInfo}
             >
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
+                    <Field
+                        label={a.academicYear}
+                        value={application.academic_year_name}
+                        dir="ltr"
+                    />
+                    <Field
+                        label={t().students.schoolName}
+                        value={application.school_name}
+                    />
+                    <Field label={a.branch} value={application.branch_name} />
+                    <Field
+                        label={a.specialization}
+                        value={
+                            application.department_name ??
+                            application.specialization_name
+                        }
+                    />
+                    <Field
+                        label={a.requestTypeTitle}
+                        value={
+                            application.request_kind === 1
+                                ? a.followUpChannelTransfer
+                                : a.followUpChannelVocational
+                        }
+                    />
+                </div>
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-admission-sheet__row--after-gap">
+                    <Field
+                        label={a.gradeLevel}
+                        value={application.grade_name}
+                    />
                     <Field
                         label={a.applicationNumber}
                         value={application.application_number}
                         dir="ltr"
                     />
                     <Field
-                        label={t().students.quadName}
-                        value={fullName}
-                        wide
-                    />
-                    <Field
                         label={t().common.status}
                         value={applicationStatusLabel(application.status)}
                     />
                     <Field
-                        label={a.motherName}
-                        value={application.mother_name}
+                        label={a.followUpSubmittedAt}
+                        value={when(application.submitted_at)}
+                        dir="ltr"
+                    />
+                    <Field
+                        label={a.followUpReviewer}
+                        value={application.reviewer_name}
                     />
                 </div>
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                     <Field
-                        label={a.maternalFatherName}
-                        value={application.maternal_father_name}
+                        label={a.followUpPeriod}
+                        value={application.period_name}
                     />
                     <Field
-                        label={a.maternalGrandfatherName}
-                        value={application.maternal_grandfather_name}
+                        label={a.followUpReason}
+                        value={
+                            application.rejection_reason ??
+                            application.withdrawal_reason ??
+                            application.notes
+                        }
+                        wide
+                    />
+                </div>
+            </SheetSection>
+            <SheetSection
+                id={`follow-up-personal-${id}`}
+                title={a.sheetPersonalInfo}
+            >
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--5">
+                    <Field label={a.studentName} value={application.first_name} />
+                    <Field label={a.fatherName} value={application.father_name} />
+                    <Field
+                        label={a.grandfatherName}
+                        value={application.grandfather_name}
+                    />
+                    <Field
+                        label={a.greatGrandfatherName}
+                        value={application.great_grandfather_name}
+                    />
+                    <Field label={a.lastName} value={application.last_name} />
+                </div>
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
+                    <Field
+                        label={a.birthDate}
+                        value={application.birth_date}
+                        dir="ltr"
+                    />
+                    <Field
+                        label={a.birthPlace}
+                        value={application.birth_place}
                     />
                     <Field
                         label={a.nationalId}
@@ -159,17 +216,6 @@ function ApplicationSheet({
                         dir="ltr"
                     />
                     <Field
-                        label={a.birthDate}
-                        value={application.birth_date}
-                        dir="ltr"
-                    />
-                    <Field
-                        label={a.birthPlace}
-                        value={application.birth_place}
-                    />
-                </div>
-                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
-                    <Field
                         label={a.gender}
                         value={
                             application.gender === 2
@@ -177,6 +223,32 @@ function ApplicationSheet({
                                 : a.genderMale
                         }
                     />
+                </div>
+            </SheetSection>
+            <SheetSection
+                id={`follow-up-parents-${id}`}
+                title={a.sheetParentsInfo}
+            >
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
+                    <Field
+                        label={a.motherName}
+                        value={application.mother_name}
+                    />
+                    <Field
+                        label={a.maternalFatherName}
+                        value={application.maternal_father_name}
+                    />
+                    <Field
+                        label={a.maternalGrandfatherName}
+                        value={application.maternal_grandfather_name}
+                    />
+                </div>
+            </SheetSection>
+            <SheetSection
+                id={`follow-up-residence-${id}`}
+                title={a.sheetResidenceInfo}
+            >
+                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
                     <Field
                         label={a.governorate}
                         value={application.governorate}
@@ -184,65 +256,6 @@ function ApplicationSheet({
                     <Field
                         label={a.neighborhood}
                         value={application.neighborhood}
-                    />
-                </div>
-            </SheetSection>
-            <SheetSection
-                id={`follow-up-request-${application.id}`}
-                title={a.followUpRequestData}
-            >
-                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
-                    <Field
-                        label={a.followUpChannel}
-                        value={
-                            application.request_kind === 1
-                                ? a.followUpChannelTransfer
-                                : a.followUpChannelVocational
-                        }
-                    />
-                    <Field
-                        label={a.filterBySchool}
-                        value={application.school_name}
-                    />
-                    <Field
-                        label={a.academicYear}
-                        value={application.academic_year_name}
-                        dir="ltr"
-                    />
-                    <Field
-                        label={a.followUpPeriod}
-                        value={application.period_name}
-                    />
-                    <Field
-                        label={a.followUpSubmittedAt}
-                        value={when(application.submitted_at)}
-                        dir="ltr"
-                    />
-                </div>
-                <div className="sis-admission-sheet__row sis-admission-sheet__row--track5">
-                    <Field
-                        label={a.gradeLevel}
-                        value={application.grade_name}
-                    />
-                    <Field label={a.branch} value={application.branch_name} />
-                    <Field
-                        label={a.department}
-                        value={
-                            application.department_name ??
-                            application.specialization_name
-                        }
-                    />
-                    <Field
-                        label={a.followUpReviewer}
-                        value={application.reviewer_name}
-                    />
-                    <Field
-                        label={a.followUpReason}
-                        value={
-                            application.rejection_reason ??
-                            application.withdrawal_reason ??
-                            application.notes
-                        }
                     />
                 </div>
             </SheetSection>
@@ -408,7 +421,7 @@ export function FollowUpViewDialog({
         >
             <DialogContent
                 ref={contentRef}
-                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-student-info-sheet sis-window--movable sis-follow-up-sheet${maximizeClassName}`}
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-follow-up-sheet${maximizeClassName}`}
                 overlayClassName="sis-admission-sheet-dialog__overlay"
                 dir="rtl"
                 lang="ar"
