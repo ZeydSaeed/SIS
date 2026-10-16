@@ -39,6 +39,9 @@ final class OpsWorkflowPagesSmokePostgreSqlTest extends PostgreSqlIntegrationTes
             ->where('workspace.accepted_students_included', true)
             ->has('workspace.accepted_students')
             ->has('workspace.school_options', 1));
+        $this->get('/admission/follow-up/list?category=rejected')->assertOk()->assertInertia(fn ($page) => $page
+            ->component('admission/follow-up-list')
+            ->where('workspace.accepted_students_included', true));
 
         // «المديريات والمدارس»: directorates → the user's schools → branches.
         $this->get('/organization/directorates-schools')->assertOk()->assertInertia(fn ($page) => $page

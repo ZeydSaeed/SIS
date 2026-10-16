@@ -40,6 +40,16 @@ interface AdmissionReadRepositoryInterface
     public function acceptedRoster(array $schoolIds, int $academicYearId): array;
 
     /**
+     * «متابعة طلبات التقديم» › applications of one school (read in that school's context), in the order asked
+     * for: their data with period, year, school, branch, department, grade and reviewer names, their registered
+     * documents (no storage keys) and their status history (oldest first). Ids the school does not hold are left out.
+     *
+     * @param  list<int>  $applicationIds
+     * @return list<array<string, mixed>>
+     */
+    public function followUpApplications(int $schoolId, array $applicationIds): array;
+
+    /**
      * Applications of the school that can still move (not converted to a student).
      *
      * @return array{rows: list<array<string, mixed>>, total: int}

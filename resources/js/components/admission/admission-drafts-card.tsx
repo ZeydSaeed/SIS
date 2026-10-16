@@ -1,4 +1,4 @@
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { Home, Pencil, Save, Trash2, XCircle } from 'lucide-react';
 import {
     forwardRef,
@@ -11,6 +11,7 @@ import {
     type ReactNode,
 } from 'react';
 import { AdmissionDateTimeField } from '@/components/admission/admission-date-time-field';
+import { documentTypeLabel } from '@/components/admission/admission-document-types';
 import { AdmissionStatusReasonDialog } from '@/components/admission/admission-status-reason-dialog';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { SisListSelect } from '@/components/sis/sis-list-select';
@@ -124,23 +125,6 @@ function applicationStatusLabel(status: number): string {
     };
 
     return map[status] ?? String(status);
-}
-
-function documentTypeLabel(type: number): string {
-    const i18n = t().admission;
-    if (type === 1) return i18n.documentTypeId;
-    if (type === 2) return i18n.documentTypeBirth;
-    if (type === 3) return i18n.documentTypePhoto;
-    if (type === 11) return i18n.docStudentIdFront;
-    if (type === 12) return i18n.docStudentIdBack;
-    if (type === 13) return i18n.docFatherIdFront;
-    if (type === 14) return i18n.docFatherIdBack;
-    if (type === 15) return i18n.docMotherIdFront;
-    if (type === 16) return i18n.docMotherIdBack;
-    if (type === 17) return i18n.docResidenceFront;
-    if (type === 18) return i18n.docResidenceBack;
-    if (type === 19) return i18n.docGraduationCertificate;
-    return i18n.documentTypeOther;
 }
 
 function formatWhen(value: string | null): string {
@@ -1181,24 +1165,6 @@ export function AdmissionDraftsCard({
 
     return (
         <section aria-label={stageLabel} className="flex min-h-0 flex-1 flex-col gap-3">
-            {homeHref ? (
-                <div className="sis-admission-drafts-table-home">
-                    <Link
-                        href={homeHref}
-                        prefetch
-                        className="sis-admission-drafts-home"
-                        aria-label={i18n.admission.backToAdmission}
-                    >
-                        <ion-icon
-                            name="arrow-up-right-box-outline"
-                            class="sis-admission-drafts-home__ion"
-                            dir="ltr"
-                            flip-rtl="false"
-                            aria-hidden="true"
-                        ></ion-icon>
-                    </Link>
-                </div>
-            ) : null}
             {rows.length === 0 ? (
                 <p className="text-sm">{emptyMessage}</p>
             ) : (

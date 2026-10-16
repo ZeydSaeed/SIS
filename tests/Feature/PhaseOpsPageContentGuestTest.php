@@ -34,6 +34,8 @@ final class PhaseOpsPageContentGuestTest extends TestCase
         $this->get('/admission/accepted')->assertRedirect('/login');
         $this->get('/admission/converted')->assertRedirect('/login');
         $this->get('/admission/follow-up')->assertRedirect('/login');
+        $this->get('/admission/follow-up/list')->assertRedirect('/login');
+        $this->get('/admission/follow-up/applications/1')->assertRedirect('/login');
         $this->post('/admission/applications/bulk-transition')->assertRedirect('/login');
     }
 }

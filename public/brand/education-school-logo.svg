@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 276 230" width="276" height="230" role="img" aria-labelledby="t">
+  <title id="t">Education School</title>
+  <rect width="276" height="230" fill="#F1E0C9"/>
+
+  <!-- Graduation cap -->
+  <path d="M91 36 L126 18 L160 34 L125 46 Z" fill="#E8683A"/>
+  <path d="M106 43 L106 52 Q124 60 142 52 L142 41 L125 46 Z" fill="#E8683A"/>
+  <path d="M160 34 L163 52" stroke="#E8683A" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Head and headset -->
+  <circle cx="124" cy="62" r="14" fill="#E8683A"/>
+  <path d="M110 58 Q106 60 105 66 L90 63" fill="none" stroke="#E8683A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="66" y="57" width="22" height="7" rx="3.5" fill="#E8683A"/>
+
+  <!-- Arm sweeping left -->
+  <path d="M16 64 C44 70 84 80 118 78 L138 84 C110 94 70 92 16 64 Z" fill="#E8683A"/>
+  <!-- Torso and leg -->
+  <path d="M112 78 L138 84 C136 100 126 112 116 124 C104 150 98 180 84 202 C78 212 70 216 62 218 C76 196 84 168 92 140 C98 120 106 100 112 78 Z" fill="#E8683A"/>
+
+  <!-- Open book: fanned pages -->
+  <g stroke="#2E2E2E" stroke-width="9" stroke-linecap="butt" fill="none">
+    <path d="M152 132 L92 124"/>
+    <path d="M152 130 L100 112"/>
+    <path d="M152 128 L118 104"/>
+    <path d="M152 127 L140 100"/>
+    <path d="M152 132 L250 122"/>
+    <path d="M152 130 L238 110"/>
+    <path d="M152 128 L214 102"/>
+    <path d="M152 127 L186 100"/>
+  </g>
+  <path d="M90 130 Q152 164 252 126 L252 132 Q152 172 90 136 Z" fill="#2E2E2E"/>
+
+  <!-- Text -->
+  <text x="92" y="196" font-family="'Arial Black','Segoe UI',Arial,sans-serif" font-weight="900" font-size="29" fill="#111111" textLength="178" lengthAdjust="spacingAndGlyphs">EDUCATION</text>
+  <text x="130" y="216" font-family="'Segoe UI',Arial,sans-serif" font-size="13" letter-spacing="5" fill="#111111">School</text>
+</svg>

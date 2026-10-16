@@ -26,6 +26,8 @@ use App\Application\Admission\Commands\UpdateApplicationPeriodCommand;
 use App\Application\Admission\Commands\UpdateApplicationPeriodHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceHandler;
 use App\Application\Admission\Queries\GetAdmissionWorkspaceQuery;
+use App\Application\Admission\Queries\GetFollowUpApplicationsHandler;
+use App\Application\Admission\Queries\GetFollowUpApplicationsQuery;
 use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
@@ -185,7 +187,7 @@ final class AdmissionPageController extends Controller
     }
 
     /**
-     * «متابعة طلبات التقديم»: the follow-up roster of every application, by status and admission channel.
+     * «متابعة طلبات التقديم»: overview of the follow-up roster — share and count of every category.
      */
     public function followUp(Request $request, GetAdmissionWorkspaceHandler $handler): Response
     {
@@ -197,6 +199,128 @@ final class AdmissionPageController extends Controller
             includeApplications: false,
             includeAcceptedRoster: true,
         );
+    }
+
+    /**
+     * «متابعة طلبات التقديم» › a category: the applications of that category (or all), as a list.
+     */
+    public function followUpList(
+        Request $request,
+        GetAdmissionWorkspaceHandler $handler,
+        GetFollowUpApplicationsHandler $applications,
+    ): Response {
+        // «عرض» of the selection: a partial reload of `viewing` alone — the roster is not read again.
+        if ($request->header('X-Inertia-Partial-Data') === 'viewing') {
+            return Inertia::render('admission/follow-up-list', [
+                'viewing' => $this->followUpViewing($request, $applications),
+            ]);
+        }
+
+        return $this->workspacePage(
+            $request,
+            $handler,
+            'admission/follow-up-list',
+            'admission.web.follow_up_list',
+            includeApplications: false,
+            includeAcceptedRoster: true,
+        );
+    }
+
+    /**
+     * «متابعة طلبات التقديم» › one application. The roster spans the user's schools, so the application's school
+     * comes with the link (`school_id`) and must be one of them; anything else is not found.
+     */
+    public function followUpShow(Request $request, int $application, GetFollowUpApplicationsHandler $handler): Response
+    {
+        $user = $request->user();
+        assert($user !== null);
+
+        if (! $user->can('viewAdmission')) {
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $request->filled('school_id')
+            ? (int) $request->query('school_id')
+            : $this->schoolContext->requireId();
+        abort_unless(in_array($schoolId, $this->schoolScope->allowedSchoolIds($user), true), 404);
+
+        $result = $handler->handle(new GetFollowUpApplicationsQuery($schoolId, [$application]))[0] ?? null;
+        abort_if($result === null, 404);
+
+        $canViewPii = $this->studentPolicy->viewPii($user);
+        if (! $canViewPii) {
+            $result['national_id'] = null;
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataAccess,
+            'admission.web.follow_up_application',
+            'allowed',
+            $user,
+            "admission_application:{$application}",
+            ['school_id' => $schoolId],
+        );
+
+        return Inertia::render('admission/follow-up-show', [
+            'application' => $result,
+            'authorization' => [
+                'can_manage' => $user->can('manageAdmission'),
+                'can_view_student_pii' => $canViewPii,
+            ],
+        ]);
+    }
+
+    /**
+     * The applications chosen for «عرض» on the follow-up list: `view` = "id:school,id:school" (at most 100), each
+     * read in its own school — only the user's schools; anything else is left out. In the order chosen.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function followUpViewing(Request $request, GetFollowUpApplicationsHandler $applications): array
+    {
+        $user = $request->user();
+        assert($user !== null);
+
+        if (! $user->can('viewAdmission')) {
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $allowed = $this->schoolScope->allowedSchoolIds($user);
+        $wanted = [];
+        $idsBySchool = [];
+        foreach (array_slice(explode(',', (string) $request->query('view', '')), 0, 100) as $pair) {
+            [$id, $school] = array_pad(array_map('intval', explode(':', $pair, 2)), 2, 0);
+            if ($id > 0 && in_array($school, $allowed, true)) {
+                $wanted[] = $id;
+                $idsBySchool[$school][] = $id;
+            }
+        }
+
+        $byId = [];
+        foreach ($idsBySchool as $schoolId => $ids) {
+            foreach ($applications->handle(new GetFollowUpApplicationsQuery($schoolId, $ids)) as $row) {
+                $byId[(int) $row['id']] = $row;
+            }
+        }
+
+        $canViewPii = $this->studentPolicy->viewPii($user);
+        $viewing = [];
+        foreach (array_unique($wanted) as $id) {
+            if (isset($byId[$id])) {
+                $viewing[] = $canViewPii ? $byId[$id] : ['national_id' => null] + $byId[$id];
+            }
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::AdmissionDataAccess,
+            'admission.web.follow_up_view',
+            'allowed',
+            $user,
+            'admission',
+            ['applications' => count($viewing)],
+        );
+
+        return $viewing;
     }
 
     private function stageWorkspacePage(

@@ -813,7 +813,8 @@ export function TitleBarRibbon({
         path === '/curriculum' || path.startsWith('/curriculum/');
     const isEnrollmentsPage =
         path === '/enrollments' || path.startsWith('/enrollments/');
-    const isFollowUpPage = path === '/admission/follow-up';
+    const isFollowUpPage =
+        path === '/admission/follow-up' || path.startsWith('/admission/follow-up/');
     const isStudentsPage =
         path === '/students' ||
         path.startsWith('/students/') ||

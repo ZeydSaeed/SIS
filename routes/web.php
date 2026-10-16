@@ -142,6 +142,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/converted', [AdmissionPageController::class, 'converted'])->name('converted');
         // «متابعة طلبات التقديم»: a full page with its own ribbon (was a window over the admission page).
         Route::get('/follow-up', [AdmissionPageController::class, 'followUp'])->name('follow-up');
+        // Its derived list: the applications of one category (or all), filtered and paged.
+        Route::get('/follow-up/list', [AdmissionPageController::class, 'followUpList'])->name('follow-up.list');
+        // One application of the follow-up roster: data, documents, history and its status actions.
+        Route::get('/follow-up/applications/{application}', [AdmissionPageController::class, 'followUpShow'])
+            ->whereNumber('application')
+            ->name('follow-up.show');
         Route::post('/periods', [AdmissionPageController::class, 'storePeriod'])->name('periods.store');
         Route::put('/periods/{period}', [AdmissionPageController::class, 'updatePeriod'])
             ->whereNumber('period')

@@ -1,7 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { useCallback } from 'react';
 import { TitleBarHistory } from '@/components/title-bar-history';
-import { TitleBarLanguage } from '@/components/title-bar-language';
 import { TitleBarPageNav } from '@/components/title-bar-page-nav';
 import { WindowControls } from '@/components/window-controls';
 import { t } from '@/i18n';
@@ -29,7 +28,7 @@ export function TitleBarControls() {
         }
     }, [isDashboard]);
 
-    // Right of the close (X) button: «التالية» / «السابقة» page arrows, then «رجوع» / «تقدم» (unsaved edits), then «English» / «عربي».
+    // Right of the close (X) button: «التالية» / «السابقة» page arrows, then «رجوع» / «تقدم» (unsaved edits).
     return (
         <>
             <WindowControls
@@ -46,7 +45,6 @@ export function TitleBarControls() {
             />
             <TitleBarPageNav />
             <TitleBarHistory />
-            <TitleBarLanguage />
         </>
     );
 }

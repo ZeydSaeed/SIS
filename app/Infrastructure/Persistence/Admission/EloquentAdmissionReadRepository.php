@@ -4,6 +4,7 @@ namespace App\Infrastructure\Persistence\Admission;
 
 use App\Application\Admission\Contracts\AdmissionReadRepositoryInterface;
 use App\Database\SchemaHelper;
+use App\Domain\Admission\Events\ApplicationStatusTransitioned;
 use App\Domain\Admission\ValueObjects\ApplicationPeriodStatus;
 use App\Domain\Admission\ValueObjects\ApplicationStatus;
 use App\Security\Context\SchoolContextScope;
@@ -45,6 +46,189 @@ final class EloquentAdmissionReadRepository implements AdmissionReadRepositoryIn
         }
 
         return $roster;
+    }
+
+    public function followUpApplications(int $schoolId, array $applicationIds): array
+    {
+        $applicationIds = array_values(array_unique(array_map('intval', $applicationIds)));
+        if ($applicationIds === []) {
+            return [];
+        }
+
+        return $this->schoolScope->run($schoolId, function () use ($schoolId, $applicationIds): array {
+            $rows = DB::table(SchemaHelper::qualified('admission', 'applications').' as apps')
+                ->join(SchemaHelper::qualified('admission', 'application_periods').' as periods', 'periods.id', '=', 'apps.application_period_id')
+                ->join(SchemaHelper::qualified('academic', 'academic_years').' as years', 'years.id', '=', 'periods.academic_year_id')
+                ->leftJoin(SchemaHelper::qualified('organization', 'schools').' as schools', 'schools.id', '=', 'apps.school_id')
+                ->leftJoin(SchemaHelper::qualified('organization', 'branches').' as br', 'br.id', '=', 'apps.branch_id')
+                ->leftJoin(SchemaHelper::qualified('organization', 'departments').' as dep', 'dep.id', '=', 'apps.department_id')
+                ->leftJoin(SchemaHelper::qualified('academic', 'grade_levels').' as gl', 'gl.id', '=', 'apps.grade_level_id')
+                ->leftJoin('users as reviewer', 'reviewer.id', '=', 'apps.reviewed_by')
+                ->whereIn('apps.id', $applicationIds)
+                ->where('apps.school_id', $schoolId)
+                ->get([
+                    'apps.id',
+                    'apps.application_number',
+                    'apps.first_name',
+                    'apps.father_name',
+                    'apps.grandfather_name',
+                    'apps.great_grandfather_name',
+                    'apps.last_name',
+                    'apps.mother_name',
+                    'apps.maternal_father_name',
+                    'apps.maternal_grandfather_name',
+                    'apps.national_id',
+                    'apps.birth_date',
+                    'apps.birth_place',
+                    'apps.gender',
+                    'apps.governorate',
+                    'apps.neighborhood',
+                    'apps.request_kind',
+                    'apps.status',
+                    'apps.notes',
+                    'apps.rejection_reason',
+                    'apps.withdrawal_reason',
+                    'apps.submitted_at',
+                    'apps.reviewed_at',
+                    'apps.student_id',
+                    'apps.created_at',
+                    'apps.updated_at',
+                    'apps.intended_grade_name',
+                    'apps.specialization_name',
+                    'periods.id as period_id',
+                    'periods.name as period_name',
+                    'years.id as academic_year_id',
+                    'years.name as academic_year_name',
+                    'schools.name as school_name',
+                    DB::raw('COALESCE(br.name, apps.branch_name) as branch_name'),
+                    DB::raw('COALESCE(dep.name, apps.department_name) as department_name'),
+                    'gl.name as grade_name',
+                    'reviewer.name as reviewer_name',
+                ]);
+            if ($rows->isEmpty()) {
+                return [];
+            }
+
+            $foundIds = array_values($rows->map(static fn ($row): int => (int) $row->id)->all());
+            $documentsByApplication = [];
+            foreach (DB::table(SchemaHelper::qualified('admission', 'application_documents'))
+                ->whereIn('application_id', $foundIds)
+                ->orderBy('id')
+                ->get(['id', 'application_id', 'document_type', 'file_name', 'created_at']) as $document) {
+                $documentsByApplication[(int) $document->application_id][] = [
+                    'id' => (int) $document->id,
+                    'document_type' => (int) $document->document_type,
+                    'file_name' => (string) $document->file_name,
+                    'created_at' => $document->created_at !== null ? (string) $document->created_at : null,
+                ];
+            }
+            $historyByApplication = $this->applicationStatusHistory($foundIds);
+
+            $text = static fn (mixed $value): ?string => $value !== null && trim((string) $value) !== '' ? trim((string) $value) : null;
+            $byId = [];
+            foreach ($rows as $row) {
+                $id = (int) $row->id;
+                $byId[$id] = [
+                    'id' => $id,
+                    'school_id' => $schoolId,
+                    'school_name' => (string) ($row->school_name ?? ''),
+                    'application_number' => (string) $row->application_number,
+                    'first_name' => (string) $row->first_name,
+                    'father_name' => $text($row->father_name),
+                    'grandfather_name' => $text($row->grandfather_name),
+                    'great_grandfather_name' => $text($row->great_grandfather_name),
+                    'last_name' => (string) $row->last_name,
+                    'mother_name' => $text($row->mother_name),
+                    'maternal_father_name' => $text($row->maternal_father_name),
+                    'maternal_grandfather_name' => $text($row->maternal_grandfather_name),
+                    'national_id' => $text($row->national_id),
+                    'birth_date' => substr((string) $row->birth_date, 0, 10),
+                    'birth_place' => $text($row->birth_place),
+                    'gender' => (int) $row->gender,
+                    'governorate' => $text($row->governorate),
+                    'neighborhood' => $text($row->neighborhood),
+                    'request_kind' => (int) ($row->request_kind ?? 2),
+                    'status' => (int) $row->status,
+                    'notes' => $text($row->notes),
+                    'rejection_reason' => $text($row->rejection_reason),
+                    'withdrawal_reason' => $text($row->withdrawal_reason),
+                    'submitted_at' => $row->submitted_at !== null ? (string) $row->submitted_at : null,
+                    'reviewed_at' => $row->reviewed_at !== null ? (string) $row->reviewed_at : null,
+                    'reviewer_name' => $text($row->reviewer_name),
+                    'student_id' => $row->student_id !== null ? (int) $row->student_id : null,
+                    'created_at' => (string) $row->created_at,
+                    'updated_at' => (string) $row->updated_at,
+                    'period_id' => (int) $row->period_id,
+                    'period_name' => (string) $row->period_name,
+                    'academic_year_id' => (int) $row->academic_year_id,
+                    'academic_year_name' => (string) $row->academic_year_name,
+                    'branch_name' => $text($row->branch_name),
+                    'department_name' => $text($row->department_name),
+                    'specialization_name' => $text($row->specialization_name),
+                    'grade_name' => $text($row->grade_name) ?? $text($row->intended_grade_name),
+                    'documents' => $documentsByApplication[$id] ?? [],
+                    'history' => $historyByApplication[$id] ?? [],
+                ];
+            }
+
+            // In the order asked for (the order of the table the user selected from).
+            $ordered = [];
+            foreach ($applicationIds as $id) {
+                if (isset($byId[$id])) {
+                    $ordered[] = $byId[$id];
+                }
+            }
+
+            return $ordered;
+        });
+    }
+
+    /**
+     * Status changes of the applications, oldest first, from the staged domain events (the outbox keeps them).
+     *
+     * @param  list<int>  $applicationIds
+     * @return array<int, list<array{from_status:int, to_status:int, at:string, by:?string}>>
+     */
+    private function applicationStatusHistory(array $applicationIds): array
+    {
+        $placeholders = implode(',', array_fill(0, count($applicationIds), '?'));
+        $query = DB::table(SchemaHelper::qualified('audit', 'outbox_messages'))
+            ->where('event_type', ApplicationStatusTransitioned::class);
+        if (SchemaHelper::isPostgreSql()) {
+            $query->whereRaw("(payload->>'application_id')::bigint in ({$placeholders})", $applicationIds);
+        } else {
+            $query->whereRaw("json_extract(payload, '$.application_id') in ({$placeholders})", $applicationIds);
+        }
+        $events = $query->orderBy('occurred_at')->orderBy('id')->limit(100 * count($applicationIds))->get(['payload', 'occurred_at']);
+
+        $decoded = [];
+        $reviewerIds = [];
+        foreach ($events as $event) {
+            $payload = is_string($event->payload) ? json_decode($event->payload, true) : (array) $event->payload;
+            if (! is_array($payload) || ! isset($payload['application_id'])) {
+                continue;
+            }
+            $decoded[] = [$payload, (string) $event->occurred_at];
+            if (isset($payload['reviewed_by'])) {
+                $reviewerIds[(int) $payload['reviewed_by']] = true;
+            }
+        }
+        $names = $reviewerIds === []
+            ? collect()
+            : DB::table('users')->whereIn('id', array_keys($reviewerIds))->pluck('name', 'id');
+
+        $history = [];
+        foreach ($decoded as [$payload, $occurredAt]) {
+            $by = isset($payload['reviewed_by']) ? ($names[(int) $payload['reviewed_by']] ?? null) : null;
+            $history[(int) $payload['application_id']][] = [
+                'from_status' => (int) ($payload['from_status'] ?? 0),
+                'to_status' => (int) ($payload['to_status'] ?? 0),
+                'at' => $occurredAt,
+                'by' => $by !== null ? (string) $by : null,
+            ];
+        }
+
+        return $history;
     }
 
     public function periodShell(int $schoolId, int $academicYearId): array

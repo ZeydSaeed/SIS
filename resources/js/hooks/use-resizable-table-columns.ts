@@ -15,6 +15,11 @@ type Options = {
     measure?: (cells: HTMLTableCellElement[]) => number[];
     /** Column index → width (px) kept fixed: overrides saved / measured widths and is not hand-resizable. */
     fixedColumns?: Record<number, number>;
+    /**
+     * Open with every column as wide as its longest text (header and rows), saved widths ignored; any width left in
+     * the scroller goes to the last column. Bump `columnSignature` when the rows change to fit them again.
+     */
+    fitToContent?: boolean;
 };
 
 function isRtl(element: Element): boolean {
@@ -78,6 +83,34 @@ function measureWidths(cells: HTMLTableCellElement[]): number[] {
             Math.round(cell.getBoundingClientRect().width),
         ),
     );
+}
+
+/** Each column at its content width: the table is laid out once at its narrowest (class rules in app.css). */
+function measureContentWidths(cells: HTMLTableCellElement[]): number[] {
+    const table = cells[0]?.closest('table');
+
+    if (!table) {
+        return measureWidths(cells);
+    }
+
+    // Squeezed to 1px with one-line cells, each column falls back to its longest text.
+    const inlineWidth = table.style.getPropertyValue('width');
+    table.classList.add('sis-table--cols-measuring');
+    table.style.setProperty('width', '1px', 'important');
+    const widths = cells.map((cell) =>
+        Math.ceil(cell.getBoundingClientRect().width),
+    );
+    table.style.setProperty('width', inlineWidth);
+    table.classList.remove('sis-table--cols-measuring');
+
+    const available = table.parentElement?.clientWidth ?? 0;
+    const total = widths.reduce((sum, width) => sum + width, 0);
+
+    if (widths.length > 0 && available > total) {
+        widths[widths.length - 1] += available - total;
+    }
+
+    return widths;
 }
 
 function applyWidths(table: HTMLTableElement, widths: number[]): void {
@@ -147,10 +180,13 @@ export function useResizableTableColumns(
         columnSignature = 'default',
         minWidth = DEFAULT_MIN_WIDTH,
         enabled = true,
-        measure = measureWidths,
+        measure: measureOption,
         fixedColumns,
+        fitToContent = false,
     }: Options,
 ): void {
+    const measure =
+        measureOption ?? (fitToContent ? measureContentWidths : measureWidths);
     const fixedKey = JSON.stringify(fixedColumns ?? {});
     useLayoutEffect(() => {
         const fixed = JSON.parse(fixedKey) as Record<string, number>;
@@ -174,7 +210,9 @@ export function useResizableTableColumns(
 
         scroller?.classList.add('sis-table-scroller--resizable');
 
-        let widths = readStored(storageKey, columnSignature);
+        let widths = fitToContent
+            ? null
+            : readStored(storageKey, columnSignature);
         const cells = headerCells(table);
 
         if (cells.length === 0) {
@@ -318,5 +356,13 @@ export function useResizableTableColumns(
             scroller?.classList.remove('sis-table-scroller--resizable');
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `measure` is a stable strategy per table
-    }, [tableRef, storageKey, columnSignature, minWidth, enabled, fixedKey]);
+    }, [
+        tableRef,
+        storageKey,
+        columnSignature,
+        minWidth,
+        enabled,
+        fixedKey,
+        fitToContent,
+    ]);
 }

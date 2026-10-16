@@ -29,3 +29,13 @@ yarn-error.log
 /.zed
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/tests/load/summary.json
+/tests/load/report.html
