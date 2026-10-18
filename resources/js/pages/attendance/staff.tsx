@@ -66,6 +66,8 @@ type StaffRow = {
     notes: string | null;
     version: number | null;
     lessons_today: number;
+    /** The approved leave covering the day (leave module), if any — shown, never written into the record. */
+    leave_request_no?: number | null;
 };
 
 type CoverLesson = {
@@ -418,6 +420,12 @@ function StaffPage({
             header: st.lessonsToday,
             kind: 'num',
             cell: (r) => r.lessons_today,
+        },
+        {
+            id: 'leave',
+            header: t().leave.approvedLeaveColumn,
+            kind: 'text',
+            cell: (r) => (r.leave_request_no ? `#${r.leave_request_no}` : '—'),
         },
         {
             id: 'notes',

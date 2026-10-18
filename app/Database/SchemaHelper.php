@@ -37,6 +37,8 @@ class SchemaHelper
             'audit',
             'reports',
             'intelligence',
+            // «الإجازات والغياب» (2026-10-18, migration `2026_10_18_120000_create_leave_schema`).
+            'leave',
         ];
     }
 

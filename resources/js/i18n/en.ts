@@ -51,6 +51,8 @@ export const en: PartialCatalog<ArCatalog> = {
         financeDesc: 'Fees and payments',
         holidays: 'Holidays',
         holidaysDesc: 'Official holidays in the school calendar',
+        leave: 'Leave & Absence',
+        leaveDesc: 'Teacher and staff leave requests, approvals, balances and calendar',
         health: 'Health',
         healthDesc: 'Student health records',
         hr: 'Human resources',

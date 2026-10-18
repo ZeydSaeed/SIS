@@ -26,8 +26,9 @@ final class ListHolidaysHandler
                 endDate: $row->endDate,
                 holidayType: $row->holidayType,
                 createdAt: $row->createdAt,
+                status: $row->status,
             ),
-            $this->holidays->listVisible($query->schoolId, $query->academicYearId),
+            $this->holidays->listVisible($query->schoolId, $query->academicYearId, $query->includeInactive),
         );
     }
 }

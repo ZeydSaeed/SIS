@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Security\Policies;
+
+use App\Models\User;
+use App\Security\Authorization\Contracts\AuthorizationServiceInterface;
+use App\Security\Authorization\Permission;
+use App\Security\Authorization\SchoolScopeService;
+use App\Security\Context\SchoolContext;
+
+/**
+ * «الإجازات والغياب» HTTP authorization: a permission of the catalogue AND the current school among the user's
+ * schools. Row-level rules (own request, self-approval, sensitive masking) are enforced again by the Application
+ * layer; RLS bounds every table to the school.
+ */
+final class LeavePolicy
+{
+    public function __construct(
+        private readonly AuthorizationServiceInterface $authorization,
+        private readonly SchoolScopeService $schoolScope,
+        private readonly SchoolContext $schoolContext,
+    ) {}
+
+    /** Opens the module: sees the school's leave, or at least files their own. */
+    public function access(User $user): bool
+    {
+        return $this->view($user) || $this->request($user) || $this->manageRequests($user);
+    }
+
+    public function view(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_VIEW);
+    }
+
+    public function request(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_REQUEST_CREATE);
+    }
+
+    public function manageRequests(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_REQUEST_MANAGE);
+    }
+
+    public function approve(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_REQUEST_APPROVE);
+    }
+
+    public function cancel(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_REQUEST_CANCEL);
+    }
+
+    public function managePolicies(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_POLICY_MANAGE);
+    }
+
+    public function viewBalances(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_BALANCE_VIEW);
+    }
+
+    public function adjustBalances(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_BALANCE_ADJUST);
+    }
+
+    public function viewSensitive(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_SENSITIVE_VIEW);
+    }
+
+    public function viewReports(User $user): bool
+    {
+        return $this->allows($user, Permission::LEAVE_REPORTS_VIEW);
+    }
+
+    private function allows(User $user, string $permission): bool
+    {
+        if (! $this->authorization->userHasPermission($user, $permission)) {
+            return false;
+        }
+        $schoolId = $this->schoolContext->id();
+
+        return $schoolId !== null && in_array($schoolId, $this->schoolScope->allowedSchoolIds($user), true);
+    }
+}

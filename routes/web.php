@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Academic\HolidayPageController;
 use App\Http\Controllers\Admission\AdmissionPageController;
 use App\Http\Controllers\Admission\ApplicationTransferPageController;
 use App\Http\Controllers\Attendance\AttendanceAlertController;
@@ -18,6 +19,9 @@ use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Imports\ImportPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Leave\LeavePageController;
+use App\Http\Controllers\Leave\LeaveRequestController;
+use App\Http\Controllers\Leave\LeaveSettingsController;
 use App\Http\Controllers\Ops\OpsModulePageController;
 use App\Http\Controllers\Organization\BranchStructurePageController;
 use App\Http\Controllers\Organization\DirectorateRegistryController;
@@ -388,6 +392,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/enrollment-roster', [ReportsPageController::class, 'enrollmentRoster'])->name('enrollment-roster');
     });
 
+    // «الإجازات والغياب» — staff leave: dashboard, requests + approvals, balances, types & policies, calendar, reports.
+    // Student leave stays in attendance («الأعذار»); holidays in «الاجازات»; lesson cover through the timetable.
+    Route::prefix('leave')->name('leave.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [LeavePageController::class, 'dashboard'])->name('dashboard');
+        Route::get('/requests', [LeavePageController::class, 'requests'])->name('requests.index');
+        Route::post('/requests', [LeaveRequestController::class, 'store'])->name('requests.store');
+        Route::patch('/requests/{leaveRequest}', [LeaveRequestController::class, 'update'])->whereNumber('leaveRequest')->name('requests.update');
+        Route::post('/requests/{leaveRequest}/submit', [LeaveRequestController::class, 'submit'])->whereNumber('leaveRequest')->name('requests.submit');
+        Route::post('/requests/{leaveRequest}/decide', [LeaveRequestController::class, 'decide'])->whereNumber('leaveRequest')->name('requests.decide');
+        Route::post('/requests/{leaveRequest}/withdraw', [LeaveRequestController::class, 'withdraw'])->whereNumber('leaveRequest')->name('requests.withdraw');
+        Route::post('/requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])->whereNumber('leaveRequest')->name('requests.cancel');
+        Route::post('/requests/{leaveRequest}/attachments', [LeaveRequestController::class, 'attach'])->whereNumber('leaveRequest')->middleware('throttle:20,1')->name('requests.attach');
+        Route::get('/requests/{leaveRequest}/attachments/{document}', [LeavePageController::class, 'attachment'])->whereNumber(['leaveRequest', 'document'])->name('requests.attachment');
+        Route::get('/balances', [LeavePageController::class, 'balances'])->name('balances.index');
+        Route::post('/balances/adjust', [LeaveSettingsController::class, 'adjust'])->name('balances.adjust');
+        Route::post('/balances/grant', [LeaveSettingsController::class, 'grant'])->name('balances.grant');
+        Route::get('/types', [LeavePageController::class, 'types'])->name('types.index');
+        Route::post('/types', [LeaveSettingsController::class, 'storeType'])->name('types.store');
+        Route::post('/types/suggested', [LeaveSettingsController::class, 'addSuggested'])->name('types.suggested');
+        Route::patch('/types/{type}', [LeaveSettingsController::class, 'updateType'])->whereNumber('type')->name('types.update');
+        Route::post('/types/{type}/status', [LeaveSettingsController::class, 'typeStatus'])->whereNumber('type')->name('types.status');
+        Route::post('/types/{type}/policy', [LeaveSettingsController::class, 'publishPolicy'])->whereNumber('type')->name('types.policy');
+        Route::get('/calendar', [LeavePageController::class, 'calendar'])->name('calendar');
+        Route::get('/reports', [LeavePageController::class, 'reports'])->name('reports');
+    });
+
     // Blueprint lifecycle / support shells (UI scaffolding — handlers land per module gate).
     Route::middleware('require.school.context')->group(function (): void {
         Route::get('/guardians', [OpsModulePageController::class, 'guardians'])->name('guardians.index');
@@ -400,7 +430,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/graduation', [OpsModulePageController::class, 'graduation'])->name('graduation.index');
         Route::get('/certificates', [OpsModulePageController::class, 'certificates'])->name('certificates.index');
         Route::get('/finance', [OpsModulePageController::class, 'finance'])->name('finance.index');
-        Route::get('/holidays', [OpsModulePageController::class, 'holidays'])->name('holidays.index');
+        // «الاجازات» — the school calendar's holidays (a holiday is taken out of the calendar, never deleted).
+        Route::get('/holidays', [HolidayPageController::class, 'index'])->name('holidays.index');
+        Route::post('/holidays', [HolidayPageController::class, 'store'])->name('holidays.store');
+        Route::patch('/holidays/{holiday}', [HolidayPageController::class, 'update'])->whereNumber('holiday')->name('holidays.update');
+        Route::post('/holidays/{holiday}/status', [HolidayPageController::class, 'changeStatus'])->whereNumber('holiday')->name('holidays.status');
         Route::get('/health', [OpsModulePageController::class, 'health'])->name('health.index');
         Route::get('/hr', [OpsModulePageController::class, 'hr'])->name('hr.index');
         Route::get('/documents', [OpsModulePageController::class, 'documents'])->name('documents.index');

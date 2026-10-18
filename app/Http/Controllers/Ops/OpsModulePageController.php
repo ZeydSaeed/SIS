@@ -66,15 +66,6 @@ final class OpsModulePageController extends Controller
         );
     }
 
-    public function holidays(): Response
-    {
-        return $this->shell(
-            'holidays',
-            'الاجازات',
-            'العطل والاجازات الرسمية في التقويم الدراسي — academic.holidays.',
-        );
-    }
-
     public function health(): Response
     {
         return $this->shell(

@@ -207,8 +207,12 @@ Seeded system types: صف دراسي، مختبر، مختبر حاسوب، مخ
 | name | VARCHAR(255) | NOT NULL |
 | start_date | DATE | NOT NULL |
 | end_date | DATE | NOT NULL |
-| holiday_type | SMALLINT | NOT NULL |
+| holiday_type | SMALLINT | NOT NULL (1 official, 2 school, 3 break between terms) |
+| status | SMALLINT | NOT NULL DEFAULT 1 (1 in the calendar, 2 taken out — never deleted) |
 | created_at | TIMESTAMPTZ | NOT NULL |
+| updated_at | TIMESTAMPTZ | NULL |
+
+**Constraints:** `CHECK (status IN (1,2))`, `CHECK (end_date >= start_date)` (PostgreSQL; migration `2026_10_18_100000_add_status_to_academic_holidays`)
 
 **Indexes:** `BTREE(academic_year_id)`, `BTREE(school_id, start_date)`
 
@@ -1751,7 +1755,8 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(entity_type, entity_id)`, `BTREE(file_hash)`, `BTREE(school_id, created_at)`  
 **Security (Phase DOC-U01):** FORCE RLS school isolation. Hard DELETE rejected.  
-**v1 HTTP:** Metadata Register/List + binary Upload/Download (DOC-U04 local object storage). S3/AV/PDF engine HOLD. No BYTEA.
+**v1 HTTP:** Metadata Register/List + binary Upload/Download (DOC-U04 local object storage). S3/AV/PDF engine HOLD. No BYTEA.  
+**Module-owned entity types (2026-10-18, no schema change):** `leave_request` attachments are written and read only through «الإجازات والغياب» (its own access + sensitive-leave masking); the generic documents API refuses that entity type (register / upload / list → 422, show / download → 404). See `DocumentEntityTypes::MODULE_OWNED`.
 
 ### `documents.import_batches` (2026-10-09, migration `2026_10_09_100000`)
 
@@ -2037,6 +2042,85 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 **Indexes:** `BTREE(school_id)`, `BTREE(employee_id)`, `BTREE(school_id, academic_year_id)`, `UNIQUE(employee_id, school_id, academic_year_id)`  
 **Security:** FORCE RLS on `school_id`. Hard DELETE rejected.
+
+---
+
+## Schema: `leave` (5 tables — «الإجازات والغياب», 2026-10-18, migration `2026_10_18_120000_create_leave_schema`)
+
+> Staff leave (teachers `teachers.teachers` + administrative employees `hr.employees` not linked to a teacher). **Reused, not duplicated:** student leave = `attendance.excuses` (approval already turns absences into excused ones), holidays = `academic.holidays`, attachments = `documents.files` (`entity_type = 'leave_request'`, module-owned — the generic documents API refuses it), lesson cover = `timetable.schedule_exceptions` through the timetable's own substitution command. Approval is the module's own lifecycle + append-only history (workflow-engine hooks for other entities are **HOLD**).  
+> **All five tables:** `school_id NOT NULL` FK schools, ENABLE + **FORCE RLS** fail-closed on `app.current_school_id` (SELECT / INSERT / UPDATE policies, no DELETE policy) and a `BEFORE DELETE` reject trigger. `request_events` and `balance_entries` also reject UPDATE (append-only). PostgreSQL only (skipped on SQLite).
+
+### `leave.types`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| code | VARCHAR(30) | NOT NULL, CHECK `^[A-Z0-9_]{2,30}$`; UNIQUE (school_id, code) |
+| name_ar / name_en | VARCHAR(100) | name_ar NOT NULL |
+| description | TEXT | ≤ 2000 |
+| applies_to | SMALLINT | NOT NULL 1 teachers · 2 employees · 3 all |
+| unit | SMALLINT | NOT NULL DEFAULT 1 — 1 days · 2 hours (fixed once a request exists) |
+| is_sensitive | BOOLEAN | NOT NULL DEFAULT false — medical: type name, reason, attachments masked server-side without `leave.sensitive.view` |
+| color_hue | SMALLINT | nullable 0–359 (calendar colour) |
+| status | SMALLINT | NOT NULL DEFAULT 1 — 1 in use · 2 out of use |
+| created_by / created_at / updated_at | | |
+
+**Indexes:** UNIQUE `(school_id, code)`, `(school_id, status)`
+
+### `leave.policies` (versioned — never edited)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / leave_type_id | BIGINT | FK NOT NULL |
+| version_no | INTEGER | NOT NULL ≥ 1; UNIQUE (leave_type_id, version_no) |
+| day_basis | SMALLINT | 1 working days (timetable week − holidays) · 2 calendar days |
+| requires_document / deducts_balance | BOOLEAN | NOT NULL |
+| approval_levels | SMALLINT | NOT NULL 1–3 |
+| max_per_request / annual_entitlement | NUMERIC(6,2) | nullable (no legal entitlement is assumed) |
+| effective_from / effective_to | DATE | CHECK to ≥ from; current = `effective_to IS NULL` (partial UNIQUE per type) |
+| created_by / created_at | | |
+
+A change publishes the next version (previous one closed at that day). Requests keep the `policy_id` they were submitted under — past decisions are never recomputed.
+
+### `leave.requests`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id | BIGINT | FK NOT NULL |
+| request_no | INTEGER | NOT NULL; UNIQUE (school_id, request_no) — advisory-locked sequence per school |
+| requester_kind | SMALLINT | 1 teacher · 2 employee; CHECK exactly one of teacher_id / employee_id matching the kind |
+| teacher_id / employee_id | BIGINT | FK → teachers.teachers / hr.employees |
+| leave_type_id / policy_id | BIGINT | FK NOT NULL |
+| date_from / date_to | DATE | CHECK to ≥ from, ≤ 366 days; hours unit = one day, quantity ≤ 24 |
+| quantity / unit | NUMERIC(6,2) / SMALLINT | quantity > 0, counted on the server |
+| reason | TEXT | NOT NULL 1–2000 (never written to the security audit or the outbox) |
+| status | SMALLINT | 1 draft · 2 pending · 3 info required · 4 approved · 5 rejected · 6 cancelled · 7 withdrawn; CHECK note required for 5 / 6 |
+| approval_levels / approved_levels | SMALLINT | approved ≤ levels |
+| created_by / submitted_at / decided_by / decided_at / decision_note | | |
+| version / created_at / updated_at | | optimistic concurrency (every write checks the version) |
+
+**Indexes:** UNIQUE `(school_id, request_no)`, `(school_id, status, date_from)`, `(school_id, date_from, date_to)`, partial `(teacher_id, date_from)`, partial `(employee_id, date_from)`
+
+### `leave.request_events` (append-only)
+
+`id`, `school_id`, `request_id` FK, `event_type` 1–12 (created · updated · submitted · level approved · approved · rejected · info requested · resubmitted · withdrawn · cancelled · document attached), `from_status`, `to_status`, `level`, `actor_user_id`, `note`, `payload` JSONB (ids / quantities only), `created_at`. **Indexes:** `(request_id, id)`, `(school_id, created_at DESC)`.
+
+### `leave.balance_entries` (append-only ledger)
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id / academic_year_id / leave_type_id | BIGINT | FK NOT NULL |
+| requester_kind / teacher_id / employee_id | | same person CHECK as requests |
+| entry_type | SMALLINT | 1 entitlement (≥ 0, no request) · 2 adjustment (≠ 0, reason required) · 3 deduction (< 0, request) · 4 restoration (> 0, request) |
+| quantity | NUMERIC(7,2) | signed |
+| request_id | BIGINT | FK → requests, nullable |
+| reason / created_by / created_at | | |
+
+**Indexes:** UNIQUE partial `(request_id, entry_type) WHERE request_id IS NOT NULL` (**one deduction, one restoration per request — never deducted twice**), UNIQUE partial entitlement per `(school, year, type, teacher)` / `(…, employee)`, `(school_id, academic_year_id, leave_type_id)`, partial person indexes. Balance writes are serialised per person · type · year by a transaction-scoped advisory lock.
 
 ---
 

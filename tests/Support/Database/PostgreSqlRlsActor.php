@@ -26,7 +26,7 @@ final class PostgreSqlRlsActor
         $schemas = [
             'organization', 'academic', 'vocational', 'students', 'guardians', 'admission',
             'enrollment', 'teachers', 'curriculum', 'timetable', 'attendance', 'exams',
-            'results', 'graduation', 'certificates', 'security', 'audit', 'public',
+            'results', 'graduation', 'certificates', 'security', 'audit', 'public', 'hr', 'leave',
         ];
 
         foreach ($schemas as $schema) {

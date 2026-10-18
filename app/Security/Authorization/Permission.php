@@ -179,6 +179,26 @@ final class Permission
 
     public const AUDIT_MANAGE = 'audit.manage';
 
+    public const LEAVE_VIEW = 'leave.view';
+
+    public const LEAVE_REQUEST_CREATE = 'leave.request.create';
+
+    public const LEAVE_REQUEST_MANAGE = 'leave.request.manage';
+
+    public const LEAVE_REQUEST_APPROVE = 'leave.request.approve';
+
+    public const LEAVE_REQUEST_CANCEL = 'leave.request.cancel';
+
+    public const LEAVE_POLICY_MANAGE = 'leave.policy.manage';
+
+    public const LEAVE_BALANCE_VIEW = 'leave.balance.view';
+
+    public const LEAVE_BALANCE_ADJUST = 'leave.balance.adjust';
+
+    public const LEAVE_SENSITIVE_VIEW = 'leave.sensitive.view';
+
+    public const LEAVE_REPORTS_VIEW = 'leave.reports.view';
+
     public const SECURITY_MANAGE_USERS = 'security.manage_users';
 
     /**
@@ -270,6 +290,16 @@ final class Permission
             self::CURRICULUM_MANAGE,
             self::AUDIT_VIEW,
             self::AUDIT_MANAGE,
+            self::LEAVE_VIEW,
+            self::LEAVE_REQUEST_CREATE,
+            self::LEAVE_REQUEST_MANAGE,
+            self::LEAVE_REQUEST_APPROVE,
+            self::LEAVE_REQUEST_CANCEL,
+            self::LEAVE_POLICY_MANAGE,
+            self::LEAVE_BALANCE_VIEW,
+            self::LEAVE_BALANCE_ADJUST,
+            self::LEAVE_SENSITIVE_VIEW,
+            self::LEAVE_REPORTS_VIEW,
             self::SECURITY_MANAGE_USERS,
         ];
     }

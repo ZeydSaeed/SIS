@@ -13,11 +13,12 @@ use App\Application\Documents\Queries\GetDocumentHandler;
 use App\Application\Documents\Queries\GetDocumentQuery;
 use App\Application\Documents\Queries\ListDocumentsByEntityHandler;
 use App\Application\Documents\Queries\ListDocumentsByEntityQuery;
+use App\Domain\Documents\Support\DocumentEntityTypes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Documents\DownloadDocumentRequest;
-use App\Http\Requests\Documents\ShowDocumentRequest;
 use App\Http\Requests\Documents\ListDocumentsByEntityRequest;
 use App\Http\Requests\Documents\RegisterDocumentMetadataRequest;
+use App\Http\Requests\Documents\ShowDocumentRequest;
 use App\Http\Requests\Documents\UploadDocumentRequest;
 use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -149,7 +150,8 @@ class DocumentController extends Controller
             documentId: $document,
         ));
 
-        if ($dto === null) {
+        // Module-owned files (leave attachments) are read through their module's own access rules only.
+        if ($dto === null || ! DocumentEntityTypes::isGeneric($dto->entityType)) {
             return response()->json([
                 'message' => 'Document not found.',
                 'error_code' => 'documents.not_found',
@@ -189,9 +191,12 @@ class DocumentController extends Controller
         int $document,
         DownloadDocumentRequest $request,
         GetDocumentContentHandler $handler,
+        GetDocumentHandler $metadata,
     ): Response|StreamedResponse|JsonResponse {
         $schoolId = $this->schoolContext->requireId();
-        $dto = $handler->handle(new GetDocumentContentQuery(
+        // Module-owned files (leave attachments) are read through their module's own access rules only.
+        $meta = $metadata->handle(new GetDocumentQuery(schoolId: $schoolId, documentId: $document));
+        $dto = $meta === null || ! DocumentEntityTypes::isGeneric($meta->entityType) ? null : $handler->handle(new GetDocumentContentQuery(
             schoolId: $schoolId,
             documentId: $document,
         ));

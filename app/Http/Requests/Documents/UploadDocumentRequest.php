@@ -32,7 +32,7 @@ class UploadDocumentRequest extends FormRequest
         ]);
 
         return array_merge([
-            'entity_type' => ['required', 'string', Rule::in(DocumentEntityTypes::ALLOWED)],
+            'entity_type' => ['required', 'string', Rule::in(DocumentEntityTypes::generic())],
             'entity_id' => ['required', 'integer', 'min:1'],
             'document_type' => ['required', 'integer', 'in:1,2,3,4,9'],
             'file' => ['required', 'file', 'max:'.$maxKb, 'mimetypes:'.implode(',', $mimes)],

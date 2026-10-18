@@ -203,6 +203,7 @@ final class EloquentAttendanceSheetRepository implements AttendanceSheetReposito
     {
         return DB::table('academic.holidays')
             ->where('academic_year_id', $academicYearId)
+            ->where('status', 1)
             ->where(static fn ($q) => $q->whereNull('school_id')->orWhere('school_id', $schoolId))
             ->where('start_date', '<=', $date)
             ->where('end_date', '>=', $date)

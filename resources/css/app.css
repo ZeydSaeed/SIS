@@ -20930,3 +20930,127 @@ td.sis-admission-periods-table__num {
 .sis-student-sheet-dialog.sis-student-info-sheet .sis-student-record-form > .sis-admission-sheet__actions {
     margin-top: auto !important;
 }
+
+/* ═══ «الإجازات والغياب» › التقويم (2026-10-18): month / week grid of the leave calendar. New classes only, on the
+   existing tokens (Night / Oxford / Steel / Mist / Pearl); an event's colour comes from its type's hue (the same
+   «الاختصار واللون» hue model as the timetable). Pending leave is outlined, never filled — shape, not colour alone. ═══ */
+.sis-leave-cal {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: #fff;
+    overflow: hidden;
+}
+
+.sis-leave-cal__dow {
+    padding: 0.3rem 0.25rem;
+    background: var(--sis-curriculum-chrome);
+    color: var(--sis-curriculum-chrome-text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.sis-leave-cal__day {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-height: 6.2rem;
+    padding: 0.2rem;
+    border-top: 1px solid color-mix(in srgb, var(--sis-oxford) 25%, transparent);
+    border-inline-start: 1px solid color-mix(in srgb, var(--sis-oxford) 25%, transparent);
+    min-width: 0;
+}
+
+.sis-leave-cal--week .sis-leave-cal__day {
+    min-height: 16rem;
+}
+
+.sis-leave-cal__day[data-off='yes'] {
+    background: color-mix(in srgb, var(--sis-mist) 35%, var(--sis-pearl));
+}
+
+.sis-leave-cal__day[data-out='yes'] .sis-leave-cal__num {
+    color: color-mix(in srgb, var(--sis-oxford) 40%, transparent);
+}
+
+.sis-leave-cal__num {
+    align-self: flex-start;
+    padding: 0 0.3rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--sis-oxford);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.sis-leave-cal__day[data-today='yes'] .sis-leave-cal__num {
+    background: var(--sis-steel);
+    color: var(--sis-pearl);
+}
+
+.sis-leave-cal__event {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    padding: 0.05rem 0.3rem;
+    border: 1px solid hsl(var(--leave-hue, 210) 45% 40%);
+    border-inline-start-width: 3px;
+    border-radius: 0.25rem;
+    background: hsl(var(--leave-hue, 210) 60% 92%);
+    color: var(--sis-night);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.sis-leave-cal__event[data-pending='yes'] {
+    border-style: dashed;
+    background: #fff;
+}
+
+.sis-leave-cal__event:focus-visible,
+.sis-leave-cal__num:focus-visible {
+    outline: 2px solid var(--sis-night);
+    outline-offset: 1px;
+}
+
+.sis-leave-cal__more {
+    color: var(--sis-steel);
+    font-size: 0.7rem;
+}
+
+.sis-leave-cal__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-block: 0.4rem;
+    font-size: 0.78rem;
+}
+
+.sis-leave-cal__legend .sis-leave-cal__event {
+    display: inline-block;
+    width: auto;
+}
+
+@media (max-width: 40rem) {
+    .sis-leave-cal__day {
+        min-height: 4rem;
+    }
+
+    .sis-leave-cal__event {
+        font-size: 0.65rem;
+    }
+}
+
+@media print {
+    .sis-leave-cal__event {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

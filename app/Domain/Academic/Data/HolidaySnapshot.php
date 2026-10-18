@@ -13,5 +13,6 @@ final readonly class HolidaySnapshot
         public string $endDate,
         public int $holidayType,
         public string $createdAt,
+        public int $status = 1,
     ) {}
 }

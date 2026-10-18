@@ -5,6 +5,7 @@ use App\Providers\ArchitectureServiceProvider;
 use App\Providers\AttendanceServiceProvider;
 use App\Providers\FortifyServiceProvider;
 use App\Providers\IntelligenceServiceProvider;
+use App\Providers\LeaveServiceProvider;
 use App\Providers\ObservabilityServiceProvider;
 use App\Providers\OptimizationServiceProvider;
 use App\Providers\SecurityServiceProvider;
@@ -15,6 +16,7 @@ return [
     SecurityServiceProvider::class,
     ArchitectureServiceProvider::class,
     AttendanceServiceProvider::class,
+    LeaveServiceProvider::class,
     ObservabilityServiceProvider::class,
     IntelligenceServiceProvider::class,
     OptimizationServiceProvider::class,

@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Documents;
 
+use App\Domain\Documents\Support\DocumentEntityTypes;
 use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RegisterDocumentMetadataRequest extends FormRequest
 {
@@ -20,7 +22,7 @@ class RegisterDocumentMetadataRequest extends FormRequest
     public function rules(): array
     {
         return array_merge([
-            'entity_type' => ['required', 'string', 'max:50'],
+            'entity_type' => ['required', 'string', 'max:50', Rule::notIn(DocumentEntityTypes::MODULE_OWNED)],
             'entity_id' => ['required', 'integer', 'min:1'],
             'document_type' => ['required', 'integer', 'in:1,2,3,4,9'],
             'storage_key' => ['required', 'string', 'max:500'],

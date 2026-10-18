@@ -22,30 +22,31 @@ use App\Security\Authorization\DatabaseAuthorizationService;
 use App\Security\Authorization\Permission;
 use App\Security\Authorization\SchoolScopeService;
 use App\Security\Context\SchoolContext;
-use App\Security\Policies\AttendancePolicy;
 use App\Security\Policies\AdmissionPolicy;
+use App\Security\Policies\AttendancePolicy;
 use App\Security\Policies\AuditPolicy;
 use App\Security\Policies\CommunicationPolicy;
 use App\Security\Policies\CurriculumPolicy;
+use App\Security\Policies\DirectorateRegistryPolicy;
 use App\Security\Policies\DocumentsPolicy;
-use App\Security\Policies\FinancePolicy;
-use App\Security\Policies\HrPolicy;
-use App\Security\Policies\HrPayrollPolicy;
-use App\Security\Policies\WorkflowPolicy;
 use App\Security\Policies\EnrollmentPolicy;
 use App\Security\Policies\ExamPolicy;
+use App\Security\Policies\FinancePolicy;
 use App\Security\Policies\GradePolicy;
+use App\Security\Policies\HrPayrollPolicy;
+use App\Security\Policies\HrPolicy;
+use App\Security\Policies\LeavePolicy;
 use App\Security\Policies\PortalResultsPolicy;
 use App\Security\Policies\PortalScopesPolicy;
 use App\Security\Policies\PromotionPolicy;
-use App\Security\Policies\SchoolRegistryPolicy;
-use App\Security\Policies\DirectorateRegistryPolicy;
 use App\Security\Policies\ResultsPolicy;
+use App\Security\Policies\SchoolRegistryPolicy;
 use App\Security\Policies\StudentPolicy;
 use App\Security\Policies\TeacherPolicy;
-use App\Security\Policies\TransfersPolicy;
 use App\Security\Policies\TimetablePolicy;
+use App\Security\Policies\TransfersPolicy;
 use App\Security\Policies\VocationalPolicy;
+use App\Security\Policies\WorkflowPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -178,6 +179,23 @@ class SecurityServiceProvider extends ServiceProvider
         Gate::define('manageHrPayroll', function (User $user): bool {
             return app(HrPayrollPolicy::class)->manage($user);
         });
+
+        // «الإجازات والغياب» — one gate per leave permission (school-scoped by LeavePolicy).
+        foreach ([
+            'accessLeave' => 'access',
+            'viewLeave' => 'view',
+            'requestLeave' => 'request',
+            'manageLeaveRequests' => 'manageRequests',
+            'approveLeave' => 'approve',
+            'cancelLeave' => 'cancel',
+            'manageLeavePolicies' => 'managePolicies',
+            'viewLeaveBalances' => 'viewBalances',
+            'adjustLeaveBalances' => 'adjustBalances',
+            'viewSensitiveLeave' => 'viewSensitive',
+            'viewLeaveReports' => 'viewReports',
+        ] as $ability => $method) {
+            Gate::define($ability, static fn (User $user): bool => app(LeavePolicy::class)->{$method}($user));
+        }
 
         Gate::define('viewCurriculum', function (User $user): bool {
             return app(CurriculumPolicy::class)->view($user);

@@ -2,6 +2,7 @@
 
 namespace App\Application\Attendance\Queries;
 
+use App\Application\Attendance\Contracts\ApprovedLeaveSourceInterface;
 use App\Application\Attendance\Contracts\AttendanceClockInterface;
 use App\Application\Attendance\Contracts\AttendanceWorkspaceReadInterface;
 use App\Application\Attendance\Contracts\LessonSourceInterface;
@@ -16,7 +17,8 @@ use App\Domain\Attendance\ValueObjects\StaffAttendanceStatus;
 /**
  * Teacher work attendance + the lessons that need cover: lessons of teachers recorded unavailable that day with
  * no substitute assigned in the timetable. The timetable is never changed here — cover is assigned through the
- * timetable's substitution (schedule exception) workflow by an authorised user.
+ * timetable's substitution (schedule exception) workflow by an authorised user. A teacher on approved leave that day
+ * (leave module) is shown as such and their lessons need cover even before anyone records the day.
  */
 final class GetStaffAttendanceDayHandler implements QueryHandler
 {
@@ -25,6 +27,7 @@ final class GetStaffAttendanceDayHandler implements QueryHandler
         private readonly LessonSourceInterface $lessons,
         private readonly AttendancePolicyResolver $policies,
         private readonly AttendanceClockInterface $clock,
+        private readonly ApprovedLeaveSourceInterface $leave,
     ) {}
 
     public function handle(Query $query): AttendanceViewDTO
@@ -50,10 +53,12 @@ final class GetStaffAttendanceDayHandler implements QueryHandler
             $perTeacher[$lesson->effectiveTeacherId()] = ($perTeacher[$lesson->effectiveTeacherId()] ?? 0) + 1;
         }
         $unavailable = [];
+        $onLeave = $this->leave->teachersOnApprovedLeave($query->schoolId, $date);
         foreach ($rows as $i => $row) {
             $rows[$i]['lessons_today'] = $perTeacher[(int) $row['teacher_id']] ?? 0;
+            $rows[$i]['leave_request_no'] = $onLeave[(int) $row['teacher_id']] ?? null;
             $status = isset($row['status']) ? StaffAttendanceStatus::tryFrom((int) $row['status']) : null;
-            if ($status !== null && $status->needsCover()) {
+            if ($status?->needsCover() ?? isset($onLeave[(int) $row['teacher_id']])) {
                 $unavailable[(int) $row['teacher_id']] = true;
             }
         }

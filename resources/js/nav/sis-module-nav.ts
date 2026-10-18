@@ -24,6 +24,7 @@ import {
     UserRound,
     Users,
     Workflow,
+    Plane,
     type LucideIcon,
 } from 'lucide-react';
 import { t } from '@/i18n';
@@ -56,6 +57,7 @@ type ModuleKey =
     | 'health'
     | 'teachers'
     | 'hr'
+    | 'leave'
     | 'rooms'
     | 'timetable'
     | 'curriculum'
@@ -85,6 +87,7 @@ const MODULE_DEFS: Record<
     health: { href: '/health', icon: HeartPulse },
     teachers: { href: '/teachers', icon: Users },
     hr: { href: '/hr', icon: Briefcase },
+    leave: { href: '/leave', icon: Plane },
     rooms: { href: '/organization/rooms', icon: DoorOpen },
     timetable: { href: '/timetable', icon: CalendarRange },
     curriculum: { href: '/curriculum', icon: BookOpen },
@@ -160,6 +163,7 @@ export function getSisSidebarSections(): SisNavSection[] {
             titleEn: 'Staff & Faculty',
             items: [
                 moduleItem('hr'),
+                moduleItem('leave'),
                 moduleItem('promotion'),
                 moduleItem('finance'),
             ],
