@@ -56,6 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('students')->name('students.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [StudentPageController::class, 'index'])->name('index');
+        // The module's overview (cards) opens first; the list is the module's own path.
+        Route::get('/overview', [StudentPageController::class, 'index'])->name('overview');
         Route::post('/', [StudentPageController::class, 'store'])->name('store');
         Route::post('/bulk-status', [StudentPageController::class, 'bulkStatus'])->name('bulk-status');
         Route::put('/{student}', [StudentPageController::class, 'update'])->whereNumber('student')->name('update');
@@ -124,6 +126,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // «الغرف الدراسية» — rooms and managed room types (source of truth for the timetable; delete = out of service).
         Route::get('/rooms', [RoomCataloguePageController::class, 'index'])->name('rooms.index');
+        Route::get('/rooms/overview', [RoomCataloguePageController::class, 'index'])->name('rooms.overview');
         Route::post('/rooms', [RoomCataloguePageController::class, 'storeRoom'])->name('rooms.store');
         Route::patch('/rooms/{room}', [RoomCataloguePageController::class, 'updateRoom'])->whereNumber('room')->name('rooms.update');
         Route::post('/rooms/{room}/status', [RoomCataloguePageController::class, 'changeRoomStatus'])->whereNumber('room')->name('rooms.status');
@@ -186,6 +189,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('enrollments')->name('enrollments.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [EnrollmentPageController::class, 'index'])->name('index');
+        Route::get('/overview', [EnrollmentPageController::class, 'index'])->name('overview');
         Route::get('/create', [EnrollmentPageController::class, 'create'])->name('create');
         Route::post('/', [EnrollmentPageController::class, 'store'])->name('store');
         Route::post('/bulk', [EnrollmentPageController::class, 'bulkStore'])->name('bulk-store');
@@ -229,6 +233,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/settings', [AttendancePolicyController::class, 'edit'])->name('settings');
         Route::post('/settings', [AttendancePolicyController::class, 'update'])->name('settings.update');
 
+        // The module's overview: a card per section of the side rail.
+        Route::inertia('/overview', 'attendance/overview')->name('overview');
         Route::get('/', [AttendancePageController::class, 'index'])->name('index');
         Route::get('/create', [AttendancePageController::class, 'create'])->name('create');
         Route::post('/', [AttendancePageController::class, 'store'])->name('store');
@@ -240,6 +246,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('teachers')->name('teachers.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [TeacherPageController::class, 'index'])->name('index');
+        Route::get('/overview', [TeacherPageController::class, 'index'])->name('overview');
         Route::get('/{teacher}', [TeacherPageController::class, 'show'])->whereNumber('teacher')->name('show');
         Route::post('/', [TeacherPageController::class, 'store'])->name('store');
         Route::patch('/{teacher}', [TeacherPageController::class, 'update'])->whereNumber('teacher')->name('update');
@@ -316,6 +323,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('curriculum')->name('curriculum.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [CurriculumPageController::class, 'index'])->name('index');
+        Route::get('/overview', [CurriculumPageController::class, 'index'])->name('overview');
         Route::get('/curricula/{curriculum}', [CurriculumPageController::class, 'show'])
             ->whereNumber('curriculum')
             ->name('show');
@@ -397,6 +405,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Student leave stays in attendance («الأعذار»); holidays in «الاجازات»; lesson cover through the timetable.
     Route::prefix('leave')->name('leave.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [LeavePageController::class, 'dashboard'])->name('dashboard');
+        Route::get('/overview', [LeavePageController::class, 'overview'])->name('overview');
         Route::get('/requests', [LeavePageController::class, 'requests'])->name('requests.index');
         Route::post('/requests', [LeaveRequestController::class, 'store'])->name('requests.store');
         Route::patch('/requests/{leaveRequest}', [LeaveRequestController::class, 'update'])->whereNumber('leaveRequest')->name('requests.update');

@@ -9,6 +9,7 @@ use App\Domain\Attendance\Services\AttendanceStatistics;
 use App\Domain\Attendance\ValueObjects\CalendarDate;
 use App\Infrastructure\Persistence\Eloquent\AttendanceSessionRecord;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The one source of the fixed attendance shell (side calendar + day card + quick-link rail): the school-wide totals of
@@ -51,6 +52,7 @@ final class AttendanceShellData
                 $date = $from;
             }
             $totals = $this->reports->schoolTotals($schoolId, $yearId, $date, $date);
+            $abilities = $this->context->abilities($request);
 
             return [
                 'date' => $date,
@@ -58,10 +60,39 @@ final class AttendanceShellData
                 'now' => $now->setTimezone($policy->zone())->format('H:i'),
                 'weekday' => (int) (new \DateTimeImmutable($date))->format('w') + 1,
                 'totals' => $totals + AttendanceStatistics::rates($totals),
-                'abilities' => $this->context->abilities($request),
+                'abilities' => $abilities,
+                'counts' => $this->railCounts($request, $schoolId, $yearId, $date, $totals),
             ];
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * The number on every rail icon: my lessons of the shown day, the day's sheets, sheets waiting for review, the day's
+     * absentees, staff records of the day, pending excuses, marks recorded that day, open alerts, policies.
+     *
+     * @param  array<string, int>  $totals
+     * @return array<string, int>
+     */
+    private function railCounts(Request $request, int $schoolId, int $yearId, string $date, array $totals): array
+    {
+        $teacherId = $this->context->actor($request, $yearId)->teacherId;
+
+        return [
+            'my' => $teacherId === null ? 0 : DB::table('attendance.sessions')
+                ->where('school_id', $schoolId)->where('academic_year_id', $yearId)
+                ->where('status', '<>', 3)->where('session_date', $date)->where('teacher_id', $teacherId)->count(),
+            'sessions' => (int) ($totals['sheets'] ?? 0),
+            'review' => DB::table('attendance.sessions')
+                ->where('school_id', $schoolId)->where('academic_year_id', $yearId)
+                ->where('status', '<>', 3)->whereIn('sheet_status', [2, 3])->count(),
+            'dashboard' => (int) ($totals['absent'] ?? 0),
+            'staff' => DB::table('attendance.staff_records')->where('school_id', $schoolId)->where('work_date', $date)->count(),
+            'excuses' => DB::table('attendance.excuses')->where('school_id', $schoolId)->where('status', 1)->count(),
+            'reports' => (int) ($totals['decided'] ?? 0),
+            'alerts' => DB::table('attendance.alerts')->where('school_id', $schoolId)->where('status', 1)->count(),
+            'settings' => DB::table('attendance.policies')->where('school_id', $schoolId)->count(),
+        ];
     }
 }

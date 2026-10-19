@@ -8584,7 +8584,7 @@ body:has([data-slot='sidebar'][data-side='right'][data-state='expanded']) {
 }
 
 body:has([data-slot='sidebar'][data-side='right'][data-state='collapsed'][data-collapsible='icon']) {
-    --sis-admission-sidebar-rail: calc(3rem + 1rem);
+    --sis-admission-sidebar-rail: calc(2.6rem + 1rem);
 }
 
 body:has([data-slot='sidebar'][data-side='left'][data-state='expanded']) {
@@ -8592,7 +8592,7 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='expanded']) {
 }
 
 body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-collapsible='icon']) {
-    --sis-admission-sidebar-rail: calc(3rem + 1rem);
+    --sis-admission-sidebar-rail: calc(2.6rem + 1rem);
 }
 
 .sis-admission-sheet-dialog {
@@ -18836,7 +18836,7 @@ body.sis-table-row-resizing {
 .sis-att-board {
     --att-board-line: color-mix(in srgb, var(--sis-oxford) 35%, transparent);
     display: grid;
-    grid-template-columns: 14.5rem minmax(0, 1fr) 4rem;
+    grid-template-columns: 14.5rem minmax(0, 1fr) max-content;
     gap: 0.6rem;
     align-items: stretch;
     padding: 0.6rem 0.75rem 0.9rem;
@@ -19603,7 +19603,7 @@ body.sis-table-row-resizing {
     box-sizing: border-box;
     padding-top: 0.6rem; /* top margin: the three columns sit below the ribbon, on one line */
     display: grid;
-    grid-template-columns: 14.5rem minmax(0, 1fr) 4rem;
+    grid-template-columns: 14.5rem minmax(0, 1fr) max-content;
     gap: 0.6rem;
     align-items: stretch;
     flex: 1 1 auto;
@@ -20857,8 +20857,12 @@ td.sis-admission-periods-table__num {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-inline-size: 16.5rem; /* keeps the column's width whatever the name's length */
     gap: 0.375rem;
+}
+
+/* Follow-up list only: the badge keeps the column's width whatever the name's length. */
+.sis-follow-up-page .sis-follow-up-roster__badge {
+    min-inline-size: 16.5rem;
 }
 
 /* The category icon, before the name: outline only (no background), in the category's icon colour. */
@@ -21147,7 +21151,11 @@ td.sis-admission-periods-table__num {
 
 /* ═══ «الإجازات والغياب» › section rail with count badges (2026-10-19): same rail as the attendance pages. ═══ */
 .sis-att-shell.sis-leave-shell {
-    grid-template-columns: minmax(0, 1fr) 4.6rem;
+    grid-template-columns: 14.5rem minmax(0, 1fr) max-content;
+}
+
+.sis-att-shell.sis-leave-shell.sis-leave-shell--no-side {
+    grid-template-columns: minmax(0, 1fr) max-content;
 }
 
 .sis-leave-rail button {
@@ -21191,4 +21199,635 @@ td.sis-admission-periods-table__num {
     display: inline-block;
     padding-inline-end: 0.6rem;
     white-space: nowrap;
+}
+
+/* Follow-up list only: the sequence («#») column is roomier than the shared theme's narrow one, and the name is a link. */
+.sis-table-theme .sis-admission-drafts-table.sis-admission-periods-table.sis-follow-up-roster :is(th, td).sis-admission-drafts-table__num {
+    padding-inline: 0.65rem;
+    font-size: 0.875rem;
+}
+
+.sis-follow-up-roster .sis-follow-up-roster__link {
+    font-weight: 600;
+}
+
+/* ═══ «متابعة طلبات التقديم» › overview cards: the EXAMIS /admin status cards — each category takes the hue of its EXAMIS
+   status (blue, yellow, teal, orange, green, red, stone): a light tint of the hue on white, a 25 % hue border, a solid
+   hue avatar with a 25 % ring, a medium-weight muted label and a bold count. Scoped to the follow-up overview. ═══ */
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--submitted { --card-fill: #155dfc; --card-hue: #3080ff; --card-on: #ffffff; --card-mix: 8%; --card-edge: 25%; }
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--under-review { --card-fill: #f0b100; --card-hue: #f0b100; --card-on: rgb(0 0 0 / 0.8); --card-mix: 10%; --card-edge: 30%; }
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--interview { --card-fill: #009689; --card-hue: #00bba7; --card-on: #ffffff; --card-mix: 8%; --card-edge: 25%; }
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--waitlisted { --card-fill: #ff6900; --card-hue: #ff6900; --card-on: #ffffff; --card-mix: 8%; --card-edge: 25%; }
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--vocational,
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--transfer { --card-fill: #00a63e; --card-hue: #00c950; --card-on: #ffffff; --card-mix: 8%; --card-edge: 25%; }
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--rejected { --card-fill: #e7000b; --card-hue: #fb2c36; --card-on: #ffffff; --card-mix: 8%; --card-edge: 25%; }
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-tone--withdrawn { --card-fill: #79716b; --card-hue: #79716b; --card-on: #ffffff; --card-mix: 8%; --card-edge: 25%; }
+
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-card {
+    border-color: color-mix(in srgb, var(--card-hue) var(--card-edge), transparent);
+    background: color-mix(in srgb, var(--card-hue) var(--card-mix), #ffffff);
+    color: #0b1849;
+}
+
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-card__avatar {
+    background: var(--card-fill);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--card-hue) var(--card-edge), transparent);
+    color: var(--card-on);
+}
+
+:is(.sis-follow-up-overview, .sis-leave-cards) .sis-follow-up-card__label {
+    min-height: 0;
+    color: color-mix(in srgb, #0b1849 68%, #000000);
+    font-weight: 500;
+    line-height: 1.375;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   SIS TABLE THEME — the single source of truth for list tables (EXAMIS look).
+   Opt in by adding `sis-table-theme` to the page wrapper (next to `sis-students-page`); the table keeps the usual
+   `sis-admission-periods-table sis-admission-drafts-table` classes. Used by: students, enrollments, follow-up list.
+   - header in the sidebar colour (--sis-night) with white bold text, 2.35rem header and row height
+   - 0.875rem text, 0.65rem side padding (the narrow select / sequence columns keep their own width)
+   - plain rows (no stripes), the EXAMIS gold hover; selected rows and status cells keep their own colours
+   - status cells: `tableStatusCellClass(tone)` + `<StatusBadge>` (components/sis/table-status-badge.tsx) — flat tint,
+     icon and name in one colour; tones are the `sis-follow-up-tone--*` classes
+   Change a value here and every opted-in page follows.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.sis-table-theme.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table :is(th, td):not(.sis-admission-drafts-table__select, .sis-admission-drafts-table__num) {
+    padding-block: 0.35rem 0.45rem;
+    padding-inline: 0.65rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.sis-table-theme.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table th {
+    height: 2.35rem;
+    min-height: 2.35rem;
+    background: var(--sis-night) !important; /* the sidebar colour; the page-level header rules are !important */
+    color: #ffffff !important;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.sis-table-theme.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table tbody tr:hover:not(.sis-admission-periods-table__row--selected),
+.sis-table-theme.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table tbody tr:hover:not(.sis-admission-periods-table__row--selected) td:not(.sis-follow-up-roster__category, .sis-students-table__status) {
+    background: color-mix(in srgb, #e4b028 22%, #ffffff);
+}
+
+/* ═══ Students list: «السجل / حالة الطالب / ملف الطالب» cells — the follow-up list's category cell (flat tint, icon + name in
+   one colour, centred, weight 500). The badge needs no minimum width here; «ملف الطالب» is a status chip with a count pill and a
+   separate fold arrow for the missing items. ═══ */
+.sis-table-theme:not(.sis-follow-up-page) .sis-follow-up-roster__badge {
+    min-inline-size: 0;
+}
+
+.sis-table-theme td.sis-follow-up-roster__category:has(.sis-student-file--open) {
+    white-space: normal;
+}
+
+.sis-student-file {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: 100%;
+    color: var(--follow-up-text);
+}
+
+.sis-student-file--complete {
+    flex-direction: row;
+    gap: 0.375rem;
+}
+
+.sis-student-file__row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.sis-student-file__icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    color: var(--follow-up-icon);
+}
+
+.sis-student-file__label {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sis-student-file__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin: 0;
+    padding: 0.1rem 0.4rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+}
+
+.sis-student-file__action:hover,
+.sis-student-file__action:focus-visible {
+    background: color-mix(in srgb, var(--follow-up-icon) 12%, transparent);
+    outline: none;
+}
+
+.sis-student-file__count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding-inline: 0.3rem;
+    border-radius: 999px;
+    background: var(--follow-up-icon);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.sis-student-file__toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--follow-up-icon);
+    cursor: pointer;
+}
+
+.sis-student-file__toggle:hover,
+.sis-student-file__toggle:focus-visible {
+    background: color-mix(in srgb, var(--follow-up-icon) 15%, transparent);
+    outline: none;
+}
+
+.sis-student-file__chevron {
+    display: block;
+    transition: transform 0.15s ease;
+}
+
+.sis-student-file--open .sis-student-file__chevron {
+    transform: rotate(180deg);
+}
+
+.sis-student-file__gaps {
+    display: grid;
+    gap: 0.3rem;
+    width: 100%;
+    margin: 0.15rem 0 0.2rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, #ffffff 65%, transparent);
+    list-style: none;
+    color: #000000;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: start;
+}
+
+.sis-student-file__gaps li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+/* Black bullet dot before every missing item. */
+.sis-student-file__gaps li::before {
+    content: '';
+    flex-shrink: 0;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: #000000;
+    transform: translateY(-0.05rem);
+}
+
+/* ═══ Side rail of «الحضور» and «الإجازات والغياب»: the selected section is lit in the sidebar colour — white icon and name on
+   --sis-night and a bold name; the other sections keep the pale button. ═══ */
+.sis-att-board__rail button[aria-current='page'] {
+    position: relative;
+    border-color: var(--sis-night);
+    background: var(--sis-night);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.sis-att-board__rail button[aria-current='page'] .sis-att-tone,
+.sis-att-board__rail button[aria-current='page'] svg {
+    color: #ffffff;
+}
+
+.sis-att-board__rail button[aria-current='page']:hover {
+    background: var(--sis-night);
+    color: #ffffff;
+}
+
+/* Rooms list: the code chip and its header are centred in a narrower column. */
+.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table :is(th, td).sis-rooms-code-cell {
+    text-align: center;
+}
+
+.sis-rooms-code-cell .sis-students-table__sort {
+    justify-content: center;
+    width: 100%;
+}
+
+.sis-rooms-code-cell .sis-timetable-card--tray {
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    padding-inline: 0.5rem;
+    text-align: center;
+}
+
+.sis-rooms-code-cell .sis-timetable-card--tray .sis-timetable-card__subject {
+    width: 100%;
+    text-align: center;
+}
+
+/* ═══ Fold / unfold the cards around a table (attendance and leave pages): the calendar and the totals card fold to their title
+   bar, both folded leave a thin strip with a button each, and the quick-link rail folds to a thin strip. The table takes
+   the width. The choice is kept per browser (components/sis/shell-panels.tsx). ═══ */
+.sis-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+    border-radius: var(--sis-button-radius);
+    background: var(--sidebar);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.sis-panel-head__btn,
+.sis-side-strip__btn,
+.sis-att-board__rail .sis-rail-collapse {
+    display: inline-grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
+}
+
+.sis-panel-head__btn {
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 999px;
+    background: transparent;
+    color: #ffffff;
+}
+
+.sis-panel-head__btn:hover,
+.sis-panel-head__btn:focus-visible {
+    background: rgb(255 255 255 / 0.18);
+    outline: none;
+}
+
+.sis-panel-head__chevron {
+    transition: transform 0.15s ease;
+}
+
+.sis-panel-head__btn[aria-expanded='false'] .sis-panel-head__chevron {
+    transform: rotate(180deg);
+}
+
+.sis-side-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.sis-side-strip__btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-night);
+    color: #ffffff;
+}
+
+.sis-side-strip__btn:hover,
+.sis-side-strip__btn:focus-visible {
+    background: color-mix(in srgb, var(--sis-night) 82%, #ffffff);
+    outline: none;
+}
+
+/* The rail's own fold button: a quiet icon above the section buttons; alone in the thin strip when folded. */
+.sis-att-board__rail .sis-rail-collapse {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 1.9rem;
+    height: 1.6rem;
+    border-radius: var(--sis-button-radius);
+    background: transparent;
+    color: var(--sis-night);
+}
+
+.sis-att-board__rail .sis-rail-collapse:hover,
+.sis-att-board__rail .sis-rail-collapse:focus-visible {
+    background: color-mix(in srgb, var(--sis-night) 14%, transparent);
+    color: var(--sis-night);
+    outline: none;
+}
+
+.sis-att-shell.sis-att-shell--side-collapsed {
+    grid-template-columns: 1.9rem minmax(0, 1fr) max-content;
+}
+
+.sis-att-shell.sis-att-shell--rail-collapsed {
+    grid-template-columns: 14.5rem minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-shell.sis-att-shell--side-collapsed.sis-att-shell--rail-collapsed {
+    grid-template-columns: 1.9rem minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-shell.sis-leave-shell.sis-att-shell--rail-collapsed {
+    grid-template-columns: 14.5rem minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-shell.sis-leave-shell.sis-leave-shell--no-side.sis-att-shell--rail-collapsed {
+    grid-template-columns: minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-shell.sis-leave-shell.sis-att-shell--side-collapsed {
+    grid-template-columns: 1.9rem minmax(0, 1fr) max-content;
+}
+
+.sis-att-shell.sis-leave-shell.sis-att-shell--side-collapsed.sis-att-shell--rail-collapsed {
+    grid-template-columns: 1.9rem minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-board.sis-att-board--side-collapsed {
+    grid-template-columns: 1.9rem minmax(0, 1fr) max-content;
+}
+
+.sis-att-board.sis-att-board--rail-collapsed {
+    grid-template-columns: 14.5rem minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-board.sis-att-board--side-collapsed.sis-att-board--rail-collapsed {
+    grid-template-columns: 1.9rem minmax(0, 1fr) 2.6rem;
+}
+
+.sis-att-board__center {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+}
+
+.sis-att-board__center > .sis-att-board__main {
+    flex: 1 1 auto;
+}
+
+/* Count on a rail icon (attendance): same badge as the leave rail; the shown day's sheets are neutral, what waits is red. */
+.sis-att-board__rail button {
+    position: relative;
+}
+
+.sis-rail-badge {
+    position: absolute;
+    top: 0.2rem;
+    inset-inline-start: 0.2rem;
+    min-width: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--sis-admission-status-7);
+    color: #ffffff;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1.15rem;
+    text-align: center;
+}
+
+.sis-rail-badge--info {
+    background: var(--sis-night);
+}
+
+.sis-att-board__rail button[aria-current='page'] .sis-rail-badge--info {
+    background: #ffffff;
+    color: var(--sis-night);
+}
+
+/* ═══ Section rail = the app sidebar, to the letter (attendance and leave pages): the sidebar's colour, text, item size,
+   hover and selected colours; narrow; joined to the title/ribbon bar at the top and running to the bottom of the page
+   (the shell's own paddings are cancelled by negative margins). Folded, it is the icon sidebar's 3rem strip. ═══ */
+.sis-att-shell {
+    padding-bottom: 1rem;
+}
+
+.sis-att-board__rail.sis-rail-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    align-self: stretch;
+    min-height: 0;
+    max-height: none;
+    margin-block: -0.6rem -1rem;
+    padding: 0.5rem;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 0;
+    background: var(--sidebar);
+    color: var(--sidebar-foreground);
+    font-family: var(--sis-chrome-font);
+    font-size: var(--sis-chrome-text-size);
+    font-weight: 400;
+    scrollbar-width: none;
+}
+
+/* The board (لوحة الحضور) has its own paddings. */
+.sis-att-board > .sis-att-board__rail.sis-rail-card {
+    margin-block: -0.6rem -0.9rem;
+    margin-inline-end: -0.75rem;
+}
+
+.sis-att-board__rail.sis-rail-card.sis-att-board__rail--collapsed {
+    align-items: center;
+    padding-inline: 0;
+}
+
+.sis-rail-card__head {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.sis-att-board__rail--collapsed .sis-rail-card__head {
+    justify-content: center;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-collapse {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--sidebar-foreground);
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-collapse:hover,
+.sis-att-board__rail.sis-rail-card .sis-rail-collapse:focus-visible {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+}
+
+.sis-rail-card__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-row {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    height: 2rem;
+    min-height: 0;
+    padding: 0.5rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0.375rem;
+    background: transparent;
+    box-shadow: none;
+    color: var(--sidebar-foreground);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.25;
+    text-align: start;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-row svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    color: inherit;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-row .sis-att-tone {
+    color: inherit;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-row:hover,
+.sis-att-board__rail.sis-rail-card .sis-rail-row:focus-visible,
+.sis-att-board__rail.sis-rail-card .sis-rail-row[aria-current='page'] {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+    font-weight: 400;
+    outline: none;
+}
+
+.sis-rail-row__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sis-rail-row__count {
+    flex: 0 0 auto;
+    min-width: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.14);
+    color: inherit;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.sis-rail-row:hover .sis-rail-row__count,
+.sis-rail-row:focus-visible .sis-rail-row__count,
+.sis-rail-row[aria-current='page'] .sis-rail-row__count {
+    background: color-mix(in srgb, var(--sidebar-accent-foreground) 14%, transparent);
+}
+
+/* ═══ Rail refinements: as wide as its longest name, flush with the page edge and with the content (no empty strip), a small
+   fold button, and when folded only the section icons stay. ═══ */
+.sis-att-board__rail.sis-rail-card {
+    /* start: the grid gap (0.6rem) — the same space as between the table and the side panel on its other side; end: cancels the page body's 1rem inline padding. */
+    margin-inline: 0 -1rem;
+}
+
+.sis-att-board > .sis-att-board__rail.sis-rail-card {
+    margin-inline: 0 -0.75rem;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-collapse {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.sis-att-board__rail.sis-rail-card .sis-rail-collapse svg {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+.sis-att-board__rail--collapsed .sis-rail-row {
+    justify-content: center;
+    width: 2rem;
+    padding-inline: 0;
+}
+
+.sis-att-board__rail--collapsed .sis-rail-row__label,
+.sis-att-board__rail--collapsed .sis-rail-row__count {
+    display: none;
+}
+
+.sis-att-board__rail.sis-rail-card.sis-att-board__rail--collapsed {
+    padding-inline: 0.3rem;
+}
+
+/* Selection column («تحديد»): one width for every themed table — the follow-up list's. The check box is 0.9rem. */
+.sis-table-theme.sis-students-page .sis-admission-drafts-table.sis-admission-periods-table :is(th, td).sis-admission-drafts-table__select {
+    width: 1.75rem !important;
+    min-width: 1.75rem !important;
+    max-width: 1.75rem !important;
+    padding: 0 !important;
+    text-align: center;
+}
+
+/* A squeezed attendance column (see AttendanceTable.applyFitScale): its font shrinks by --fit-scale so the text stays whole,
+   and returns to normal when the column is wide again. Inner elements follow the cell's size. */
+.sis-table-theme :is(th, td)[style*='--fit-scale'],
+.sis-attendance-table :is(th, td)[style*='--fit-scale'] {
+    font-size: calc(0.875rem * var(--fit-scale)) !important;
+}
+
+.sis-table-theme :is(th, td)[style*='--fit-scale'] :is(span, div, button, a, p, li, strong, small, label),
+.sis-attendance-table :is(th, td)[style*='--fit-scale'] :is(span, div, button, a, p, li, strong, small, label) {
+    font-size: inherit !important;
+}
+
+/* Overview pages: the «all» pill sits right under the legend, spaced like the legend's own rows. */
+.sis-follow-up-overview__side {
+    gap: 0.625rem;
+}
+
+@media (min-width: 40rem) {
+    .sis-follow-up-overview__side {
+        justify-content: flex-start;
+    }
 }

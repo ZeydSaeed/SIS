@@ -28,6 +28,9 @@ import {
     studentQuadName,
 } from '@/components/enrollments/enrollment-editor-row';
 import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
+import { sisListPageClass } from '@/components/sis/page-theme';
+import { useOverviewHome, type OverviewCard } from '@/components/sis/module-overview';
+import { STUDENT_STATUS_TONES } from '@/components/sis/table-status-badge';
 import type {
     EnrollmentFilterOptions,
     EnrollmentListItem,
@@ -66,7 +69,7 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import {
     clearEnrollmentHandoff,
@@ -267,6 +270,21 @@ function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): stri
     return labels[status] ?? String(status);
 }
 
+/** The cards of the module's overview page: this page's status tabs, each opening the list on its status. */
+export function enrollmentsOverviewCards(
+    enrollments: EnrollmentsPayload,
+    i18n: ReturnType<typeof t>,
+): OverviewCard[] {
+    return ENROLLMENT_STATUS_TABS.map((tab) => ({
+        key: tab.status === null ? 'all' : String(tab.status),
+        label: statusTabLabel(tab.status, i18n),
+        icon: tab.icon,
+        count: countForStatus(tab.status, enrollments.status_progress),
+        tone: tab.status === null ? 'interview' : (STUDENT_STATUS_TONES[tab.status] ?? 'withdrawn'),
+        href: tab.status === null ? '/enrollments' : `/enrollments?status=${tab.status}`,
+    }));
+}
+
 export function EnrollmentList({
     enrollments,
     filters,
@@ -274,6 +292,7 @@ export function EnrollmentList({
     authorization,
     placementHistory = null,
 }: EnrollmentListProps) {
+    useOverviewHome('/enrollments');
     const i18n = t();
     const { showError, showWarning, showInertiaErrors } = usePageError();
     const genderValue = filters.gender === 1 || filters.gender === 2 ? String(filters.gender) : '';
@@ -524,10 +543,11 @@ export function EnrollmentList({
         });
     }, [authorization.canCreate, page.url]);
 
-    useResizableTableColumns(tableRef, {
-        storageKey: 'enrollments.list',
-        columnSignature: canSelect ? 'select-v4-no-code' : 'readonly-v4-no-code',
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: 'enrollments.list.v5',
+        columnSignature: canSelect ? 'select-v5' : 'readonly-v5',
         enabled: displayRows.length > 0,
+        rowsKey: displayRows.map((row) => row.id).join(','),
     });
     useSmoothVerticalScroll(scrollerRef, displayRows.length > 0);
 
@@ -1774,7 +1794,7 @@ export function EnrollmentList({
 
     return (
         <div
-            className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
+            className={sisListPageClass()}
             dir="rtl"
             lang="ar"
         >
@@ -1809,13 +1829,10 @@ export function EnrollmentList({
                                                         {i18n.enrollments.quadName}
                                                     </SortButton>
                                                 </th>
-                                                <th aria-sort={ariaSort(sort, 'gender')}><SortButton sort={sort} column="gender">{i18n.enrollments.gender}</SortButton></th>
-                                                <th aria-sort={ariaSort(sort, 'year')}><SortButton sort={sort} column="year">{i18n.enrollments.academicYear}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'class')}><SortButton sort={sort} column="class">{i18n.enrollments.className}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'section')}><SortButton sort={sort} column="section">{i18n.enrollments.sectionName}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'branch')}><SortButton sort={sort} column="branch">{i18n.enrollments.branchName}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'department')}><SortButton sort={sort} column="department">{i18n.enrollments.departmentName}</SortButton></th>
-                                                <th aria-sort={ariaSort(sort, 'stage')}><SortButton sort={sort} column="stage">{i18n.enrollments.stageName}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'from')}><SortButton sort={sort} column="from">{i18n.enrollments.effectiveFrom}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'to')}><SortButton sort={sort} column="to">{i18n.enrollments.effectiveTo}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'status')}><SortButton sort={sort} column="status">{i18n.enrollments.statusTabsTitle}</SortButton></th>

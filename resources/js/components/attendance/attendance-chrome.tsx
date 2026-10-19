@@ -38,6 +38,7 @@ import {
 } from '@/components/attendance/day-board';
 import { RegistrySheetDialog } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
+import { sisListPageClass } from '@/components/sis/page-theme';
 import {
     SisContextMenu,
     isContextMenuKey,
@@ -80,6 +81,21 @@ import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 import { searchIncludes, searchNeedle } from '@/lib/search-normalize';
 import { useDebouncedFitPageSync } from '@/lib/sis-ribbon-layout';
+import {
+    SideStrip,
+    useShellPanels,
+} from '@/components/sis/shell-panels';
+import { tableStatusCellClass } from '@/components/sis/table-status-badge';
+
+/** The 0..5 tone of a status column → tone of the shared table theme (`sis-follow-up-tone--*`): grey neutral, green good, yellow pending, blue informed, red bad, orange needs action. */
+const STATUS_TONES: Record<number, string> = {
+    0: 'withdrawn',
+    1: 'transfer',
+    2: 'under-review',
+    3: 'submitted',
+    4: 'rejected',
+    5: 'waitlisted',
+};
 
 export type SectionKey =
     | 'my'
@@ -698,22 +714,29 @@ export function AttendancePage({
     const shell = usePage<{
         attendanceShell?: AttendanceShell | null;
     }>().props.attendanceShell;
+    const panels = useShellPanels();
+    const hideSide = panels.isHidden('calendar') && panels.isHidden('totals');
 
     return (
         <>
             <Head title={title} />
             <div
-                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-scroll-hidden flex h-full min-h-0 flex-col pb-4"
+                className={sisListPageClass({ hiddenScroll: true, flush: true })}
                 dir="rtl"
                 lang="ar"
             >
                 <div className="sis-admission-page-body">
                     {shell ? (
-                        <div className="sis-att-shell">
+                        <div
+                            className={`sis-att-shell${panels.isHidden('rail') ? ' sis-att-shell--rail-collapsed' : ''}${hideSide ? ' sis-att-shell--side-collapsed' : ''}`}
+                        >
                             <aside
                                 className="sis-att-board__side"
                                 aria-label={t().attendanceSystem.dashboard.board.side}
                             >
+                                {hideSide ? (
+                                    <SideStrip />
+                                ) : (
                                 <DaySidePanel
                                     date={shell.date}
                                     today={shell.today}
@@ -722,6 +745,7 @@ export function AttendancePage({
                                     totals={shell.totals}
                                     onGo={goToDate}
                                 />
+                                )}
                             </aside>
                             <div className="sis-att-shell__main">{children}</div>
                             <AttendanceRail
@@ -767,6 +791,9 @@ function goToDate(date: string): void {
         preserveState: true,
     });
 }
+
+/** The smallest font scale of a squeezed column (below it the text is clipped as before). */
+const MIN_FIT_SCALE = 0.62;
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
@@ -863,6 +890,8 @@ export function AttendanceTable<T>({
     const menu = useContextMenu<T>();
     const cardRef = useRef<HTMLDivElement | null>(null);
     const scrollerRef = useRef<HTMLDivElement | null>(null);
+    /** Each column's width when its text is at full size (set by the last measure): the font shrinks only below it. */
+    const neededRef = useRef<number[]>([]);
     const tableRef = useRef<HTMLTableElement | null>(null);
     const selectAllRef = useRef<HTMLInputElement | null>(null);
     const [clientPage, setClientPage] = useState(1);
@@ -958,7 +987,32 @@ export function AttendanceTable<T>({
     const offset = (page - 1) * (server ? server.perPage : size);
 
     // A window's table is measured again when its rows arrive (the student record loads after the window opens).
-    const columnSignature = `v5:${selection ? 'sel' : 'ro'}:${columns.map((c) => c.id).join(',')}${fit ? '' : `:n${rows.length}`}`;
+    // The room the table has changes when the sidebar, the section rail or the side cards open or fold (or the window is
+    // resized): the width is read again once it settles (the folding animates) and the columns are fitted to it.
+    const [roomWidth, setRoomWidth] = useState(0);
+    const hasRows = shown.length > 0;
+    useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (!fit || scroller === null) {
+            return;
+        }
+        let timer = 0;
+        const observer = new ResizeObserver(() => {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(
+                () => setRoomWidth(Math.round(scroller.clientWidth / 4) * 4),
+                160,
+            );
+        });
+        observer.observe(scroller);
+
+        return () => {
+            observer.disconnect();
+            window.clearTimeout(timer);
+        };
+    }, [fit, hasRows]);
+    // A page table is fitted again whenever the rows on screen change (page, filter, sort, data).
+    const columnSignature = `v6:${selection ? 'sel' : 'ro'}:${columns.map((c) => c.id).join(',')}${fit ? `:p${page}:${shown.length}:${JSON.stringify(shown).length}:w${roomWidth}` : `:n${rows.length}`}`;
     const kinds = [
         ...(selection ? ['select'] : []),
         'num',
@@ -986,6 +1040,10 @@ export function AttendanceTable<T>({
                 // The stylesheet stretches tables to 100%: measure the content width instead.
                 table.style.setProperty('width', 'max-content', 'important');
             }
+            // Measured at full font size: the squeeze (below) is taken off first.
+            table
+                ?.querySelectorAll<HTMLElement>('th, td')
+                .forEach((c) => c.style.removeProperty('--fit-scale'));
             const headers = cells.map((cell, index) =>
                 Math.max(
                     headerTextWidth(cell),
@@ -1001,10 +1059,12 @@ export function AttendanceTable<T>({
                     cell.offsetWidth + (kinds[index] === 'plain' ? 24 : 0),
                 ),
             );
+            neededRef.current = needed.slice();
             table?.style.removeProperty('width');
             const room =
                 (scrollerRef.current?.clientWidth ?? 0) - cells.length - 4;
             const total = needed.reduce((sum, w) => sum + w, 0);
+            // Too narrow: the columns shrink in proportion (never below their header) so the whole table is on screen.
             if (room > 0 && total > room) {
                 // Shrink the text columns towards their header width, in proportion to what they can give.
                 const give = needed.map((w, i) =>
@@ -1079,8 +1139,79 @@ export function AttendanceTable<T>({
         columnSignature,
         enabled: shown.length > 0 || !fit,
         measure,
+        // A page table opens with every column as wide as its longest text (saved widths would cut longer text).
+        fitToContent: fit,
         fixedColumns: selection ? { 0: selectWidth } : undefined,
     });
+    // A column squeezed below its text gets a smaller font so the text stays whole; back to full size when it is wide enough.
+    const applyFitScale = () => {
+        const table = tableRef.current;
+        const head = table?.tHead?.rows[0]?.cells;
+        if (!fit || table === null || !head) {
+            return;
+        }
+        const scales = Array.from(head).map((cell, index) => {
+            const needed = neededRef.current[index];
+            if (!needed) {
+                return 1;
+            }
+            const style = getComputedStyle(cell);
+            const pad =
+                Number.parseFloat(style.paddingLeft) +
+                Number.parseFloat(style.paddingRight) +
+                1;
+            const have = cell.offsetWidth - pad;
+            const want = needed - pad;
+            if (want <= 0 || have >= want) {
+                return 1;
+            }
+
+            return Math.max(MIN_FIT_SCALE, Math.round((have / want) * 100) / 100);
+        });
+        Array.from(table.rows).forEach((row) => {
+            if (row.cells.length !== head.length) {
+                return;
+            }
+            Array.from(row.cells).forEach((cell, index) => {
+                const scale = scales[index] ?? 1;
+                if (scale >= 1) {
+                    cell.style.removeProperty('--fit-scale');
+                } else {
+                    cell.style.setProperty('--fit-scale', String(scale));
+                }
+            });
+        });
+    };
+    useLayoutEffect(() => {
+        applyFitScale();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [columnSignature, shown.length]);
+    useEffect(() => {
+        const table = tableRef.current;
+        if (!fit || table === null) {
+            return;
+        }
+        let frame = 0;
+        const observer = new ResizeObserver(() => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(applyFitScale);
+        });
+        observer.observe(table);
+
+        return () => {
+            observer.disconnect();
+            cancelAnimationFrame(frame);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fit, hasRows]);
+    // Wider room (the sidebar or the section rail folded): a page table stretches to its card, and the browser spreads the
+    // extra width over the columns at once; the columns are measured again when the width settles (see `roomWidth`).
+    useLayoutEffect(() => {
+        const table = tableRef.current;
+        if (fit && table !== null && table.style.tableLayout === 'fixed') {
+            table.style.setProperty('width', '100%');
+        }
+    }, [fit, columnSignature, shown.length]);
     useResizableTableRows(tableRef, cardRef, {
         storageKey: `attendance.${storageKey}`,
         zoom,
@@ -1334,12 +1465,9 @@ export function AttendanceTable<T>({
                                             c.kind === 'status' ? (
                                                 <td
                                                     key={c.id}
-                                                    className={`sis-students-table__status sis-students-table__status--tone-${(c.tone?.(row) ?? 0) === 1 ? 'dark' : 'light'}`}
-                                                    data-status={
-                                                        c.tone?.(row) ?? 0
-                                                    }
-                                                    data-icon-tone={c.iconTone?.(
-                                                        row,
+                                                    className={tableStatusCellClass(
+                                                        STATUS_TONES[c.tone?.(row) ?? 0] ??
+                                                            'withdrawn',
                                                     )}
                                                 >
                                                     <div className="sis-students-table__cell-scroll">

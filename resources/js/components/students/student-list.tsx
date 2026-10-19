@@ -28,6 +28,8 @@ import {
     type ReactNode,
 } from 'react';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { sisListPageClass } from '@/components/sis/page-theme';
+import { useOverviewHome, type OverviewCard } from '@/components/sis/module-overview';
 import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
 import {
@@ -39,7 +41,6 @@ import { writeStoredListPage } from '@/lib/sis-list-page-storage';
 import { usePageError } from '@/components/sis/page-error-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { RibbonFilterField } from '@/components/sis/ribbon-filter';
-import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
     tableActionIds,
     toggleTableRowChecked,
@@ -48,7 +49,13 @@ import {
 import { StudentFileCell } from '@/components/students/student-file-cell';
 import { studentRecordCompletenessGaps } from '@/components/students/student-record-gaps';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import {
+    STUDENT_STATUS_ICONS,
+    STUDENT_STATUS_TONES,
+    StatusBadge,
+    tableStatusCellClass,
+} from '@/components/sis/table-status-badge';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import {
     useRegisterPageRibbon,
@@ -310,18 +317,6 @@ function displayMobile(value: string | null | undefined): string {
     return digits === '' ? '—' : digits;
 }
 
-function genderLabel(gender: number, i18n: ReturnType<typeof t>): string {
-    if (gender === 1) {
-        return i18n.students.male;
-    }
-
-    if (gender === 2) {
-        return i18n.students.female;
-    }
-
-    return String(gender);
-}
-
 function CellScroll({ children }: { children: ReactNode }) {
     return <div className="sis-students-table__cell-scroll">{children}</div>;
 }
@@ -405,8 +400,19 @@ function statusTabLabel(status: number | null, i18n: ReturnType<typeof t>): stri
     return labels[status] ?? String(status);
 }
 
-function statusTone(status: number): 'light' | 'dark' {
-    return status === 0 || status === 4 ? 'light' : 'dark';
+/** The cards of the module's overview page: this page's status tabs, each opening the list on its status. */
+export function studentsOverviewCards(
+    students: StudentsPayload,
+    i18n: ReturnType<typeof t>,
+): OverviewCard[] {
+    return STUDENT_STATUS_TABS.map((tab) => ({
+        key: tab.status === null ? 'all' : String(tab.status),
+        label: statusTabLabel(tab.status, i18n),
+        icon: tab.icon,
+        count: countForStatus(tab.status, students.status_progress),
+        tone: tab.status === null ? 'interview' : (STUDENT_STATUS_TONES[tab.status] ?? 'withdrawn'),
+        href: tab.status === null ? '/students' : `/students?status=${tab.status}`,
+    }));
 }
 
 function emptyToNull(value: string): string | null {
@@ -693,8 +699,8 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                 <td
                     className={
                         profileGaps.length > 0
-                            ? 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-incomplete'
-                            : 'sis-admission-drafts-table__enroll-action sis-admission-drafts-table__enroll-action--file-complete'
+                            ? 'sis-admission-drafts-table__enroll-action sis-follow-up-roster__category sis-follow-up-tone--waitlisted'
+                            : 'sis-admission-drafts-table__enroll-action sis-follow-up-roster__category sis-follow-up-tone--transfer'
                     }
                 >
                     <StudentFileCell
@@ -721,28 +727,6 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                         </CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
-                        <div
-                            onClick={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => event.stopPropagation()}
-                        >
-                            <SisListSelect
-                                value={String(gender)}
-                                options={[
-                                    { value: '1', label: i18n.students.male },
-                                    { value: '2', label: i18n.students.female },
-                                ]}
-                                onChange={(next) => setGender(Number(next))}
-                                triggerClassName="sis-students-table__edit-input"
-                                dir="rtl"
-                                ariaLabel={i18n.students.gender}
-                            />
-                        </div>
-                    ) : (
-                        <CellScroll>{genderLabel(row.gender, i18n)}</CellScroll>
-                    )}
-                </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
                     {editing ? (
                         <TableEditInput
@@ -757,26 +741,13 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                         </CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                    {editing ? (
-                        <TableEditInput
-                            value={previousSchoolName}
-                            label={i18n.students.previousSchoolName}
-                            onChange={setPreviousSchoolName}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.previous_school_name)}</CellScroll>
-                    )}
-                </td>
                 <td
-                    className={
-                        row.is_enrolled
-                            ? 'sis-students-table__enrollment sis-students-table__enrollment--yes'
-                            : 'sis-students-table__enrollment sis-students-table__enrollment--no'
-                    }
+                    className={tableStatusCellClass(row.is_enrolled ? 'transfer' : 'withdrawn')}
                 >
                     <CellScroll>
-                        {row.is_enrolled ? i18n.students.enrollmentYes : i18n.students.enrollmentNo}
+                        <StatusBadge icon={row.is_enrolled ? CheckCircle2 : CircleSlash}>
+                            {row.is_enrolled ? i18n.students.enrollmentYes : i18n.students.enrollmentNo}
+                        </StatusBadge>
                     </CellScroll>
                 </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap sis-students-table__mobile">
@@ -796,10 +767,13 @@ const StudentEditorRow = forwardRef<StudentRowHandle, StudentEditorRowProps>(
                     )}
                 </td>
                 <td
-                    className={`sis-students-table__status sis-students-table__status--tone-${statusTone(row.status)}`}
-                    data-status={row.status}
+                    className={tableStatusCellClass(STUDENT_STATUS_TONES[row.status] ?? 'withdrawn')}
                 >
-                    <CellScroll>{statusTabLabel(row.status, i18n)}</CellScroll>
+                    <CellScroll>
+                        <StatusBadge icon={STUDENT_STATUS_ICONS[row.status] ?? CircleSlash}>
+                            {statusTabLabel(row.status, i18n)}
+                        </StatusBadge>
+                    </CellScroll>
                 </td>
             </tr>
         );
@@ -812,6 +786,7 @@ export function StudentList({
     authorization,
     enrollmentFilterOptions = EMPTY_ENROLLMENT_FILTER_OPTIONS,
 }: StudentListProps) {
+    useOverviewHome('/students');
     const i18n = t();
     const { showInertiaErrors, showWarning } = usePageError();
     const page = usePage();
@@ -902,12 +877,8 @@ export function StudentList({
                 return studentRecordCompletenessGaps(row as unknown as Record<string, unknown>).length;
             case 'birth':
                 return row.birth_date;
-            case 'gender':
-                return genderLabel(row.gender, i18n);
             case 'transfer':
                 return row.transfer_document_number == null ? null : String(row.transfer_document_number);
-            case 'previousSchool':
-                return row.previous_school_name;
             case 'enrollment':
                 return row.is_enrolled;
             case 'mobile':
@@ -986,10 +957,11 @@ export function StudentList({
         });
     }, [authorization.canCreate, page.url]);
 
-    useResizableTableColumns(tableRef, {
-        storageKey: 'students.list',
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: 'students.list.v3',
         columnSignature: `${canSelect ? 'select' : 'readonly'}:file:enrolled`,
         enabled: rows.length > 0,
+        rowsKey: displayRows.map((row) => row.id).join(','),
     });
     useSmoothVerticalScroll(scrollerRef, displayRows.length > 0);
 
@@ -1820,7 +1792,7 @@ export function StudentList({
 
     return (
         <div
-            className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
+            className={sisListPageClass()}
             dir="rtl"
             lang="ar"
         >
@@ -1862,9 +1834,7 @@ export function StudentList({
                                                     </SortButton>
                                                 </th>
                                                 <th className="sis-students-table__birth" aria-sort={ariaSort(sort, 'birth')}><SortButton sort={sort} column="birth">{i18n.students.birthDate}</SortButton></th>
-                                                <th aria-sort={ariaSort(sort, 'gender')}><SortButton sort={sort} column="gender">{i18n.students.gender}</SortButton></th>
                                                 <th aria-sort={ariaSort(sort, 'transfer')}><SortButton sort={sort} column="transfer">{i18n.students.transferDocumentNumber}</SortButton></th>
-                                                <th aria-sort={ariaSort(sort, 'previousSchool')}><SortButton sort={sort} column="previousSchool">{i18n.students.previousSchoolName}</SortButton></th>
                                                 <th className="sis-students-table__enrollment-head" aria-sort={ariaSort(sort, 'enrollment')}>
                                                     <SortButton sort={sort} column="enrollment">
                                                         {i18n.students.enrollmentColumn}

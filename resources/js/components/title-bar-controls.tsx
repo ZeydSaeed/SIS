@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { useCallback } from 'react';
 import { TitleBarHistory } from '@/components/title-bar-history';
+import { TitleBarPageToggle } from '@/components/title-bar-page-toggle';
 import { TitleBarPageNav } from '@/components/title-bar-page-nav';
 import { WindowControls } from '@/components/window-controls';
 import { t } from '@/i18n';
@@ -31,6 +32,7 @@ export function TitleBarControls() {
     // Right of the close (X) button: «التالية» / «السابقة» page arrows, then «رجوع» / «تقدم» (unsaved edits).
     return (
         <>
+            <TitleBarPageToggle />
             <WindowControls
                 className="sis-titlebar__controls shrink-0"
                 label={`${pageTitle} — ${i18n.window.controls}`}

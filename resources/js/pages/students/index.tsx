@@ -3,9 +3,11 @@ import AppLayout from '@/layouts/app-layout';
 import type { EnrollmentFormFilterOptions } from '@/components/enrollments/enrollment-record-form';
 import {
     StudentList,
+    studentsOverviewCards,
     type StudentAuthorization,
     type StudentsPayload,
 } from '@/components/students/student-list';
+import { ModuleOverview, useIsOverview } from '@/components/sis/module-overview';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -32,18 +34,30 @@ export default function StudentsIndex({
     enrollmentFilterOptions,
 }: PageProps) {
     const i18n = t();
+    const overview = useIsOverview();
 
     const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.students.title, href: '/students' }];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={i18n.students.title} />
-            <StudentList
-                students={students}
-                filters={filters}
-                authorization={authorization}
-                enrollmentFilterOptions={enrollmentFilterOptions}
-            />
+            {overview ? (
+                <ModuleOverview
+                    title={i18n.students.title}
+                    listPath="/students"
+                    cards={studentsOverviewCards(students, i18n)}
+                    allLabel={i18n.overview.allStudents}
+                />
+            ) : (
+                <>
+                    <Head title={i18n.students.title} />
+                    <StudentList
+                        students={students}
+                        filters={filters}
+                        authorization={authorization}
+                        enrollmentFilterOptions={enrollmentFilterOptions}
+                    />
+                </>
+            )}
         </AppLayout>
     );
 }

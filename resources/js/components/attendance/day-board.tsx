@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     BarChart3,
     BellRing,
@@ -39,6 +39,12 @@ import {
 } from '@/components/sis/context-menu';
 import { usePageError } from '@/components/sis/page-error-context';
 import { dayOfWeekLabel } from '@/components/sis/status-chip';
+import {
+    PanelHead,
+    SideStrip,
+    useRailTitlebarToggle,
+    useShellPanels,
+} from '@/components/sis/shell-panels';
 import { t } from '@/i18n';
 import { searchIncludes, searchNeedle } from '@/lib/search-normalize';
 
@@ -224,6 +230,121 @@ function ToneIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: string }) {
     );
 }
 
+/** One line of the totals card: icon + name, then the value (and its share). */
+export type DayTotalRow = {
+    id: string;
+    label: string;
+    value: string | number;
+    /** Share of the day's decided marks (the card shows count · percent). */
+    share?: string;
+    icon: LucideIcon;
+    tone: string;
+    main?: boolean;
+};
+
+/**
+ * The frame of the side panel — day card, previous / today / next, the foldable month calendar and the foldable totals
+ * card. The attendance pages fill the totals with attendance rows; the leave pages with leave rows.
+ */
+export function DaySideFrame({
+    date,
+    today,
+    weekday,
+    onGo,
+    rows,
+    totalsTitle,
+}: {
+    date: string;
+    today: string;
+    weekday: number;
+    onGo: (date: string) => void;
+    rows: DayTotalRow[];
+    totalsTitle?: string;
+}) {
+    const panels = useShellPanels();
+    const showCalendar = !panels.isHidden('calendar');
+    const showTotals = !panels.isHidden('totals');
+    const d = t().attendanceSystem.dashboard;
+    const go = onGo;
+    const totalRows = rows;
+
+    return (
+        <>
+            <div className="sis-att-board__day">
+                <span className="sis-att-board__day-name">
+                    {dayOfWeekLabel(weekday)}
+                </span>
+                <span className="sis-att-board__day-date" dir="ltr">
+                    {date}
+                </span>
+            </div>
+            <div className="sis-att-board__nav-row">
+                <button
+                    type="button"
+                    className="sis-att-board__btn"
+                    onClick={() => go(shiftDay(date, -1))}
+                >
+                    <ChevronRight className="size-3.5" aria-hidden />
+                    {d.prevDay}
+                </button>
+                <button
+                    type="button"
+                    className="sis-att-board__btn sis-att-board__btn--primary"
+                    disabled={date === today}
+                    onClick={() => go(today)}
+                >
+                    <CalendarDays className="size-3.5" aria-hidden />
+                    {d.today}
+                </button>
+                <button
+                    type="button"
+                    className="sis-att-board__btn"
+                    onClick={() => go(shiftDay(date, 1))}
+                >
+                    {d.nextDay}
+                    <ChevronLeft className="size-3.5" aria-hidden />
+                </button>
+            </div>
+
+            <PanelHead panel="calendar" />
+            {showCalendar ? (
+                <MiniCalendar
+                    key={date.slice(0, 7)}
+                    date={date}
+                    today={today}
+                    onPick={go}
+                />
+            ) : null}
+
+            <PanelHead panel="totals" totalsTitle={totalsTitle} />
+            {showTotals ? (
+                <dl className="sis-att-board__totals">
+                    {totalRows.map((row) => (
+                        <div
+                            key={row.id}
+                            className={`sis-att-board__total${row.main ? ' sis-att-board__total--main' : ''}`}
+                        >
+                            <dt>
+                                <ToneIcon icon={row.icon} tone={row.tone} />
+                                {row.label}
+                            </dt>
+                            <dd dir="ltr">
+                                {row.value}
+                                {row.share !== undefined ? (
+                                    <span className="sis-att-board__share">
+                                        {' '}
+                                        · {row.share}
+                                    </span>
+                                ) : null}
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : null}
+        </>
+    );
+}
+
 /**
  * The side panel of the day: the weekday + date, previous / today / next, the month calendar and the day's totals
  * card (attendance rate + each status as count · share of the decided marks). Used by «لوحة الحضور» and «حصصي اليوم».
@@ -246,7 +367,6 @@ export function DaySidePanel({
     const a = t().attendanceSystem;
     const d = a.dashboard;
     const b = d.board;
-    const go = onGo;
     const pct =
         totals.attendance_rate === null ? '—' : `${totals.attendance_rate}%`;
     /** «n٪» of the marks decided that day (— when nothing was marked). */
@@ -254,16 +374,7 @@ export function DaySidePanel({
         totals.decided > 0
             ? `${Math.round((count * 1000) / totals.decided) / 10}%`
             : '—';
-    const totalRows: Array<{
-        id: string;
-        label: string;
-        value: string | number;
-        /** Share of the day's decided marks (the card shows count · percent). */
-        share?: string;
-        icon: LucideIcon;
-        tone: string;
-        main?: boolean;
-    }> = [
+    const totalRows: DayTotalRow[] = [
         {
             id: 'rate',
             label: d.attendanceRate,
@@ -329,87 +440,38 @@ export function DaySidePanel({
     ];
 
     return (
-        <>
-            <div className="sis-att-board__day">
-                <span className="sis-att-board__day-name">
-                    {dayOfWeekLabel(weekday)}
-                </span>
-                <span className="sis-att-board__day-date" dir="ltr">
-                    {date}
-                </span>
-            </div>
-            <div className="sis-att-board__nav-row">
-                <button
-                    type="button"
-                    className="sis-att-board__btn"
-                    onClick={() => go(shiftDay(date, -1))}
-                >
-                    <ChevronRight className="size-3.5" aria-hidden />
-                    {d.prevDay}
-                </button>
-                <button
-                    type="button"
-                    className="sis-att-board__btn sis-att-board__btn--primary"
-                    disabled={date === today}
-                    onClick={() => go(today)}
-                >
-                    <CalendarDays className="size-3.5" aria-hidden />
-                    {d.today}
-                </button>
-                <button
-                    type="button"
-                    className="sis-att-board__btn"
-                    onClick={() => go(shiftDay(date, 1))}
-                >
-                    {d.nextDay}
-                    <ChevronLeft className="size-3.5" aria-hidden />
-                </button>
-            </div>
-
-            <MiniCalendar
-                key={date.slice(0, 7)}
-                date={date}
-                today={today}
-                onPick={go}
-            />
-
-            <dl className="sis-att-board__totals">
-                {totalRows.map((row) => (
-                    <div
-                        key={row.id}
-                        className={`sis-att-board__total${row.main ? ' sis-att-board__total--main' : ''}`}
-                    >
-                        <dt>
-                            <ToneIcon icon={row.icon} tone={row.tone} />
-                            {row.label}
-                        </dt>
-                        <dd dir="ltr">
-                            {row.value}
-                            {row.share !== undefined ? (
-                                <span className="sis-att-board__share">
-                                    {' '}
-                                    · {row.share}
-                                </span>
-                            ) : null}
-                        </dd>
-                    </div>
-                ))}
-            </dl>
-        </>
+        <DaySideFrame
+            date={date}
+            today={today}
+            weekday={weekday}
+            onGo={onGo}
+            rows={totalRows}
+        />
     );
 }
 
-/** The quick-link rail (my day · review · excuses · alerts · staff · reports): the same on every attendance page. */
-export function AttendanceRail({
-    abilities,
-    date = null,
-}: {
-    abilities: AttendanceAbilities;
-    /** The day chosen in the side calendar: each page opens on that day. */
-    date?: string | null;
-}) {
+/** The number shown on a rail icon (see AttendanceShellData::railCounts): every section has one. */
+export function railCount(href: string, counts: Record<string, number>): number {
+    const key: Record<string, string> = {
+        '/attendance/my': 'my',
+        '/attendance': 'sessions',
+        '/attendance/review': 'review',
+        '/attendance/dashboard': 'dashboard',
+        '/attendance/staff': 'staff',
+        '/attendance/excuses': 'excuses',
+        '/attendance/reports': 'reports',
+        '/attendance/alerts': 'alerts',
+        '/attendance/settings': 'settings',
+    };
+
+    return counts[key[href] ?? ''] ?? 0;
+}
+
+/** The attendance sections of the quick-link rail (what the viewer may open) — the rail's and the overview page's one list. */
+export function attendanceRailItems(abilities: AttendanceAbilities) {
     const a = t().attendanceSystem;
-    const rail = [
+
+    return [
         {
             href: '/attendance/my',
             label: a.nav.myDay,
@@ -474,33 +536,79 @@ export function AttendanceRail({
             show: true,
         },
     ].filter((item) => item.show);
+}
+
+/** The quick-link rail (my day · review · excuses · alerts · staff · reports): the same on every attendance page. */
+export function AttendanceRail({
+    abilities,
+    date = null,
+}: {
+    abilities: AttendanceAbilities;
+    /** The day chosen in the side calendar: each page opens on that day. */
+    date?: string | null;
+}) {
+    const a = t().attendanceSystem;
+    const collapsed = useShellPanels().isHidden('rail');
+    useRailTitlebarToggle();
+    const page = usePage<{
+        attendanceShell?: { counts?: Record<string, number> } | null;
+    }>();
+    const path = page.url.split('?')[0];
+    const counts = page.props.attendanceShell?.counts ?? {};
+    const rail = attendanceRailItems(abilities);
+    // The selected item is the one whose address is the longest match of the current page.
+    const current = rail
+        .filter((item) => path === item.href || path.startsWith(`${item.href}/`))
+        .sort((left, right) => right.href.length - left.href.length)[0]?.href;
 
     return (
-        <nav className="sis-att-board__rail" aria-label={a.nav.label}>
-            {rail.map((item) => (
-                <button
-                    key={item.href}
-                    type="button"
-                    onClick={() =>
-                        router.visit(
-                            item.href,
-                            date
-                                ? {
-                                      data: {
-                                          date,
-                                          date_from: date,
-                                          date_to: date,
-                                      },
-                                  }
-                                : {},
-                        )
-                    }
-                    title={item.label}
-                >
-                    <ToneIcon icon={item.icon} tone={item.tone} />
-                    <span>{item.label}</span>
-                </button>
-            ))}
+        <nav
+            className={`sis-att-board__rail sis-rail-card${collapsed ? ' sis-att-board__rail--collapsed' : ''}`}
+            aria-label={a.nav.label}
+        >
+            <>
+                    <div className="sis-rail-card__list">
+                        {rail.map((item) => (
+                            <button
+                                key={item.href}
+                                type="button"
+                                className="sis-rail-row"
+                                onClick={() =>
+                                    router.visit(
+                                        item.href,
+                                        date
+                                            ? {
+                                                  data: {
+                                                      date,
+                                                      date_from: date,
+                                                      date_to: date,
+                                                  },
+                                              }
+                                            : {},
+                                    )
+                                }
+                                title={`${item.label}: ${railCount(item.href, counts)}`}
+                                aria-current={
+                                    item.href === current ? 'page' : undefined
+                                }
+                            >
+                                <ToneIcon icon={item.icon} tone={item.tone} />
+                                <span className="sis-rail-row__label">
+                                    {item.label}
+                                </span>
+                                <span
+                                    className="sis-rail-row__count"
+                                    dir="ltr"
+                                    aria-label={`${item.label}: ${railCount(item.href, counts)}`}
+                                >
+                                    {railCount(item.href, counts) > 999
+                                        ? '999+'
+                                        : railCount(item.href, counts)}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+            </>
         </nav>
     );
 }
@@ -534,6 +642,9 @@ export function DayBoard({
     const d = a.dashboard;
     const b = d.board;
     const { showInertiaErrors } = usePageError();
+    const panels = useShellPanels();
+    const hideSide =
+        panels.isHidden('calendar') && panels.isHidden('totals');
     const menu = useContextMenu<BoardLesson>();
     const [hover, setHover] = useState<{
         lesson: BoardLesson;
@@ -693,8 +804,16 @@ export function DayBoard({
 
 
     return (
-        <div className="sis-att-board" dir="rtl" lang="ar">
+        <div
+            className={`sis-att-board${panels.isHidden('rail') ? ' sis-att-board--rail-collapsed' : ''}${hideSide ? ' sis-att-board--side-collapsed' : ''}`}
+            dir="rtl"
+            lang="ar"
+        >
             <aside className="sis-att-board__side" aria-label={b.side}>
+                {hideSide ? (
+                    <SideStrip />
+                ) : (
+                    <>
                 <DaySidePanel
                     date={board.date}
                     today={board.today}
@@ -774,8 +893,11 @@ export function DayBoard({
                         })}
                     </ul>
                 </section>
+                    </>
+                )}
             </aside>
 
+            <div className="sis-att-board__center">
             <section
                 className="sis-att-board__main"
                 aria-label={d.title}
@@ -1012,6 +1134,7 @@ export function DayBoard({
                     ))}
                 </div>
             </section>
+            </div>
 
             <AttendanceRail
                 abilities={abilities}

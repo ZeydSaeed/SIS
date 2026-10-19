@@ -6,6 +6,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { PageRibbonProvider } from '@/components/sis/page-ribbon-context';
 import { PageTitlebarHomeProvider } from '@/components/sis/page-titlebar-home-context';
+import { PageTitlebarToggleProvider } from '@/components/sis/page-titlebar-toggle-context';
 import { PageTitlebarSearchProvider } from '@/components/sis/page-titlebar-search-context';
 import { WorkflowFlashHost } from '@/components/sis/workflow-flash-host';
 import { restorePageAlignments } from '@/hooks/use-page-alignment';
@@ -40,6 +41,7 @@ export default function AppSidebarLayout({
             <PageRibbonProvider>
             <PageTitlebarHomeProvider>
             <PageTitlebarSearchProvider>
+            <PageTitlebarToggleProvider>
             <AppSidebar />
             <AppContent
                 variant="sidebar"
@@ -58,6 +60,7 @@ export default function AppSidebarLayout({
                     {children}
                 </div>
             </AppContent>
+            </PageTitlebarToggleProvider>
             </PageTitlebarSearchProvider>
             </PageTitlebarHomeProvider>
             </PageRibbonProvider>

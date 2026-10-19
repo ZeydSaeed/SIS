@@ -1,5 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import {
+    CheckCircle2,
+    CircleSlash,
     Eye,
     Filter,
     FilterX,
@@ -9,6 +11,10 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    StatusBadge,
+    tableStatusCellClass,
+} from '@/components/sis/table-status-badge';
 import {
     catalogAllSubjectTableRows,
     catalogBranches,
@@ -28,6 +34,13 @@ import {
     type CurriculumEditFilter,
 } from '@/components/curriculum/curriculum-edit-controls';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import { sisListPageClass } from '@/components/sis/page-theme';
+import {
+    ModuleOverview,
+    useIsOverview,
+    useOverviewHome,
+    type OverviewCard,
+} from '@/components/sis/module-overview';
 import { ariaSort, SortButton, sortRows, useSortState, type SortValue } from '@/components/sis/table-sort';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import {
@@ -53,7 +66,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 import {
@@ -404,7 +417,19 @@ function normalizePagedRows<T>(
     return { data: [], pagination: emptyPagination() };
 }
 
+/** The list opens on the status the overview card named (`?filter=status-active`…). */
+function initialEditFilter(): CurriculumEditFilter {
+    if (typeof window === 'undefined') {
+        return { kind: 'all' };
+    }
+    const id = new URLSearchParams(window.location.search).get('filter');
+
+    return CURRICULUM_STATUS_TABS.find((tab) => tab.id === id)?.filter ?? { kind: 'all' };
+}
+
 export function CurriculumWorkspace(props: CurriculumPageProps) {
+    const isOverviewPage = useIsOverview();
+    useOverviewHome('/curriculum', !isOverviewPage);
     const curricula = useMemo(
         () => normalizePagedRows<CurriculumRow>(props.curricula),
         [props.curricula],
@@ -460,7 +485,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const [confirm, setConfirm] = useState<ConfirmState>(null);
     const [confirmPending, setConfirmPending] = useState(false);
     const [activeView, setActiveView] = useState<CurriculumListView>('subjects');
-    const [editFilter, setEditFilter] = useState<CurriculumEditFilter>({ kind: 'all' });
+    const [editFilter, setEditFilter] = useState<CurriculumEditFilter>(initialEditFilter);
     const [selectedNames, setSelectedNames] = useState<string[]>([]);
     const [listPage, setListPage] = useState(() => readStoredListPage('curriculum', 1));
     const scrollerRef = useRef<HTMLDivElement>(null);
@@ -1522,13 +1547,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             ? pagedSubjectRows.length
             : pagedPlanSubjectRows.length;
 
-    useResizableTableColumns(tableRef, {
-        storageKey: activeView === 'subjects' ? 'curriculum.subjects' : 'curriculum.plans',
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: activeView === 'subjects' ? 'curriculum.subjects.v5' : 'curriculum.plans.v5',
         columnSignature:
             activeView === 'subjects'
                 ? 'select:seq:name:name_en:type:hours:max:pass:prereq:status:v4'
                 : 'select:seq:name:name_en:type:hours:max:status:v4',
         enabled: tableRowCount > 0,
+        rowsKey: `${activeView}:${JSON.stringify(activeView === 'subjects' ? pagedSubjectRows : pagedPlanSubjectRows).length}`,
     });
     useSmoothVerticalScroll(scrollerRef, tableRowCount > 0);
 
@@ -1620,9 +1646,28 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         }
     }, [c, confirm, i18n.common.delete]);
 
+    const overviewTones = ['interview', 'transfer', 'withdrawn', 'submitted', 'waitlisted', 'under-review'];
+    if (isOverviewPage) {
+        return (
+            <ModuleOverview
+                title={c.title}
+                listPath="/curriculum"
+                allLabel={t().overview.allSubjects}
+                cards={CURRICULUM_STATUS_TABS.map((tab, index): OverviewCard => ({
+                    key: tab.id === 'status-all' ? 'all' : tab.id,
+                    label: c[tab.labelKey],
+                    icon: tab.icon,
+                    count: catalogSubjectRows.filter((row) => matchesCurriculumEditFilter(row, tab.filter)).length,
+                    tone: overviewTones[index % overviewTones.length],
+                    href: tab.id === 'status-all' ? '/curriculum' : `/curriculum?filter=${tab.id}`,
+                }))}
+            />
+        );
+    }
+
     return (
         <div
-            className="sis-ops-hub sis-admission-page sis-students-page sis-curriculum-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
+            className={sisListPageClass({ extra: 'sis-curriculum-page', enrollments: false })}
             dir="rtl"
             lang="ar"
         >
@@ -1777,12 +1822,15 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                             : c.nonePrerequisites}
                                                     </td>
                                                     <td
-                                                        className="sis-admission-drafts-table__text sis-curriculum-subject-status"
-                                                        data-status={Number(row.status) === 1 ? '1' : '2'}
+                                                        className={`sis-curriculum-subject-status ${tableStatusCellClass(Number(row.status) === 1 ? 'transfer' : 'withdrawn')}`}
                                                     >
-                                                        {Number(row.status) === 1
-                                                            ? i18n.status.active
-                                                            : i18n.status.inactive}
+                                                        <div className="sis-students-table__cell-scroll">
+                                                            <StatusBadge icon={Number(row.status) === 1 ? CheckCircle2 : CircleSlash}>
+                                                                {Number(row.status) === 1
+                                                                    ? i18n.status.active
+                                                                    : i18n.status.inactive}
+                                                            </StatusBadge>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -1975,14 +2023,17 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                                                     {subject.max_grade}
                                                 </td>
                                                 <td
-                                                    className="sis-admission-drafts-table__text sis-curriculum-subject-status"
-                                                    data-status={subject.status === 1 ? '1' : '2'}
+                                                    className={`sis-curriculum-subject-status ${tableStatusCellClass(subject.status === 1 ? 'transfer' : 'withdrawn')}`}
                                                 >
-                                                    {statusLabel(
-                                                        subject.status,
-                                                        i18n.status.active,
-                                                        i18n.status.inactive,
-                                                    )}
+                                                    <div className="sis-students-table__cell-scroll">
+                                                        <StatusBadge icon={subject.status === 1 ? CheckCircle2 : CircleSlash}>
+                                                            {statusLabel(
+                                                                subject.status,
+                                                                i18n.status.active,
+                                                                i18n.status.inactive,
+                                                            )}
+                                                        </StatusBadge>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

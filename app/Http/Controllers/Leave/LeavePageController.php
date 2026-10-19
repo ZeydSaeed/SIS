@@ -67,6 +67,17 @@ final class LeavePageController extends Controller
         ]);
     }
 
+    /** The module's overview: a card per section of the rail (badges + the viewer's abilities decide what shows). */
+    public function overview(Request $request): Response
+    {
+        $this->authorize('accessLeave');
+
+        return Inertia::render('leave/overview', [
+            'badges' => $this->badges($request),
+            'abilities' => $this->context->abilities($request),
+        ]);
+    }
+
     public function requests(
         Request $request,
         ListLeaveRequestsHandler $list,

@@ -1,4 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
+import { CircleSlash } from 'lucide-react';
 import {
     forwardRef,
     useCallback,
@@ -13,6 +14,12 @@ import {
     type YearOption,
 } from '@/components/sis/ops-year-filter';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import {
+    STUDENT_STATUS_ICONS,
+    STUDENT_STATUS_TONES,
+    StatusBadge,
+    tableStatusCellClass,
+} from '@/components/sis/table-status-badge';
 import { usePageError } from '@/components/sis/page-error-context';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
 import { t } from '@/i18n';
@@ -119,30 +126,6 @@ export function statusLabel(status: number, i18n: ReturnType<typeof t>): string 
     };
 
     return labels[status] ?? String(status);
-}
-
-function statusTone(status: number): string {
-    if (status === 1) {
-        return 'active';
-    }
-
-    if (status === 0) {
-        return 'inactive';
-    }
-
-    if (status === 2) {
-        return 'suspended';
-    }
-
-    if (status === 3) {
-        return 'graduated';
-    }
-
-    if (status === 4) {
-        return 'withdrawn';
-    }
-
-    return 'default';
 }
 
 function CellScroll({ children }: { children: ReactNode }) {
@@ -563,37 +546,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                 <td className="sis-admission-drafts-table__text">
                     {editing ? (
                         <SelectCell
-                            value={gender}
-                            label={i18n.enrollments.gender}
-                            options={[
-                                { value: '', label: i18n.enrollments.gender },
-                                { value: '1', label: i18n.students.male },
-                                { value: '2', label: i18n.students.female },
-                            ]}
-                            onChange={setGender}
-                        />
-                    ) : (
-                        genderLabelFor(row.student_gender, i18n)
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
-                        <SelectCell
-                            value={academicYearId}
-                            label={i18n.enrollments.academicYear}
-                            options={[
-                                { value: '', label: i18n.enrollments.academicYear },
-                                ...yearOptions,
-                            ]}
-                            onChange={setAcademicYearId}
-                        />
-                    ) : (
-                        <CellScroll>{yearDisplay}</CellScroll>
-                    )}
-                </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
-                        <SelectCell
                             value={classId}
                             label={i18n.enrollments.className}
                             options={[
@@ -682,19 +634,6 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                         <CellScroll>{textOrDash(row.department_name)}</CellScroll>
                     )}
                 </td>
-                <td className="sis-admission-drafts-table__text">
-                    {editing ? (
-                        <input
-                            className="sis-students-table__edit-input"
-                            value={stageName}
-                            aria-label={i18n.enrollments.stageName}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => setStageName(event.target.value)}
-                        />
-                    ) : (
-                        <CellScroll>{textOrDash(row.stage_name)}</CellScroll>
-                    )}
-                </td>
                 <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
                     {editing ? (
                         <input
@@ -726,8 +665,9 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                     )}
                 </td>
                 <td
-                    className={`sis-students-table__status sis-students-table__status--tone-${statusTone(editing ? Number(status) : (row.student_status ?? 1))}`}
-                    data-status={editing ? Number(status) : (row.student_status ?? 1)}
+                    className={tableStatusCellClass(
+                        STUDENT_STATUS_TONES[editing ? Number(status) : (row.student_status ?? 1)] ?? 'withdrawn',
+                    )}
                 >
                     {editing ? (
                         <SelectCell
@@ -743,7 +683,11 @@ export const EnrollmentEditorRow = forwardRef<EnrollmentRowHandle, EnrollmentEdi
                             onChange={setStatus}
                         />
                     ) : (
-                        statusLabel(row.student_status ?? 1, i18n)
+                        <CellScroll>
+                            <StatusBadge icon={STUDENT_STATUS_ICONS[row.student_status ?? 1] ?? CircleSlash}>
+                                {statusLabel(row.student_status ?? 1, i18n)}
+                            </StatusBadge>
+                        </CellScroll>
                     )}
                 </td>
             </tr>

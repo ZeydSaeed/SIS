@@ -9,6 +9,10 @@ import {
     RotateCcw,
     Trash2,
 } from 'lucide-react';
+import {
+    StatusBadge,
+    tableStatusCellClass,
+} from '@/components/sis/table-status-badge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     RegistryListField,
@@ -50,7 +54,7 @@ import {
 } from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
@@ -231,9 +235,10 @@ function HolidaysPage({
             }
         },
     );
-    useResizableTableColumns(tableRef, {
-        storageKey: 'academic.holidays',
-        columnSignature: `holidays:${canManage ? 'select' : 'readonly'}:v1`,
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: 'academic.holidays.v2',
+        columnSignature: `holidays:${canManage ? 'select' : 'readonly'}:v2`,
+        rowsKey: displayHolidays.map((holiday) => holiday.id).join(','),
         // Measured whenever the table is shown (also empty): every header fits on one line.
         enabled: filters.year !== null,
     });
@@ -904,16 +909,24 @@ function HolidaysPage({
                                                                 </div>
                                                             </td>
                                                             <td
-                                                                className={`sis-students-table__status sis-students-table__status--tone-${holiday.status === ACTIVE ? 'dark' : 'light'}`}
-                                                                data-status={
-                                                                    holiday.status
-                                                                }
+                                                                className={tableStatusCellClass(
+                                                                    holiday.status === ACTIVE
+                                                                        ? 'transfer'
+                                                                        : 'withdrawn',
+                                                                )}
                                                             >
                                                                 <div className="sis-students-table__cell-scroll">
-                                                                    {holiday.status ===
-                                                                    ACTIVE
-                                                                        ? h.inCalendar
-                                                                        : h.outOfCalendar}
+                                                                    <StatusBadge
+                                                                        icon={
+                                                                            holiday.status === ACTIVE
+                                                                                ? CheckCircle2
+                                                                                : CircleSlash
+                                                                        }
+                                                                    >
+                                                                        {holiday.status === ACTIVE
+                                                                            ? h.inCalendar
+                                                                            : h.outOfCalendar}
+                                                                    </StatusBadge>
                                                                 </div>
                                                             </td>
                                                         </tr>

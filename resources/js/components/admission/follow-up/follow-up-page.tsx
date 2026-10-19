@@ -5,6 +5,7 @@ import type {
     AdmissionWorkspace,
 } from '@/components/admission/admission-workspace';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
+import { sisListPageClass } from '@/components/sis/page-theme';
 import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -54,7 +55,7 @@ function Inner({
         <>
             <Head title={title} />
             <div
-                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-follow-up-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
+                className={sisListPageClass({ extra: 'sis-follow-up-page' })}
                 dir="rtl"
                 lang="ar"
             >

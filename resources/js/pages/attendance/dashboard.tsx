@@ -40,6 +40,7 @@ import {
     type AttendanceAbilities,
 } from '@/components/attendance/attendance-ui';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { sisListPageClass } from '@/components/sis/page-theme';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
@@ -877,7 +878,7 @@ function DashboardPage({
         <>
             <Head title={d.title} />
             <div
-                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden"
+                className={sisListPageClass({ flush: true })}
                 dir="rtl"
                 lang="ar"
             >

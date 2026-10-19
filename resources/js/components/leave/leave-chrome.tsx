@@ -5,6 +5,7 @@ import {
     BellRing,
     CalendarDays,
     CalendarRange,
+    CalendarX2,
     ClipboardCheck,
     FileCheck2,
     FilePen,
@@ -13,23 +14,36 @@ import {
     ListChecks,
     MessageCircleQuestion,
     Paperclip,
+    Percent,
     Scale,
     Settings2,
     ShieldCheck,
     Undo2,
+    UserX,
+    Users,
     XCircle,
     type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { StatusMeta } from '@/components/attendance/attendance-ui';
+import {
+    DaySideFrame,
+    type DayTotalRow,
+} from '@/components/attendance/day-board';
 import { newKey } from '@/components/attendance/attendance-ui';
 import { usePageError } from '@/components/sis/page-error-context';
+import { sisListPageClass } from '@/components/sis/page-theme';
 import {
     useRegisterPageRibbon,
     type PageRibbonCommand,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
+import {
+    useRailTitlebarToggle,
+    SideStrip,
+    useShellPanels,
+} from '@/components/sis/shell-panels';
 
 /** Server-computed permission hints (the server re-checks every action). */
 export type LeaveAbilities = {
@@ -213,28 +227,19 @@ export function useLeaveEditRibbon(pageGroups: PageRibbonGroup[]): void {
 
 export type LeaveBadges = { unread: number; awaiting: number };
 
-/** One rail entry per leave section — icon on top, short label, a count badge where something waits for the user. */
-export function LeaveRail({
-    current,
-    abilities,
-}: {
-    current: LeaveSection | 'awaiting' | 'notifications';
-    abilities: LeaveAbilities;
-}) {
+/** One rail entry per leave section (what the viewer may open) — the rail's and the overview page's one list. */
+export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): Array<{
+    key: string;
+    href: string;
+    label: string;
+    icon: LucideIcon;
+    tone: string;
+    count?: number;
+    show: boolean;
+}> {
     const l = t().leave;
-    const badges = usePage<{ badges?: LeaveBadges }>().props.badges ?? {
-        unread: 0,
-        awaiting: 0,
-    };
-    const items: Array<{
-        key: string;
-        href: string;
-        label: string;
-        icon: LucideIcon;
-        tone: string;
-        count?: number;
-        show: boolean;
-    }> = [
+
+    return [
         {
             key: 'dashboard',
             href: '/leave',
@@ -318,44 +323,72 @@ export function LeaveRail({
             show: abilities.holidays,
         },
     ];
+}
+
+/** One rail entry per leave section — icon on top, short label, a count badge where something waits for the user. */
+export function LeaveRail({
+    current,
+    abilities,
+}: {
+    current: LeaveSection | 'awaiting' | 'notifications';
+    abilities: LeaveAbilities;
+}) {
+    const l = t().leave;
+    const collapsed = useShellPanels().isHidden('rail');
+    useRailTitlebarToggle();
+    const badges = usePage<{ badges?: LeaveBadges }>().props.badges ?? {
+        unread: 0,
+        awaiting: 0,
+    };
+    const items = leaveRailItems(abilities, badges);
 
     return (
         <nav
-            className="sis-att-board__rail sis-leave-rail"
+            className={`sis-att-board__rail sis-rail-card sis-leave-rail${collapsed ? ' sis-att-board__rail--collapsed' : ''}`}
             aria-label={l.sections}
         >
-            {items
-                .filter((item) => item.show)
-                .map((item) => (
-                    <button
-                        key={item.key}
-                        type="button"
-                        title={
-                            item.key === 'students'
-                                ? l.studentLeaveHint
-                                : item.label
-                        }
-                        aria-current={item.key === current ? 'page' : undefined}
-                        onClick={() =>
-                            item.key !== current && router.visit(item.href)
-                        }
-                    >
-                        <item.icon
-                            className={`sis-att-tone sis-att-tone--${item.tone} size-4 shrink-0`}
-                            aria-hidden
-                        />
-                        <span>{item.label}</span>
-                        {item.count ? (
-                            <span
-                                className="sis-leave-badge"
-                                dir="ltr"
-                                aria-label={`${item.label}: ${item.count}`}
-                            >
-                                {item.count > 99 ? '99+' : item.count}
-                            </span>
-                        ) : null}
-                    </button>
-                ))}
+            <>
+                    <div className="sis-rail-card__list">
+                        {items
+                            .filter((item) => item.show)
+                            .map((item) => (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    className="sis-rail-row"
+                                    title={
+                                        item.key === 'students'
+                                            ? l.studentLeaveHint
+                                            : item.label
+                                    }
+                                    aria-current={
+                                        item.key === current ? 'page' : undefined
+                                    }
+                                    onClick={() =>
+                                        item.key !== current &&
+                                        router.visit(item.href)
+                                    }
+                                >
+                                    <item.icon
+                                        className={`sis-att-tone sis-att-tone--${item.tone} size-4 shrink-0`}
+                                        aria-hidden
+                                    />
+                                    <span className="sis-rail-row__label">
+                                        {item.label}
+                                    </span>
+                                    {item.count !== undefined ? (
+                                        <span
+                                            className="sis-rail-row__count"
+                                            dir="ltr"
+                                            aria-label={`${item.label}: ${item.count}`}
+                                        >
+                                            {item.count > 99 ? '99+' : item.count}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            ))}
+                    </div>
+            </>
         </nav>
     );
 }
@@ -372,16 +405,42 @@ export function LeavePage({
     abilities: LeaveAbilities;
     children: ReactNode;
 }) {
+    const panels = useShellPanels();
+    const shell = usePage<{ leaveShell?: LeaveShell | null }>().props
+        .leaveShell;
+    const hideSide = panels.isHidden('calendar') && panels.isHidden('totals');
+
     return (
         <>
             <Head title={title} />
             <div
-                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-scroll-hidden flex h-full min-h-0 flex-col pb-4"
+                className={sisListPageClass({ hiddenScroll: true, flush: true })}
                 dir="rtl"
                 lang="ar"
             >
                 <div className="sis-admission-page-body">
-                    <div className="sis-att-shell sis-leave-shell">
+                    <div
+                        className={`sis-att-shell sis-leave-shell${panels.isHidden('rail') ? ' sis-att-shell--rail-collapsed' : ''}${shell ? '' : ' sis-leave-shell--no-side'}${shell && hideSide ? ' sis-att-shell--side-collapsed' : ''}`}
+                    >
+                        {shell ? (
+                            <aside
+                                className="sis-att-board__side"
+                                aria-label={t().leave.sideLabel}
+                            >
+                                {hideSide ? (
+                                    <SideStrip />
+                                ) : (
+                                    <DaySideFrame
+                                        date={shell.date}
+                                        today={shell.today}
+                                        weekday={shell.weekday}
+                                        onGo={goToDate}
+                                        rows={leaveRows(shell.totals)}
+                                        totalsTitle={t().shellPanels.leaveRate}
+                                    />
+                                )}
+                            </aside>
+                        ) : null}
                         <div className="sis-att-shell__main">{children}</div>
                         <LeaveRail current={current} abilities={abilities} />
                     </div>
@@ -389,6 +448,78 @@ export function LeavePage({
             </div>
         </>
     );
+}
+
+/** The leave side panel's server payload (one source: LeaveShellData). */
+type LeaveShell = {
+    date: string;
+    today: string;
+    weekday: number;
+    totals: {
+        staff: number;
+        away: number;
+        teachers_away: number;
+        pending: number;
+        rate: number | null;
+    };
+};
+
+/** A day picked in the side calendar: the same leave page, the same filters, another `date`. */
+function goToDate(date: string): void {
+    const params: Record<string, string | string[]> = {};
+    const query = new URLSearchParams(window.location.search);
+    query.forEach((_, key) => {
+        params[key] = query.getAll(key);
+    });
+    params.date = date;
+    router.get(window.location.pathname, params, {
+        preserveScroll: true,
+        preserveState: true,
+    });
+}
+
+/** The leave-rate card: the share of the staff on approved leave that day, and the counts behind it. */
+function leaveRows(totals: LeaveShell['totals']): DayTotalRow[] {
+    const text = t().shellPanels;
+
+    return [
+        {
+            id: 'rate',
+            label: text.leaveRate,
+            value: totals.rate === null ? '—' : `${totals.rate}%`,
+            icon: Percent,
+            tone: 'ok',
+            main: true,
+        },
+        {
+            id: 'away',
+            label: text.onLeave,
+            value: totals.away,
+            icon: UserX,
+            tone: 'danger',
+        },
+        {
+            id: 'teachers',
+            label: text.teachersOnLeave,
+            value: totals.teachers_away,
+            icon: CalendarX2,
+            tone: 'amber',
+        },
+        {
+            id: 'pending',
+            label: text.pending,
+            value: totals.pending,
+            icon: Hourglass,
+            tone: 'sky',
+        },
+        {
+            id: 'staff',
+            label: text.staffTotal,
+            value: totals.staff,
+            icon: Users,
+            tone: 'steel',
+        },
+    ];
 }
 
 /** «4 أيام» / «2.5 ساعة». */

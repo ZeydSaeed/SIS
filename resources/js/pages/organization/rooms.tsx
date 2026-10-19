@@ -9,17 +9,32 @@ import {
     DoorOpen,
     Eye,
     FlaskConical,
+    Landmark,
     Layers,
     Palette,
     Pencil,
     PlusCircle,
     RotateCcw,
+    School,
     Shapes,
     Trash2,
+    Wrench,
+    type LucideIcon,
 } from 'lucide-react';
+import {
+    StatusBadge,
+    tableStatusCellClass,
+} from '@/components/sis/table-status-badge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RegistryListField, RegistrySheetDialog, RegistryTextField, useRegistryRequest } from '@/components/organization/registry-sheet';
 import { AppearanceDialog, AppearanceFields, hueStyle, type AppearanceValue } from '@/components/sis/appearance-fields';
+import { sisListPageClass } from '@/components/sis/page-theme';
+import {
+    ModuleOverview,
+    useOverviewHome,
+    useIsOverview,
+    type OverviewCard,
+} from '@/components/sis/module-overview';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { isContextMenuKey, SisContextMenu, useContextMenu, type ContextMenuItem } from '@/components/sis/context-menu';
@@ -30,13 +45,17 @@ import { ariaSort, SortButton, useTableSort } from '@/components/sis/table-sort'
 import { tableActionIds, toggleTableRowChecked, toggleTableSelectAll } from '@/components/sis/table-row-selection';
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 import { encodeIds } from '@/lib/filter-values';
 import { clipRowsToFitPageSize, fitAwareLastPage, useDebouncedFitPageSync } from '@/lib/sis-ribbon-layout';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+
+/** Room-type kind (1 classroom, 2 lab, 3 workshop, 4 hall, other) → table-theme tone and icon. */
+const KIND_TONES: Record<number, string> = { 1: 'submitted', 2: 'interview', 3: 'waitlisted', 4: 'under-review' };
+const KIND_ICONS: Record<number, LucideIcon> = { 1: School, 2: FlaskConical, 3: Wrench, 4: Landmark };
 
 type Room = {
     id: number;
@@ -167,17 +186,41 @@ function visiblePages(current: number, last: number): number[] {
     return Array.from({ length: Math.min(5, last) }, (_, index) => start + index).filter((page) => page <= last);
 }
 
+/** Overview cards: the rooms ribbon's state tabs and the practical filter, each opening the list on it. */
+function roomsOverviewCards(stats: Props['stats']): OverviewCard[] {
+    const r = t().rooms;
+    const list = '/organization/rooms';
+
+    return [
+        { key: 'all', label: r.all, icon: Layers, count: stats.total, tone: 'interview', href: list },
+        { key: 'active', label: r.active, icon: CheckCircle2, count: stats.active, tone: 'transfer', href: `${list}?state=1` },
+        { key: 'inactive', label: r.inactive, icon: CircleSlash, count: stats.total - stats.active, tone: 'withdrawn', href: `${list}?state=2` },
+        { key: 'practical', label: r.practicalOnly, icon: FlaskConical, count: stats.practical, tone: 'waitlisted', href: `${list}?practical=1` },
+    ];
+}
+
 export default function OrganizationRooms(props: Props) {
     const breadcrumbs: BreadcrumbItem[] = [{ title: t().rooms.title, href: '/organization/rooms' }];
+    const overview = useIsOverview();
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <RoomsPage {...props} />
+            {overview ? (
+                <ModuleOverview
+                    title={t().rooms.title}
+                    listPath="/organization/rooms"
+                    cards={roomsOverviewCards(props.stats)}
+                    allLabel={t().overview.allRooms}
+                />
+            ) : (
+                <RoomsPage {...props} />
+            )}
         </AppLayout>
     );
 }
 
 function RoomsPage({ rooms, types, branches, stats, pagination, filters, authorization }: Props) {
+    useOverviewHome('/organization/rooms');
     const i18n = t();
     const r = i18n.rooms;
     const canManage = authorization.can_manage;
@@ -207,7 +250,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
     fitPageSizeRef.current = fitPageSize;
     const displayRooms = useMemo(() => clipRowsToFitPageSize(rooms, fitPageSize), [fitPageSize, rooms]);
     const fitLastPage = fitAwareLastPage(pagination.total, fitPageSize, pagination.last_page);
-    useResizableTableColumns(tableRef, { storageKey: 'organization.rooms', columnSignature: `rooms:${canManage ? 'select' : 'readonly'}:v2`, enabled: rooms.length > 0 });
+    useAutoFitTableColumns(tableRef, scrollerRef, { storageKey: 'organization.rooms.v4', columnSignature: `rooms:${canManage ? 'select' : 'readonly'}:v4`, enabled: rooms.length > 0, rowsKey: displayRooms.map((room) => room.id).join(',') });
     useSmoothVerticalScroll(scrollerRef, displayRooms.length > 0);
 
     // «تحديد»: a checkbox column with select-all over the rooms shown (same helpers as «المعلمون»).
@@ -469,7 +512,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
     return (
         <>
             <Head title={r.title} />
-            <div className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden pb-4" dir="rtl" lang="ar">
+            <div className={sisListPageClass()} dir="rtl" lang="ar">
                 {canManage ? null : <p className="sis-branches-page__notice">{r.readOnly}</p>}
                 <div className="sis-admission-page-body">
                     <section aria-label={r.tableCaption} className="flex min-h-0 flex-1 flex-col">
@@ -489,7 +532,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                     ) : null}
                                                     <th className="sis-admission-drafts-table__num">#</th>
                                                     {SORTABLE.map((column) => (
-                                                        <th key={column.key} className={column.num ? 'sis-admission-drafts-table__num' : undefined} aria-sort={filters.sort === column.key ? (filters.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                                        <th key={column.key} className={column.num ? 'sis-admission-drafts-table__num' : column.key === 'code' ? 'sis-rooms-code-cell' : undefined} aria-sort={filters.sort === column.key ? (filters.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
                                                             <button type="button" className="sis-students-table__sort" onClick={() => sortBy(column.key)}>
                                                                 {column.label(r)}
                                                                 {filters.sort === column.key ? (
@@ -550,7 +593,7 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                             <td className="sis-admission-drafts-table__num">
                                                                 <span dir="ltr">{offset + index + 1}</span>
                                                             </td>
-                                                            <td>
+                                                            <td className="sis-rooms-code-cell">
                                                                 <span className="sis-timetable-card sis-timetable-card--tray" style={hueStyle(room.color_hue ?? typeById.get(room.room_type_id ?? 0)?.color_hue ?? 205)}>
                                                                     <span className="sis-timetable-card__subject" dir="ltr">
                                                                         {room.abbreviation ?? room.code}
@@ -563,8 +606,16 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                             <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
                                                                 <div className="sis-students-table__cell-scroll">{room.room_number ?? '—'}</div>
                                                             </td>
-                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                                <div className="sis-students-table__cell-scroll">{room.type_name === null ? r.noType : `${room.type_name} · ${kindLabel(room.type_kind)}`}</div>
+                                                            <td className={room.type_name === null ? 'sis-admission-drafts-table__text sis-students-table__nowrap' : tableStatusCellClass(KIND_TONES[room.type_kind ?? 0] ?? 'withdrawn')}>
+                                                                <div className="sis-students-table__cell-scroll">
+                                                                    {room.type_name === null ? (
+                                                                        r.noType
+                                                                    ) : (
+                                                                        <StatusBadge icon={KIND_ICONS[room.type_kind ?? 0] ?? Shapes}>
+                                                                            {`${room.type_name} · ${kindLabel(room.type_kind)}`}
+                                                                        </StatusBadge>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                             <td className="sis-admission-drafts-table__num">{room.capacity ?? '—'}</td>
                                                             <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
@@ -578,8 +629,12 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                                 <div className="sis-students-table__cell-scroll">{room.supports_practical ? r.practicalYes : '—'}</div>
                                                             </td>
                                                             <td className="sis-admission-drafts-table__num">{room.weekly_lessons}</td>
-                                                            <td className={`sis-students-table__status sis-students-table__status--tone-${room.status === ACTIVE ? 'dark' : 'light'}`} data-status={room.status}>
-                                                                <div className="sis-students-table__cell-scroll">{room.status === ACTIVE ? r.inService : r.outOfService}</div>
+                                                            <td className={tableStatusCellClass(room.status === ACTIVE ? 'transfer' : 'withdrawn')}>
+                                                                <div className="sis-students-table__cell-scroll">
+                                                                    <StatusBadge icon={room.status === ACTIVE ? CheckCircle2 : CircleSlash}>
+                                                                        {room.status === ACTIVE ? r.inService : r.outOfService}
+                                                                    </StatusBadge>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );

@@ -25,6 +25,10 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import {
+    StatusBadge,
+    tableStatusCellClass,
+} from '@/components/sis/table-status-badge';
+import {
     Fragment,
     useCallback,
     useEffect,
@@ -43,6 +47,13 @@ import {
     useRegistryRequest,
 } from '@/components/organization/registry-sheet';
 import { SheetSection } from '@/components/sis/admission-sheet';
+import { sisListPageClass } from '@/components/sis/page-theme';
+import {
+    ModuleOverview,
+    useOverviewHome,
+    useIsOverview,
+    type OverviewCard,
+} from '@/components/sis/module-overview';
 import { AppearanceDialog } from '@/components/sis/appearance-fields';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import {
@@ -66,7 +77,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useFitTablePageSize } from '@/hooks/use-fit-table-page-size';
 import { hasPageTextSelection } from '@/hooks/use-page-clipboard';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
 import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 import { initialSearchParam } from '@/lib/initial-search';
@@ -195,6 +206,61 @@ const RELOAD_PROPS = ['teachers', 'total', 'flash'];
 const ROSTER_LIMIT = 500;
 
 type FilterKey = 'all' | 'active' | 'inactive' | `type-${number}`;
+
+/** The roster's filter tabs with their counts — the home ribbon's and the overview page's one definition. */
+function teacherFilterTabs(
+    teachers: Teacher[],
+    tc: ReturnType<typeof t>['teachers'],
+): Array<{ key: FilterKey; label: string; icon: LucideIcon; count: number }> {
+    const active = teachers.filter((teacher) => teacher.status === ACTIVE).length;
+
+    return [
+        { key: 'all', label: tc.all, icon: Layers, count: teachers.length },
+        { key: 'active', label: tc.statusActive, icon: CheckCircle2, count: active },
+        { key: 'inactive', label: tc.statusInactive, icon: CircleSlash, count: teachers.length - active },
+        ...EMPLOYMENT_TYPES.map((type) => ({
+            key: `type-${type}` as FilterKey,
+            label: tc.employmentTypes[type],
+            icon: EMPLOYMENT_ICONS[type],
+            count: teachers.filter((teacher) => teacher.employment_type === type).length,
+        })),
+    ];
+}
+
+const TEACHER_TYPE_TONES = ['submitted', 'waitlisted', 'under-review', 'rejected'];
+
+/** Overview cards: the roster's filter tabs, each opening the list on its filter (`?filter=`). */
+function teachersOverviewCards(teachers: Teacher[]): OverviewCard[] {
+    const tc = t().teachers;
+
+    return teacherFilterTabs(teachers, tc).map((tab, index) => ({
+        key: tab.key,
+        label: tab.label,
+        icon: tab.icon,
+        count: tab.count,
+        tone:
+            tab.key === 'all'
+                ? 'interview'
+                : tab.key === 'active'
+                  ? 'transfer'
+                  : tab.key === 'inactive'
+                    ? 'withdrawn'
+                    : (TEACHER_TYPE_TONES[(index - 3) % TEACHER_TYPE_TONES.length] ?? 'submitted'),
+        href: tab.key === 'all' ? '/teachers' : `/teachers?filter=${tab.key}`,
+    }));
+}
+
+/** The list opens on the filter the overview card named. */
+function initialTeacherFilter(): FilterKey {
+    if (typeof window === 'undefined') {
+        return 'all';
+    }
+    const value = new URLSearchParams(window.location.search).get('filter');
+
+    return value !== null && /^(all|active|inactive|type-\d+)$/.test(value)
+        ? (value as FilterKey)
+        : 'all';
+}
 
 /** Home-ribbon filters (client-side over the loaded roster); '' = all. */
 /** department = department name (shown without its branch; same-named departments of all branches match together). */
@@ -442,11 +508,9 @@ function StatusCell({ teacher }: { teacher: Teacher }) {
 
     return (
         <span className="sis-teachers-status">
-            <span
-                className={`sis-student-status-badge sis-student-status-badge--${active ? 1 : 0}`}
-            >
+            <StatusBadge icon={active ? CheckCircle2 : CircleSlash}>
                 {active ? tc.statusActive : tc.statusInactive}
-            </span>{' '}
+            </StatusBadge>{' '}
             <span className="sis-org-tag">
                 {teacher.employment_type === null
                     ? tc.noEmploymentType
@@ -461,10 +525,21 @@ export default function TeachersIndex(props: Props) {
         { title: t().teachers.title, href: '/teachers' },
     ];
 
+    const overview = useIsOverview();
+
     // Inner component: page error / flash contexts live inside AppLayout.
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <TeachersPage {...props} />
+            {overview ? (
+                <ModuleOverview
+                    title={t().teachers.title}
+                    listPath="/teachers"
+                    cards={teachersOverviewCards(props.teachers)}
+                    allLabel={t().overview.allTeachers}
+                />
+            ) : (
+                <TeachersPage {...props} />
+            )}
         </AppLayout>
     );
 }
@@ -480,6 +555,7 @@ function TeachersPage({
     filters,
     authorization,
 }: Props) {
+    useOverviewHome('/teachers');
     const [appearanceTeacher, setAppearanceTeacher] = useState<Teacher | null>(
         null,
     );
@@ -542,7 +618,7 @@ function TeachersPage({
 
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [checkedIds, setCheckedIds] = useState<number[]>([]);
-    const [filterKey, setFilterKey] = useState<FilterKey>('all');
+    const [filterKey, setFilterKey] = useState<FilterKey>(initialTeacherFilter);
     const [rosterFilters, setRosterFilters] =
         useState<RosterFilters>(EMPTY_ROSTER_FILTERS);
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
@@ -613,10 +689,11 @@ function TeachersPage({
 
     useEffect(() => setPageNumber(1), [filterKey, rosterFilters, query]);
 
-    useResizableTableColumns(tableRef, {
-        storageKey: 'teachers.list',
-        columnSignature: `${canManage ? 'select' : 'readonly'}:v2`,
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: 'teachers.list.v3',
+        columnSignature: `${canManage ? 'select' : 'readonly'}:v3`,
         enabled: displayRows.length > 0,
+        rowsKey: displayRows.map((row) => row.id).join(','),
     });
     useSmoothVerticalScroll(scrollerRef, displayRows.length > 0);
 
@@ -1023,6 +1100,11 @@ function TeachersPage({
     const selectionTitle = (label: string) =>
         hasSelection ? label : tc.needsSelection;
 
+    const filterTabs = useMemo(
+        () => teacherFilterTabs(teachers, tc),
+        [teachers, tc],
+    );
+
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const recordCommands: PageRibbonCommand[] = [
             {
@@ -1077,32 +1159,6 @@ function TeachersPage({
             );
         }
 
-        const filterTabs: Array<{
-            key: FilterKey;
-            label: string;
-            icon: LucideIcon;
-            count: number;
-        }> = [
-            { key: 'all', label: tc.all, icon: Layers, count: teachers.length },
-            {
-                key: 'active',
-                label: tc.statusActive,
-                icon: CheckCircle2,
-                count: counts.active,
-            },
-            {
-                key: 'inactive',
-                label: tc.statusInactive,
-                icon: CircleSlash,
-                count: teachers.length - counts.active,
-            },
-            ...EMPLOYMENT_TYPES.map((type) => ({
-                key: `type-${type}` as FilterKey,
-                label: tc.employmentTypes[type],
-                icon: EMPLOYMENT_ICONS[type],
-                count: counts.byType[type] ?? 0,
-            })),
-        ];
 
         const groups: PageRibbonGroup[] = [
             {
@@ -1223,6 +1279,7 @@ function TeachersPage({
         canManage,
         counts,
         filterKey,
+        filterTabs,
         hasSelection,
         i18n,
         saving,
@@ -1441,7 +1498,7 @@ function TeachersPage({
         <>
             <Head title={tc.title} />
             <div
-                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-teachers-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
+                className={sisListPageClass({ extra: 'sis-teachers-page' })}
                 dir="rtl"
                 lang="ar"
             >
@@ -1818,7 +1875,14 @@ function TeachersPage({
                                                                         </div>
                                                                     )}
                                                                 </td>
-                                                                <td>
+                                                                <td
+                                                                    className={tableStatusCellClass(
+                                                                        row.status ===
+                                                                            ACTIVE
+                                                                            ? 'transfer'
+                                                                            : 'withdrawn',
+                                                                    )}
+                                                                >
                                                                     <StatusCell
                                                                         teacher={
                                                                             row
