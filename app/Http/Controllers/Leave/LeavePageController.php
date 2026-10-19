@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Leave;
 
 use App\Application\Documents\Queries\GetDocumentContentHandler;
 use App\Application\Documents\Queries\GetDocumentContentQuery;
+use App\Application\Leave\Queries\GetLeaveBadgesHandler;
+use App\Application\Leave\Queries\GetLeaveBadgesQuery;
 use App\Application\Leave\Queries\GetLeaveCalendarHandler;
 use App\Application\Leave\Queries\GetLeaveCalendarQuery;
 use App\Application\Leave\Queries\GetLeaveCoverageHandler;
@@ -18,6 +20,8 @@ use App\Application\Leave\Queries\GetLeaveRequestHandler;
 use App\Application\Leave\Queries\GetLeaveRequestQuery;
 use App\Application\Leave\Queries\ListLeaveBalancesHandler;
 use App\Application\Leave\Queries\ListLeaveBalancesQuery;
+use App\Application\Leave\Queries\ListLeaveNotificationsHandler;
+use App\Application\Leave\Queries\ListLeaveNotificationsQuery;
 use App\Application\Leave\Queries\ListLeaveRequestsHandler;
 use App\Application\Leave\Queries\ListLeaveRequestsQuery;
 use App\Application\Leave\Queries\ListLeaveStaffHandler;
@@ -45,6 +49,7 @@ final class LeavePageController extends Controller
     public function __construct(
         private readonly LeaveRequestContext $context,
         private readonly SecurityAuditLoggerInterface $securityAudit,
+        private readonly GetLeaveBadgesHandler $badgeCounts,
     ) {}
 
     public function dashboard(Request $request, GetLeaveDashboardHandler $handler): Response
@@ -54,6 +59,7 @@ final class LeavePageController extends Controller
         $today = $this->context->today($yearId);
 
         return Inertia::render('leave/dashboard', [
+            'badges' => $this->badges($request),
             'dashboard' => $handler->handle(new GetLeaveDashboardQuery($this->context->schoolId(), $yearId, $today, $this->context->viewer($request))),
             'today' => $today,
             'filters' => ['academic_year_id' => $yearId],
@@ -80,6 +86,7 @@ final class LeavePageController extends Controller
         $this->securityAudit->record(SecurityEventType::HrDataAccess, 'leave.web.requests', 'viewed', $request->user(), 'school:'.$schoolId, []);
 
         return Inertia::render('leave/requests', [
+            'badges' => $this->badges($request),
             'requests' => $list->handle(new ListLeaveRequestsQuery($schoolId, $viewer, $filters, $page, $perPage)) + ['page' => $page, 'per_page' => $perPage],
             'types' => $types->handle(new ListLeaveTypesQuery($schoolId)),
             'staff' => $staff->handle(new ListLeaveStaffQuery($schoolId, $yearId, $viewer, (bool) $request->user()?->can('manageLeaveRequests'))),
@@ -105,6 +112,7 @@ final class LeavePageController extends Controller
         [$ledgerKind, $ledgerPerson] = LeaveListInput::person((string) $request->query('ledger', ''));
 
         return Inertia::render('leave/balances', [
+            'badges' => $this->badges($request),
             'balances' => $list->handle(new ListLeaveBalancesQuery($schoolId, $yearId, $viewer, LeaveListInput::balances($request), $page, $perPage)) + ['page' => $page, 'per_page' => $perPage],
             'types' => $types->handle(new ListLeaveTypesQuery($schoolId)),
             'staff' => $request->user()?->can('adjustLeaveBalances') ? $staff->handle(new ListLeaveStaffQuery($schoolId, $yearId, $viewer, true)) : [],
@@ -121,6 +129,7 @@ final class LeavePageController extends Controller
         $this->authorize('accessLeave');
 
         return Inertia::render('leave/types', [
+            'badges' => $this->badges($request),
             'types' => $types->handle(new ListLeaveTypesQuery($this->context->schoolId(), true)),
             'abilities' => $this->context->abilities($request),
         ]);
@@ -134,6 +143,7 @@ final class LeavePageController extends Controller
         [$from, $to] = LeaveListInput::calendarWindow($request);
 
         return Inertia::render('leave/calendar', [
+            'badges' => $this->badges($request),
             'calendar' => $calendar->handle(new GetLeaveCalendarQuery($schoolId, $yearId, $from, $to, $this->context->viewer($request), LeaveListInput::calendar($request))),
             'types' => $types->handle(new ListLeaveTypesQuery($schoolId)),
             'filters' => LeaveListInput::echo($request, $yearId) + [
@@ -154,9 +164,32 @@ final class LeavePageController extends Controller
         $this->securityAudit->record(SecurityEventType::HrDataAccess, 'leave.web.reports', 'viewed', $request->user(), 'school:'.$schoolId, ['report' => $kind]);
 
         return Inertia::render('leave/reports', [
+            'badges' => $this->badges($request),
             'report' => ['kind' => $kind, 'rows' => $report->handle(new GetLeaveReportQuery($schoolId, $yearId, $kind, LeaveListInput::report($request), $this->context->viewer($request)))],
             'types' => $types->handle(new ListLeaveTypesQuery($schoolId)),
             'filters' => LeaveListInput::echo($request, $yearId) + ['report' => $kind],
+            'abilities' => $this->context->abilities($request),
+        ]);
+    }
+
+    /** The two counters of the leave rail: unread notifications and requests awaiting this user's decision. */
+    private function badges(Request $request): array
+    {
+        return $this->badgeCounts->handle(new GetLeaveBadgesQuery($this->context->schoolId(), $this->context->userId($request), (bool) $request->user()?->can('approveLeave')));
+    }
+
+    /** «الإشعارات»: the user's own notifications; opening a notification opens its request in «طلبات الإجازات». */
+    public function notifications(Request $request, ListLeaveNotificationsHandler $list): Response
+    {
+        $this->authorize('accessLeave');
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = LeaveListInput::perPage($request);
+        $unreadOnly = $request->boolean('unread');
+
+        return Inertia::render('leave/notifications', [
+            'badges' => $this->badges($request),
+            'notifications' => $list->handle(new ListLeaveNotificationsQuery($this->context->schoolId(), $this->context->userId($request), $unreadOnly, $page, $perPage)) + ['page' => $page, 'per_page' => $perPage],
+            'filters' => ['unread' => $unreadOnly, 'academic_year_id' => $this->context->academicYearId($request)],
             'abilities' => $this->context->abilities($request),
         ]);
     }

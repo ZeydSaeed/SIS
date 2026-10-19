@@ -14,7 +14,7 @@ import {
     type MessageDialogAction,
     type MessageDialogTone,
 } from '@/components/sis/message-dialog';
-import { resolveUiMessage } from '@/lib/resolve-ui-message';
+import { errorPresentation, resolveUiMessage } from '@/lib/resolve-ui-message';
 import {
     resolveErrorMessage,
     summarizeInertiaErrors,
@@ -147,9 +147,15 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
         lastFlashRef.current = flashKey;
 
         if (typeof flashError === 'string' && flashError.trim() !== '') {
-            showError({
-                description: resolveErrorMessage(flashError),
-            });
+            const presentation = errorPresentation(flashError);
+            openMessage(
+                {
+                    description: resolveErrorMessage(flashError),
+                    title: presentation?.title,
+                    tone: presentation?.tone,
+                },
+                'error',
+            );
 
             return;
         }
@@ -171,7 +177,7 @@ export function PageErrorProvider({ children }: { children: ReactNode }) {
         page.props.flash?.error,
         page.props.flash?.success,
         page.props.flash?.successAction,
-        showError,
+        openMessage,
         showSuccess,
     ]);
 

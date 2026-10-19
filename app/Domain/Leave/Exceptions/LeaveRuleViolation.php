@@ -17,12 +17,12 @@ final class LeaveRuleViolation extends SisDomainException
 
     public static function requestNotFound(): self
     {
-        return self::of('request_not_found');
+        return self::of('request_missing');
     }
 
     public static function typeNotFound(): self
     {
-        return self::of('type_not_found');
+        return self::of('type_missing');
     }
 
     public static function transition(string $action, int $status): self

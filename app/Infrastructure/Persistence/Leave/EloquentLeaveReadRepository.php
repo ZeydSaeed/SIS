@@ -110,6 +110,27 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
             ])->all();
     }
 
+    public function awaitingCount(int $schoolId, int $userId): int
+    {
+        return $this->awaitingDecisionOf($this->joined($schoolId), $userId)->count();
+    }
+
+    /**
+     * «بانتظار موافقتي»: pending requests the user may still decide — not their own leave, and not a request whose
+     * current round they already approved a level of (one person never passes two levels).
+     */
+    private function awaitingDecisionOf(Builder $query, int $userId): Builder
+    {
+        return $query
+            ->where('r.status', LeaveStatus::Pending->value)
+            ->whereRaw('COALESCE(t.user_id, e.user_id) IS DISTINCT FROM ?', [$userId])
+            ->whereRaw('NOT EXISTS (
+                SELECT 1 FROM leave.request_events ev
+                WHERE ev.request_id = r.id AND ev.event_type = 4 AND ev.actor_user_id = ?
+                  AND ev.id > COALESCE((SELECT MAX(s.id) FROM leave.request_events s WHERE s.request_id = r.id AND s.event_type IN (3, 8)), 0)
+            )', [$userId]);
+    }
+
     public function dashboardCounts(int $schoolId, int $academicYearId, string $today, ?int $ownUserId): array
     {
         $soon = (new \DateTimeImmutable($today))->modify('+7 days')->format('Y-m-d');
@@ -350,9 +371,7 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
             ->when(($filters['type_ids'] ?? []) !== [], static fn ($b) => $b->whereIn('r.leave_type_id', $filters['type_ids']))
             ->when(($filters['from'] ?? null) !== null, static fn ($b) => $b->where('r.date_to', '>=', $filters['from']))
             ->when(($filters['to'] ?? null) !== null, static fn ($b) => $b->where('r.date_from', '<=', $filters['to']))
-            ->when(($filters['approver_user_id'] ?? null) !== null, static fn ($b) => $b
-                ->where('r.status', LeaveStatus::Pending->value)
-                ->whereRaw('COALESCE(t.user_id, e.user_id) IS DISTINCT FROM ?', [(int) $filters['approver_user_id']]))
+            ->when(($filters['approver_user_id'] ?? null) !== null, fn ($b) => $this->awaitingDecisionOf($b, (int) $filters['approver_user_id']))
             ->when($q !== '', function ($b) use ($q) {
                 $like = '%'.$this->escapeLike($q).'%';
 

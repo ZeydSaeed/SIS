@@ -133,7 +133,7 @@ export function getSisSidebarSections(): SisNavSection[] {
                 moduleItem('rooms'),
                 moduleItem('timetable'),
                 moduleItem('attendance'),
-                moduleItem('holidays'),
+                moduleItem('leave'),
             ],
         },
         {
@@ -163,7 +163,6 @@ export function getSisSidebarSections(): SisNavSection[] {
             titleEn: 'Staff & Faculty',
             items: [
                 moduleItem('hr'),
-                moduleItem('leave'),
                 moduleItem('promotion'),
                 moduleItem('finance'),
             ],

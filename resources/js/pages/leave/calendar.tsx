@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type CSSProperties } from 'react';
 import {
-    AttendancePage,
     AttendanceTable,
     AttendanceWindow,
     WindowFact,
@@ -26,6 +25,7 @@ import {
     periodText,
     quantityText,
     typeText,
+    LeavePage,
     useLeaveEditRibbon,
     type LeaveAbilities,
     type LeaveRequestRow,
@@ -202,7 +202,7 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
     const on = (day: string) =>
         events.filter((e) => e.from <= day && e.to >= day);
 
-    const groups = useMemo(
+    const rawGroups = useMemo(
         (): PageRibbonGroup[] => [
             {
                 id: 'leave-calendar-view',
@@ -289,7 +289,24 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [view, filters, abilities],
     );
-    useLeaveEditRibbon('calendar', abilities, groups);
+    // Navigation (3) and the four views are two groups: one row each.
+    const groups = useMemo(
+        (): PageRibbonGroup[] => [
+            {
+                id: 'leave-calendar-nav',
+                label: l.calendarNav,
+                commands: rawGroups[0].commands.slice(0, 3),
+            },
+            {
+                id: 'leave-calendar-mode',
+                label: l.calendarMode,
+                commands: rawGroups[0].commands.slice(3),
+            },
+            rawGroups[1],
+        ],
+        [rawGroups, l.calendarNav, l.calendarMode],
+    );
+    useLeaveEditRibbon(groups);
     const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
         visitWith(PATH, { academic_year_id: year }),
     );
@@ -396,7 +413,11 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
     );
 
     return (
-        <AttendancePage title={l.calendar}>
+        <LeavePage
+            title={l.calendar}
+            current={'calendar'}
+            abilities={abilities}
+        >
             <LeaveSectionTitle title={view === 'day' ? focus : title} />
             <div className="sis-leave-cal__legend" aria-hidden>
                 <span
@@ -644,6 +665,6 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
                     ]}
                 />
             ) : null}
-        </AttendancePage>
+        </LeavePage>
     );
 }

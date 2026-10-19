@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import {
     CheckCircle2,
     CircleSlash,
@@ -16,6 +16,10 @@ import {
     RegistryTextField,
     useRegistryRequest,
 } from '@/components/organization/registry-sheet';
+import {
+    LeavePage,
+    type LeaveAbilities,
+} from '@/components/leave/leave-chrome';
 import { SheetSection } from '@/components/sis/admission-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import {
@@ -97,6 +101,7 @@ type Props = {
     };
     filters: Filters;
     authorization: { can_manage: boolean };
+    abilities: LeaveAbilities;
 };
 
 type HolidayForm = {
@@ -133,7 +138,7 @@ function visiblePages(current: number, last: number): number[] {
 
 export default function Holidays(props: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: t().holidays.title, href: '/holidays' },
+        { title: t().holidays.title, href: '/leave/holidays' },
     ];
 
     return (
@@ -150,6 +155,7 @@ function HolidaysPage({
     pagination,
     filters,
     authorization,
+    abilities,
 }: Props) {
     const i18n = t();
     const h = i18n.holidays;
@@ -281,7 +287,7 @@ function HolidaysPage({
     ) => {
         const next = { ...filters, ...patch };
         router.get(
-            '/holidays',
+            '/leave/holidays',
             {
                 year: next.year ?? undefined,
                 search: next.search || undefined,
@@ -341,9 +347,13 @@ function HolidaysPage({
         run(async () => {
             for (const holiday of items.filter((item) => !item.global)) {
                 if (
-                    !(await request('post', `/holidays/${holiday.id}/status`, {
-                        active: active ? 1 : 0,
-                    }))
+                    !(await request(
+                        'post',
+                        `/leave/holidays/${holiday.id}/status`,
+                        {
+                            active: active ? 1 : 0,
+                        },
+                    ))
                 ) {
                     return false;
                 }
@@ -366,11 +376,11 @@ function HolidaysPage({
         void run(
             () =>
                 sheet.id === null
-                    ? request('post', '/holidays', {
+                    ? request('post', '/leave/holidays', {
                           ...payload,
                           academic_year_id: Number(f.academic_year_id),
                       })
-                    : request('patch', `/holidays/${sheet.id}`, payload),
+                    : request('patch', `/leave/holidays/${sheet.id}`, payload),
             () => setSheet(null),
         );
     };
@@ -639,162 +649,162 @@ function HolidaysPage({
 
     return (
         <>
-            <Head title={h.title} />
-            <div
-                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page flex h-full min-h-0 flex-col overflow-hidden pb-4"
-                dir="rtl"
-                lang="ar"
-            >
+            <LeavePage title={h.title} current="holidays" abilities={abilities}>
                 {canManage ? null : (
                     <p className="sis-branches-page__notice">{h.readOnly}</p>
                 )}
-                <div className="sis-admission-page-body">
-                    <section
-                        aria-label={h.tableCaption}
-                        className="flex min-h-0 flex-1 flex-col"
-                    >
-                        {filters.year === null ? (
-                            <p className="text-sm">{h.noYear}</p>
-                        ) : (
-                            <>
-                                <div className="sis-admission-periods-table sis-admission-drafts-table">
-                                    <div
-                                        className="sis-admission-drafts-table__scroller"
-                                        ref={scrollerRef}
-                                    >
-                                        <table ref={tableRef}>
-                                            <caption className="sr-only">
-                                                {h.tableCaption}
-                                            </caption>
-                                            <thead>
-                                                <tr>
-                                                    {canManage ? (
-                                                        <th className="sis-admission-drafts-table__select">
-                                                            <input
-                                                                ref={
-                                                                    selectAllRef
-                                                                }
-                                                                type="checkbox"
-                                                                checked={
-                                                                    allChecked
-                                                                }
-                                                                disabled={
-                                                                    saving
-                                                                }
-                                                                aria-label={
-                                                                    h.selectAll
-                                                                }
-                                                                onChange={
-                                                                    toggleAll
-                                                                }
-                                                            />
-                                                        </th>
-                                                    ) : null}
-                                                    <th className="sis-admission-drafts-table__num">
-                                                        #
+                <section
+                    aria-label={h.tableCaption}
+                    className="flex min-h-0 flex-1 flex-col"
+                >
+                    {filters.year === null ? (
+                        <p className="text-sm">{h.noYear}</p>
+                    ) : (
+                        <>
+                            <div className="sis-admission-periods-table sis-admission-drafts-table">
+                                <div
+                                    className="sis-admission-drafts-table__scroller"
+                                    ref={scrollerRef}
+                                >
+                                    <table ref={tableRef}>
+                                        <caption className="sr-only">
+                                            {h.tableCaption}
+                                        </caption>
+                                        <thead>
+                                            <tr>
+                                                {canManage ? (
+                                                    <th className="sis-admission-drafts-table__select">
+                                                        <input
+                                                            ref={selectAllRef}
+                                                            type="checkbox"
+                                                            checked={allChecked}
+                                                            disabled={saving}
+                                                            aria-label={
+                                                                h.selectAll
+                                                            }
+                                                            onChange={toggleAll}
+                                                        />
                                                     </th>
-                                                    {columns.map((column) => (
-                                                        <th
-                                                            key={column.key}
+                                                ) : null}
+                                                <th className="sis-admission-drafts-table__num">
+                                                    #
+                                                </th>
+                                                {columns.map((column) => (
+                                                    <th
+                                                        key={column.key}
+                                                        className={
+                                                            column.num
+                                                                ? 'sis-admission-drafts-table__num'
+                                                                : undefined
+                                                        }
+                                                        aria-sort={ariaSort(
+                                                            sort,
+                                                            column.key,
+                                                        )}
+                                                    >
+                                                        <SortButton
+                                                            sort={sort}
+                                                            column={column.key}
+                                                        >
+                                                            {column.label}
+                                                        </SortButton>
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {displayHolidays.length === 0 ? (
+                                                <tr className="sis-attendance-table__empty">
+                                                    <td
+                                                        colSpan={
+                                                            columns.length +
+                                                            (canManage ? 2 : 1)
+                                                        }
+                                                    >
+                                                        {stats.total === 0
+                                                            ? h.empty
+                                                            : h.noResult}
+                                                        {canManage &&
+                                                        stats.total === 0 ? (
+                                                            <>
+                                                                {' '}
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        openHoliday(
+                                                                            null,
+                                                                            false,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <PlusCircle
+                                                                        aria-hidden
+                                                                    />
+                                                                    {h.add}
+                                                                </Button>
+                                                            </>
+                                                        ) : null}
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                            {displayHolidays.map(
+                                                (holiday, index) => {
+                                                    const checked =
+                                                        checkedIds.includes(
+                                                            holiday.id,
+                                                        );
+                                                    const rowSelected =
+                                                        selectedId ===
+                                                            holiday.id ||
+                                                        checked;
+
+                                                    return (
+                                                        <tr
+                                                            key={holiday.id}
+                                                            tabIndex={0}
                                                             className={
-                                                                column.num
-                                                                    ? 'sis-admission-drafts-table__num'
+                                                                rowSelected
+                                                                    ? 'sis-admission-periods-table__row--selected'
                                                                     : undefined
                                                             }
-                                                            aria-sort={ariaSort(
-                                                                sort,
-                                                                column.key,
-                                                            )}
-                                                        >
-                                                            <SortButton
-                                                                sort={sort}
-                                                                column={
-                                                                    column.key
-                                                                }
-                                                            >
-                                                                {column.label}
-                                                            </SortButton>
-                                                        </th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {displayHolidays.length === 0 ? (
-                                                    <tr className="sis-attendance-table__empty">
-                                                        <td
-                                                            colSpan={
-                                                                columns.length +
-                                                                (canManage
-                                                                    ? 2
-                                                                    : 1)
+                                                            aria-selected={
+                                                                rowSelected
                                                             }
-                                                        >
-                                                            {stats.total === 0
-                                                                ? h.empty
-                                                                : h.noResult}
-                                                            {canManage &&
-                                                            stats.total ===
-                                                                0 ? (
-                                                                <>
-                                                                    {' '}
-                                                                    <Button
-                                                                        type="button"
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() =>
-                                                                            openHoliday(
-                                                                                null,
-                                                                                false,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <PlusCircle
-                                                                            aria-hidden
-                                                                        />
-                                                                        {h.add}
-                                                                    </Button>
-                                                                </>
-                                                            ) : null}
-                                                        </td>
-                                                    </tr>
-                                                ) : null}
-                                                {displayHolidays.map(
-                                                    (holiday, index) => {
-                                                        const checked =
-                                                            checkedIds.includes(
-                                                                holiday.id,
-                                                            );
-                                                        const rowSelected =
-                                                            selectedId ===
-                                                                holiday.id ||
-                                                            checked;
-
-                                                        return (
-                                                            <tr
-                                                                key={holiday.id}
-                                                                tabIndex={0}
-                                                                className={
-                                                                    rowSelected
-                                                                        ? 'sis-admission-periods-table__row--selected'
-                                                                        : undefined
-                                                                }
-                                                                aria-selected={
-                                                                    rowSelected
-                                                                }
-                                                                onClick={() =>
+                                                            onClick={() =>
+                                                                selectRow(
+                                                                    holiday.id,
+                                                                )
+                                                            }
+                                                            onDoubleClick={() =>
+                                                                openHoliday(
+                                                                    holiday,
+                                                                    !canManage,
+                                                                )
+                                                            }
+                                                            onContextMenu={(
+                                                                event,
+                                                            ) => {
+                                                                if (!checked) {
                                                                     selectRow(
                                                                         holiday.id,
-                                                                    )
+                                                                    );
                                                                 }
-                                                                onDoubleClick={() =>
-                                                                    openHoliday(
-                                                                        holiday,
-                                                                        !canManage,
-                                                                    )
-                                                                }
-                                                                onContextMenu={(
+                                                                menu.open(
                                                                     event,
-                                                                ) => {
+                                                                    holiday,
+                                                                );
+                                                            }}
+                                                            onKeyDown={(
+                                                                event,
+                                                            ) => {
+                                                                if (
+                                                                    isContextMenuKey(
+                                                                        event,
+                                                                    )
+                                                                ) {
+                                                                    event.preventDefault();
                                                                     if (
                                                                         !checked
                                                                     ) {
@@ -802,240 +812,208 @@ function HolidaysPage({
                                                                             holiday.id,
                                                                         );
                                                                     }
-                                                                    menu.open(
-                                                                        event,
+                                                                    menu.openAt(
+                                                                        event.currentTarget,
                                                                         holiday,
                                                                     );
-                                                                }}
-                                                                onKeyDown={(
-                                                                    event,
-                                                                ) => {
-                                                                    if (
-                                                                        isContextMenuKey(
+                                                                } else if (
+                                                                    event.key ===
+                                                                    'Enter'
+                                                                ) {
+                                                                    openHoliday(
+                                                                        holiday,
+                                                                        !canManage,
+                                                                    );
+                                                                }
+                                                            }}
+                                                        >
+                                                            {canManage ? (
+                                                                <td className="sis-admission-drafts-table__select">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={
+                                                                            checked
+                                                                        }
+                                                                        disabled={
+                                                                            saving
+                                                                        }
+                                                                        aria-label={`${h.selectHoliday}: ${holiday.name}`}
+                                                                        onClick={(
                                                                             event,
-                                                                        )
-                                                                    ) {
-                                                                        event.preventDefault();
-                                                                        if (
-                                                                            !checked
-                                                                        ) {
-                                                                            selectRow(
+                                                                        ) =>
+                                                                            event.stopPropagation()
+                                                                        }
+                                                                        onChange={() =>
+                                                                            toggleChecked(
                                                                                 holiday.id,
-                                                                            );
+                                                                            )
                                                                         }
-                                                                        menu.openAt(
-                                                                            event.currentTarget,
-                                                                            holiday,
-                                                                        );
-                                                                    } else if (
-                                                                        event.key ===
-                                                                        'Enter'
-                                                                    ) {
-                                                                        openHoliday(
-                                                                            holiday,
-                                                                            !canManage,
-                                                                        );
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {canManage ? (
-                                                                    <td className="sis-admission-drafts-table__select">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={
-                                                                                checked
-                                                                            }
-                                                                            disabled={
-                                                                                saving
-                                                                            }
-                                                                            aria-label={`${h.selectHoliday}: ${holiday.name}`}
-                                                                            onClick={(
-                                                                                event,
-                                                                            ) =>
-                                                                                event.stopPropagation()
-                                                                            }
-                                                                            onChange={() =>
-                                                                                toggleChecked(
-                                                                                    holiday.id,
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                    </td>
-                                                                ) : null}
-                                                                <td className="sis-admission-drafts-table__num">
-                                                                    <span dir="ltr">
-                                                                        {offset +
-                                                                            index +
-                                                                            1}
-                                                                    </span>
+                                                                    />
                                                                 </td>
-                                                                <td className="sis-admission-drafts-table__name">
-                                                                    <div className="sis-students-table__cell-scroll">
-                                                                        {
-                                                                            holiday.name
-                                                                        }
-                                                                    </div>
-                                                                </td>
-                                                                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                                    <div
-                                                                        className="sis-students-table__cell-scroll"
-                                                                        dir="ltr"
-                                                                    >
-                                                                        {
-                                                                            holiday.start_date
-                                                                        }
-                                                                    </div>
-                                                                </td>
-                                                                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                                    <div
-                                                                        className="sis-students-table__cell-scroll"
-                                                                        dir="ltr"
-                                                                    >
-                                                                        {
-                                                                            holiday.end_date
-                                                                        }
-                                                                    </div>
-                                                                </td>
-                                                                <td className="sis-admission-drafts-table__num">
+                                                            ) : null}
+                                                            <td className="sis-admission-drafts-table__num">
+                                                                <span dir="ltr">
+                                                                    {offset +
+                                                                        index +
+                                                                        1}
+                                                                </span>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__name">
+                                                                <div className="sis-students-table__cell-scroll">
                                                                     {
-                                                                        holiday.days
+                                                                        holiday.name
                                                                     }
-                                                                </td>
-                                                                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                                    <div className="sis-students-table__cell-scroll">
-                                                                        {h
-                                                                            .types[
-                                                                            holiday
-                                                                                .holiday_type
-                                                                        ] ??
-                                                                            '—'}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
-                                                                    <div className="sis-students-table__cell-scroll">
-                                                                        {holiday.global
-                                                                            ? h.scopeGlobal
-                                                                            : h.scopeSchool}
-                                                                    </div>
-                                                                </td>
-                                                                <td
-                                                                    className={`sis-students-table__status sis-students-table__status--tone-${holiday.status === ACTIVE ? 'dark' : 'light'}`}
-                                                                    data-status={
-                                                                        holiday.status
-                                                                    }
+                                                                </div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div
+                                                                    className="sis-students-table__cell-scroll"
+                                                                    dir="ltr"
                                                                 >
-                                                                    <div className="sis-students-table__cell-scroll">
-                                                                        {holiday.status ===
-                                                                        ACTIVE
-                                                                            ? h.inCalendar
-                                                                            : h.outOfCalendar}
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    },
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                                    {
+                                                                        holiday.start_date
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div
+                                                                    className="sis-students-table__cell-scroll"
+                                                                    dir="ltr"
+                                                                >
+                                                                    {
+                                                                        holiday.end_date
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__num">
+                                                                {holiday.days}
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">
+                                                                    {h.types[
+                                                                        holiday
+                                                                            .holiday_type
+                                                                    ] ?? '—'}
+                                                                </div>
+                                                            </td>
+                                                            <td className="sis-admission-drafts-table__text sis-students-table__nowrap">
+                                                                <div className="sis-students-table__cell-scroll">
+                                                                    {holiday.global
+                                                                        ? h.scopeGlobal
+                                                                        : h.scopeSchool}
+                                                                </div>
+                                                            </td>
+                                                            <td
+                                                                className={`sis-students-table__status sis-students-table__status--tone-${holiday.status === ACTIVE ? 'dark' : 'light'}`}
+                                                                data-status={
+                                                                    holiday.status
+                                                                }
+                                                            >
+                                                                <div className="sis-students-table__cell-scroll">
+                                                                    {holiday.status ===
+                                                                    ACTIVE
+                                                                        ? h.inCalendar
+                                                                        : h.outOfCalendar}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                },
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                {pagination.total > 0 ? (
-                                    <nav
-                                        className="sis-admission-drafts-pagination"
-                                        aria-label={i18n.common.page}
+                            </div>
+                            {pagination.total > 0 ? (
+                                <nav
+                                    className="sis-admission-drafts-pagination"
+                                    aria-label={i18n.common.page}
+                                >
+                                    <ul
+                                        className="sis-admission-pagination"
+                                        dir="ltr"
                                     >
-                                        <ul
-                                            className="sis-admission-pagination"
-                                            dir="ltr"
-                                        >
-                                            <li className="sis-admission-pagination__item">
+                                        <li className="sis-admission-pagination__item">
+                                            <button
+                                                type="button"
+                                                className="sis-admission-pagination__link"
+                                                aria-label={
+                                                    i18n.common.previous
+                                                }
+                                                disabled={pagination.page <= 1}
+                                                onClick={() =>
+                                                    visit({
+                                                        page:
+                                                            pagination.page - 1,
+                                                    })
+                                                }
+                                            >
+                                                <span aria-hidden="true">
+                                                    &laquo;
+                                                </span>
+                                            </button>
+                                        </li>
+                                        {visiblePages(
+                                            pagination.page,
+                                            fitLastPage,
+                                        ).map((pageNum) => (
+                                            <li
+                                                key={pageNum}
+                                                className="sis-admission-pagination__item"
+                                            >
                                                 <button
                                                     type="button"
-                                                    className="sis-admission-pagination__link"
-                                                    aria-label={
-                                                        i18n.common.previous
+                                                    className={
+                                                        pageNum ===
+                                                        pagination.page
+                                                            ? 'sis-admission-pagination__link sis-admission-pagination__link--active'
+                                                            : 'sis-admission-pagination__link'
                                                     }
-                                                    disabled={
-                                                        pagination.page <= 1
+                                                    aria-label={`${i18n.common.page} ${pageNum}`}
+                                                    aria-current={
+                                                        pageNum ===
+                                                        pagination.page
+                                                            ? 'page'
+                                                            : undefined
                                                     }
                                                     onClick={() =>
                                                         visit({
-                                                            page:
-                                                                pagination.page -
-                                                                1,
+                                                            page: pageNum,
                                                         })
                                                     }
                                                 >
-                                                    <span aria-hidden="true">
-                                                        &laquo;
-                                                    </span>
+                                                    {pageNum}
                                                 </button>
                                             </li>
-                                            {visiblePages(
-                                                pagination.page,
-                                                fitLastPage,
-                                            ).map((pageNum) => (
-                                                <li
-                                                    key={pageNum}
-                                                    className="sis-admission-pagination__item"
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        className={
-                                                            pageNum ===
-                                                            pagination.page
-                                                                ? 'sis-admission-pagination__link sis-admission-pagination__link--active'
-                                                                : 'sis-admission-pagination__link'
-                                                        }
-                                                        aria-label={`${i18n.common.page} ${pageNum}`}
-                                                        aria-current={
-                                                            pageNum ===
-                                                            pagination.page
-                                                                ? 'page'
-                                                                : undefined
-                                                        }
-                                                        onClick={() =>
-                                                            visit({
-                                                                page: pageNum,
-                                                            })
-                                                        }
-                                                    >
-                                                        {pageNum}
-                                                    </button>
-                                                </li>
-                                            ))}
-                                            <li className="sis-admission-pagination__item">
-                                                <button
-                                                    type="button"
-                                                    className="sis-admission-pagination__link"
-                                                    aria-label={
-                                                        i18n.common.next
-                                                    }
-                                                    disabled={
-                                                        pagination.page >=
-                                                        fitLastPage
-                                                    }
-                                                    onClick={() =>
-                                                        visit({
-                                                            page:
-                                                                pagination.page +
-                                                                1,
-                                                        })
-                                                    }
-                                                >
-                                                    <span aria-hidden="true">
-                                                        &raquo;
-                                                    </span>
-                                                </button>
-                                            </li>
-                                        </ul>
-                                    </nav>
-                                ) : null}
-                            </>
-                        )}
-                    </section>
-                </div>
-            </div>
+                                        ))}
+                                        <li className="sis-admission-pagination__item">
+                                            <button
+                                                type="button"
+                                                className="sis-admission-pagination__link"
+                                                aria-label={i18n.common.next}
+                                                disabled={
+                                                    pagination.page >=
+                                                    fitLastPage
+                                                }
+                                                onClick={() =>
+                                                    visit({
+                                                        page:
+                                                            pagination.page + 1,
+                                                    })
+                                                }
+                                            >
+                                                <span aria-hidden="true">
+                                                    &raquo;
+                                                </span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            ) : null}
+                        </>
+                    )}
+                </section>
+            </LeavePage>
 
             <SisContextMenu
                 controller={menu}

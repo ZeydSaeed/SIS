@@ -19,6 +19,7 @@ use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Imports\ImportPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Leave\LeaveNotificationController;
 use App\Http\Controllers\Leave\LeavePageController;
 use App\Http\Controllers\Leave\LeaveRequestController;
 use App\Http\Controllers\Leave\LeaveSettingsController;
@@ -405,6 +406,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])->whereNumber('leaveRequest')->name('requests.cancel');
         Route::post('/requests/{leaveRequest}/attachments', [LeaveRequestController::class, 'attach'])->whereNumber('leaveRequest')->middleware('throttle:20,1')->name('requests.attach');
         Route::get('/requests/{leaveRequest}/attachments/{document}', [LeavePageController::class, 'attachment'])->whereNumber(['leaveRequest', 'document'])->name('requests.attachment');
+        // «العطل» — the school calendar's holidays (a holiday is taken out of the calendar, never deleted).
+        Route::get('/holidays', [HolidayPageController::class, 'index'])->name('holidays.index');
+        Route::post('/holidays', [HolidayPageController::class, 'store'])->name('holidays.store');
+        Route::patch('/holidays/{holiday}', [HolidayPageController::class, 'update'])->whereNumber('holiday')->name('holidays.update');
+        Route::post('/holidays/{holiday}/status', [HolidayPageController::class, 'changeStatus'])->whereNumber('holiday')->name('holidays.status');
+        Route::get('/notifications', [LeavePageController::class, 'notifications'])->name('notifications.index');
+        Route::post('/notifications/read', [LeaveNotificationController::class, 'read'])->name('notifications.read');
         Route::get('/balances', [LeavePageController::class, 'balances'])->name('balances.index');
         Route::post('/balances/adjust', [LeaveSettingsController::class, 'adjust'])->name('balances.adjust');
         Route::post('/balances/grant', [LeaveSettingsController::class, 'grant'])->name('balances.grant');
@@ -430,11 +438,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/graduation', [OpsModulePageController::class, 'graduation'])->name('graduation.index');
         Route::get('/certificates', [OpsModulePageController::class, 'certificates'])->name('certificates.index');
         Route::get('/finance', [OpsModulePageController::class, 'finance'])->name('finance.index');
-        // «الاجازات» — the school calendar's holidays (a holiday is taken out of the calendar, never deleted).
-        Route::get('/holidays', [HolidayPageController::class, 'index'])->name('holidays.index');
-        Route::post('/holidays', [HolidayPageController::class, 'store'])->name('holidays.store');
-        Route::patch('/holidays/{holiday}', [HolidayPageController::class, 'update'])->whereNumber('holiday')->name('holidays.update');
-        Route::post('/holidays/{holiday}/status', [HolidayPageController::class, 'changeStatus'])->whereNumber('holiday')->name('holidays.status');
         Route::get('/health', [OpsModulePageController::class, 'health'])->name('health.index');
         Route::get('/hr', [OpsModulePageController::class, 'hr'])->name('hr.index');
         Route::get('/documents', [OpsModulePageController::class, 'documents'])->name('documents.index');

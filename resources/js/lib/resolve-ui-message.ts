@@ -161,3 +161,10 @@ const ENGLISH_TO_FLASH_KEY: Record<string, string> = {
     'Attendance session closed.': 'flash.attendance.sessionClosed',
     'Attendance session created.': 'flash.attendance.sessionCreated',
 };
+
+/** Tone and title a refused action is shown with (see `errors.presentation`); none for codes without an entry. */
+export function errorPresentation(raw: string | null | undefined): { tone: 'warning' | 'error'; title: string } | null {
+    const code = (raw ?? '').trim().split('?')[0];
+
+    return t().errors.presentation[code] ?? null;
+}

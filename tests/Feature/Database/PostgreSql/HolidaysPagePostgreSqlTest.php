@@ -36,8 +36,8 @@ final class HolidaysPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
         app(SecurityPermissionSeeder::class)->grantSchoolManager($user, $schoolId);
 
         // The page: the global holiday only (the other school's is invisible).
-        $this->get('/holidays?year='.$yearId)->assertOk()->assertInertia(fn ($page) => $page
-            ->component('holidays/index')
+        $this->get('/leave/holidays?year='.$yearId)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('leave/holidays')
             ->where('authorization.can_manage', true)
             ->has('holidays', 1)
             ->where('holidays.0.id', $globalId)
@@ -45,36 +45,36 @@ final class HolidaysPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
             ->etc());
 
         // Create: inside the year, a valid type and range.
-        $this->write('/holidays', ['academic_year_id' => $yearId, 'name' => 'عطلة الشتاء', 'start_date' => '2026-12-20', 'end_date' => '2027-01-05', 'holiday_type' => 3])
+        $this->write('/leave/holidays', ['academic_year_id' => $yearId, 'name' => 'عطلة الشتاء', 'start_date' => '2026-12-20', 'end_date' => '2027-01-05', 'holiday_type' => 3])
             ->assertSessionHas('success', 'flash.holidays.created');
         $holiday = DB::table($table)->where('school_id', $schoolId)->first();
         $this->assertNotNull($holiday);
         $this->assertSame(1, (int) $holiday->status);
 
-        $this->write('/holidays', ['academic_year_id' => $yearId, 'name' => 'x', 'start_date' => '2027-07-01', 'end_date' => '2027-07-02', 'holiday_type' => 2])
+        $this->write('/leave/holidays', ['academic_year_id' => $yearId, 'name' => 'x', 'start_date' => '2027-07-01', 'end_date' => '2027-07-02', 'holiday_type' => 2])
             ->assertSessionHasErrors(['holiday' => 'academic.holiday_outside_year']);
-        $this->write('/holidays', ['academic_year_id' => $yearId, 'name' => 'x', 'start_date' => '2026-12-10', 'end_date' => '2026-12-01', 'holiday_type' => 2])
+        $this->write('/leave/holidays', ['academic_year_id' => $yearId, 'name' => 'x', 'start_date' => '2026-12-10', 'end_date' => '2026-12-01', 'holiday_type' => 2])
             ->assertSessionHasErrors('end_date');
-        $this->write('/holidays', ['academic_year_id' => $yearId, 'name' => 'عطلة الشتاء', 'start_date' => '2026-12-25', 'end_date' => '2026-12-26', 'holiday_type' => 3])
+        $this->write('/leave/holidays', ['academic_year_id' => $yearId, 'name' => 'عطلة الشتاء', 'start_date' => '2026-12-25', 'end_date' => '2026-12-26', 'holiday_type' => 3])
             ->assertSessionHasErrors(['holiday' => 'academic.holiday_duplicate']);
-        $this->write('/holidays', ['academic_year_id' => $yearId, 'school_id' => $otherSchoolId, 'name' => 'y', 'start_date' => '2026-10-01', 'end_date' => '2026-10-01', 'holiday_type' => 2])
+        $this->write('/leave/holidays', ['academic_year_id' => $yearId, 'school_id' => $otherSchoolId, 'name' => 'y', 'start_date' => '2026-10-01', 'end_date' => '2026-10-01', 'holiday_type' => 2])
             ->assertSessionHasErrors('school_id');
 
         // Edit its own; the global and a foreign holiday cannot be edited from here.
-        $this->patchWrite('/holidays/'.$holiday->id, ['name' => 'عطلة نهاية الفصل', 'start_date' => '2026-12-21', 'end_date' => '2027-01-04', 'holiday_type' => 3])
+        $this->patchWrite('/leave/holidays/'.$holiday->id, ['name' => 'عطلة نهاية الفصل', 'start_date' => '2026-12-21', 'end_date' => '2027-01-04', 'holiday_type' => 3])
             ->assertSessionHas('success', 'flash.holidays.updated');
         $this->assertSame('عطلة نهاية الفصل', DB::table($table)->where('id', $holiday->id)->value('name'));
-        $this->patchWrite('/holidays/'.$globalId, ['name' => 'z', 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'holiday_type' => 1])
+        $this->patchWrite('/leave/holidays/'.$globalId, ['name' => 'z', 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'holiday_type' => 1])
             ->assertSessionHasErrors(['holiday' => 'academic.holiday_global_readonly']);
-        $this->write('/holidays/'.$foreignId.'/status', ['active' => 0])->assertSessionHasErrors(['holiday' => 'academic.holiday_not_found']);
+        $this->write('/leave/holidays/'.$foreignId.'/status', ['active' => 0])->assertSessionHasErrors(['holiday' => 'academic.holiday_not_found']);
         $this->assertSame(1, (int) DB::table($table)->where('id', $foreignId)->value('status'));
 
         // Out of the calendar and back: the row stays, the state filter and counters follow.
-        $this->write('/holidays/'.$holiday->id.'/status', ['active' => 0])->assertSessionHas('success', 'flash.holidays.deactivated');
+        $this->write('/leave/holidays/'.$holiday->id.'/status', ['active' => 0])->assertSessionHas('success', 'flash.holidays.deactivated');
         $this->assertSame(2, (int) DB::table($table)->where('id', $holiday->id)->value('status'));
-        $this->get('/holidays?year='.$yearId.'&state=2')->assertInertia(fn ($page) => $page
+        $this->get('/leave/holidays?year='.$yearId.'&state=2')->assertInertia(fn ($page) => $page
             ->has('holidays', 1)->where('holidays.0.id', (int) $holiday->id)->where('stats.total', 2)->where('stats.active', 1)->etc());
-        $this->write('/holidays/'.$holiday->id.'/status', ['active' => 1])->assertSessionHas('success', 'flash.holidays.reactivated');
+        $this->write('/leave/holidays/'.$holiday->id.'/status', ['active' => 1])->assertSessionHas('success', 'flash.holidays.reactivated');
         $this->assertSame(1, (int) DB::table($table)->where('id', $holiday->id)->value('status'));
         $this->assertDatabaseCount($table, 3);
     }
@@ -86,7 +86,7 @@ final class HolidaysPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
         $yearId = $this->createAcademicYear('AY-HOL-V');
         $this->actingAsStudentViewerWeb(null, $schoolId);
 
-        $this->write('/holidays', ['academic_year_id' => $yearId, 'name' => 'x', 'start_date' => '2026-10-01', 'end_date' => '2026-10-01', 'holiday_type' => 2])
+        $this->write('/leave/holidays', ['academic_year_id' => $yearId, 'name' => 'x', 'start_date' => '2026-10-01', 'end_date' => '2026-10-01', 'holiday_type' => 2])
             ->assertForbidden();
     }
 
@@ -106,11 +106,11 @@ final class HolidaysPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
 
     private function write(string $url, array $data): TestResponse
     {
-        return $this->from('/holidays')->withHeader('X-Idempotency-Key', 'hol-'.(++$this->key))->post($url, $data);
+        return $this->from('/leave/holidays')->withHeader('X-Idempotency-Key', 'hol-'.(++$this->key))->post($url, $data);
     }
 
     private function patchWrite(string $url, array $data): TestResponse
     {
-        return $this->from('/holidays')->withHeader('X-Idempotency-Key', 'hol-'.(++$this->key))->patch($url, $data);
+        return $this->from('/leave/holidays')->withHeader('X-Idempotency-Key', 'hol-'.(++$this->key))->patch($url, $data);
     }
 }

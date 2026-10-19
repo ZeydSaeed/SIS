@@ -7,6 +7,7 @@ use App\Application\Contracts\CommandHandler;
 use App\Application\Leave\Contracts\LeaveAttachmentStorageInterface;
 use App\Application\Leave\Results\SubmitLeaveRequestResult;
 use App\Application\Leave\Support\LeaveBalanceGuard;
+use App\Application\Leave\Support\LeaveNotifier;
 use App\Application\Leave\Support\LeaveRequestPreparer;
 use App\Application\Leave\Support\LeaveTransaction;
 use App\Domain\Leave\Exceptions\LeaveRuleViolation;
@@ -25,6 +26,7 @@ final class SubmitLeaveRequestHandler implements CommandHandler
         private readonly LeaveRequestPreparer $prepare,
         private readonly LeaveBalanceGuard $balance,
         private readonly LeaveAttachmentStorageInterface $attachments,
+        private readonly LeaveNotifier $notifier,
     ) {}
 
     public function handle(Command $command): SubmitLeaveRequestResult
@@ -58,6 +60,8 @@ final class SubmitLeaveRequestHandler implements CommandHandler
             $this->requests->transition($request->id, $request->version + 1, LeaveStatus::Pending, 0, null, null, true);
             $event = $request->status === LeaveStatus::InfoRequired ? LeaveEventType::Resubmitted : LeaveEventType::Submitted;
             $this->requests->addEvent($request->schoolId, $request->id, $event, $request->status, LeaveStatus::Pending, null, $command->actorUserId, null, ['quantity' => $quantity, 'policy_id' => $policy->id]);
+
+            $this->notifier->awaitingApproval($request, $requester, $command->actorUserId);
 
             return [
                 'data' => ['request_id' => $request->id, 'status' => LeaveStatus::Pending->value, 'quantity' => $quantity],

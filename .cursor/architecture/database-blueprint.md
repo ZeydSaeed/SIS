@@ -2045,7 +2045,7 @@ Identity grain: `(school_id, enrollment_id)`. Completion ≠ Approval ≠ Award 
 
 ---
 
-## Schema: `leave` (5 tables — «الإجازات والغياب», 2026-10-18, migration `2026_10_18_120000_create_leave_schema`)
+## Schema: `leave` (6 tables — «الإجازات والغياب», 2026-10-18, migration `2026_10_18_120000_create_leave_schema`)
 
 > Staff leave (teachers `teachers.teachers` + administrative employees `hr.employees` not linked to a teacher). **Reused, not duplicated:** student leave = `attendance.excuses` (approval already turns absences into excused ones), holidays = `academic.holidays`, attachments = `documents.files` (`entity_type = 'leave_request'`, module-owned — the generic documents API refuses it), lesson cover = `timetable.schedule_exceptions` through the timetable's own substitution command. Approval is the module's own lifecycle + append-only history (workflow-engine hooks for other entities are **HOLD**).  
 > **All five tables:** `school_id NOT NULL` FK schools, ENABLE + **FORCE RLS** fail-closed on `app.current_school_id` (SELECT / INSERT / UPDATE policies, no DELETE policy) and a `BEFORE DELETE` reject trigger. `request_events` and `balance_entries` also reject UPDATE (append-only). PostgreSQL only (skipped on SQLite).
@@ -2121,6 +2121,22 @@ A change publishes the next version (previous one closed at that day). Requests 
 | reason / created_by / created_at | | |
 
 **Indexes:** UNIQUE partial `(request_id, entry_type) WHERE request_id IS NOT NULL` (**one deduction, one restoration per request — never deducted twice**), UNIQUE partial entitlement per `(school, year, type, teacher)` / `(…, employee)`, `(school_id, academic_year_id, leave_type_id)`, partial person indexes. Balance writes are serialised per person · type · year by a transaction-scoped advisory lock.
+
+### `leave.notifications` (2026-10-19, migration `2026_10_19_100000_create_leave_notifications`)
+
+In-app notifications, one row per recipient. Ids and a kind only — never the reason, type name or file (text is composed in the UI; the request is re-read through the module's own access rules).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| user_id | BIGINT | FK → public.users NOT NULL (the recipient) |
+| request_id | BIGINT | FK → leave.requests NOT NULL |
+| kind | SMALLINT | 1 awaiting approval · 2 approved · 3 rejected · 4 info requested · 5 cancelled · 6 level approved |
+| actor_user_id | BIGINT | FK → users, nullable |
+| created_at / read_at | TIMESTAMPTZ | read_at nullable — the only column that may change |
+
+**Indexes:** `(user_id, read_at, id DESC)`, `(request_id)`. **Security:** FORCE RLS fail-closed on `school_id`; trigger rejects DELETE and any UPDATE other than `read_at`.
 
 ---
 

@@ -17,11 +17,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
-    AttendancePage,
     AttendanceTable,
     AttendanceWindow,
     WindowFact,
-    WindowTextArea,
     useAttendanceHomeFilters,
     useAttendanceSearch,
     useAttendanceSelection,
@@ -31,11 +29,14 @@ import {
 } from '@/components/attendance/attendance-chrome';
 import { StatusLabel, dateTime } from '@/components/attendance/attendance-ui';
 import {
+    LeaveFilePicker,
+    LeaveInfoNote,
+    LeaveTextArea,
     leaveStatusMeta,
     periodText,
     quantityText,
-    statusToggleCommands,
     typeText,
+    LeavePage,
     useLeaveEditRibbon,
     useLeaveWrite,
     type LeaveAbilities,
@@ -458,7 +459,9 @@ function RequestsPage({
             header: l.period,
             kind: 'text',
             cell: (r) => (
-                <span dir="ltr">{periodText(r.date_from, r.date_to)}</span>
+                <span className="sis-leave-period" dir="ltr">
+                    {periodText(r.date_from, r.date_to)}
+                </span>
             ),
             sort: (r) => r.date_from,
         },
@@ -671,38 +674,69 @@ function RequestsPage({
         ].map((c) => ({ ...c, disabled: c.disabled || none }));
     };
 
-    const editGroups = useMemo(
-        (): PageRibbonGroup[] => [
+    // Groups of at most five commands, so every group stays on ONE row of the ribbon with its icons and labels in view.
+    const editGroups = useMemo((): PageRibbonGroup[] => {
+        const byId = new Map(
+            [
+                ...(canWrite
+                    ? [
+                          {
+                              id: 'leave-add',
+                              label: l.add,
+                              icon: PlusCircle,
+                              iconTone: 'ok' as const,
+                              onSelect: () => setForm(blankForm()),
+                          },
+                      ]
+                    : []),
+                ...actionsFor(one, targets),
+            ].map((c) => [c.id, c] as const),
+        );
+        const pick = (...ids: string[]) =>
+            ids.flatMap((id) => {
+                const c = byId.get(id);
+
+                return c === undefined ? [] : [c];
+            });
+
+        return [
             {
-                id: 'leave-requests-actions',
+                id: 'leave-requests-request',
                 label:
                     targets.length > 1
-                        ? `${l.actions} (${targets.length})`
-                        : l.actions,
-                commands: [
-                    ...(canWrite
-                        ? [
-                              {
-                                  id: 'leave-add',
-                                  label: l.add,
-                                  icon: PlusCircle,
-                                  iconTone: 'ok' as const,
-                                  onSelect: () => setForm(blankForm()),
-                              },
-                          ]
-                        : []),
-                    ...actionsFor(one, targets),
-                ],
+                        ? `${l.groupRequest} (${targets.length})`
+                        : l.groupRequest,
+                commands: pick(
+                    'leave-add',
+                    'leave-view',
+                    'leave-edit',
+                    'leave-submit',
+                    'leave-attach',
+                ),
             },
             {
-                id: 'leave-requests-status',
-                label: l.statusesGroup,
+                id: 'leave-requests-decision',
+                label: l.groupDecision,
+                commands: pick('leave-approve', 'leave-reject', 'leave-info'),
+            },
+            {
+                id: 'leave-requests-close',
+                label: l.groupClose,
+                commands: pick(
+                    'leave-withdraw',
+                    'leave-cancel',
+                    'leave-coverage',
+                ),
+            },
+            {
+                id: 'leave-requests-scope',
+                label: l.filters,
                 commands: [
                     {
                         id: 'leave-mine',
                         label: l.mine,
                         icon: UserCheck,
-                        iconTone: 'education',
+                        iconTone: 'education' as const,
                         pressed: filters.mine,
                         onSelect: () => visit({ mine: !filters.mine }),
                     },
@@ -719,20 +753,12 @@ function RequestsPage({
                               },
                           ]
                         : []),
-                    ...statusToggleCommands(filters.state, (v) =>
-                        visit({
-                            state: filters.state.includes(v)
-                                ? filters.state.filter((s) => s !== v)
-                                : [...filters.state, v],
-                        }),
-                    ),
                 ],
             },
-        ],
+        ].filter((g) => g.commands.length > 0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [targets, filters, abilities, busy, staff, types],
-    );
-    useLeaveEditRibbon('requests', abilities, editGroups);
+    }, [targets, filters, abilities, busy, staff, types]);
+    useLeaveEditRibbon(editGroups);
 
     const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
         visitWith(PATH, { academic_year_id: year }),
@@ -766,6 +792,19 @@ function RequestsPage({
                 ],
                 onChange: (v: string) =>
                     visit({ kind: v === '' ? null : Number(v) }),
+            } as FilterSpec,
+            {
+                key: 'state',
+                type: 'multi',
+                label: l.status,
+                allLabel: l.allStatuses,
+                values: filters.state.map(String),
+                options: [1, 2, 3, 4, 5, 6, 7].map((v) => ({
+                    value: String(v),
+                    label: l.statuses[v],
+                })),
+                onChange: (values: string[]) =>
+                    visit({ state: values.map(Number) }),
             } as FilterSpec,
             {
                 key: 'type',
@@ -839,7 +878,11 @@ function RequestsPage({
     );
 
     return (
-        <AttendancePage title={l.requests}>
+        <LeavePage
+            title={l.requests}
+            current={filters.awaiting ? 'awaiting' : 'requests'}
+            abilities={abilities}
+        >
             {!canWrite && !abilities.view ? (
                 <p className="sis-branches-page__notice">{l.readOnly}</p>
             ) : null}
@@ -1145,41 +1188,37 @@ function RequestsPage({
                         {
                             id: 'leave-form-person',
                             title: l.sectionRequester,
-                            content:
-                                staffOptions.length === 0 ? (
-                                    <WindowFact
-                                        wide
-                                        label={l.person}
-                                        value={l.noStaff}
-                                    />
-                                ) : (
-                                    <RegistryListField
-                                        label={l.person}
-                                        editing={form.id === null}
-                                        required
-                                        fieldClassName="sis-branches-field--wide"
-                                        value={form.person}
-                                        display={
-                                            staffOptions.find(
-                                                (o) => o.value === form.person,
-                                            )?.label ?? l.choosePerson
-                                        }
-                                        options={staffOptions}
-                                        onChange={(person) =>
-                                            setForm({
-                                                ...form,
-                                                person,
-                                                leave_type_id: '',
-                                            })
-                                        }
-                                    />
-                                ),
-                        },
-                        {
-                            id: 'leave-form-leave',
-                            title: l.sectionLeave,
                             content: (
                                 <>
+                                    {staffOptions.length === 0 ? (
+                                        <WindowFact
+                                            wide
+                                            label={l.person}
+                                            value={l.noStaff}
+                                        />
+                                    ) : (
+                                        <RegistryListField
+                                            label={l.person}
+                                            editing={form.id === null}
+                                            required
+                                            fieldClassName="sis-branches-field--wide"
+                                            value={form.person}
+                                            display={
+                                                staffOptions.find(
+                                                    (o) =>
+                                                        o.value === form.person,
+                                                )?.label ?? l.choosePerson
+                                            }
+                                            options={staffOptions}
+                                            onChange={(person) =>
+                                                setForm({
+                                                    ...form,
+                                                    person,
+                                                    leave_type_id: '',
+                                                })
+                                            }
+                                        />
+                                    )}
                                     <RegistryListField
                                         label={l.type}
                                         editing
@@ -1197,6 +1236,37 @@ function RequestsPage({
                                             setForm({ ...form, leave_type_id })
                                         }
                                     />
+                                    {formType?.policy ? (
+                                        <LeaveInfoNote
+                                            items={[
+                                                l.dayBasis[
+                                                    formType.policy.day_basis
+                                                ],
+                                                `${l.approvalLevels}: ${formType.policy.approval_levels}`,
+                                                formType.policy.max_per_request
+                                                    ? `${l.maxPerRequest}: ${formType.policy.max_per_request}`
+                                                    : null,
+                                                formType.policy.deducts_balance
+                                                    ? null
+                                                    : l.noBalance,
+                                                formType.policy
+                                                    .requires_document
+                                                    ? l.requiresDocument
+                                                    : null,
+                                                formType.is_sensitive
+                                                    ? l.sensitive
+                                                    : null,
+                                            ]}
+                                        />
+                                    ) : null}
+                                </>
+                            ),
+                        },
+                        {
+                            id: 'leave-form-period',
+                            title: l.period,
+                            content: (
+                                <>
                                     <RegistryTextField
                                         label={l.dateFrom}
                                         editing
@@ -1232,7 +1302,18 @@ function RequestsPage({
                                             }
                                         />
                                     )}
-                                    <WindowTextArea
+                                    <LeaveInfoNote
+                                        items={[l.durationPreview]}
+                                    />
+                                </>
+                            ),
+                        },
+                        {
+                            id: 'leave-form-reason',
+                            title: l.sectionReason,
+                            content: (
+                                <>
+                                    <LeaveTextArea
                                         label={l.reason}
                                         required
                                         value={form.reason}
@@ -1240,41 +1321,17 @@ function RequestsPage({
                                             setForm({ ...form, reason })
                                         }
                                     />
-                                    <label className="sis-admission-sheet__field sis-branches-field--wide">
-                                        <span className="sis-admission-sheet__label">
-                                            {l.attach}
-                                            {formType?.policy
-                                                ?.requires_document ? (
-                                                <span aria-hidden="true">
-                                                    {' '}
-                                                    *
-                                                </span>
-                                            ) : null}
-                                        </span>
-                                        <input
-                                            className="sis-admission-sheet__control"
-                                            type="file"
-                                            accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                            onChange={(e) =>
-                                                setForm({
-                                                    ...form,
-                                                    document:
-                                                        e.target.files?.[0] ??
-                                                        null,
-                                                })
-                                            }
-                                        />
-                                    </label>
-                                    {formType?.policy ? (
-                                        <WindowFact
-                                            wide
-                                            label={l.sectionPolicy}
-                                            value={`${l.dayBasis[formType.policy.day_basis]} · ${l.approvalLevels}: ${formType.policy.approval_levels}${formType.policy.max_per_request ? ` · ${l.maxPerRequest}: ${formType.policy.max_per_request}` : ''}${formType.policy.deducts_balance ? '' : ` · ${l.noBalance}`}`}
-                                        />
-                                    ) : null}
-                                    <p className="sis-attendance-window__hint sis-branches-field--wide">
-                                        {l.durationPreview}
-                                    </p>
+                                    <LeaveFilePicker
+                                        label={l.attach}
+                                        required={
+                                            formType?.policy
+                                                ?.requires_document === true
+                                        }
+                                        file={form.document}
+                                        onChange={(document) =>
+                                            setForm({ ...form, document })
+                                        }
+                                    />
                                 </>
                             ),
                         },
@@ -1297,7 +1354,7 @@ function RequestsPage({
                             ? l.approve
                             : decision.decision === 'reject'
                               ? l.reject
-                              : l.requestInfo
+                              : l.confirmInfo
                     }
                     confirmDisabled={
                         decision.items.length === 0 ||
@@ -1327,7 +1384,7 @@ function RequestsPage({
                                                 ? l.approve
                                                 : decision.decision === 'reject'
                                                   ? l.reject
-                                                  : l.requestInfo
+                                                  : l.confirmInfo
                                         }
                                         options={[
                                             {
@@ -1390,7 +1447,7 @@ function RequestsPage({
                                             />
                                         </>
                                     ) : null}
-                                    <WindowTextArea
+                                    <LeaveTextArea
                                         label={l.note}
                                         required={
                                             decision.decision !== 'approve'
@@ -1420,7 +1477,9 @@ function RequestsPage({
                     pending={busy}
                     danger={closing.action === 'cancel'}
                     confirmLabel={
-                        closing.action === 'cancel' ? l.cancel : l.withdraw
+                        closing.action === 'cancel'
+                            ? l.confirmCancel
+                            : l.confirmWithdraw
                     }
                     confirmDisabled={
                         closing.action === 'cancel' &&
@@ -1439,7 +1498,7 @@ function RequestsPage({
                                             ? l.cancelHint
                                             : l.withdrawHint}
                                     </p>
-                                    <WindowTextArea
+                                    <LeaveTextArea
                                         label={l.note}
                                         required={closing.action === 'cancel'}
                                         value={closing.note}
@@ -1742,6 +1801,6 @@ function RequestsPage({
                     ]}
                 />
             ) : null}
-        </AttendancePage>
+        </LeavePage>
     );
 }

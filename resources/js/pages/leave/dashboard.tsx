@@ -3,6 +3,7 @@ import {
     Ban,
     CalendarClock,
     CalendarX2,
+    ClipboardCheck,
     FilePen,
     Hourglass,
     MessageCircleQuestion,
@@ -15,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useMemo } from 'react';
 import {
-    AttendancePage,
     AttendanceTable,
     useAttendanceHomeFilters,
     useYearFilterSpec,
@@ -29,8 +29,10 @@ import {
     periodText,
     quantityText,
     typeText,
+    LeavePage,
     useLeaveEditRibbon,
     type LeaveAbilities,
+    type LeaveBadges,
     type LeaveRequestRow,
 } from '@/components/leave/leave-chrome';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
@@ -72,6 +74,7 @@ type Props = {
     today: string;
     filters: { academic_year_id: number };
     abilities: LeaveAbilities;
+    badges: LeaveBadges;
 };
 
 export default function LeaveDashboard(props: Props) {
@@ -85,7 +88,13 @@ export default function LeaveDashboard(props: Props) {
     );
 }
 
-function DashboardPage({ dashboard, today, filters, abilities }: Props) {
+function DashboardPage({
+    dashboard,
+    today,
+    filters,
+    abilities,
+    badges,
+}: Props) {
     const l = t().leave;
     const c = dashboard.counts;
     const list = (query: Record<string, string | number | boolean>) => {
@@ -114,14 +123,27 @@ function DashboardPage({ dashboard, today, filters, abilities }: Props) {
             tone: 'under-review',
             href: list({ 'state[]': 2 }),
         },
-        {
-            key: 'new',
-            label: l.cards.newRequests,
-            count: c.new_requests,
-            icon: PlaneTakeoff,
-            tone: 'submitted',
-            href: list({ 'state[]': 2, sort: 'submitted' }),
-        },
+        ...(abilities.approve
+            ? [
+                  {
+                      key: 'awaiting',
+                      label: l.awaitingRail,
+                      count: badges.awaiting,
+                      icon: ClipboardCheck,
+                      tone: 'under-review',
+                      href: list({ awaiting: 1 }),
+                  },
+              ]
+            : [
+                  {
+                      key: 'new',
+                      label: l.cards.newRequests,
+                      count: c.new_requests,
+                      icon: PlaneTakeoff,
+                      tone: 'submitted',
+                      href: list({ 'state[]': 2, sort: 'submitted' }),
+                  },
+              ]),
         {
             key: 'info',
             label: l.cards.infoRequired,
@@ -214,7 +236,7 @@ function DashboardPage({ dashboard, today, filters, abilities }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [abilities, filters],
     );
-    useLeaveEditRibbon('dashboard', abilities, groups);
+    useLeaveEditRibbon(groups);
     const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
         visitWith('/leave', { academic_year_id: year }),
     );
@@ -242,7 +264,9 @@ function DashboardPage({ dashboard, today, filters, abilities }: Props) {
             header: l.period,
             kind: 'text',
             cell: (r) => (
-                <span dir="ltr">{periodText(r.date_from, r.date_to)}</span>
+                <span className="sis-leave-period" dir="ltr">
+                    {periodText(r.date_from, r.date_to)}
+                </span>
             ),
         },
         {
@@ -267,9 +291,9 @@ function DashboardPage({ dashboard, today, filters, abilities }: Props) {
     ];
 
     return (
-        <AttendancePage title={l.title}>
+        <LeavePage title={l.title} current={'dashboard'} abilities={abilities}>
             <div
-                className="sis-follow-up-cards"
+                className="sis-leave-cards"
                 role="list"
                 aria-label={l.dashboard}
             >
@@ -368,6 +392,6 @@ function DashboardPage({ dashboard, today, filters, abilities }: Props) {
                 fit={false}
                 emptyText={l.nothing}
             />
-        </AttendancePage>
+        </LeavePage>
     );
 }

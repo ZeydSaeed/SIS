@@ -6,8 +6,10 @@ use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Leave\Results\DecideLeaveRequestResult;
 use App\Application\Leave\Support\LeaveBalanceGuard;
+use App\Application\Leave\Support\LeaveNotifier;
 use App\Application\Leave\Support\LeaveRequestPreparer;
 use App\Application\Leave\Support\LeaveTransaction;
+use App\Domain\Leave\Data\LeaveRequester;
 use App\Domain\Leave\Data\LeaveRequestSnapshot;
 use App\Domain\Leave\Exceptions\LeaveRuleViolation;
 use App\Domain\Leave\Repositories\LeaveRequestRepositoryInterface;
@@ -16,6 +18,7 @@ use App\Domain\Leave\Services\LeaveApprovalRules;
 use App\Domain\Leave\Services\LeaveTransitions;
 use App\Domain\Leave\ValueObjects\LeaveDecision;
 use App\Domain\Leave\ValueObjects\LeaveEventType;
+use App\Domain\Leave\ValueObjects\LeaveNotificationKind;
 use App\Domain\Leave\ValueObjects\LeaveStatus;
 
 /**
@@ -33,6 +36,7 @@ final class DecideLeaveRequestHandler implements CommandHandler
         private readonly LeaveTypeRepositoryInterface $types,
         private readonly LeaveRequestPreparer $prepare,
         private readonly LeaveBalanceGuard $balance,
+        private readonly LeaveNotifier $notifier,
     ) {}
 
     public function handle(Command $command): DecideLeaveRequestResult
@@ -45,7 +49,9 @@ final class DecideLeaveRequestHandler implements CommandHandler
             if ($command->expectedVersion !== $request->version) {
                 throw LeaveRuleViolation::versionConflict();
             }
-            LeaveApprovalRules::assertMayDecide($this->prepare->personOf($request), $command->actorUserId, $this->requests->currentApprovers($request->id));
+            $requester = $this->prepare->personOf($request);
+            $approvers = $this->requests->currentApprovers($request->id);
+            LeaveApprovalRules::assertMayDecide($requester, $command->actorUserId, $approvers);
             $note = LeaveApprovalRules::note($command->decision->requiresNote(), $command->note);
 
             [$to, $event, $levels, $deducted] = match ($command->decision) {
@@ -57,11 +63,31 @@ final class DecideLeaveRequestHandler implements CommandHandler
             $this->requests->transition($request->id, $request->version, $to, $levels, $final ? $command->actorUserId : null, $final ? $note : null);
             $this->requests->addEvent($request->schoolId, $request->id, $event, $request->status, $to, $levels, $command->actorUserId, $note, ['deducted' => $deducted]);
 
+            $this->tell($request, $requester, $to, $levels, $command->actorUserId, $approvers);
+
             return [
                 'data' => ['request_id' => $request->id, 'status' => $to->value, 'approved_levels' => $levels, 'deducted' => $deducted],
                 'event' => LeaveTransaction::event('request', $request->id, $request->schoolId, $command->decision->value, $command->actorUserId, ['status' => $to->value, 'level' => $levels]),
             ];
         });
+    }
+
+    /** @param  list<int>  $approvers  users who already approved a level of this request */
+    private function tell(LeaveRequestSnapshot $request, LeaveRequester $requester, LeaveStatus $to, int $levels, int $actor, array $approvers): void
+    {
+        if ($to === LeaveStatus::Pending) {
+            // A level passed, the next one waits: the requester is told, the next approvers are asked.
+            $this->notifier->outcome($request, $requester, LeaveNotificationKind::LevelApproved, $actor);
+            $this->notifier->awaitingApproval($request, $requester, $actor, [...$approvers, $actor]);
+
+            return;
+        }
+        $kind = match ($to) {
+            LeaveStatus::Approved => LeaveNotificationKind::Approved,
+            LeaveStatus::Rejected => LeaveNotificationKind::Rejected,
+            default => LeaveNotificationKind::InfoRequested,
+        };
+        $this->notifier->outcome($request, $requester, $kind, $actor);
     }
 
     /** @return array{0: LeaveStatus, 1: LeaveEventType, 2: int, 3: float} */

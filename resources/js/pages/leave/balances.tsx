@@ -2,11 +2,9 @@ import { router } from '@inertiajs/react';
 import { Gift, ListOrdered, Scale } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
-    AttendancePage,
     AttendanceTable,
     AttendanceWindow,
     WindowFact,
-    WindowTextArea,
     useAttendanceHomeFilters,
     useAttendanceSearch,
     useAttendanceSelection,
@@ -17,6 +15,8 @@ import {
 import { dateTime } from '@/components/attendance/attendance-ui';
 import {
     LeaveSectionTitle,
+    LeavePage,
+    LeaveTextArea,
     useLeaveEditRibbon,
     useLeaveWrite,
     type LeaveAbilities,
@@ -299,7 +299,7 @@ function BalancesPage({
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [one, abilities, staff, types],
     );
-    useLeaveEditRibbon('balances', abilities, groups);
+    useLeaveEditRibbon(groups);
     const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
         visitWith(PATH, { academic_year_id: year }),
     );
@@ -369,7 +369,11 @@ function BalancesPage({
     const grantType = types.find((x) => String(x.id) === granting) ?? null;
 
     return (
-        <AttendancePage title={l.balances}>
+        <LeavePage
+            title={l.balances}
+            current={'balances'}
+            abilities={abilities}
+        >
             <LeaveSectionTitle title={l.balances} count={balances.total} />
             <p className="sis-attendance-window__hint">{l.balancesHint}</p>
             <AttendanceTable
@@ -546,7 +550,7 @@ function BalancesPage({
                                             })
                                         }
                                     />
-                                    <WindowTextArea
+                                    <LeaveTextArea
                                         label={l.reason}
                                         required
                                         value={adjusting.reason}
@@ -617,6 +621,6 @@ function BalancesPage({
                     ]}
                 />
             ) : null}
-        </AttendancePage>
+        </LeavePage>
     );
 }

@@ -24,7 +24,7 @@ export default function ModuleShell({ moduleKey, title, description }: Props) {
         graduation: '/graduation',
         certificates: '/certificates',
         finance: '/finance',
-        holidays: '/holidays',
+        holidays: '/leave/holidays',
         health: '/health',
         hr: '/hr',
         documents: '/documents',

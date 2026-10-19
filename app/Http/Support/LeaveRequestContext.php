@@ -91,6 +91,7 @@ final class LeaveRequestContext
             'sensitive' => $user->can('viewSensitiveLeave'),
             'reports' => $user->can('viewLeaveReports'),
             'assign_cover' => $user->can('createException', ScheduleRecord::class),
+            'holidays' => $user->can('manageSchools') || $user->can('view', ScheduleRecord::class),
             'student_excuses' => $user->can('viewExcuses', AttendanceSessionRecord::class),
         ];
     }

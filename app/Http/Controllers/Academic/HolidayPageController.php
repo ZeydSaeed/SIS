@@ -13,9 +13,12 @@ use App\Application\Academic\Queries\ListAcademicYearsQuery;
 use App\Application\Academic\Queries\ListHolidaysHandler;
 use App\Application\Academic\Queries\ListHolidaysQuery;
 use App\Application\Academic\Results\HolidayResult;
+use App\Application\Leave\Queries\GetLeaveBadgesHandler;
+use App\Application\Leave\Queries\GetLeaveBadgesQuery;
 use App\Domain\Academic\Repositories\HolidayRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Academic\ManageHolidayRequest;
+use App\Http\Support\LeaveRequestContext;
 use App\Infrastructure\Persistence\Eloquent\ScheduleRecord;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -38,6 +41,8 @@ final class HolidayPageController extends Controller
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
+        private readonly GetLeaveBadgesHandler $badges,
+        private readonly LeaveRequestContext $leave,
     ) {}
 
     public function index(Request $request, ListHolidaysHandler $holidays, ListAcademicYearsHandler $years): Response
@@ -64,7 +69,7 @@ final class HolidayPageController extends Controller
         $lastPage = max(1, (int) ceil(count($shown) / $perPage));
         $page = min($lastPage, max(1, (int) $request->query('page', 1)));
 
-        return Inertia::render('holidays/index', [
+        return Inertia::render('leave/holidays', [
             'holidays' => array_map($this->row(...), array_slice($shown, ($page - 1) * $perPage, $perPage)),
             'years' => array_map(static fn (AcademicYearDTO $y): array => [
                 'id' => $y->id,
@@ -81,6 +86,8 @@ final class HolidayPageController extends Controller
             ],
             'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => count($shown), 'last_page' => $lastPage],
             'filters' => ['year' => $yearId, 'search' => $search, 'state' => $state, 'type' => $type],
+            'badges' => $this->badges->handle(new GetLeaveBadgesQuery($this->schoolContext->requireId(), (int) $user->id, (bool) $user->can('approveLeave'))),
+            'abilities' => $this->leave->abilities($request),
             'authorization' => [
                 'can_manage' => $user->can('manageSchools') || $user->can('manageConstraints', ScheduleRecord::class),
             ],

@@ -131,7 +131,7 @@ function findAndReplace(): void {
 
 const ADD_ROUTES: Partial<Record<RibbonActionId, string>> = {
     addTeacher: '/teachers',
-    addHoliday: '/holidays',
+    addHoliday: '/leave/holidays',
     addGrades: '/grades',
     addDocument: '/documents',
     addAttendance: '/attendance/create',

@@ -1,4 +1,4 @@
-# «الإجازات والغياب» — Leave, Holidays & Absence Management
+# «الإجازات والعطل» — Leave, Holidays & Absence Management
 
 > Status (2026-10-19): implemented on branch `V2`, not committed. Migration `2026_10_18_120000_create_leave_schema`
 > applied to `sis_test` and — with the user's approval — to `sis`; `SecurityPermissionSeeder` run on `sis`; roles
@@ -83,15 +83,31 @@ Every write needs `X-Idempotency-Key`; refusals return a localized `leave.*` cod
   teachers on approved leave that day; «تعيين البديل» posts to `/timetable/schedules/{id}/substitute` (clash checks,
   permission and audit of the timetable).
 
+### In-app notifications («الإشعارات» و«بانتظار موافقتي»)
+
+Written inside the same transaction as the change they announce (`LeaveNotifier`): a submitted request asks every
+approver of the school (holders of `leave.request.approve`, never the requester nor the actor); a level passed tells the
+requester and asks the next approvers; approval / rejection / information request / cancellation tell the requester and
+whoever entered the request. A notification holds ids and a kind only. `/leave/notifications` lists the user's own, marks
+them read (own only), and opens the request; every leave page shows two counters on its rail — unread notifications and
+requests awaiting the user's decision (`/leave/requests?awaiting=1`: pending, not their own, and not a round they already
+approved a level of). No e-mail / SMS / WhatsApp: that needs a channel decision.
+
 ## 6. Not implemented / reserved
 
 | Item | Reason |
 |------|--------|
 | Export to file (CSV / Excel) | heavy exports must be queued (rule 7); the attendance export pipeline is attendance-specific — reports print from the browser for now |
-| E-mail / SMS notifications | communication sending is not live; events are staged in the outbox |
+| E-mail / SMS / WhatsApp notifications | needs a channel decision; in-app notifications exist, events are staged in the outbox |
 | Workflow-engine approvals | hooks for other entities are HOLD |
 | Partial cancellation (early return) | a cancellation restores the whole deduction; an adjustment can correct the balance with a reason |
 | Accrual (monthly earning) | entitlements are granted per year from the policy; adjustments cover the rest |
 | One request across several schools | a request belongs to the school it is filed in (RLS); a teacher shared by two schools files in each |
 | Periods (حصص) as a unit | days and hours only |
 | Browser / mobile E2E tests | not run in this environment (no browser tooling) |
+
+## Navigation, dialogs and demo data
+
+- The module is «الإجازات والعطل», placed under «الحضور» in the sidebar. The former stand-alone holidays page and `/holidays` route are gone: holidays live inside the module as the «العطل» section (`/leave/holidays`, routes `leave.holidays.*`).
+- Refused actions open a dialog whose tone and title come from `errors.presentation` (ar.ts): «تنبيه / راجع بيانات الطلب» for data the user can fix, «خطأ / تعذّر تنفيذ الإجراء» for actions that cannot be done. `request_missing` / `type_missing` replace the former `*_not_found` codes (a dialog, not a 404 page).
+- `php artisan db:seed --class=LeaveDemoSeeder` fills a school with ~100 requests (every status and approval path), holidays and deliberate refusals through the real handlers. It skips a school that already has requests (`LEAVE_DEMO_FORCE=1` adds another batch).

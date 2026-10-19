@@ -203,7 +203,7 @@ final class LeaveModulePostgreSqlTest extends PostgreSqlIntegrationTestCase
         $this->as($outsider, $this->otherSchoolId)->get('/leave/requests?academic_year_id='.$this->yearId.'&open='.$request)->assertOk()->assertInertia(fn ($page) => $page
             ->where('requests.total', 0)
             ->reloadOnly('detail', fn ($reload) => $reload->where('detail', null)));
-        $this->as($outsider, $this->otherSchoolId)->write("/leave/requests/{$request}/submit", ['version' => 1])->assertNotFound();
+        $this->as($outsider, $this->otherSchoolId)->write("/leave/requests/{$request}/submit", ['version' => 1])->assertSessionHas('error', 'leave.request_missing');
         $this->as($outsider, $this->otherSchoolId)->write('/leave/requests', $this->requestFields($annual, 1, $this->teacherId, '2026-11-01', '2026-11-01'))->assertSessionHas('error', 'leave.requester_not_in_school');
         // A school cannot even ask for the other school's school context.
         $this->as($outsider, $this->schoolId)->get('/leave/requests')->assertForbidden();
@@ -290,6 +290,56 @@ final class LeaveModulePostgreSqlTest extends PostgreSqlIntegrationTestCase
             'school_id' => $this->schoolId, 'academic_year_id' => $this->yearId, 'leave_type_id' => $annual, 'requester_kind' => 1,
             'teacher_id' => $this->teacherId, 'entry_type' => 3, 'quantity' => -3, 'request_id' => $first,
         ]);
+    }
+
+    #[Test]
+    public function notifications_follow_the_lifecycle_and_awaiting_lists_only_what_the_user_may_decide(): void
+    {
+        $annual = $this->annualType(levels: 2, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $request = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-01', '2026-11-02');
+        $this->submit($this->teacherUser, $request)->assertSessionHas('success');
+        $year = '&academic_year_id='.$this->yearId;
+        $count = fn (User $u, int $kind): int => DB::table('leave.notifications')->where('user_id', $u->id)->where('kind', $kind)->count();
+
+        // Submitted: both approvers are asked — never the requester, never the manager (no approve right).
+        $this->assertSame([1, 1], [$count($this->approver1, 1), $count($this->approver2, 1)]);
+        $this->assertSame(0, DB::table('leave.notifications')->whereIn('user_id', [$this->teacherUser->id, $this->manager->id])->count());
+        $this->as($this->approver1)->get('/leave/requests?awaiting=1'.$year)->assertInertia(fn ($page) => $page->where('badges.awaiting', 1)->where('badges.unread', 1)->where('requests.total', 1)->etc());
+
+        // Level 1 by approver 1: the requester hears of the progress; approver 1 no longer has it awaiting, approver 2 still does.
+        $this->as($this->approver1)->write("/leave/requests/{$request}/decide", ['version' => $this->versionOf($request), 'decision' => 'approve'])->assertSessionHas('success', 'flash.leave.levelApproved');
+        $this->assertSame(1, $count($this->teacherUser, 6));
+        $this->assertSame(1, $count($this->approver2, 1), 'no second «awaiting» stacked on the unread one');
+        $this->as($this->approver1)->get('/leave/requests?awaiting=1'.$year)->assertInertia(fn ($page) => $page->where('badges.awaiting', 0)->where('requests.total', 0)->etc());
+        $this->as($this->approver2)->get('/leave/requests?awaiting=1'.$year)->assertInertia(fn ($page) => $page->where('badges.awaiting', 1)->where('requests.total', 1)->etc());
+
+        // The final approval: the requester is told; nothing awaits anyone.
+        $this->as($this->approver2)->write("/leave/requests/{$request}/decide", ['version' => $this->versionOf($request), 'decision' => 'approve'])->assertSessionHas('success', 'flash.leave.approved');
+        $this->assertSame(1, $count($this->teacherUser, 2));
+        $this->as($this->approver2)->get('/leave'.'?'.ltrim($year, '&'))->assertInertia(fn ($page) => $page->where('badges.awaiting', 0)->etc());
+
+        // The requester's page: own notifications only, no reason or file name in them; read one, then all.
+        $this->as($this->teacherUser)->get('/leave/notifications?'.ltrim($year, '&'))->assertOk()->assertInertia(fn ($page) => $page
+            ->component('leave/notifications')->where('badges.unread', 2)->where('notifications.total', 2)->where('notifications.items.0.kind', 2)->missing('notifications.items.0.reason')->etc());
+        $first = (int) DB::table('leave.notifications')->where('user_id', $this->teacherUser->id)->orderBy('id')->value('id');
+        $foreign = (int) DB::table('leave.notifications')->where('user_id', $this->approver1->id)->value('id');
+        $this->as($this->teacherUser)->write('/leave/notifications/read', ['ids' => [$first, $foreign]])->assertSessionHasNoErrors();
+        $this->assertNotNull(DB::table('leave.notifications')->where('id', $first)->value('read_at'));
+        $this->assertNull(DB::table('leave.notifications')->where('id', $foreign)->value('read_at'), 'a user marks only their own');
+        $this->as($this->teacherUser)->write('/leave/notifications/read', [])->assertSessionHasNoErrors();
+        $this->as($this->teacherUser)->get('/leave/notifications?unread=1&'.ltrim($year, '&'))->assertInertia(fn ($page) => $page->where('badges.unread', 0)->where('notifications.total', 0)->etc());
+        $this->assertNull(DB::table('leave.notifications')->where('user_id', $this->approver2->id)->whereNotNull('read_at')->value('id'), 'nobody else was touched');
+
+        // Rejection and cancellation tell the requester too (a second request).
+        $second = $this->draft($this->manager, $annual, 1, $this->teacherId, '2026-11-08', '2026-11-08');
+        $this->submit($this->manager, $second)->assertSessionHas('success');
+        $this->as($this->approver1)->write("/leave/requests/{$second}/decide", ['version' => $this->versionOf($second), 'decision' => 'reject', 'note' => 'غير ممكن'])->assertSessionHas('success', 'flash.leave.rejected');
+        $this->assertSame(1, $count($this->teacherUser, 3));
+
+        // Notifications are only ever read or marked by the signed-in user, and only changed in read_at (database guard).
+        $this->expectException(QueryException::class);
+        DB::table('leave.notifications')->where('id', $first)->update(['kind' => 5]);
     }
 
     private function annualType(int $levels, float $entitlement): int

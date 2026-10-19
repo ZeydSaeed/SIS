@@ -28,10 +28,10 @@ class ManageHolidayRequest extends FormRequest
     public function rules(): array
     {
         $fields = match ($this->route()?->getName()) {
-            'holidays.store' => ['academic_year_id' => ['required', 'integer', 'min:1']] + $this->holidayRules(),
-            'holidays.update' => $this->holidayRules(),
+            'leave.holidays.store' => ['academic_year_id' => ['required', 'integer', 'min:1']] + $this->holidayRules(),
+            'leave.holidays.update' => $this->holidayRules(),
             // `status` is a protected field name (SecuritySensitiveFieldGuard): 1 = in the calendar, 0 = out of it.
-            'holidays.status' => ['active' => ['required', 'integer', 'in:0,1']],
+            'leave.holidays.status' => ['active' => ['required', 'integer', 'in:0,1']],
             default => [],
         };
 

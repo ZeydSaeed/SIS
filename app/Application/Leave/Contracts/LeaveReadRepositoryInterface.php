@@ -17,6 +17,9 @@ interface LeaveReadRepositoryInterface
      */
     public function requests(int $schoolId, array $filters, int $page, int $perPage): array;
 
+    /** How many pending requests the user may still decide («بانتظار موافقتي»). */
+    public function awaitingCount(int $schoolId, int $userId): int;
+
     /** @return array<string, mixed>|null */
     public function request(int $schoolId, int $requestId): ?array;
 

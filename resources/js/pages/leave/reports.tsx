@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { useMemo } from 'react';
 import {
-    AttendancePage,
     AttendanceTable,
     useAttendanceHomeFilters,
     useYearFilterSpec,
@@ -20,6 +19,7 @@ import {
     LeaveSectionTitle,
     periodText,
     quantityText,
+    LeavePage,
     useLeaveEditRibbon,
     type LeaveAbilities,
     type LeaveType,
@@ -281,7 +281,7 @@ function ReportsPage({ report, types, filters, abilities }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [report.kind, filters],
     );
-    useLeaveEditRibbon('reports', abilities, groups);
+    useLeaveEditRibbon(groups);
     const yearSpec = useYearFilterSpec(filters.academic_year_id, (year) =>
         visitWith(PATH, { academic_year_id: year, report: report.kind }),
     );
@@ -338,7 +338,7 @@ function ReportsPage({ report, types, filters, abilities }: Props) {
     );
 
     return (
-        <AttendancePage title={l.reports}>
+        <LeavePage title={l.reports} current={'reports'} abilities={abilities}>
             <LeaveSectionTitle
                 title={l.reportKinds[report.kind] ?? l.reports}
                 count={report.rows.length}
@@ -351,6 +351,6 @@ function ReportsPage({ report, types, filters, abilities }: Props) {
                 columns={columns[report.kind] ?? []}
                 emptyText={l.noEvents}
             />
-        </AttendancePage>
+        </LeavePage>
     );
 }

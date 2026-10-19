@@ -1,7 +1,8 @@
-import { router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
     Ban,
     BarChart3,
+    BellRing,
     CalendarDays,
     CalendarRange,
     ClipboardCheck,
@@ -11,13 +12,15 @@ import {
     LayoutDashboard,
     ListChecks,
     MessageCircleQuestion,
+    Paperclip,
     Scale,
     Settings2,
     ShieldCheck,
     Undo2,
     XCircle,
+    type LucideIcon,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import type { StatusMeta } from '@/components/attendance/attendance-ui';
 import { newKey } from '@/components/attendance/attendance-ui';
 import { usePageError } from '@/components/sis/page-error-context';
@@ -42,6 +45,7 @@ export type LeaveAbilities = {
     reports: boolean;
     assign_cover: boolean;
     student_excuses: boolean;
+    holidays: boolean;
 };
 
 export type LeaveRequestRow = {
@@ -133,7 +137,8 @@ export type LeaveSection =
     | 'balances'
     | 'types'
     | 'calendar'
-    | 'reports';
+    | 'reports'
+    | 'holidays';
 
 /** «أقسام الإجازات» — one icon and colour per section, on the «تحرير» tab of every leave page (as attendance). */
 const SECTIONS: Array<{
@@ -194,58 +199,196 @@ const SECTIONS: Array<{
     },
     {
         key: 'holidays',
-        href: '/holidays',
+        href: '/leave/holidays',
         icon: CalendarDays,
         tone: 'amber',
         show: () => true,
     },
 ];
 
-/** «تحرير»: the page's own groups, then the leave sections (students' leave and holidays open their own pages). */
-export function useLeaveEditRibbon(
-    current: LeaveSection,
-    abilities: LeaveAbilities,
-    pageGroups: PageRibbonGroup[],
-): void {
-    const groups = useMemo((): PageRibbonGroup[] => {
-        const l = t().leave;
-        const label: Record<string, string> = {
-            dashboard: l.dashboard,
-            requests: l.requests,
-            balances: l.balances,
-            calendar: l.calendar,
-            types: l.types,
-            reports: l.reports,
-            students: l.studentLeave,
-            holidays: l.holidays,
-        };
+/** «تحرير»: the page's own command groups (the leave sections live in the rail beside the page). */
+export function useLeaveEditRibbon(pageGroups: PageRibbonGroup[]): void {
+    useRegisterPageRibbon('edit', pageGroups);
+}
 
-        return [
-            ...pageGroups,
-            {
-                id: 'leave-sections',
-                label: l.sections,
-                commands: SECTIONS.filter((s) => s.show(abilities)).map(
-                    (s): PageRibbonCommand => ({
-                        id: `leave-section-${s.key}`,
-                        label: label[s.key],
-                        icon: s.icon,
-                        iconTone: s.tone,
-                        pressed: s.key === current,
-                        title:
-                            s.key === 'students'
+export type LeaveBadges = { unread: number; awaiting: number };
+
+/** One rail entry per leave section — icon on top, short label, a count badge where something waits for the user. */
+export function LeaveRail({
+    current,
+    abilities,
+}: {
+    current: LeaveSection | 'awaiting' | 'notifications';
+    abilities: LeaveAbilities;
+}) {
+    const l = t().leave;
+    const badges = usePage<{ badges?: LeaveBadges }>().props.badges ?? {
+        unread: 0,
+        awaiting: 0,
+    };
+    const items: Array<{
+        key: string;
+        href: string;
+        label: string;
+        icon: LucideIcon;
+        tone: string;
+        count?: number;
+        show: boolean;
+    }> = [
+        {
+            key: 'dashboard',
+            href: '/leave',
+            label: l.dashboard,
+            icon: LayoutDashboard,
+            tone: 'sky',
+            show: true,
+        },
+        {
+            key: 'requests',
+            href: '/leave/requests',
+            label: l.requests,
+            icon: ListChecks,
+            tone: 'growth',
+            show: true,
+        },
+        {
+            key: 'awaiting',
+            href: '/leave/requests?awaiting=1',
+            label: l.awaitingRail,
+            icon: ClipboardCheck,
+            tone: 'amber',
+            count: badges.awaiting,
+            show: abilities.approve,
+        },
+        {
+            key: 'notifications',
+            href: '/leave/notifications',
+            label: l.notifications,
+            icon: BellRing,
+            tone: 'warning',
+            count: badges.unread,
+            show: true,
+        },
+        {
+            key: 'balances',
+            href: '/leave/balances',
+            label: l.balances,
+            icon: Scale,
+            tone: 'forest',
+            show: true,
+        },
+        {
+            key: 'calendar',
+            href: '/leave/calendar',
+            label: l.calendar,
+            icon: CalendarRange,
+            tone: 'education',
+            show: true,
+        },
+        {
+            key: 'types',
+            href: '/leave/types',
+            label: l.types,
+            icon: Settings2,
+            tone: 'authority',
+            show: true,
+        },
+        {
+            key: 'reports',
+            href: '/leave/reports',
+            label: l.reports,
+            icon: BarChart3,
+            tone: 'steel',
+            show: abilities.reports,
+        },
+        {
+            key: 'students',
+            href: '/attendance/excuses',
+            label: l.studentLeave,
+            icon: FileCheck2,
+            tone: 'rose',
+            show: abilities.student_excuses,
+        },
+        {
+            key: 'holidays',
+            href: '/leave/holidays',
+            label: l.holidays,
+            icon: CalendarDays,
+            tone: 'amber',
+            show: abilities.holidays,
+        },
+    ];
+
+    return (
+        <nav
+            className="sis-att-board__rail sis-leave-rail"
+            aria-label={l.sections}
+        >
+            {items
+                .filter((item) => item.show)
+                .map((item) => (
+                    <button
+                        key={item.key}
+                        type="button"
+                        title={
+                            item.key === 'students'
                                 ? l.studentLeaveHint
-                                : undefined,
-                        onSelect: () =>
-                            s.key === current
-                                ? undefined
-                                : router.visit(s.href),
-                    }),
-                ),
-            },
-        ];
-    }, [abilities, current, pageGroups]);
-    useRegisterPageRibbon('edit', groups);
+                                : item.label
+                        }
+                        aria-current={item.key === current ? 'page' : undefined}
+                        onClick={() =>
+                            item.key !== current && router.visit(item.href)
+                        }
+                    >
+                        <item.icon
+                            className={`sis-att-tone sis-att-tone--${item.tone} size-4 shrink-0`}
+                            aria-hidden
+                        />
+                        <span>{item.label}</span>
+                        {item.count ? (
+                            <span
+                                className="sis-leave-badge"
+                                dir="ltr"
+                                aria-label={`${item.label}: ${item.count}`}
+                            >
+                                {item.count > 99 ? '99+' : item.count}
+                            </span>
+                        ) : null}
+                    </button>
+                ))}
+        </nav>
+    );
+}
+
+/** Page shell of every leave page: the content, and the section rail on the side (same shell as attendance). */
+export function LeavePage({
+    title,
+    current,
+    abilities,
+    children,
+}: {
+    title: string;
+    current: LeaveSection | 'awaiting' | 'notifications';
+    abilities: LeaveAbilities;
+    children: ReactNode;
+}) {
+    return (
+        <>
+            <Head title={title} />
+            <div
+                className="sis-ops-hub sis-admission-page sis-students-page sis-enrollments-page sis-scroll-hidden flex h-full min-h-0 flex-col pb-4"
+                dir="rtl"
+                lang="ar"
+            >
+                <div className="sis-admission-page-body">
+                    <div className="sis-att-shell sis-leave-shell">
+                        <div className="sis-att-shell__main">{children}</div>
+                        <LeaveRail current={current} abilities={abilities} />
+                    </div>
+                </div>
+            </div>
+        </>
+    );
 }
 
 /** «4 أيام» / «2.5 ساعة». */
@@ -315,7 +458,8 @@ export function statusToggleCommands(
 
     return LEAVE_STATUSES.filter((m) => values.includes(m.value)).map((m) => ({
         id: `leave-status-${m.value}`,
-        label: l.statuses[m.value],
+        label: l.statusShort[m.value],
+        title: l.statuses[m.value],
         icon: m.icon,
         iconTone: m.iconTone,
         pressed: active.includes(m.value),
@@ -342,5 +486,94 @@ export function LeaveSectionTitle({
                 </span>
             )}
         </div>
+    );
+}
+
+/** A multi-line field (registry field look) tall enough to write in. */
+export function LeaveTextArea({
+    label,
+    value,
+    onChange,
+    required = false,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    required?: boolean;
+}) {
+    return (
+        <label className="sis-admission-sheet__field sis-branches-field--wide">
+            <span className="sis-admission-sheet__label">
+                {label}
+                {required ? <span aria-hidden="true"> *</span> : null}
+            </span>
+            <textarea
+                className={`sis-admission-sheet__control sis-leave-textarea${value.trim() !== '' ? ' sis-admission-draft-field--filled' : ''}`}
+                value={value}
+                rows={4}
+                maxLength={2000}
+                required={required}
+                onChange={(event) => onChange(event.target.value)}
+            />
+            <span className="sis-leave-counter" dir="ltr" aria-hidden>
+                {value.length} / 2000
+            </span>
+        </label>
+    );
+}
+
+/** A file field as a button + the chosen file's name (the browser's own English picker text is never shown). */
+export function LeaveFilePicker({
+    label,
+    file,
+    onChange,
+    required = false,
+}: {
+    label: string;
+    file: File | null;
+    onChange: (file: File | null) => void;
+    required?: boolean;
+}) {
+    const l = t().leave;
+
+    return (
+        <div className="sis-admission-sheet__field sis-branches-field--wide">
+            <span className="sis-admission-sheet__label">
+                {label}
+                {required ? <span aria-hidden="true"> *</span> : null}
+            </span>
+            <label className="sis-leave-file">
+                <input
+                    className="sr-only"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+                />
+                <span className="sis-leave-file__button">
+                    <Paperclip className="size-4" aria-hidden />
+                    {file === null ? l.chooseFile : l.changeFile}
+                </span>
+                <span className="sis-leave-file__name" dir="auto">
+                    {file === null ? l.noFileChosen : file.name}
+                </span>
+            </label>
+            <span className="sis-leave-counter">{l.attachHint}</span>
+        </div>
+    );
+}
+
+/** A quiet info strip (policy summary, hints): the facts side by side instead of a sentence. */
+export function LeaveInfoNote({ items }: { items: Array<string | null> }) {
+    const shown = items.filter((x): x is string => x !== null && x !== '');
+    if (shown.length === 0) {
+        return null;
+    }
+
+    return (
+        <ul className="sis-leave-note sis-branches-field--wide">
+            {shown.map((x) => (
+                <li key={x}>{x}</li>
+            ))}
+        </ul>
     );
 }

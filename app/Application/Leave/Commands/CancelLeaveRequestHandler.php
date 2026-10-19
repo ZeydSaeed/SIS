@@ -6,12 +6,15 @@ use App\Application\Contracts\Command;
 use App\Application\Contracts\CommandHandler;
 use App\Application\Leave\Results\CancelLeaveRequestResult;
 use App\Application\Leave\Support\LeaveBalanceGuard;
+use App\Application\Leave\Support\LeaveNotifier;
+use App\Application\Leave\Support\LeaveRequestPreparer;
 use App\Application\Leave\Support\LeaveTransaction;
 use App\Domain\Leave\Exceptions\LeaveRuleViolation;
 use App\Domain\Leave\Repositories\LeaveRequestRepositoryInterface;
 use App\Domain\Leave\Services\LeaveApprovalRules;
 use App\Domain\Leave\Services\LeaveTransitions;
 use App\Domain\Leave\ValueObjects\LeaveEventType;
+use App\Domain\Leave\ValueObjects\LeaveNotificationKind;
 use App\Domain\Leave\ValueObjects\LeaveStatus;
 
 final class CancelLeaveRequestHandler implements CommandHandler
@@ -22,6 +25,8 @@ final class CancelLeaveRequestHandler implements CommandHandler
         private readonly LeaveTransaction $tx,
         private readonly LeaveRequestRepositoryInterface $requests,
         private readonly LeaveBalanceGuard $balance,
+        private readonly LeaveNotifier $notifier,
+        private readonly LeaveRequestPreparer $prepare,
     ) {}
 
     public function handle(Command $command): CancelLeaveRequestResult
@@ -38,6 +43,8 @@ final class CancelLeaveRequestHandler implements CommandHandler
             $restored = $this->balance->restore($request, $command->actorUserId, $note);
             $this->requests->transition($request->id, $request->version, LeaveStatus::Cancelled, $request->approvedLevels, $command->actorUserId, $note);
             $this->requests->addEvent($request->schoolId, $request->id, LeaveEventType::Cancelled, $request->status, LeaveStatus::Cancelled, null, $command->actorUserId, $note, ['restored' => $restored]);
+
+            $this->notifier->outcome($request, $this->prepare->personOf($request), LeaveNotificationKind::Cancelled, $command->actorUserId);
 
             return [
                 'data' => ['request_id' => $request->id, 'status' => LeaveStatus::Cancelled->value, 'restored' => $restored],

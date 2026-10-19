@@ -21054,3 +21054,141 @@ td.sis-admission-periods-table__num {
         print-color-adjust: exact;
     }
 }
+
+/* ═══ «الإجازات والغياب» › form pieces and dashboard grid (2026-10-19): new classes only, on the existing tokens. ═══ */
+.sis-leave-cards {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-block-end: 1rem;
+    padding: 0.75rem;
+}
+
+.sis-leave-cards .sis-follow-up-card {
+    width: auto;
+    min-width: 0;
+}
+
+.sis-admission-sheet-dialog .sis-admission-sheet__control.sis-leave-textarea {
+    height: auto !important;
+    min-height: 6.5rem !important;
+    padding-block: 0.4rem;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.sis-leave-counter {
+    color: var(--sis-steel);
+    font-size: 0.72rem;
+}
+
+.sis-leave-file {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.sis-leave-file__button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--sis-oxford);
+    border-radius: var(--sis-button-radius);
+    background: var(--sis-pearl);
+    color: var(--sis-oxford);
+    font-size: 0.82rem;
+}
+
+.sis-leave-file:hover .sis-leave-file__button,
+.sis-leave-file:focus-within .sis-leave-file__button {
+    background: color-mix(in srgb, var(--sis-mist) 45%, var(--sis-pearl));
+}
+
+.sis-leave-file:focus-within .sis-leave-file__button {
+    outline: 2px solid var(--sis-night);
+    outline-offset: 1px;
+}
+
+.sis-leave-file__name {
+    overflow: hidden;
+    color: var(--sis-steel);
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sis-leave-note {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sis-leave-note li {
+    padding: 0.1rem 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--sis-oxford) 25%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--sis-mist) 30%, #fff);
+    color: var(--sis-oxford);
+    font-size: 0.76rem;
+}
+
+@media (max-width: 56rem) {
+    .sis-leave-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ═══ «الإجازات والغياب» › section rail with count badges (2026-10-19): same rail as the attendance pages. ═══ */
+.sis-att-shell.sis-leave-shell {
+    grid-template-columns: minmax(0, 1fr) 4.6rem;
+}
+
+.sis-leave-rail button {
+    position: relative;
+}
+
+.sis-leave-rail button[aria-current='page'] {
+    border-color: var(--sis-night);
+    background: color-mix(in srgb, var(--sis-mist) 55%, var(--sis-pearl));
+    box-shadow: inset 0 -3px 0 var(--sis-night);
+    font-weight: 700;
+}
+
+.sis-leave-badge {
+    position: absolute;
+    top: 0.2rem;
+    inset-inline-start: 0.2rem;
+    min-width: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--sis-admission-status-7);
+    color: #fff;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1.15rem;
+    text-align: center;
+}
+
+@media (max-width: 900px) {
+    .sis-att-shell.sis-leave-shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sis-leave-rail {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
+
+.sis-leave-period {
+    display: inline-block;
+    padding-inline-end: 0.6rem;
+    white-space: nowrap;
+}

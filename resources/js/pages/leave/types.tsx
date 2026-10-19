@@ -9,16 +9,16 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
-    AttendancePage,
     AttendanceTable,
     AttendanceWindow,
     WindowFact,
-    WindowTextArea,
     useAttendanceSelection,
     type AttendanceColumn,
 } from '@/components/attendance/attendance-chrome';
 import {
     LeaveSectionTitle,
+    LeavePage,
+    LeaveTextArea,
     useLeaveEditRibbon,
     useLeaveWrite,
     type LeaveAbilities,
@@ -301,7 +301,7 @@ function TypesPage({ types, abilities }: Props) {
         },
     ];
 
-    const groups = useMemo(
+    const rawGroups = useMemo(
         (): PageRibbonGroup[] => [
             {
                 id: 'leave-types-actions',
@@ -384,7 +384,24 @@ function TypesPage({ types, abilities }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [one, can, busy],
     );
-    useLeaveEditRibbon('types', abilities, groups);
+    // Three commands to a group: each group is one row of the ribbon, icons and labels fully in view.
+    const groups = useMemo((): PageRibbonGroup[] => {
+        const all = rawGroups[0].commands;
+
+        return [
+            {
+                id: 'leave-types-type',
+                label: l.groupType,
+                commands: all.slice(0, 3),
+            },
+            {
+                id: 'leave-types-policy',
+                label: l.groupPolicy,
+                commands: all.slice(3),
+            },
+        ].filter((g) => g.commands.length > 0);
+    }, [rawGroups, l.groupType, l.groupPolicy]);
+    useLeaveEditRibbon(groups);
 
     const menuItems = (x: LeaveType): ContextMenuItem[] => [
         {
@@ -482,7 +499,7 @@ function TypesPage({ types, abilities }: Props) {
     );
 
     return (
-        <AttendancePage title={l.types}>
+        <LeavePage title={l.types} current={'types'} abilities={abilities}>
             <LeaveSectionTitle title={l.types} count={types.length} />
             <p className="sis-attendance-window__hint">
                 {can ? l.typesHint : l.readOnly}
@@ -765,7 +782,7 @@ function TypesPage({ types, abilities }: Props) {
                                             })
                                         }
                                     />
-                                    <WindowTextArea
+                                    <LeaveTextArea
                                         label={l.description}
                                         value={typeForm.type.description}
                                         onChange={(description) =>
@@ -820,6 +837,6 @@ function TypesPage({ types, abilities }: Props) {
                     ]}
                 />
             ) : null}
-        </AttendancePage>
+        </LeavePage>
     );
 }
