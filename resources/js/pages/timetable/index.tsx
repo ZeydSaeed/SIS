@@ -77,11 +77,13 @@ import {
     type ContextMenuItem,
 } from '@/components/sis/context-menu';
 import {
+    breakRowRem,
     displayRow,
     entityLabel,
     formatClock,
     gridData,
     gridStyle,
+    minutesText,
     ownerHue,
     resolveDisplay,
     type DisplayCatalog,
@@ -374,6 +376,7 @@ type StageColumn = {
 };
 type StageSheet = { key: string; name: string; columns: StageColumn[] };
 const STAGE_TEACHERS_KEY = 'sis.timetable.stage-teachers';
+const STAGE_MERGED_KEY = 'sis.timetable.stage-merged';
 const VIEW_STATE_KEY = 'sis.timetable.view-state';
 const ZOOM_KEY = 'sis.timetable.zoom';
 const ZOOM_STEPS = [0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
@@ -719,6 +722,22 @@ function TimetablePage({
         setStageTeachersState(next);
         try {
             window.localStorage.setItem(STAGE_TEACHERS_KEY, next ? '1' : '0');
+        } catch {
+            // private mode — the choice lasts for this page only
+        }
+    }, []);
+    // «المادة والمدرس»: one lesson column with the teacher's name under the subject (when the teacher has no column).
+    const [stageMerged, setStageMergedState] = useState<boolean>(() => {
+        try {
+            return window.localStorage.getItem(STAGE_MERGED_KEY) === '1';
+        } catch {
+            return false;
+        }
+    });
+    const setStageMerged = useCallback((next: boolean) => {
+        setStageMergedState(next);
+        try {
+            window.localStorage.setItem(STAGE_MERGED_KEY, next ? '1' : '0');
         } catch {
             // private mode — the choice lasts for this page only
         }
@@ -1984,6 +2003,18 @@ function TimetablePage({
                             }),
                     })),
                     {
+                        id: 'timetable-show-breaks',
+                        label: tt.format.showBreaks,
+                        icon: Coffee,
+                        pressed: settings.show_breaks,
+                        title: `${tt.editRibbon.show}: ${tt.format.showBreaks}`,
+                        onSelect: () =>
+                            setDisplayOverride({
+                                ...settings,
+                                show_breaks: !settings.show_breaks,
+                            }),
+                    },
+                    {
                         id: 'timetable-show-time',
                         label: tt.format.showTime,
                         icon: Clock,
@@ -2004,9 +2035,12 @@ function TimetablePage({
                         label: tt.master.lessonOnly,
                         icon: LayoutGrid,
                         iconTone: 'steel',
-                        pressed: !stageTeachers,
+                        pressed: !stageTeachers && !stageMerged,
                         title: tt.master.lessonOnlyHint,
-                        onSelect: () => setStageTeachers(false),
+                        onSelect: () => {
+                            setStageTeachers(false);
+                            setStageMerged(false);
+                        },
                     },
                     {
                         id: 'timetable-sheet-teacher',
@@ -2015,7 +2049,22 @@ function TimetablePage({
                         iconTone: 'steel',
                         pressed: stageTeachers,
                         title: tt.master.lessonTeacherHint,
-                        onSelect: () => setStageTeachers(true),
+                        onSelect: () => {
+                            setStageTeachers(true);
+                            setStageMerged(false);
+                        },
+                    },
+                    {
+                        id: 'timetable-sheet-subject-teacher',
+                        label: tt.master.subjectTeacher,
+                        icon: UserRound,
+                        iconTone: 'steel',
+                        pressed: !stageTeachers && stageMerged,
+                        title: tt.master.subjectTeacherHint,
+                        onSelect: () => {
+                            setStageTeachers(false);
+                            setStageMerged(true);
+                        },
                     },
                     {
                         id: 'timetable-heading',
@@ -2151,6 +2200,8 @@ function TimetablePage({
         yearId,
         stageTeachers,
         setStageTeachers,
+        stageMerged,
+        setStageMerged,
         selectedCell,
         sectionCells,
     ]);
@@ -2280,11 +2331,18 @@ function TimetablePage({
         s: Schedule,
         line: string,
         interactive: boolean,
-        hideTeacher = false,
+        teacherMode: 'hide' | 'show' | null = null,
     ) => {
-        const cardSettings = hideTeacher
-            ? { ...settings, fields: { ...settings.fields, teacher: false } }
-            : settings;
+        const cardSettings =
+            teacherMode === null
+                ? settings
+                : {
+                      ...settings,
+                      fields: {
+                          ...settings.fields,
+                          teacher: teacherMode === 'show',
+                      },
+                  };
         const severity = lessonSeverity.get(s.id);
         // A locked lesson opens (to unlock) but is not dragged.
         const draggable = interactive && s.locked !== true;
@@ -2403,7 +2461,7 @@ function TimetablePage({
         sectionId: number,
         day: number,
         period: Period,
-        hideTeacher = false,
+        teacherMode: 'hide' | 'show' | null = null,
     ) => {
         const key = `${sectionId}:${cellKey(day, period.id)}`;
         const placed = sectionCells
@@ -2490,7 +2548,7 @@ function TimetablePage({
                         placed,
                         teacherNames.get(placed.teacher_id) ?? '',
                         authorization.can_update && !saving,
-                        hideTeacher,
+                        teacherMode,
                     )
                 ) : canPlace ? (
                     <button
@@ -2561,15 +2619,19 @@ function TimetablePage({
     /** Breaks show / print only on the timetables chosen for them (PeriodPresentation bitmask; lessons always). */
     const viewTarget =
         view === 'teacher' ? 2 : view === 'room' ? 16 : singleGrid ? 4 : 5;
+    // «إظهار الاستراحة»: one setting for the working page and the print preview («تنسيق الجدول»).
+    const showBreaks = settings.show_breaks;
     const dayPeriods = sortedPeriods.filter(
         (p) =>
             p.period_type === LESSON ||
-            ((preview ? (p.print_in ?? 31) : (p.show_in ?? 31)) &
-                viewTarget) !==
-                0,
+            (showBreaks &&
+                ((preview ? (p.print_in ?? 31) : (p.show_in ?? 31)) &
+                    viewTarget) !==
+                    0),
     );
+    /** «استراحة · 10 د» — the length of the break. */
     const breakText = (period: Period) =>
-        `${period.abbreviation ?? period.name ?? tt.breakLabel} · ${minutesOf(period.end_time) - minutesOf(period.start_time)} ${tt.minutesShort}`;
+        `${period.abbreviation ?? period.name ?? tt.breakLabel} · ${minutesText(minutesOf(period.end_time) - minutesOf(period.start_time))}`;
     const headerMenu = (period: Period) => ({
         onContextMenu: (event: React.MouseEvent<HTMLElement>) =>
             cardMenu.open(event, { type: 'period', period }),
@@ -2983,7 +3045,10 @@ function TimetablePage({
                                                                             section.id,
                                                                             day,
                                                                             period,
-                                                                            stageTeachers,
+                                                                            !stageTeachers &&
+                                                                                stageMerged
+                                                                                ? 'show'
+                                                                                : 'hide',
                                                                         );
                                                                     const lessonCell =
                                                                         cloneElement(
@@ -3059,32 +3124,25 @@ function TimetablePage({
                                                             period.color_hue,
                                                         )}
                                                     />
-                                                    {stage.columns.map(
-                                                        (column) => (
-                                                            <td
-                                                                key={`${column.key}:break:${period.id}`}
-                                                                colSpan={
-                                                                    column
-                                                                        .members
-                                                                        .length *
-                                                                    perSection
-                                                                }
-                                                                {...headerMenu(
-                                                                    period,
-                                                                )}
-                                                                className={`sis-timetable-cell sis-timetable-cell--break sis-timetable-break--${breakTone(minutesOf(period.end_time) - minutesOf(period.start_time))} sis-timetable-stage__edge--department`}
-                                                                style={hueStyle(
-                                                                    period.color_hue,
-                                                                )}
-                                                            >
-                                                                <span className="sis-timetable-cell__break-label">
-                                                                    {breakText(
-                                                                        period,
-                                                                    )}
-                                                                </span>
-                                                            </td>
-                                                        ),
-                                                    )}
+                                                    {/* One merged cell across the whole row: «استراحة · الوقت». */}
+                                                    <td
+                                                        colSpan={
+                                                            sectionCount *
+                                                            perSection
+                                                        }
+                                                        {...headerMenu(period)}
+                                                        className={`sis-timetable-cell sis-timetable-cell--break sis-timetable-break--${breakTone(minutesOf(period.end_time) - minutesOf(period.start_time))} sis-timetable-stage__edge--department`}
+                                                        style={{
+                                                            ...hueStyle(
+                                                                period.color_hue,
+                                                            ),
+                                                            height: `${breakRowRem(minutesOf(period.end_time) - minutesOf(period.start_time)) * gridZoom}rem`,
+                                                        }}
+                                                    >
+                                                        <span className="sis-timetable-cell__break-label">
+                                                            {breakText(period)}
+                                                        </span>
+                                                    </td>
                                                 </>
                                             )}
                                         </tr>
@@ -3567,11 +3625,22 @@ function TimetablePage({
                         }))}
                         days={DAYS}
                         dayLabel={dayOfWeekLabel}
-                        periods={lessonPeriods.map((p) => ({
+                        periods={dayPeriods.map((p) => ({
                             id: p.id,
                             number: lessonNumber.get(p.id) ?? 0,
                             start: p.start_time,
                             end: p.end_time,
+                            ...(p.period_type === LESSON
+                                ? {}
+                                : {
+                                      breakLabel: breakText(p),
+                                      // The break's own colour («الاستراحات»), else its length tint — as in the page's grid.
+                                      breakClass: `sis-timetable-break--${breakTone(minutesOf(p.end_time) - minutesOf(p.start_time))}`,
+                                      breakStyle: hueStyle(p.color_hue),
+                                      minutes:
+                                          minutesOf(p.end_time) -
+                                          minutesOf(p.start_time),
+                                  }),
                         }))}
                         periodHeader={{
                             ...settings.period_header,
@@ -3649,6 +3718,7 @@ function TimetablePage({
                                 sheetEffective === '' ? null : sheetEffective,
                         }}
                         showTeacher={stageTeachers}
+                        teacherUnderSubject={!stageTeachers && stageMerged}
                     />
                 ))}
             </div>
@@ -4806,6 +4876,29 @@ function TimetablePage({
                                             data-group-id="timetable-preview-actions"
                                         >
                                             <div className="sis-ribbon__items">
+                                                <button
+                                                    type="button"
+                                                    data-item-id="timetable-preview-breaks"
+                                                    className="sis-ribbon__item"
+                                                    aria-label={tt.format.showBreaks}
+                                                    title={tt.format.showBreaks}
+                                                    aria-pressed={settings.show_breaks}
+                                                    onClick={() =>
+                                                        setDisplayOverride({
+                                                            ...settings,
+                                                            show_breaks:
+                                                                !settings.show_breaks,
+                                                        })
+                                                    }
+                                                >
+                                                    <Coffee
+                                                        className={`sis-ribbon__icon sis-ribbon__icon--tone-${autoIconTone('timetable-preview-breaks')}`}
+                                                        aria-hidden
+                                                    />
+                                                    <span className="sis-ribbon__label">
+                                                        {tt.format.showBreaks}
+                                                    </span>
+                                                </button>
                                                 <button
                                                     type="button"
                                                     data-item-id="timetable-preview-setup"

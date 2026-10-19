@@ -65,6 +65,7 @@ export default function AdmissionStage({
 
     return (
         <AdmissionPageShell
+            themed
             title={i18n.admission.title}
             breadcrumbs={breadcrumbs}
             workspace={workspace}

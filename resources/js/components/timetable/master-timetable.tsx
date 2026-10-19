@@ -1,6 +1,6 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { t } from '@/i18n';
-import { formatClock } from './display-settings';
+import { breakRowRem, formatClock } from './display-settings';
 
 type Lesson = {
     id: number;
@@ -38,6 +38,7 @@ export function MasterTimetable({
     subjectStyle,
     heading,
     showTeacher = true,
+    teacherUnderSubject = false,
     periodHeader = null,
     roomLabel,
     showRoom = false,
@@ -50,7 +51,8 @@ export function MasterTimetable({
     columns: MasterColumn[];
     days: number[];
     dayLabel: (day: number) => string;
-    periods: Array<{ id: number; number: number; start?: string; end?: string }>;
+    /** A period with `breakLabel` is a break: one merged row «استراحة · الوقت», `minutes` long. */
+    periods: Array<{ id: number; number: number; start?: string; end?: string; breakLabel?: ReactNode; minutes?: number; breakClass?: string; breakStyle?: CSSProperties }>;
     lessons: Lesson[];
     subjectName: (id: number) => string;
     teacherName: (id: number) => string;
@@ -59,6 +61,8 @@ export function MasterTimetable({
     heading: { title: string; school?: string; year?: string; stage?: string; effectiveFrom?: string | null };
     /** «الدرس | اسم المدرس» (default) or «الدرس» only. */
     showTeacher?: boolean;
+    /** «المادة والمدرس»: no teacher column; the teacher's name goes under the subject in the same cell. */
+    teacherUnderSubject?: boolean;
     /** «تنسيق الجدول» › رأس الحصة: the number and the time shown in the period column. */
     periodHeader?: { show_number: boolean; show_time: boolean; clock: '12' | '24'; am: string; pm: string } | null;
     /** «الغرفة» in the lesson cell («تنسيق الجدول» › الحقول المعروضة). */
@@ -92,7 +96,8 @@ export function MasterTimetable({
 
     /** For one section and day: per period index, its row span (0 = covered by the block above). */
     const spans = (sectionId: number, day: number) => {
-        const sigs = periods.map((p) => signature(cells.get(sectionId)?.get(`${day}:${p.id}`) ?? []));
+        // A break is never part of a lesson block: it gets its own signature so blocks do not merge across it.
+        const sigs = periods.map((p) => (p.breakLabel !== undefined ? `#break:${p.id}` : signature(cells.get(sectionId)?.get(`${day}:${p.id}`) ?? [])));
         const out = periods.map(() => 1);
         for (let i = 0; i < sigs.length; i++) {
             if (sigs[i] === '' || out[i] === 0) {
@@ -205,7 +210,16 @@ export function MasterTimetable({
                                             <span>{dayLabel(day)}</span>
                                         </th>
                                     ) : null}
-                                    <th className="sis-timetable-master__period">
+                                    {p.breakLabel !== undefined ? (
+                                        <td
+                                            colSpan={1 + sectionCount * (showTeacher ? 2 : 1)}
+                                            className={`sis-timetable-cell sis-timetable-cell--break sis-timetable-master__break${p.breakClass ? ` ${p.breakClass}` : ''}`}
+                                            style={{ ...p.breakStyle, height: `${breakRowRem(p.minutes ?? 0)}rem` }}
+                                        >
+                                            <span className="sis-timetable-cell__break-label">{p.breakLabel}</span>
+                                        </td>
+                                    ) : null}
+                                    {p.breakLabel !== undefined ? null : <th className="sis-timetable-master__period">
                                         {periodHeader === null || periodHeader.show_number ? <span className="sis-timetable-master__period-number">{p.number}</span> : null}
                                         {periodHeader !== null && periodHeader.show_time && p.start !== undefined && p.end !== undefined ? (
                                             <span className="sis-timetable-master__period-time">
@@ -213,8 +227,8 @@ export function MasterTimetable({
                                                 <bdi dir="ltr">{formatClock(p.end, periodHeader.clock, periodHeader.am, periodHeader.pm)}</bdi>
                                             </span>
                                         ) : null}
-                                    </th>
-                                    {columns.flatMap((c) =>
+                                    </th>}
+                                    {p.breakLabel !== undefined ? null : columns.flatMap((c) =>
                                         c.sections.flatMap((s, si) => {
                                             const span = daySpans.get(s.id)?.[index] ?? 1;
                                             if (span === 0) {
@@ -239,6 +253,12 @@ export function MasterTimetable({
                                                 return [
                                                     <td key={`${c.key}:${s.id}:s`} rowSpan={span} className={`sis-timetable-master__lesson sis-timetable-master__lesson--subject${edge(c, si)}${mark}`} style={style} {...on}>
                                                         {subjectText(list, showSection ? s.label : null)}
+                                                        {teacherUnderSubject ? (
+                                                            <>
+                                                                <br />
+                                                                {teacherText(list)}
+                                                            </>
+                                                        ) : null}
                                                     </td>,
                                                 ];
                                             }

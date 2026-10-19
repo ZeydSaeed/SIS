@@ -1,5 +1,5 @@
 import { Form, router, usePage } from '@inertiajs/react';
-import { Pencil, Save, Trash2, XCircle } from 'lucide-react';
+import { Archive, CheckCircle2, CircleSlash, Pencil, Save, Trash2, XCircle, type LucideIcon } from 'lucide-react';
 import {
     forwardRef,
     useCallback,
@@ -17,7 +17,9 @@ import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
+import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
+import { StatusBadge, tableStatusCellClass } from '@/components/sis/table-status-badge';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
@@ -96,6 +98,10 @@ function periodStatusLabel(status: number): string {
     if (status === 2) return i18n.periodArchived;
     return String(status);
 }
+
+/** Period status (0 inactive, 1 active, 2 archived) → the shared table-theme tone and icon. */
+const PERIOD_STATUS_TONES: Record<number, string> = { 0: 'withdrawn', 1: 'transfer', 2: 'submitted' };
+const PERIOD_STATUS_ICONS: Record<number, LucideIcon> = { 0: CircleSlash, 1: CheckCircle2, 2: Archive };
 
 function AdmissionPeriodWhen({ value }: { value: string | null }) {
     const i18n = t().admission;
@@ -274,7 +280,7 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
             aria-selected={selected}
             onClick={() => onSelect(period.id)}
         >
-            <td className="sis-admission-periods-table__num">
+            <td className="sis-admission-drafts-table__num">
                 <span dir="ltr">{serial}</span>
             </td>
             <td className="sis-admission-periods-table__year">
@@ -359,8 +365,7 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                 {remaining === null ? i18n.unlimitedCapacity : remaining}
             </td>
             <td
-                className="sis-admission-periods-table__status"
-                data-status={period.status}
+                className={`sis-admission-periods-table__status ${tableStatusCellClass(PERIOD_STATUS_TONES[period.status] ?? 'withdrawn')}`}
             >
                 {canManage ? (
                     <SisListSelect
@@ -377,7 +382,9 @@ const PeriodEditorRow = forwardRef<PeriodRowHandle, PeriodEditorRowProps>(functi
                         ariaLabel={i18n.periodStatus}
                     />
                 ) : (
-                    periodStatusLabel(period.status)
+                    <StatusBadge icon={PERIOD_STATUS_ICONS[period.status] ?? CircleSlash}>
+                        {periodStatusLabel(period.status)}
+                    </StatusBadge>
                 )}
             </td>
         </tr>
@@ -447,6 +454,7 @@ export function AdmissionPeriodsCard({
     const createBounds = yearBounds(createYear);
     const selectedRowRef = useRef<PeriodRowHandle>(null);
     const tableRef = useRef<HTMLTableElement>(null);
+    const scrollerRef = useRef<HTMLDivElement>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [editing, setEditing] = useState(false);
     const [archiveTarget, setArchiveTarget] = useState<AdmissionPeriodRow | null>(null);
@@ -495,11 +503,13 @@ export function AdmissionPeriodsCard({
         }
     });
 
-    useResizableTableColumns(tableRef, {
-        storageKey: 'admission.periods',
-        columnSignature: 'v2',
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: 'admission.periods.v3',
+        columnSignature: 'periods',
         enabled: visible.length > 0,
+        rowsKey: visible.map((period) => period.id).join(','),
     });
+    useSmoothVerticalScroll(scrollerRef, visible.length > 0);
 
     const yearReady = academicYearId !== null;
     const hasSelection = selectedId !== null;
@@ -763,12 +773,12 @@ export function AdmissionPeriodsCard({
                 ) : visible.length === 0 ? (
                     <p className="text-muted-foreground text-sm">{i18n.admission.emptySearch}</p>
                 ) : (
-                    <div className="sis-admission-periods-table">
-                        <div className="sis-admission-periods-table__scroller" data-allow-x-scroll>
+                    <div className="sis-admission-periods-table sis-admission-drafts-table">
+                        <div className="sis-admission-drafts-table__scroller" ref={scrollerRef}>
                             <table ref={tableRef}>
                                 <thead>
                                     <tr>
-                                        <th className="sis-admission-periods-table__num">#</th>
+                                        <th className="sis-admission-drafts-table__num">#</th>
                                         <th aria-sort={ariaSort(sort, 'directorate')}><SortButton sort={sort} column="directorate">{i18n.admission.directorate}</SortButton></th>
                                         <th aria-sort={ariaSort(sort, 'year')}><SortButton sort={sort} column="year">{i18n.admission.academicYear}</SortButton></th>
                                         <th aria-sort={ariaSort(sort, 'name')}><SortButton sort={sort} column="name">{i18n.admission.periodName}</SortButton></th>

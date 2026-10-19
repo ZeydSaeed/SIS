@@ -37,6 +37,7 @@ export default function AdmissionSubmitted({ workspace, filters, authorization }
 
     return (
         <AdmissionPageShell
+            themed
             title={i18n.admission.title}
             breadcrumbs={breadcrumbs}
             workspace={workspace}

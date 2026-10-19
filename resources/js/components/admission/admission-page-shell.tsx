@@ -20,6 +20,7 @@ import {
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
+import { sisListPageClass } from '@/components/sis/page-theme';
 import { SchoolEditRibbon } from '@/components/organization/school-edit-ribbon';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
@@ -48,6 +49,8 @@ type Props = {
     activeStatus: number | null;
     onOtherStageSelect?: (status: number) => void;
     homeHref?: string | null;
+    /** Opts the page into the shared list-table theme (`sis-table-theme`). */
+    themed?: boolean;
     children: ReactNode;
 };
 
@@ -157,6 +160,7 @@ function AdmissionPageShellInner({
     activeStatus,
     onOtherStageSelect,
     homeHref = null,
+    themed = false,
     children,
 }: InnerProps) {
     const i18n = t();
@@ -380,7 +384,11 @@ function AdmissionPageShellInner({
                 searchDraftRef={searchDraftRef}
                 perPage={listPerPage}
             />
-            <div className="sis-ops-hub sis-admission-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4" dir="rtl" lang="ar">
+            <div className={
+                    themed
+                        ? sisListPageClass({ extra: 'sis-admission-themed px-4' })
+                        : 'sis-ops-hub sis-admission-page flex h-full min-h-0 flex-col overflow-hidden px-4 pb-4'
+                } dir="rtl" lang="ar">
                 <AdmissionWorkflowProgress
                     steps={workspace.workflow_steps}
                     progress={workspace.workflow_progress}
@@ -439,6 +447,7 @@ export function AdmissionPageShell({
     activeStatus,
     onOtherStageSelect,
     homeHref = null,
+    themed = false,
     children,
 }: Props) {
     return (
@@ -452,6 +461,7 @@ export function AdmissionPageShell({
                 activeStatus={activeStatus}
                 onOtherStageSelect={onOtherStageSelect}
                 homeHref={homeHref}
+                themed={themed}
             >
                 {children}
             </AdmissionPageShellInner>

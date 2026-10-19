@@ -63,7 +63,8 @@ import {
     useRegisterPageRibbon,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
-import { useResizableTableColumns } from '@/hooks/use-resizable-table-columns';
+import { useAutoFitTableColumns } from '@/hooks/use-auto-fit-table-columns';
+import { useSmoothVerticalScroll } from '@/hooks/use-smooth-vertical-scroll';
 import { t } from '@/i18n';
 
 
@@ -91,7 +92,7 @@ const TRANSITION_TONE: Record<number, 'light' | 'dark'> = {
     0: 'dark',
     1: 'dark',
     2: 'light',
-    3: 'light',
+    3: 'dark',
     4: 'dark',
     5: 'light',
     6: 'dark',
@@ -556,24 +557,8 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                     )
                 )}
             </td>
-            <td className="sis-admission-drafts-table__text sis-admission-drafts-table__text--wide">
-                {displayText(lookupName(workspace.periods, app.application_period_id))}
-            </td>
             <td className="sis-admission-drafts-table__when sis-admission-drafts-table__when--submitted">
                 {formatWhen(app.created_at)}
-            </td>
-            <td className="sis-admission-drafts-table__when-cell sis-admission-drafts-table__when--reviewed">
-                {editing ? (
-                    <AdmissionDateTimeField
-                        name={`reviewed_at_${app.id}`}
-                        dateOnly
-                        defaultValue={app.reviewed_at ?? ''}
-                        idPrefix={`draft-reviewed-${app.id}`}
-                        onValueChange={setReviewedAt}
-                    />
-                ) : (
-                    formatWhen(app.reviewed_at)
-                )}
             </td>
             <td
                 className="sis-admission-drafts-table__reviewer-cell"
@@ -589,35 +574,6 @@ const DraftEditorRow = forwardRef<DraftRowHandle, DraftEditorRowProps>(function 
                     dir="rtl"
                     ariaLabel={i18n.reviewedBy}
                 />
-            </td>
-            <td
-                className={
-                    hasNotes
-                        ? 'sis-admission-drafts-table__content-cell sis-admission-drafts-table__content-cell--filled'
-                        : 'sis-admission-drafts-table__content-cell'
-                }
-            >
-                {editing ? (
-                    <input
-                        className={
-                            notes.trim() !== ''
-                                ? 'sis-ops-hub__link sis-admission-drafts-table__notes-input sis-admission-drafts-table__notes-input--filled'
-                                : 'sis-ops-hub__link sis-admission-drafts-table__notes-input'
-                        }
-                        name={`notes-${app.id}`}
-                        value={notes}
-                        dir="rtl"
-                        aria-label={i18n.notes}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => setNotes(event.target.value)}
-                    />
-                ) : (app.notes?.trim() ?? '') !== '' ? (
-                    <CellAccordion summary={app.notes?.trim() ?? ''}>
-                        {app.notes?.trim()}
-                    </CellAccordion>
-                ) : (
-                    <span className="sis-admission-collapse__empty">—</span>
-                )}
             </td>
             <td
                 className={
@@ -725,11 +681,13 @@ export function AdmissionDraftsCard({
         pagination.total_pages,
     );
 
-    useResizableTableColumns(tableRef, {
-        storageKey: 'admission.drafts',
-        columnSignature: canManage ? 'manage-v2' : 'readonly-v2',
+    useAutoFitTableColumns(tableRef, scrollerRef, {
+        storageKey: 'admission.drafts.v3',
+        columnSignature: canManage ? 'manage' : 'readonly',
         enabled: rows.length > 0,
+        rowsKey: rows.map((app) => app.id).join(','),
     });
+    useSmoothVerticalScroll(scrollerRef, rows.length > 0);
 
     const hasSelection = selectedId !== null;
     const selectedDraft = rows.find((app) => app.id === selectedId) ?? null;
@@ -1223,13 +1181,10 @@ export function AdmissionDraftsCard({
                                 <th className="sis-admission-drafts-table__name-head" aria-sort={ariaSort(sort, 'name')}><SortButton sort={sort} column="name">{i18n.admission.quadName}</SortButton></th>
                                 <th title={i18n.admission.gradeLevel} aria-sort={ariaSort(sort, 'grade')}><SortButton sort={sort} column="grade">{i18n.admission.gradeLevelAbbr}</SortButton></th>
                                 <th title={i18n.admission.department} aria-sort={ariaSort(sort, 'department')}><SortButton sort={sort} column="department">{i18n.admission.departmentAbbr}</SortButton></th>
-                                <th title={i18n.admission.periodName} aria-sort={ariaSort(sort, 'period')}><SortButton sort={sort} column="period">{i18n.admission.periodNameAbbr}</SortButton></th>
                                 <th className="sis-admission-drafts-table__when--submitted" aria-sort={ariaSort(sort, 'submitted')}><SortButton sort={sort} column="submitted">{i18n.admission.submittedAt}</SortButton></th>
-                                <th className="sis-admission-drafts-table__when--reviewed" aria-sort={ariaSort(sort, 'reviewed')}><SortButton sort={sort} column="reviewed">{i18n.admission.reviewedAt}</SortButton></th>
                                 <th className="sis-admission-drafts-table__reviewer-cell" title={i18n.admission.reviewedBy}>
                                     {i18n.admission.reviewedByAbbr}
                                 </th>
-                                <th aria-sort={ariaSort(sort, 'notes')}><SortButton sort={sort} column="notes">{i18n.admission.notes}</SortButton></th>
                                 <th aria-sort={ariaSort(sort, 'documents')}><SortButton sort={sort} column="documents">{i18n.admission.documentType}</SortButton></th>
                             </tr>
                         </thead>

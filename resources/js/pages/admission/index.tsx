@@ -30,6 +30,7 @@ export default function AdmissionIndex({ workspace, filters, authorization }: Pa
             yearFilterAction="/admission"
             authorization={authorization}
             activeStatus={null}
+            themed
         >
             <AdmissionPeriodsCard
                 periods={workspace.periods}
