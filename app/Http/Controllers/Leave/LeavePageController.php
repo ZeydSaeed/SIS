@@ -32,6 +32,7 @@ use App\Application\Leave\Queries\SuggestLeaveSubstitutesHandler;
 use App\Application\Leave\Queries\SuggestLeaveSubstitutesQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Support\LeaveListInput;
+use App\Http\Support\LeaveReportCsv;
 use App\Http\Support\LeaveRequestContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -76,7 +77,7 @@ final class LeavePageController extends Controller
 
         return Inertia::render('leave/overview', [
             'badges' => $this->badges($request),
-            'dashboard' => $handler->handle(new GetLeaveDashboardQuery($this->context->schoolId(), $yearId, $today, $this->context->viewer($request))),
+            'dashboard' => $handler->handle(new GetLeaveDashboardQuery($this->context->schoolId(), $yearId, $today, $this->context->viewer($request), withCoverage: false)),
             'today' => $today,
             'filters' => ['academic_year_id' => $yearId],
             'abilities' => $this->context->abilities($request),
@@ -185,6 +186,25 @@ final class LeavePageController extends Controller
             'types' => $types->handle(new ListLeaveTypesQuery($schoolId)),
             'filters' => LeaveListInput::echo($request, $yearId) + ['report' => $kind],
             'abilities' => $this->context->abilities($request),
+        ]);
+    }
+
+    /** «التقارير» as a CSV file — the rows the page shows (same filters, same masking), capped. */
+    public function exportReport(Request $request, GetLeaveReportHandler $report): HttpResponse
+    {
+        $this->authorize('viewLeaveReports');
+        $schoolId = $this->context->schoolId();
+        $yearId = $this->context->academicYearId($request);
+        $kind = in_array($request->query('report'), GetLeaveReportQuery::KINDS, true) ? (string) $request->query('report') : 'by_person';
+        abort_unless(LeaveReportCsv::supports($kind), 404);
+        $rows = $report->handle(new GetLeaveReportQuery($schoolId, $yearId, $kind, LeaveListInput::report($request), $this->context->viewer($request)));
+        $this->securityAudit->record(SecurityEventType::HrDataAccess, 'leave.web.reports.export', 'downloaded', $request->user(), 'school:'.$schoolId, ['report' => $kind, 'rows' => count($rows)]);
+
+        return response(LeaveReportCsv::build($kind, $rows), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="leave-'.$kind.'-'.now()->format('Ymd').'.csv"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 

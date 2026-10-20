@@ -2,6 +2,7 @@
 
 namespace App\Application\Timetable\Support;
 
+use App\Application\Timetable\Contracts\HolidayCalendarInterface;
 use App\Domain\Timetable\Repositories\ScheduleExceptionRepositoryInterface;
 use App\Domain\Timetable\Repositories\TimetableEngineReadRepositoryInterface;
 use App\Domain\Timetable\Repositories\TimetableVersionRepositoryInterface;
@@ -20,10 +21,14 @@ final class EffectiveTimetable
         private readonly TimetableEngineReadRepositoryInterface $engine,
         private readonly ScheduleExceptionRepositoryInterface $exceptions,
         private readonly EffectiveVersionSelector $selector,
+        private readonly HolidayCalendarInterface $calendar,
     ) {}
 
     /**
-     * @return array{lessons: list<array<string, mixed>>, version_id: int|null, day_of_week: int, week_no: int|null}
+     * `holiday` tells the reader the date is closed by a holiday in force. The lessons are still returned: a holiday
+     * added after a day was taught must not hide the lessons its attendance sheets point at.
+     *
+     * @return array{lessons: list<array<string, mixed>>, version_id: int|null, day_of_week: int, week_no: int|null, holiday: bool}
      */
     public function on(int $schoolId, int $academicYearId, \DateTimeImmutable $date, ?int $sectionId = null, ?int $teacherId = null): array
     {
@@ -62,6 +67,12 @@ final class EffectiveTimetable
         }
         usort($out, static fn (array $a, array $b): int => [$a['section_id'], $a['period_id']] <=> [$b['section_id'], $b['period_id']]);
 
-        return ['lessons' => $out, 'version_id' => $versionId, 'day_of_week' => $weekday, 'week_no' => $weekNo];
+        return [
+            'lessons' => $out,
+            'version_id' => $versionId,
+            'day_of_week' => $weekday,
+            'week_no' => $weekNo,
+            'holiday' => $this->calendar->isHoliday($schoolId, $academicYearId, $day),
+        ];
     }
 }

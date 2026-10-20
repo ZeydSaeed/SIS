@@ -14,6 +14,21 @@ final readonly class HolidayChanged implements DomainEvent
         private \DateTimeImmutable $occurredAt,
     ) {}
 
+    public function holidayId(): int
+    {
+        return $this->holidayId;
+    }
+
+    public function schoolId(): int
+    {
+        return $this->schoolId;
+    }
+
+    public function change(): string
+    {
+        return $this->change;
+    }
+
     public function occurredAt(): \DateTimeImmutable
     {
         return $this->occurredAt;

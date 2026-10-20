@@ -84,6 +84,7 @@ final class LeaveRequestContext
             'request' => $user->can('requestLeave'),
             'manage' => $user->can('manageLeaveRequests'),
             'approve' => $user->can('approveLeave'),
+            'delegate' => $user->can('holdLeaveApproval') || $user->can('manageLeaveRequests'),
             'cancel' => $user->can('cancelLeave'),
             'policies' => $user->can('manageLeavePolicies'),
             'balances' => $user->can('viewLeaveBalances'),

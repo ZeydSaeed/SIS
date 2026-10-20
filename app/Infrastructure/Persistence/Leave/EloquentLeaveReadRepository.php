@@ -161,6 +161,24 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
             ->get()->map(fn (object $row): array => $this->row($row))->all();
     }
 
+    public function openRequestIdsOverlapping(int $schoolId, string $from, string $to): array
+    {
+        return DB::table('leave.requests')
+            ->where('school_id', $schoolId)->whereIn('status', [1, 2, 3])
+            ->where('date_from', '<=', $to)->where('date_to', '>=', $from)
+            ->orderBy('id')->limit(500)->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+    }
+
+    public function pendingSubmittedBefore(int $schoolId, string $moment): array
+    {
+        return DB::table('leave.requests')
+            ->where('school_id', $schoolId)->where('status', LeaveStatus::Pending->value)->where('submitted_at', '<=', $moment)
+            ->orderBy('submitted_at')->limit(500)
+            ->get(['id', 'submitted_at'])
+            ->map(static fn (object $r): array => ['id' => (int) $r->id, 'submitted_at' => (string) $r->submitted_at])
+            ->all();
+    }
+
     public function startingBetween(int $schoolId, string $from, string $to, ?int $ownUserId): array
     {
         return $this->own($this->base($schoolId), $ownUserId)

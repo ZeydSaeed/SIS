@@ -31,6 +31,9 @@ interface LeaveBalanceRepositoryInterface
         ?int $createdBy,
     ): int;
 
+    /** Whether the person already has an adjustment of the type and year with exactly this reason (carry-over runs once). */
+    public function hasAdjustmentWithReason(int $schoolId, int $academicYearId, int $typeId, RequesterKind $kind, int $personId, string $reason): bool;
+
     public function hasRequestEntry(int $requestId, BalanceEntryType $type): bool;
 
     /** The deduction a request made (positive), or null when it deducted nothing. */

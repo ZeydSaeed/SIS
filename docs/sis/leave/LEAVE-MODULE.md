@@ -78,6 +78,13 @@ Every write needs `X-Idempotency-Key`; refusals return a localized `leave.*` cod
 - **Attendance:** the staff attendance day shows «إجازة معتمدة #n» for a teacher on approved leave and lists their
   lessons for cover — read only (`ApprovedLeaveSourceInterface`); no attendance record is written by an approval.
   Holidays taken out of the calendar no longer close the attendance day.
+- **Timetable and holidays:** the effective timetable of a date (`GetEffectiveTimetableHandler`, API `meta.holiday`) now says
+  whether the date is closed by a holiday in force (port `Timetable\Contracts\HolidayCalendarInterface`, one existence
+  check on `academic.holidays`). Lessons are still returned on such a date — a holiday added after a day was taught must
+  not hide the lessons its attendance sheets point at; readers decide what to do with the flag.
+- **Dashboard (المتابعة):** besides «حصص اليوم بلا بديل» it lists «حصص الأيام السبعة القادمة بلا بديل»: lessons of teachers
+  whose approved leave covers a coming working day (weekend and holidays skipped) with no substitute yet. Shown only to
+  viewers of the whole school; the overview page does not compute it.
 - **Timetable:** «الحصص المتأثرة» lists the teacher's lessons (lead or co-teacher) on each working day of the leave from
   the effective timetable, with the substitute already assigned; «اقتراح بدلاء» uses the timetable ranker minus
   teachers on approved leave that day; «تعيين البديل» posts to `/timetable/schedules/{id}/substitute` (clash checks,
@@ -93,15 +100,28 @@ them read (own only), and opens the request; every leave page shows two counters
 requests awaiting the user's decision (`/leave/requests?awaiting=1`: pending, not their own, and not a round they already
 approved a level of). No e-mail / SMS / WhatsApp: that needs a channel decision.
 
+### Approver delegation («التفويض»), reminders, holiday notices, carry-over, CSV (2026-10-20)
+
+Migration `2026_10_20_100000_leave_delegations_and_reminder_notifications` (applied to `sis_test` only — **not yet to the live `sis`**; the policy reads `leave.delegations`, so run it before deploying this code).
+
+- **Delegation** (`/leave/delegations`, table `leave.delegations`): a holder of `leave.request.approve` lets another user of the school decide between two dates (≤ 366 days, not in the past, not to oneself, no overlap). The delegate's right is *derived*: the policy grants view + decide only while the delegation is active **and** its delegator still holds the approval right; a delegate cannot pass it on. The decide handler also refuses a delegate approving their delegator's own leave and one person passing two levels as both delegator and stand-in. Delegates are asked about new requests like approvers. The delegator, or a leave manager, ends it (final).
+- **Reminders / escalation** (`leave:reminders`, daily 07:00, `RemindPendingLeaveRequestsJob`): approvers get one reminder per round after `sis.leave.remind_after_days` (default 2), the leave managers one escalation after `escalate_after_days` (default 5). In-app notifications only (kinds 8, 9).
+- **Holiday change** (`HolidayChanged` outbox event → `NotifyLeaveOfHolidayChange`): the leave managers are told (kind 7) which open requests (draft / pending / returned) overlap the holiday. Notice only — no request, duration or balance is rewritten.
+- **Carry-over** (`POST /leave/balances/carry-over`): the available balance of an earlier year (floored to a quarter, optional cap) is written as an audited adjustment in the new year, once per person and source year; the earlier year is untouched.
+- **CSV** (`GET /leave/reports/export?report=…`): the rows the page shows (same filters and masking), UTF-8 with BOM, spreadsheet-formula cells neutralised, capped at 5000 rows. It is synchronous because a report is an aggregate or a short list; move it to the queue if a report ever grows beyond that.
+- **Substitute for every day**: in «اقتراح بدلاء», «تعيين لكل أيام الإجازة» posts one timetable substitution per uncovered day of that lesson in the coverage window (the page shown), stopping at the first refusal.
+- `LeaveChanged` still has no consumer: nothing needs it yet (the in-app notices are written inside the transaction).
+
 ## 6. Not implemented / reserved
 
 | Item | Reason |
 |------|--------|
-| Export to file (CSV / Excel) | heavy exports must be queued (rule 7); the attendance export pipeline is attendance-specific — reports print from the browser for now |
-| E-mail / SMS / WhatsApp notifications | needs a channel decision; in-app notifications exist, events are staged in the outbox |
+| E-mail / SMS / WhatsApp notifications | needs a channel decision (deferred by the owner); in-app notifications exist |
+| Export to Excel / PDF; queued export | CSV only; see above |
+| Exams linkage | `Application\Exams` has no dated scheduling to link to yet |
 | Workflow-engine approvals | hooks for other entities are HOLD |
 | Partial cancellation (early return) | a cancellation restores the whole deduction; an adjustment can correct the balance with a reason |
-| Accrual (monthly earning) | entitlements are granted per year from the policy; adjustments cover the rest |
+| Monthly accrual | entitlements are granted per year from the policy; carry-over and adjustments cover the rest |
 | One request across several schools | a request belongs to the school it is filed in (RLS); a teacher shared by two schools files in each |
 | Periods (حصص) as a unit | days and hours only |
 | Browser / mobile E2E tests | not run in this environment (no browser tooling) |

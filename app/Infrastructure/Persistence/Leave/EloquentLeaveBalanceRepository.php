@@ -57,6 +57,15 @@ final class EloquentLeaveBalanceRepository implements LeaveBalanceRepositoryInte
         ]);
     }
 
+    public function hasAdjustmentWithReason(int $schoolId, int $academicYearId, int $typeId, RequesterKind $kind, int $personId, string $reason): bool
+    {
+        $person = $kind === RequesterKind::Teacher ? 'teacher_id' : 'employee_id';
+
+        return DB::table('leave.balance_entries')
+            ->where('school_id', $schoolId)->where('academic_year_id', $academicYearId)->where('leave_type_id', $typeId)->where($person, $personId)
+            ->where('entry_type', BalanceEntryType::Adjustment->value)->where('reason', $reason)->exists();
+    }
+
     public function hasRequestEntry(int $requestId, BalanceEntryType $type): bool
     {
         return DB::table('leave.balance_entries')->where('request_id', $requestId)->where('entry_type', $type->value)->exists();

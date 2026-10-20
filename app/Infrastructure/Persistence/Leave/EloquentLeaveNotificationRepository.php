@@ -12,7 +12,7 @@ final class EloquentLeaveNotificationRepository implements LeaveNotificationRepo
     public function add(int $schoolId, int $userId, int $requestId, LeaveNotificationKind $kind, ?int $actorUserId): void
     {
         // One unread «ينتظر موافقتك» per approver and request — a second round does not stack another.
-        if ($kind === LeaveNotificationKind::AwaitingApproval
+        if (in_array($kind, [LeaveNotificationKind::AwaitingApproval, LeaveNotificationKind::HolidayChanged], true)
             && DB::table('leave.notifications')->where('user_id', $userId)->where('request_id', $requestId)->where('kind', $kind->value)->whereNull('read_at')->exists()) {
             return;
         }
@@ -70,12 +70,30 @@ final class EloquentLeaveNotificationRepository implements LeaveNotificationRepo
 
     public function approverUserIds(int $schoolId): array
     {
+        $holders = $this->userIdsWithPermission($schoolId, Permission::LEAVE_REQUEST_APPROVE);
+        $today = now()->toDateString();
+        // Whoever stands in today for one of them is asked too (the delegation only counts while its delegator still holds the right).
+        $delegates = $holders === [] ? [] : DB::table('leave.delegations')
+            ->where('school_id', $schoolId)->where('status', 1)->where('date_from', '<=', $today)->where('date_to', '>=', $today)
+            ->whereIn('delegator_user_id', $holders)
+            ->pluck('delegate_user_id')->map(static fn ($id): int => (int) $id)->all();
+
+        return array_values(array_unique([...$holders, ...$delegates]));
+    }
+
+    public function managerUserIds(int $schoolId): array
+    {
+        return $this->userIdsWithPermission($schoolId, Permission::LEAVE_REQUEST_MANAGE);
+    }
+
+    private function userIdsWithPermission(int $schoolId, string $permission): array
+    {
         $today = now()->toDateString();
 
         return DB::table('security.user_roles as ur')
             ->join('security.role_permissions as rp', 'rp.role_id', '=', 'ur.role_id')
             ->join('security.permissions as p', 'p.id', '=', 'rp.permission_id')
-            ->where('p.code', Permission::LEAVE_REQUEST_APPROVE)
+            ->where('p.code', $permission)
             ->where('ur.school_id', $schoolId)
             ->where('ur.effective_from', '<=', $today)
             ->where(static fn ($q) => $q->whereNull('ur.effective_to')->orWhere('ur.effective_to', '>=', $today))
@@ -83,5 +101,10 @@ final class EloquentLeaveNotificationRepository implements LeaveNotificationRepo
             ->pluck('ur.user_id')
             ->map(static fn ($id): int => (int) $id)
             ->all();
+    }
+
+    public function exists(int $userId, int $requestId, LeaveNotificationKind $kind, string $since): bool
+    {
+        return DB::table('leave.notifications')->where('user_id', $userId)->where('request_id', $requestId)->where('kind', $kind->value)->where('created_at', '>=', $since)->exists();
     }
 }

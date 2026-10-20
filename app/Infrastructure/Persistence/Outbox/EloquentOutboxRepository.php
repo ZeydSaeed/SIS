@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Outbox;
 
 use App\Application\Contracts\OutboxRepository;
+use App\Domain\Academic\Events\HolidayChanged;
 use App\Domain\Attendance\Events\AttendanceCorrected;
 use App\Domain\Attendance\Events\AttendanceSessionCancelled;
 use App\Domain\Attendance\Events\AttendanceSessionClosed;
@@ -382,6 +383,12 @@ final class EloquentOutboxRepository implements OutboxRepository
                 occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
             ),
             AttendanceWorkflowEvent::class => AttendanceWorkflowEvent::fromPayload($payload),
+            HolidayChanged::class => new HolidayChanged(
+                holidayId: (int) $payload['holiday_id'],
+                schoolId: (int) $payload['school_id'],
+                change: (string) $payload['change'],
+                occurredAt: new \DateTimeImmutable((string) $payload['occurred_at']),
+            ),
             default => null,
         };
     }

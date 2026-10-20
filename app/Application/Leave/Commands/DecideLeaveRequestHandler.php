@@ -12,6 +12,7 @@ use App\Application\Leave\Support\LeaveTransaction;
 use App\Domain\Leave\Data\LeaveRequester;
 use App\Domain\Leave\Data\LeaveRequestSnapshot;
 use App\Domain\Leave\Exceptions\LeaveRuleViolation;
+use App\Domain\Leave\Repositories\LeaveDelegationRepositoryInterface;
 use App\Domain\Leave\Repositories\LeaveRequestRepositoryInterface;
 use App\Domain\Leave\Repositories\LeaveTypeRepositoryInterface;
 use App\Domain\Leave\Services\LeaveApprovalRules;
@@ -37,6 +38,7 @@ final class DecideLeaveRequestHandler implements CommandHandler
         private readonly LeaveRequestPreparer $prepare,
         private readonly LeaveBalanceGuard $balance,
         private readonly LeaveNotifier $notifier,
+        private readonly LeaveDelegationRepositoryInterface $delegations,
     ) {}
 
     public function handle(Command $command): DecideLeaveRequestResult
@@ -52,6 +54,16 @@ final class DecideLeaveRequestHandler implements CommandHandler
             $requester = $this->prepare->personOf($request);
             $approvers = $this->requests->currentApprovers($request->id);
             LeaveApprovalRules::assertMayDecide($requester, $command->actorUserId, $approvers);
+            // A delegate stands in for their delegators: it must not let them approve their own leave, nor pass a
+            // request through two levels as both the delegator and their stand-in.
+            foreach ($this->delegations->activeDelegatorIds($command->schoolId, $command->actorUserId) as $delegatorId) {
+                LeaveApprovalRules::assertMayDecide($requester, $delegatorId, $approvers);
+            }
+            foreach ($this->delegations->activePairs($command->schoolId) as $pair) {
+                if ($pair['delegator'] === $command->actorUserId && in_array($pair['delegate'], $approvers, true)) {
+                    throw LeaveRuleViolation::of('same_approver');
+                }
+            }
             $note = LeaveApprovalRules::note($command->decision->requiresNote(), $command->note);
 
             [$to, $event, $levels, $deducted] = match ($command->decision) {

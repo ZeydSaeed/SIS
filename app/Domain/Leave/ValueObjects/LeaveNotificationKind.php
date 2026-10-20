@@ -13,4 +13,10 @@ enum LeaveNotificationKind: int
     case Cancelled = 5;
     /** One approval level passed; the request waits for the next level (told to the requester). */
     case LevelApproved = 6;
+    /** A holiday was added, edited or taken out of the calendar under an open request (told to the leave managers). */
+    case HolidayChanged = 7;
+    /** The request has waited for a decision longer than the school allows (told to its approvers). */
+    case Reminder = 8;
+    /** The request is still undecided after the escalation period (told to the leave managers). */
+    case Escalated = 9;
 }

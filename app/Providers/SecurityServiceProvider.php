@@ -187,6 +187,7 @@ class SecurityServiceProvider extends ServiceProvider
             'requestLeave' => 'request',
             'manageLeaveRequests' => 'manageRequests',
             'approveLeave' => 'approve',
+            'holdLeaveApproval' => 'holdsApprove',
             'cancelLeave' => 'cancel',
             'manageLeavePolicies' => 'managePolicies',
             'viewLeaveBalances' => 'viewBalances',

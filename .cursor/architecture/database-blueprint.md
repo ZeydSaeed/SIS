@@ -2132,11 +2132,27 @@ In-app notifications, one row per recipient. Ids and a kind only — never the r
 | school_id | BIGINT | FK → schools NOT NULL |
 | user_id | BIGINT | FK → public.users NOT NULL (the recipient) |
 | request_id | BIGINT | FK → leave.requests NOT NULL |
-| kind | SMALLINT | 1 awaiting approval · 2 approved · 3 rejected · 4 info requested · 5 cancelled · 6 level approved |
+| kind | SMALLINT | 1 awaiting approval · 2 approved · 3 rejected · 4 info requested · 5 cancelled · 6 level approved · 7 holiday changed under an open request · 8 reminder (waiting too long) · 9 escalation to managers (kinds 7–9 added by `2026_10_20_100000_leave_delegations_and_reminder_notifications`) |
 | actor_user_id | BIGINT | FK → users, nullable |
 | created_at / read_at | TIMESTAMPTZ | read_at nullable — the only column that may change |
 
 **Indexes:** `(user_id, read_at, id DESC)`, `(request_id)`. **Security:** FORCE RLS fail-closed on `school_id`; trigger rejects DELETE and any UPDATE other than `read_at`.
+
+### `leave.delegations` (2026-10-20, migration `2026_10_20_100000_leave_delegations_and_reminder_notifications`)
+
+An approver lets another user decide leave in the school between two dates. The delegate never holds more than the delegator (re-checked each time the delegation is used) and never decides their own leave; only the revocation may change.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| delegator_user_id / delegate_user_id | BIGINT | FK → public.users NOT NULL, different users |
+| date_from / date_to | DATE | NOT NULL, `date_to >= date_from`, at most 366 days |
+| status | SMALLINT | 1 active · 2 revoked |
+| created_by / created_at | | NOT NULL |
+| revoked_by / revoked_at | | set together with status 2 (CHECK) |
+
+**Indexes:** partial `(school_id, delegate_user_id, date_from, date_to) WHERE status = 1` (is this user a delegate today), `(school_id, delegator_user_id, id DESC)`. **Security:** FORCE RLS fail-closed on `school_id`; trigger rejects DELETE, any change other than the revocation, and any change to a revoked row.
 
 ---
 

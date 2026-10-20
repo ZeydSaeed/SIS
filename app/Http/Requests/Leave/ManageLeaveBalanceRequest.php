@@ -28,6 +28,10 @@ class ManageLeaveBalanceRequest extends FormRequest
                 'quantity' => ['required', 'numeric', 'not_in:0', 'min:-'.LeavePolicyTerms::MAX_QUANTITY, 'max:'.LeavePolicyTerms::MAX_QUANTITY],
                 'reason' => ['required', 'string', 'max:'.LeaveRequestRules::MAX_REASON],
             ],
+            'leave.balances.carryover' => [
+                'from_year_id' => ['required', 'integer', 'min:1'],
+                'cap' => ['nullable', 'numeric', 'min:0.25', 'max:'.LeavePolicyTerms::MAX_QUANTITY],
+            ],
             default => [],
         };
 

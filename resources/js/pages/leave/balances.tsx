@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Gift, ListOrdered, Scale } from 'lucide-react';
+import { ArrowRightLeft, Gift, ListOrdered, Scale } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AttendanceTable,
@@ -117,6 +117,11 @@ function BalancesPage({
         reason: string;
     } | null>(null);
     const [granting, setGranting] = useState<string | null>(null);
+    const [carrying, setCarrying] = useState<{
+        from: string;
+        type: string;
+        cap: string;
+    } | null>(null);
     const [ledgerOf, setLedgerOf] = useState<BalanceRow | null>(null);
     const [busy, setBusy] = useState(false);
     const one = selection.targets.length === 1 ? selection.targets[0] : null;
@@ -170,6 +175,25 @@ function BalancesPage({
                 leave_type_id: Number(granting),
             },
             { onDone: () => setGranting(null), onFinish: () => setBusy(false) },
+        );
+    };
+
+    const carry = () => {
+        if (carrying === null) return;
+        setBusy(true);
+        write(
+            'post',
+            `${PATH}/carry-over`,
+            {
+                academic_year_id: filters.academic_year_id,
+                from_year_id: Number(carrying.from),
+                leave_type_id: Number(carrying.type),
+                cap: carrying.cap === '' ? null : Number(carrying.cap),
+            },
+            {
+                onDone: () => setCarrying(null),
+                onFinish: () => setBusy(false),
+            },
         );
     };
 
@@ -270,6 +294,19 @@ function BalancesPage({
                                               : '',
                                           quantity: '',
                                           reason: '',
+                                      }),
+                              },
+                              {
+                                  id: 'leave-carry-over',
+                                  label: l.carryOver,
+                                  icon: ArrowRightLeft,
+                                  iconTone: 'education' as const,
+                                  disabled: deducting.length === 0,
+                                  onSelect: () =>
+                                      setCarrying({
+                                          from: '',
+                                          type: String(deducting[0]?.id ?? ''),
+                                          cap: '',
                                       }),
                               },
                               {
@@ -562,6 +599,86 @@ function BalancesPage({
                                     />
                                     <p className="sis-attendance-window__hint sis-branches-field--wide">
                                         {l.adjustHint}
+                                    </p>
+                                </>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            {carrying !== null ? (
+                <AttendanceWindow
+                    title={l.carryOverTitle}
+                    columns={2}
+                    pending={busy}
+                    confirmLabel={l.carryOver}
+                    confirmDisabled={
+                        carrying.from === '' ||
+                        carrying.type === '' ||
+                        (carrying.cap !== '' && !(Number(carrying.cap) > 0))
+                    }
+                    onConfirm={carry}
+                    onClose={() => setCarrying(null)}
+                    sections={[
+                        {
+                            id: 'leave-carry-over',
+                            title: l.carryOverTitle,
+                            content: (
+                                <>
+                                    <RegistryListField
+                                        label={l.carryOverFrom}
+                                        editing
+                                        required
+                                        fieldClassName="sis-branches-field--wide"
+                                        value={carrying.from}
+                                        display={
+                                            yearSpec.options.find(
+                                                (o) => o.value === carrying.from,
+                                            )?.label ?? l.year
+                                        }
+                                        options={yearSpec.options.filter(
+                                            (o) =>
+                                                o.value !==
+                                                String(filters.academic_year_id),
+                                        )}
+                                        onChange={(from) =>
+                                            setCarrying({ ...carrying, from })
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={l.carryOverType}
+                                        editing
+                                        required
+                                        fieldClassName="sis-branches-field--wide"
+                                        value={carrying.type}
+                                        display={
+                                            deducting.find(
+                                                (x) =>
+                                                    String(x.id) ===
+                                                    carrying.type,
+                                            )?.name_ar ?? l.chooseType
+                                        }
+                                        options={deducting.map((x) => ({
+                                            value: String(x.id),
+                                            label: x.name_ar,
+                                        }))}
+                                        onChange={(type) =>
+                                            setCarrying({ ...carrying, type })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={l.carryOverCap}
+                                        editing
+                                        type="number"
+                                        dir="ltr"
+                                        value={carrying.cap}
+                                        onChange={(cap) =>
+                                            setCarrying({ ...carrying, cap })
+                                        }
+                                    />
+                                    <p className="sis-attendance-window__hint sis-branches-field--wide">
+                                        {l.carryOverHint}
                                     </p>
                                 </>
                             ),

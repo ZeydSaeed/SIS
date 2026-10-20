@@ -2,11 +2,19 @@
 
 namespace Tests\Feature\Database\PostgreSql;
 
+use App\Application\Leave\Commands\RemindPendingLeaveRequestsCommand;
+use App\Application\Leave\Commands\RemindPendingLeaveRequestsHandler;
+use App\Domain\Academic\Events\HolidayChanged;
+use App\Http\Support\LeaveReportCsv;
+use App\Infrastructure\Events\HolidayChangedBridgeEvent;
 use App\Models\User;
+use App\Security\Context\SchoolContextScope;
 use Database\Seeders\SecurityPermissionSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
@@ -340,6 +348,182 @@ final class LeaveModulePostgreSqlTest extends PostgreSqlIntegrationTestCase
         // Notifications are only ever read or marked by the signed-in user, and only changed in read_at (database guard).
         $this->expectException(QueryException::class);
         DB::table('leave.notifications')->where('id', $first)->update(['kind' => 5]);
+    }
+
+    #[Test]
+    public function an_approver_delegates_for_a_period_and_the_delegate_stays_bounded_by_the_delegator(): void
+    {
+        $delegate = User::factory()->create();
+        $outsider = User::factory()->create();
+        app(SecurityPermissionSeeder::class)->assignRole($delegate, 'leave_requester', $this->schoolId);
+        $annual = $this->annualType(levels: 2, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $request = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-01', '2026-11-02');
+        $this->submit($this->teacherUser, $request)->assertSessionHas('success');
+        $decide = fn (User $u, int $id, string $decision = 'approve') => $this->as($u)->write("/leave/requests/{$id}/decide", ['version' => $this->versionOf($id), 'decision' => $decision]);
+        $window = ['date_from' => now()->subDay()->toDateString(), 'date_to' => now()->addDays(10)->toDateString()];
+
+        // Without a delegation the delegate decides nothing; only a holder of the approval right delegates it.
+        $decide($delegate, $request)->assertForbidden();
+        $this->as($this->manager)->write('/leave/delegations', $window + ['delegate_user_id' => $delegate->id])->assertForbidden();
+        $this->as($delegate)->write('/leave/delegations', $window + ['delegate_user_id' => $outsider->id])->assertForbidden();
+
+        // Refusals: oneself, someone with no role in the school, a period in the past, an overlapping duplicate.
+        $this->as($this->approver1)->write('/leave/delegations', $window + ['delegate_user_id' => $this->approver1->id])->assertSessionHas('error', 'leave.delegate_invalid');
+        $this->as($this->approver1)->write('/leave/delegations', $window + ['delegate_user_id' => $outsider->id])->assertSessionHas('error', 'leave.delegate_invalid');
+        $this->as($this->approver1)->write('/leave/delegations', ['date_from' => now()->subDays(9)->toDateString(), 'date_to' => now()->subDays(8)->toDateString(), 'delegate_user_id' => $delegate->id])->assertSessionHas('error', 'leave.delegation_dates_invalid');
+        $this->as($this->approver1)->write('/leave/delegations', $window + ['delegate_user_id' => $delegate->id])->assertSessionHas('success', 'flash.leave.delegationCreated');
+        $this->as($this->approver1)->write('/leave/delegations', $window + ['delegate_user_id' => $delegate->id])->assertSessionHas('error', 'leave.delegation_overlap');
+
+        // The delegate now sees and decides: level 1 by the delegate, so neither the delegate nor the delegator may pass level 2.
+        $this->as($delegate)->get('/leave/requests?academic_year_id='.$this->yearId)->assertOk();
+        $decide($delegate, $request)->assertSessionHas('success', 'flash.leave.levelApproved');
+        $decide($delegate, $request)->assertSessionHas('error', 'leave.same_approver');
+        $decide($this->approver1, $request)->assertSessionHas('error', 'leave.same_approver');
+        $decide($this->approver2, $request)->assertSessionHas('success', 'flash.leave.approved');
+
+        // The delegate is asked about new requests while the delegation lasts.
+        $second = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-08', '2026-11-08');
+        $this->submit($this->teacherUser, $second)->assertSessionHas('success');
+        $this->assertSame(1, DB::table('leave.notifications')->where('user_id', $delegate->id)->where('request_id', $second)->where('kind', 1)->count());
+
+        // The list: the delegator sees their own; a delegate cannot end it; the delegator can, and the right is gone at once.
+        $this->as($this->approver1)->get('/leave/delegations?academic_year_id='.$this->yearId)->assertOk()->assertInertia(fn ($page) => $page
+            ->component('leave/delegations')->where('delegations.items.0.delegate_user_id', $delegate->id)->etc());
+        $delegation = (int) DB::table('leave.delegations')->where('delegator_user_id', $this->approver1->id)->value('id');
+        $this->as($delegate)->write("/leave/delegations/{$delegation}/revoke", [])->assertForbidden();
+        $this->as($this->approver2)->write("/leave/delegations/{$delegation}/revoke", [])->assertSessionHas('error', 'leave.delegation_missing');
+        $this->as($this->approver1)->write("/leave/delegations/{$delegation}/revoke", [])->assertSessionHas('success', 'flash.leave.delegationRevoked');
+        $this->as($this->approver1)->write("/leave/delegations/{$delegation}/revoke", [])->assertSessionHas('error', 'leave.delegation_not_active');
+        $decide($delegate, $second)->assertForbidden();
+    }
+
+    #[Test]
+    public function a_delegation_dies_with_the_delegators_own_right_and_never_lets_anyone_approve_their_own_leave(): void
+    {
+        $delegate = User::factory()->create();
+        app(SecurityPermissionSeeder::class)->assignRole($delegate, 'leave_requester', $this->schoolId);
+        $annual = $this->annualType(levels: 1, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $window = ['date_from' => now()->toDateString(), 'date_to' => now()->addDays(5)->toDateString(), 'delegate_user_id' => $delegate->id];
+        $this->as($this->approver1)->write('/leave/delegations', $window)->assertSessionHas('success');
+
+        // The delegator's approval role ends: the delegation gives nothing any more.
+        $request = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-01', '2026-11-01');
+        $this->submit($this->teacherUser, $request)->assertSessionHas('success');
+        DB::table('security.user_roles')->where('user_id', $this->approver1->id)->update(['effective_to' => now()->subDay()->toDateString()]);
+        Cache::forget('security.permissions.user.'.$this->approver1->id);
+        $this->as($delegate)->write("/leave/requests/{$request}/decide", ['version' => $this->versionOf($request), 'decision' => 'approve'])->assertForbidden();
+    }
+
+    #[Test]
+    public function waiting_requests_are_reminded_once_per_round_and_escalated_to_the_managers(): void
+    {
+        $annual = $this->annualType(levels: 1, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $request = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-01', '2026-11-02');
+        $this->submit($this->teacherUser, $request)->assertSessionHas('success');
+        $count = fn (User $u, int $kind): int => DB::table('leave.notifications')->where('user_id', $u->id)->where('request_id', $request)->where('kind', $kind)->count();
+        $sweep = function (int $afterDays): array {
+            $result = app(SchoolContextScope::class)->run($this->schoolId, fn () => app(RemindPendingLeaveRequestsHandler::class)->handle(
+                new RemindPendingLeaveRequestsCommand($this->schoolId, 2, 5, new \DateTimeImmutable("+{$afterDays} days")),
+            ));
+
+            return ['reminded' => $result->get('reminded'), 'escalated' => $result->get('escalated')];
+        };
+
+        // Too early: nobody is told.
+        $this->assertSame(['reminded' => 0, 'escalated' => 0], $sweep(1));
+        // After two days the approvers (not the requester, not the manager) are reminded — once, however often it runs.
+        $this->assertSame(['reminded' => 2, 'escalated' => 0], $sweep(3));
+        $this->assertSame(['reminded' => 0, 'escalated' => 0], $sweep(3));
+        $this->assertSame([1, 1, 0, 0], [$count($this->approver1, 8), $count($this->approver2, 8), $count($this->teacherUser, 8), $count($this->manager, 8)]);
+        // After five days the managers are told as well — once.
+        $this->assertSame(['reminded' => 0, 'escalated' => 1], $sweep(6));
+        $this->assertSame(['reminded' => 0, 'escalated' => 0], $sweep(6));
+        $this->assertSame([1, 0, 0], [$count($this->manager, 9), $count($this->approver1, 9), $count($this->teacherUser, 9)]);
+
+        // A decided request is left alone.
+        $this->as($this->approver1)->write("/leave/requests/{$request}/decide", ['version' => $this->versionOf($request), 'decision' => 'approve'])->assertSessionHas('success');
+        $this->assertSame(['reminded' => 0, 'escalated' => 0], $sweep(30));
+    }
+
+    #[Test]
+    public function a_holiday_change_tells_the_managers_which_open_requests_it_touches_and_rewrites_nothing(): void
+    {
+        $annual = $this->annualType(levels: 1, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $touched = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-08', '2026-11-12');
+        $apart = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-12-06', '2026-12-06');
+        $before = DB::table('leave.requests')->where('id', $touched)->first(['quantity', 'version']);
+        $holiday = (int) DB::table('academic.holidays')->insertGetId([
+            'academic_year_id' => $this->yearId, 'school_id' => $this->schoolId, 'name' => 'يوم مدرسي', 'start_date' => '2026-11-10', 'end_date' => '2026-11-10', 'holiday_type' => 2, 'created_at' => now(),
+        ]);
+        $event = new HolidayChangedBridgeEvent(new HolidayChanged($holiday, $this->schoolId, 'created', new \DateTimeImmutable));
+
+        Event::dispatch($event);
+        Event::dispatch($event);
+
+        $notices = fn (int $request) => DB::table('leave.notifications')->where('request_id', $request)->where('kind', 7);
+        $this->assertSame(1, $notices($touched)->where('user_id', $this->manager->id)->count(), 'told once, an unread notice is not stacked');
+        $this->assertSame(0, $notices($touched)->where('user_id', $this->teacherUser->id)->count());
+        $this->assertSame(0, $notices($apart)->count());
+        $after = DB::table('leave.requests')->where('id', $touched)->first(['quantity', 'version']);
+        $this->assertEquals($before, $after, 'the request keeps its duration and version');
+        // A holiday that no longer exists tells nobody.
+        Event::dispatch(new HolidayChangedBridgeEvent(new HolidayChanged(999999999, $this->schoolId, 'updated', new \DateTimeImmutable)));
+        $this->assertSame(1, DB::table('leave.notifications')->where('kind', 7)->count());
+    }
+
+    #[Test]
+    public function unused_balance_is_carried_into_the_next_year_once_per_person(): void
+    {
+        $annual = $this->annualType(levels: 1, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $request = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-01', '2026-11-02');
+        $this->submit($this->teacherUser, $request)->assertSessionHas('success');
+        $this->as($this->approver1)->write("/leave/requests/{$request}/decide", ['version' => $this->versionOf($request), 'decision' => 'approve'])->assertSessionHas('success', 'flash.leave.approved');
+
+        $next = $this->createAcademicYear('AY-LV-NEXT-'.substr(uniqid(), -6));
+        DB::table('academic.academic_years')->where('id', $next)->update(['start_date' => '2027-09-01', 'end_date' => '2028-06-30', 'is_current' => false]);
+        DB::table('teachers.teacher_schools')->insert(['teacher_id' => $this->teacherId, 'school_id' => $this->schoolId, 'academic_year_id' => $next, 'is_primary' => true, 'created_at' => now()]);
+        DB::table('hr.employee_schools')->insert(['employee_id' => $this->employeeId, 'school_id' => $this->schoolId, 'academic_year_id' => $next, 'is_primary' => true, 'created_at' => now()]);
+        $carried = fn (int $kind, int $person) => (float) DB::table('leave.balance_entries')->where('academic_year_id', $next)->where('entry_type', 2)
+            ->where($kind === 1 ? 'teacher_id' : 'employee_id', $person)->sum('quantity');
+        $carry = fn (array $extra = []) => $this->as($this->manager)->write('/leave/balances/carry-over', ['academic_year_id' => $next, 'from_year_id' => $this->yearId, 'leave_type_id' => $annual] + $extra);
+
+        // Refused: a later year as the source, and a rights-less user.
+        $this->as($this->manager)->write('/leave/balances/carry-over', ['academic_year_id' => $this->yearId, 'from_year_id' => $next, 'leave_type_id' => $annual])->assertSessionHas('error', 'leave.carry_over_invalid');
+        $this->as($this->approver1)->write('/leave/balances/carry-over', ['academic_year_id' => $next, 'from_year_id' => $this->yearId, 'leave_type_id' => $annual])->assertForbidden();
+
+        $carry(['cap' => 5])->assertSessionHas('success', 'flash.leave.carriedOver?count=2');
+        $this->assertSame([5.0, 5.0], [$carried(1, $this->teacherId), $carried(2, $this->employeeId)], 'teacher had 8 left, employee 10 — both capped at 5');
+        $carry(['cap' => 5])->assertSessionHas('success', 'flash.leave.carriedOver?count=0');
+        $this->assertSame([5.0, 5.0], [$carried(1, $this->teacherId), $carried(2, $this->employeeId)], 'a second run adds nothing');
+        $this->assertSame(0, DB::table('leave.balance_entries')->where('academic_year_id', $this->yearId)->where('entry_type', 2)->count(), 'the earlier year is untouched');
+    }
+
+    #[Test]
+    public function a_report_downloads_as_csv_with_the_masking_of_the_page_and_safe_cells(): void
+    {
+        $annual = $this->annualType(levels: 1, entitlement: 10);
+        $this->as($this->manager)->write('/leave/balances/grant', ['leave_type_id' => $annual]);
+        $request = $this->draft($this->teacherUser, $annual, 1, $this->teacherId, '2026-11-01', '2026-11-02');
+        $this->submit($this->teacherUser, $request)->assertSessionHas('success');
+
+        $response = $this->as($this->manager)->get('/leave/reports/export?report=pending&academic_year_id='.$this->yearId);
+        $response->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('Content-Type'));
+        $body = $response->getContent();
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $body);
+        $this->assertStringContainsString('رقم الطلب', $body);
+        $this->assertStringContainsString('علي حسن', $body);
+        $this->as($this->manager)->get('/leave/reports/export?report=nope&academic_year_id='.$this->yearId)->assertOk();
+        // Those without the reports right get nothing.
+        $this->as($this->teacherUser)->get('/leave/reports/export?report=pending&academic_year_id='.$this->yearId)->assertForbidden();
+
+        $unsafe = LeaveReportCsv::build('holidays', [['name' => '=1+1', 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'holiday_type' => 1, 'global' => true]]);
+        $this->assertStringContainsString("'=1+1", $unsafe, 'a cell starting with = is not left to run as a formula');
     }
 
     private function annualType(int $levels, float $entitlement): int

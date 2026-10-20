@@ -17,6 +17,20 @@ interface LeaveReadRepositoryInterface
      */
     public function requests(int $schoolId, array $filters, int $page, int $perPage): array;
 
+    /**
+     * Draft, pending and returned requests overlapping [from, to] — what a holiday change may make stale (capped).
+     *
+     * @return list<int>
+     */
+    public function openRequestIdsOverlapping(int $schoolId, string $from, string $to): array;
+
+    /**
+     * Pending requests submitted at or before the moment (oldest first, capped): what waits too long for a decision.
+     *
+     * @return list<array{id: int, submitted_at: string}>
+     */
+    public function pendingSubmittedBefore(int $schoolId, string $moment): array;
+
     /** How many pending requests the user may still decide («بانتظار موافقتي»). */
     public function awaitingCount(int $schoolId, int $userId): int;
 

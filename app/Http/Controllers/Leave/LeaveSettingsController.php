@@ -6,6 +6,8 @@ use App\Application\Leave\Commands\AddSuggestedLeaveTypesCommand;
 use App\Application\Leave\Commands\AddSuggestedLeaveTypesHandler;
 use App\Application\Leave\Commands\AdjustLeaveBalanceCommand;
 use App\Application\Leave\Commands\AdjustLeaveBalanceHandler;
+use App\Application\Leave\Commands\CarryOverLeaveBalancesCommand;
+use App\Application\Leave\Commands\CarryOverLeaveBalancesHandler;
 use App\Application\Leave\Commands\ChangeLeaveTypeStatusCommand;
 use App\Application\Leave\Commands\ChangeLeaveTypeStatusHandler;
 use App\Application\Leave\Commands\GrantLeaveEntitlementsCommand;
@@ -98,6 +100,18 @@ final class LeaveSettingsController extends Controller
         ));
 
         return $this->done($request, 'leave.web.balances.grant', 'type:'.$request->validated('leave_type_id'), $result, 'flash.leave.granted?count='.(int) $result->get('granted'));
+    }
+
+    public function carryOver(ManageLeaveBalanceRequest $request, CarryOverLeaveBalancesHandler $handler): RedirectResponse
+    {
+        $cap = $request->validated('cap');
+        $result = $handler->handle(new CarryOverLeaveBalancesCommand(
+            $this->context->schoolId(), (int) $request->validated('from_year_id'), $this->context->academicYearId($request),
+            (int) $request->validated('leave_type_id'), $cap === null || $cap === '' ? null : (float) $cap,
+            $this->context->userId($request), $this->key($request),
+        ));
+
+        return $this->done($request, 'leave.web.balances.carryover', 'type:'.$request->validated('leave_type_id'), $result, 'flash.leave.carriedOver?count='.(int) $result->get('carried'));
     }
 
     private function fields(ManageLeaveTypeRequest $request): LeaveTypeFields

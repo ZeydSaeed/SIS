@@ -24,6 +24,12 @@ interface LeaveNotificationRepositoryInterface
      */
     public function markRead(int $schoolId, int $userId, ?array $ids, string $at): int;
 
-    /** Users holding an effective role with `leave.request.approve` in the school. @return list<int> */
+    /** Users who may decide leave in the school today: holders of `leave.request.approve` and their active delegates. @return list<int> */
     public function approverUserIds(int $schoolId): array;
+
+    /** Users managing the school's leave (`leave.request.manage`): told about holiday changes and escalations. @return list<int> */
+    public function managerUserIds(int $schoolId): array;
+
+    /** Whether the user got a notification of this kind about the request at or after `$since` (a reminder goes out once per round). */
+    public function exists(int $userId, int $requestId, LeaveNotificationKind $kind, string $since): bool;
 }

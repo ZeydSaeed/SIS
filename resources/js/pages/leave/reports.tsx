@@ -2,6 +2,7 @@ import {
     BarChart3,
     CalendarDays,
     Clock4,
+    FileDown,
     Hourglass,
     Printer,
     Users,
@@ -267,6 +268,24 @@ function ReportsPage({ report, types, filters, abilities }: Props) {
                 id: 'leave-report-print',
                 label: l.actions,
                 commands: [
+                    {
+                        id: 'leave-report-export-cmd',
+                        label: l.exportCsv,
+                        icon: FileDown,
+                        iconTone: 'ok',
+                        onSelect: () => {
+                            // A plain download (a file, not an Inertia page): the same report and filters.
+                            const params = new URLSearchParams({
+                                report: report.kind,
+                                academic_year_id: String(filters.academic_year_id),
+                            });
+                            if (filters.from) params.set('from', filters.from);
+                            if (filters.to) params.set('to', filters.to);
+                            if (filters.kind !== null) params.set('kind', String(filters.kind));
+                            filters.type.forEach((id) => params.append('type[]', String(id)));
+                            window.location.assign(`${PATH}/export?${params.toString()}`);
+                        },
+                    },
                     {
                         id: 'leave-report-print-cmd',
                         label: l.print,

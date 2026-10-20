@@ -2,6 +2,7 @@
 
 use App\Infrastructure\Jobs\DetectAttendanceAlertsJob;
 use App\Infrastructure\Jobs\ProcessOutboxJob;
+use App\Infrastructure\Jobs\RemindPendingLeaveRequestsJob;
 use App\Intelligence\Jobs\RunGrowthOptimizationJob;
 use App\Intelligence\Jobs\RunHealthMonitorJob;
 use App\Intelligence\Jobs\RunPerformanceAnalysisJob;
@@ -23,6 +24,7 @@ if (config('intelligence.enabled', true) && config('sis.scheduler.intelligence_e
     Schedule::job(new RunSchemaGuardianJob)->daily()->name('intelligence:schema');
     Schedule::job(new ProcessOutboxJob)->everyMinute()->name('architecture:outbox');
     Schedule::job(new DetectAttendanceAlertsJob)->hourly()->name('attendance:alerts')->withoutOverlapping();
+    Schedule::job(new RemindPendingLeaveRequestsJob)->dailyAt('07:00')->name('leave:reminders')->withoutOverlapping();
     Schedule::command('queue:work database --stop-when-empty --max-time=55')
         ->everyMinute()
         ->name('intelligence:queue-worker')

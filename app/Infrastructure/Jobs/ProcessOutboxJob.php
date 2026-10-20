@@ -2,6 +2,7 @@
 
 namespace App\Infrastructure\Jobs;
 
+use App\Domain\Academic\Events\HolidayChanged;
 use App\Domain\Attendance\Events\AttendanceWorkflowEvent;
 use App\Domain\Enrollment\Events\EnrollmentCancelled;
 use App\Domain\Enrollment\Events\EnrollmentPlacementUpdated;
@@ -9,6 +10,7 @@ use App\Domain\Enrollment\Events\StudentEnrolled;
 use App\Infrastructure\Events\AttendanceWorkflowBridgeEvent;
 use App\Infrastructure\Events\EnrollmentCancelledBridgeEvent;
 use App\Infrastructure\Events\EnrollmentPlacementUpdatedBridgeEvent;
+use App\Infrastructure\Events\HolidayChangedBridgeEvent;
 use App\Infrastructure\Events\StudentEnrolledBridgeEvent;
 use App\Infrastructure\Persistence\Outbox\EloquentOutboxRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -43,6 +45,10 @@ final class ProcessOutboxJob implements ShouldQueue
 
                 if ($event instanceof EnrollmentPlacementUpdated) {
                     Event::dispatch(new EnrollmentPlacementUpdatedBridgeEvent($event));
+                }
+
+                if ($event instanceof HolidayChanged) {
+                    Event::dispatch(new HolidayChangedBridgeEvent($event));
                 }
 
                 if ($event instanceof AttendanceWorkflowEvent) {

@@ -104,6 +104,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Leave («الإجازات والعطل») — reminder and escalation of requests waiting for a decision
+    |--------------------------------------------------------------------------
+    |
+    | Approvers are reminded once per round after `remind_after_days`; the leave managers are told once after
+    | `escalate_after_days` (must not be shorter). The daily sweep only writes in-app notifications.
+    |
+    */
+
+    'leave' => [
+        'remind_after_days' => max(1, (int) env('SIS_LEAVE_REMIND_AFTER_DAYS', 2)),
+        'escalate_after_days' => max(1, (int) env('SIS_LEAVE_ESCALATE_AFTER_DAYS', 5)),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Communication outbound (Phase COM-U06)
     |--------------------------------------------------------------------------
     */

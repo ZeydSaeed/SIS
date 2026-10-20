@@ -24,6 +24,7 @@ final class GetEffectiveTimetableHandler
             'version_id' => $result['version_id'],
             'day_of_week' => $result['day_of_week'],
             'week_no' => $result['week_no'],
+            'holiday' => $result['holiday'],
         ]);
     }
 }

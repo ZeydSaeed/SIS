@@ -19,6 +19,7 @@ use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Imports\ImportPageController;
 use App\Http\Controllers\Intelligence\RecommendationController;
+use App\Http\Controllers\Leave\LeaveDelegationController;
 use App\Http\Controllers\Leave\LeaveNotificationController;
 use App\Http\Controllers\Leave\LeavePageController;
 use App\Http\Controllers\Leave\LeaveRequestController;
@@ -420,11 +421,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/holidays', [HolidayPageController::class, 'store'])->name('holidays.store');
         Route::patch('/holidays/{holiday}', [HolidayPageController::class, 'update'])->whereNumber('holiday')->name('holidays.update');
         Route::post('/holidays/{holiday}/status', [HolidayPageController::class, 'changeStatus'])->whereNumber('holiday')->name('holidays.status');
+        Route::get('/delegations', [LeaveDelegationController::class, 'index'])->name('delegations.index');
+        Route::post('/delegations', [LeaveDelegationController::class, 'store'])->name('delegations.store');
+        Route::post('/delegations/{delegation}/revoke', [LeaveDelegationController::class, 'revoke'])->whereNumber('delegation')->name('delegations.revoke');
         Route::get('/notifications', [LeavePageController::class, 'notifications'])->name('notifications.index');
         Route::post('/notifications/read', [LeaveNotificationController::class, 'read'])->name('notifications.read');
         Route::get('/balances', [LeavePageController::class, 'balances'])->name('balances.index');
         Route::post('/balances/adjust', [LeaveSettingsController::class, 'adjust'])->name('balances.adjust');
         Route::post('/balances/grant', [LeaveSettingsController::class, 'grant'])->name('balances.grant');
+        Route::post('/balances/carry-over', [LeaveSettingsController::class, 'carryOver'])->name('balances.carryover');
         Route::get('/types', [LeavePageController::class, 'types'])->name('types.index');
         Route::post('/types', [LeaveSettingsController::class, 'storeType'])->name('types.store');
         Route::post('/types/suggested', [LeaveSettingsController::class, 'addSuggested'])->name('types.suggested');
@@ -433,6 +438,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/types/{type}/policy', [LeaveSettingsController::class, 'publishPolicy'])->whereNumber('type')->name('types.policy');
         Route::get('/calendar', [LeavePageController::class, 'calendar'])->name('calendar');
         Route::get('/reports', [LeavePageController::class, 'reports'])->name('reports');
+        Route::get('/reports/export', [LeavePageController::class, 'exportReport'])->name('reports.export');
     });
 
     // Blueprint lifecycle / support shells (UI scaffolding — handlers land per module gate).

@@ -252,6 +252,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->bind(TimetableWorkspaceReadRepositoryInterface::class, EloquentTimetableWorkspaceReadRepository::class);
         // Timetable engine (docs/timetable): projection, configuration, runs, versions, solver port, queue dispatch.
         $this->app->bind(TimetableEngineReadRepositoryInterface::class, EloquentTimetableEngineReadRepository::class);
+        $this->app->bind(\App\Application\Timetable\Contracts\HolidayCalendarInterface::class, \App\Infrastructure\Timetable\AcademicHolidayCalendar::class);
         $this->app->bind(\App\Domain\Timetable\Repositories\TeacherElsewhereRepositoryInterface::class, \App\Infrastructure\Persistence\Timetable\EloquentTeacherElsewhereRepository::class);
         $this->app->bind(TimetableConfigurationRepositoryInterface::class, EloquentTimetableConfigurationRepository::class);
         $this->app->bind(\App\Domain\Timetable\Repositories\TimetablePlaceRepositoryInterface::class, \App\Infrastructure\Persistence\Timetable\EloquentTimetablePlaceRepository::class);

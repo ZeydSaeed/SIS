@@ -28,6 +28,7 @@ import type { BreadcrumbItem } from '@/types';
 
 type UncoveredLesson = {
     schedule_id: number;
+    date: string;
     teacher_name: string;
     period_number: number;
     start_time: string;
@@ -43,6 +44,7 @@ type Props = {
         away_today: LeaveRequestRow[];
         upcoming: LeaveRequestRow[];
         uncovered_today: UncoveredLesson[];
+        uncovered_upcoming: UncoveredLesson[];
     };
     today: string;
     filters: { academic_year_id: number };
@@ -102,6 +104,35 @@ function DashboardPage({
         yearSpec.options.length,
     ]);
 
+    const uncoveredColumns: AttendanceColumn<UncoveredLesson & { row_id?: number }>[] = [
+        {
+            id: 'teacher',
+            header: l.person,
+            kind: 'name',
+            cell: (x) => x.teacher_name,
+        },
+        {
+            id: 'period',
+            header: l.coveragePeriod,
+            kind: 'text',
+            cell: (x) => (
+                <span dir="ltr">{`${x.period_number} · ${x.start_time}–${x.end_time}`}</span>
+            ),
+        },
+        {
+            id: 'section',
+            header: l.coverageSection,
+            kind: 'text',
+            cell: (x) => `${x.class_name} / ${x.section_name}`,
+        },
+        {
+            id: 'subject',
+            header: l.coverageSubject,
+            kind: 'text',
+            cell: (x) => x.subject_name,
+        },
+    ];
+
     const leaveColumns: AttendanceColumn<LeaveRequestRow>[] = [
         {
             id: 'person',
@@ -148,13 +179,15 @@ function DashboardPage({
     ];
 
     return (
-        <LeavePage title={l.title} current={'dashboard'} abilities={abilities}>
+        <LeavePage
+            title={l.title}
+            current={'dashboard'}
+            abilities={abilities}
+            scroll
+        >
             {abilities.view ? (
                 <>
-                    <LeaveSectionTitle
-                        title={l.uncoveredToday}
-                        count={dashboard.uncovered_today.length}
-                    />
+                    <LeaveSectionTitle title={l.uncoveredToday} />
                     <AttendanceTable
                         caption={l.uncoveredToday}
                         storageKey="leave.dashboard.uncovered"
@@ -162,42 +195,32 @@ function DashboardPage({
                         rowKey={(x) => x.schedule_id}
                         fit={false}
                         emptyText={l.nothing}
+                        columns={uncoveredColumns}
+                    />
+                    <LeaveSectionTitle title={l.uncoveredUpcoming} />
+                    <AttendanceTable
+                        caption={l.uncoveredUpcoming}
+                        storageKey="leave.dashboard.uncovered-upcoming"
+                        rows={dashboard.uncovered_upcoming.map((x, i) => ({
+                            ...x,
+                            row_id: i + 1,
+                        }))}
+                        rowKey={(x) => x.row_id}
+                        fit={false}
+                        emptyText={l.nothing}
                         columns={[
                             {
-                                id: 'teacher',
-                                header: l.person,
-                                kind: 'name',
-                                cell: (x) => x.teacher_name,
-                            },
-                            {
-                                id: 'period',
-                                header: l.coveragePeriod,
+                                id: 'date',
+                                header: l.coverageDate,
                                 kind: 'text',
-                                cell: (x) => (
-                                    <span dir="ltr">{`${x.period_number} · ${x.start_time}–${x.end_time}`}</span>
-                                ),
+                                cell: (x) => <span dir="ltr">{x.date}</span>,
                             },
-                            {
-                                id: 'section',
-                                header: l.coverageSection,
-                                kind: 'text',
-                                cell: (x) =>
-                                    `${x.class_name} / ${x.section_name}`,
-                            },
-                            {
-                                id: 'subject',
-                                header: l.coverageSubject,
-                                kind: 'text',
-                                cell: (x) => x.subject_name,
-                            },
+                            ...uncoveredColumns,
                         ]}
                     />
                 </>
             ) : null}
-            <LeaveSectionTitle
-                title={l.awayToday}
-                count={dashboard.away_today.length}
-            />
+            <LeaveSectionTitle title={l.awayToday} />
             <AttendanceTable
                 caption={l.awayToday}
                 storageKey="leave.dashboard.away"
@@ -207,10 +230,7 @@ function DashboardPage({
                 fit={false}
                 emptyText={l.nothing}
             />
-            <LeaveSectionTitle
-                title={l.upcoming}
-                count={dashboard.upcoming.length}
-            />
+            <LeaveSectionTitle title={l.upcoming} />
             <AttendanceTable
                 caption={l.upcoming}
                 storageKey="leave.dashboard.upcoming"

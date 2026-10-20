@@ -12,5 +12,7 @@ final readonly class GetLeaveDashboardQuery implements Query
         public int $academicYearId,
         public string $today,
         public LeaveViewer $viewer,
+        /** The lesson-cover tables cost timetable reads; the overview page needs only the counts. */
+        public bool $withCoverage = true,
     ) {}
 }

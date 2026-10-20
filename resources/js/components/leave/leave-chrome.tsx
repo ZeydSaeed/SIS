@@ -19,6 +19,7 @@ import {
     Settings2,
     ShieldCheck,
     Undo2,
+    UserCog,
     UserX,
     Users,
     XCircle,
@@ -51,6 +52,7 @@ export type LeaveAbilities = {
     request: boolean;
     manage: boolean;
     approve: boolean;
+    delegate: boolean;
     cancel: boolean;
     policies: boolean;
     balances: boolean;
@@ -152,7 +154,8 @@ export type LeaveSection =
     | 'types'
     | 'calendar'
     | 'reports'
-    | 'holidays';
+    | 'holidays'
+    | 'delegations';
 
 /** «أقسام الإجازات» — one icon and colour per section, on the «تحرير» tab of every leave page (as attendance). */
 const SECTIONS: Array<{
@@ -270,6 +273,15 @@ export function leaveRailItems(
             tone: 'amber',
             count: badges.awaiting,
             show: abilities.approve,
+        },
+        {
+            key: 'delegations',
+            href: '/leave/delegations',
+            label: l.delegations,
+            icon: UserCog,
+            tone: 'authority',
+            count: counts.delegations,
+            show: abilities.delegate,
         },
         {
             key: 'notifications',
@@ -411,11 +423,14 @@ export function LeavePage({
     title,
     current,
     abilities,
+    scroll = false,
     children,
 }: {
     title: string;
     current: LeaveSection | 'awaiting' | 'notifications';
     abilities: LeaveAbilities;
+    /** Stacked-table pages: the page itself scrolls (scrollbar hidden) instead of squeezing its tables. */
+    scroll?: boolean;
     children: ReactNode;
 }) {
     const panels = useShellPanels();
@@ -433,7 +448,7 @@ export function LeavePage({
             >
                 <div className="sis-admission-page-body">
                     <div
-                        className={`sis-att-shell sis-leave-shell${panels.isHidden('rail') ? ' sis-att-shell--rail-collapsed' : ''}${shell ? '' : ' sis-leave-shell--no-side'}${shell && hideSide ? ' sis-att-shell--side-collapsed' : ''}`}
+                        className={`sis-att-shell sis-leave-shell${panels.isHidden('rail') ? ' sis-att-shell--rail-collapsed' : ''}${scroll ? ' sis-leave-shell--scroll' : ''}${shell ? '' : ' sis-leave-shell--no-side'}${shell && hideSide ? ' sis-att-shell--side-collapsed' : ''}`}
                     >
                         {shell ? (
                             <aside

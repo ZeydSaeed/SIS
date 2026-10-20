@@ -432,6 +432,52 @@ function RequestsPage({
         );
     };
 
+    /**
+     * The same substitute for every uncovered day of this lesson shown in the coverage window: one timetable
+     * substitution per day, in order — each keeps the timetable's own checks (clashes, permission, audit), and the run
+     * stops at the first refusal (its message is already shown).
+     */
+    const assignAll = (lesson: CoverageLesson, candidate: Candidate) => {
+        const days = (coverage?.lessons ?? []).filter(
+            (x) =>
+                x.schedule_id === lesson.schedule_id &&
+                x.role === 'lead' &&
+                !x.covered,
+        );
+        const reason = `${l.title} #${requests.items.find((r) => r.id === covering)?.request_no ?? ''}`;
+        setBusy(true);
+        const step = (index: number) => {
+            if (index >= days.length) {
+                setBusy(false);
+                setSuggestFor(null);
+                if (covering !== null)
+                    load(['coverage'], {
+                        coverage: covering,
+                        coverage_page: coverage?.page ?? 1,
+                    });
+                return;
+            }
+            let succeeded = false;
+            write(
+                'post',
+                `/timetable/schedules/${days[index].schedule_id}/substitute`,
+                {
+                    exception_date: days[index].date,
+                    substitute_teacher_id: candidate.teacher_id,
+                    reason,
+                },
+                {
+                    onDone: () => {
+                        succeeded = true;
+                        step(index + 1);
+                    },
+                    onFinish: () => succeeded || setBusy(false),
+                },
+            );
+        };
+        step(0);
+    };
+
     // ── Table ──────────────────────────────────────────────────────────────────────────────────────────────────
     const columns: AttendanceColumn<LeaveRequestRow>[] = [
         {
@@ -1794,19 +1840,35 @@ function RequestsPage({
                                             kind: 'plain',
                                             cell: (c) =>
                                                 abilities.assign_cover ? (
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        disabled={busy}
-                                                        onClick={() =>
-                                                            assign(
-                                                                suggestFor,
-                                                                c,
-                                                            )
-                                                        }
-                                                    >
-                                                        {l.assign}
-                                                    </Button>
+                                                    <>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            disabled={busy}
+                                                            onClick={() =>
+                                                                assign(
+                                                                    suggestFor,
+                                                                    c,
+                                                                )
+                                                            }
+                                                        >
+                                                            {l.assign}
+                                                        </Button>{' '}
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={busy}
+                                                            onClick={() =>
+                                                                assignAll(
+                                                                    suggestFor,
+                                                                    c,
+                                                                )
+                                                            }
+                                                        >
+                                                            {l.assignAllDays}
+                                                        </Button>
+                                                    </>
                                                 ) : (
                                                     '—'
                                                 ),

@@ -831,9 +831,9 @@ export function TitleBarRibbon({
     const i18n = t();
     const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
-    // Every group shows its icons and commands in the strip itself (never folded into a flyout button); a window too
-    // narrow for all of them scrolls the strip sideways. Set to true to fold the groups that do not fit again.
-    const accordion = false;
+    // «الجدول الدراسي»: a group that does not fit the window folds into one button that opens its commands (طي / إظهار);
+    // the other pages keep every group in the strip and scroll it sideways.
+    const accordion = isTimetablePage;
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const [collapsedCount, setCollapsedCount] = useState(0);
     // Groups stay unfolded: a strip wider than the window first tightens its spacing (before it ever scrolls).

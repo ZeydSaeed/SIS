@@ -15718,8 +15718,7 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 /* A folded group's button already says the group's name: the second caption under it overlapped it. */
-.sis-ribbon--timetable-page .sis-ribbon__group--collapsed > .sis-ribbon__group-label,
-.sis-ribbon--tab-add .sis-ribbon__group--collapsed > .sis-ribbon__group-label {
+.sis-ribbon--timetable-page .sis-ribbon__group--collapsed > .sis-ribbon__group-label {
     display: none;
 }
 
@@ -15732,31 +15731,6 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     max-width: none;
 }
 
-/* «إضافة» on every page: compact buttons with two-line labels so every icon and text shows. */
-.sis-ribbon--fit.sis-ribbon--tab-add .sis-ribbon__group {
-    padding-inline: 0.15rem;
-}
-
-.sis-ribbon--fit.sis-ribbon--tab-add .sis-ribbon__group--commands .sis-ribbon__items {
-    gap: 0.05rem;
-    flex-wrap: nowrap;
-    align-items: stretch;
-}
-
-/* Icons on one line across every group: content starts at the top of the button, never centred by label height. */
-.sis-ribbon--fit.sis-ribbon--tab-add .sis-ribbon__group--commands .sis-ribbon__item {
-    min-width: 2.6rem;
-    width: auto;
-    max-width: 4.6rem;
-    padding: 0.3rem 0.1rem 0.1rem;
-    justify-content: flex-start;
-}
-
-.sis-ribbon--fit.sis-ribbon--tab-add .sis-ribbon__group--commands .sis-ribbon__label {
-    white-space: normal;
-    overflow-wrap: break-word;
-    line-height: 1.3;
-}
 
 /* Timetable engine windows: sized to what each one shows, so forms and tables are fully visible. */
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-engine-sheet--settings {
@@ -18345,36 +18319,41 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     width: 100%;
 }
 
-/* «إعدادات الطباعة»: one compact window — three columns, each label right beside its field, a fixed width
-   (the window is not auto-widened: its fields shrink instead). */
+/* «إعدادات الطباعة»: one compact window — the paper section in two columns, the four margins on one line, each label
+   above its field (a fixed width: the fields shrink instead of the window growing). */
 .sis-admission-sheet-dialog.sis-branches-sheet.sis-timetable-print-sheet {
-    --sis-sheet-w: min(94vw, 34rem);
+    --sis-sheet-w: min(94vw, 30rem);
 }
 
 .sis-timetable-sheet.sis-timetable-print-sheet .sis-admission-sheet__body {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    column-gap: 0.75rem;
+    row-gap: 0.45rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.sis-timetable-sheet.sis-timetable-print-sheet .sis-admission-sheet__section:has(#timetable-print-margins) .sis-admission-sheet__body {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     column-gap: 0.5rem;
-    row-gap: 0.3rem;
-    padding: 0.35rem 0.6rem;
 }
 
 .sis-timetable-print-sheet .sis-admission-sheet__body .sis-admission-sheet__field {
     display: grid !important;
-    grid-template-columns: 4.2rem minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.3rem;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-content: start;
+    row-gap: 0.2rem;
     min-width: 0;
 }
 
 .sis-timetable-print-sheet .sis-admission-sheet__body .sis-admission-sheet__field > .sis-admission-sheet__label {
-    grid-column: 1;
+    grid-column: 1 !important;
     font-size: 0.74rem;
     line-height: 1.2;
     white-space: normal;
 }
 
 .sis-timetable-print-sheet .sis-admission-sheet__body .sis-admission-sheet__field > :not(.sis-admission-sheet__label) {
-    grid-column: 2;
+    grid-column: 1 !important;
     width: 100%;
     min-width: 0;
 }
@@ -18388,6 +18367,12 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 
 .sis-timetable-print-sheet .sis-timetable-print-toggle {
     min-height: 1.85rem;
+}
+
+.sis-timetable-print-sheet .sis-admission-sheet__actions {
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
 }
 
 .sis-timetable-print-sheet .sis-admission-sheet__banner {
@@ -22001,55 +21986,6 @@ td.sis-admission-periods-table__num {
     text-overflow: clip;
 }
 
-/* Page ribbons: a filter group never shrinks under its fields (they were clipped) — what does not fit folds instead. */
-.sis-ribbon--fit .sis-ribbon__group--filters:has(.sis-ribbon__filters-stack--curriculum) {
-    flex: 0 0 auto;
-    min-width: max-content;
-}
-
-/* Font controls: label beside the list, so the two rows fit the ribbon height without overlapping. */
-.sis-ribbon--fit .sis-ribbon__font-controls {
-    justify-content: center;
-    min-width: 12rem;
-}
-
-.sis-ribbon--fit .sis-ribbon__font-controls .sis-ribbon__field {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.sis-ribbon--fit .sis-ribbon__font-controls .sis-ribbon__field-label {
-    flex: 0 0 3rem;
-    white-space: nowrap;
-    font-size: 0.66rem;
-}
-
-.sis-ribbon--fit .sis-ribbon__font-controls .sis-ribbon__select {
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-}
-
-.sis-ribbon--fit .sis-ribbon__font-controls .sis-ribbon__select--size {
-    min-width: 0;
-}
-
-/* Title bar: the tab strip keeps its full labels — the search field gives way first (it was cutting «مساعدة»). */
-.sis-titlebar--with-search {
-    grid-template-columns: auto minmax(7rem, 1fr) auto;
-}
-
-.sis-titlebar--with-search .sis-titlebar__search-slot,
-.sis-titlebar--with-search .sis-titlebar__search {
-    min-width: 7rem;
-}
-
-.sis-titlebar--with-search .sis-titlebar__menu {
-    flex: 0 0 auto;
-    overflow: visible;
-}
-
 /* Admission pages on the shared table theme: the shell already pads the page, so the body (transitions bar, table) must not
    inset again — they line up with the workflow progress strip on both sides. */
 .sis-admission-themed .sis-admission-page-body {
@@ -22075,11 +22011,6 @@ body:has(.sis-admission-themed) .sis-admission-draft-dialog .sis-admission-sheet
 .sis-timetable-master__break .sis-timetable-cell__break-label {
     writing-mode: horizontal-tb;
     transform: none;
-}
-
-/* «معاينة الطباعة»: the home tab starts at the right edge of the screen — no dark gap beside it (the titlebar's own side padding). */
-.sis-timetable-preview .sis-timetable-preview__chrome .sis-titlebar {
-    padding-inline-start: 0 !important;
 }
 
 /* ═══ «الإجازات والغياب» › تبويب التحرير: icons of the page's groups (report kinds, actions…) sit on one line, whole —
@@ -22116,4 +22047,31 @@ body:has(.sis-admission-themed) .sis-admission-draft-dialog .sis-admission-sheet
     text-overflow: clip;
     line-height: 1.45;
     padding-block-end: 0.12rem;
+}
+
+/* «الإجازات والغياب» › المتابعة: the page scrolls (hidden scrollbar); stacked tables keep their natural height. */
+.sis-att-shell.sis-leave-shell--scroll > .sis-att-shell__main {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sis-att-shell.sis-leave-shell--scroll > .sis-att-shell__main::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.sis-att-shell.sis-leave-shell--scroll > .sis-att-shell__main > * {
+    flex-shrink: 0;
+}
+
+/* «الإجازات والغياب» windows: opened in the middle of the whole screen, fully inside it (never under the tab strip or
+   the sidebar offset), the form scrolling inside when taller than the screen. */
+body .sis-admission-sheet-dialog.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window:not([data-placed='true']) {
+    left: 50% !important;
+    top: 50% !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem) !important;
 }
