@@ -831,9 +831,9 @@ export function TitleBarRibbon({
     const i18n = t();
     const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
-    // «الجدول الدراسي»: a group that does not fit the window folds into one button that opens its commands (طي / إظهار);
-    // the other pages keep every group in the strip and scroll it sideways.
-    const accordion = isTimetablePage;
+    // «الجدول الدراسي» and «الحضور»: a group that does not fit the window folds into one button that opens its
+    // commands (طي / إظهار); the other pages keep every group in the strip and scroll it sideways.
+    const accordion = isTimetablePage || isAttendancePage;
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const [collapsedCount, setCollapsedCount] = useState(0);
     // Groups stay unfolded: a strip wider than the window first tightens its spacing (before it ever scrolls).

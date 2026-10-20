@@ -15718,15 +15718,18 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 }
 
 /* A folded group's button already says the group's name: the second caption under it overlapped it. */
-.sis-ribbon--timetable-page .sis-ribbon__group--collapsed > .sis-ribbon__group-label {
+.sis-ribbon--timetable-page .sis-ribbon__group--collapsed > .sis-ribbon__group-label,
+.sis-ribbon--coloured-icons .sis-ribbon__group--collapsed > .sis-ribbon__group-label {
     display: none;
 }
 
-.sis-ribbon--timetable-page .sis-ribbon__group--collapsed > .sis-ribbon__items {
+.sis-ribbon--timetable-page .sis-ribbon__group--collapsed > .sis-ribbon__items,
+.sis-ribbon--coloured-icons .sis-ribbon__group--collapsed > .sis-ribbon__items {
     flex: 1 1 auto;
 }
 
-.sis-ribbon--timetable-page .sis-ribbon__accordion {
+.sis-ribbon--timetable-page .sis-ribbon__accordion,
+.sis-ribbon--coloured-icons .sis-ribbon__accordion {
     min-width: 4.4rem;
     max-width: none;
 }
@@ -18253,6 +18256,16 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-timetable-preview .sis-timetable-preview__ribbon {
     display: flex;
     align-items: stretch;
+}
+
+/* «معاينة الطباعة»: no dark gap before the first tab — the strip starts at the window edge and the tab's own fill (the
+   active tab's colour) covers the space the title bar's padding left. */
+.sis-timetable-preview .sis-timetable-preview__chrome .sis-titlebar {
+    padding-inline-start: 0 !important;
+}
+
+.sis-timetable-preview .sis-timetable-preview__chrome .sis-titlebar__menu-item:first-child {
+    padding-inline-start: 1.6rem !important;
 }
 
 /* «معاينة الطباعة»: the strip is the page's tab strip + ribbon; the print settings are a window of their own. */
