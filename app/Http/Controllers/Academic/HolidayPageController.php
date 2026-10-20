@@ -54,7 +54,11 @@ final class HolidayPageController extends Controller
         $yearId = $this->resolveYear($request->query('year'), $yearList);
         $search = mb_substr(trim((string) $request->query('search', '')), 0, 100);
         $state = in_array($request->query('state'), ['1', '2'], true) ? (int) $request->query('state') : null;
-        $type = in_array($request->query('type'), ['1', '2', '3'], true) ? (int) $request->query('type') : null;
+        $rawType = $request->query('type', []);
+        $types = array_values(array_unique(array_filter(
+            array_map('intval', is_array($rawType) ? $rawType : explode(',', (string) $rawType)),
+            static fn (int $v): bool => in_array($v, [1, 2, 3], true),
+        )));
 
         $all = $yearId === null ? [] : $holidays->handle(new ListHolidaysQuery(
             schoolId: $this->schoolContext->requireId(),
@@ -62,7 +66,7 @@ final class HolidayPageController extends Controller
             includeInactive: true,
         ));
         $shown = array_values(array_filter($all, static fn (HolidayDTO $h): bool => ($state === null || $h->status === $state)
-            && ($type === null || $h->holidayType === $type)
+            && ($types === [] || in_array($h->holidayType, $types, true))
             && ($search === '' || mb_stripos($h->name, $search) !== false)));
 
         $perPage = min(self::PER_PAGE, max(5, (int) $request->query('per_page', 20)));
@@ -85,7 +89,7 @@ final class HolidayPageController extends Controller
                 'days' => $this->activeDays($all),
             ],
             'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => count($shown), 'last_page' => $lastPage],
-            'filters' => ['year' => $yearId, 'search' => $search, 'state' => $state, 'type' => $type],
+            'filters' => ['year' => $yearId, 'search' => $search, 'state' => $state, 'type' => $types],
             'badges' => $this->badges->handle(new GetLeaveBadgesQuery($this->schoolContext->requireId(), (int) $user->id, (bool) $user->can('approveLeave'))),
             'abilities' => $this->leave->abilities($request),
             'authorization' => [

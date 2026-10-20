@@ -16,7 +16,6 @@ import {
     type AttendanceColumn,
 } from '@/components/attendance/attendance-chrome';
 import {
-    LeaveSectionTitle,
     LeavePage,
     LeaveTextArea,
     useLeaveEditRibbon,
@@ -500,10 +499,6 @@ function TypesPage({ types, abilities }: Props) {
 
     return (
         <LeavePage title={l.types} current={'types'} abilities={abilities}>
-            <LeaveSectionTitle title={l.types} count={types.length} />
-            <p className="sis-attendance-window__hint">
-                {can ? l.typesHint : l.readOnly}
-            </p>
             <AttendanceTable
                 caption={l.types}
                 storageKey="leave.types"
@@ -519,6 +514,7 @@ function TypesPage({ types, abilities }: Props) {
 
             {historyOf !== null ? (
                 <AttendanceWindow
+                    fit
                     title={`${l.policyHistory} — ${historyOf.name_ar}`}
                     wide
                     columns={2}
@@ -654,6 +650,7 @@ function TypesPage({ types, abilities }: Props) {
 
             {typeForm !== null ? (
                 <AttendanceWindow
+                    fit
                     title={typeForm.type.id === null ? l.addType : l.editType}
                     columns={2}
                     pending={busy}
@@ -820,6 +817,7 @@ function TypesPage({ types, abilities }: Props) {
 
             {policyFor !== null ? (
                 <AttendanceWindow
+                    fit
                     title={`${l.publishPolicy} — ${policyFor.type.name_ar}`}
                     columns={2}
                     pending={busy}

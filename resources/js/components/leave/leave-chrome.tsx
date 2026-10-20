@@ -228,7 +228,11 @@ export function useLeaveEditRibbon(pageGroups: PageRibbonGroup[]): void {
 export type LeaveBadges = { unread: number; awaiting: number };
 
 /** One rail entry per leave section (what the viewer may open) — the rail's and the overview page's one list. */
-export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): Array<{
+export function leaveRailItems(
+    abilities: LeaveAbilities,
+    badges: LeaveBadges,
+    counts: Record<string, number> = {},
+): Array<{
     key: string;
     href: string;
     label: string;
@@ -246,6 +250,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.dashboard,
             icon: LayoutDashboard,
             tone: 'sky',
+            count: counts.dashboard,
             show: true,
         },
         {
@@ -254,6 +259,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.requests,
             icon: ListChecks,
             tone: 'growth',
+            count: counts.requests,
             show: true,
         },
         {
@@ -280,6 +286,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.balances,
             icon: Scale,
             tone: 'forest',
+            count: counts.balances,
             show: true,
         },
         {
@@ -288,6 +295,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.calendar,
             icon: CalendarRange,
             tone: 'education',
+            count: counts.calendar,
             show: true,
         },
         {
@@ -296,6 +304,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.types,
             icon: Settings2,
             tone: 'authority',
+            count: counts.types,
             show: true,
         },
         {
@@ -304,6 +313,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.reports,
             icon: BarChart3,
             tone: 'steel',
+            count: counts.reports,
             show: abilities.reports,
         },
         {
@@ -312,6 +322,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.studentLeave,
             icon: FileCheck2,
             tone: 'rose',
+            count: counts.students,
             show: abilities.student_excuses,
         },
         {
@@ -320,6 +331,7 @@ export function leaveRailItems(abilities: LeaveAbilities, badges: LeaveBadges): 
             label: l.holidays,
             icon: CalendarDays,
             tone: 'amber',
+            count: counts.holidays,
             show: abilities.holidays,
         },
     ];
@@ -340,7 +352,8 @@ export function LeaveRail({
         unread: 0,
         awaiting: 0,
     };
-    const items = leaveRailItems(abilities, badges);
+    const counts = usePage<{ leaveShell?: { counts?: Record<string, number> } | null }>().props.leaveShell?.counts;
+    const items = leaveRailItems(abilities, badges, counts);
 
     return (
         <nav
@@ -469,7 +482,8 @@ function goToDate(date: string): void {
     const params: Record<string, string | string[]> = {};
     const query = new URLSearchParams(window.location.search);
     query.forEach((_, key) => {
-        params[key] = query.getAll(key);
+        // Only `name[]` keys are lists; a plain key sent as an array turns into `key[0]=…` and breaks the server.
+        params[key] = key.endsWith('[]') ? query.getAll(key) : query.get(key) ?? '';
     });
     params.date = date;
     router.get(window.location.pathname, params, {

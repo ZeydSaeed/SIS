@@ -30,7 +30,26 @@ export type DisplaySettings = {
     period_header: { show_number: boolean; number_bold: boolean; show_time: boolean; time_muted: boolean; clock: '12' | '24' };
     /** «ترويسة الجدول»: «يعمل بموجبه اعتباراً من» (Y-m-d; null = the effective version's date). */
     heading: { effective_from: string | null };
+    /** «إظهار الاستراحة»: the break rows (columns) of the grid; off = hidden. */
+    show_breaks: boolean;
 };
+
+/** «10 دقائق» — the length written out in full (Arabic number agreement). */
+export function minutesText(n: number): string {
+    if (n === 1) {
+        return 'دقيقة';
+    }
+    if (n === 2) {
+        return 'دقيقتان';
+    }
+
+    return `${n} ${n >= 3 && n <= 10 ? 'دقائق' : 'دقيقة'}`;
+}
+
+/** A break row's height follows its length — 5 min ≈ 0.95rem, 10 ≈ 1.3rem, 15 ≈ 1.65rem, 30 ≈ 2.7rem — kept slight so the sheet stays compact. */
+export function breakRowRem(minutes: number): number {
+    return Math.min(3.2, 0.6 + Math.max(0, minutes) * 0.07);
+}
 
 export type DisplayRow = {
     id: number;
@@ -73,6 +92,7 @@ export const DEFAULT_DISPLAY: DisplaySettings = {
     color_by: 'subject',
     period_header: { show_number: true, number_bold: true, show_time: true, time_muted: true, clock: '12' },
     heading: { effective_from: null },
+    show_breaks: true,
 };
 
 /** The approved font stacks (COLOR-TYPOGRAPHY-GOVERNANCE: Segoe UI, Tahoma, Calibri, Aptos only). */

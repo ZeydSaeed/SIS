@@ -63,7 +63,7 @@ import type { BreadcrumbItem } from '@/types';
 type Filters = {
     academic_year_id: number;
     state: number[];
-    kind: number | null;
+    kind: number[];
     type: number[];
     q: string;
     from: string | null;
@@ -782,16 +782,16 @@ function RequestsPage({
             },
             {
                 key: 'kind',
-                type: 'single',
+                type: 'multi',
                 label: l.kind,
-                value: filters.kind === null ? '' : String(filters.kind),
+                allLabel: l.allKinds,
+                values: filters.kind.map(String),
                 options: [
-                    { value: '', label: l.allKinds },
                     { value: '1', label: l.kindsPlural[1] },
                     { value: '2', label: l.kindsPlural[2] },
                 ],
-                onChange: (v: string) =>
-                    visit({ kind: v === '' ? null : Number(v) }),
+                onChange: (values: string[]) =>
+                    visit({ kind: values.map(Number) }),
             } as FilterSpec,
             {
                 key: 'state',
@@ -911,7 +911,9 @@ function RequestsPage({
 
             {viewing !== null && detail ? (
                 <AttendanceWindow
+                    fit
                     title={`${l.viewTitle} #${detail.request_no}`}
+                    className="sis-leave-view"
                     columns={2}
                     wide
                     onClose={() => setViewing(null)}
@@ -1167,8 +1169,10 @@ function RequestsPage({
 
             {form !== null ? (
                 <AttendanceWindow
+                    fit
                     title={form.id === null ? l.addTitle : l.editTitle}
                     columns={2}
+                    wide
                     pending={busy}
                     confirmLabel={l.saveAndSubmit}
                     confirmDisabled={!formValid}
@@ -1341,6 +1345,7 @@ function RequestsPage({
 
             {decision !== null ? (
                 <AttendanceWindow
+                    fit
                     title={
                         decision.items.length > 1
                             ? `${l.decideTitle} (${decision.items.length})`
@@ -1469,6 +1474,7 @@ function RequestsPage({
 
             {closing !== null ? (
                 <AttendanceWindow
+                    fit
                     title={
                         closing.action === 'cancel'
                             ? l.cancelTitle
@@ -1515,6 +1521,7 @@ function RequestsPage({
 
             {attaching !== null ? (
                 <AttendanceWindow
+                    fit
                     title={l.attachTitle}
                     pending={busy}
                     confirmLabel={l.attach}
@@ -1557,6 +1564,7 @@ function RequestsPage({
 
             {covering !== null && coverage ? (
                 <AttendanceWindow
+                    fit
                     title={l.coverageTitle}
                     columns={2}
                     wide
@@ -1624,8 +1632,15 @@ function RequestsPage({
                                     ) : null}
                                     {Object.entries(lessonsByDay).map(
                                         ([day, lessons]) => (
-                                            <AttendanceTable
+                                            <section
                                                 key={day}
+                                                className="sis-leave-coverage-day"
+                                            >
+                                            <h3 className="sis-leave-coverage-day__title">
+                                                <span dir="ltr">{day}</span>
+                                                <span>{lessons.length}</span>
+                                            </h3>
+                                            <AttendanceTable
                                                 caption={day}
                                                 storageKey="leave.coverage"
                                                 rows={lessons}
@@ -1717,6 +1732,7 @@ function RequestsPage({
                                                     },
                                                 ]}
                                             />
+                                            </section>
                                         ),
                                     )}
                                 </div>
@@ -1728,6 +1744,7 @@ function RequestsPage({
 
             {suggestFor !== null ? (
                 <AttendanceWindow
+                    fit
                     title={`${l.suggestTitle} — ${suggestFor.subject_name} · ${suggestFor.date}`}
                     columns={2}
                     pending={busy}

@@ -188,7 +188,8 @@ export function RegistrySheetDialog({
     const { maximized, toggleMaximize, maximizeClassName } = useSheetMaximize(contentRef);
     // Timetable windows («الجدول المدرسي»): the width follows the fields, tables and buttons — nothing cut.
     // «تحرير الخلية» keeps one fixed size (its tabs never resize it).
-    useFitSheetToContent(contentRef, className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet') && !className.includes('sis-timetable-print-sheet') && !className.includes('sis-narrow-form') && !className.includes('sis-rooms-three'));
+    // «الإجازات والغياب» windows (`sis-leave-window`) fit the same way, whatever their column layout.
+    useFitSheetToContent(contentRef, className.includes('sis-leave-window') || (className.includes('sis-timetable-sheet') && !className.includes('sis-timetable-lesson-sheet') && !className.includes('sis-timetable-print-sheet') && !className.includes('sis-narrow-form') && !className.includes('sis-rooms-three')));
 
     // The portal mounts the content after the first commit — raise the new window once it exists,
     // so a sheet opened from another sheet appears above it.

@@ -64,7 +64,7 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
         JOIN types ty ON ty.applies_to = 3 OR ty.applies_to = pe.kind
         LEFT JOIN led ON led.kind = pe.kind AND led.pid = pe.id AND led.leave_type_id = ty.id
         LEFT JOIN res ON res.kind = pe.kind AND res.pid = pe.id AND res.leave_type_id = ty.id
-        WHERE (CAST(? AS INTEGER) IS NULL OR pe.kind = CAST(? AS INTEGER))
+        WHERE (CARDINALITY(CAST(? AS INTEGER[])) = 0 OR pe.kind = ANY (CAST(? AS INTEGER[])))
           AND (CARDINALITY(CAST(? AS BIGINT[])) = 0 OR ty.id = ANY (CAST(? AS BIGINT[])))
           AND (CHAR_LENGTH(?) = 0 OR pe.name ILIKE ? OR pe.code ILIKE ?)
           AND (NOT CAST(? AS BOOLEAN) OR (pe.kind, pe.id) IN (SELECT * FROM UNNEST(CAST(? AS INTEGER[]), CAST(? AS BIGINT[]))))
@@ -175,11 +175,11 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
         $people = $filters['people'] ?? null;
         $q = trim((string) ($filters['q'] ?? ''));
         $like = '%'.$this->escapeLike($q).'%';
-        $kind = ($filters['kind'] ?? null) !== null ? (int) $filters['kind'] : null;
+        $kinds = $this->pgArray($filters['kinds'] ?? []);
         $types = $this->pgArray($filters['type_ids'] ?? []);
         $rows = DB::select(self::BALANCES_SQL, [
             $schoolId, $academicYearId, $schoolId, $academicYearId, $schoolId, $schoolId, $academicYearId, $schoolId, $academicYearId,
-            $kind, $kind,
+            $kinds, $kinds,
             $types, $types,
             $q, $like, $like,
             $people !== null,
@@ -246,7 +246,7 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
         return $this->own($this->base($schoolId), $ownUserId)
             ->whereIn('r.status', $statuses === [] ? LeaveStatus::activeValues() : $statuses)
             ->where('r.date_from', '<=', $to)->where('r.date_to', '>=', $from)
-            ->when(($filters['kind'] ?? null) !== null, static fn ($q) => $q->where('r.requester_kind', (int) $filters['kind']))
+            ->when(($filters['kinds'] ?? []) !== [], static fn ($q) => $q->whereIn('r.requester_kind', $filters['kinds']))
             ->when(($filters['type_ids'] ?? []) !== [], static fn ($q) => $q->whereIn('r.leave_type_id', $filters['type_ids']))
             ->orderBy('r.date_from')->orderBy('person_name')->limit(1000)
             ->get()->map(fn (object $row): array => $this->row($row))->all();
@@ -277,7 +277,7 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
         $query = $this->joined($schoolId)->where('r.academic_year_id', $academicYearId)
             ->when(($filters['from'] ?? null) !== null, static fn ($q) => $q->where('r.date_to', '>=', $filters['from']))
             ->when(($filters['to'] ?? null) !== null, static fn ($q) => $q->where('r.date_from', '<=', $filters['to']))
-            ->when(($filters['kind'] ?? null) !== null, static fn ($q) => $q->where('r.requester_kind', (int) $filters['kind']))
+            ->when(($filters['kinds'] ?? []) !== [], static fn ($q) => $q->whereIn('r.requester_kind', $filters['kinds']))
             ->when(($filters['type_ids'] ?? []) !== [], static fn ($q) => $q->whereIn('r.leave_type_id', $filters['type_ids']));
 
         $rows = match ($kind) {
@@ -367,7 +367,7 @@ final class EloquentLeaveReadRepository implements LeaveReadRepositoryInterface
         return $query
             ->when(($filters['year_id'] ?? null) !== null, static fn ($b) => $b->where('r.academic_year_id', (int) $filters['year_id']))
             ->when(($filters['statuses'] ?? []) !== [], static fn ($b) => $b->whereIn('r.status', $filters['statuses']))
-            ->when(($filters['kind'] ?? null) !== null, static fn ($b) => $b->where('r.requester_kind', (int) $filters['kind']))
+            ->when(($filters['kinds'] ?? []) !== [], static fn ($b) => $b->whereIn('r.requester_kind', $filters['kinds']))
             ->when(($filters['type_ids'] ?? []) !== [], static fn ($b) => $b->whereIn('r.leave_type_id', $filters['type_ids']))
             ->when(($filters['from'] ?? null) !== null, static fn ($b) => $b->where('r.date_to', '>=', $filters['from']))
             ->when(($filters['to'] ?? null) !== null, static fn ($b) => $b->where('r.date_from', '<=', $filters['to']))

@@ -3215,6 +3215,7 @@ export const ar = {
             showNumber: 'إظهار رقم الحصة',
             numberBold: 'رقم الحصة عريض',
             showTime: 'إظهار الوقت',
+            showBreaks: 'إظهار الاستراحة',
             timeMuted: 'الوقت باهت',
             clock: 'الساعة',
             clocks: { '12': '12 ساعة (ص / م)', '24': '24 ساعة' } as Record<
@@ -3825,9 +3826,12 @@ export const ar = {
             period: 'الحصة',
             lessonOnly: 'الدرس فقط',
             lessonOnlyHint: 'جدول الدروس الأسبوعي: عمود الدرس فقط لكل شعبة',
-            lessonTeacher: 'الدرس والمدرس',
+            lessonTeacher: 'المادة/ المدرس',
             lessonTeacherHint:
                 'جدول الدروس الأسبوعي: عمود الدرس وعمود اسم المدرس لكل شعبة',
+            subjectTeacher: 'المادة والمدرس',
+            subjectTeacherHint:
+                'جدول الدروس الأسبوعي: اسم المدرس تحت اسم المادة في نفس الحقل',
         },
         engine: {
             ribbonEngine: 'محرك الجدول',

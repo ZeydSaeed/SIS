@@ -16,7 +16,6 @@ import {
 } from '@/components/attendance/attendance-chrome';
 import { dateTime } from '@/components/attendance/attendance-ui';
 import {
-    LeaveSectionTitle,
     periodText,
     quantityText,
     LeavePage,
@@ -36,7 +35,7 @@ type Props = {
     types: LeaveType[];
     filters: {
         academic_year_id: number;
-        kind: number | null;
+        kind: number[];
         type: number[];
         from: string | null;
         to: string | null;
@@ -304,16 +303,16 @@ function ReportsPage({ report, types, filters, abilities }: Props) {
             },
             {
                 key: 'kind',
-                type: 'single',
+                type: 'multi',
                 label: l.kind,
-                value: filters.kind === null ? '' : String(filters.kind),
+                allLabel: l.allKinds,
+                values: filters.kind.map(String),
                 options: [
-                    { value: '', label: l.allKinds },
                     { value: '1', label: l.kindsPlural[1] },
                     { value: '2', label: l.kindsPlural[2] },
                 ],
-                onChange: (v: string) =>
-                    visit({ kind: v === '' ? null : Number(v) }),
+                onChange: (values: string[]) =>
+                    visit({ kind: values.map(Number) }),
             } as FilterSpec,
             {
                 key: 'type',
@@ -339,10 +338,6 @@ function ReportsPage({ report, types, filters, abilities }: Props) {
 
     return (
         <LeavePage title={l.reports} current={'reports'} abilities={abilities}>
-            <LeaveSectionTitle
-                title={l.reportKinds[report.kind] ?? l.reports}
-                count={report.rows.length}
-            />
             <AttendanceTable
                 caption={l.reportKinds[report.kind] ?? l.reports}
                 storageKey={`leave.report.${report.kind}`}

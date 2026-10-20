@@ -14,7 +14,6 @@ import {
 } from '@/components/attendance/attendance-chrome';
 import { dateTime } from '@/components/attendance/attendance-ui';
 import {
-    LeaveSectionTitle,
     LeavePage,
     LeaveTextArea,
     useLeaveEditRibbon,
@@ -74,7 +73,7 @@ type Props = {
     staff: StaffOption[];
     filters: {
         academic_year_id: number;
-        kind: number | null;
+        kind: number[];
         type: number[];
         q: string;
     };
@@ -308,16 +307,16 @@ function BalancesPage({
             yearSpec,
             {
                 key: 'kind',
-                type: 'single',
+                type: 'multi',
                 label: l.kind,
-                value: filters.kind === null ? '' : String(filters.kind),
+                allLabel: l.allKinds,
+                values: filters.kind.map(String),
                 options: [
-                    { value: '', label: l.allKinds },
                     { value: '1', label: l.kindsPlural[1] },
                     { value: '2', label: l.kindsPlural[2] },
                 ],
-                onChange: (v: string) =>
-                    visit({ kind: v === '' ? null : Number(v) }),
+                onChange: (values: string[]) =>
+                    visit({ kind: values.map(Number) }),
             } as FilterSpec,
             {
                 key: 'type',
@@ -374,8 +373,6 @@ function BalancesPage({
             current={'balances'}
             abilities={abilities}
         >
-            <LeaveSectionTitle title={l.balances} count={balances.total} />
-            <p className="sis-attendance-window__hint">{l.balancesHint}</p>
             <AttendanceTable
                 caption={l.balances}
                 storageKey="leave.balances"
@@ -401,6 +398,7 @@ function BalancesPage({
 
             {ledgerOf !== null ? (
                 <AttendanceWindow
+                    fit
                     title={`${l.ledgerTitle} — ${ledgerOf.person_name} · ${ledgerOf.type_name}`}
                     wide
                     columns={2}
@@ -476,6 +474,7 @@ function BalancesPage({
 
             {adjusting !== null ? (
                 <AttendanceWindow
+                    fit
                     title={l.adjustTitle}
                     columns={2}
                     pending={busy}
@@ -573,6 +572,7 @@ function BalancesPage({
 
             {granting !== null ? (
                 <AttendanceWindow
+                    fit
                     title={l.grantTitle}
                     pending={busy}
                     confirmLabel={l.grant}

@@ -10,7 +10,6 @@ import {
 import { dateTime } from '@/components/attendance/attendance-ui';
 import {
     LeavePage,
-    LeaveSectionTitle,
     leaveStatusMeta,
     useLeaveEditRibbon,
     useLeaveWrite,
@@ -211,11 +210,6 @@ function NotificationsPage({ notifications, filters, abilities }: Props) {
             current="notifications"
             abilities={abilities}
         >
-            <LeaveSectionTitle
-                title={l.notificationsTitle}
-                count={notifications.total}
-            />
-            <p className="sis-attendance-window__hint">{l.notificationsHint}</p>
             <AttendanceTable
                 caption={l.notificationsTitle}
                 storageKey="leave.notifications"

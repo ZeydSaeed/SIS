@@ -831,11 +831,13 @@ export function TitleBarRibbon({
     const i18n = t();
     const ariaLabel = `شريط ${i18n.chrome.tabs[tab]}`;
 
-    // Every tab: never a horizontal scroll — groups that do not fit fold (last first) into an accordion button that
-    // opens their commands (or filters) in a flyout under it.
-    const accordion = true;
+    // Every group shows its icons and commands in the strip itself (never folded into a flyout button); a window too
+    // narrow for all of them scrolls the strip sideways. Set to true to fold the groups that do not fit again.
+    const accordion = false;
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const [collapsedCount, setCollapsedCount] = useState(0);
+    // Groups stay unfolded: a strip wider than the window first tightens its spacing (before it ever scrolls).
+    const [tight, setTight] = useState(false);
     const [flyout, setFlyout] = useState<{
         id: string;
         top: number;
@@ -846,8 +848,16 @@ export function TitleBarRibbon({
 
     useLayoutEffect(() => {
         setCollapsedCount(0);
+        setTight(false);
         setFlyout(null);
     }, [groupsKey]);
+
+    useLayoutEffect(() => {
+        const body = bodyRef.current;
+        if (!tight && body !== null && body.scrollWidth > body.clientWidth + 1) {
+            setTight(true);
+        }
+    });
 
     // Fold one more group while anything still overflows (the strip, or a group squeezed below its content).
     useLayoutEffect(() => {
@@ -872,7 +882,6 @@ export function TitleBarRibbon({
     useEffect(() => {
         const body = bodyRef.current;
         if (
-            !accordion ||
             body === null ||
             typeof ResizeObserver === 'undefined'
         ) {
@@ -883,13 +892,14 @@ export function TitleBarRibbon({
             if (Math.abs(body.clientWidth - width) > 1) {
                 width = body.clientWidth;
                 setCollapsedCount(0);
+                setTight(false);
                 setFlyout(null);
             }
         });
         observer.observe(body);
 
         return () => observer.disconnect();
-    }, [accordion]);
+    }, []);
 
     // The flyout is centred under its accordion button and kept fully inside the window (never cut at an edge).
     useLayoutEffect(() => {
@@ -957,6 +967,7 @@ export function TitleBarRibbon({
         isAdmissionPage ? 'sis-ribbon--admission-page' : '',
         isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
         isTimetablePage ? 'sis-ribbon--timetable-page' : '',
+        tab === 'add' ? 'sis-ribbon--tab-add' : '',
         isTeachersPage ? 'sis-ribbon--teachers-page' : '',
         isRoomsPage || isAttendancePage ? 'sis-ribbon--coloured-icons' : '',
     ].filter(Boolean);
@@ -1047,6 +1058,7 @@ export function TitleBarRibbon({
             className={[
                 'sis-ribbon',
                 'sis-ribbon--fit',
+                tight ? 'sis-ribbon--tight' : '',
                 isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
                 isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
                 isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
@@ -1057,6 +1069,7 @@ export function TitleBarRibbon({
                 isAdmissionRibbon ? 'sis-ribbon--admission' : '',
                 isOpsAccentPage ? 'sis-ribbon--ops-accent' : '',
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
+                tab === 'add' ? 'sis-ribbon--tab-add' : '',
                 isTeachersPage ? 'sis-ribbon--teachers-page' : '',
                 isRoomsPage || isAttendancePage
                     ? 'sis-ribbon--coloured-icons'

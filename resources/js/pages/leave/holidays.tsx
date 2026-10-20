@@ -90,7 +90,7 @@ type Filters = {
     year: number | null;
     search: string;
     state: number | null;
-    type: number | null;
+    type: number[];
 };
 
 type Props = {
@@ -297,7 +297,7 @@ function HolidaysPage({
                 year: next.year ?? undefined,
                 search: next.search || undefined,
                 state: next.state ?? undefined,
-                type: next.type ?? undefined,
+                type: next.type.length > 0 ? next.type : undefined,
                 page: patch.page ?? 1,
                 per_page: patch.per_page ?? fitPageSizeRef.current,
             },
@@ -590,27 +590,16 @@ function HolidaysPage({
                                 },
                                 {
                                     key: 'type',
-                                    type: 'single',
+                                    type: 'multi',
                                     label: h.type,
-                                    value:
-                                        filters.type === null
-                                            ? ''
-                                            : String(filters.type),
-                                    options: [
-                                        { value: '', label: h.allTypes },
-                                        ...TYPES.map((type) => ({
-                                            value: String(type),
-                                            label:
-                                                h.types[type] ?? String(type),
-                                        })),
-                                    ],
-                                    onChange: (value: string) =>
-                                        visit({
-                                            type:
-                                                value === ''
-                                                    ? null
-                                                    : Number(value),
-                                        }),
+                                    allLabel: h.allTypes,
+                                    values: filters.type.map(String),
+                                    options: TYPES.map((type) => ({
+                                        value: String(type),
+                                        label: h.types[type] ?? String(type),
+                                    })),
+                                    onChange: (values: string[]) =>
+                                        visit({ type: values.map(Number) }),
                                 },
                             ].map((spec) => (
                                 <RibbonFilterField
@@ -1149,7 +1138,7 @@ function HolidaySheet({
     return (
         <RegistrySheetDialog
             title={sheet.id === null ? h.add : sheet.viewOnly ? h.view : h.edit}
-            className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-sheet sis-rooms-three"
+            className="sis-branches-sheet sis-timetable-sheet sis-rooms-form sis-rooms-sheet sis-rooms-three sis-leave-window"
             onClose={onClose}
         >
             <SheetSection id="holiday-basic" title={h.sectionBasic}>

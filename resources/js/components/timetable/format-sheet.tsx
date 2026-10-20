@@ -208,6 +208,10 @@ export function FormatSheet({
                                 <input type="checkbox" checked={draft.period_header.time_muted} onChange={(e) => set('period_header', { ...draft.period_header, time_muted: e.target.checked })} />
                                 {f.timeMuted}
                             </label>
+                            <label className="sis-timetable-audit__filter">
+                                <input type="checkbox" checked={draft.show_breaks} onChange={(e) => set('show_breaks', e.target.checked)} />
+                                {f.showBreaks}
+                            </label>
                         </span>
                     </EngineField>
                     <EngineField label={f.clock}>

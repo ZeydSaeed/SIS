@@ -1600,8 +1600,14 @@ export function AttendanceWindow({
     wide = false,
     danger = false,
     footer,
+    fit = false,
+    className,
 }: {
     title: string;
+    /** Extra window class (e.g. a three-column layout). */
+    className?: string;
+    /** Size the window to its content (width grows until nothing is clipped, height fits, the form scrolls). */
+    fit?: boolean;
     /** `plain`: the content is part of the window itself (a table) — no section banner, no inner card. */
     sections: Array<{
         id: string;
@@ -1639,6 +1645,8 @@ export function AttendanceWindow({
                 columns === 2 ? 'sis-attendance-two' : '',
                 wide ? 'sis-attendance-wide' : '',
                 columns === 1 && !wide ? 'sis-narrow-form' : '',
+                fit ? 'sis-leave-window' : '',
+                className ?? '',
             ]
                 .filter(Boolean)
                 .join(' ')}

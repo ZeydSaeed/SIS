@@ -46,6 +46,7 @@ final readonly class TimetableDisplaySettings
         'color_by' => 'subject',
         'period_header' => ['show_number' => true, 'number_bold' => true, 'show_time' => true, 'time_muted' => true, 'clock' => '12'],
         'heading' => ['effective_from' => null],
+        'show_breaks' => true,
     ];
 
     /** @param  array<string, mixed>  $values */
@@ -101,6 +102,8 @@ final readonly class TimetableDisplaySettings
                 'clock' => in_array($header['clock'] ?? null, ['12', '24'], true) ? $header['clock'] : '12',
             ],
             'heading' => ['effective_from' => $effectiveOk ? $effective : null],
+            // «إظهار الاستراحة»: the break rows / columns of the grid.
+            'show_breaks' => (bool) ($input['show_breaks'] ?? $d['show_breaks']),
         ]);
     }
 

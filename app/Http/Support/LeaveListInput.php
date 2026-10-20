@@ -22,22 +22,22 @@ final class LeaveListInput
         return [
             'year_id' => $yearId,
             'statuses' => self::ints($request, 'state', 1, 7),
-            'kind' => self::kind($request),
+            'kinds' => self::ints($request, 'kind', 1, 2),
             'type_ids' => self::ints($request, 'type', 1, PHP_INT_MAX),
             'q' => self::text($request, 'q'),
             'from' => self::date($request, 'from'),
             'to' => self::date($request, 'to'),
             'own_user_id' => $request->boolean('mine') ? (int) $request->user()?->id : null,
             'approver_user_id' => $request->boolean('awaiting') ? $approverUserId : null,
-            'sort' => (string) $request->query('sort', 'request_no'),
-            'direction' => $request->query('direction') === 'asc' ? 'asc' : 'desc',
+            'sort' => self::scalar($request, 'sort', 'request_no'),
+            'direction' => self::scalar($request, 'direction', '') === 'asc' ? 'asc' : 'desc',
         ];
     }
 
     /** @return array<string, mixed> */
     public static function balances(Request $request): array
     {
-        return ['kind' => self::kind($request), 'type_ids' => self::ints($request, 'type', 1, PHP_INT_MAX), 'q' => self::text($request, 'q')];
+        return ['kinds' => self::ints($request, 'kind', 1, 2), 'type_ids' => self::ints($request, 'type', 1, PHP_INT_MAX), 'q' => self::text($request, 'q')];
     }
 
     /** @return array<string, mixed> */
@@ -46,7 +46,7 @@ final class LeaveListInput
         $layers = array_values(array_intersect((array) $request->query('layer', ['holidays', 'staff', 'students']), ['holidays', 'staff', 'students']));
 
         return [
-            'kind' => self::kind($request),
+            'kinds' => self::ints($request, 'kind', 1, 2),
             'type_ids' => self::ints($request, 'type', 1, PHP_INT_MAX),
             'statuses' => self::ints($request, 'state', 2, 4),
             'layers' => $layers,
@@ -56,7 +56,7 @@ final class LeaveListInput
     /** @return array<string, mixed> */
     public static function report(Request $request): array
     {
-        return ['from' => self::date($request, 'from'), 'to' => self::date($request, 'to'), 'kind' => self::kind($request), 'type_ids' => self::ints($request, 'type', 1, PHP_INT_MAX)];
+        return ['from' => self::date($request, 'from'), 'to' => self::date($request, 'to'), 'kinds' => self::ints($request, 'kind', 1, 2), 'type_ids' => self::ints($request, 'type', 1, PHP_INT_MAX)];
     }
 
     /** The first day of the month shown (`month=YYYY-MM`, default this month). */
@@ -89,7 +89,7 @@ final class LeaveListInput
 
     public static function perPage(Request $request): int
     {
-        $value = (int) $request->query('per_page', self::PER_PAGE_DEFAULT);
+        $value = (int) self::scalar($request, 'per_page', (string) self::PER_PAGE_DEFAULT);
 
         // Same floor as the attendance lists: the table sends the rows that fit its height, and a floor above what a
         // short window fits would make it ask again for ever.
@@ -116,21 +116,26 @@ final class LeaveListInput
         return [
             'academic_year_id' => $yearId,
             'state' => self::ints($request, 'state', 1, 7),
-            'kind' => self::kind($request),
+            'kind' => self::ints($request, 'kind', 1, 2),
             'type' => self::ints($request, 'type', 1, PHP_INT_MAX),
             'q' => self::text($request, 'q'),
             'from' => self::date($request, 'from'),
             'to' => self::date($request, 'to'),
             'mine' => $request->boolean('mine'),
             'awaiting' => $request->boolean('awaiting'),
-            'sort' => (string) $request->query('sort', 'request_no'),
-            'direction' => $request->query('direction') === 'asc' ? 'asc' : 'desc',
+            // The day picked in the side calendar: echoed so the table's own visits (page, rows that fit) keep it.
+            'date' => self::date($request, 'date'),
+            'sort' => self::scalar($request, 'sort', 'request_no'),
+            'direction' => self::scalar($request, 'direction', '') === 'asc' ? 'asc' : 'desc',
         ];
     }
 
-    private static function kind(Request $request): ?int
+    /** A single query value; an array sent for it (`key[0]=…`) counts as missing instead of failing the page. */
+    private static function scalar(Request $request, string $key, string $default): string
     {
-        return in_array($request->query('kind'), ['1', '2'], true) ? (int) $request->query('kind') : null;
+        $value = $request->query($key, $default);
+
+        return is_scalar($value) ? (string) $value : $default;
     }
 
     /** @return list<int> */

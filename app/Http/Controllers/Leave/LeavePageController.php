@@ -67,13 +67,18 @@ final class LeavePageController extends Controller
         ]);
     }
 
-    /** The module's overview: a card per section of the rail (badges + the viewer's abilities decide what shows). */
-    public function overview(Request $request): Response
+    /** The module's overview, the first page of «الإجازات والعطل»: the request counts as cards (same data as the dashboard). */
+    public function overview(Request $request, GetLeaveDashboardHandler $handler): Response
     {
         $this->authorize('accessLeave');
+        $yearId = $this->context->academicYearId($request);
+        $today = $this->context->today($yearId);
 
         return Inertia::render('leave/overview', [
             'badges' => $this->badges($request),
+            'dashboard' => $handler->handle(new GetLeaveDashboardQuery($this->context->schoolId(), $yearId, $today, $this->context->viewer($request))),
+            'today' => $today,
+            'filters' => ['academic_year_id' => $yearId],
             'abilities' => $this->context->abilities($request),
         ]);
     }

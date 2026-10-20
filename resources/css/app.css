@@ -1326,7 +1326,8 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
 }
 
 .sis-ribbon--fit .sis-ribbon__body {
-    overflow-x: hidden;
+    overflow-x: auto;
+    scrollbar-width: thin;
     justify-content: flex-start;
 }
 
@@ -1347,6 +1348,23 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
     height: 100%;
     min-height: 0;
     padding-inline: 0.55rem;
+}
+
+/* Strip wider than the window: every group stays visible, only the spacing tightens. */
+.sis-ribbon--tight .sis-ribbon__group,
+.sis-ribbon--tight.sis-ribbon--fit .sis-ribbon__group--commands {
+    padding-inline: 0.25rem;
+}
+
+.sis-ribbon--tight .sis-ribbon__items {
+    gap: 0.1rem;
+}
+
+.sis-ribbon--tight .sis-ribbon__item,
+.sis-ribbon--tight.sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__item {
+    min-width: 2.5rem;
+    padding-inline: 0.15rem;
+    font-size: 0.65rem;
 }
 
 .sis-ribbon--fit .sis-ribbon__group--commands {
@@ -1385,8 +1403,9 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
 }
 
 .sis-ribbon--fit .sis-ribbon__group--filters {
-    flex: 1 1 auto;
-    min-width: 12rem;
+    /* Never squeezed below its content (it would run under the next group's icons). */
+    flex: 0 0 auto;
+    min-width: max-content;
     max-width: none;
     padding-inline: 0.45rem;
 }
@@ -1722,6 +1741,13 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
 /* Fixed-size 2×2 filter grid (follow-up, rooms): the group takes the grid's whole width — capped, it overflowed by a
    few pixels and the ribbon folded every group. */
 .sis-ribbon--students-edit .sis-ribbon__group--filters:has(.sis-ribbon__filters-stack--curriculum) {
+    max-width: none;
+}
+
+.sis-ribbon--students-edit .sis-ribbon__group--filters:has(.sis-ribbon__filters-stack--attendance) {
+    /* Three filter columns plus the clear button: the group is as wide as all of them, never clipped. */
+    width: max-content;
+    min-width: max-content;
     max-width: none;
 }
 
@@ -18624,6 +18650,91 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     box-sizing: border-box;
 }
 
+/* «الإجازات والغياب» windows: as wide as the content needs (the fit hook widens past these starting widths until
+   nothing is clipped), as tall as the content — never the fixed 86vh — and the form scrolls when it is taller than the
+   screen, so no field, table or button is hidden. */
+.sis-admission-sheet-dialog.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window {
+    min-height: 0 !important;
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-narrow-form {
+    --sis-sheet-w: min(94vw, 34rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-attendance-two {
+    --sis-sheet-w: min(96vw, 52rem);
+}
+
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-leave-window.sis-leave-window.sis-leave-window.sis-leave-window.sis-attendance-wide {
+    --sis-sheet-w: min(96vw, 80rem);
+}
+
+.sis-leave-window .sis-admission-sheet__body {
+    min-width: 0;
+}
+
+/* Tables inside a leave window show every row (the window itself scrolls when taller than the screen) and are
+   separated by a margin: first table, margin, second table, and so on («الحصص المتأثرة بالإجازة»). */
+.sis-leave-window .sis-attendance-table--embedded .sis-admission-drafts-table__scroller {
+    max-height: none;
+}
+
+.sis-leave-window .sis-attendance-window__plain > .sis-branches-field--wide {
+    gap: 1.25rem;
+}
+
+/* «الحصص المتأثرة بالإجازة»: one separate card per day — its own title bar (date + lesson count), border and margin. */
+/* The window's form is a height-limited flex column: its parts keep their natural height and the form scrolls
+   (they used to shrink and overlap when the content was taller than the window). */
+.sis-leave-window .sis-admission-sheet > * {
+    flex-shrink: 0;
+}
+
+.sis-leave-window .sis-admission-sheet {
+    overflow-y: auto;
+}
+
+.sis-leave-window .sis-attendance-window__plain,
+.sis-leave-window .sis-attendance-window__plain > .sis-branches-field--wide {
+    flex: 0 0 auto;
+    min-height: min-content;
+}
+
+/* Cards never shrink (overflow:hidden let a flex column squash them into each other): the window scrolls instead. */
+.sis-leave-coverage-day {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    min-width: 0;
+    border: 1px solid var(--sis-mist);
+    border-radius: var(--sis-surface-radius);
+    overflow: hidden;
+    background: var(--sis-pearl);
+}
+
+.sis-leave-coverage-day__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+    background: color-mix(in srgb, var(--sis-mist) 40%, var(--sis-pearl));
+    border-block-end: 1px solid var(--sis-mist);
+}
+
+.sis-leave-coverage-day .sis-attendance-table {
+    margin: 0;
+}
+
+/* «عرض طلب الإجازة»: the read-only facts fill the window in four columns, so the sections stack short enough to show without scrolling (notes, reason, tables span the row). */
+.sis-admission-sheet-dialog.sis-branches-sheet.sis-leave-view.sis-leave-view.sis-leave-view.sis-leave-view.sis-leave-view .sis-admission-sheet__body {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 /* Read-only facts: same height as an input, long text wraps instead of being cut. */
 .sis-attendance-two.sis-attendance-two .sis-admission-sheet__control.sis-admission-draft-readonly,
 .sis-attendance-wide.sis-attendance-wide .sis-admission-sheet__control.sis-admission-draft-readonly,
@@ -21969,4 +22080,40 @@ body:has(.sis-admission-themed) .sis-admission-draft-dialog .sis-admission-sheet
 /* «معاينة الطباعة»: the home tab starts at the right edge of the screen — no dark gap beside it (the titlebar's own side padding). */
 .sis-timetable-preview .sis-timetable-preview__chrome .sis-titlebar {
     padding-inline-start: 0 !important;
+}
+
+/* ═══ «الإجازات والغياب» › تبويب التحرير: icons of the page's groups (report kinds, actions…) sit on one line, whole —
+   no wrapping to a second row, no clipped icon or label; a window narrower than the strip scrolls it sideways. ═══ */
+.sis-ribbon--fit .sis-ribbon__body:has(.sis-ribbon__group[data-group-id^='leave-']) {
+    overflow-x: auto !important;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='leave-'] {
+    flex: 0 0 auto;
+    min-width: max-content;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='leave-'] .sis-ribbon__items {
+    flex-wrap: nowrap;
+    max-width: none;
+    width: auto;
+    align-items: stretch;
+    justify-content: center;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='leave-'] .sis-ribbon__item {
+    flex: 0 0 auto;
+    min-width: 3.4rem;
+    max-width: none;
+    overflow: visible;
+}
+
+.sis-ribbon--fit .sis-ribbon__group[data-group-id^='leave-'] .sis-ribbon__label {
+    display: block;
+    max-width: none;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: clip;
+    line-height: 1.45;
+    padding-block-end: 0.12rem;
 }

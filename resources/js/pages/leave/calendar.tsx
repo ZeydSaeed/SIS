@@ -21,7 +21,6 @@ import {
     visitWith,
 } from '@/components/attendance/attendance-chrome';
 import {
-    LeaveSectionTitle,
     periodText,
     quantityText,
     typeText,
@@ -70,7 +69,7 @@ type Props = {
     types: LeaveType[];
     filters: {
         academic_year_id: number;
-        kind: number | null;
+        kind: number[];
         type: number[];
         state: number[];
         month: string;
@@ -315,16 +314,16 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
             yearSpec,
             {
                 key: 'kind',
-                type: 'single',
+                type: 'multi',
                 label: l.kind,
-                value: filters.kind === null ? '' : String(filters.kind),
+                allLabel: l.allKinds,
+                values: filters.kind.map(String),
                 options: [
-                    { value: '', label: l.allKinds },
                     { value: '1', label: l.kindsPlural[1] },
                     { value: '2', label: l.kindsPlural[2] },
                 ],
-                onChange: (v: string) =>
-                    visit({ kind: v === '' ? null : Number(v) }),
+                onChange: (values: string[]) =>
+                    visit({ kind: values.map(Number) }),
             } as FilterSpec,
             {
                 key: 'type',
@@ -418,7 +417,6 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
             current={'calendar'}
             abilities={abilities}
         >
-            <LeaveSectionTitle title={view === 'day' ? focus : title} />
             <div className="sis-leave-cal__legend" aria-hidden>
                 <span
                     className="sis-leave-cal__event"
@@ -498,7 +496,7 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
                         id: i + 1,
                     }))}
                     rowKey={(e) => e.id}
-                    fit={false}
+                    fit={view === 'list'}
                     emptyText={l.noEvents}
                     onOpen={(e) => setOpen(e)}
                     columns={[
@@ -556,6 +554,7 @@ function CalendarPage({ calendar, types, filters, abilities }: Props) {
 
             {open !== null ? (
                 <AttendanceWindow
+                    fit
                     title={open.label}
                     columns={2}
                     onClose={() => setOpen(null)}

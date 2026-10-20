@@ -1,19 +1,4 @@
-import { Link } from '@inertiajs/react';
-import {
-    Ban,
-    CalendarClock,
-    CalendarX2,
-    ClipboardCheck,
-    FilePen,
-    Hourglass,
-    MessageCircleQuestion,
-    PlaneTakeoff,
-    PlusCircle,
-    ShieldCheck,
-    Undo2,
-    UserX,
-    type LucideIcon,
-} from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import {
     AttendanceTable,
@@ -35,23 +20,11 @@ import {
     type LeaveBadges,
     type LeaveRequestRow,
 } from '@/components/leave/leave-chrome';
+import { type LeaveCounts } from '@/components/leave/leave-cards';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-
-type Counts = {
-    drafts: number;
-    pending: number;
-    info_required: number;
-    approved: number;
-    rejected: number;
-    closed: number;
-    new_requests: number;
-    away_today: number;
-    teachers_away_today: number;
-    starting_soon: number;
-};
 
 type UncoveredLesson = {
     schedule_id: number;
@@ -66,7 +39,7 @@ type UncoveredLesson = {
 
 type Props = {
     dashboard: {
-        counts: Counts;
+        counts: LeaveCounts;
         away_today: LeaveRequestRow[];
         upcoming: LeaveRequestRow[];
         uncovered_today: UncoveredLesson[];
@@ -90,126 +63,10 @@ export default function LeaveDashboard(props: Props) {
 
 function DashboardPage({
     dashboard,
-    today,
     filters,
     abilities,
-    badges,
 }: Props) {
     const l = t().leave;
-    const c = dashboard.counts;
-    const list = (query: Record<string, string | number | boolean>) => {
-        const params = new URLSearchParams({
-            academic_year_id: String(filters.academic_year_id),
-        });
-        Object.entries(query).forEach(([k, v]) => params.append(k, String(v)));
-
-        return `/leave/requests?${params.toString()}`;
-    };
-
-    // Every card opens the list it counts (same filters on the server). Tones reuse the follow-up cards' palette.
-    const cards: Array<{
-        key: string;
-        label: string;
-        count: number;
-        icon: LucideIcon;
-        tone: string;
-        href: string;
-    }> = [
-        {
-            key: 'pending',
-            label: l.cards.pending,
-            count: c.pending,
-            icon: Hourglass,
-            tone: 'under-review',
-            href: list({ 'state[]': 2 }),
-        },
-        ...(abilities.approve
-            ? [
-                  {
-                      key: 'awaiting',
-                      label: l.awaitingRail,
-                      count: badges.awaiting,
-                      icon: ClipboardCheck,
-                      tone: 'under-review',
-                      href: list({ awaiting: 1 }),
-                  },
-              ]
-            : [
-                  {
-                      key: 'new',
-                      label: l.cards.newRequests,
-                      count: c.new_requests,
-                      icon: PlaneTakeoff,
-                      tone: 'submitted',
-                      href: list({ 'state[]': 2, sort: 'submitted' }),
-                  },
-              ]),
-        {
-            key: 'info',
-            label: l.cards.infoRequired,
-            count: c.info_required,
-            icon: MessageCircleQuestion,
-            tone: 'waitlisted',
-            href: list({ 'state[]': 3 }),
-        },
-        {
-            key: 'approved',
-            label: l.cards.approved,
-            count: c.approved,
-            icon: ShieldCheck,
-            tone: 'vocational',
-            href: list({ 'state[]': 4 }),
-        },
-        {
-            key: 'away',
-            label: l.cards.awayToday,
-            count: c.away_today,
-            icon: UserX,
-            tone: 'interview',
-            href: list({ 'state[]': 4, from: today, to: today }),
-        },
-        {
-            key: 'teachers',
-            label: l.cards.teachersAway,
-            count: c.teachers_away_today,
-            icon: CalendarX2,
-            tone: 'transfer',
-            href: list({ 'state[]': 4, from: today, to: today, kind: 1 }),
-        },
-        {
-            key: 'soon',
-            label: l.cards.startingSoon,
-            count: c.starting_soon,
-            icon: CalendarClock,
-            tone: 'submitted',
-            href: list({ from: today }),
-        },
-        {
-            key: 'rejected',
-            label: l.cards.rejected,
-            count: c.rejected,
-            icon: Ban,
-            tone: 'rejected',
-            href: list({ 'state[]': 5 }),
-        },
-        {
-            key: 'closed',
-            label: l.cards.closed,
-            count: c.closed,
-            icon: Undo2,
-            tone: 'withdrawn',
-            href: list({ 'state[]': 6 }),
-        },
-        {
-            key: 'drafts',
-            label: l.cards.drafts,
-            count: c.drafts,
-            icon: FilePen,
-            tone: 'withdrawn',
-            href: list({ 'state[]': 1 }),
-        },
-    ];
-
     const groups = useMemo(
         (): PageRibbonGroup[] =>
             abilities.request || abilities.manage
@@ -292,35 +149,6 @@ function DashboardPage({
 
     return (
         <LeavePage title={l.title} current={'dashboard'} abilities={abilities}>
-            <div
-                className="sis-leave-cards"
-                role="list"
-                aria-label={l.dashboard}
-            >
-                {cards.map((card) => (
-                    <Link
-                        key={card.key}
-                        href={card.href}
-                        role="listitem"
-                        className={`sis-follow-up-card sis-follow-up-tone--${card.tone}`}
-                        aria-label={`${card.label}: ${card.count}`}
-                    >
-                        <span
-                            className="sis-follow-up-card__avatar"
-                            aria-hidden
-                        >
-                            <card.icon className="size-5" strokeWidth={2} />
-                        </span>
-                        <span className="sis-follow-up-card__label">
-                            {card.label}
-                        </span>
-                        <span className="sis-follow-up-card__count" dir="ltr">
-                            {card.count}
-                        </span>
-                    </Link>
-                ))}
-            </div>
-
             {abilities.view ? (
                 <>
                     <LeaveSectionTitle
