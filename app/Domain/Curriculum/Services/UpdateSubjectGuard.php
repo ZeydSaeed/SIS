@@ -42,6 +42,9 @@ final class UpdateSubjectGuard
         if (trim((string) $name) === '') {
             return 'curriculum.subject_name_invalid';
         }
+        if (array_key_exists('name', $fields) && $this->subjects->nameExists((string) $name, $subjectId)) {
+            return 'curriculum.subject_name_taken';
+        }
         if (SubjectType::tryFrom($type) === null) {
             return 'curriculum.subject_type_invalid';
         }

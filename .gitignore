@@ -39,3 +39,11 @@ node_modules/
 /playwright/.auth/
 /tests/load/summary.json
 /tests/load/report.html
+
+# Database dumps and backups never belong in the repository (they may hold personal data).
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.bak
+/storage/app/e2e/

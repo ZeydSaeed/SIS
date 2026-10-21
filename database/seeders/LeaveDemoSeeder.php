@@ -157,9 +157,19 @@ class LeaveDemoSeeder extends Seeder
         app(AddSuggestedLeaveTypesHandler::class)->handle(new AddSuggestedLeaveTypesCommand($this->schoolId, $this->manager, $this->key()));
         $ids = DB::table('leave.types')->where('school_id', $this->schoolId)->pluck('id', 'code')->map(fn ($v): int => (int) $v)->all();
         // Policies a school would set: entitlements, limits and approval levels (the suggested ones carry none).
-        $policy = fn (string $code, DayBasis $basis, bool $doc, bool $deducts, int $levels, ?float $max, ?float $entitled) => isset($ids[$code])
-            ? app(PublishLeavePolicyHandler::class)->handle(new PublishLeavePolicyCommand($this->schoolId, $ids[$code], new LeavePolicyTerms($basis, $doc, $deducts, $levels, $max, $entitled), $this->manager, $this->key()))
-            : null;
+        // A policy is versioned: publish only when the open version's terms differ (else every run added a version).
+        $policy = function (string $code, DayBasis $basis, bool $doc, bool $deducts, int $levels, ?float $max, ?float $entitled) use ($ids): void {
+            if (! isset($ids[$code])) {
+                return;
+            }
+            $open = DB::table('leave.policies')->where('leave_type_id', $ids[$code])->whereNull('effective_to')->orderByDesc('version_no')->first();
+            if ($open !== null && (int) $open->day_basis === $basis->value && (bool) $open->requires_document === $doc && (bool) $open->deducts_balance === $deducts
+                && (int) $open->approval_levels === $levels && ($open->max_per_request === null ? null : (float) $open->max_per_request) === $max
+                && ($open->annual_entitlement === null ? null : (float) $open->annual_entitlement) === $entitled) {
+                return;
+            }
+            app(PublishLeavePolicyHandler::class)->handle(new PublishLeavePolicyCommand($this->schoolId, $ids[$code], new LeavePolicyTerms($basis, $doc, $deducts, $levels, $max, $entitled), $this->manager, $this->key()));
+        };
         $policy('ANNUAL', DayBasis::WorkingDays, false, true, 2, 15, 24);
         $policy('EMERGENCY', DayBasis::WorkingDays, false, true, 1, 3, 6);
         $policy('HOURLY', DayBasis::WorkingDays, false, true, 1, 4, 40);
@@ -175,11 +185,15 @@ class LeaveDemoSeeder extends Seeder
     private function holidays(): void
     {
         $y = (int) substr((string) DB::table('academic.academic_years')->where('id', $this->yearId)->value('start_date'), 0, 4);
-        DB::table('academic.holidays')->insert([
-            ['academic_year_id' => $this->yearId, 'school_id' => null, 'name' => 'رأس السنة الميلادية', 'start_date' => ($y + 1).'-01-01', 'end_date' => ($y + 1).'-01-01', 'holiday_type' => 1, 'created_at' => now(), 'status' => 1],
-            ['academic_year_id' => $this->yearId, 'school_id' => null, 'name' => 'عيد الجيش', 'start_date' => ($y + 1).'-01-06', 'end_date' => ($y + 1).'-01-06', 'holiday_type' => 1, 'created_at' => now(), 'status' => 1],
-            ['academic_year_id' => $this->yearId, 'school_id' => null, 'name' => 'عيد العمال', 'start_date' => ($y + 1).'-05-01', 'end_date' => ($y + 1).'-05-01', 'holiday_type' => 1, 'created_at' => now(), 'status' => 1],
-        ]);
+        // A holiday already in the calendar (same name, start, year — in or out of the calendar) is not added again:
+        // the seeder runs once per rebuild and holidays are not part of the data the rebuild clears.
+        $exists = fn (string $name, string $from): bool => DB::table('academic.holidays')
+            ->where('academic_year_id', $this->yearId)->where('name', $name)->where('start_date', $from)->exists();
+        foreach ([['رأس السنة الميلادية', ($y + 1).'-01-01'], ['عيد الجيش', ($y + 1).'-01-06'], ['عيد العمال', ($y + 1).'-05-01']] as [$name, $day]) {
+            if (! $exists($name, $day)) {
+                DB::table('academic.holidays')->insert(['academic_year_id' => $this->yearId, 'school_id' => null, 'name' => $name, 'start_date' => $day, 'end_date' => $day, 'holiday_type' => 1, 'created_at' => now(), 'status' => 1]);
+            }
+        }
         $own = [
             ['عطلة منتصف الفصل الأول', $y.'-11-01', $y.'-11-03', 2],
             ['انقطاع بين الفصلين', ($y + 1).'-01-20', ($y + 1).'-02-03', 3],
@@ -189,11 +203,21 @@ class LeaveDemoSeeder extends Seeder
         ];
         $ids = [];
         foreach ($own as [$name, $from, $to, $type]) {
+            if ($exists($name, $from)) {
+                continue;
+            }
             $r = app(SaveHolidayHandler::class)->handle(new SaveHolidayCommand($this->schoolId, null, $this->yearId, $name, $from, $to, $type, $this->key()));
-            $ids[] = (int) $r->id;
+            if ($r->failed()) {
+                $this->refused['holiday: '.implode(', ', $r->errors)] = ($this->refused['holiday: '.implode(', ', $r->errors)] ?? 0) + 1;
+
+                continue;
+            }
+            $ids[$name] = (int) $r->id;
         }
         // One holiday taken out of the calendar (kept, not deleted).
-        app(ChangeHolidayStatusHandler::class)->handle(new ChangeHolidayStatusCommand($this->schoolId, end($ids), false, $this->key()));
+        if (isset($ids['مناسبة ملغاة'])) {
+            app(ChangeHolidayStatusHandler::class)->handle(new ChangeHolidayStatusCommand($this->schoolId, $ids['مناسبة ملغاة'], false, $this->key()));
+        }
         $this->made['holidays'] = count($own) + 3;
     }
 

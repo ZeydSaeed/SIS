@@ -43,6 +43,7 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
     public function createApplication(CreateApplicationDraftData $data): int
     {
         $now = now();
+        $placement = $this->placementIds($data->targetSchoolId, $data->branchId, $data->departmentName);
 
         $id = (int) DB::table(SchemaHelper::qualified('admission', 'applications'))->insertGetId([
             'application_period_id' => $data->applicationPeriodId,
@@ -64,11 +65,11 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
             'grade_level_id' => $data->gradeLevelId,
             'intended_grade_name' => $data->intendedGradeName,
             'request_kind' => $data->requestKind,
-            'branch_id' => $data->branchId,
+            'branch_id' => $placement['branch_id'],
             'branch_name' => $data->branchName,
             'department_name' => $data->departmentName,
-            'department_id' => $departmentId = $this->departmentIdFor($data->targetSchoolId, $data->branchId, $data->departmentName),
-            ...$this->specializationColumns($data->targetSchoolId, $departmentId, $data->specializationId, $data->specializationName),
+            'department_id' => $placement['department_id'],
+            ...$this->specializationColumns($data->targetSchoolId, $placement['department_id'], $data->specializationId, $data->specializationName),
             'governorate' => $data->governorate,
             'administrative_unit' => $data->administrativeUnit,
             'neighborhood' => $data->neighborhood,
@@ -354,14 +355,23 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
     /**
      * The department a placement names, resolved once at write time (exact name inside the school, the given branch
      * preferred) — from then on the application points at the row instead of repeating its name.
+     *
+     * The department is the single source of the placement: when the named department resolves, the branch is the
+     * department's own (a client that sent only names — or a branch the department is not in — must not leave the
+     * application with a department of one branch and no / another branch). Unresolved: the submitted branch stays.
+     *
+     * @return array{branch_id: int|null, department_id: int|null}
      */
-    private function departmentIdFor(?int $schoolId, ?int $branchId, ?string $departmentName): ?int
+    private function placementIds(?int $schoolId, ?int $branchId, ?string $departmentName): array
     {
         if ($schoolId === null || $departmentName === null || trim($departmentName) === '') {
-            return null;
+            return ['branch_id' => $branchId, 'department_id' => null];
         }
+        $department = (new StudentPlacementIdResolver)->findDepartment($schoolId, $branchId, $departmentName);
 
-        return (new StudentPlacementIdResolver)->findDepartment($schoolId, $branchId, $departmentName)['id'] ?? null;
+        return $department === null
+            ? ['branch_id' => $branchId, 'department_id' => null]
+            : ['branch_id' => $department['branch_id'] ?? $branchId, 'department_id' => $department['id']];
     }
 
     /**
@@ -444,13 +454,12 @@ final class EloquentAdmissionRepository implements AdmissionRepositoryInterface
         ];
 
         if ($data->updatePlacement) {
-            $payload['branch_id'] = $data->branchId;
+            $schoolId = DB::table(SchemaHelper::qualified('admission', 'applications'))->where('id', $data->applicationId)->value('school_id');
+            $placement = $this->placementIds($schoolId !== null ? (int) $schoolId : null, $data->branchId, $data->departmentName);
+            $payload['branch_id'] = $placement['branch_id'];
             $payload['branch_name'] = $data->branchName;
             $payload['department_name'] = $data->departmentName;
-            $schoolId = DB::table(SchemaHelper::qualified('admission', 'applications'))->where('id', $data->applicationId)->value('school_id');
-            $payload['department_id'] = $schoolId !== null
-                ? $this->departmentIdFor((int) $schoolId, $data->branchId, $data->departmentName)
-                : null;
+            $payload['department_id'] = $placement['department_id'];
             $payload = array_merge($payload, $this->specializationColumns($schoolId !== null ? (int) $schoolId : null, $payload['department_id'], $data->specializationId, $data->specializationName));
             $payload['grade_level_id'] = $data->gradeLevelId;
             $payload['intended_grade_name'] = $data->intendedGradeName;

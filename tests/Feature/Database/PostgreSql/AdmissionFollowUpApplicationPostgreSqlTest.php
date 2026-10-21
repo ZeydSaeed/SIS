@@ -49,6 +49,26 @@ final class AdmissionFollowUpApplicationPostgreSqlTest extends PostgreSqlIntegra
                 ->where('authorization.can_manage', true));
     }
 
+    /**
+     * Named by text only (no branch_id), the application resolved its department but kept no branch — a department
+     * of one branch on an application of none (sis:audit-data-quality «application department not in its branch»).
+     */
+    #[Test]
+    public function an_application_named_by_text_takes_the_branch_of_its_department(): void
+    {
+        [$schoolA, , $yearId] = $this->twoSchoolsAndYear('FUD');
+        $this->actingAsManagerOf([$schoolA], $schoolA);
+        $periodId = $this->openPeriod($yearId, 'فترة FUD');
+        $this->withHeader('X-Idempotency-Key', 'fud-create')
+            ->post('/admission/applications', $this->applicationPayload($periodId, $schoolA, 'نور'))
+            ->assertSessionHasNoErrors();
+
+        $application = DB::table(SchemaHelper::qualified('admission', 'applications'))->where('id', $this->applicationId('نور'))->first(['branch_id', 'department_id']);
+        $this->assertNotNull($application->department_id);
+        $departmentBranch = (int) DB::table(SchemaHelper::qualified('organization', 'departments'))->where('id', $application->department_id)->value('branch_id');
+        $this->assertSame($departmentBranch, (int) $application->branch_id);
+    }
+
     #[Test]
     public function an_application_of_an_unlinked_school_is_not_found(): void
     {

@@ -1482,6 +1482,8 @@ export const ar = {
             'curriculum.subject_reactivate_failed': 'تعذّر إعادة تفعيل المادة.',
             'curriculum.subject_code_invalid': 'رمز المادة غير صالح.',
             'curriculum.subject_code_taken': 'رمز المادة مستخدم مسبقاً.',
+            'curriculum.subject_already_linked': 'المادة مرتبطة بهذا المنهج مسبقاً. عدّل ساعاتها أو ترتيبها من سطرها في المنهج.',
+            'curriculum.subject_name_taken': 'اسم المادة مستخدم لمادة أخرى. افتح المادة الموجودة أو اختر اسماً مختلفاً.',
             'curriculum.subject_name_invalid': 'اسم المادة غير صالح.',
             'curriculum.subject_type_invalid': 'نوع المادة غير صالح.',
             'curriculum.subject_credit_hours_invalid':
@@ -2191,6 +2193,9 @@ export const ar = {
         submit: 'تسجيل الدخول',
         noAccount: 'ليس لديك حساب؟',
         signUp: 'إنشاء حساب',
+        passkeySignIn: 'الدخول بمفتاح المرور',
+        passkeyChecking: 'جارٍ التحقق…',
+        orEmail: 'أو بالبريد الإلكتروني',
     },
     enrollments: {
         title: 'التسجيلات',

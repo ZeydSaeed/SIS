@@ -85,10 +85,12 @@ class AuditDataQualityCommand extends Command
 
             // --- students / enrollment
             'student without national_id or birth_date' => 'SELECT id FROM '.$q('students', 'students').' WHERE national_id IS NULL OR birth_date IS NULL',
-            'duplicate student national_id' => 'SELECT national_id FROM '.$q('students', 'students').' WHERE status <> 0 GROUP BY 1 HAVING count(*) > 1',
+            // NULL is «no number yet», not one shared number.
+            'duplicate student national_id' => 'SELECT national_id FROM '.$q('students', 'students').' WHERE status <> 0 AND national_id IS NOT NULL GROUP BY 1 HAVING count(*) > 1',
             'student full_name differs from its parts' => 'SELECT id FROM '.$q('students', 'students').' WHERE full_name IS NULL OR btrim(full_name) = \'\'',
-            // Waiting for a seat (accepted, section full / not yet placed) or an ended enrollment (cancelled) are legitimate.
-            'active student never placed and not waiting for a seat' => 'SELECT s.id FROM '.$q('students', 'students').' s WHERE s.status = 1 AND NOT EXISTS (SELECT 1 FROM '.$q('enrollment', 'enrollments').' e WHERE e.student_id = s.id) AND NOT EXISTS (SELECT 1 FROM '.$q('admission', 'applications').' a WHERE a.student_id = s.id AND (a.notes LIKE \'%بانتظار%\' OR a.notes LIKE \'%ممتلئة%\'))',
+            // Waiting for a seat (admitted — its application is linked — but not placed yet, e.g. the section was full) or an
+            // ended enrollment (cancelled) are legitimate; a student with neither came from nowhere.
+            'active student never placed and not waiting for a seat' => 'SELECT s.id FROM '.$q('students', 'students').' s WHERE s.status = 1 AND NOT EXISTS (SELECT 1 FROM '.$q('enrollment', 'enrollments').' e WHERE e.student_id = s.id) AND NOT EXISTS (SELECT 1 FROM '.$q('admission', 'applications').' a WHERE a.student_id = s.id)',
             'student with two active enrollments in one year' => 'SELECT student_id, academic_year_id FROM '.$q('enrollment', 'enrollments').' WHERE status = 1 GROUP BY 1, 2 HAVING count(*) > 1',
             'enrollment section not in its class' => 'SELECT e.id FROM '.$q('enrollment', 'enrollments').' e JOIN '.$q('enrollment', 'sections').' s ON s.id = e.section_id WHERE s.class_id <> e.class_id',
             'enrollment department not in its branch' => 'SELECT e.id FROM '.$q('enrollment', 'enrollments').' e JOIN '.$departments.' d ON d.id = e.department_id WHERE e.branch_id IS DISTINCT FROM d.branch_id',

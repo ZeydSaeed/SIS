@@ -11,6 +11,9 @@ use App\Domain\Timetable\Repositories\TimetableVersionRepositoryInterface;
 use App\Domain\Timetable\Services\TimetableAuditor;
 use App\Domain\Timetable\Services\TimetableFingerprint;
 use App\Domain\Timetable\Services\TimetableQualityScorer;
+use App\Domain\Timetable\Testing\PlacementChecks;
+use App\Domain\Timetable\Testing\RemedyFinder;
+use App\Domain\Timetable\Testing\TestIssue;
 
 final class CreateTimetableVersionHandler implements CommandHandler
 {
@@ -21,6 +24,7 @@ final class CreateTimetableVersionHandler implements CommandHandler
         private readonly TimetableQualityScorer $scorer,
         private readonly TimetableFingerprint $fingerprints,
         private readonly TimetableVersionRepositoryInterface $versions,
+        private readonly PlacementChecks $placements,
     ) {}
 
     public function handle(Command $command): CreateTimetableVersionResult
@@ -34,7 +38,14 @@ final class CreateTimetableVersionHandler implements CommandHandler
         if ($board->schedules === []) {
             return CreateTimetableVersionResult::failure('timetable.version_empty');
         }
-        $quality = $this->scorer->score($board, $this->auditor->audit($board));
+        // The approval gate (SubmitTimetableVersion refuses a version with errors) counts the grid errors «اختبار الجدول»
+        // reports as well: a room taken twice in a slot or smaller than the class it holds is as much an error as a
+        // teacher booked twice.
+        $roomErrors = array_values(array_filter(
+            $this->placements->run($board, new RemedyFinder($board), []),
+            static fn (array $issue): bool => $issue['severity'] === TestIssue::ERROR,
+        ));
+        $quality = $this->scorer->score($board, [...$this->auditor->audit($board), ...$roomErrors]);
         $fingerprint = $this->fingerprints->of($board);
 
         return $this->tx->run(CreateTimetableVersionResult::class, $command->idempotencyKey, 'CreateTimetableVersion', function () use ($command, $name, $quality, $fingerprint): CreateTimetableVersionResult {

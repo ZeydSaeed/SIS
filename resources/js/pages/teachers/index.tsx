@@ -2037,6 +2037,13 @@ function TeachersPage({
                                 onChange={setSheetField('employee_code')}
                             />
                             <RegistryTextField
+                                label={tc.nationalId}
+                                editing={sheetEditing}
+                                dir="ltr"
+                                value={sheet.form.national_id}
+                                onChange={setSheetField('national_id')}
+                            />
+                            <RegistryTextField
                                 label={`${tc.certificateSpecialization} (${tc.certificateSpecializationHint})`}
                                 editing={sheetEditing}
                                 value={sheet.form.specialization_field}

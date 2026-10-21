@@ -1000,7 +1000,7 @@ export function EnrollmentCreateForm({
     showCancel = true,
 }: EnrollmentCreateFormProps) {
     const i18n = t();
-    const { showError, showInertiaErrors } = usePageError();
+    const { showError, showInertiaErrors, showSuccess } = usePageError();
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
     const [saving, setSaving] = useState(false);
@@ -1105,7 +1105,16 @@ export function EnrollmentCreateForm({
             {
                 headers: { 'X-Idempotency-Key': idempotencyKey },
                 preserveScroll: true,
-                onSuccess: () => onCreated?.(studentId),
+                onSuccess: (page) => {
+                    // A domain refusal (full section, already enrolled, …) comes back as a redirect with flash.error,
+                    // shown by the page's message dialog — only a clean answer is a saved enrollment.
+                    if ((page.props as { flash?: { error?: string | null } }).flash?.error) {
+                        return;
+                    }
+                    // The server only redirects back: without this the page gave no sign the enrollment was saved.
+                    showSuccess(i18n.flash.enrollment.created);
+                    onCreated?.(studentId);
+                },
                 onError: (errors) => showInertiaErrors(errors, i18n.errors.createFailed),
                 onFinish: () => setSaving(false),
             },

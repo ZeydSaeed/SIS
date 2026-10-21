@@ -100,6 +100,9 @@ return [
                 'public,organization,academic,vocational,students,guardians,enrollment,teachers,curriculum,timetable,attendance,exams,results,graduation,security,audit,reports',
             ),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // The session speaks the application's time zone: Laravel writes timestamps without an offset, so a server
+            // running in another zone (local: Asia/Baghdad) stored every app-written TIMESTAMPTZ hours off.
+            'timezone' => env('DB_TIMEZONE', 'UTC'),
         ],
 
         'sqlsrv' => [

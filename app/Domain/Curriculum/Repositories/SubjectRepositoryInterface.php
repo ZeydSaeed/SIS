@@ -8,6 +8,9 @@ interface SubjectRepositoryInterface
 {
     public function codeExists(string $code): bool;
 
+    /** Another subject (any status) already carries this name — trimmed, case-insensitive. */
+    public function nameExists(string $name, ?int $exceptSubjectId = null): bool;
+
     public function create(
         string $code,
         string $name,

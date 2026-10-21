@@ -225,6 +225,43 @@ final class TimetableEnginePostgreSqlTest extends PostgreSqlIntegrationTestCase
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    /**
+     * A lesson may be placed by hand in a room smaller than its class (it is reported by «اختبار الجدول» as an error),
+     * but such a grid must not reach approval: the version's quality counts room errors like double bookings.
+     */
+    #[Test]
+    public function a_version_with_a_lesson_in_a_room_too_small_for_its_class_cannot_be_submitted(): void
+    {
+        $ctx = $this->seedSchool('TE-R');
+        $y = $ctx['year'];
+        $this->engine('/timetable/activities/sync', ['academic_year_id' => $y])->assertSessionHasNoErrors();
+        $this->engine('/timetable/runs', ['academic_year_id' => $y, 'mode' => 2, 'time_budget' => 5])->assertSessionHas('success', 'flash.timetable.engine.runQueued');
+        $run = DB::table(SchemaHelper::qualified('timetable', 'generation_runs'))->where('school_id', $ctx['school'])->first();
+        $this->engine('/timetable/runs/'.$run->id.'/apply', [])->assertSessionHas('success', 'flash.timetable.engine.runApplied');
+
+        $branchId = (int) DB::table(SchemaHelper::qualified('organization', 'branches'))->where('school_id', $ctx['school'])->value('id');
+        $this->engine('/timetable/places/rooms', ['branch_id' => $branchId, 'code' => 'TINY-R', 'name' => 'غرفة صغيرة', 'capacity' => 2, 'room_type' => 1])
+            ->assertSessionHasNoErrors();
+        $tiny = (int) DB::table(SchemaHelper::qualified('organization', 'rooms'))->where('code', 'TINY-R')->value('id');
+        // Section A holds 4 students; one of its whole-section lessons goes into the 2-seat room.
+        $lesson = DB::table(SchemaHelper::qualified('timetable', 'schedules'))->where('school_id', $ctx['school'])->where('section_id', $ctx['sectionA'])
+            ->whereNull('cancelled_at')->whereNull('group_id')->orderBy('id')->first();
+        $placement = fn (?int $roomId): array => ['academic_year_id' => $y, 'section_id' => $ctx['sectionA'], 'day_of_week' => (int) $lesson->day_of_week,
+            'period_id' => (int) $lesson->period_id, 'subject_id' => (int) $lesson->subject_id, 'teacher_id' => (int) $lesson->teacher_id, 'room_id' => $roomId];
+        $this->from('/timetable')->withHeader('X-Idempotency-Key', 'tiny-room')->patch('/timetable/schedules/'.$lesson->id, $placement($tiny))->assertSessionHasNoErrors();
+
+        $this->engine('/timetable/versions', ['academic_year_id' => $y, 'name' => 'قاعة صغيرة'])->assertSessionHas('success', 'flash.timetable.engine.versionCreated');
+        $version = DB::table(SchemaHelper::qualified('timetable', 'versions'))->where('school_id', $ctx['school'])->where('name', 'قاعة صغيرة')->first();
+        $this->assertGreaterThanOrEqual(1, (int) json_decode((string) $version->quality, true)['errors']);
+        $this->engine('/timetable/versions/'.$version->id.'/submit', [])->assertSessionHasErrors(['engine' => 'timetable.version_has_errors']);
+
+        // Without the room the same grid is clean and goes to approval.
+        $this->from('/timetable')->withHeader('X-Idempotency-Key', 'tiny-room-clear')->patch('/timetable/schedules/'.$lesson->id, $placement(null))->assertSessionHasNoErrors();
+        $this->engine('/timetable/versions', ['academic_year_id' => $y, 'name' => 'بلا قاعة'])->assertSessionHas('success', 'flash.timetable.engine.versionCreated');
+        $clean = (int) DB::table(SchemaHelper::qualified('timetable', 'versions'))->where('school_id', $ctx['school'])->where('name', 'بلا قاعة')->value('id');
+        $this->engine('/timetable/versions/'.$clean.'/submit', [])->assertSessionHas('success', 'flash.timetable.engine.versionSubmitted');
+    }
+
     private function engine(string $url, array $data, ?string $key = null): TestResponse
     {
         return $this->from('/timetable')->withHeader('X-Idempotency-Key', $key ?? 'engine-'.(++$this->key))->post($url, $data);

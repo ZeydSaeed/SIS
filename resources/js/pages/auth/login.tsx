@@ -25,7 +25,11 @@ export default function Login({ status, canResetPassword }: Props) {
         <>
             <Head title={i18n.auth.loginTitle} />
 
-            <PasskeyVerify />
+            <PasskeyVerify
+                label={i18n.auth.passkeySignIn}
+                loadingLabel={i18n.auth.passkeyChecking}
+                separator={i18n.auth.orEmail}
+            />
 
             <Form
                 {...store.form()}

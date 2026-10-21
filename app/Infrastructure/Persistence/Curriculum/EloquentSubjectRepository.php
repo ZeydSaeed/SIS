@@ -22,6 +22,14 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             ->exists();
     }
 
+    public function nameExists(string $name, ?int $exceptSubjectId = null): bool
+    {
+        return DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+            ->whereRaw('lower(btrim(name)) = lower(?)', [trim($name)])
+            ->when($exceptSubjectId !== null, static fn ($q) => $q->where('id', '<>', $exceptSubjectId))
+            ->exists();
+    }
+
     public function create(
         string $code,
         string $name,

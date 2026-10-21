@@ -40,6 +40,11 @@ final class CreateSubjectGuard
         if ($this->subjects->codeExists($code)) {
             return 'curriculum.subject_code_taken';
         }
+        // One spelling per subject (sis:audit-data-quality «duplicate subject name»): teachers, curricula and the
+        // timetable pick subjects by name.
+        if ($this->subjects->nameExists($name)) {
+            return 'curriculum.subject_name_taken';
+        }
 
         return null;
     }

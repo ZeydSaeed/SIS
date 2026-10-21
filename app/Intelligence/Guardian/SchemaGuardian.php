@@ -63,24 +63,6 @@ class SchemaGuardian
 
         $findings = collect();
 
-        $orphanCandidates = DB::select("
-            SELECT
-                tc.table_schema,
-                tc.table_name,
-                kcu.column_name
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.table_schema = kcu.table_schema
-            LEFT JOIN information_schema.referential_constraints rc
-                ON rc.constraint_name = tc.constraint_name
-                AND rc.constraint_schema = tc.table_schema
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-              AND tc.table_schema NOT IN ('pg_catalog', 'information_schema', 'intelligence')
-        ");
-
-        $fkColumns = collect($orphanCandidates)->map(fn ($row) => "{$row->table_schema}.{$row->table_name}.{$row->column_name}");
-
         $expectedRelationships = [
             ['table' => 'enrollment.enrollments', 'column' => 'student_id', 'references' => 'students.students.id'],
         ];
@@ -91,7 +73,13 @@ class SchemaGuardian
                 continue;
             }
 
-            $hasFk = $fkColumns->contains(fn ($item) => str_starts_with($item, "{$schema}.{$table}.{$relationship['column']}"));
+            // Asked of pg_constraint for this one column: the information_schema join matched constraints by name only,
+            // and partitions repeat names — 312k rows (≈ 220 MB) for 7.8k foreign keys, beyond a worker's memory.
+            $hasFk = (bool) DB::selectOne(
+                "SELECT EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
+                  WHERE c.contype = 'f' AND c.conrelid = to_regclass(?) AND a.attname = ?) AS ok",
+                [$schema.'.'.$table, $relationship['column']],
+            )->ok;
 
             if (! $hasFk) {
                 $findings->push([
