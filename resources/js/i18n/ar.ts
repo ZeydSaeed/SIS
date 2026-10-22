@@ -2290,6 +2290,7 @@ export const ar = {
         updatePlacement: 'تحديث التوزيع',
         viewResults: 'عرض النتائج',
         createTitle: 'تسجيل طالب',
+        studentNotFoundInSchool: 'لا يوجد طالب بهذا المعرّف في هذه المدرسة',
         createDesc: 'إنشاء توزيع للسنة الدراسية. التحقق من الخادم هو المرجع.',
         createSubmit: 'إنشاء التسجيل',
         editTitle: 'تحديث التوزيع',

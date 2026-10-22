@@ -50,9 +50,12 @@ test('create a workshop with every field of the sheet', async ({ page }) => {
         notes: 'تحتاج تهوية إضافية صيفاً', abbreviation: 'وك', color_hue: 130, status: 1, branch: 'الصناعي', room_type: 'INDUSTRIAL_WORKSHOP', department: 'كهرباء',
     });
 
-    // Found by its code (the «الرمز» column shows the timetable abbreviation when one is set — see the coverage notes).
+    // Found by its code, and the «الرمز» column shows the code (it used to show the abbreviation instead — O-01).
     await page.getByRole('searchbox', { name: /بحث في الغرف/ }).fill(code);
-    await expect(page.getByRole('row').filter({ hasText: `ورشة الكهرباء ${RUN}` })).toHaveCount(1);
+    const row = page.getByRole('row').filter({ hasText: `ورشة الكهرباء ${RUN}` });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(code);
+    await expect(row.getByTitle('الاختصار: وك')).toBeVisible();
 });
 
 test('refused: a code already used — message shown, nothing written', async ({ page }) => {

@@ -477,7 +477,7 @@ final class EnrollmentPageController extends Controller
         ]), $result->warnings);
     }
 
-    public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler): Response
+    public function edit(Request $request, int $enrollment, GetEnrollmentHandler $handler, EnrollmentReadRepositoryInterface $enrollments): Response
     {
         $record = EnrollmentRecord::query()
             ->select(['id', 'school_id'])
@@ -504,6 +504,8 @@ final class EnrollmentPageController extends Controller
 
         return Inertia::render('enrollments/edit', [
             'enrollment' => $detail->toArray(),
+            // Named lists of the enrollment's school and year (the form used to ask for raw ids).
+            'filterOptions' => $enrollments->listFilterOptions($schoolId, $detail->academicYearId),
         ]);
     }
 

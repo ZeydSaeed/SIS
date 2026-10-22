@@ -50,6 +50,30 @@ test('place a waiting student through the page', async ({ page }) => {
     expect(row).toEqual({ status: 1, effective_from: '2026-10-01', class: 'CLS-1', section: 'SEC-A', department: 'كهرباء', branch: 'الصناعي', student_follows: true });
 });
 
+test('a typed student id is shown by name before saving; an id of no student of the school says so', async ({ page }) => {
+    const id = waiting();
+    const name = dbValue<string>('SELECT full_name FROM students.students WHERE id = ?', [id]);
+    await page.goto('/enrollments/create');
+    await field(page, 'معرّف الطالب').fill(String(id));
+    await expect(page.getByRole('heading', { name })).toBeVisible();
+
+    // Wrong id corrected in place (the field stays editable after it resolved).
+    await field(page, 'معرّف الطالب').fill('99999999');
+    await expect(page.getByText('لا يوجد طالب بهذا المعرّف في هذه المدرسة')).toBeVisible();
+    await field(page, 'معرّف الطالب').fill(String(id));
+    await expect(page.getByRole('heading', { name })).toBeVisible();
+});
+
+test("the lookup never names a student of another school", async ({ pageAs }) => {
+    const page = await pageAs('school2');
+    const id = waiting();
+    const name = dbValue<string>('SELECT full_name FROM students.students WHERE id = ?', [id]);
+    await page.goto('/enrollments/create');
+    await field(page, 'معرّف الطالب').fill(String(id));
+    await expect(page.getByText('لا يوجد طالب بهذا المعرّف في هذه المدرسة')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(name);
+});
+
 test('a full section is refused through the page with its message', async ({ page, watch }) => {
     watch.allow(/\/enrollments$/, 422);
     const full = section('CLS-3', 'SEC-C');
@@ -94,6 +118,35 @@ test('the enrollment rules at the server', async ({ page }) => {
         expect(JSON.stringify(result.errors), label).toMatch(expected);
         expect(Number(dbValue('SELECT count(*) FROM enrollment.enrollments')), `${label}: nothing written`).toBe(before);
     }
+});
+
+test('the edit page uses names, keeps what was not changed and confirms the save', async ({ page }) => {
+    const row = dbQuery<{ id: number; department_id: number; section_id: number; class_id: number; full_name: string }>(
+        `SELECT e.id, e.department_id, e.section_id, e.class_id, s.full_name FROM enrollment.enrollments e JOIN students.students s ON s.id = e.student_id
+          WHERE e.status = 1 AND e.department_id IS NOT NULL AND e.school_id = 1 ORDER BY e.id LIMIT 1`)[0];
+    await page.goto(`/enrollments/${row.id}/edit`);
+    await expect(page.getByText(row.full_name)).toBeVisible();
+    await expect(page.locator('input[type=number]'), 'no raw-id inputs').toHaveCount(0);
+
+    const student = dbValue<number>('SELECT student_id FROM enrollment.enrollments WHERE id = ?', [row.id]);
+    const history = () => Number(dbValue('SELECT count(*) FROM enrollment.enrollments WHERE student_id = ?', [student]));
+    const rows = history();
+
+    // Saved untouched: nothing moves, no new row, and the save is confirmed (it used to say nothing).
+    await page.getByRole('button', { name: /تحديث|حفظ/ }).last().click();
+    await expect(notice(page, 'تم تحديث التوزيع بنجاح')).toBeVisible();
+    expect(dbQuery('SELECT section_id, department_id, status FROM enrollment.enrollments WHERE id = ?', [row.id])[0]).toEqual({ section_id: row.section_id, department_id: row.department_id, status: 1 });
+    expect(history()).toBe(rows);
+    await closeNotice(page, 'تم تحديث التوزيع بنجاح');
+
+    // Another section of the same class, chosen by name: the old placement is closed and kept (status 5 + end date),
+    // a new active enrollment holds the new section — history is never overwritten.
+    const other = dbQuery<{ id: number }>('SELECT id FROM enrollment.sections WHERE class_id = ? AND id <> ? AND (capacity IS NULL OR capacity > 2) ORDER BY id LIMIT 1', [row.class_id, row.section_id])[0];
+    await page.locator('select[name=section_id]').selectOption(String(other.id));
+    await page.getByRole('button', { name: /تحديث|حفظ/ }).last().click();
+    await expect(notice(page, 'تم تحديث التوزيع بنجاح')).toBeVisible();
+    expect(dbQuery('SELECT section_id, status, effective_to IS NOT NULL AS ended FROM enrollment.enrollments WHERE id = ?', [row.id])[0]).toEqual({ section_id: row.section_id, status: 5, ended: true });
+    expect(dbQuery('SELECT section_id, department_id FROM enrollment.enrollments WHERE student_id = ? AND status = 1', [student])).toEqual([{ section_id: other.id, department_id: row.department_id }]);
 });
 
 test('withdrawing ends the enrollment and keeps it', async ({ page }) => {

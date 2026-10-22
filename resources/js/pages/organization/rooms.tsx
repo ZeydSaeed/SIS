@@ -594,9 +594,14 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                                                                 <span dir="ltr">{offset + index + 1}</span>
                                                             </td>
                                                             <td className="sis-rooms-code-cell">
-                                                                <span className="sis-timetable-card sis-timetable-card--tray" style={hueStyle(room.color_hue ?? typeById.get(room.room_type_id ?? 0)?.color_hue ?? 205)}>
+                                                                {/* The column is «الرمز»: the room's code (the timetable abbreviation, which used to replace it, is the tooltip). */}
+                                                                <span
+                                                                    className="sis-timetable-card sis-timetable-card--tray"
+                                                                    style={hueStyle(room.color_hue ?? typeById.get(room.room_type_id ?? 0)?.color_hue ?? 205)}
+                                                                    title={room.abbreviation ? `${r.abbreviationColumn}: ${room.abbreviation}` : undefined}
+                                                                >
                                                                     <span className="sis-timetable-card__subject" dir="ltr">
-                                                                        {room.abbreviation ?? room.code}
+                                                                        {room.code}
                                                                     </span>
                                                                 </span>
                                                             </td>

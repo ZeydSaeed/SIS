@@ -1004,12 +1004,14 @@ export function EnrollmentCreateForm({
     const { academicYears } = usePage().props as { academicYears?: YearOption[] };
     const years = academicYears ?? [];
     const [saving, setSaving] = useState(false);
-    const lockedStudentId =
+    // Decided once: a page opened for a student keeps it; a typed id stays editable after it resolves.
+    const [lockedStudentId] = useState<number | null>(() =>
         student?.id && student.id > 0
             ? student.id
             : initialStudentId && initialStudentId > 0
               ? initialStudentId
-              : null;
+              : null,
+    );
     const [draft, setDraft] = useState<CreateDraft>(() => ({
         student_id: lockedStudentId ? String(lockedStudentId) : '',
         academic_year_id: academicYearId ? String(academicYearId) : '',
@@ -1037,6 +1039,23 @@ export function EnrollmentCreateForm({
         value: String(year.id),
         label: formatAcademicYearOptionLabel(year.name, year.code),
     }));
+
+    // A typed id is resolved by the server (the page's own student prop, scoped to the school) so the user sees who
+    // will be enrolled before saving — the id alone used to be all the page showed.
+    useEffect(() => {
+        if (lockedStudentId !== null || draft.student_id === String(student?.id ?? '')) {
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            router.reload({
+                only: ['student'],
+                data: { student_id: draft.student_id === '' ? undefined : draft.student_id },
+            });
+        }, 400);
+
+        return () => window.clearTimeout(timer);
+    }, [draft.student_id, lockedStudentId, student?.id]);
+    const typedUnknown = lockedStudentId === null && draft.student_id !== '' && student?.id === undefined;
 
     const studentName =
         student?.full_name?.trim()
@@ -1125,7 +1144,7 @@ export function EnrollmentCreateForm({
         <article className="sis-admission-draft-form sis-student-record-form" dir="rtl" lang="ar">
             <header className="sis-student-record-form__head">
                 <h3 className="sis-student-record-form__title">
-                    {studentName !== '' ? studentName : i18n.enrollments.createTitle}
+                    {studentName !== '' ? studentName : typedUnknown ? i18n.enrollments.studentNotFoundInSchool : i18n.enrollments.createTitle}
                 </h3>
                 <div className="sis-student-record-form__head-meta">
                     <StatusLikeButton tone="edit" disabled={saving} onClick={submit}>
