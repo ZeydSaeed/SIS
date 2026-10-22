@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Exams;
 
 use App\Application\Exams\DTOs\ExamDTO;
 use App\Application\Exams\DTOs\ExamSessionDTO;
+use App\Application\Exams\Queries\GetExamDisplayNamesHandler;
+use App\Application\Exams\Queries\GetExamDisplayNamesQuery;
 use App\Application\Exams\Queries\GetExamHandler;
 use App\Application\Exams\Queries\GetExamQuery;
+use App\Application\Exams\Queries\GetExamSeatingContextHandler;
+use App\Application\Exams\Queries\GetExamSeatingContextQuery;
 use App\Application\Exams\Queries\ListExamSessionsHandler;
 use App\Application\Exams\Queries\ListExamSessionsQuery;
 use App\Application\Exams\Queries\ListExamsHandler;
@@ -29,7 +33,7 @@ final class ExamPageController extends Controller
         private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
-    public function index(Request $request, ListExamsHandler $handler): Response
+    public function index(Request $request, ListExamsHandler $handler, GetExamDisplayNamesHandler $namesHandler): Response
     {
         $this->authorize('viewAny', ExamRecord::class);
 
@@ -62,6 +66,9 @@ final class ExamPageController extends Controller
             'exams' => [
                 'data' => array_map(static fn (ExamDTO $dto): array => $dto->toArray(), $items),
             ],
+            'names' => $namesHandler->handle(new GetExamDisplayNamesQuery(
+                termIds: array_map(static fn (ExamDTO $dto): int => $dto->termId, $items),
+            )),
             'filters' => [
                 'academic_year_id' => $academicYearId,
                 'status' => $status,
@@ -74,6 +81,8 @@ final class ExamPageController extends Controller
         int $exam,
         GetExamHandler $examHandler,
         ListExamSessionsHandler $sessionsHandler,
+        GetExamSeatingContextHandler $seatingHandler,
+        GetExamDisplayNamesHandler $namesHandler,
     ): Response {
         $this->authorize('viewAny', ExamRecord::class);
 
@@ -109,10 +118,28 @@ final class ExamPageController extends Controller
             ['session_count' => count($sessions)],
         );
 
+        $canSeat = $user->can('createEnrollment', ExamRecord::class);
+        $seating = $seatingHandler->handle(new GetExamSeatingContextQuery(
+            schoolId: $schoolId,
+            academicYearId: $dto->academicYearId,
+            examSessionIds: array_map(static fn (ExamSessionDTO $session): int => $session->id, $sessions),
+        ));
+
         return Inertia::render('exams/show', [
             'exam' => $dto->toArray(),
             'sessions' => [
                 'data' => array_map(static fn (ExamSessionDTO $session): array => $session->toArray(), $sessions),
+            ],
+            'names' => $namesHandler->handle(new GetExamDisplayNamesQuery(
+                termIds: [$dto->termId],
+                academicYearIds: [$dto->academicYearId],
+                subjectIds: array_map(static fn (ExamSessionDTO $session): int => $session->subjectId, $sessions),
+            )),
+            'seating' => [
+                'can_seat' => $canSeat,
+                'classes' => $canSeat ? $seating['classes'] : [],
+                'seat_counts' => $seating['seat_counts'],
+                'result' => $request->session()->get('exam_seating_result'),
             ],
             'filters' => [
                 'session_status' => $sessionStatus,

@@ -86,6 +86,27 @@ const studentName = (seat: number) =>
     );
 
 /** The synthetic grade teacher of the fixture, signed in through the real login form. */
+const GRADER_STATE = path.join('playwright', '.auth', 'exam-grader.json');
+
+/** Signs the grade teacher in once per run (the login form allows 5 attempts a minute) and keeps the session. */
+async function signInGrader(browser: Browser, f: Fixture): Promise<void> {
+    const context = await browser.newContext({
+        baseURL: BASE_URL,
+        locale: 'ar-IQ',
+        timezoneId: 'Asia/Baghdad',
+        storageState: { cookies: [], origins: [] },
+    });
+    const page = await context.newPage();
+    await page.goto('/login');
+    await page.locator('input[name="email"]').fill(f.grader_email);
+    await page.locator('input[name="password"]').fill(personaPassword());
+    await page.locator('[data-test="login-button"]').click();
+    await expect(page).not.toHaveURL(/\/login(\?|$)/, { timeout: 30_000 });
+    await context.storageState({ path: GRADER_STATE });
+    await context.close();
+}
+
+/** A page of the signed-in grade teacher, watched like every other page. */
 async function graderPage(
     browser: Browser,
     f: Fixture,
@@ -95,15 +116,12 @@ async function graderPage(
         baseURL: BASE_URL,
         locale: 'ar-IQ',
         timezoneId: 'Asia/Baghdad',
-        storageState: { cookies: [], origins: [] },
+        storageState: GRADER_STATE,
     });
     const page = await context.newPage();
     watch.attach(page);
-    await page.goto('/login');
-    await page.locator('input[name="email"]').fill(f.grader_email);
-    await page.locator('input[name="password"]').fill(personaPassword());
-    await page.locator('[data-test="login-button"]').click();
-    await expect(page).not.toHaveURL(/\/login(\?|$)/, { timeout: 30_000 });
+    await page.goto(sheetUrl(f, f.sessions.open));
+    await expect(page).not.toHaveURL(/\/login(\?|$)/);
 
     return page;
 }
@@ -149,8 +167,9 @@ test.describe('grade-entry sheet', () => {
     );
 
     let f: Fixture;
-    test.beforeAll(() => {
+    test.beforeAll(async ({ browser }) => {
         f = loadFixture();
+        await signInGrader(browser, f);
         // A fresh fixture: only the pre-graded seat has a grade (re-run sis:e2e-seed-exams before the spec).
         const graded = Object.entries(f.seats)
             .filter(([, seat]) => gradeRows(seat).length > 0)

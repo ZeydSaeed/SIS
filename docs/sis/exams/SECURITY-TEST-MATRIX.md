@@ -54,3 +54,17 @@ Executable: `tests/Unit/Domain/Exams/GradeEntryCoverageTest.php`,
 | SC-G06 | Connections | superuser; superuser with `session_replication_role = replica`; non-privileged `sis_rls_tester` under RLS | 23514 for all |
 
 Executable: `tests/Feature/Database/PostgreSql/StudentGradesImmutabilityPostgreSqlTest.php`.
+
+## EXAMIS U6 — seating a class (2026-10-22)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G15 | Who is seated | class with students with / without the subject, already seated, inactive, other class | only active subject-takers seated; others reported |
+| SC-G15 | Section | one section only | other section untouched |
+| SC-G15 | Idempotency | same key twice; new key | no second seat |
+| SC-G15 | Targets | section of another class, class of another year, other exam's / school's session, cancelled session, no key, `enrollment_ids` in body | refused, nothing seated (404 / coded error / 422) |
+| SC-G15 | Access | `grades_teacher`, `grades_viewer` | 403, nothing seated |
+| SC-G15 | Page | manager gets classes + seat counts; teacher gets none; seated students appear on the grade sheet | Inertia props |
+| SC-G15 | Browser | manager seats section B via the form; repeat seats 0; viewer has no action, POST 403 | `e2e/exams/seating.spec.ts` |
+
+Executable: `tests/Feature/Database/PostgreSql/ExamSeatingPostgreSqlTest.php`, `e2e/exams/seating.spec.ts`.

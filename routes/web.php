@@ -15,6 +15,7 @@ use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\ClassSectionPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
+use App\Http\Controllers\Exams\ExamSeatingController;
 use App\Http\Controllers\Grades\GradeSheetController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
@@ -385,6 +386,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('exams')->name('exams.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ExamPageController::class, 'index'])->name('index');
         Route::get('/{exam}', [ExamPageController::class, 'show'])->name('show');
+        Route::post('/{exam}/sessions/{session}/seat', [ExamSeatingController::class, 'store'])
+            ->whereNumber(['exam', 'session'])
+            ->name('sessions.seat');
     });
 
     Route::prefix('grades')->name('grades.')->middleware('require.school.context')->group(function (): void {

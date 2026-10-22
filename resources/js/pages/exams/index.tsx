@@ -24,16 +24,19 @@ type PageProps = {
     exams: {
         data: ExamRow[];
     };
+    names: { terms: Record<number, string> };
     filters: {
         academic_year_id: number | null;
         status: number | null;
     };
 };
 
-export default function ExamsIndex({ exams, filters }: PageProps) {
+export default function ExamsIndex({ exams, names, filters }: PageProps) {
     const i18n = t();
 
-    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.exams.title, href: '/exams' }];
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: i18n.exams.title, href: '/exams' },
+    ];
 
     const columns: DataTableColumn<ExamRow>[] = [
         {
@@ -44,7 +47,10 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
         {
             id: 'term_id',
             header: i18n.exams.term,
-            cell: (row) => <span dir="ltr">{row.term_id}</span>,
+            cell: (row) =>
+                names.terms[row.term_id] ?? (
+                    <span dir="ltr">{row.term_id}</span>
+                ),
             hideOnMobile: true,
         },
         {
@@ -75,20 +81,29 @@ export default function ExamsIndex({ exams, filters }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.exams.title} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
+            <div
+                className="sis-ops-hub flex flex-col gap-4 p-4"
+                dir="rtl"
+                lang="ar"
+            >
                 <PageHeader
                     title={i18n.exams.title}
                     description={i18n.exams.description}
                     icon={<GraduationCap className="size-6" aria-hidden />}
                 />
-                <OpsYearFilter action="/exams" academicYearId={filters.academic_year_id} />
+                <OpsYearFilter
+                    action="/exams"
+                    academicYearId={filters.academic_year_id}
+                />
                 <DataTable
                     columns={columns}
                     rows={exams.data}
                     rowKey={(row) => row.id}
                     emptyTitle={i18n.exams.emptyTitle}
                     emptyDescription={
-                        filters.academic_year_id ? i18n.exams.emptyDesc : i18n.exams.selectYearContext
+                        filters.academic_year_id
+                            ? i18n.exams.emptyDesc
+                            : i18n.exams.selectYearContext
                     }
                     caption={i18n.exams.tableCaption}
                     mobileCard={(row) => (

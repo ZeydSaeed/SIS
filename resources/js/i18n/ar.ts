@@ -116,6 +116,8 @@ export const ar = {
             voided: 'تم إبطال الدرجة.',
             finalized: 'تم اعتماد الدرجة.',
             sheetSaved: 'حُفظت درجات الجلسة.',
+            seated: 'تم إجلاس الطلاب في الجلسة.',
+            seatedPartial: 'لم يُجلَس بعض الطلاب — راجع الملخص تحت الجلسات.',
             sheetPartial: 'لم تُحفظ بعض الدرجات — راجع حالة كل طالب في الجدول.',
         },
         attendance: {
@@ -1215,6 +1217,10 @@ export const ar = {
             'grades.sheet.duplicate_row': 'الطالب مكرر في الطلب نفسه.',
             'grades.sheet.seat_not_in_session': 'الطالب ليس ضمن مقاعد هذه الجلسة.',
             'grades.sheet.seat_forbidden': 'لا تملك صلاحية إدخال درجة هذا الطالب.',
+            'exams.seating.idempotency_key_required': 'تعذّر الإجلاس: أعد المحاولة.',
+            'exams.seating.session_cancelled': 'الجلسة ملغاة ولا تقبل إجلاس طلاب.',
+            'exams.seating.class_invalid': 'الصف ليس من صفوف المدرسة في سنة هذا الامتحان.',
+            'exams.seating.section_invalid': 'الشعبة لا تتبع الصف المختار.',
             'attendance.sheet_transition_invalid':
                 'لا يسمح وضع الكشف الحالي بهذا الإجراء.',
             'attendance.sheet_version_conflict':
@@ -2734,6 +2740,21 @@ export const ar = {
         selectYearContext: 'اختر سياق السنة الدراسية لتحميل الامتحانات.',
         tableCaption: 'امتحانات المدرسة',
         academicYear: 'السنة الدراسية',
+        enterGrades: 'إدخال الدرجات',
+        seat: {
+            column: 'المقاعد',
+            action: 'إجلاس طلاب',
+            title: 'إجلاس طلاب صف في الجلسة',
+            hint: 'يُجلَس طلاب الصف (أو الشعبة) النشطون الذين تُدرَّس لهم مادة الجلسة؛ من لا يدرس المادة لا يُجلَس.',
+            class: 'الصف',
+            section: 'الشعبة',
+            allSections: 'كل الشعب',
+            submit: 'إجلاس',
+            submitting: 'جارٍ الإجلاس…',
+            cancel: 'إلغاء',
+            noClasses: 'لا توجد صفوف نشطة في سنة هذا الامتحان.',
+            result: 'أُجلس :seated، وكان :already_seated مُجلَسين سابقاً، ولا يدرس المادة :subject_not_assigned، وتعذّر :failed.',
+        },
     },
     grades: {
         title: 'الدرجات',

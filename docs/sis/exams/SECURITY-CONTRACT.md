@@ -192,3 +192,21 @@ here; the raw `exam_enrollment_id` form is retired (the single-grade `POST /grad
   grade stays on the correction path (VOID + INSERT, `grades.correct`). The sheet adds no correct / void / finalize / publish capability.
 - **Validation:** request — score numeric, ≥ 0, ≤ 2 decimals, max 500 rows, no client-controlled identity fields; domain — score ≤ the
   session's `max_grade`, session in progress / completed, enrollment active.
+
+---
+
+## SC-G15 — Seating a class into an exam session (EXAMIS U6, 2026-10-22)
+
+`POST /exams/{exam}/sessions/{session}/seat` (web, `exam.enrollment.create` via `ExamPolicy::createEnrollment`; the handler
+re-checks it through `ExamAdministrationAuthorityPort`). Body: `class_id`, optional `section_id`; enrollment ids are
+prohibited — the server chooses the students.
+
+- **Whole-request refusals (nothing seated):** session not in this exam and school → 404; cancelled session, class not of
+  the exam's school-year, section not of the class, missing `X-Idempotency-Key` → coded error flash (`exams.seating.*`).
+- **Who is seated:** active enrollments (`status = 1`, `effective_to IS NULL`) of the class (or section) in the exam's
+  school-year **that have the session's subject actively assigned** (`enrollment.enrollment_subjects`). Others are
+  reported (`subject_not_assigned`), not seated; students already holding a seat in the session are reported
+  (`already_seated`) and never seated twice.
+- **Write path:** one `CreateExamEnrollment` per student (its own rules, transaction, fingerprinted idempotency and
+  events), with a per-student key derived from the request key. A repeated request seats nobody twice.
+- **Audit:** one `SEC_GRADE_DATA_MODIFIED` record `exams.web.seat_class` with the per-outcome counts.
