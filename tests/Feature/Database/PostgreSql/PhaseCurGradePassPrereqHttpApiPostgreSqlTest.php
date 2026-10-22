@@ -82,10 +82,35 @@ final class PhaseCurGradePassPrereqHttpApiPostgreSqlTest extends PostgreSqlInteg
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'enrollment.prerequisite_not_met');
 
-        DB::table(SchemaHelper::qualified('exams', 'student_grades'))
+        // An official grade is never edited in place: void the 40 and insert the corrected 60 (VOID + INSERT).
+        $previousId = (int) DB::table(SchemaHelper::qualified('exams', 'student_grades'))
             ->where('exam_enrollment_id', $seat['exam_enrollment_id'])
             ->where('academic_year_id', $yearId)
-            ->update(['score' => 60, 'updated_at' => now()]);
+            ->where('is_current', true)
+            ->value('id');
+        DB::table(SchemaHelper::qualified('exams', 'student_grades'))
+            ->where('id', $previousId)
+            ->where('academic_year_id', $yearId)
+            ->update(['is_current' => false, 'status' => GradeStatus::Voided->value, 'updated_at' => now()]);
+        DB::table(SchemaHelper::qualified('exams', 'student_grades'))->insert([
+            'academic_year_id' => $yearId,
+            'school_id' => $schoolId,
+            'exam_enrollment_id' => $seat['exam_enrollment_id'],
+            'exam_session_id' => $seat['session_id'],
+            'enrollment_id' => $enrollmentId,
+            'student_id' => $student->id,
+            'subject_id' => $mathId,
+            'score' => 60,
+            'max_score' => 100,
+            'is_absent' => false,
+            'status' => GradeStatus::Finalized->value,
+            'is_current' => true,
+            'correction_of_grade_id' => $previousId,
+            'entered_at' => now(),
+            'finalized_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->postJson('/api/v1/enrollments/'.$enrollmentId.'/subjects', [
             'subject_id' => $algId,

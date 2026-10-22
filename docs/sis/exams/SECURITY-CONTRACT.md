@@ -93,6 +93,18 @@ finalized_at, correction_of_grade_id, status
 
 Corrections use **VOID + INSERT** only. `correction_of_grade_id` set once on insert; no API to mutate pointer. Reason required for correct/void (audit + outbox payload; no new DB column in 3B.1).
 
+**Enforced in the database (EXAMIS U5, 2026-10-22):** trigger `student_grades_reject_in_place_update` (`BEFORE UPDATE`,
+`ENABLE ALWAYS`, on every year partition) rejects any in-place change with SQLSTATE `23514`. Allowed UPDATEs: finalize
+(`1|2|3 → 4`, current, `finalized_at` set once) and void (`→ 5`, `is_current` true → false, `finalized_at` unchanged).
+Score, max score, absence, every identity column, the correction link, the entry actor and timestamps never change; a
+voided grade is terminal and never current again; other status changes (e.g. `1→2`, `2→3`) are rejected until a reviewed
+submission workflow exists. It applies to superuser, replica-role and RLS-limited connections alike.
+
+**Residual risk (accepted):** a trigger does not protect against `TRUNCATE` (used only by the guarded disposable-database
+reset commands) or a deliberate privileged `ALTER TABLE … DISABLE TRIGGER` / `DROP TRIGGER`; those stay controlled by
+database privileges and operational access. A rejected UPDATE aborts its transaction, so it is not written to
+`security_audit_logs` (the PostgreSQL log keeps the error).
+
 ---
 
 ## SC-G07 — Finalization

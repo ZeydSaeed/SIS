@@ -1365,6 +1365,24 @@ Queued report files (CSV / PDF) built by `GenerateAttendanceReportExportJob`; th
 
 **Correction model:** VOID + INSERT replacement (`is_current`, `correction_of_grade_id`). **No hard DELETE.**
 
+**Triggers (row-level on the partitioned parent — PostgreSQL clones them onto every year partition, existing and future):**
+- `student_grades_reject_delete` — `BEFORE DELETE`: hard delete is forbidden (Phase 3B).
+- `student_grades_reject_in_place_update` — `BEFORE UPDATE`, `ENABLE ALWAYS` (EXAMIS U5, 2026-10-22; DL-019 applied to grades):
+  official grades are immutable in place.
+  - Never change: `id`, `academic_year_id`, `school_id`, `exam_enrollment_id`, `exam_session_id`, `enrollment_id`,
+    `student_id`, `subject_id`, `score`, `max_score`, `is_absent`, `correction_of_grade_id`, `entered_by`, `entered_at`,
+    `created_at`.
+  - Allowed transitions only: finalize `1|2|3 → 4` on a current grade (`finalized_at` NULL → set, stays current);
+    void `1|2|3|4 → 5` (`is_current` true → false, `finalized_at` unchanged); same status with only `updated_at` changed.
+  - Rejected: anything from Voided (terminal, never current again), every other status change (e.g. `1→2`, `2→3`,
+    `4→1`), changing `finalized_at` once set. SQLSTATE `23514`.
+  - `ENABLE ALWAYS`: also fires under `session_replication_role = replica`. Supported replication / restore paths are
+    physical (streaming replica, `pg_basebackup` + WAL PITR — no triggers during replay) or `pg_dump`/`pg_restore`
+    (COPY, triggers created after the data); logical replication is not configured (`wal_level = replica`).
+  - **Residual risk (accepted, D3):** a trigger does not stop `TRUNCATE` (used by the guarded disposable-database reset
+    commands) or a privileged `ALTER TABLE … DISABLE TRIGGER` / `DROP TRIGGER`; those remain controlled by database
+    privileges and operations.
+
 **SSOT:** Authoritative scores live only here — not on `exam_enrollments`. `results.term_results` is a **derived versioned projection** (Phase 7.4-U01); never a second grade ledger. GPA/ranking/transcript remain Phase 7.5.
 
 > **Phase 3B enrichment (approved):** replaces earlier blueprint sketch (`grade` → `score`; adds `exam_enrollment_id`, `school_id`, lifecycle, partition PK). Object count remains **87**.

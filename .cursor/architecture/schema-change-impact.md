@@ -334,6 +334,22 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-10-22 exams.student_grades immutable in place (EXAMIS U5)
+
+| Item | Value |
+|------|-------|
+| Class | Medium (CONSTRAINT — trigger on the official grade SSOT; no table / column / index / data change) |
+| Table | `exams.student_grades` (partitioned; trigger cloned onto all year partitions, existing and future) |
+| Change | `BEFORE UPDATE` row trigger `student_grades_reject_in_place_update` (`ENABLE ALWAYS`) + function `exams.reject_student_grades_in_place_update()`: only finalize (`1/2/3 → 4`, `finalized_at` set once, current) and void (`→ 5`, `is_current` true → false) are allowed; identity / score / correction-link / entry columns immutable; voided terminal (DL-019 applied to grades) |
+| App impact | None — the only application UPDATEs (`markFinalized`, `markVoided`) are inside the allowed transitions; corrections remain VOID + INSERT |
+| Replication / restore | Physical replica and WAL PITR replay no triggers; `pg_dump`/`pg_restore` loads with COPY before triggers exist; logical replication not configured (`wal_level = replica`) — `ENABLE ALWAYS` affects only replica-role sessions |
+| Residual risk (accepted, D3) | `TRUNCATE` (guarded disposable-database resets) and privileged `DISABLE` / `DROP TRIGGER` are not blocked by a trigger |
+| Tests | `StudentGradesImmutabilityPostgreSqlTest`; `PhaseCurGradePassPrereqHttpApiPostgreSqlTest` now corrects by VOID + INSERT |
+| Rollback | `down()` drops trigger + function (partition clones go with the parent trigger); verified up → down → up |
+| Blueprint | Updated (`exams.student_grades` triggers) |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

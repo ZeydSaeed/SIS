@@ -41,3 +41,16 @@ Executable suites: `tests/Feature/Exams/*`, `tests/Feature/Security/*Grade*`, `t
 Executable: `tests/Unit/Domain/Exams/GradeEntryCoverageTest.php`,
 `tests/Feature/Database/PostgreSql/GradeEntryTeacherScopePostgreSqlTest.php`,
 `tests/Feature/Database/PostgreSql/GradeEntrySheetPostgreSqlTest.php`.
+
+## EXAMIS U5 — grades immutable in place (2026-10-22)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G06 | Allowed UPDATEs | finalize `1/2/3 → 4`; void `2 → 5`, `4 → 5`; `updated_at`-only touch | 1 row updated |
+| SC-G06 | Immutable columns | each identity column, `score` (incl. → NULL), `max_score`, `is_absent`, `correction_of_grade_id` (→ NULL / other), `entered_by`, `entered_at`, `created_at`, year move | SQLSTATE 23514, row unchanged |
+| SC-G06 | Transitions | `2→1`, `2→3`, `1→2`, `4→1/2`, leave current without void, `finalized_at` set/changed/cleared outside finalize, finalize non-current, any update of a voided grade | 23514 |
+| SC-G06 | Application flows | enter → finalize → correct (VOID + INSERT) → finalize → void through the handlers; outbox events staged | chain intact |
+| SC-G06 | Partitions | trigger cloned on every partition in `ALWAYS` mode, incl. a year created after the migration; rejection in two years + the new one | `tgenabled = A`, 23514 |
+| SC-G06 | Connections | superuser; superuser with `session_replication_role = replica`; non-privileged `sis_rls_tester` under RLS | 23514 for all |
+
+Executable: `tests/Feature/Database/PostgreSql/StudentGradesImmutabilityPostgreSqlTest.php`.
