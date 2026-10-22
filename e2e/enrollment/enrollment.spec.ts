@@ -71,6 +71,8 @@ test('a full section is refused through the page with its message', async ({ pag
 });
 
 test('the enrollment rules at the server', async ({ page }) => {
+    // Long by design (6 refusals, each followed by its page; ≈2 s per request + page + database check on one PHP server): every step still asserts.
+    test.setTimeout(180_000);
     await page.goto('/enrollments');
     const p = placement();
     const a = section('CLS-1', 'SEC-B');

@@ -15,6 +15,8 @@ let n = 0;
 const code = () => `S${RUN}${++n}`.slice(-20);
 
 test('every rule of a new subject at and past its boundary', async ({ page }) => {
+    // Long by design (9 boundary cases; ≈2 s per request + page + database check on one PHP server): every step still asserts.
+    test.setTimeout(180_000);
     await page.goto('/curriculum');
     const base = () => ({ code: code(), name: `مادة ${RUN} ${n}`, subject_type: 1 });
     const cases: [string, Record<string, unknown>, boolean][] = [

@@ -95,6 +95,8 @@ test('take the room out of service only after confirming', async ({ page }) => {
 });
 
 test('every limit of the room form at and past its boundary', async ({ page }) => {
+    // Long by design (25 boundary cases; ≈2 s per request + page + database check on one PHP server): every step still asserts.
+    test.setTimeout(180_000);
     const branch = dbValue<number>("SELECT id FROM organization.branches WHERE school_id = 1 AND name = 'الصناعي'");
     let n = 0;
     const base = () => ({ branch_id: branch, code: `B${RUN}${++n}`.slice(-20), name: `حدود ${RUN} ${n}`, supports_practical: false });

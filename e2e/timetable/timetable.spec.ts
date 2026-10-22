@@ -142,6 +142,8 @@ test('a timetable with lessons in rooms too small for the class cannot be submit
 });
 
 test('a clean grid goes through approval and publication with no hard conflict published', async ({ page }) => {
+    // Long by design (every too-small room cleared, then submit → approve → publish; ≈2 s per request + page + database check on one PHP server): every step still asserts.
+    test.setTimeout(180_000);
     // Clear the remaining too-small rooms (the report's «ترك الحصة بلا غرفة» remedy).
     for (const row of dbQuery<{ id: number; section_id: number; day_of_week: number; period_id: number; subject_id: number; teacher_id: number }>(
         SQL.roomTooSmall.replace('SELECT count(*) FROM timetable.schedules s', 'SELECT s.id, s.section_id, s.day_of_week, s.period_id, s.subject_id, s.teacher_id FROM timetable.schedules s'),

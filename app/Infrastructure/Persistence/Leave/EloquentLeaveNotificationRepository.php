@@ -22,6 +22,9 @@ final class EloquentLeaveNotificationRepository implements LeaveNotificationRepo
             'request_id' => $requestId,
             'kind' => $kind->value,
             'actor_user_id' => $actorUserId,
+            // The application's clock, like submitted_at that «once per round» compares it with: the column default
+            // NOW() is the transaction's start, which can precede the submission it answers.
+            'created_at' => now(),
         ]);
     }
 

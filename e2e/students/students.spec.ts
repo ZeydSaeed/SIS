@@ -109,6 +109,8 @@ test('incomplete data stops at the first missing field, the input kept and nothi
 });
 
 test('every rule of the student form at and past its boundary (server side)', async ({ page }) => {
+    // Long by design (19 boundary cases; ≈2 s per request + page + database check on one PHP server): every step still asserts.
+    test.setTimeout(180_000);
     await page.goto('/students');
     // The open period (status 1; 2 = archived).
     const period = dbValue<number>('SELECT id FROM admission.application_periods WHERE status = 1 ORDER BY id DESC LIMIT 1');
