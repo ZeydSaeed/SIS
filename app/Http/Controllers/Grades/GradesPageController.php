@@ -85,15 +85,12 @@ final class GradesPageController extends Controller
         ]);
     }
 
-    public function enterForm(Request $request): Response
+    /** The raw exam-enrollment-id form is replaced by the session grade-entry sheet. */
+    public function enterForm(Request $request): RedirectResponse
     {
         $this->authorize('create', StudentGradeRecord::class);
 
-        return Inertia::render('grades/enter', [
-            'defaults' => [
-                'is_absent' => false,
-            ],
-        ]);
+        return redirect()->route('grades.sheet', $request->only(['academic_year_id', 'session_id']));
     }
 
     public function store(EnterStudentGradeRequest $request, EnterStudentGradeHandler $handler): RedirectResponse

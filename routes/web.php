@@ -15,6 +15,7 @@ use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\ClassSectionPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
 use App\Http\Controllers\Exams\ExamPageController;
+use App\Http\Controllers\Grades\GradeSheetController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Imports\ImportPageController;
@@ -389,6 +390,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('grades')->name('grades.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [GradesPageController::class, 'index'])->name('index');
         Route::get('/enter', [GradesPageController::class, 'enterForm'])->name('enter');
+        Route::get('/sheet', [GradeSheetController::class, 'show'])->name('sheet');
+        Route::post('/sheet/{session}', [GradeSheetController::class, 'store'])->whereNumber('session')->name('sheet.store');
         Route::post('/', [GradesPageController::class, 'store'])->name('store');
         Route::get('/actions', [GradesPageController::class, 'actions'])->name('actions');
         Route::post('/{grade}/correct', [GradesPageController::class, 'correct'])->name('correct');

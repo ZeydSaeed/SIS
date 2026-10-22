@@ -17,5 +17,6 @@ final readonly class GradeSeatPlacement
         public ?int $departmentId,
         public int $classId,
         public int $sectionId,
+        public int $examSessionId = 0,
     ) {}
 }

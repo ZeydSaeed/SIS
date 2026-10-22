@@ -57,9 +57,29 @@ final class ExamRepositoryGradeLookupFailingDecorator implements ExamRepositoryI
         return $this->inner->lockByIdAndSchool($examId, $schoolId);
     }
 
+    public function listBySchool(int $schoolId, ?int $academicYearId = null, ?int $status = null): array
+    {
+        return $this->inner->listBySchool($schoolId, $academicYearId, $status);
+    }
+
     public function findSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot
     {
         return $this->inner->findSessionByIdAndSchool($examSessionId, $schoolId);
+    }
+
+    public function listSessionsForExam(int $examId, int $schoolId, ?int $status = null): array
+    {
+        return $this->inner->listSessionsForExam($examId, $schoolId, $status);
+    }
+
+    public function listEnrollmentsForSession(int $examSessionId, int $schoolId, ?int $status = null): array
+    {
+        return $this->inner->listEnrollmentsForSession($examSessionId, $schoolId, $status);
+    }
+
+    public function reopenExamEnrollment(int $examEnrollmentId, int $schoolId): bool
+    {
+        return $this->inner->reopenExamEnrollment($examEnrollmentId, $schoolId);
     }
 
     public function lockSessionByIdAndSchool(int $examSessionId, int $schoolId): ?ExamSessionSnapshot

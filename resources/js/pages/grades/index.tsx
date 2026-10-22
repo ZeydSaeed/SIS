@@ -97,7 +97,7 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                     icon={<PenLine className="size-6" aria-hidden />}
                 />
                 <div className="flex flex-wrap gap-2">
-                    <Link href="/grades/enter" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
+                    <Link href="/grades/sheet" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
                         {i18n.grades.enterGrade}
                     </Link>
                 </div>

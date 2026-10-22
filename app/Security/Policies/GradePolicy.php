@@ -51,11 +51,18 @@ final class GradePolicy
             return false;
         }
 
-        if ($this->authorization->userHasPermission($user, Permission::GRADES_ENTER_ANY)) {
+        if ($this->enterAnySeat($user)) {
             return true;
         }
 
         return $this->entryScope->teacherCoversSeat((int) $user->id, $this->schoolContext->requireId(), $examEnrollmentId);
+    }
+
+    /** School-wide grade entry (grades.enter.any) — entry only; correct / void / finalize stay separately authorized. */
+    public function enterAnySeat(User $user): bool
+    {
+        return $this->create($user)
+            && $this->authorization->userHasPermission($user, Permission::GRADES_ENTER_ANY);
     }
 
     public function correct(User $user, StudentGradeRecord|string|int|null $grade = null): bool
