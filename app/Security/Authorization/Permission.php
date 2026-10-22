@@ -28,6 +28,9 @@ final class Permission
 
     public const GRADES_CREATE = 'grades.create';
 
+    /** Enter grades for any seat of the school; without it, entry is limited to the teacher's own assignments. */
+    public const GRADES_ENTER_ANY = 'grades.enter.any';
+
     public const GRADES_CORRECT = 'grades.correct';
 
     public const GRADES_VOID = 'grades.void';
@@ -217,6 +220,7 @@ final class Permission
             self::ENROLLMENT_CANCEL,
             self::GRADES_VIEW,
             self::GRADES_CREATE,
+            self::GRADES_ENTER_ANY,
             self::GRADES_CORRECT,
             self::GRADES_VOID,
             self::GRADES_FINALIZE,

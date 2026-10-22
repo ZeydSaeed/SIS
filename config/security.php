@@ -14,6 +14,7 @@ return [
         'enrollment.cancel' => 'Cancel enrollment records',
         'grades.view' => 'View student grades',
         'grades.create' => 'Enter student grades',
+        'grades.enter.any' => 'Enter grades for any seat of the school (otherwise limited to own teaching assignments)',
         'grades.correct' => 'Correct student grades',
         'grades.void' => 'Void student grades',
         'grades.finalize' => 'Finalize student grades',
@@ -138,6 +139,7 @@ return [
         'grades_manager' => [
             'grades.view',
             'grades.create',
+            'grades.enter.any',
             'grades.correct',
             'grades.void',
             'grades.finalize',

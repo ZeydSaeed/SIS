@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Exams;
 
 use App\Infrastructure\Persistence\Eloquent\StudentGradeRecord;
+use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
+use App\Security\Audit\SecurityEventType;
 use App\Security\Validation\SecuritySensitiveFieldGuard;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -11,6 +13,25 @@ class EnterStudentGradeRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->can('create', StudentGradeRecord::class) ?? false;
+    }
+
+    /** Seat scope is checked once the seat id is known to be well-formed (invalid input stays a 422). */
+    protected function passedValidation(): void
+    {
+        $seatId = (int) $this->validated('exam_enrollment_id');
+        if ($this->user()?->can('enterSeat', [StudentGradeRecord::class, $seatId]) ?? false) {
+            return;
+        }
+
+        app(SecurityAuditLoggerInterface::class)->record(
+            SecurityEventType::IdorBlocked,
+            'grades.enter.scope',
+            'denied',
+            $this->user(),
+            "exam_enrollment:{$seatId}",
+        );
+
+        $this->failedAuthorization();
     }
 
     /**

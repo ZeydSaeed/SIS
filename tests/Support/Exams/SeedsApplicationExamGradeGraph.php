@@ -26,7 +26,7 @@ trait SeedsApplicationExamGradeGraph
 
         $termId = (int) DB::table(SchemaHelper::qualified('academic', 'terms'))->insertGetId([
             'academic_year_id' => $yearId,
-            'code' => 'T-'.$suffix.uniqid(),
+            'code' => 'T-'.substr($suffix, 0, 5).uniqid(), // academic.terms.code is VARCHAR(20)
             'name' => 'Term '.$suffix,
             'start_date' => '2026-09-01',
             'end_date' => '2026-12-31',
