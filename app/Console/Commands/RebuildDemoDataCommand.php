@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Database\Exceptions\ProtectedDatabaseException;
+use App\Database\ProtectedDatabaseGuard;
 use App\Database\SchemaHelper;
 use Database\Seeders\DemoProfileCompletionSeeder;
 use Database\Seeders\FoundationAcademicSeeder;
@@ -20,7 +22,8 @@ use Illuminate\Support\Facades\DB;
  * class / section / subject): 200 students, 50 teachers, the same curriculum everywhere.
  *
  * Truncates (CASCADE — every table that references the roots goes too). Users, roles, schools,
- * directorates and academic years are kept. Refused in production.
+ * directorates and academic years are kept. Refused in production and on any database ProtectedDatabaseGuard does not
+ * allow (sis is protected; others must be in SIS_DESTRUCTIVE_ALLOWED_DATABASES).
  *
  * php artisan sis:rebuild-demo-data
  */
@@ -68,6 +71,15 @@ class RebuildDemoDataCommand extends Command
         }
         if (! SchemaHelper::isPostgreSql()) {
             $this->components->error('Requires PostgreSQL.');
+
+            return self::FAILURE;
+        }
+        // Fail-closed, like every other destructive path: a protected database (sis) is never truncated, and any other
+        // must be listed in SIS_DESTRUCTIVE_ALLOWED_DATABASES — whatever DB_DATABASE says.
+        try {
+            app(ProtectedDatabaseGuard::class)->assertSafeForDestructiveOperations();
+        } catch (ProtectedDatabaseException $e) {
+            $this->components->error('Refused: '.$e->getMessage());
 
             return self::FAILURE;
         }

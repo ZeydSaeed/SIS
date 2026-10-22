@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
+use Tests\Support\Database\PostgreSqlRlsActor;
 
 /**
  * Phase 3C.12 / 3C.12A — Graduation schema + RLS catalog checks on disposable sis_test.
@@ -36,7 +37,8 @@ class Phase3C12GraduationSchemaTest extends PostgreSqlIntegrationTestCase
     public function graduation_schema_is_registered_and_tables_exist(): void
     {
         $this->assertContains('graduation', SchemaHelper::schemas());
-        $this->assertSame('sis_test', strtolower((string) DB::connection()->getDatabaseName()));
+        // The configured test database (SIS_PGSQL_TEST_DATABASE, default sis_test), as PostgreSqlIntegrationTestCase checks.
+        $this->assertSame(strtolower((string) config('sis.database.pgsql_test_database', 'sis_test')), strtolower((string) DB::connection()->getDatabaseName()));
 
         foreach ($this->tables as $table) {
             $this->assertTrue(
@@ -104,9 +106,13 @@ class Phase3C12GraduationSchemaTest extends PostgreSqlIntegrationTestCase
     #[Test]
     public function rls_fail_closed_without_school_context(): void
     {
-        DB::statement("SELECT set_config('app.current_school_id', '', false)");
+        // Asked as a role RLS applies to: the test connection is a superuser (BYPASSRLS), which sees every row whatever
+        // the policy says — the earlier version of this test counted rows other suites had left and failed for that.
+        PostgreSqlRlsActor::become();
+        DB::statement("SELECT set_config('app.current_school_id', '', true)");
 
         $count = DB::table(SchemaHelper::qualified('graduation', 'completion_outcomes'))->count();
         $this->assertSame(0, $count);
+        PostgreSqlRlsActor::reset();
     }
 }
