@@ -88,6 +88,34 @@ lessons) and some tests expect the seeded state (for example the timetable test 
 
 Optional variables: `E2E_DB` (default `sis_e2e`), `E2E_PORT` (8123), `E2E_BASE_URL`, `E2E_RUN` (run tag).
 
+### 4.1 Grade-entry sheet (`e2e/grades/grade-sheet.spec.ts`) — disposable copy only
+
+The spec needs exam fixtures that are **never** written to `sis` or to the shared `sis_e2e`: `sis:e2e-seed-exams`
+refuses any database that is not named `sis_e2e_<suffix>`, is not in `SIS_DESTRUCTIVE_ALLOWED_DATABASES`, is in
+production, or does not hold the e2e dataset — before its first query. On `sis_e2e` the spec is skipped with that reason.
+
+```bash
+# 1. Disposable copy of the migrated e2e database (no migration runs; sis_e2e is only read — nothing may be connected to it)
+psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE sis_e2e_exams TEMPLATE sis_e2e"
+export DB_CONNECTION=pgsql DB_DATABASE=sis_e2e_exams SIS_DESTRUCTIVE_ALLOWED_DATABASES=sis_e2e_exams
+export SIS_E2E_PASSWORD="$(php -r 'echo bin2hex(random_bytes(12));')"
+
+# 2. Synthetic dataset with known persona passwords, then the exam fixture (adds a new tagged set every run)
+php -d memory_limit=2G artisan sis:e2e-seed --no-backup
+php artisan sis:e2e-seed-exams          # → storage/app/e2e/exam-fixture.json (database name + ids)
+
+# 3. The spec (setup signs in the personas; the grade teacher exam-grader@sis.test signs in inside the spec)
+E2E_DB=sis_e2e_exams npx playwright test e2e/grades --project=chromium
+
+# 4. Drop the copy when done
+psql -h 127.0.0.1 -U postgres -c "DROP DATABASE sis_e2e_exams WITH (FORCE)"
+```
+
+Run `sis:e2e-seed-exams` again before every run of the spec: grades cannot be deleted, so the spec refuses a fixture
+whose seats were already graded («fixture … is not fresh») instead of passing on stale data. The fixture adds one
+synthetic account (`exam-grader@sis.test`, role `grades_teacher`) and one synthetic teacher (`T-X901`) — outside the
+persona and teacher counts the setup checks.
+
 ## 5. What a test may assume
 
 - Every page is watched: a JavaScript error, a console error or an unexpected HTTP ≥ 400 from the application fails
