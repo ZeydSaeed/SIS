@@ -25,6 +25,30 @@ final class AnnualResultCalculatorTest extends TestCase
     }
 
     #[Test]
+    public function average_rounds_half_up_exactly(): void
+    {
+        // Regression: (49.00 + 49.23) / 2 = 49.115 → 49.12. Float rounding gave 49.11.
+        $result = AnnualResultCalculator::calculateOperational([
+            new TermResultRollupRow(1, 1, 10, '49.00', 0, false),
+            new TermResultRollupRow(2, 1, 11, '49.23', 0, false),
+        ]);
+
+        $this->assertSame('49.12', $result->averageWeightedTotal);
+    }
+
+    #[Test]
+    public function average_ignores_rows_without_a_total(): void
+    {
+        $result = AnnualResultCalculator::calculateOperational([
+            new TermResultRollupRow(1, 1, 10, '70.00', 1, false),
+            new TermResultRollupRow(2, 1, 11, null, null, true),
+        ]);
+
+        $this->assertSame('70.00', $result->averageWeightedTotal);
+        $this->assertTrue($result->incomplete);
+    }
+
+    #[Test]
     public function fails_without_rows(): void
     {
         $this->expectException(AnnualResultNoTermResultsException::class);

@@ -5,6 +5,7 @@ namespace App\Domain\Results\Services;
 use App\Domain\Results\Data\AnnualResultCalculation;
 use App\Domain\Results\Data\TermResultRollupRow;
 use App\Domain\Results\Exceptions\AnnualResultNoTermResultsException;
+use App\Domain\Results\Support\ResultRounding;
 
 final class AnnualResultCalculator
 {
@@ -43,8 +44,7 @@ final class AnnualResultCalculator
         $counted = count($rows);
         $passed = 0;
         $incompleteCount = 0;
-        $sum = 0.0;
-        $avgN = 0;
+        $totals = [];
         $incomplete = false;
         $ids = [];
 
@@ -58,14 +58,11 @@ final class AnnualResultCalculator
                 $passed++;
             }
             if ($row->weightedTotal !== null) {
-                $sum += (float) $row->weightedTotal;
-                $avgN++;
+                $totals[] = $row->weightedTotal;
             }
         }
 
-        $average = $avgN > 0
-            ? number_format(floor(($sum / $avgN) * 100 + 0.5) / 100, 2, '.', '')
-            : null;
+        $average = $totals !== [] ? ResultRounding::mean($totals) : null;
 
         sort($ids);
 

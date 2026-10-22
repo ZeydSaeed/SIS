@@ -7,6 +7,7 @@ use App\Domain\Results\Data\TermGradeContribution;
 use App\Domain\Results\Data\TermResultCalculation;
 use App\Domain\Results\Exceptions\TermResultNoGradesException;
 use App\Domain\Results\Exceptions\TermResultWeightException;
+use App\Domain\Results\Support\ResultRounding;
 
 /**
  * Operational term-subject weighted total (Design Lock HD-7.4-004…007, 014, 015).
@@ -78,8 +79,8 @@ final class TermResultCalculator
             throw TermResultWeightException::sumNotOneHundred(number_format($weightSum, 2, '.', ''));
         }
 
-        $numerator = 0.0;
-        $denominator = 0.0;
+        $terms = [];
+        $countedWeight = 0;
         $incomplete = false;
         $gradeIds = [];
 
@@ -91,22 +92,20 @@ final class TermResultCalculator
                 continue;
             }
 
-            $max = (float) $row->maxScore;
-            if ($max <= 0.0 || $row->score === null) {
+            if ((float) $row->maxScore <= 0.0 || $row->score === null) {
                 $incomplete = true;
 
                 continue;
             }
 
-            $weight = (float) $row->weightPercentage;
-            $numerator += ((float) $row->score / $max) * 100.0 * ($weight / 100.0);
-            $denominator += $weight;
+            $terms[] = ['score' => $row->score, 'max' => $row->maxScore, 'weight' => $row->weightPercentage];
+            $countedWeight += $row->weightPercentage;
         }
 
         $weightedTotal = null;
         $passFail = null;
-        if ($denominator > 0.0) {
-            $weightedTotal = self::roundHalfUp($numerator, 2);
+        if ($countedWeight > 0) {
+            $weightedTotal = ResultRounding::weightedPercentage($terms);
             if ($passThreshold !== null) {
                 $passFail = ((float) $weightedTotal) >= (float) $passThreshold ? 1 : 0;
             }
@@ -131,13 +130,5 @@ final class TermResultCalculator
                 'source_grade_ids' => $gradeIds,
             ], $policyPin),
         );
-    }
-
-    private static function roundHalfUp(float $value, int $precision): string
-    {
-        $factor = 10 ** $precision;
-        $rounded = floor($value * $factor + 0.5) / $factor;
-
-        return number_format($rounded, $precision, '.', '');
     }
 }

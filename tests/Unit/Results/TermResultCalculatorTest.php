@@ -67,4 +67,43 @@ final class TermResultCalculatorTest extends TestCase
         $this->assertSame('80.00', $result->weightedTotal);
         $this->assertFalse($result->incomplete);
     }
+
+    #[Test]
+    public function exact_half_at_pass_threshold_rounds_up_and_passes(): void
+    {
+        // Regression: 0.5·36.01 + 0.5·63.98 = 49.995 exactly → 50.00. Float rounding gave 49.99 (fail).
+        $result = TermResultCalculator::calculateOfficial([
+            new TermGradeContribution(1, 10, 50, '36.01', '100', false, GradeStatus::Finalized->value),
+            new TermGradeContribution(2, 11, 50, '63.98', '100', false, GradeStatus::Finalized->value),
+        ], passThreshold: '50');
+
+        $this->assertSame('50.00', $result->weightedTotal);
+        $this->assertSame(1, $result->passFail);
+    }
+
+    #[Test]
+    public function absent_component_is_excluded_from_the_exact_total(): void
+    {
+        $result = TermResultCalculator::calculateOperational([
+            new TermGradeContribution(1, 10, 50, '33.33', '100', false, GradeStatus::Entered->value),
+            new TermGradeContribution(2, 11, 50, null, '100', true, GradeStatus::Entered->value),
+        ]);
+
+        // 0.5·33.33 = 16.665 → 16.67; the absent half contributes nothing and marks the result incomplete.
+        $this->assertSame('16.67', $result->weightedTotal);
+        $this->assertTrue($result->incomplete);
+    }
+
+    #[Test]
+    public function only_zero_weight_components_scored_gives_no_total(): void
+    {
+        $result = TermResultCalculator::calculateOperational([
+            new TermGradeContribution(1, 10, 100, null, '100', true, GradeStatus::Entered->value),
+            new TermGradeContribution(2, 11, 0, '90', '100', false, GradeStatus::Entered->value),
+        ], passThreshold: '50');
+
+        $this->assertNull($result->weightedTotal);
+        $this->assertNull($result->passFail);
+        $this->assertTrue($result->incomplete);
+    }
 }
