@@ -10,6 +10,7 @@ touches the live database (`sis`): every command refuses a database whose name d
 | The reset/seed command refuses production, non-PostgreSQL, any name not starting with `sis_e2e`, and any name not listed in `SIS_DESTRUCTIVE_ALLOWED_DATABASES` (`ProtectedDatabaseGuard`) | `app/Console/Commands/E2eSeedCommand.php` |
 | A `pg_dump` backup is taken before every reset and verified with `pg_restore --list` | same, `storage/app/e2e/backups/` |
 | The reset clears data only (`sis:rebuild-demo-data` + the e2e calendar) — schema, constraints, RLS, roles and migrations stay | same |
+| `sis:rebuild-demo-data` itself refuses any database `ProtectedDatabaseGuard` does not allow (sis is protected; others only through `SIS_DESTRUCTIVE_ALLOWED_DATABASES`) — it can no longer run on the live database | `RebuildDemoDataCommand`, `DestructiveCommandsGuardPostgreSqlTest` |
 | Playwright starts its own PHP server on the e2e database; it never reuses a running server (`php artisan serve` is not used: it does not pass `DB_*` to its child and would serve the live database) | `playwright.config.ts` |
 | The suite's setup fails unless the server's database is `E2E_DB` and the seeded batch is there (200 students, 100 teachers, 5 personas) | `e2e/auth.setup.ts` |
 | Tests read the database through a read-only helper (one `SELECT`, `READ ONLY` transaction, rolled back, e2e databases only); they change data only through the pages and the application's own endpoints | `e2e/support/db-query.php` |
@@ -66,8 +67,11 @@ attendance sheets, leave lifecycle):
 
 The command ends with `sis:audit-data-quality` (≈40 integrity checks) and its own expectations (exact totals, no
 hard conflict in a published timetable, no orphan attendance or leave rows); counts before/after and the per-module
-summaries are written to `storage/app/e2e/seed-report.json`. Two consecutive runs give identical counts in every
-table.
+summaries are written to `storage/app/e2e/seed-report.json`, with **fingerprints**: an md5 of the ordered business
+identities of students, applications, teachers, enrollments, curriculum, timetable, attendance, staff days, leave,
+holidays and rooms (no ids, no timestamps). Two consecutive runs on the same day give identical counts in every table
+and identical fingerprints; attendance and staff days are relative to «today», so those two fingerprints change from one
+day to the next by design.
 
 ## 4. Run the suite
 
@@ -95,7 +99,14 @@ Optional variables: `E2E_DB` (default `sis_e2e`), `E2E_PORT` (8123), `E2E_BASE_U
   server runs no worker.
 - No `waitForTimeout`: tests wait for an element, a response or `expect.poll` on the database.
 
-## 6. Troubleshooting
+## 6. What the browser tests do not prove: RLS
+
+The local application connects as the PostgreSQL superuser (`BYPASSRLS`): row level security applies to no application
+query here, so the browser tests prove the application's own school scoping, not RLS. RLS is proven by the PHPUnit
+suites that switch to the non-privileged `sis_rls_tester` role (`PostgreSqlRlsActor`). Which role production connects
+with is not recorded in this repository.
+
+## 7. Troubleshooting
 
 | Symptom | Cause |
 |---|---|

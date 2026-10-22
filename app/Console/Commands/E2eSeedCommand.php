@@ -112,6 +112,7 @@ class E2eSeedCommand extends Command
         $report['teachers'] = $teachers->summary;
         $report['attendance'] = $attendance->summary;
         $report['expectations'] = $this->expectations();
+        $report['fingerprints'] = $this->fingerprints();
         $report['audit_exit_code'] = $this->call('sis:audit-data-quality');
         $report['finished_at'] = now()->toIso8601String();
 
@@ -202,6 +203,31 @@ class E2eSeedCommand extends Command
         }
 
         return $out;
+    }
+
+    /**
+     * Content, not just counts: an md5 of the ordered business identities of each part of the dataset. Two resets give
+     * the same fingerprints when they produced the same data (ids, timestamps and per-run keys are left out on purpose).
+     *
+     * @return array<string, string>
+     */
+    private function fingerprints(): array
+    {
+        $md5 = static fn (string $sql): string => (string) DB::selectOne("SELECT md5(coalesce(string_agg(x, '|' ORDER BY x), '')) AS h FROM ({$sql}) q(x)")->h;
+
+        return [
+            'students' => $md5("SELECT concat_ws(',', national_id, full_name, status, gender, birth_date) FROM students.students"),
+            'applications' => $md5("SELECT concat_ws(',', national_id, first_name, last_name, status, branch_name, department_name) FROM admission.applications"),
+            'teachers' => $md5("SELECT concat_ws(',', employee_code, national_id, full_name, status) FROM teachers.teachers"),
+            'enrollments' => $md5("SELECT concat_ws(',', s.national_id, c.code, x.code, e.status, e.effective_from) FROM enrollment.enrollments e JOIN students.students s ON s.id = e.student_id JOIN enrollment.classes c ON c.id = e.class_id JOIN enrollment.sections x ON x.id = e.section_id"),
+            'curriculum' => $md5("SELECT concat_ws(',', c.name, s.code, cs.weekly_hours, cs.is_required, cs.status) FROM curriculum.curriculum_subjects cs JOIN curriculum.curricula c ON c.id = cs.curriculum_id JOIN curriculum.subjects s ON s.id = cs.subject_id"),
+            'timetable' => $md5("SELECT concat_ws(',', c.code, x.code, t.day_of_week, p.period_number, s.code, tc.employee_code, r.code) FROM timetable.schedules t JOIN enrollment.sections x ON x.id = t.section_id JOIN enrollment.classes c ON c.id = x.class_id JOIN timetable.periods p ON p.id = t.period_id JOIN curriculum.subjects s ON s.id = t.subject_id JOIN teachers.teachers tc ON tc.id = t.teacher_id LEFT JOIN organization.rooms r ON r.id = t.room_id WHERE t.lifecycle_status = 1"),
+            'attendance' => $md5("SELECT concat_ws(',', r.attendance_date, st.national_id, r.status, r.minutes_late, s.sheet_status) FROM attendance.records r JOIN attendance.sessions s ON s.id = r.session_id JOIN students.students st ON st.id = r.student_id"),
+            'staff_days' => $md5("SELECT concat_ws(',', t.employee_code, a.work_date, a.status) FROM attendance.staff_records a JOIN teachers.teachers t ON t.id = a.teacher_id"),
+            'leave' => $md5("SELECT concat_ws(',', t.employee_code, r.date_from, r.date_to, r.status, r.reason) FROM leave.requests r LEFT JOIN teachers.teachers t ON t.id = r.teacher_id"),
+            'holidays' => $md5("SELECT concat_ws(',', name, start_date, end_date, status) FROM academic.holidays"),
+            'rooms' => $md5("SELECT concat_ws(',', code, name, capacity, status) FROM organization.rooms"),
+        ];
     }
 
     /** @return array{file: string, bytes: int, toc_entries: int} */

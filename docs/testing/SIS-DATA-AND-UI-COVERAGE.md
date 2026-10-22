@@ -190,3 +190,91 @@ written by hand — it is reported and blocks approval (D-06).
 | O-06 | Two error counts on the timetable page (ribbon audit 4, test report 8) | product decision |
 | S-01 | `composer audit`: 3 advisories in 2 packages (packagist unreachable — names not confirmed) | dependency upgrade |
 | A-01 | Architecture fitness failures in untouched code: handler complexity (6 handlers), Eloquent / `app()` in 2 controllers | refactoring outside this task |
+
+## 7. Final results (2026-10-22)
+
+| Check | Result | Notes |
+|---|---|---|
+| Reset ×2 (runs 9, 10) | identical in every tracked table; 11 expectations OK; audit 0; backup verified (2 591 TOC entries) | 200 students · 100 teachers |
+| Playwright full run 4 | 212 passed · 4 failed (60 s budget, no assertion) · 3 skipped (no data) · 2 not run | desktop 184 · tablet 11/11 · phone 11/11 |
+| Playwright affected files after T-04 (rooms, students, enrollment, curriculum, timetable) on a fresh reset | **30/30 passed** | |
+| Playwright leave + attendance after D-14 | **21/21 passed** | |
+| PHPUnit PostgreSQL (isolated `sis_e2e_unit`) | 644 tests · **639 passed** · 5 failed — all pre-existing | 4 documented baseline (graduation ×3 incl. RLS fail-closed, transfers schema) + `LeaveDemoSeederPostgreSqlTest` order dependence (passes alone; test from 2026-10-19) |
+| PHPUnit Unit (default config) | 430 · 394 passed · 1 failed · 35 errors — all pre-existing | composer audit; SQLite cannot run the PostgreSQL migrations |
+| New regression tests | 9 PHPUnit tests in 8 files, all passing; 5 shown to fail on the old code | |
+| `architecture:validate --fitness` | FAIL — only in files not changed here (A-01, S-01) | domain purity, dependency direction, feature contract, security fitness: PASS |
+| `security:validate` | FAIL — composer audit (S-01) only | |
+| TypeScript | 20 errors, none in a changed file or path | |
+| Live `sis` | read-only counts identical at start and end | |
+
+Pre-existing security item worth attention: `Phase3C12GraduationSchemaTest::rls_fail_closed_without_school_context` — 14 graduation rows visible without a school context.
+
+## 8. Phase 2 — controlled remediation of the nine modules (2026-10-22)
+
+Scope: admission, students, enrollment, curriculum & subjects, teachers, rooms & facilities, timetable, attendance,
+leave & holidays. Logs: `storage/app/e2e/runs/2026-10-22-phase2/`.
+
+### 8.1 Phase-zero findings
+
+| # | Finding | Status |
+|---|---|---|
+| P0-1 | The application connects as `postgres` (superuser, BYPASSRLS): RLS applies to no application query locally; the production role is not recorded in the repository | **decision needed** |
+| P0-2 | `sis:rebuild-demo-data` did not call `ProtectedDatabaseGuard` — run on `sis` it would have truncated the live data | **fixed** (fail-closed; `DestructiveCommandsGuardPostgreSqlTest`, 3 tests, proven by mutation) |
+| P0-3 | «14 graduation rows visible without a school context» (reported in §7) was a test defect: the test ran as the superuser. Probed as the non-privileged role: no context → 0 rows, each school → its own | **fixed** (test uses `PostgreSqlRlsActor`; name assertion uses the configured test database) — 5/5 |
+| R-01 | `students.students`: a non-privileged role sees every student with no school context (46/46 probed) | **BLOCKED** — see 8.4 |
+| S-01 | `composer audit`: packagist unreachable from this machine (online and offline) | **BLOCKED** |
+
+### 8.2 Fixes in this phase
+
+| # | Page / area | Before | After | Test |
+|---|---|---|---|---|
+| O-03 | /enrollments/create | a typed student id showed no name (wrong-student risk) | the school-scoped page prop resolves it after typing; «لا يوجد طالب بهذا المعرّف في هذه المدرسة» when unknown; never a name from another school | enrollment.spec (2 tests) |
+| O-03 | /enrollments/{id}/edit | raw class / section / «specialization» ids; the specialization id was ignored by the server; no message after saving | named class and section lists starting at the current values; the ignored field removed; success shown only for a clean answer | enrollment.spec «the edit page …» |
+| O-01 | /organization/rooms | column «الرمز» showed the abbreviation | shows the code; the abbreviation is the chip's tooltip | rooms.spec |
+| — | reset | counts compared | counts + content fingerprints compared (11 parts) | resets 12/13 |
+
+Investigated and retracted: «D-15 the edit page clears the specialization» — the update action never used the
+field (the specialization follows the department), so nothing was lost; the field was misleading and was removed.
+Placement changes close the old enrollment (status 5 + end date) and open a new one — history is kept by design.
+
+### 8.3 Data replacement
+
+| | Before (reset 12) | After (resets 12 = 13 = 14) |
+|---|---|---|
+| Students | 204 (4 added by tests) | 200 |
+| Teachers | 100 | 100 |
+| Rooms | 30 (9 added by tests) | 21 |
+| Applications | 234 | 230 |
+| Enrollments | 168 | 167 |
+| Lessons · attendance records · leave requests · holidays · policy versions | — | 252 · 8 273 · 104 · 8 · 52 |
+
+Cleared: the synthetic demo / e2e data and the run tables (§1.1). Kept: schools, academic years, grade levels, room
+types, academic titles, leave types and policies, approval flows, users, roles, permissions, the security audit log.
+Resets 12 and 13: identical counts in 39 tables and identical fingerprints in 11 parts; 11 expectations OK; audit 0;
+backups verified (2 591 TOC entries each). Unknown / mixed data found: none.
+
+### 8.4 R-01 — options (decision needed)
+
+A school-isolation policy on `students.students` (the pattern of `enrollment.enrollments`) would, as the code stands:
+
+1. hide other schools' students from `existsByNationalId` — the national id would stop being unique across schools;
+2. block `updateStudentCurrentSchool` (transfer A → B) unless a transfer policy on `app.transfer_target_school_id` is added;
+3. possibly hide students from the guardian portal (`studentExists`) and from jobs that do not set a school context;
+4. change nothing while the application connects as a superuser.
+
+Options: (a) policy + a SECURITY DEFINER existence function for the national-id check + a transfer policy + context in
+jobs, with RLS tests — then connect production with a non-privileged role; (b) keep isolation in the application
+(proven by the e2e cross-school tests) and document students as an application-scoped table; (c) defer. Recommendation:
+(a), after confirming the production database role.
+
+### 8.5 Final results (phase 2)
+
+| Check | Result |
+|---|---|
+| Playwright, full, on reset 14 | **221 passed · 0 failed · 3 skipped** (no data: exam, import batch, recommendation details) — desktop 193 · tablet 11/11 · phone 11/11 |
+| PHPUnit PostgreSQL (`sis_e2e_unit`) | 647 · **644 passed** · 3 failed, all pre-existing: `PhasePtPromotionSchema…::transfers_tables_remain_absent`, `GraduationWritePath…::multi_enrollment_outcomes_are_independent` (baseline), `LeaveDemoSeeder…` order dependence (passes alone) |
+| PHPUnit Unit | 430 · 394 passed · 1 failed (composer audit) · 35 errors (SQLite cannot run the PostgreSQL migrations) — baseline |
+| TypeScript | 20 errors — baseline, none in a changed file |
+| `architecture:validate --fitness` | 7 PASS · 4 FAIL — violation list identical to before this phase (A-01, S-01) |
+| `security:validate` | FAIL — composer audit only (S-01) |
+| Live `sis` | read-only counts identical (14 tables + totals) at the start and end of the phase; never written |
