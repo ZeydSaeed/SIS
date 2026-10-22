@@ -90,26 +90,43 @@ Optional variables: `E2E_DB` (default `sis_e2e`), `E2E_PORT` (8123), `E2E_BASE_U
 
 ### 4.1 Grade-entry sheet (`e2e/grades/grade-sheet.spec.ts`) — disposable copy only
 
-The spec needs exam fixtures that are **never** written to `sis` or to the shared `sis_e2e`: `sis:e2e-seed-exams`
-refuses any database that is not named `sis_e2e_<suffix>`, is not in `SIS_DESTRUCTIVE_ALLOWED_DATABASES`, is in
-production, or does not hold the e2e dataset — before its first query. On `sis_e2e` the spec is skipped with that reason.
+The spec needs exam fixtures that are **never** written to `sis` or to the shared `sis_e2e`. `sis:e2e-seed-exams`
+checks, in this order and before any write:
+
+1. on configuration only (no query): not production · PostgreSQL · the name is `sis_e2e_<suffix>` (`sis` and `sis_e2e`
+   are always refused) · the name is in `SIS_DESTRUCTIVE_ALLOWED_DATABASES` and not protected · `SIS_E2E_PASSWORD` is set;
+2. with read-only queries: the e2e dataset is there (the two schools and the admin personas), then the placement and
+   the students the fixture will seat.
+
+On `sis_e2e` the spec is skipped with that reason.
+
+The copy is created and dropped only through `sis:e2e-disposable`, which works on the server's `postgres` database and
+refuses any name that is not `sis_e2e_<suffix>` on the allow-list. `create` clones `sis_e2e` (no migration runs; `sis_e2e`
+is only read and nothing may be connected to it) and writes a marker (`storage/app/e2e/disposable/<name>.json`) with the
+new database's OID. `drop` refuses without that marker, when the live OID differs (the database was re-created by
+something else), when the marker belongs to another server, or for a template — and without `--execute` it is only a
+dry run.
 
 ```bash
-# 1. Disposable copy of the migrated e2e database (no migration runs; sis_e2e is only read — nothing may be connected to it)
-psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE sis_e2e_exams TEMPLATE sis_e2e"
 export DB_CONNECTION=pgsql DB_DATABASE=sis_e2e_exams SIS_DESTRUCTIVE_ALLOWED_DATABASES=sis_e2e_exams
 export SIS_E2E_PASSWORD="$(php -r 'echo bin2hex(random_bytes(12));')"
+
+# 1. Disposable copy of the migrated e2e database
+php artisan sis:e2e-disposable create sis_e2e_exams
 
 # 2. Synthetic dataset with known persona passwords, then the exam fixture (adds a new tagged set every run)
 php -d memory_limit=2G artisan sis:e2e-seed --no-backup
 php artisan sis:e2e-seed-exams          # → storage/app/e2e/exam-fixture.json (database name + ids)
 
-# 3. The spec (setup signs in the personas; the grade teacher exam-grader@sis.test signs in inside the spec)
-E2E_DB=sis_e2e_exams npx playwright test e2e/grades --project=chromium
+# 3. The specs (setup signs in the personas; the grade teacher exam-grader@sis.test signs in once inside the grade spec)
+E2E_DB=sis_e2e_exams npx playwright test e2e/exams e2e/grades --project=chromium
 
-# 4. Drop the copy when done
-psql -h 127.0.0.1 -U postgres -c "DROP DATABASE sis_e2e_exams WITH (FORCE)"
+# 4. Drop the copy when done — check the dry run, then execute
+php artisan sis:e2e-disposable drop sis_e2e_exams
+php artisan sis:e2e-disposable drop sis_e2e_exams --execute
 ```
+
+If a step fails, the copy stays as it is (nothing is dropped automatically); drop it with step 4 once you no longer need it.
 
 Run `sis:e2e-seed-exams` again before every run of the spec: grades cannot be deleted, so the spec refuses a fixture
 whose seats were already graded («fixture … is not fresh») instead of passing on stale data. The fixture adds one

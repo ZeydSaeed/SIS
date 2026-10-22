@@ -16,6 +16,7 @@ use App\Application\Teachers\Commands\AddTeachingAssignmentCommand;
 use App\Application\Teachers\Commands\AddTeachingAssignmentHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
 use App\Application\Teachers\Commands\RegisterTeacherHandler;
+use App\Database\DisposableE2eDatabase;
 use App\Database\ProtectedDatabaseGuard;
 use App\Database\SchemaHelper;
 use App\Models\User;
@@ -126,7 +127,7 @@ class E2eSeedExamsCommand extends Command
     /** `sis_e2e_<suffix>` only: the live `sis`, the shared `sis_e2e` and every other name are refused. */
     public static function isDisposableCopy(string $database): bool
     {
-        return preg_match('/^sis_e2e_[a-z0-9_]+$/', $database) === 1;
+        return DisposableE2eDatabase::isDisposableName($database);
     }
 
     /** Null when the connection is a disposable copy of the e2e dataset; otherwise why it is refused. */
