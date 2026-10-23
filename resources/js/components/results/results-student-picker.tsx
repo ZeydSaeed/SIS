@@ -166,7 +166,8 @@ export function ResultsStudentPicker({
                         : null}
                 </p>
             ) : null}
-            {picker.q !== '' ? (
+            {picker.q !== '' ||
+            (picker.student === null && picker.candidates.length > 0) ? (
                 <div data-picker-candidates>
                     <AttendanceTable
                         caption={r.title}

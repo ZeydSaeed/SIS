@@ -17,6 +17,9 @@ final class ResultsStudentPicker
 {
     private const LIMIT = 20;
 
+    /** No search and no student chosen yet: the first students of the year, to choose from without typing. */
+    private const BROWSE = 50;
+
     public function __construct(
         private readonly ListEnrollmentsHandler $list,
         private readonly GetEnrollmentHandler $get,
@@ -30,8 +33,9 @@ final class ResultsStudentPicker
     {
         $q = trim((string) $request->query('q', ''));
         $candidates = [];
-        if ($q !== '' && $academicYearId !== null) {
-            $page = $this->list->handle(new ListEnrollmentsQuery(schoolId: $schoolId, academicYearId: $academicYearId, perPage: self::LIMIT, q: $q));
+        $browse = $q === '' && ($enrollmentId === null || $enrollmentId <= 0);
+        if (($q !== '' || $browse) && $academicYearId !== null) {
+            $page = $this->list->handle(new ListEnrollmentsQuery(schoolId: $schoolId, academicYearId: $academicYearId, perPage: $browse ? self::BROWSE : self::LIMIT, q: $q));
             $candidates = array_map(fn (EnrollmentDTO $dto): array => $this->describe($dto), $page->items);
         }
 

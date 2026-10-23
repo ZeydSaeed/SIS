@@ -74,6 +74,11 @@ final class GradesResultsPickersWebPostgreSqlTest extends PostgreSqlIntegrationT
             ->where('picker.candidates', fn ($rows) => collect($rows)->pluck('enrollment_id')->all() === [$s['enrollment_id']])
             ->where('picker.student', null));
 
+        // No search, no student chosen: the year's students of this school are listed to choose from.
+        $this->get('/results?academic_year_id='.$s['year_id'])->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('picker.candidates', fn ($rows) => collect($rows)->pluck('enrollment_id')->contains($s['enrollment_id'])
+                && ! collect($rows)->pluck('enrollment_id')->contains($s['foreign']['enrollment_id'])));
+
         $foreignCode = (string) DB::table(SchemaHelper::qualified('students', 'students'))->where('id', $s['foreign']['student_id'])->value('student_code');
         $this->get('/results?academic_year_id='.$s['year_id'].'&q='.urlencode($foreignCode))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('picker.candidates', []));

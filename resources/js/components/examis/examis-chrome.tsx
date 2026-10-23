@@ -10,12 +10,14 @@ import {
     Settings2,
     type LucideIcon,
 } from 'lucide-react';
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { useAttendanceHomeFilters } from '@/components/attendance/attendance-chrome';
 import { newIdempotencyKey } from '@/components/organization/registry-sheet';
 import { usePageError } from '@/components/sis/page-error-context';
 import {
+    useActivePageRibbonTab,
     useRegisterPageRibbon,
+    useSetActivePageRibbonTab,
     type PageRibbonCommand,
     type PageRibbonGroup,
 } from '@/components/sis/page-ribbon-context';
@@ -116,6 +118,18 @@ export function useExamisEditRibbon(
         return [...pageGroups, sections];
     }, [allowed, current, pageGroups]);
     useRegisterPageRibbon('edit', groups);
+
+    // The page's commands live on «تحرير»: open it when the page loads, unless another tab is already open (or pinned).
+    const activeTab = useActivePageRibbonTab();
+    const setActiveTab = useSetActivePageRibbonTab();
+    const path = usePage().url.split('?')[0];
+    useEffect(() => {
+        if (activeTab === null) {
+            setActiveTab('edit');
+        }
+        // Once per page (path), so folding the ribbon by hand keeps it folded.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [path]);
 }
 
 /** «الصفحة الرئيسية»: the page's filters (same ribbon fields as the attendance and leave pages). */

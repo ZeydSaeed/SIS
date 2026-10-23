@@ -73,7 +73,9 @@ function SummaryBody({
     const r = i18n.results;
     useResultsStudentChrome('summary', filters.academic_year_id, picker);
     useAttendanceMessages(
-        picker.student === null && picker.q === ''
+        picker.student === null &&
+            picker.q === '' &&
+            picker.candidates.length === 0
             ? [{ key: 'pick-student', text: r.pickStudent, tone: 'info' }]
             : [],
         r.summaryTitle,
