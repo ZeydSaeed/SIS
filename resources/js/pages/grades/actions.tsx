@@ -1,10 +1,25 @@
-import { Form, Head, Link, router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
-import { PenLine } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { PageHeader } from '@/components/sis/page-header';
+import { router } from '@inertiajs/react';
+import { BadgeCheck, Ban, ListChecks, Pencil } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    AttendanceWindow,
+    useAttendanceMessages,
+    WindowFact,
+    WindowTextArea,
+} from '@/components/attendance/attendance-chrome';
+import {
+    ExamisPage,
+    useExamisEditRibbon,
+    useExamisRequest,
+} from '@/components/examis/examis-chrome';
+import {
+    RegistryListField,
+    RegistryTextField,
+} from '@/components/organization/registry-sheet';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
+import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type Grade = {
@@ -31,250 +46,285 @@ type PageProps = {
     };
 };
 
-export default function GradesActions({ grade, filters }: PageProps) {
-    const i18n = t();
-    const [gradeId, setGradeId] = useState(filters.grade_id?.toString() ?? '');
-    const [confirmVoid, setConfirmVoid] = useState(false);
-    const [confirmFinalize, setConfirmFinalize] = useState(false);
-    const [voidReason, setVoidReason] = useState('');
-    const [voiding, setVoiding] = useState(false);
-    const [finalizing, setFinalizing] = useState(false);
+/** exams.student_grades.status — 4 finalized · 5 voided. */
+const FINALIZED = 4;
+const VOIDED = 5;
 
+export default function GradesActions(props: PageProps) {
+    const i18n = t();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.grades.title, href: '/grades' },
         { title: i18n.grades.actionsBreadcrumb, href: '/grades/actions' },
     ];
 
-    const onLookup = (event: FormEvent) => {
-        event.preventDefault();
-        const parsed = Number.parseInt(gradeId, 10);
-        router.get(
-            '/grades/actions',
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <ActionsBody {...props} />
+        </AppLayout>
+    );
+}
+
+/** «إجراءات الدرجة» — correct (void + new version), void or finalize one grade; the server re-checks each. */
+function ActionsBody({ grade, filters }: PageProps) {
+    const i18n = t();
+    const g = i18n.grades;
+    const request = useExamisRequest();
+    const [busy, setBusy] = useState(false);
+    const [correcting, setCorrecting] = useState<{
+        score: string;
+        absent: string;
+        reason: string;
+    } | null>(null);
+    const [voidReason, setVoidReason] = useState<string | null>(null);
+    const [confirmFinalize, setConfirmFinalize] = useState(false);
+    const open = grade !== null && grade.is_current && grade.status !== VOIDED;
+
+    const ribbon = useMemo((): PageRibbonGroup[] => {
+        const none = grade === null || !open || busy;
+
+        return [
             {
-                grade_id: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
-                academic_year_id: filters.academic_year_id ?? undefined,
+                id: 'grade-actions',
+                label: g.actionsTitle,
+                commands: [
+                    {
+                        id: 'grade-correct-edit',
+                        label: g.correct,
+                        icon: Pencil,
+                        iconTone: 'amber',
+                        tone: 'edit',
+                        disabled: none,
+                        onSelect: () =>
+                            grade &&
+                            setCorrecting({
+                                score: grade.score ?? '',
+                                absent: grade.is_absent ? '1' : '0',
+                                reason: '',
+                            }),
+                    },
+                    {
+                        id: 'grade-void-delete',
+                        label: g.voidGradeAction,
+                        icon: Ban,
+                        iconTone: 'danger',
+                        tone: 'delete',
+                        disabled: none,
+                        onSelect: () => setVoidReason(''),
+                    },
+                    {
+                        id: 'grade-finalize',
+                        label: g.finalizeGradeAction,
+                        icon: BadgeCheck,
+                        iconTone: 'ok',
+                        disabled: none || grade?.status === FINALIZED,
+                        title: g.finalizeDesc,
+                        onSelect: () => setConfirmFinalize(true),
+                    },
+                    {
+                        id: 'grade-back',
+                        label: i18n.common.backToList,
+                        icon: ListChecks,
+                        iconTone: 'forest',
+                        onSelect: () =>
+                            router.visit(
+                                `/grades?academic_year_id=${filters.academic_year_id ?? ''}${grade ? `&session_id=${grade.exam_session_id}` : ''}`,
+                            ),
+                    },
+                ],
             },
-            { preserveState: true, preserveScroll: true },
+        ];
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [grade, open, busy]);
+    useExamisEditRibbon('grades', ribbon);
+
+    useAttendanceMessages(
+        grade === null
+            ? [{ key: 'pick-grade', text: g.enterGradeIdHint, tone: 'info' }]
+            : [],
+        g.actionsTitle,
+    );
+
+    const post = async (
+        action: 'correct' | 'void' | 'finalize',
+        data: Record<string, unknown>,
+    ): Promise<boolean> => {
+        if (grade === null) {
+            return false;
+        }
+        setBusy(true);
+        const ok = await request(
+            `/grades/${grade.id}/${action}`,
+            { academic_year_id: grade.academic_year_id, ...data },
+            `grade-${action}`,
         );
+        setBusy(false);
+
+        return ok;
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={i18n.grades.actionsTitle} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
-                <PageHeader
-                    title={i18n.grades.actionsTitle}
-                    description={i18n.grades.actionsDesc}
-                    icon={<PenLine className="size-6" aria-hidden />}
-                />
-                <Link href="/grades" className="sis-ops-hub__link w-fit px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
-                    {i18n.common.backToList}
-                </Link>
-                <form
-                    onSubmit={onLookup}
-                    className="flex flex-col gap-3 sm:flex-row sm:items-end"
-                    aria-label={i18n.common.lookupGrade}
-                >
-                    <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>{i18n.grades.gradeId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            value={gradeId}
-                            onChange={(e) => setGradeId(e.target.value)}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                            dir="ltr"
-                        />
-                    </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
-                        {i18n.grades.loadGrade}
-                    </button>
-                </form>
-                {grade ? (
-                    <>
-                        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                            <div>
-                                <dt className="opacity-70">{i18n.grades.student}</dt>
-                                <dd>
-                                    <span dir="ltr">{grade.student_id}</span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="opacity-70">{i18n.grades.score}</dt>
-                                <dd>
-                                    <span dir="ltr">
-                                        {grade.is_absent ? i18n.grades.absent : (grade.score ?? '—')}
-                                    </span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="opacity-70">{i18n.common.status}</dt>
-                                <dd>
-                                    <span dir="ltr">{grade.status}</span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="opacity-70">{i18n.grades.finalized}</dt>
-                                <dd>
-                                    <span dir="ltr">{grade.finalized_at ?? i18n.grades.notFinalized}</span>
-                                </dd>
-                            </div>
-                        </dl>
-                        <section className="grid max-w-xl gap-6">
-                            <Form
-                                action={`/grades/${grade.id}/correct`}
-                                method="post"
-                                className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4"
-                            >
-                                {({ errors, processing }) => (
-                                    <>
-                                        <h2 className="font-semibold">{i18n.grades.correct}</h2>
-                                        <input
-                                            type="hidden"
-                                            name="academic_year_id"
-                                            value={grade.academic_year_id}
-                                        />
-                                        <label className="flex flex-col gap-1 text-sm">
-                                            <span>{i18n.grades.newScore}</span>
-                                            <input
-                                                name="score"
-                                                type="number"
-                                                step="0.01"
-                                                defaultValue={grade.score ?? undefined}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                                dir="ltr"
-                                            />
-                                            {errors.score ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors.score}
-                                                </span>
-                                            ) : null}
-                                        </label>
-                                        <label className="flex flex-col gap-1 text-sm">
-                                            <span>{i18n.grades.absentQuestion}</span>
-                                            <select
-                                                name="is_absent"
-                                                defaultValue={grade.is_absent ? '1' : '0'}
-                                                className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                                            >
-                                                <option value="0">{i18n.common.no}</option>
-                                                <option value="1">{i18n.common.yes}</option>
-                                            </select>
-                                        </label>
-                                        <label className="flex flex-col gap-1 text-sm">
-                                            <span>{i18n.grades.reason}</span>
-                                            <textarea
-                                                name="reason"
-                                                required
-                                                minLength={3}
-                                                rows={2}
-                                                className="sis-ops-hub__link px-3 py-2" dir="rtl" lang="ar"
-                                            />
-                                            {errors.reason ? (
-                                                <span className="text-sm text-[color:var(--sis-powder-blush)]">
-                                                    {errors.reason}
-                                                </span>
-                                            ) : null}
-                                        </label>
-                                        <button
-                                            type="submit"
-                                            disabled={processing}
-                                            className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
-                                        >
-                                            {i18n.grades.correct}
-                                        </button>
-                                    </>
-                                )}
-                            </Form>
-                            <div className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4">
-                                <h2 className="font-semibold">{i18n.grades.voidGradeAction}</h2>
-                                <label className="flex flex-col gap-1 text-sm">
-                                    <span>{i18n.grades.reason}</span>
-                                    <textarea
-                                        required
-                                        minLength={3}
-                                        rows={2}
-                                        className="sis-ops-hub__link px-3 py-2" dir="rtl" lang="ar"
-                                        value={voidReason}
-                                        onChange={(e) => setVoidReason(e.target.value)}
-                                    />
-                                </label>
-                                <button
-                                    type="button"
-                                    disabled={voiding}
-                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
-                                    onClick={() => setConfirmVoid(true)}
-                                >
-                                    {i18n.grades.void}
-                                </button>
-                                <ConfirmDialog
-                                    open={confirmVoid}
-                                    title={i18n.grades.voidConfirmTitle}
-                                    description={i18n.grades.voidConfirmDesc}
-                                    confirmLabel={i18n.grades.voidGradeAction}
-                                    confirmPending={voiding}
-                                    onConfirm={() => {
-                                        if (voidReason.trim().length < 3) {
-                                            setConfirmVoid(false);
-                                            return;
+        <ExamisPage title={g.actionsTitle} windowId="grades.actions">
+            {grade ? (
+                <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    <div className="flex gap-1">
+                        <dt className="font-semibold">{g.student}:</dt>
+                        <dd dir="ltr">{grade.student_id}</dd>
+                    </div>
+                    <div className="flex gap-1">
+                        <dt className="font-semibold">{g.score}:</dt>
+                        <dd dir="ltr">
+                            {grade.is_absent
+                                ? g.absent
+                                : `${grade.score ?? '—'} / ${grade.max_score}`}
+                        </dd>
+                    </div>
+                    <div className="flex gap-1">
+                        <dt className="font-semibold">{i18n.common.status}:</dt>
+                        <dd>{g.statuses[grade.status] ?? grade.status}</dd>
+                    </div>
+                    <div className="flex gap-1">
+                        <dt className="font-semibold">{g.finalized}:</dt>
+                        <dd dir="ltr">
+                            {grade.finalized_at ?? g.notFinalized}
+                        </dd>
+                    </div>
+                </dl>
+            ) : null}
+
+            {correcting !== null && grade !== null ? (
+                <AttendanceWindow
+                    title={g.correct}
+                    pending={busy}
+                    confirmLabel={g.correct}
+                    confirmDisabled={correcting.reason.trim().length < 3}
+                    onConfirm={() =>
+                        void post('correct', {
+                            score:
+                                correcting.absent === '1' ||
+                                correcting.score === ''
+                                    ? null
+                                    : correcting.score,
+                            is_absent: correcting.absent === '1',
+                            reason: correcting.reason,
+                        }).then((ok) => ok && setCorrecting(null))
+                    }
+                    onClose={() => setCorrecting(null)}
+                    sections={[
+                        {
+                            id: 'grade-correct',
+                            title: g.correct,
+                            content: (
+                                <>
+                                    <WindowFact
+                                        label={g.score}
+                                        value={
+                                            <span dir="ltr">
+                                                {grade.is_absent
+                                                    ? g.absent
+                                                    : (grade.score ?? '—')}
+                                            </span>
                                         }
-                                        setVoiding(true);
-                                        router.post(
-                                            `/grades/${grade.id}/void`,
+                                    />
+                                    <RegistryListField
+                                        label={g.absentQuestion}
+                                        editing
+                                        value={correcting.absent}
+                                        display={
+                                            correcting.absent === '1'
+                                                ? i18n.common.yes
+                                                : i18n.common.no
+                                        }
+                                        options={[
                                             {
-                                                academic_year_id: grade.academic_year_id,
-                                                reason: voidReason,
+                                                value: '0',
+                                                label: i18n.common.no,
                                             },
                                             {
-                                                onFinish: () => {
-                                                    setVoiding(false);
-                                                    setConfirmVoid(false);
-                                                },
+                                                value: '1',
+                                                label: i18n.common.yes,
                                             },
-                                        );
-                                    }}
-                                    onOpenChange={setConfirmVoid}
+                                        ]}
+                                        onChange={(absent) =>
+                                            setCorrecting({
+                                                ...correcting,
+                                                absent,
+                                            })
+                                        }
+                                    />
+                                    {correcting.absent === '1' ? null : (
+                                        <RegistryTextField
+                                            label={g.newScore}
+                                            editing
+                                            type="number"
+                                            dir="ltr"
+                                            value={correcting.score}
+                                            onChange={(score) =>
+                                                setCorrecting({
+                                                    ...correcting,
+                                                    score,
+                                                })
+                                            }
+                                        />
+                                    )}
+                                    <WindowTextArea
+                                        label={g.reason}
+                                        value={correcting.reason}
+                                        onChange={(reason) =>
+                                            setCorrecting({
+                                                ...correcting,
+                                                reason,
+                                            })
+                                        }
+                                    />
+                                </>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            {voidReason !== null ? (
+                <AttendanceWindow
+                    title={g.voidConfirmTitle}
+                    pending={busy}
+                    danger
+                    confirmLabel={g.voidGradeAction}
+                    confirmDisabled={voidReason.trim().length < 3}
+                    onConfirm={() =>
+                        void post('void', { reason: voidReason }).then(
+                            (ok) => ok && setVoidReason(null),
+                        )
+                    }
+                    onClose={() => setVoidReason(null)}
+                    sections={[
+                        {
+                            id: 'grade-void',
+                            title: g.voidConfirmDesc,
+                            content: (
+                                <WindowTextArea
+                                    label={g.reason}
+                                    value={voidReason}
+                                    onChange={setVoidReason}
                                 />
-                            </div>
-                            <div className="grid gap-3 rounded-md border border-[color:var(--sis-powder-blue)] p-4">
-                                <h2 className="font-semibold">{i18n.grades.finalizeGradeAction}</h2>
-                                <p className="text-sm opacity-80">{i18n.grades.finalizeDesc}</p>
-                                <button
-                                    type="button"
-                                    disabled={finalizing}
-                                    className="sis-ops-hub__link w-fit px-4 py-2 text-sm disabled:opacity-50" dir="rtl" lang="ar"
-                                    onClick={() => setConfirmFinalize(true)}
-                                >
-                                    {i18n.grades.finalize}
-                                </button>
-                                <ConfirmDialog
-                                    open={confirmFinalize}
-                                    title={i18n.grades.finalizeConfirmTitle}
-                                    description={i18n.grades.finalizeConfirmDesc}
-                                    confirmLabel={i18n.grades.finalizeGradeAction}
-                                    confirmPending={finalizing}
-                                    onConfirm={() => {
-                                        setFinalizing(true);
-                                        router.post(
-                                            `/grades/${grade.id}/finalize`,
-                                            { academic_year_id: grade.academic_year_id },
-                                            {
-                                                onFinish: () => {
-                                                    setFinalizing(false);
-                                                    setConfirmFinalize(false);
-                                                },
-                                            },
-                                        );
-                                    }}
-                                    onOpenChange={setConfirmFinalize}
-                                />
-                            </div>
-                        </section>
-                    </>
-                ) : (
-                    <p className="text-sm opacity-80">{i18n.grades.enterGradeIdHint}</p>
-                )}
-            </div>
-        </AppLayout>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            <ConfirmDialog
+                open={confirmFinalize}
+                title={g.finalizeConfirmTitle}
+                description={g.finalizeConfirmDesc}
+                confirmLabel={g.finalizeGradeAction}
+                confirmPending={busy}
+                onConfirm={() =>
+                    void post('finalize', {}).then(() =>
+                        setConfirmFinalize(false),
+                    )
+                }
+                onOpenChange={setConfirmFinalize}
+            />
+        </ExamisPage>
     );
 }

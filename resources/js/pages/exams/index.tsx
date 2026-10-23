@@ -1,13 +1,29 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { GraduationCap } from 'lucide-react';
-import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
-import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
-import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
-import { OpsYearFilter } from '@/components/sis/ops-year-filter';
-import { PageHeader } from '@/components/sis/page-header';
-import { StatusChip } from '@/components/sis/status-chip';
+import { router } from '@inertiajs/react';
+import { Eye, PlusCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    AttendanceTable,
+    AttendanceWindow,
+    useAttendanceMessages,
+    useAttendanceSelection,
+    useYearFilterSpec,
+    type AttendanceColumn,
+} from '@/components/attendance/attendance-chrome';
+import {
+    ExamisPage,
+    useExamisEditRibbon,
+    useExamisHomeFilters,
+    useExamisRequest,
+} from '@/components/examis/examis-chrome';
+import {
+    RegistryListField,
+    RegistryTextField,
+} from '@/components/organization/registry-sheet';
+import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import type { FilterSpec } from '@/components/sis/ribbon-filter';
+import { statusChipLabel } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type ExamRow = {
@@ -38,201 +54,161 @@ type PageProps = {
     };
 };
 
-const SELECT_CLASS = 'sis-ops-hub__link min-h-11 px-3 py-2';
+const EXAM_STATUSES = [1, 2, 3, 4];
+/** Shared status palette: draft steel, open ok, closed amber, cancelled danger. */
+const STATUS_TONE: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 4 };
 
-function newKey(): string {
-    return `exam-create-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
+type Draft = {
+    name: string;
+    term_id: string;
+    exam_type_id: string;
+    start_date: string;
+    end_date: string;
+};
 
-/** «امتحان جديد» — existing terms and exam types only; the server validates everything again. */
-function CreateExamForm({
-    admin,
-    academicYearId,
-    onDone,
-}: {
-    admin: PageProps['admin'];
-    academicYearId: number;
-    onDone: () => void;
-}) {
-    const a = t().exams.admin;
-    const [key] = useState(newKey);
-    const form = useForm({
-        academic_year_id: academicYearId,
-        term_id: '',
-        exam_type_id: '',
-        name: '',
-        start_date: '',
-        end_date: '',
-    });
+const EMPTY_DRAFT: Draft = {
+    name: '',
+    term_id: '',
+    exam_type_id: '',
+    start_date: '',
+    end_date: '',
+};
 
-    if (admin.exam_types.length === 0) {
-        return (
-            <p className="text-sm" role="status">
-                {a.noExamTypes}{' '}
-                <Link href="/exams/types" className="underline">
-                    {t().exams.types.open}
-                </Link>
-            </p>
-        );
-    }
-    if (admin.terms.length === 0) {
-        return (
-            <p className="text-sm" role="status">
-                {a.noTerms}
-            </p>
-        );
-    }
-
-    return (
-        <form
-            className="grid max-w-xl gap-3"
-            data-window-id="exams.create"
-            onSubmit={(e) => {
-                e.preventDefault();
-                form.post('/exams', {
-                    headers: { 'X-Idempotency-Key': key },
-                    preserveScroll: true,
-                });
-            }}
-        >
-            <OpsFormField
-                label={a.examName}
-                name="name"
-                error={form.errors.name}
-            >
-                <OpsTextInput
-                    name="name"
-                    required
-                    value={form.data.name}
-                    error={form.errors.name}
-                    onChange={(e) => form.setData('name', e.target.value)}
-                />
-            </OpsFormField>
-            <OpsFormField
-                label={a.term}
-                name="term_id"
-                error={form.errors.term_id}
-            >
-                <select
-                    id="term_id"
-                    name="term_id"
-                    required
-                    className={SELECT_CLASS}
-                    value={form.data.term_id}
-                    onChange={(e) => form.setData('term_id', e.target.value)}
-                >
-                    <option value="">—</option>
-                    {admin.terms.map((term) => (
-                        <option key={term.id} value={term.id}>
-                            {term.name}
-                        </option>
-                    ))}
-                </select>
-            </OpsFormField>
-            <OpsFormField
-                label={a.examType}
-                name="exam_type_id"
-                error={form.errors.exam_type_id}
-            >
-                <select
-                    id="exam_type_id"
-                    name="exam_type_id"
-                    required
-                    className={SELECT_CLASS}
-                    value={form.data.exam_type_id}
-                    onChange={(e) =>
-                        form.setData('exam_type_id', e.target.value)
-                    }
-                >
-                    <option value="">—</option>
-                    {admin.exam_types.map((type) => (
-                        <option key={type.id} value={type.id}>
-                            {`${type.name} (${type.weight_percentage}%)`}
-                        </option>
-                    ))}
-                </select>
-            </OpsFormField>
-            <OpsFormField
-                label={a.startDate}
-                name="start_date"
-                error={form.errors.start_date}
-            >
-                <OpsTextInput
-                    name="start_date"
-                    type="date"
-                    dir="ltr"
-                    required
-                    value={form.data.start_date}
-                    error={form.errors.start_date}
-                    onChange={(e) => form.setData('start_date', e.target.value)}
-                />
-            </OpsFormField>
-            <OpsFormField
-                label={a.endDate}
-                name="end_date"
-                error={form.errors.end_date}
-            >
-                <OpsTextInput
-                    name="end_date"
-                    type="date"
-                    dir="ltr"
-                    required
-                    value={form.data.end_date}
-                    error={form.errors.end_date}
-                    onChange={(e) => form.setData('end_date', e.target.value)}
-                />
-            </OpsFormField>
-            <div className="flex gap-2">
-                <button
-                    type="submit"
-                    disabled={form.processing}
-                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm disabled:opacity-50"
-                >
-                    {form.processing ? a.saving : a.create}
-                </button>
-                <button
-                    type="button"
-                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
-                    onClick={onDone}
-                >
-                    {a.cancel}
-                </button>
-            </div>
-        </form>
-    );
-}
-
-export default function ExamsIndex({
-    exams,
-    names,
-    admin,
-    filters,
-}: PageProps) {
+export default function ExamsIndex(props: PageProps) {
     const i18n = t();
-    const [creating, setCreating] = useState(false);
-
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.exams.title, href: '/exams' },
     ];
 
-    const columns: DataTableColumn<ExamRow>[] = [
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <ExamsBody {...props} />
+        </AppLayout>
+    );
+}
+
+function ExamsBody({ exams, names, admin, filters }: PageProps) {
+    const i18n = t();
+    const a = i18n.exams.admin;
+    const request = useExamisRequest();
+    const [draft, setDraft] = useState<Draft | null>(null);
+    const [saving, setSaving] = useState(false);
+    const rows = exams.data;
+    const selection = useAttendanceSelection(rows, (row) => row.id);
+    const canCreate = admin.can_create && filters.academic_year_id !== null;
+
+    const visit = (patch: Partial<PageProps['filters']>) =>
+        router.get(
+            '/exams',
+            Object.fromEntries(
+                Object.entries({ ...filters, ...patch }).filter(
+                    ([, value]) => value !== null && value !== undefined,
+                ),
+            ),
+            { preserveScroll: true },
+        );
+    const open = (row: ExamRow) => router.visit(`/exams/${row.id}`);
+
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (id) =>
+        visit({ academic_year_id: id }),
+    );
+    const statusSpec: FilterSpec = {
+        key: 'status',
+        type: 'single',
+        label: i18n.common.status,
+        value: filters.status === null ? '' : String(filters.status),
+        options: [
+            { value: '', label: `${i18n.common.status}: —` },
+            ...EXAM_STATUSES.map((status) => ({
+                value: String(status),
+                label: statusChipLabel('exam', status),
+            })),
+        ],
+        onChange: (value) =>
+            visit({ status: value === '' ? null : Number(value) }),
+    };
+    useExamisHomeFilters(
+        [yearSpec, statusSpec],
+        [filters, yearSpec.options.length],
+    );
+
+    const ribbon = useMemo((): PageRibbonGroup[] => {
+        const target = selection.targets[0];
+
+        return [
+            {
+                id: 'exams-actions',
+                label: i18n.examisChrome.actions,
+                commands: [
+                    {
+                        id: 'exams-view',
+                        label: i18n.common.view,
+                        icon: Eye,
+                        iconTone: 'sky',
+                        disabled: target === undefined,
+                        onSelect: () => target && open(target),
+                    },
+                    ...(canCreate
+                        ? [
+                              {
+                                  id: 'exams-add',
+                                  label: a.newExam,
+                                  icon: PlusCircle,
+                                  iconTone: 'ok' as const,
+                                  onSelect: () => setDraft(EMPTY_DRAFT),
+                              },
+                          ]
+                        : []),
+                ],
+            },
+        ];
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selection.targets, canCreate]);
+    useExamisEditRibbon('exams', ribbon);
+
+    // The create form offers existing types and terms only: say why it cannot open instead of an empty form.
+    useAttendanceMessages(
+        canCreate && admin.exam_types.length === 0
+            ? [{ key: 'no-types', text: a.noExamTypes, tone: 'warning' }]
+            : canCreate && admin.terms.length === 0
+              ? [{ key: 'no-terms', text: a.noTerms, tone: 'warning' }]
+              : [],
+        i18n.exams.title,
+    );
+
+    const save = async () => {
+        if (draft === null || filters.academic_year_id === null) {
+            return;
+        }
+        setSaving(true);
+        const ok = await request(
+            '/exams',
+            { academic_year_id: filters.academic_year_id, ...draft },
+            'exam-create',
+        );
+        setSaving(false);
+        if (ok) {
+            setDraft(null);
+        }
+    };
+
+    const columns: AttendanceColumn<ExamRow>[] = [
         {
             id: 'name',
             header: i18n.exams.name,
+            kind: 'name',
             cell: (row) => row.name,
         },
         {
-            id: 'term_id',
+            id: 'term',
             header: i18n.exams.term,
-            cell: (row) =>
-                names.terms[row.term_id] ?? (
-                    <span dir="ltr">{row.term_id}</span>
-                ),
-            hideOnMobile: true,
+            kind: 'text',
+            cell: (row) => names.terms[row.term_id] ?? String(row.term_id),
         },
         {
             id: 'dates',
             header: i18n.exams.dates,
+            kind: 'text',
             cell: (row) => (
                 <span dir="ltr">
                     {row.start_date} – {row.end_date}
@@ -242,91 +218,136 @@ export default function ExamsIndex({
         {
             id: 'status',
             header: i18n.common.status,
-            cell: (row) => <StatusChip kind="exam" status={row.status} />,
-        },
-        {
-            id: 'actions',
-            header: i18n.common.open,
-            cell: (row) => (
-                <a href={`/exams/${row.id}`} className="underline">
-                    {i18n.common.view}
-                </a>
-            ),
+            kind: 'status',
+            tone: (row) => STATUS_TONE[row.status] ?? 0,
+            cell: (row) => statusChipLabel('exam', row.status),
         },
     ];
 
+    const typeOptions = admin.exam_types.map((type) => ({
+        value: String(type.id),
+        label: `${type.name} (${type.weight_percentage}%)`,
+    }));
+    const termOptions = admin.terms.map((term) => ({
+        value: String(term.id),
+        label: term.name,
+    }));
+    const ready =
+        draft !== null &&
+        draft.name.trim() !== '' &&
+        draft.term_id !== '' &&
+        draft.exam_type_id !== '' &&
+        draft.start_date !== '' &&
+        draft.end_date !== '';
+
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={i18n.exams.title} />
-            <div
-                className="sis-ops-hub flex flex-col gap-4 p-4"
-                dir="rtl"
-                lang="ar"
-            >
-                <PageHeader
-                    title={i18n.exams.title}
-                    description={i18n.exams.description}
-                    icon={<GraduationCap className="size-6" aria-hidden />}
+        <ExamisPage title={i18n.exams.title} windowId="exams.index">
+            <AttendanceTable
+                caption={i18n.exams.tableCaption}
+                storageKey="exams.index"
+                rows={rows}
+                rowKey={(row) => row.id}
+                columns={columns}
+                selection={selection}
+                onOpen={open}
+                emptyText={
+                    filters.academic_year_id
+                        ? i18n.exams.emptyDesc
+                        : i18n.exams.selectYearContext
+                }
+            />
+
+            {draft !== null &&
+            admin.exam_types.length > 0 &&
+            admin.terms.length > 0 ? (
+                <AttendanceWindow
+                    title={a.newExam}
+                    columns={2}
+                    pending={saving}
+                    confirmLabel={a.create}
+                    confirmDisabled={!ready}
+                    onConfirm={() => void save()}
+                    onClose={() => setDraft(null)}
+                    sections={[
+                        {
+                            id: 'exam-create',
+                            title: a.newExam,
+                            content: (
+                                <div
+                                    data-window-id="exams.create"
+                                    className="contents"
+                                >
+                                    <RegistryTextField
+                                        label={a.examName}
+                                        editing
+                                        required
+                                        fieldClassName="sis-branches-field--wide"
+                                        value={draft.name}
+                                        onChange={(name) =>
+                                            setDraft({ ...draft, name })
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={a.term}
+                                        editing
+                                        required
+                                        value={draft.term_id}
+                                        display={
+                                            termOptions.find(
+                                                (o) =>
+                                                    o.value === draft.term_id,
+                                            )?.label ?? '—'
+                                        }
+                                        options={termOptions}
+                                        onChange={(term_id) =>
+                                            setDraft({ ...draft, term_id })
+                                        }
+                                    />
+                                    <RegistryListField
+                                        label={a.examType}
+                                        editing
+                                        required
+                                        value={draft.exam_type_id}
+                                        display={
+                                            typeOptions.find(
+                                                (o) =>
+                                                    o.value ===
+                                                    draft.exam_type_id,
+                                            )?.label ?? '—'
+                                        }
+                                        options={typeOptions}
+                                        onChange={(exam_type_id) =>
+                                            setDraft({ ...draft, exam_type_id })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={a.startDate}
+                                        editing
+                                        required
+                                        type="date"
+                                        dir="ltr"
+                                        value={draft.start_date}
+                                        onChange={(start_date) =>
+                                            setDraft({ ...draft, start_date })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={a.endDate}
+                                        editing
+                                        required
+                                        type="date"
+                                        dir="ltr"
+                                        value={draft.end_date}
+                                        onChange={(end_date) =>
+                                            setDraft({ ...draft, end_date })
+                                        }
+                                    />
+                                </div>
+                            ),
+                        },
+                    ]}
                 />
-                <OpsYearFilter
-                    action="/exams"
-                    academicYearId={filters.academic_year_id}
-                />
-                <div className="flex flex-wrap gap-2">
-                    <Link
-                        href="/exams/types"
-                        className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
-                        prefetch
-                    >
-                        {i18n.exams.types.open}
-                    </Link>
-                </div>
-                {admin.can_create && filters.academic_year_id !== null ? (
-                    creating ? (
-                        <CreateExamForm
-                            admin={admin}
-                            academicYearId={filters.academic_year_id}
-                            onDone={() => setCreating(false)}
-                        />
-                    ) : (
-                        <button
-                            type="button"
-                            className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
-                            onClick={() => setCreating(true)}
-                        >
-                            {i18n.exams.admin.newExam}
-                        </button>
-                    )
-                ) : null}
-                <DataTable
-                    columns={columns}
-                    rows={exams.data}
-                    rowKey={(row) => row.id}
-                    emptyTitle={i18n.exams.emptyTitle}
-                    emptyDescription={
-                        filters.academic_year_id
-                            ? i18n.exams.emptyDesc
-                            : i18n.exams.selectYearContext
-                    }
-                    caption={i18n.exams.tableCaption}
-                    mobileCard={(row) => (
-                        <a
-                            href={`/exams/${row.id}`}
-                            className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3"
-                        >
-                            <div className="font-semibold">{row.name}</div>
-                            <div className="text-sm opacity-80">
-                                <span dir="ltr">
-                                    {row.start_date} – {row.end_date}
-                                </span>
-                            </div>
-                            <div className="text-sm opacity-80">
-                                <StatusChip kind="exam" status={row.status} />
-                            </div>
-                        </a>
-                    )}
-                />
-            </div>
-        </AppLayout>
+            ) : null}
+        </ExamisPage>
     );
 }

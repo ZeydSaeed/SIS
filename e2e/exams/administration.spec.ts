@@ -10,6 +10,8 @@ import path from 'node:path';
 import { dbValue } from '../support/db';
 import { E2E_DB, RUN } from '../support/env';
 import { expect, test } from '../support/test';
+import { command, editTab } from '../support/examis';
+import { choose, field, openDialog } from '../support/ui';
 
 type Fixture = { database: string; academic_year_id: number };
 
@@ -35,17 +37,13 @@ test.describe('exam administration', () => {
         page,
     }) => {
         await page.goto(`/exams?academic_year_id=${f.academic_year_id}`);
-        await page.getByRole('button', { name: 'امتحان جديد' }).click();
-        const create = page.locator('[data-window-id="exams.create"]');
-        await create.locator('input[name="name"]').fill(examName);
-        await create
-            .locator('select[name="term_id"]')
-            .selectOption({ index: 1 });
-        await create
-            .locator('select[name="exam_type_id"]')
-            .selectOption({ index: 1 });
-        await create.locator('input[name="start_date"]').fill('2026-12-01');
-        await create.locator('input[name="end_date"]').fill('2026-12-10');
+        await command(page, 'امتحان جديد');
+        const create = openDialog(page, 'امتحان جديد');
+        await field(create, 'اسم الامتحان').fill(examName);
+        await choose(page, create, 'الفصل', /./);
+        await choose(page, create, 'نوع الامتحان', /./);
+        await field(create, 'تاريخ البداية').fill('2026-12-01');
+        await field(create, 'تاريخ النهاية').fill('2026-12-10');
         await create.getByRole('button', { name: 'إنشاء الامتحان' }).click();
 
         await expect(page).toHaveURL(/\/exams\/\d+$/);
@@ -54,14 +52,12 @@ test.describe('exam administration', () => {
         );
         expect(page.url()).toContain(`/exams/${examId}`);
 
-        await page.getByRole('button', { name: 'جلسة جديدة' }).click();
-        const session = page.locator('[data-window-id="exams.session.create"]');
-        await session
-            .locator('select[name="subject_id"]')
-            .selectOption({ index: 1 });
-        await session.locator('input[name="session_date"]').fill('2026-12-03');
-        await session.locator('input[name="start_time"]').fill('09:00');
-        await session.locator('input[name="end_time"]').fill('11:00');
+        await command(page, 'جلسة جديدة');
+        const session = openDialog(page, 'جلسة جديدة');
+        await choose(page, session, 'المادة', /./);
+        await field(session, 'تاريخ الجلسة').fill('2026-12-03');
+        await field(session, 'من الساعة').fill('09:00');
+        await field(session, 'إلى الساعة').fill('11:00');
         await session.getByRole('button', { name: 'إضافة الجلسة' }).click();
 
         await expect
@@ -87,23 +83,28 @@ test.describe('exam administration', () => {
             );
         expect(status()).toBe(1);
 
-        await page.getByRole('button', { name: 'بدء الجلسة' }).click();
+        await page.locator('tbody tr', { hasText: '09:00' }).click();
+        await command(page, 'بدء الجلسة');
         await expect.poll(status).toBe(2);
 
-        await page.getByRole('button', { name: 'إغلاق الجلسة' }).click();
+        await command(page, 'إغلاق الجلسة');
         await page
             .getByRole('dialog')
             .getByRole('button', { name: 'إغلاق الجلسة' })
             .click();
         await expect.poll(status).toBe(3);
         await expect(
-            page.getByRole('button', { name: 'بدء الجلسة' }),
-        ).toHaveCount(0);
+            page.getByRole('button', { name: 'بدء الجلسة', exact: true }),
+        ).toBeDisabled();
     });
 
     test('a viewer gets no administration controls', async ({ pageAs }) => {
         const page = await pageAs('viewer');
         await page.goto(`/exams?academic_year_id=${f.academic_year_id}`);
+        await editTab(page);
+        await expect(
+            page.getByRole('button', { name: 'عرض', exact: true }).first(),
+        ).toBeVisible();
         await expect(
             page.getByRole('button', { name: 'امتحان جديد' }),
         ).toHaveCount(0);
@@ -112,6 +113,10 @@ test.describe('exam administration', () => {
             dbValue('SELECT id FROM exams.exams WHERE name = ?', [examName]),
         );
         await page.goto(`/exams/${examId}`);
+        await editTab(page);
+        await expect(
+            page.getByRole('button', { name: 'كشف المرشحين' }).first(),
+        ).toBeVisible();
         await expect(
             page.getByRole('button', { name: 'جلسة جديدة' }),
         ).toHaveCount(0);

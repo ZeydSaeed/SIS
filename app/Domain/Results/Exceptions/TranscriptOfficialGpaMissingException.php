@@ -8,6 +8,6 @@ final class TranscriptOfficialGpaMissingException extends SisDomainException
 {
     public static function forIdentity(): self
     {
-        return new self('results.transcript_official_gpa_missing');
+        return new self('results.transcript_official_gpa_missing', 'results.transcript_official_gpa_missing');
     }
 }

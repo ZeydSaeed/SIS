@@ -1,10 +1,20 @@
-import { Head, router } from '@inertiajs/react';
-import { Calculator } from 'lucide-react';
-import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import { BadgeCheck, Calculator } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    AttendanceTable,
+    useAttendanceMessages,
+    useYearFilterSpec,
+    type AttendanceColumn,
+} from '@/components/attendance/attendance-chrome';
+import {
+    ExamisPage,
+    optionFilter,
+    useExamisEditRibbon,
+    useExamisHomeFilters,
+} from '@/components/examis/examis-chrome';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
-import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
-import { OpsYearFilter } from '@/components/sis/ops-year-filter';
-import { PageHeader } from '@/components/sis/page-header';
+import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import { resolveUiMessage } from '@/lib/resolve-ui-message';
@@ -51,13 +61,25 @@ type PageProps = {
     } | null;
 };
 
-const SELECT_CLASS = 'sis-ops-hub__link min-h-11 px-3 py-2';
-
 function newKey(): string {
     return `term-results-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export default function ResultsSheet({
+export default function ResultsSheet(props: PageProps) {
+    const i18n = t();
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: i18n.results.title, href: '/results' },
+        { title: i18n.results.sheet.title, href: '/results/sheet' },
+    ];
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <SheetBody {...props} />
+        </AppLayout>
+    );
+}
+
+function SheetBody({
     terms,
     classes,
     subjects,
@@ -83,20 +105,16 @@ export default function ResultsSheet({
         (s.outcomeLabels as Record<string, string>)[status] ??
         resolveUiMessage(status);
 
-    const visit = (patch: Partial<Filters>) => {
-        const next = { ...filters, ...patch };
+    const visit = (patch: Partial<Filters>) =>
         router.get(
             '/results/sheet',
             Object.fromEntries(
-                Object.entries(next).filter(
+                Object.entries({ ...filters, ...patch }).filter(
                     ([, value]) => value !== null && value !== undefined,
                 ),
             ),
             { preserveScroll: true },
         );
-    };
-    const numberOrNull = (value: string): number | null =>
-        value === '' ? null : Number(value);
 
     const run = (mode: 'calculate' | 'finalize') => {
         setWorking(true);
@@ -120,6 +138,96 @@ export default function ResultsSheet({
         );
     };
 
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (id) =>
+        visit({
+            academic_year_id: id,
+            term_id: null,
+            subject_id: null,
+            class_id: null,
+            section_id: null,
+        }),
+    );
+    useExamisHomeFilters(
+        [
+            yearSpec,
+            optionFilter(s.term, s.term, filters.term_id, terms, (id) =>
+                visit({ term_id: id, subject_id: null }),
+            ),
+            optionFilter(
+                s.subject,
+                s.subject,
+                filters.subject_id,
+                subjects,
+                (id) => visit({ subject_id: id }),
+                { disabled: filters.term_id === null },
+            ),
+            optionFilter(s.class, s.class, filters.class_id, classes, (id) =>
+                visit({ class_id: id, section_id: null }),
+            ),
+            optionFilter(
+                s.section,
+                s.section,
+                filters.section_id,
+                sections,
+                (id) => visit({ section_id: id }),
+                {
+                    emptyLabel: s.allSections,
+                    disabled: filters.class_id === null,
+                },
+            ),
+        ],
+        [filters, terms, subjects, classes, yearSpec.options.length],
+    );
+
+    const ribbon = useMemo((): PageRibbonGroup[] => {
+        const busy = working || !ready || rows.length === 0;
+        const commands = [
+            ...(abilities.calculate
+                ? [
+                      {
+                          id: 'term-sheet-calculate',
+                          label: s.calculate,
+                          icon: Calculator,
+                          iconTone: 'sky' as const,
+                          disabled: busy,
+                          onSelect: () => run('calculate'),
+                      },
+                  ]
+                : []),
+            ...(abilities.finalize
+                ? [
+                      {
+                          id: 'term-sheet-finalize',
+                          label: s.finalize,
+                          icon: BadgeCheck,
+                          iconTone: 'ok' as const,
+                          disabled: busy,
+                          onSelect: () => setConfirmFinalize(true),
+                      },
+                  ]
+                : []),
+        ];
+
+        return commands.length === 0
+            ? []
+            : [
+                  {
+                      id: 'term-sheet-actions',
+                      label: i18n.examisChrome.actions,
+                      commands,
+                  },
+              ];
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [abilities, working, ready, rows.length, filters]);
+    useExamisEditRibbon('termSheet', ribbon);
+
+    useAttendanceMessages(
+        filters.term_id !== null && subjects.length === 0
+            ? [{ key: 'no-subjects', text: s.noSubjects, tone: 'warning' }]
+            : [],
+        s.title,
+    );
+
     const result = (cell: ResultCell) =>
         cell === null ? (
             s.none
@@ -131,23 +239,24 @@ export default function ResultsSheet({
             </span>
         );
 
-    const columns: DataTableColumn<Row>[] = [
+    const columns: AttendanceColumn<Row>[] = [
         { id: 'student', header: s.student, cell: (row) => row.student_name },
         {
             id: 'code',
             header: s.code,
+            kind: 'text',
             cell: (row) => <span dir="ltr">{row.student_code}</span>,
-            hideOnMobile: true,
         },
         {
             id: 'section',
             header: s.section,
+            kind: 'text',
             cell: (row) => row.section_name,
-            hideOnMobile: true,
         },
         {
             id: 'grades',
             header: s.grades,
+            kind: 'text',
             cell: (row) =>
                 s.gradesValue
                     .replace(':finalized', String(row.finalized_grades))
@@ -157,204 +266,67 @@ export default function ResultsSheet({
         {
             id: 'operational',
             header: s.operational,
+            kind: 'text',
             cell: (row) => result(row.operational),
         },
         {
             id: 'official',
             header: s.official,
+            kind: 'text',
             cell: (row) => result(row.official),
         },
         {
             id: 'outcome',
             header: s.outcome,
+            kind: 'text',
             cell: (row) => {
                 const status = outcomeBySeat.get(row.enrollment_id);
 
                 return status ? statusLabel(status) : '';
             },
-            sort: false,
         },
     ];
 
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: i18n.results.title, href: '/results' },
-        { title: s.title, href: '/results/sheet' },
-    ];
-
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={s.title} />
-            <div
-                className="sis-ops-hub flex flex-col gap-4 p-4"
-                dir="rtl"
-                lang="ar"
-                data-window-id="results.sheet"
-            >
-                <PageHeader
-                    title={s.title}
-                    description={s.description}
-                    icon={<Calculator className="size-6" aria-hidden />}
-                />
-                <OpsYearFilter
-                    action="/results/sheet"
-                    academicYearId={filters.academic_year_id}
-                />
-                <div className="flex flex-wrap items-end gap-3">
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{s.term}</span>
-                        <select
-                            name="term_id"
-                            className={SELECT_CLASS}
-                            value={filters.term_id ?? ''}
-                            onChange={(e) =>
-                                visit({
-                                    term_id: numberOrNull(e.target.value),
-                                    subject_id: null,
-                                })
-                            }
-                        >
-                            <option value="">—</option>
-                            {terms.map((term) => (
-                                <option key={term.id} value={term.id}>
-                                    {term.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{s.subject}</span>
-                        <select
-                            name="subject_id"
-                            className={SELECT_CLASS}
-                            value={filters.subject_id ?? ''}
-                            disabled={filters.term_id === null}
-                            onChange={(e) =>
-                                visit({
-                                    subject_id: numberOrNull(e.target.value),
-                                })
-                            }
-                        >
-                            <option value="">—</option>
-                            {subjects.map((subject) => (
-                                <option key={subject.id} value={subject.id}>
-                                    {subject.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{s.class}</span>
-                        <select
-                            name="class_id"
-                            className={SELECT_CLASS}
-                            value={filters.class_id ?? ''}
-                            onChange={(e) =>
-                                visit({
-                                    class_id: numberOrNull(e.target.value),
-                                    section_id: null,
-                                })
-                            }
-                        >
-                            <option value="">—</option>
-                            {classes.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{s.section}</span>
-                        <select
-                            name="section_id"
-                            className={SELECT_CLASS}
-                            value={filters.section_id ?? ''}
-                            disabled={filters.class_id === null}
-                            onChange={(e) =>
-                                visit({
-                                    section_id: numberOrNull(e.target.value),
-                                })
-                            }
-                        >
-                            <option value="">{s.allSections}</option>
-                            {sections.map((section) => (
-                                <option key={section.id} value={section.id}>
-                                    {section.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                </div>
+        <ExamisPage title={s.title} windowId="results.sheet">
+            {ready && outcomes ? (
+                <p
+                    className="text-sm"
+                    role="status"
+                    data-results-outcome={outcomes.mode}
+                >
+                    {s.outcome}{' '}
+                    {Object.entries(outcomes.counts)
+                        .map(
+                            ([status, count]) =>
+                                `${statusLabel(status)}: ${count}`,
+                        )
+                        .join(' · ')}
+                </p>
+            ) : null}
+            <AttendanceTable
+                caption={s.title}
+                storageKey="results.sheet"
+                columns={columns}
+                rows={ready ? rows : []}
+                rowKey={(row) => row.enrollment_id}
+                emptyText={ready ? s.noRows : s.pickHint}
+            />
 
-                {filters.term_id !== null && subjects.length === 0 ? (
-                    <p className="text-sm">{s.noSubjects}</p>
-                ) : null}
-                {!ready ? <p className="text-sm">{s.pickHint}</p> : null}
-
-                {ready ? (
-                    <>
-                        <div className="flex flex-wrap gap-2">
-                            {abilities.calculate ? (
-                                <button
-                                    type="button"
-                                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm disabled:opacity-50"
-                                    disabled={working || rows.length === 0}
-                                    onClick={() => run('calculate')}
-                                >
-                                    {working ? s.working : s.calculate}
-                                </button>
-                            ) : null}
-                            {abilities.finalize ? (
-                                <button
-                                    type="button"
-                                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm disabled:opacity-50"
-                                    disabled={working || rows.length === 0}
-                                    onClick={() => setConfirmFinalize(true)}
-                                >
-                                    {s.finalize}
-                                </button>
-                            ) : null}
-                        </div>
-                        {outcomes ? (
-                            <p
-                                className="text-sm"
-                                role="status"
-                                data-results-outcome={outcomes.mode}
-                            >
-                                {s.outcome}{' '}
-                                {Object.entries(outcomes.counts)
-                                    .map(
-                                        ([status, count]) =>
-                                            `${statusLabel(status)}: ${count}`,
-                                    )
-                                    .join(' · ')}
-                            </p>
-                        ) : null}
-                        <DataTable
-                            columns={columns}
-                            rows={rows}
-                            rowKey={(row) => row.enrollment_id}
-                            emptyTitle={s.noRows}
-                            caption={s.title}
-                        />
-                    </>
-                ) : null}
-
-                <ConfirmDialog
-                    open={confirmFinalize}
-                    title={s.finalizeConfirmTitle}
-                    description={s.finalizeConfirmDesc}
-                    confirmLabel={s.finalize}
-                    confirmPending={working}
-                    tone="danger"
-                    onConfirm={() => run('finalize')}
-                    onOpenChange={(open) => {
-                        if (!open) {
-                            setConfirmFinalize(false);
-                        }
-                    }}
-                />
-            </div>
-        </AppLayout>
+            <ConfirmDialog
+                open={confirmFinalize}
+                title={s.finalizeConfirmTitle}
+                description={s.finalizeConfirmDesc}
+                confirmLabel={s.finalize}
+                confirmPending={working}
+                tone="danger"
+                onConfirm={() => run('finalize')}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setConfirmFinalize(false);
+                    }
+                }}
+            />
+        </ExamisPage>
     );
 }

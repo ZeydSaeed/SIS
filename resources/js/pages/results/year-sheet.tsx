@@ -1,10 +1,27 @@
-import { Head, router } from '@inertiajs/react';
-import { GraduationCap } from 'lucide-react';
-import { useState } from 'react';
+import { router } from '@inertiajs/react';
+import {
+    BadgeCheck,
+    Calculator,
+    FileBadge,
+    ListOrdered,
+    Sigma,
+    Stamp,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    AttendanceTable,
+    useAttendanceMessages,
+    useYearFilterSpec,
+    type AttendanceColumn,
+} from '@/components/attendance/attendance-chrome';
+import {
+    ExamisPage,
+    optionFilter,
+    useExamisEditRibbon,
+    useExamisHomeFilters,
+} from '@/components/examis/examis-chrome';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
-import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
-import { OpsYearFilter } from '@/components/sis/ops-year-filter';
-import { PageHeader } from '@/components/sis/page-header';
+import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
 import AppLayout from '@/layouts/app-layout';
 import { resolveUiMessage } from '@/lib/resolve-ui-message';
@@ -13,6 +30,7 @@ import type { BreadcrumbItem } from '@/types';
 type Option = { id: number; name: string };
 type Target = 'annual' | 'gpa';
 type Mode = 'calculate' | 'finalize';
+type Confirm = Target | 'transcript';
 type ResultCell = {
     version: number;
     value: string | null;
@@ -28,6 +46,8 @@ type Row = {
     term_results: { operational: number; official: number };
     annual: Pair;
     gpa: Pair;
+    rank: number | null;
+    transcript: { number: string; version: number; up_to_date: boolean } | null;
 };
 
 type Filters = {
@@ -39,27 +59,48 @@ type Filters = {
 type PageProps = {
     classes: (Option & { sections: Option[] })[];
     rows: Row[];
+    ranking: {
+        version: number;
+        participants: number;
+        calculated_at: string;
+    } | null;
     filters: Filters;
-    abilities: { calculate: boolean; finalize: boolean };
+    abilities: {
+        calculate: boolean;
+        finalize: boolean;
+        buildRanking: boolean;
+        issueTranscript: boolean;
+    };
     outcomes: {
-        target: Target;
-        mode: Mode;
+        target: Confirm;
+        mode: string;
         counts: Record<string, number>;
         outcomes: { enrollment_id: number; status: string }[];
     } | null;
 };
 
-const SELECT_CLASS = 'sis-ops-hub__link min-h-11 px-3 py-2';
-const BUTTON_CLASS =
-    'sis-ops-hub__link min-h-11 px-4 py-2 text-sm disabled:opacity-50';
-
 function newKey(): string {
     return `year-results-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export default function ResultsYearSheet({
+export default function ResultsYearSheet(props: PageProps) {
+    const i18n = t();
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: i18n.results.title, href: '/results' },
+        { title: i18n.results.yearSheet.title, href: '/results/year-sheet' },
+    ];
+
+    return (
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <YearSheetBody {...props} />
+        </AppLayout>
+    );
+}
+
+function YearSheetBody({
     classes,
     rows,
+    ranking,
     filters,
     abilities,
     outcomes,
@@ -68,7 +109,8 @@ export default function ResultsYearSheet({
     const s = i18n.results.yearSheet;
     const labels = i18n.results.sheet;
     const [working, setWorking] = useState(false);
-    const [confirmTarget, setConfirmTarget] = useState<Target | null>(null);
+    const [confirm, setConfirm] = useState<Confirm | null>(null);
+    const ready = filters.class_id !== null && rows.length > 0;
     const sections =
         classes.find((c) => c.id === filters.class_id)?.sections ?? [];
     const outcomeBySeat = new Map(
@@ -78,41 +120,145 @@ export default function ResultsYearSheet({
         (labels.outcomeLabels as Record<string, string>)[status] ??
         resolveUiMessage(status);
 
-    const visit = (patch: Partial<Filters>) => {
-        const next = { ...filters, ...patch };
+    const visit = (patch: Partial<Filters>) =>
         router.get(
             '/results/year-sheet',
             Object.fromEntries(
-                Object.entries(next).filter(
+                Object.entries({ ...filters, ...patch }).filter(
                     ([, value]) => value !== null && value !== undefined,
                 ),
             ),
             { preserveScroll: true },
         );
-    };
-    const numberOrNull = (value: string): number | null =>
-        value === '' ? null : Number(value);
 
-    const run = (target: Target, mode: Mode) => {
+    const post = (path: string, body: Record<string, unknown>) => {
         setWorking(true);
         router.post(
-            `/results/year-sheet/${mode}`,
+            path,
             {
                 academic_year_id: filters.academic_year_id,
                 class_id: filters.class_id,
                 section_id: filters.section_id,
-                target,
+                ...body,
             },
             {
                 headers: { 'X-Idempotency-Key': newKey() },
                 preserveScroll: true,
                 onFinish: () => {
                     setWorking(false);
-                    setConfirmTarget(null);
+                    setConfirm(null);
                 },
             },
         );
     };
+    const run = (target: Target, mode: Mode) =>
+        post(`/results/year-sheet/${mode}`, { target });
+
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (id) =>
+        visit({ academic_year_id: id, class_id: null, section_id: null }),
+    );
+    useExamisHomeFilters(
+        [
+            yearSpec,
+            optionFilter(s.class, s.class, filters.class_id, classes, (id) =>
+                visit({ class_id: id, section_id: null }),
+            ),
+            optionFilter(
+                s.section,
+                s.section,
+                filters.section_id,
+                sections,
+                (id) => visit({ section_id: id }),
+                {
+                    emptyLabel: s.allSections,
+                    disabled: filters.class_id === null,
+                },
+            ),
+        ],
+        [filters, classes, yearSpec.options.length],
+    );
+
+    const ribbon = useMemo((): PageRibbonGroup[] => {
+        const busy = working || !ready;
+        const group = (target: Target, title: string): PageRibbonGroup => ({
+            id: `year-sheet-${target}`,
+            label: title,
+            commands: [
+                ...(abilities.calculate
+                    ? [
+                          {
+                              id: `year-sheet-${target}-calculate`,
+                              label: s.calculate,
+                              icon: target === 'annual' ? Calculator : Sigma,
+                              iconTone: 'sky' as const,
+                              disabled: busy,
+                              onSelect: () => run(target, 'calculate'),
+                          },
+                      ]
+                    : []),
+                ...(abilities.finalize
+                    ? [
+                          {
+                              id: `year-sheet-${target}-finalize`,
+                              label: s.finalize,
+                              icon: BadgeCheck,
+                              iconTone: 'ok' as const,
+                              disabled: busy,
+                              onSelect: () => setConfirm(target),
+                          },
+                      ]
+                    : []),
+            ],
+        });
+        const ranks: PageRibbonGroup = {
+            id: 'year-sheet-ranking',
+            label: s.rankingActions,
+            commands: [
+                ...(abilities.buildRanking
+                    ? [
+                          {
+                              id: 'year-sheet-ranking-build',
+                              label: s.buildRanking,
+                              icon: ListOrdered,
+                              iconTone: 'amber' as const,
+                              disabled: busy,
+                              onSelect: () =>
+                                  post('/results/year-sheet/ranking', {
+                                      section_id: null,
+                                  }),
+                          },
+                      ]
+                    : []),
+                ...(abilities.issueTranscript
+                    ? [
+                          {
+                              id: 'year-sheet-transcripts-issue',
+                              label: s.issueTranscripts,
+                              icon: Stamp,
+                              iconTone: 'rose' as const,
+                              disabled: busy,
+                              onSelect: () => setConfirm('transcript'),
+                          },
+                      ]
+                    : []),
+            ],
+        };
+
+        return [
+            group('annual', s.annualActions),
+            group('gpa', s.gpaActions),
+            ranks,
+        ].filter((g) => g.commands.length > 0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [abilities, working, ready, filters]);
+    useExamisEditRibbon('yearSheet', ribbon);
+
+    useAttendanceMessages(
+        filters.class_id !== null
+            ? [{ key: 'order', text: s.orderHint, tone: 'info' }]
+            : [],
+        s.title,
+    );
 
     const result = (cell: ResultCell) =>
         cell === null ? (
@@ -125,23 +271,24 @@ export default function ResultsYearSheet({
             </span>
         );
 
-    const columns: DataTableColumn<Row>[] = [
+    const columns: AttendanceColumn<Row>[] = [
         { id: 'student', header: s.student, cell: (row) => row.student_name },
         {
             id: 'code',
             header: s.code,
+            kind: 'text',
             cell: (row) => <span dir="ltr">{row.student_code}</span>,
-            hideOnMobile: true,
         },
         {
             id: 'section',
             header: s.section,
+            kind: 'text',
             cell: (row) => row.section_name,
-            hideOnMobile: true,
         },
         {
             id: 'terms',
             header: s.termResults,
+            kind: 'text',
             cell: (row) =>
                 s.termResultsValue
                     .replace(':official', String(row.term_results.official))
@@ -153,183 +300,136 @@ export default function ResultsYearSheet({
         {
             id: 'annual_operational',
             header: s.annualOperational,
+            kind: 'text',
             cell: (row) => result(row.annual.operational),
         },
         {
             id: 'annual_official',
             header: s.annualOfficial,
+            kind: 'text',
             cell: (row) => result(row.annual.official),
         },
         {
             id: 'gpa_operational',
             header: s.gpaOperational,
+            kind: 'text',
             cell: (row) => result(row.gpa.operational),
         },
         {
             id: 'gpa_official',
             header: s.gpaOfficial,
+            kind: 'text',
             cell: (row) => result(row.gpa.official),
+        },
+        {
+            id: 'rank',
+            header: s.rank,
+            kind: 'num',
+            cell: (row) => row.rank ?? labels.none,
+        },
+        {
+            id: 'transcript',
+            header: s.transcript,
+            kind: 'text',
+            cell: (row) =>
+                row.transcript === null ? (
+                    labels.none
+                ) : (
+                    <span>
+                        <FileBadge
+                            className="inline size-3.5 align-[-2px]"
+                            aria-hidden
+                        />{' '}
+                        <span dir="ltr">{row.transcript.number}</span>
+                        {row.transcript.up_to_date
+                            ? ''
+                            : ` · ${s.transcriptOutdated}`}
+                    </span>
+                ),
         },
         {
             id: 'outcome',
             header: labels.outcome,
+            kind: 'text',
             cell: (row) => {
                 const status = outcomeBySeat.get(row.enrollment_id);
 
                 return status ? statusLabel(status) : '';
             },
-            sort: false,
         },
     ];
 
-    const actions = (target: Target, title: string) => (
-        <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold">{title}</span>
-            {abilities.calculate ? (
-                <button
-                    type="button"
-                    className={BUTTON_CLASS}
-                    disabled={working || rows.length === 0}
-                    onClick={() => run(target, 'calculate')}
-                >
-                    {working ? labels.working : s.calculate}
-                </button>
-            ) : null}
-            {abilities.finalize ? (
-                <button
-                    type="button"
-                    className={BUTTON_CLASS}
-                    disabled={working || rows.length === 0}
-                    onClick={() => setConfirmTarget(target)}
-                >
-                    {s.finalize}
-                </button>
-            ) : null}
-        </div>
-    );
-
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: i18n.results.title, href: '/results' },
-        { title: s.title, href: '/results/year-sheet' },
-    ];
-
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={s.title} />
-            <div
-                className="sis-ops-hub flex flex-col gap-4 p-4"
-                dir="rtl"
-                lang="ar"
-                data-window-id="results.year-sheet"
-            >
-                <PageHeader
-                    title={s.title}
-                    description={s.description}
-                    icon={<GraduationCap className="size-6" aria-hidden />}
-                />
-                <OpsYearFilter
-                    action="/results/year-sheet"
-                    academicYearId={filters.academic_year_id}
-                />
-                <div className="flex flex-wrap items-end gap-3">
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{s.class}</span>
-                        <select
-                            name="class_id"
-                            className={SELECT_CLASS}
-                            value={filters.class_id ?? ''}
-                            onChange={(e) =>
-                                visit({
-                                    class_id: numberOrNull(e.target.value),
-                                    section_id: null,
-                                })
-                            }
-                        >
-                            <option value="">—</option>
-                            {classes.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{s.section}</span>
-                        <select
-                            name="section_id"
-                            className={SELECT_CLASS}
-                            value={filters.section_id ?? ''}
-                            disabled={filters.class_id === null}
-                            onChange={(e) =>
-                                visit({
-                                    section_id: numberOrNull(e.target.value),
-                                })
-                            }
-                        >
-                            <option value="">{s.allSections}</option>
-                            {sections.map((section) => (
-                                <option key={section.id} value={section.id}>
-                                    {section.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                </div>
+        <ExamisPage title={s.title} windowId="results.year-sheet">
+            {filters.class_id !== null ? (
+                <p className="text-sm" data-results-ranking>
+                    {ranking === null
+                        ? s.noRanking
+                        : s.rankingInfo
+                              .replace(':v', String(ranking.version))
+                              .replace(':n', String(ranking.participants))
+                              .replace(
+                                  ':at',
+                                  ranking.calculated_at.slice(0, 16),
+                              )}
+                </p>
+            ) : null}
+            {outcomes ? (
+                <p
+                    className="text-sm"
+                    role="status"
+                    data-results-outcome={`${outcomes.target}.${outcomes.mode}`}
+                >
+                    {labels.outcome} {s.outcomeTargets[outcomes.target]} —{' '}
+                    {Object.entries(outcomes.counts)
+                        .map(
+                            ([status, count]) =>
+                                `${statusLabel(status)}: ${count}`,
+                        )
+                        .join(' · ')}
+                </p>
+            ) : null}
+            <AttendanceTable
+                caption={s.title}
+                storageKey="results.year-sheet"
+                columns={columns}
+                rows={rows}
+                rowKey={(row) => row.enrollment_id}
+                emptyText={filters.class_id === null ? s.pickHint : s.noRows}
+            />
 
-                {filters.class_id === null ? (
-                    <p className="text-sm">{s.pickHint}</p>
-                ) : (
-                    <>
-                        <p className="text-sm">{s.orderHint}</p>
-                        <div className="flex flex-wrap gap-4">
-                            {actions('annual', s.annualActions)}
-                            {actions('gpa', s.gpaActions)}
-                        </div>
-                        {outcomes ? (
-                            <p
-                                className="text-sm"
-                                role="status"
-                                data-results-outcome={`${outcomes.target}.${outcomes.mode}`}
-                            >
-                                {labels.outcome}{' '}
-                                {s.outcomeTargets[outcomes.target]} —{' '}
-                                {Object.entries(outcomes.counts)
-                                    .map(
-                                        ([status, count]) =>
-                                            `${statusLabel(status)}: ${count}`,
-                                    )
-                                    .join(' · ')}
-                            </p>
-                        ) : null}
-                        <DataTable
-                            columns={columns}
-                            rows={rows}
-                            rowKey={(row) => row.enrollment_id}
-                            emptyTitle={s.noRows}
-                            caption={s.title}
-                        />
-                    </>
-                )}
-
-                <ConfirmDialog
-                    open={confirmTarget !== null}
-                    title={s.finalizeConfirmTitle}
-                    description={s.finalizeConfirmDesc}
-                    confirmLabel={`${s.finalize} — ${confirmTarget ? s.outcomeTargets[confirmTarget] : ''}`}
-                    confirmPending={working}
-                    tone="danger"
-                    onConfirm={() => {
-                        if (confirmTarget) {
-                            run(confirmTarget, 'finalize');
-                        }
-                    }}
-                    onOpenChange={(open) => {
-                        if (!open) {
-                            setConfirmTarget(null);
-                        }
-                    }}
-                />
-            </div>
-        </AppLayout>
+            <ConfirmDialog
+                open={confirm !== null}
+                title={
+                    confirm === 'transcript'
+                        ? s.transcriptsConfirmTitle
+                        : s.finalizeConfirmTitle
+                }
+                description={
+                    confirm === 'transcript'
+                        ? s.transcriptsConfirmDesc
+                        : s.finalizeConfirmDesc
+                }
+                confirmLabel={
+                    confirm === 'transcript'
+                        ? s.issueTranscripts
+                        : `${s.finalize} — ${confirm ? s.outcomeTargets[confirm] : ''}`
+                }
+                confirmPending={working}
+                tone="danger"
+                onConfirm={() => {
+                    if (confirm === 'transcript') {
+                        post('/results/year-sheet/transcripts', {});
+                    } else if (confirm) {
+                        run(confirm, 'finalize');
+                    }
+                }}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setConfirm(null);
+                    }
+                }}
+            />
+        </ExamisPage>
     );
 }

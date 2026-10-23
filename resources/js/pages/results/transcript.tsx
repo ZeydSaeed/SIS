@@ -1,9 +1,12 @@
-import { Head } from '@inertiajs/react';
-import { FileBadge } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { PageHeader } from '@/components/sis/page-header';
-import { ResultsStudentPicker, type ResultsPicker } from '@/components/results/results-student-picker';
+import { useAttendanceMessages } from '@/components/attendance/attendance-chrome';
+import { ExamisPage } from '@/components/examis/examis-chrome';
+import {
+    ResultsStudentPicker,
+    useResultsStudentChrome,
+    type ResultsPicker,
+} from '@/components/results/results-student-picker';
 import { t } from '@/i18n';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type PageProps = {
@@ -25,58 +28,63 @@ type PageProps = {
     picker: ResultsPicker;
 };
 
-export default function ResultsTranscript({ transcript, filters, picker }: PageProps) {
+export default function ResultsTranscript(props: PageProps) {
     const i18n = t();
-
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.modules.results, href: '/results' },
-        { title: i18n.results.transcriptBreadcrumb, href: '/results/transcript' },
+        {
+            title: i18n.results.transcriptBreadcrumb,
+            href: '/results/transcript',
+        },
     ];
-
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={i18n.results.transcriptTitle} />
-            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
-                <PageHeader
-                    title={i18n.results.transcriptTitle}
-                    description={i18n.results.transcriptDesc}
-                    icon={<FileBadge className="size-6" aria-hidden />}
-                />
-                <ResultsStudentPicker path="/results/transcript" academicYearId={filters.academic_year_id} picker={picker} />
-                {transcript ? (
-                    <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                        <div>
-                            <dt className="opacity-70">{i18n.results.transcriptNumber}</dt>
-                            <dd>
-                                <span dir="ltr">{transcript.transcript_number}</span>
-                            </dd>
+            <TranscriptBody {...props} />
+        </AppLayout>
+    );
+}
+
+/** The chosen student's current issued transcript (metadata; transcripts are issued from the annual / GPA sheet). */
+function TranscriptBody({ transcript, filters, picker }: PageProps) {
+    const r = t().results;
+    useResultsStudentChrome('transcript', filters.academic_year_id, picker);
+    useAttendanceMessages(
+        picker.student === null && picker.q === ''
+            ? [{ key: 'pick-student', text: r.pickStudent, tone: 'info' }]
+            : [],
+        r.transcriptTitle,
+    );
+
+    return (
+        <ExamisPage title={r.transcriptTitle} windowId="results.transcript">
+            <ResultsStudentPicker
+                path="/results/transcript"
+                academicYearId={filters.academic_year_id}
+                picker={picker}
+            />
+            {picker.student ? (
+                transcript ? (
+                    <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                        <div className="flex gap-1">
+                            <dt className="font-semibold">
+                                {r.transcriptNumber}:
+                            </dt>
+                            <dd dir="ltr">{transcript.transcript_number}</dd>
                         </div>
-                        <div>
-                            <dt className="opacity-70">{i18n.enrollments.student}</dt>
-                            <dd>
-                                <span dir="ltr">{transcript.student_id}</span>
-                            </dd>
+                        <div className="flex gap-1">
+                            <dt className="font-semibold">{r.version}:</dt>
+                            <dd dir="ltr">{transcript.transcript_version}</dd>
                         </div>
-                        <div>
-                            <dt className="opacity-70">{i18n.results.version}</dt>
-                            <dd>
-                                <span dir="ltr">{transcript.transcript_version}</span>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt className="opacity-70">{i18n.results.issuedAt}</dt>
-                            <dd>
-                                <span dir="ltr">{transcript.issued_at}</span>
-                            </dd>
+                        <div className="flex gap-1">
+                            <dt className="font-semibold">{r.issuedAt}:</dt>
+                            <dd dir="ltr">{transcript.issued_at}</dd>
                         </div>
                     </dl>
                 ) : (
-                    <p className="text-sm opacity-80">
-                        {filters.enrollment_id ? i18n.results.noTranscript : i18n.results.enterEnrollment}
-                    </p>
-                )}
-            </div>
-        </AppLayout>
+                    <p className="text-sm">{r.noTranscript}</p>
+                )
+            ) : null}
+        </ExamisPage>
     );
 }

@@ -11,6 +11,8 @@ import { dbValue } from '../support/db';
 import { E2E_DB } from '../support/env';
 import { send } from '../support/http';
 import { expect, test } from '../support/test';
+import { command, editTab } from '../support/examis';
+import { choose, openDialog } from '../support/ui';
 
 type Fixture = {
     database: string;
@@ -69,11 +71,11 @@ test.describe('exam seating', () => {
         const expected = expectedSeated(f.sessions.closed);
         await page.goto(`/exams/${examId}`);
 
-        const row = page.locator('tbody tr', { hasText: '12:00' });
-        await row.getByRole('button', { name: 'إجلاس طلاب' }).click();
-        const form = page.locator('[data-window-id="exams.session.seat"]');
-        await form.locator('select').nth(0).selectOption({ label: 'الأول' });
-        await form.locator('select').nth(1).selectOption({ label: 'B' });
+        await page.locator('tbody tr', { hasText: '12:00' }).click();
+        await command(page, 'إجلاس طلاب');
+        const form = openDialog(page, /إجلاس طلاب صف/);
+        await choose(page, form, 'الصف', 'الأول');
+        await choose(page, form, 'الشعبة', 'B');
         await form.getByRole('button', { name: 'إجلاس', exact: true }).click();
 
         await expect(
@@ -90,13 +92,11 @@ test.describe('exam seating', () => {
     }) => {
         const before = seats(f.sessions.closed);
         await page.goto(`/exams/${examId}`);
-        await page
-            .locator('tbody tr', { hasText: '12:00' })
-            .getByRole('button', { name: 'إجلاس طلاب' })
-            .click();
-        const form = page.locator('[data-window-id="exams.session.seat"]');
-        await form.locator('select').nth(0).selectOption({ label: 'الأول' });
-        await form.locator('select').nth(1).selectOption({ label: 'B' });
+        await page.locator('tbody tr', { hasText: '12:00' }).click();
+        await command(page, 'إجلاس طلاب');
+        const form = openDialog(page, /إجلاس طلاب صف/);
+        await choose(page, form, 'الصف', 'الأول');
+        await choose(page, form, 'الشعبة', 'B');
         await form.getByRole('button', { name: 'إجلاس', exact: true }).click();
 
         await expect(
@@ -122,6 +122,7 @@ test.describe('exam seating', () => {
         const before = seats(f.sessions.closed);
         const response = await page.goto(`/exams/${examId}`);
         expect(response?.status()).toBeLessThan(400);
+        await editTab(page);
         await expect(
             page.getByRole('button', { name: 'إجلاس طلاب' }),
         ).toHaveCount(0);

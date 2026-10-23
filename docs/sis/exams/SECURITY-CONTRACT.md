@@ -262,3 +262,23 @@ official annual result (resp. GPA) is reported `already_official` and untouched;
 order is the existing rule set, nothing new: annual uses the student's current term results (official ones for
 finalize), GPA requires the official annual result (`results.gpa_official_annual_missing`). Audit:
 `results.web.year_batch.{annual|gpa}.{calculate|finalize}`.
+
+## SC-G22 — Class ranking and transcripts from the annual / GPA sheet (EXAMIS U14, 2026-10-23)
+
+`POST /results/year-sheet/ranking` (`results.ranking.build`, the API's `BuildRankingSnapshotRequest`, required
+`X-Idempotency-Key`): the class is first checked to be of the school-year (`results.batch.class_invalid`), then the
+existing `BuildRankingSnapshot` command ranks the whole class by official year GPA (`results.ranking_no_participants`
+when nobody has one). `POST /results/year-sheet/transcripts` (`results.transcript.issue`): class (+ section) of the
+school-year, `enrollment_ids` prohibited, required key; each student runs through the existing `IssueTranscript` command
+in its own transaction (`results.transcript_official_gpa_missing` without an official GPA). **No silent re-issue:** a
+student whose current transcript was issued at or after the current official GPA's finalization is `already_issued`.
+Audit: `results.web.year_sheet.ranking`, `results.web.year_batch.transcripts`.
+
+## UI — exams / grades / results pages on the system chrome (2026-10-23)
+
+Every exams, grades and results page uses the shared list-page shell (`sisListPageClass`), the standard table
+(`AttendanceTable`: selection, sort, paging, title-bar search), windows for forms (`AttendanceWindow`) and the message
+dialog for guidance. Commands are on the «تحرير» ribbon tab with the module's sections (`useExamisEditRibbon`, sections
+from the server-computed `examisShell` shared prop, each page still authorizes on the server); filters are on
+«الصفحة الرئيسية». Ribbon commands mirror the old buttons one-to-one (same routes, requests and permissions); roster seat
+actions apply to each selected eligible seat with one request per seat.

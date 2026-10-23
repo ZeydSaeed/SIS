@@ -119,6 +119,8 @@ export const ar = {
             year: {
                 annual: { calculate: 'احتُسبت النتائج السنوية.', finalize: 'اعتُمدت النتائج السنوية رسمياً.' },
                 gpa: { calculate: 'احتُسب معدل السنة.', finalize: 'اعتُمد معدل السنة رسمياً.' },
+                ranking: 'بُني ترتيب الصف.',
+                transcripts: 'صدرت كشوف الدرجات.',
             },
         },
         grades: {
@@ -1250,6 +1252,8 @@ export const ar = {
             'results.batch.section_invalid': 'الشعبة لا تتبع الصف المختار.',
             'results.annual_no_term_results': 'لا توجد للطالب نتائج فصول لهذه السنة (احتسب أو اعتمد نتائج الفصول أولاً).',
             'results.gpa_official_annual_missing': 'لا توجد للطالب نتيجة سنوية رسمية بعد؛ اعتمد النتيجة السنوية أولاً.',
+            'results.ranking_no_participants': 'لا يوجد في الصف طالب له معدل رسمي؛ اعتمد معدلات الطلاب أولاً.',
+            'results.transcript_official_gpa_missing': 'لا يوجد للطالب معدل رسمي بعد؛ اعتمد المعدل أولاً.',
             'grades.idempotency_payload_conflict':
                 'أُرسل هذا الطلب سابقاً بقيم مختلفة؛ أعد تحميل الصفحة وتحقق من الدرجة المحفوظة قبل الإرسال مجدداً.',
             'exams.seating.idempotency_key_required': 'تعذّر الإجلاس: أعد المحاولة.',
@@ -2712,6 +2716,20 @@ export const ar = {
         markPageTitle: 'تسجيل حضور · جلسة',
     },
     attendanceSystem: arAttendance,
+    examisChrome: {
+        sections: 'الامتحانات والنتائج',
+        actions: 'الإجراءات',
+        sectionLabels: {
+            exams: 'الامتحانات',
+            types: 'أنواع الامتحانات',
+            gradeSheet: 'إدخال الدرجات',
+            grades: 'سجل الدرجات',
+            termSheet: 'نتائج الفصل',
+            yearSheet: 'السنوية والمعدل',
+            results: 'نتائج الطالب',
+            transcript: 'كشف الدرجات',
+        },
+    },
     results: {
         yearSheet: {
             title: 'النتيجة السنوية والمعدل',
@@ -2737,7 +2755,17 @@ export const ar = {
             finalizeConfirmTitle: 'اعتماد رسمي؟',
             finalizeConfirmDesc:
                 'يُعتمد لكل طالب ما لديه من نتائج رسمية فقط، ويُتخطى من له نتيجة رسمية حالية. إعادة الاعتماد تتم عبر مسار إعادة البناء المستقل.',
-            outcomeTargets: { annual: 'النتيجة السنوية', gpa: 'المعدل' },
+            outcomeTargets: { annual: 'النتيجة السنوية', gpa: 'المعدل', transcript: 'كشوف الدرجات' },
+            rank: 'الترتيب',
+            transcript: 'كشف الدرجات',
+            transcriptOutdated: 'قديم',
+            rankingActions: 'الترتيب والكشوف',
+            buildRanking: 'بناء ترتيب الصف',
+            issueTranscripts: 'إصدار كشوف الدرجات',
+            rankingInfo: 'ترتيب الصف الحالي: إصدار :v · :n طالب · :at',
+            noRanking: 'لم يُبنَ ترتيب لهذا الصف بعد.',
+            transcriptsConfirmTitle: 'إصدار كشوف الدرجات؟',
+            transcriptsConfirmDesc: 'يصدر كشف رسمي لكل طالب له معدل رسمي، ويُتخطى من صدر كشفه بعد اعتماد معدله الحالي.',
         },
         sheet: {
             title: 'احتساب نتائج الفصل',
@@ -2771,6 +2799,8 @@ export const ar = {
                 finalized: 'اعتُمدت',
                 replayed: 'مكررة (بلا تغيير)',
                 already_official: 'رسمية سابقاً',
+                issued: 'صدر',
+                already_issued: 'صادر سابقاً',
             },
         },
         picker: {
@@ -2784,6 +2814,8 @@ export const ar = {
         title: 'النتائج الرسمية للفصل',
         description: 'قراءة نتائج المواد الرسمية لتسجيل طالب.',
         summaryLink: 'فتح ملخص التسجيل (سنوي + معدل)',
+        views: { terms: 'نتائج الفصول', summary: 'السنوي والمعدل', transcript: 'كشف الدرجات' },
+        pickStudent: 'ابحث عن الطالب بالاسم أو الرمز في شريط البحث أعلى الصفحة.',
         transcriptLink: 'بيانات كشف الدرجات الصادر',
         enrollmentId: 'معرّف التسجيل',
         loadResults: 'تحميل النتائج',
@@ -2954,6 +2986,8 @@ export const ar = {
                 5: 'مسحوب',
             } as Record<number, string>,
             counts: 'المقاعد :total — حاضر :present، غائب :absent، مسحوب :withdrawn',
+            all: 'الكل',
+            attendance: 'الحضور',
         },
     },
     grades: {
@@ -3000,6 +3034,15 @@ export const ar = {
         enterGradeIdHint: 'أدخل معرّف درجة لتحميل إجراءات التصحيح.',
         voidGradeAction: 'إبطال الدرجة',
         finalizeGradeAction: 'اعتماد الدرجة',
+        statuses: {
+            1: 'مسودة',
+            2: 'مُدخلة',
+            3: 'مُرسلة',
+            4: 'معتمدة',
+            5: 'مُبطلة',
+        } as Record<number, string>,
+        studentCode: 'الرمز',
+        enterSessionGrades: 'إدخال درجات الجلسة',
         sheet: {
             title: 'إدخال درجات الجلسة',
             session: 'جلسة الامتحان',

@@ -147,3 +147,15 @@ Executable: `tests/Feature/Database/PostgreSql/TermResultSheetWebPostgreSqlTest.
 
 Executable: `tests/Feature/Database/PostgreSql/YearResultSheetWebPostgreSqlTest.php` (scene shared with the term sheet
 via `tests/Support/Results/SeedsResultSheetScene.php`). Mutation: removing the `already_official` guard fails 2 tests.
+
+## EXAMIS U14 — class ranking and transcripts (2026-10-23)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G22 | Transcripts | after official annual + GPA: issue, issue again | `issued` / `results.transcript_official_gpa_missing` ×2; then `already_issued`, still one version; partial flash |
+| SC-G22 | Ranking | before official GPAs; class of another year; after | `results.ranking_no_participants`, `results.batch.class_invalid`, nothing written; then built, rank 1 on the sheet |
+| SC-G22 | Access | `results_viewer` POST ranking / transcripts | 403; abilities false |
+
+Executable: `tests/Feature/Database/PostgreSql/YearResultSheetWebPostgreSqlTest.php` (9 tests). Browser
+(disposable `sis_e2e_exams`, 2026-10-23): `e2e/exams` + `e2e/grades` 23/23 on the restructured pages; screenshots of all
+ten pages reviewed at 1440 px.

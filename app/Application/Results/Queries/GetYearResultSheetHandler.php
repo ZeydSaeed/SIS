@@ -13,7 +13,7 @@ final class GetYearResultSheetHandler
     ) {}
 
     /**
-     * @return array{classes: list<array<string, mixed>>, rows: list<array<string, mixed>>}
+     * @return array{classes: list<array<string, mixed>>, rows: list<array<string, mixed>>, ranking: array<string, mixed>|null}
      */
     public function handle(GetYearResultSheetQuery $query): array
     {
@@ -23,6 +23,7 @@ final class GetYearResultSheetHandler
         return [
             'classes' => $this->lookups->classes($query->schoolId, $query->academicYearId),
             'rows' => $classOk ? $this->sheet->rows($query->schoolId, $query->academicYearId, (int) $query->classId, $query->sectionId) : [],
+            'ranking' => $classOk ? $this->sheet->currentRanking($query->schoolId, $query->academicYearId, (int) $query->classId) : null,
         ];
     }
 }

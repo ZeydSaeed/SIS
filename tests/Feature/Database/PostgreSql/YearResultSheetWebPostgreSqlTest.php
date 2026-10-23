@@ -156,6 +156,68 @@ final class YearResultSheetWebPostgreSqlTest extends PostgreSqlIntegrationTestCa
     }
 
     #[Test]
+    public function transcripts_need_the_official_gpa_and_are_not_reissued_while_up_to_date(): void
+    {
+        $s = $this->sceneWithTermResults();
+        $this->submit($s, 'annual', 'finalize', 'yrs-tr-annual');
+        $this->submit($s, 'gpa', 'finalize', 'yrs-tr-gpa');
+        $issue = fn (string $key): TestResponse => $this->from('/results/year-sheet')->post(
+            '/results/year-sheet/transcripts', ['academic_year_id' => $s['year_id'], 'class_id' => $s['class']], ['X-Idempotency-Key' => $key]);
+
+        $first = $issue('yrs-tr-1');
+        $this->assertSame([
+            $s['final'] => 'issued',
+            $s['entered'] => 'results.transcript_official_gpa_missing',
+            $s['ungraded'] => 'results.transcript_official_gpa_missing',
+        ], $this->outcomes($first));
+        $this->assertSame(1, $this->rowsOf('transcripts', $s['final'], 'is_current'));
+        $this->assertTrue(SecurityAuditLogRecord::query()->where('action', 'results.web.year_batch.transcripts')->exists());
+
+        $this->assertSame('already_issued', $this->outcomes($issue('yrs-tr-2'))[$s['final']]);
+        $this->assertSame(1, $this->rowsOf('transcripts', $s['final']), 'no second version while up to date');
+        $issue('yrs-tr-3')->assertSessionHas('error', 'flash.results.batch.partial');
+        $this->post('/results/year-sheet/transcripts', ['academic_year_id' => $s['year_id'], 'class_id' => $s['class'], 'enrollment_ids' => [$s['final']]], ['X-Idempotency-Key' => 'yrs-tr-x'])
+            ->assertSessionHasErrors('enrollment_ids');
+    }
+
+    #[Test]
+    public function the_class_ranking_uses_official_gpas_and_shows_on_the_sheet(): void
+    {
+        $s = $this->sceneWithTermResults();
+        $build = fn (string $key, array $overrides = []): TestResponse => $this->from('/results/year-sheet')->post(
+            '/results/year-sheet/ranking', $overrides + ['academic_year_id' => $s['year_id'], 'class_id' => $s['class']], ['X-Idempotency-Key' => $key]);
+
+        $build('yrs-rk-empty')->assertSessionHas('error', 'results.ranking_no_participants');
+        $otherClass = (int) $this->createClassForSchool($s['school'], $this->createAcademicYear('AY-YRS-RK'))->id;
+        $build('yrs-rk-other', ['class_id' => $otherClass])->assertSessionHas('error', 'results.batch.class_invalid');
+        $this->assertSame(0, DB::table(SchemaHelper::qualified('results', 'ranking_snapshots'))->where('school_id', $s['school'])->count());
+
+        $this->submit($s, 'annual', 'finalize', 'yrs-rk-annual');
+        $this->submit($s, 'gpa', 'finalize', 'yrs-rk-gpa');
+        $build('yrs-rk-1')->assertSessionHas('success', 'flash.results.year.ranking');
+        $this->assertTrue(SecurityAuditLogRecord::query()->where('action', 'results.web.year_sheet.ranking')->exists());
+
+        $this->get("/results/year-sheet?academic_year_id={$s['year_id']}&class_id={$s['class']}")
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('ranking.participants', 1)
+                ->where('abilities.buildRanking', true)->where('abilities.issueTranscript', true)
+                ->where('rows', fn ($rows) => collect($rows)->firstWhere('enrollment_id', $s['final'])['rank'] === 1
+                    && collect($rows)->firstWhere('enrollment_id', $s['entered'])['rank'] === null));
+    }
+
+    #[Test]
+    public function ranking_and_transcripts_are_for_results_managers_only(): void
+    {
+        $s = $this->scene();
+        $this->as('ResultsViewer', $s['school']);
+        $body = ['academic_year_id' => $s['year_id'], 'class_id' => $s['class']];
+        $this->post('/results/year-sheet/ranking', $body, ['X-Idempotency-Key' => 'yrs-v-rk'])->assertForbidden();
+        $this->post('/results/year-sheet/transcripts', $body, ['X-Idempotency-Key' => 'yrs-v-tr'])->assertForbidden();
+        $this->get('/results/year-sheet?academic_year_id='.$s['year_id'])
+            ->assertInertia(fn (Assert $page) => $page->where('abilities.buildRanking', false)->where('abilities.issueTranscript', false));
+    }
+
+    #[Test]
     public function the_sheet_lists_the_class_with_term_annual_and_gpa_results(): void
     {
         $s = $this->sceneWithTermResults();

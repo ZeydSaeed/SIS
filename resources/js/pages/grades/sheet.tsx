@@ -15,13 +15,17 @@ import {
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
-import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import {
-    useRegisterPageRibbon,
-    type PageRibbonGroup,
-} from '@/components/sis/page-ribbon-context';
+    useAttendanceMessages,
+    useYearFilterSpec,
+} from '@/components/attendance/attendance-chrome';
+import {
+    optionFilter,
+    useExamisEditRibbon,
+    useExamisHomeFilters,
+} from '@/components/examis/examis-chrome';
+import { type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { sisListPageClass } from '@/components/sis/page-theme';
-import { SisListSelect } from '@/components/sis/sis-list-select';
 import {
     StatusBadge,
     tableStatusCellClass,
@@ -238,7 +242,7 @@ function GradeSheetPage({
         ],
         [i18n, s, processing, readyCount, canSave, entryOpen, hasSession],
     );
-    useRegisterPageRibbon('edit', ribbon);
+    useExamisEditRibbon('gradeSheet', ribbon);
 
     const focusNext = (
         index: number,
@@ -288,10 +292,6 @@ function GradeSheetPage({
             : { tone: 'waitlisted', icon: CircleDashed, label: s.pending };
     };
 
-    const sessionOptions = sessions.map((option) => ({
-        value: String(option.id),
-        label: `${option.subject_name} — ${option.exam_name} (${option.session_date})`,
-    }));
     const visitSession = (value: string) =>
         router.get(
             '/grades/sheet',
@@ -303,6 +303,42 @@ function GradeSheetPage({
         );
     const done = rows.filter((row) => row.grade_id !== null).length;
 
+    const yearSpec = useYearFilterSpec(filters.academic_year_id, (id) =>
+        router.get(
+            '/grades/sheet',
+            { academic_year_id: id },
+            { preserveScroll: true },
+        ),
+    );
+    useExamisHomeFilters(
+        [
+            yearSpec,
+            optionFilter(
+                s.session,
+                s.session,
+                filters.session_id,
+                sessions.map((option) => ({
+                    id: option.id,
+                    name: `${option.subject_name} — ${option.exam_name} (${option.session_date})`,
+                })),
+                (id) => visitSession(id === null ? '' : String(id)),
+                {
+                    emptyLabel: s.chooseSession,
+                    disabled: sessions.length === 0,
+                },
+            ),
+        ],
+        [filters, sessions, yearSpec.options.length],
+    );
+    useAttendanceMessages(
+        sessions.length === 0
+            ? [{ key: 'no-sessions', text: s.noSessions, tone: 'warning' }]
+            : session === null
+              ? [{ key: 'pick-session', text: s.pickSessionHint, tone: 'info' }]
+              : [],
+        s.title,
+    );
+
     return (
         <>
             <Head title={s.title} />
@@ -313,33 +349,6 @@ function GradeSheetPage({
                 data-window-id="grades.sheet"
             >
                 <div className="sis-admission-page-body flex min-h-0 flex-1 flex-col gap-3">
-                    <div className="flex flex-wrap items-end gap-3">
-                        <OpsYearFilter
-                            action="/grades/sheet"
-                            academicYearId={filters.academic_year_id}
-                            compact
-                        />
-                        <label className="flex min-w-64 flex-col gap-1 text-sm">
-                            <span>{s.session}</span>
-                            <SisListSelect
-                                value={
-                                    filters.session_id
-                                        ? String(filters.session_id)
-                                        : ''
-                                }
-                                options={sessionOptions}
-                                onChange={visitSession}
-                                ariaLabel={s.chooseSession}
-                                includeBlank
-                                disabled={sessions.length === 0}
-                            />
-                        </label>
-                    </div>
-
-                    {sessions.length === 0 ? (
-                        <p className="text-sm">{s.noSessions}</p>
-                    ) : null}
-
                     {session ? (
                         <>
                             <dl
@@ -407,8 +416,6 @@ function GradeSheetPage({
                                 {entryOpen ? ` · ${s.keyboardHint}` : null}
                             </p>
                         </>
-                    ) : sessions.length > 0 ? (
-                        <p className="text-sm">{s.pickSessionHint}</p>
                     ) : null}
 
                     {session && rows.length === 0 ? (

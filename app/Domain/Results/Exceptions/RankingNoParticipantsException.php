@@ -8,6 +8,6 @@ final class RankingNoParticipantsException extends SisDomainException
 {
     public static function forCohort(): self
     {
-        return new self('results.ranking_no_participants');
+        return new self('results.ranking_no_participants', 'results.ranking_no_participants');
     }
 }

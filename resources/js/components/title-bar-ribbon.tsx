@@ -738,6 +738,10 @@ export function TitleBarRibbon({
     // «الحضور»: the same coloured command icons and ribbon look as «الغرف الدراسية».
     const isAttendancePage =
         path === '/attendance' || path.startsWith('/attendance/');
+    // «الامتحانات» / «الدرجات» / «النتائج»: the same coloured command icons and ribbon look as «الحضور».
+    const isExamisPage = ['/exams', '/grades', '/results'].some(
+        (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+    );
     const isTeachersPage =
         path === '/teachers' || path.startsWith('/teachers/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
@@ -814,7 +818,8 @@ export function TitleBarRibbon({
     const isEnrollmentsPage =
         path === '/enrollments' || path.startsWith('/enrollments/');
     const isFollowUpPage =
-        path === '/admission/follow-up' || path.startsWith('/admission/follow-up/');
+        path === '/admission/follow-up' ||
+        path.startsWith('/admission/follow-up/');
     const isStudentsPage =
         path === '/students' ||
         path.startsWith('/students/') ||
@@ -854,7 +859,11 @@ export function TitleBarRibbon({
 
     useLayoutEffect(() => {
         const body = bodyRef.current;
-        if (!tight && body !== null && body.scrollWidth > body.clientWidth + 1) {
+        if (
+            !tight &&
+            body !== null &&
+            body.scrollWidth > body.clientWidth + 1
+        ) {
             setTight(true);
         }
     });
@@ -881,10 +890,7 @@ export function TitleBarRibbon({
     // A wider window may fit folded groups again: start over on every width change.
     useEffect(() => {
         const body = bodyRef.current;
-        if (
-            body === null ||
-            typeof ResizeObserver === 'undefined'
-        ) {
+        if (body === null || typeof ResizeObserver === 'undefined') {
             return;
         }
         let width = body.clientWidth;
@@ -969,7 +975,9 @@ export function TitleBarRibbon({
         isTimetablePage ? 'sis-ribbon--timetable-page' : '',
         tab === 'add' ? 'sis-ribbon--tab-add' : '',
         isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-        isRoomsPage || isAttendancePage ? 'sis-ribbon--coloured-icons' : '',
+        isRoomsPage || isAttendancePage || isExamisPage
+            ? 'sis-ribbon--coloured-icons'
+            : '',
     ].filter(Boolean);
 
     const renderItem = (
@@ -1071,7 +1079,7 @@ export function TitleBarRibbon({
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
                 tab === 'add' ? 'sis-ribbon--tab-add' : '',
                 isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-                isRoomsPage || isAttendancePage
+                isRoomsPage || isAttendancePage || isExamisPage
                     ? 'sis-ribbon--coloured-icons'
                     : '',
             ]

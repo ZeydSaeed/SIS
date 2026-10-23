@@ -5,7 +5,7 @@ type StatusChipProps = {
     status: number;
 };
 
-function labelFor(kind: StatusChipProps['kind'], status: number): string {
+export function statusChipLabel(kind: StatusChipProps['kind'], status: number): string {
     const i18n = t();
     if (kind === 'admission') {
         const map: Record<number, string> = {
@@ -92,7 +92,7 @@ export function StatusChip({ kind, status }: StatusChipProps) {
         <span
             className={`inline-flex min-h-8 items-center rounded-md px-2 py-1 text-xs font-medium ${toneClass(kind, status)}`}
         >
-            {labelFor(kind, status)}
+            {statusChipLabel(kind, status)}
         </span>
     );
 }

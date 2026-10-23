@@ -392,6 +392,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/year-sheet', [YearResultSheetController::class, 'show'])->name('year-sheet');
         Route::post('/year-sheet/calculate', [YearResultSheetController::class, 'calculate'])->name('year-sheet.calculate');
         Route::post('/year-sheet/finalize', [YearResultSheetController::class, 'finalize'])->name('year-sheet.finalize');
+        Route::post('/year-sheet/ranking', [YearResultSheetController::class, 'ranking'])->name('year-sheet.ranking');
+        Route::post('/year-sheet/transcripts', [YearResultSheetController::class, 'transcripts'])->name('year-sheet.transcripts');
     });
 
     Route::prefix('exams')->name('exams.')->middleware('require.school.context')->group(function (): void {

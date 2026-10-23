@@ -11,7 +11,7 @@ use App\Application\Shared\Results\ApplicationResult;
  */
 readonly class ProcessTermResultsBatchResult extends ApplicationResult
 {
-    private const OK = ['calculated', 'finalized', 'replayed', 'already_official'];
+    protected const OK = ['calculated', 'finalized', 'replayed', 'already_official'];
 
     /**
      * @param  list<array{enrollment_id: int, status: string}>  $outcomes
@@ -31,7 +31,7 @@ readonly class ProcessTermResultsBatchResult extends ApplicationResult
         foreach ($outcomes as $outcome) {
             $counts[$outcome['status']] = ($counts[$outcome['status']] ?? 0) + 1;
         }
-        $failed = count(array_filter($outcomes, static fn (array $o): bool => ! in_array($o['status'], self::OK, true)));
+        $failed = count(array_filter($outcomes, static fn (array $o): bool => ! in_array($o['status'], static::OK, true)));
 
         return new static($failed === 0, $outcomes, $counts, $failed);
     }

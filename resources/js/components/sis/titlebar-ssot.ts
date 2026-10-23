@@ -22,6 +22,9 @@ export const TITLEBAR_OPS_ACCENT_PREFIXES = [
     '/teachers',
     '/timetable',
     '/attendance',
+    '/exams',
+    '/grades',
+    '/results',
 ] as const;
 
 /** Colored outline ribbon icons (ops accent) for student-management surfaces. */
@@ -29,6 +32,7 @@ export function isTitlebarOpsAccentPath(path: string): boolean {
     const normalized = path.split('?')[0] ?? path;
 
     return TITLEBAR_OPS_ACCENT_PREFIXES.some(
-        (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`),
+        (prefix) =>
+            normalized === prefix || normalized.startsWith(`${prefix}/`),
     );
 }
