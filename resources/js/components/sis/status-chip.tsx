@@ -1,11 +1,23 @@
 import { t } from '@/i18n';
 
 type StatusChipProps = {
-    kind: 'student' | 'attendance' | 'enrollment' | 'exam' | 'examSeat' | 'schedule' | 'admission' | 'generic';
+    kind:
+        | 'student'
+        | 'attendance'
+        | 'enrollment'
+        | 'exam'
+        | 'examSession'
+        | 'examSeat'
+        | 'schedule'
+        | 'admission'
+        | 'generic';
     status: number;
 };
 
-export function statusChipLabel(kind: StatusChipProps['kind'], status: number): string {
+export function statusChipLabel(
+    kind: StatusChipProps['kind'],
+    status: number,
+): string {
     const i18n = t();
     if (kind === 'admission') {
         const map: Record<number, string> = {
@@ -49,16 +61,21 @@ export function statusChipLabel(kind: StatusChipProps['kind'], status: number): 
         return map[status] ?? `${i18n.common.status} ${status}`;
     }
     if (kind === 'exam') {
-        const map: Record<number, string> = {
-            1: i18n.status.draft,
-            2: i18n.status.open,
-            3: i18n.status.closed,
-            4: i18n.status.cancelled,
-        };
-        return map[status] ?? `${i18n.common.status} ${status}`;
+        // exams.exams.status: 1 draft · 2 scheduled · 3 in progress · 4 completed · 5 cancelled.
+        return i18n.exams.statuses[status] ?? `${i18n.common.status} ${status}`;
+    }
+    if (kind === 'examSession') {
+        // exams.exam_sessions.status: 1 scheduled · 2 in progress · 3 completed · 4 cancelled.
+        return (
+            i18n.exams.sessionStatuses[status] ??
+            `${i18n.common.status} ${status}`
+        );
     }
     if (kind === 'examSeat') {
-        return i18n.exams.roster.statuses[status] ?? `${i18n.common.status} ${status}`;
+        return (
+            i18n.exams.roster.statuses[status] ??
+            `${i18n.common.status} ${status}`
+        );
     }
     if (kind === 'schedule') {
         const map: Record<number, string> = {

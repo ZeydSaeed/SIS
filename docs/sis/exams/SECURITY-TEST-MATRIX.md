@@ -159,3 +159,24 @@ via `tests/Support/Results/SeedsResultSheetScene.php`). Mutation: removing the `
 Executable: `tests/Feature/Database/PostgreSql/YearResultSheetWebPostgreSqlTest.php` (9 tests). Browser
 (disposable `sis_e2e_exams`, 2026-10-23): `e2e/exams` + `e2e/grades` 23/23 on the restructured pages; screenshots of all
 ten pages reviewed at 1440 px.
+
+## EXAMIS U15 — exam / session edit and cancel; demo-data scenarios (2026-10-23)
+
+Executable: `tests/Feature/Database/PostgreSql/ExamisDemoDataWebPostgreSqlTest.php` — 10 tests on a synthetic year (two
+exam types 40 / 60, midterm + final of one subject, four students), all through the web:
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 1 | Grades via the entry sheet + finalize, term calculate / finalize | 86.00 · 48.00 · 42.00 (absent midterm → incomplete) · no grades → `results.term_no_eligible_grades` |
+| 2 | Annual → GPA → ranking → transcripts | GPA 86.00; ranks 1 / 2 / 3; ungraded student not ranked, no transcript |
+| 3 | Score above max in the sheet | that row refused, the other saved (partial flash) |
+| 4 | Edit a Draft exam; schedule; change type | saved; then `exams.update.field_not_mutable`, name still editable |
+| 5 | Status skip / forward / complete / cancel via update | `invalid_transition`; steps saved; `completion.has_scheduled_sessions`; `target_status` 5 invalid |
+| 6 | Edit a Scheduled session; bad pass / time; after start | saved; `invalid_pass_max_grade`, `invalid_session_time_range`; `session_metadata_not_allowed` |
+| 7 | Cancel a session with grades / without; replay | `cancel.session_current_grade_exists`; cancelled once; locked afterwards |
+| 8 | Cancel an exam with grades / without | `cancel.current_grade_exists`; exam + sessions cancelled; `exam_already_cancelled` |
+| 9 | Another school's exam; session of another exam in the URL | refused, nothing changed; 404 |
+| 10 | Viewer, teacher, results manager | 403 on all four actions |
+
+Browser (disposable `sis_e2e_exams`, 2026-10-23): `e2e/exams/administration.spec.ts` edits the exam, edits and cancels a
+session and sees the Arabic refusal for cancelling an exam with a completed session; `e2e/exams` + `e2e/grades` 23/23.

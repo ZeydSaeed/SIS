@@ -217,7 +217,7 @@ function RosterBody({ session, seats, can }: PageProps) {
             disabled: !some(action),
             title:
                 action === 'present' && session.status !== SESSION_IN_PROGRESS
-                    ? r.presentNeedsOpenSession
+                    ? `${label} — ${r.presentNeedsOpenSession}`
                     : label,
             onSelect,
         });
@@ -444,7 +444,7 @@ function RosterBody({ session, seats, can }: PageProps) {
                 </div>
                 <div className="flex gap-1">
                     <dt className="font-semibold">{i18n.common.status}:</dt>
-                    <dd>{statusChipLabel('exam', session.status)}</dd>
+                    <dd>{statusChipLabel('examSession', session.status)}</dd>
                 </div>
                 <div className="flex gap-1">
                     <dt className="font-semibold">{i18n.exams.seat.column}:</dt>

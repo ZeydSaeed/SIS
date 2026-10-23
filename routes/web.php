@@ -406,6 +406,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{exam}/sessions', [ExamAdministrationController::class, 'storeSession'])
             ->whereNumber('exam')
             ->name('sessions.store');
+        Route::post('/{exam}/update', [ExamAdministrationController::class, 'update'])->whereNumber('exam')->name('update');
+        Route::post('/{exam}/cancel', [ExamAdministrationController::class, 'cancel'])->whereNumber('exam')->name('cancel');
+        Route::post('/{exam}/sessions/{session}/update', [ExamAdministrationController::class, 'updateSession'])
+            ->whereNumber(['exam', 'session'])
+            ->name('sessions.update');
+        Route::post('/{exam}/sessions/{session}/cancel', [ExamAdministrationController::class, 'cancelSession'])
+            ->whereNumber(['exam', 'session'])
+            ->name('sessions.cancel');
         Route::post('/{exam}/sessions/{session}/open', [ExamAdministrationController::class, 'openSession'])
             ->whereNumber(['exam', 'session'])
             ->name('sessions.open');

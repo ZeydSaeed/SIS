@@ -282,3 +282,20 @@ dialog for guidance. Commands are on the «تحرير» ribbon tab with the modu
 from the server-computed `examisShell` shared prop, each page still authorizes on the server); filters are on
 «الصفحة الرئيسية». Ribbon commands mirror the old buttons one-to-one (same routes, requests and permissions); roster seat
 actions apply to each selected eligible seat with one request per seat.
+
+## SC-G23 — Edit and cancel exams and sessions from the web (EXAMIS U15, 2026-10-23)
+
+`POST /exams/{exam}/update` (`exam.update`, the API's `UpdateExamRequest`): name / dates in Draft or Scheduled, type and
+term in Draft only, or `target_status` one step forward (Draft → Scheduled → In progress → Completed; Completed waits for
+every session); Cancelled only through cancel. `POST /exams/{exam}/cancel` (`exam.cancel`): cascades to the sessions and
+withdraws the seats; refused while a current grade or a completed session exists (DR-001). `POST
+/exams/{exam}/sessions/{session}/update` (`exam.session.update`): Scheduled sessions only; current grades freeze max /
+pass. `POST /exams/{exam}/sessions/{session}/cancel` (`exam.session.update`, the permission `CancelExamSession` checks —
+new `CancelExamSessionRequest`): refused once a current grade exists or the session is completed (HD-7.2-003). All
+require `X-Idempotency-Key`; session routes require the session to belong to the exam in the URL (else 404). The UI
+sends only changed fields. Audit: `exams.web.update|cancel`, `exams.web.sessions.update|cancel`.
+
+`ExamUpdateForbiddenException`, `ExamCancelBlockedException`, `ExamValidationException` and
+`ExamCompletionBlockedException` now extend `SisDomainException` with coded reasons (`exams.update.*`, `exams.cancel.*`,
+`exams.validation.*`, `exams.completion.*`): web refusals show the Arabic reason instead of the English message; API
+status stays 422 (no code contains `not_found` / `conflict`), `error_code` is now specific instead of `domain.error`.

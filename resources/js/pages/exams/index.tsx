@@ -54,9 +54,9 @@ type PageProps = {
     };
 };
 
-const EXAM_STATUSES = [1, 2, 3, 4];
-/** Shared status palette: draft steel, open ok, closed amber, cancelled danger. */
-const STATUS_TONE: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 4 };
+const EXAM_STATUSES = [1, 2, 3, 4, 5];
+/** Shared status palette: draft steel, scheduled sky, in progress ok, completed amber, cancelled danger. */
+const STATUS_TONE: Record<number, number> = { 1: 0, 2: 3, 3: 1, 4: 2, 5: 4 };
 
 type Draft = {
     name: string;

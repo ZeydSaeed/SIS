@@ -169,21 +169,29 @@ final class ExamPageController extends Controller
     }
 
     /**
-     * Session forms: create (exam.session.create, subjects of the school-year's active curricula), open and close.
+     * Exam and session forms: edit / cancel the exam (exam.update · exam.cancel; existing terms and types), create
+     * (subjects of the school-year's active curricula), edit / cancel (exam.session.update), open and close sessions.
      *
-     * @return array{can_create_session: bool, can_open: bool, can_close: bool, subjects: list<array{id: int, name: string}>}
+     * @return array<string, mixed>
      */
     private function sessionForms(User $user, int $schoolId, int $academicYearId, GetExamFormLookupsHandler $lookups): array
     {
         $canCreateSession = $user->can('createSession', ExamRecord::class);
+        $canUpdate = $user->can('update', ExamRecord::class);
+        $choices = $canCreateSession || $canUpdate
+            ? $lookups->handle(new GetExamFormLookupsQuery($schoolId, $academicYearId, forExam: $canUpdate, forSession: $canCreateSession))
+            : [];
 
         return [
             'can_create_session' => $canCreateSession,
+            'can_update' => $canUpdate,
+            'can_cancel' => $user->can('cancel', ExamRecord::class),
+            'can_update_session' => $user->can('updateSession', ExamRecord::class),
             'can_open' => $user->can('openSession', ExamRecord::class),
             'can_close' => $user->can('closeSession', ExamRecord::class),
-            'subjects' => $canCreateSession
-                ? $lookups->handle(new GetExamFormLookupsQuery($schoolId, $academicYearId, forExam: false, forSession: true))['subjects']
-                : [],
+            'subjects' => $choices['subjects'] ?? [],
+            'terms' => $choices['terms'] ?? [],
+            'exam_types' => $choices['exam_types'] ?? [],
         ];
     }
 }

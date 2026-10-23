@@ -11,7 +11,7 @@ import { dbValue } from '../support/db';
 import { E2E_DB, RUN } from '../support/env';
 import { expect, test } from '../support/test';
 import { command, editTab } from '../support/examis';
-import { choose, field, openDialog } from '../support/ui';
+import { choose, expectNotice, field, openDialog } from '../support/ui';
 
 type Fixture = { database: string; academic_year_id: number };
 
@@ -98,6 +98,92 @@ test.describe('exam administration', () => {
         ).toBeDisabled();
     });
 
+    test('the manager edits the exam, edits and cancels a session, then cancels the exam', async ({
+        page,
+    }) => {
+        const editedName = `${examName} — معدل`;
+        const examId = Number(
+            dbValue('SELECT id FROM exams.exams WHERE name = ?', [examName]),
+        );
+        await page.goto(`/exams/${examId}`);
+
+        // The exam of the first test is Draft: its name can change.
+        await command(page, 'تعديل الامتحان');
+        const edit = openDialog(page, 'تعديل الامتحان');
+        await field(edit, 'اسم الامتحان').fill(editedName);
+        await edit.getByRole('button', { name: 'حفظ', exact: true }).click();
+        await expect
+            .poll(() =>
+                dbValue('SELECT name FROM exams.exams WHERE id = ?', [examId]),
+            )
+            .toBe(editedName);
+
+        // A second, scheduled session: edit its end time, then cancel it.
+        await command(page, 'جلسة جديدة');
+        const add = openDialog(page, 'جلسة جديدة');
+        await choose(page, add, 'المادة', /./);
+        await field(add, 'تاريخ الجلسة').fill('2026-12-04');
+        await field(add, 'من الساعة').fill('12:00');
+        await field(add, 'إلى الساعة').fill('13:00');
+        await add.getByRole('button', { name: 'إضافة الجلسة' }).click();
+        const second = () =>
+            Number(
+                dbValue(
+                    "SELECT id FROM exams.exam_sessions WHERE exam_id = ? AND start_time = '12:00:00'",
+                    [examId],
+                ),
+            );
+        await expect.poll(second).toBeGreaterThan(0);
+
+        await page.locator('tbody tr', { hasText: '12:00' }).click();
+        await command(page, 'تعديل الجلسة');
+        const sessionEdit = openDialog(page, /تعديل الجلسة/);
+        await field(sessionEdit, 'إلى الساعة').fill('13:30');
+        await sessionEdit
+            .getByRole('button', { name: 'حفظ', exact: true })
+            .click();
+        await expect
+            .poll(() =>
+                dbValue(
+                    'SELECT end_time FROM exams.exam_sessions WHERE id = ?',
+                    [second()],
+                ),
+            )
+            .toBe('13:30:00');
+
+        await page.locator('tbody tr', { hasText: '12:00' }).click();
+        await command(page, 'إلغاء الجلسة');
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'إلغاء الجلسة' })
+            .click();
+        await expect
+            .poll(() =>
+                Number(
+                    dbValue(
+                        'SELECT status FROM exams.exam_sessions WHERE id = ?',
+                        [second()],
+                    ),
+                ),
+            )
+            .toBe(4);
+
+        // The first session was completed: cancelling the exam is refused with the reason, nothing changes.
+        await command(page, 'إلغاء الامتحان');
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'إلغاء الامتحان' })
+            .click();
+        await expectNotice(page, 'لا يُلغى الامتحان لوجود جلسة مكتملة.');
+        expect(
+            Number(
+                dbValue('SELECT status FROM exams.exams WHERE id = ?', [
+                    examId,
+                ]),
+            ),
+        ).toBe(1);
+    });
+
     test('a viewer gets no administration controls', async ({ pageAs }) => {
         const page = await pageAs('viewer');
         await page.goto(`/exams?academic_year_id=${f.academic_year_id}`);
@@ -110,7 +196,9 @@ test.describe('exam administration', () => {
         ).toHaveCount(0);
 
         const examId = Number(
-            dbValue('SELECT id FROM exams.exams WHERE name = ?', [examName]),
+            dbValue('SELECT id FROM exams.exams WHERE name LIKE ?', [
+                `${examName}%`,
+            ]),
         );
         await page.goto(`/exams/${examId}`);
         await editTab(page);

@@ -117,7 +117,7 @@ function ActionsBody({ grade, filters }: PageProps) {
                         icon: BadgeCheck,
                         iconTone: 'ok',
                         disabled: none || grade?.status === FINALIZED,
-                        title: g.finalizeDesc,
+                        title: `${g.finalizeGradeAction} — ${g.finalizeDesc}`,
                         onSelect: () => setConfirmFinalize(true),
                     },
                     {

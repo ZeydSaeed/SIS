@@ -1,8 +1,12 @@
 import { router } from '@inertiajs/react';
 import {
+    Ban,
+    ChevronsLeft,
     ClipboardList,
     ClipboardPen,
     ListChecks,
+    Pencil,
+    XCircle,
     PlayCircle,
     PlusCircle,
     StopCircle,
@@ -80,9 +84,14 @@ type PageProps = {
     seating: Seating;
     admin: {
         can_create_session: boolean;
+        can_update: boolean;
+        can_cancel: boolean;
+        can_update_session: boolean;
         can_open: boolean;
         can_close: boolean;
         subjects: { id: number; name: string }[];
+        terms: { id: number; name: string }[];
+        exam_types: { id: number; name: string; weight_percentage: number }[];
     };
     names: {
         terms: Record<number, string>;
@@ -98,7 +107,44 @@ type PageProps = {
 const SESSION_SCHEDULED = 1;
 const SESSION_IN_PROGRESS = 2;
 const SESSION_CANCELLED = 4;
-const STATUS_TONE: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 4 };
+const STATUS_TONE: Record<number, number> = { 1: 3, 2: 1, 3: 2, 4: 4 };
+/** exams.exams.status: 1 draft · 2 scheduled · 3 in progress · 4 completed · 5 cancelled. */
+const EXAM_DRAFT = 1;
+const EXAM_SCHEDULED = 2;
+const EXAM_COMPLETED = 4;
+const EXAM_CANCELLED = 5;
+
+type ExamDraft = {
+    name: string;
+    start_date: string;
+    end_date: string;
+    exam_type_id: string;
+    term_id: string;
+};
+
+type SessionEdit = {
+    session: SessionRow;
+    session_date: string;
+    start_time: string;
+    end_time: string;
+    max_grade: string;
+    pass_grade: string;
+};
+
+type Confirm =
+    | { kind: 'cancelExam' }
+    | { kind: 'advance' }
+    | { kind: 'cancelSession'; session: SessionRow };
+
+/** The fields of `next` that differ from `current` (only changed fields are sent: the guard refuses locked ones). */
+function changed<T extends Record<string, string>>(
+    current: T,
+    next: T,
+): Partial<T> {
+    return Object.fromEntries(
+        Object.entries(next).filter(([key, value]) => current[key] !== value),
+    ) as Partial<T>;
+}
 
 type SessionDraft = {
     subject_id: string;
@@ -149,6 +195,17 @@ function ExamBody({ exam, sessions, seating, admin, names }: PageProps) {
     const [classId, setClassId] = useState('');
     const [sectionId, setSectionId] = useState('');
     const [closing, setClosing] = useState<SessionRow | null>(null);
+    const [examDraft, setExamDraft] = useState<ExamDraft | null>(null);
+    const [sessionEdit, setSessionEdit] = useState<SessionEdit | null>(null);
+    const [confirm, setConfirm] = useState<Confirm | null>(null);
+    const examOriginal: ExamDraft = {
+        name: exam.name,
+        start_date: exam.start_date,
+        end_date: exam.end_date,
+        exam_type_id: String(exam.exam_type_id),
+        term_id: String(exam.term_id),
+    };
+    const nextStatus = exam.status < EXAM_COMPLETED ? exam.status + 1 : null;
     const [busy, setBusy] = useState(false);
 
     const rosterHref = (row: SessionRow) =>
@@ -172,7 +229,83 @@ function ExamBody({ exam, sessions, seating, admin, names }: PageProps) {
     const ribbon = useMemo((): PageRibbonGroup[] => {
         const none = target === null;
         const live = target !== null && target.status !== SESSION_CANCELLED;
+        const closed =
+            exam.status === EXAM_COMPLETED || exam.status === EXAM_CANCELLED;
         const groups: PageRibbonGroup[] = [
+            {
+                id: 'exam-actions',
+                label: a.exam,
+                commands: [
+                    ...(admin.can_create_session
+                        ? [
+                              {
+                                  id: 'exam-session-add',
+                                  label: a.newSession,
+                                  icon: PlusCircle,
+                                  iconTone: 'ok' as const,
+                                  disabled:
+                                      admin.subjects.length === 0 || closed,
+                                  title:
+                                      admin.subjects.length === 0
+                                          ? `${a.newSession} — ${a.noSubjects}`
+                                          : a.newSession,
+                                  onSelect: () => setDraft(EMPTY_SESSION),
+                              },
+                          ]
+                        : []),
+                    ...(admin.can_update
+                        ? [
+                              {
+                                  id: 'exam-edit',
+                                  label: a.editExam,
+                                  icon: Pencil,
+                                  iconTone: 'amber' as const,
+                                  tone: 'edit' as const,
+                                  disabled:
+                                      busy ||
+                                      (exam.status !== EXAM_DRAFT &&
+                                          exam.status !== EXAM_SCHEDULED),
+                                  title: `${a.editExam} — ${a.editHint}`,
+                                  onSelect: () => setExamDraft(examOriginal),
+                              },
+                              {
+                                  id: 'exam-advance',
+                                  label: a.advance,
+                                  icon: ChevronsLeft,
+                                  iconTone: 'sky' as const,
+                                  disabled: busy || nextStatus === null,
+                                  title:
+                                      nextStatus === null
+                                          ? a.advance
+                                          : `${a.advance} — ` +
+                                            a.advanceTo.replace(
+                                                ':status',
+                                                statusChipLabel(
+                                                    'exam',
+                                                    nextStatus,
+                                                ),
+                                            ),
+                                  onSelect: () =>
+                                      setConfirm({ kind: 'advance' }),
+                              },
+                          ]
+                        : []),
+                    ...(admin.can_cancel
+                        ? [
+                              {
+                                  id: 'exam-cancel-delete',
+                                  label: a.cancelExam,
+                                  icon: Ban,
+                                  iconTone: 'danger' as const,
+                                  tone: 'delete' as const,
+                                  disabled: busy || closed,
+                                  onSelect: () =>
+                                      setConfirm({ kind: 'cancelExam' }),
+                              },
+                          ]
+                        : []),
+                ],
+            },
             {
                 id: 'exam-session-view',
                 label: i18n.common.open,
@@ -259,33 +392,56 @@ function ExamBody({ exam, sessions, seating, admin, names }: PageProps) {
                         : []),
                 ],
             },
-            ...(admin.can_create_session
-                ? [
-                      {
-                          id: 'exam-actions',
-                          label: i18n.examisChrome.actions,
-                          commands: [
-                              {
-                                  id: 'exam-session-add',
-                                  label: a.newSession,
-                                  icon: PlusCircle,
-                                  iconTone: 'ok' as const,
-                                  disabled: admin.subjects.length === 0,
-                                  title:
-                                      admin.subjects.length === 0
-                                          ? a.noSubjects
-                                          : a.newSession,
-                                  onSelect: () => setDraft(EMPTY_SESSION),
-                              },
-                          ],
-                      },
-                  ]
-                : []),
+            {
+                id: 'exam-session-edit-group',
+                label: a.editSession,
+                commands: admin.can_update_session
+                    ? [
+                          {
+                              id: 'exam-session-edit',
+                              label: a.editSession,
+                              icon: Pencil,
+                              iconTone: 'amber' as const,
+                              tone: 'edit' as const,
+                              disabled:
+                                  busy || target?.status !== SESSION_SCHEDULED,
+                              title: a.editSession,
+                              onSelect: () =>
+                                  target &&
+                                  setSessionEdit({
+                                      session: target,
+                                      session_date: target.session_date,
+                                      start_time: target.start_time.slice(0, 5),
+                                      end_time: target.end_time.slice(0, 5),
+                                      max_grade: String(target.max_grade),
+                                      pass_grade: String(target.pass_grade),
+                                  }),
+                          },
+                          {
+                              id: 'exam-session-cancel-delete',
+                              label: a.cancelSession,
+                              icon: XCircle,
+                              iconTone: 'danger' as const,
+                              tone: 'delete' as const,
+                              disabled:
+                                  busy ||
+                                  (target?.status !== SESSION_SCHEDULED &&
+                                      target?.status !== SESSION_IN_PROGRESS),
+                              onSelect: () =>
+                                  target &&
+                                  setConfirm({
+                                      kind: 'cancelSession',
+                                      session: target,
+                                  }),
+                          },
+                      ]
+                    : [],
+            },
         ];
 
         return groups.filter((group) => group.commands.length > 0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [target, busy, admin, seating.can_seat]);
+    }, [target, busy, admin, seating.can_seat, exam]);
     useExamisEditRibbon('exams', ribbon);
 
     useAttendanceMessages(
@@ -314,6 +470,91 @@ function ExamBody({ exam, sessions, seating, admin, names }: PageProps) {
         if (ok) {
             setDraft(null);
         }
+    };
+
+    const saveExam = async () => {
+        if (examDraft === null) {
+            return;
+        }
+        const diff = changed(examOriginal, examDraft);
+        if (Object.keys(diff).length === 0) {
+            setExamDraft(null);
+
+            return;
+        }
+        setBusy(true);
+        const ok = await request(
+            `/exams/${exam.id}/update`,
+            diff,
+            'exam-update',
+        );
+        setBusy(false);
+        if (ok) {
+            setExamDraft(null);
+        }
+    };
+
+    const saveSessionEdit = async () => {
+        if (sessionEdit === null) {
+            return;
+        }
+        const { session, ...next } = sessionEdit;
+        const diff = changed(
+            {
+                session_date: session.session_date,
+                start_time: session.start_time.slice(0, 5),
+                end_time: session.end_time.slice(0, 5),
+                max_grade: String(session.max_grade),
+                pass_grade: String(session.pass_grade),
+            },
+            next,
+        );
+        if (Object.keys(diff).length === 0) {
+            setSessionEdit(null);
+
+            return;
+        }
+        // <input type="time"> gives HH:MM; the request expects HH:MM:SS.
+        const body: Record<string, unknown> = { ...diff };
+        for (const key of ['start_time', 'end_time'] as const) {
+            if (diff[key] !== undefined) {
+                body[key] = `${diff[key]}:00`;
+            }
+        }
+        setBusy(true);
+        const ok = await request(
+            `/exams/${exam.id}/sessions/${session.id}/update`,
+            body,
+            'exam-session-update',
+        );
+        setBusy(false);
+        if (ok) {
+            setSessionEdit(null);
+        }
+    };
+
+    const runConfirm = async () => {
+        if (confirm === null) {
+            return;
+        }
+        setBusy(true);
+        if (confirm.kind === 'cancelExam') {
+            await request(`/exams/${exam.id}/cancel`, {}, 'exam-cancel');
+        } else if (confirm.kind === 'advance' && nextStatus !== null) {
+            await request(
+                `/exams/${exam.id}/update`,
+                { target_status: nextStatus },
+                'exam-advance',
+            );
+        } else if (confirm.kind === 'cancelSession') {
+            await request(
+                `/exams/${exam.id}/sessions/${confirm.session.id}/cancel`,
+                {},
+                'exam-session-cancel',
+            );
+        }
+        setBusy(false);
+        setConfirm(null);
     };
 
     const submitSeating = async () => {
@@ -389,7 +630,7 @@ function ExamBody({ exam, sessions, seating, admin, names }: PageProps) {
             header: i18n.common.status,
             kind: 'status',
             tone: (row) => STATUS_TONE[row.status] ?? 0,
-            cell: (row) => statusChipLabel('exam', row.status),
+            cell: (row) => statusChipLabel('examSession', row.status),
         },
     ];
 
@@ -611,6 +852,251 @@ function ExamBody({ exam, sessions, seating, admin, names }: PageProps) {
                 />
             ) : null}
 
+            {examDraft !== null ? (
+                <AttendanceWindow
+                    title={a.editExam}
+                    columns={2}
+                    pending={busy}
+                    confirmLabel={a.save}
+                    confirmDisabled={
+                        examDraft.name.trim() === '' ||
+                        examDraft.start_date === '' ||
+                        examDraft.end_date === ''
+                    }
+                    onConfirm={() => void saveExam()}
+                    onClose={() => setExamDraft(null)}
+                    sections={[
+                        {
+                            id: 'exam-edit',
+                            title: a.editHint,
+                            content: (
+                                <>
+                                    <RegistryTextField
+                                        label={a.examName}
+                                        editing
+                                        required
+                                        fieldClassName="sis-branches-field--wide"
+                                        value={examDraft.name}
+                                        onChange={(name) =>
+                                            setExamDraft({ ...examDraft, name })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={a.startDate}
+                                        editing
+                                        required
+                                        type="date"
+                                        dir="ltr"
+                                        value={examDraft.start_date}
+                                        onChange={(start_date) =>
+                                            setExamDraft({
+                                                ...examDraft,
+                                                start_date,
+                                            })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={a.endDate}
+                                        editing
+                                        required
+                                        type="date"
+                                        dir="ltr"
+                                        value={examDraft.end_date}
+                                        onChange={(end_date) =>
+                                            setExamDraft({
+                                                ...examDraft,
+                                                end_date,
+                                            })
+                                        }
+                                    />
+                                    {exam.status === EXAM_DRAFT ? (
+                                        <>
+                                            <RegistryListField
+                                                label={a.term}
+                                                editing
+                                                required
+                                                value={examDraft.term_id}
+                                                display={
+                                                    admin.terms.find(
+                                                        (term) =>
+                                                            String(term.id) ===
+                                                            examDraft.term_id,
+                                                    )?.name ?? '—'
+                                                }
+                                                options={admin.terms.map(
+                                                    (term) => ({
+                                                        value: String(term.id),
+                                                        label: term.name,
+                                                    }),
+                                                )}
+                                                onChange={(term_id) =>
+                                                    setExamDraft({
+                                                        ...examDraft,
+                                                        term_id,
+                                                    })
+                                                }
+                                            />
+                                            <RegistryListField
+                                                label={a.examType}
+                                                editing
+                                                required
+                                                value={examDraft.exam_type_id}
+                                                display={
+                                                    admin.exam_types.find(
+                                                        (type) =>
+                                                            String(type.id) ===
+                                                            examDraft.exam_type_id,
+                                                    )?.name ?? '—'
+                                                }
+                                                options={admin.exam_types.map(
+                                                    (type) => ({
+                                                        value: String(type.id),
+                                                        label: `${type.name} (${type.weight_percentage}%)`,
+                                                    }),
+                                                )}
+                                                onChange={(exam_type_id) =>
+                                                    setExamDraft({
+                                                        ...examDraft,
+                                                        exam_type_id,
+                                                    })
+                                                }
+                                            />
+                                        </>
+                                    ) : null}
+                                </>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            {sessionEdit !== null ? (
+                <AttendanceWindow
+                    title={`${a.editSession} — ${names.subjects[sessionEdit.session.subject_id] ?? ''}`}
+                    columns={2}
+                    pending={busy}
+                    confirmLabel={a.save}
+                    confirmDisabled={
+                        sessionEdit.session_date === '' ||
+                        sessionEdit.start_time === '' ||
+                        sessionEdit.end_time === '' ||
+                        sessionEdit.max_grade === '' ||
+                        sessionEdit.pass_grade === ''
+                    }
+                    onConfirm={() => void saveSessionEdit()}
+                    onClose={() => setSessionEdit(null)}
+                    sections={[
+                        {
+                            id: 'exam-session-edit',
+                            title: a.editSession,
+                            content: (
+                                <>
+                                    <RegistryTextField
+                                        label={a.sessionDate}
+                                        editing
+                                        required
+                                        type="date"
+                                        dir="ltr"
+                                        value={sessionEdit.session_date}
+                                        onChange={(session_date) =>
+                                            setSessionEdit({
+                                                ...sessionEdit,
+                                                session_date,
+                                            })
+                                        }
+                                    />
+                                    <WindowTimeField
+                                        label={a.startTime}
+                                        value={sessionEdit.start_time}
+                                        onChange={(start_time) =>
+                                            setSessionEdit({
+                                                ...sessionEdit,
+                                                start_time,
+                                            })
+                                        }
+                                    />
+                                    <WindowTimeField
+                                        label={a.endTime}
+                                        value={sessionEdit.end_time}
+                                        onChange={(end_time) =>
+                                            setSessionEdit({
+                                                ...sessionEdit,
+                                                end_time,
+                                            })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={a.maxGrade}
+                                        editing
+                                        required
+                                        type="number"
+                                        dir="ltr"
+                                        value={sessionEdit.max_grade}
+                                        onChange={(max_grade) =>
+                                            setSessionEdit({
+                                                ...sessionEdit,
+                                                max_grade,
+                                            })
+                                        }
+                                    />
+                                    <RegistryTextField
+                                        label={a.passGrade}
+                                        editing
+                                        required
+                                        type="number"
+                                        dir="ltr"
+                                        value={sessionEdit.pass_grade}
+                                        onChange={(pass_grade) =>
+                                            setSessionEdit({
+                                                ...sessionEdit,
+                                                pass_grade,
+                                            })
+                                        }
+                                    />
+                                </>
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            <ConfirmDialog
+                open={confirm !== null}
+                title={
+                    confirm?.kind === 'cancelExam'
+                        ? a.cancelExamTitle
+                        : confirm?.kind === 'cancelSession'
+                          ? a.cancelSessionTitle
+                          : nextStatus === null
+                            ? a.advance
+                            : a.advanceTo.replace(
+                                  ':status',
+                                  statusChipLabel('exam', nextStatus),
+                              )
+                }
+                description={
+                    confirm?.kind === 'cancelExam'
+                        ? a.cancelExamDesc
+                        : confirm?.kind === 'cancelSession'
+                          ? a.cancelSessionDesc
+                          : a.advanceDesc
+                }
+                confirmLabel={
+                    confirm?.kind === 'cancelExam'
+                        ? a.cancelExam
+                        : confirm?.kind === 'cancelSession'
+                          ? a.cancelSession
+                          : a.advance
+                }
+                confirmPending={busy}
+                tone={confirm?.kind === 'advance' ? undefined : 'danger'}
+                onConfirm={() => void runConfirm()}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setConfirm(null);
+                    }
+                }}
+            />
             <ConfirmDialog
                 open={closing !== null}
                 title={a.closeConfirmTitle}
