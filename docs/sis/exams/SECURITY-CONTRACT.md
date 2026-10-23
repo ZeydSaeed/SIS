@@ -119,6 +119,14 @@ Submitted workflow is **out of scope**.
 
 Write commands use shared `IdempotencyStore` + `X-Idempotency-Key`. Command names distinguish Enter / Correct / Void / Finalize. Unique current-grade constraint remains concurrency backstop.
 
+**Payload fingerprint (EXAMIS U9, 2026-10-23):** each grade command stores a fingerprint of its canonical request (seat or
+grade, year, school, score normalized to 2 decimals, absence, reason, actor) with its result. A replay with the same key
+and the same request returns the first result; with a different request it is refused — HTTP 409 /
+`grades.idempotency_payload_conflict` (a per-row outcome on the grade-entry sheet) — instead of silently ignoring the
+new values. Keys stored before this change carry no fingerprint and keep replaying until they expire (24h). Not covered
+(documented residual): two simultaneous first requests with the same key — the unique current-grade index still allows
+only one grade; the second reports `grades.conflict` rather than a replay.
+
 ---
 
 ## SC-G09 — Audit & outbox
@@ -210,3 +218,33 @@ prohibited — the server chooses the students.
 - **Write path:** one `CreateExamEnrollment` per student (its own rules, transaction, fingerprinted idempotency and
   events), with a per-student key derived from the request key. A repeated request seats nobody twice.
 - **Audit:** one `SEC_GRADE_DATA_MODIFIED` record `exams.web.seat_class` with the per-outcome counts.
+
+---
+
+## SC-G16 — Exam administration from the web (EXAMIS U8, 2026-10-22)
+
+`POST /exams` · `POST /exams/{exam}/sessions` · `POST /exams/{exam}/sessions/{session}/open|close` (web) reuse the API's
+form requests and commands unchanged — permissions `exam.create`, `exam.session.create`, `exam.session.open`,
+`exam.session.close`, required `X-Idempotency-Key`, prohibited `school_id` / `status` / `exam_id`, the commands'
+authority, idempotency fingerprint and lifecycle guards. Open / close also require the session to belong to the exam in
+the URL and to the school in context (else 404). Audit: `exams.web.store`, `exams.web.sessions.store|open|close`.
+
+The forms offer existing records only: terms of the year, existing exam types (with their weight), subjects of the
+school-year's active curricula. **No exam type exists until one is defined:** exam types carry `weight_percentage`, which
+feeds official term results, so defining them is an academic-policy decision outside this unit; until then the
+create-exam form explains that and offers nothing.
+
+## SC-G20 — Term-results sheet for a class (EXAMIS U12, 2026-10-23)
+
+`GET /results/sheet` (`viewOfficial`) · `POST /results/sheet/calculate` (`results.calculate`) ·
+`POST /results/sheet/finalize` (`results.finalize`). The target is term + subject + class (+ optional section) of the
+year; the server validates term ∈ year, class ∈ school-year, section ∈ class (`results.batch.*_invalid`) and derives the
+students itself: active enrollments of the class/section seated in a non-cancelled session of that term/subject.
+`enrollment_ids` / `enrollment_id` in the body are prohibited. Required `X-Idempotency-Key`.
+
+Each student runs through the existing single-student `CalculateTermResultCommand` / `FinalizeTermResultCommand` in its
+own transaction with a derived key `sha256(mode|key|enrollment)`, so a failed student never hides another and repeating
+the same request replays. **Finalize never re-finalizes:** a student with a current official result is reported
+`already_official` and untouched; re-finalizing stays on the separately authorised rebuild path. Per-student outcomes
+use the domain error codes (`results.term_no_eligible_grades`, `results.official_dataset_incomplete`,
+`results.term_weight_sum_invalid`). Audit: `results.web.term_batch.calculate|finalize`.

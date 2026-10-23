@@ -38,6 +38,12 @@ final class ExamPolicy
             && $this->schoolAccess->canAccessExam($user);
     }
 
+    public function manageTypes(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::EXAM_TYPE_MANAGE)
+            && $this->schoolAccess->canAccessExam($user);
+    }
+
     public function update(User $user, mixed $exam = null): bool
     {
         return $this->authorization->userHasPermission($user, Permission::EXAM_UPDATE)

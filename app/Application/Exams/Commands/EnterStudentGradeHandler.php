@@ -34,9 +34,18 @@ final class EnterStudentGradeHandler implements CommandHandler
         assert($command instanceof EnterStudentGradeCommand);
 
         $idempotencyKey = GradeIdempotencyGuard::requireKey($command->idempotencyKey);
+        $fingerprint = GradeIdempotencyGuard::fingerprint(self::COMMAND_NAME, [
+            'school_id' => $command->schoolId,
+            'exam_enrollment_id' => $command->examEnrollmentId,
+            'score' => GradeIdempotencyGuard::score($command->isAbsent ? null : $command->score),
+            'is_absent' => $command->isAbsent,
+            'actor' => $command->enteredBy,
+        ]);
 
         $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
         if ($cached !== null) {
+            GradeIdempotencyGuard::assertSameRequest($cached, $fingerprint, self::COMMAND_NAME);
+
             return EnterStudentGradeResult::fromIdempotency(
                 (int) $cached['grade_id'],
                 (int) $cached['academic_year_id'],
@@ -61,7 +70,7 @@ final class EnterStudentGradeHandler implements CommandHandler
         StudentGradeWriteGuard::assertCanEnter($context, $current, $command->isAbsent, $command->score);
 
         $enteredAt = now()->toIso8601String();
-        $gradeId = $this->unitOfWork->transaction(function () use ($command, $context, $enteredAt, $idempotencyKey): int {
+        $gradeId = $this->unitOfWork->transaction(function () use ($command, $context, $enteredAt, $idempotencyKey, $fingerprint): int {
             $id = $this->grades->insert(new CreateStudentGradeData(
                 academicYearId: $context->academicYearId,
                 schoolId: $context->schoolId,
@@ -97,6 +106,7 @@ final class EnterStudentGradeHandler implements CommandHandler
             $this->idempotency->store($idempotencyKey, self::COMMAND_NAME, [
                 'grade_id' => $id,
                 'academic_year_id' => $context->academicYearId,
+                GradeIdempotencyGuard::FINGERPRINT => $fingerprint,
             ]);
 
             return $id;

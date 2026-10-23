@@ -1,7 +1,7 @@
 import { t } from '@/i18n';
 
 type StatusChipProps = {
-    kind: 'student' | 'attendance' | 'enrollment' | 'exam' | 'schedule' | 'admission' | 'generic';
+    kind: 'student' | 'attendance' | 'enrollment' | 'exam' | 'examSeat' | 'schedule' | 'admission' | 'generic';
     status: number;
 };
 
@@ -56,6 +56,9 @@ function labelFor(kind: StatusChipProps['kind'], status: number): string {
             4: i18n.status.cancelled,
         };
         return map[status] ?? `${i18n.common.status} ${status}`;
+    }
+    if (kind === 'examSeat') {
+        return i18n.exams.roster.statuses[status] ?? `${i18n.common.status} ${status}`;
     }
     if (kind === 'schedule') {
         const map: Record<number, string> = {

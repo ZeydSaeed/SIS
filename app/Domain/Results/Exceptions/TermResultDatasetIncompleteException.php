@@ -8,6 +8,6 @@ final class TermResultDatasetIncompleteException extends SisDomainException
 {
     public static function missingFinalizedGrades(): self
     {
-        return new self('results.official_dataset_incomplete');
+        return new self('results.official_dataset_incomplete', 'results.official_dataset_incomplete');
     }
 }

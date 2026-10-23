@@ -51,7 +51,7 @@ final class ExamAdministrationCommandTest extends TestCase
         $this->bindSchool($schoolId);
 
         $yearId = $this->createAcademicYear('AY-EX-C');
-        [$termId, $typeId] = $this->seedTermAndType($yearId, 'C');
+        [$termId, $typeId] = $this->seedTermAndType($schoolId, $yearId, 'C');
 
         $handler = $this->app->make(CreateExamHandler::class);
         $result = $handler->handle(new CreateExamCommand(
@@ -114,7 +114,7 @@ final class ExamAdministrationCommandTest extends TestCase
         $user = $this->actingAsGradesManagerForSchool($schoolId);
         $this->bindSchool($schoolId);
         $yearId = $this->createAcademicYear('AY-EX-CF');
-        [$termId, $typeId] = $this->seedTermAndType($yearId, 'CF');
+        [$termId, $typeId] = $this->seedTermAndType($schoolId, $yearId, 'CF');
 
         $handler = $this->app->make(CreateExamHandler::class);
         $handler->handle(new CreateExamCommand(
@@ -237,7 +237,7 @@ final class ExamAdministrationCommandTest extends TestCase
         $viewer = $this->actingAsGradesViewer(schoolId: $schoolId);
         $this->bindSchool($schoolId);
         $yearId = $this->createAcademicYear('AY-EX-D');
-        [$termId, $typeId] = $this->seedTermAndType($yearId, 'D');
+        [$termId, $typeId] = $this->seedTermAndType($schoolId, $yearId, 'D');
 
         $handler = $this->app->make(CreateExamHandler::class);
         try {
@@ -306,7 +306,7 @@ final class ExamAdministrationCommandTest extends TestCase
     /**
      * @return array{0:int,1:int}
      */
-    private function seedTermAndType(int $yearId, string $suffix): array
+    private function seedTermAndType(int $schoolId, int $yearId, string $suffix): array
     {
         $termId = (int) DB::table(SchemaHelper::qualified('academic', 'terms'))->insertGetId([
             'academic_year_id' => $yearId,
@@ -321,6 +321,7 @@ final class ExamAdministrationCommandTest extends TestCase
         ]);
 
         $typeId = (int) DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId([
+            'school_id' => $schoolId,
             'code' => 'TX'.substr(uniqid(), -4),
             'name' => 'Type '.$suffix,
             'weight_percentage' => 40,

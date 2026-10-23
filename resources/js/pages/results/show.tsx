@@ -1,8 +1,8 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
 import { ScrollText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { ResultsStudentPicker, type ResultsPicker } from '@/components/results/results-student-picker';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -34,29 +34,18 @@ type PageProps = {
         academic_year_id: number | null;
         enrollment_id: number | null;
     };
+    picker: ResultsPicker;
+    names: { terms: Record<number, string>; subjects: Record<number, string> };
 };
 
-export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) {
+export default function ResultsShow({ terms, annual, gpa, filters, picker, names }: PageProps) {
     const i18n = t();
-    const [enrollmentId, setEnrollmentId] = useState(filters.enrollment_id?.toString() ?? '');
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.modules.results, href: '/results' },
         { title: i18n.results.summaryBreadcrumb, href: '/results/show' },
     ];
 
-    const onFilter = (event: FormEvent) => {
-        event.preventDefault();
-        const parsed = Number.parseInt(enrollmentId, 10);
-        router.get(
-            '/results/show',
-            {
-                academic_year_id: filters.academic_year_id ?? undefined,
-                enrollment_id: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
-            },
-            { preserveState: true, preserveScroll: true },
-        );
-    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -67,27 +56,7 @@ export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) 
                     description={i18n.results.summaryDesc}
                     icon={<ScrollText className="size-6" aria-hidden />}
                 />
-                <form
-                    onSubmit={onFilter}
-                    className="flex flex-col gap-3 sm:flex-row sm:items-end"
-                    aria-label={i18n.common.filterEnrollmentResults}
-                >
-                    <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>{i18n.results.enrollmentId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                            value={enrollmentId}
-                            onChange={(e) => setEnrollmentId(e.target.value)}
-                            dir="ltr"
-                        />
-                    </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
-                        {i18n.results.loadSummary}
-                    </button>
-                </form>
+                <ResultsStudentPicker path="/results/show" academicYearId={filters.academic_year_id} picker={picker} />
 
                 <section aria-labelledby="annual-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
                     <h2 id="annual-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
@@ -163,9 +132,8 @@ export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) 
                                         prefetch
                                     >
                                         <span className="sis-ops-hub__link-title" dir="rtl" lang="ar">
-                                            {i18n.results.term}{' '}
-                                            <span dir="ltr">{row.term_id}</span> · {i18n.results.subject}{' '}
-                                            <span dir="ltr">{row.subject_id}</span>
+                                            {names.terms[row.term_id] ?? row.term_id} ·{' '}
+                                            {names.subjects[row.subject_id] ?? row.subject_id}
                                         </span>
                                         <span className="sis-ops-hub__link-desc" dir="rtl" lang="ar">
                                             {i18n.results.totalShort}{' '}

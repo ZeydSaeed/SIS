@@ -66,6 +66,7 @@ final class ExamAdministrationAuthorizationTest extends TestCase
             'updated_at' => now(),
         ]);
         $typeId = (int) DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId([
+            'school_id' => $schoolId,
             'code' => 'TT'.substr(uniqid(), -4),
             'name' => 'Type TCH',
             'weight_percentage' => 40,

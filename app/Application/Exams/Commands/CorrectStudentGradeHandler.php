@@ -41,8 +41,19 @@ final class CorrectStudentGradeHandler implements CommandHandler
             throw InvalidGradeCorrectionException::forReason('Correction reason is required.');
         }
 
+        $fingerprint = GradeIdempotencyGuard::fingerprint(self::COMMAND_NAME, [
+            'school_id' => $command->schoolId,
+            'grade_id' => $command->gradeId,
+            'academic_year_id' => $command->academicYearId,
+            'score' => GradeIdempotencyGuard::score($command->isAbsent ? null : $command->score),
+            'is_absent' => $command->isAbsent,
+            'reason' => trim($command->reason),
+            'actor' => $command->correctedBy,
+        ]);
         $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
         if ($cached !== null) {
+            GradeIdempotencyGuard::assertSameRequest($cached, $fingerprint, self::COMMAND_NAME);
+
             return CorrectStudentGradeResult::fromIdempotency(
                 (int) $cached['previous_grade_id'],
                 (int) $cached['new_grade_id'],
@@ -54,7 +65,7 @@ final class CorrectStudentGradeHandler implements CommandHandler
             throw MissingGradePartitionException::forAcademicYear($command->academicYearId);
         }
 
-        [$previousId, $newId] = $this->unitOfWork->transaction(function () use ($command, $idempotencyKey): array {
+        [$previousId, $newId] = $this->unitOfWork->transaction(function () use ($command, $idempotencyKey, $fingerprint): array {
             $current = $this->grades->lockByIdentity(
                 $command->gradeId,
                 $command->academicYearId,
@@ -123,6 +134,7 @@ final class CorrectStudentGradeHandler implements CommandHandler
                 'previous_grade_id' => $current->id,
                 'new_grade_id' => $newId,
                 'academic_year_id' => $command->academicYearId,
+                GradeIdempotencyGuard::FINGERPRINT => $fingerprint,
             ]);
 
             return [$current->id, $newId];

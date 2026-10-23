@@ -1,8 +1,8 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
 import { ScrollText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import type { ResultsPicker } from '@/components/results/results-student-picker';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -25,32 +25,18 @@ type PageProps = {
         term_id: number | null;
         subject_id: number | null;
     };
+    picker: ResultsPicker;
+    names: { terms: Record<number, string>; subjects: Record<number, string> };
 };
 
-export default function ResultsTerm({ term, filters }: PageProps) {
+export default function ResultsTerm({ term, filters, picker, names }: PageProps) {
     const i18n = t();
-    const [enrollmentId, setEnrollmentId] = useState(filters.enrollment_id?.toString() ?? '');
-    const [termId, setTermId] = useState(filters.term_id?.toString() ?? '');
-    const [subjectId, setSubjectId] = useState(filters.subject_id?.toString() ?? '');
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.modules.results, href: '/results' },
         { title: i18n.results.termDetailBreadcrumb, href: '/results/term' },
     ];
 
-    const onFilter = (event: FormEvent) => {
-        event.preventDefault();
-        router.get(
-            '/results/term',
-            {
-                academic_year_id: filters.academic_year_id ?? undefined,
-                enrollment_id: Number.parseInt(enrollmentId, 10) || undefined,
-                term_id: Number.parseInt(termId, 10) || undefined,
-                subject_id: Number.parseInt(subjectId, 10) || undefined,
-            },
-            { preserveState: true, preserveScroll: true },
-        );
-    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -62,52 +48,28 @@ export default function ResultsTerm({ term, filters }: PageProps) {
                     icon={<ScrollText className="size-6" aria-hidden />}
                 />
                 <p>
-                    <Link href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar" prefetch>
+                    <Link
+                        href={`/results/show?academic_year_id=${filters.academic_year_id ?? ''}&enrollment_id=${filters.enrollment_id ?? ''}`}
+                        className="sis-ops-hub__link px-3 py-2 text-sm"
+                        prefetch
+                    >
                         {i18n.results.backSummary}
                     </Link>
                 </p>
-                <form
-                    onSubmit={onFilter}
-                    className="grid gap-3 sm:grid-cols-3"
-                    aria-label={i18n.common.filterTermResult}
-                >
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{i18n.results.enrollmentId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                            value={enrollmentId}
-                            onChange={(e) => setEnrollmentId(e.target.value)}
-                            dir="ltr"
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{i18n.results.termId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                            value={termId}
-                            onChange={(e) => setTermId(e.target.value)}
-                            dir="ltr"
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                        <span>{i18n.results.subjectId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                            value={subjectId}
-                            onChange={(e) => setSubjectId(e.target.value)}
-                            dir="ltr"
-                        />
-                    </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm sm:col-span-3" dir="rtl" lang="ar">
-                        {i18n.results.loadTerm}
-                    </button>
-                </form>
+                <dl className="grid gap-3 text-sm sm:grid-cols-3" data-term-context>
+                    <div>
+                        <dt className="opacity-70">{i18n.results.picker.current}</dt>
+                        <dd>{picker.student?.student_name ?? '—'}</dd>
+                    </div>
+                    <div>
+                        <dt className="opacity-70">{i18n.results.term}</dt>
+                        <dd>{filters.term_id !== null ? (names.terms[filters.term_id] ?? filters.term_id) : '—'}</dd>
+                    </div>
+                    <div>
+                        <dt className="opacity-70">{i18n.results.subject}</dt>
+                        <dd>{filters.subject_id !== null ? (names.subjects[filters.subject_id] ?? filters.subject_id) : '—'}</dd>
+                    </div>
+                </dl>
                 {term ? (
                     <dl className="grid gap-3 text-sm sm:grid-cols-2">
                         <div>

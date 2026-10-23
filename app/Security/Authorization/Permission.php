@@ -61,6 +61,9 @@ final class Permission
 
     public const EXAM_ENROLLMENT_PRESENT = 'exam.enrollment.present';
 
+    /** The school's exam types and their weights (academic policy that drives term results). */
+    public const EXAM_TYPE_MANAGE = 'exam.type.manage';
+
     public const ATTENDANCE_VIEW = 'attendance.view';
 
     public const ATTENDANCE_SESSION_CREATE = 'attendance.session.create';
@@ -236,6 +239,7 @@ final class Permission
             self::EXAM_ENROLLMENT_UPDATE,
             self::EXAM_ENROLLMENT_CANCEL,
             self::EXAM_ENROLLMENT_PRESENT,
+            self::EXAM_TYPE_MANAGE,
             self::ATTENDANCE_VIEW,
             self::ATTENDANCE_SESSION_CREATE,
             self::ATTENDANCE_MARK,

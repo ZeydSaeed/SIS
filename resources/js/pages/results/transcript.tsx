@@ -1,8 +1,8 @@
-import { Head, router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { Head } from '@inertiajs/react';
 import { FileBadge } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/components/sis/page-header';
+import { ResultsStudentPicker, type ResultsPicker } from '@/components/results/results-student-picker';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -22,29 +22,17 @@ type PageProps = {
         academic_year_id: number | null;
         enrollment_id: number | null;
     };
+    picker: ResultsPicker;
 };
 
-export default function ResultsTranscript({ transcript, filters }: PageProps) {
+export default function ResultsTranscript({ transcript, filters, picker }: PageProps) {
     const i18n = t();
-    const [enrollmentId, setEnrollmentId] = useState(filters.enrollment_id?.toString() ?? '');
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.modules.results, href: '/results' },
         { title: i18n.results.transcriptBreadcrumb, href: '/results/transcript' },
     ];
 
-    const onFilter = (event: FormEvent) => {
-        event.preventDefault();
-        const parsed = Number.parseInt(enrollmentId, 10);
-        router.get(
-            '/results/transcript',
-            {
-                academic_year_id: filters.academic_year_id ?? undefined,
-                enrollment_id: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
-            },
-            { preserveState: true, preserveScroll: true },
-        );
-    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -55,27 +43,7 @@ export default function ResultsTranscript({ transcript, filters }: PageProps) {
                     description={i18n.results.transcriptDesc}
                     icon={<FileBadge className="size-6" aria-hidden />}
                 />
-                <form
-                    onSubmit={onFilter}
-                    className="flex flex-col gap-3 sm:flex-row sm:items-end"
-                    aria-label={i18n.common.filterTranscript}
-                >
-                    <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>{i18n.results.enrollmentId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
-                            value={enrollmentId}
-                            onChange={(e) => setEnrollmentId(e.target.value)}
-                            dir="ltr"
-                        />
-                    </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
-                        {i18n.results.loadTranscript}
-                    </button>
-                </form>
+                <ResultsStudentPicker path="/results/transcript" academicYearId={filters.academic_year_id} picker={picker} />
                 {transcript ? (
                     <dl className="grid gap-3 text-sm sm:grid-cols-2">
                         <div>

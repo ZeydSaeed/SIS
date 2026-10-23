@@ -236,8 +236,8 @@ class E2eSeedExamsCommand extends Command
     /** @param  array<string, int>  $ctx */
     private function exam(int $school, array $ctx, int $actor, string $name): int
     {
-        $typeId = (int) (DB::table(SchemaHelper::qualified('exams', 'exam_types'))->where('code', 'E2E-GRADES')->value('id')
-            ?? DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId(['code' => 'E2E-GRADES', 'name' => 'اختبار الدرجات', 'weight_percentage' => 100]));
+        $typeId = (int) (DB::table(SchemaHelper::qualified('exams', 'exam_types'))->where('school_id', $school)->where('code', 'E2E-GRADES')->value('id')
+            ?? DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId(['school_id' => $school, 'code' => 'E2E-GRADES', 'name' => 'اختبار الدرجات', 'weight_percentage' => 100]));
 
         return (int) app(CreateExamHandler::class)->handle(new CreateExamCommand(
             schoolId: $school, academicYearId: $ctx['year'], termId: $ctx['term'], examTypeId: $typeId, name: $name,

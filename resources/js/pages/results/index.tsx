@@ -1,10 +1,10 @@
-import { Head, router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { Head } from '@inertiajs/react';
 import { ScrollText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { OpsYearFilter } from '@/components/sis/ops-year-filter';
 import { PageHeader } from '@/components/sis/page-header';
+import { ResultsStudentPicker, type ResultsPicker } from '@/components/results/results-student-picker';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
@@ -28,11 +28,12 @@ type PageProps = {
         academic_year_id: number | null;
         enrollment_id: number | null;
     };
+    picker: ResultsPicker;
+    names: { terms: Record<number, string>; subjects: Record<number, string> };
 };
 
-export default function ResultsIndex({ results, filters }: PageProps) {
+export default function ResultsIndex({ results, filters, picker, names }: PageProps) {
     const i18n = t();
-    const [enrollmentId, setEnrollmentId] = useState(filters.enrollment_id?.toString() ?? '');
 
     const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.modules.results, href: '/results' }];
 
@@ -40,12 +41,12 @@ export default function ResultsIndex({ results, filters }: PageProps) {
         {
             id: 'term_id',
             header: i18n.results.term,
-            cell: (row) => <span dir="ltr">{row.term_id}</span>,
+            cell: (row) => names.terms[row.term_id] ?? <span dir="ltr">{row.term_id}</span>,
         },
         {
             id: 'subject_id',
             header: i18n.results.subject,
-            cell: (row) => <span dir="ltr">{row.subject_id}</span>,
+            cell: (row) => names.subjects[row.subject_id] ?? <span dir="ltr">{row.subject_id}</span>,
         },
         {
             id: 'weighted_total',
@@ -65,18 +66,6 @@ export default function ResultsIndex({ results, filters }: PageProps) {
         },
     ];
 
-    const onFilter = (event: FormEvent) => {
-        event.preventDefault();
-        const parsed = Number.parseInt(enrollmentId, 10);
-        router.get(
-            '/results',
-            {
-                academic_year_id: filters.academic_year_id ?? undefined,
-                enrollment_id: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
-            },
-            { preserveState: true, preserveScroll: true },
-        );
-    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -88,11 +77,14 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                     icon={<ScrollText className="size-6" aria-hidden />}
                 />
                 <p>
-                    <a href="/results/show" className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar">
+                    <a href={`/results/show?academic_year_id=${filters.academic_year_id ?? ''}&enrollment_id=${filters.enrollment_id ?? ''}`} className="sis-ops-hub__link px-3 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.summaryLink}
                     </a>
-                    <a href="/results/transcript" className="sis-ops-hub__link ms-2 px-3 py-2 text-sm" dir="rtl" lang="ar">
+                    <a href={`/results/transcript?academic_year_id=${filters.academic_year_id ?? ''}&enrollment_id=${filters.enrollment_id ?? ''}`} className="sis-ops-hub__link ms-2 px-3 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.transcriptLink}
+                    </a>
+                    <a href={`/results/sheet?academic_year_id=${filters.academic_year_id ?? ''}`} className="sis-ops-hub__link ms-2 px-3 py-2 text-sm" dir="rtl" lang="ar">
+                        {i18n.results.sheet.title}
                     </a>
                 </p>
                 <OpsYearFilter
@@ -100,28 +92,7 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                     academicYearId={filters.academic_year_id}
                     extraParams={{ enrollment_id: filters.enrollment_id ?? undefined }}
                 />
-                <form
-                    onSubmit={onFilter}
-                    className="flex flex-col gap-3 sm:flex-row sm:items-end"
-                    aria-label={i18n.common.filterTermResults}
-                >
-                    <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>{i18n.results.enrollmentId}</span>
-                        <input
-                            type="number"
-                            min={1}
-                            inputMode="numeric"
-                            className="sis-ops-hub__link min-h-11 px-3 py-2"
-                            value={enrollmentId}
-                            onChange={(e) => setEnrollmentId(e.target.value)}
-                            placeholder={i18n.common.required}
-                            dir="ltr"
-                        />
-                    </label>
-                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
-                        {i18n.results.loadResults}
-                    </button>
-                </form>
+                <ResultsStudentPicker path="/results" academicYearId={filters.academic_year_id} picker={picker} />
                 <DataTable
                     columns={columns}
                     rows={results.data}
@@ -136,9 +107,8 @@ export default function ResultsIndex({ results, filters }: PageProps) {
                     mobileCard={(row) => (
                         <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3">
                             <div className="font-semibold">
-                                {i18n.results.term}{' '}
-                                <span dir="ltr">{row.term_id}</span> · {i18n.results.subject}{' '}
-                                <span dir="ltr">{row.subject_id}</span>
+                                {names.terms[row.term_id] ?? row.term_id} ·{' '}
+                                {names.subjects[row.subject_id] ?? row.subject_id}
                             </div>
                             <div className="text-sm opacity-80">
                                 {i18n.results.totalShort}{' '}

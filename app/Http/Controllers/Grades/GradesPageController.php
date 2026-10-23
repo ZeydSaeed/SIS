@@ -11,6 +11,8 @@ use App\Application\Exams\Commands\FinalizeStudentGradeHandler;
 use App\Application\Exams\Commands\VoidStudentGradeCommand;
 use App\Application\Exams\Commands\VoidStudentGradeHandler;
 use App\Application\Exams\DTOs\StudentGradeDTO;
+use App\Application\Exams\Queries\GetGradeListContextHandler;
+use App\Application\Exams\Queries\GetGradeListContextQuery;
 use App\Application\Exams\Queries\GetStudentGradeHandler;
 use App\Application\Exams\Queries\GetStudentGradeQuery;
 use App\Application\Exams\Queries\ListGradesForExamSessionHandler;
@@ -39,7 +41,7 @@ final class GradesPageController extends Controller
         private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
-    public function index(Request $request, ListGradesForExamSessionHandler $handler): Response
+    public function index(Request $request, ListGradesForExamSessionHandler $handler, GetGradeListContextHandler $contextHandler): Response
     {
         $this->authorize('viewAny', StudentGradeRecord::class);
 
@@ -76,8 +78,18 @@ final class GradesPageController extends Controller
             ],
         );
 
+        $context = $academicYearId !== null
+            ? $contextHandler->handle(new GetGradeListContextQuery(
+                schoolId: $schoolId,
+                academicYearId: $academicYearId,
+                enrollmentIds: array_map(static fn (array $row): int => (int) $row['enrollment_id'], $rows),
+            ))
+            : ['sessions' => [], 'students' => []];
+
         return Inertia::render('grades/index', [
             'grades' => ['data' => $rows],
+            'sessions' => $context['sessions'],
+            'students' => (object) $context['students'],
             'filters' => [
                 'session_id' => $sessionId,
                 'academic_year_id' => $academicYearId,

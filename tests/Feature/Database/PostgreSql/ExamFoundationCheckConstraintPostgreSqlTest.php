@@ -54,8 +54,10 @@ class ExamFoundationCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationT
     #[Test]
     public function exam_type_rejects_invalid_weight(): void
     {
+        $ctx = $this->seedMinimalExamContext();
         $this->expectException(QueryException::class);
         DB::table('exams.exam_types')->insert([
+            'school_id' => $ctx['school_id'],
             'code' => 'BAD',
             'name' => 'Bad Weight',
             'weight_percentage' => 150,
@@ -268,6 +270,7 @@ class ExamFoundationCheckConstraintPostgreSqlTest extends PostgreSqlIntegrationT
             'updated_at' => now(),
         ]);
         $typeId = (int) DB::table('exams.exam_types')->insertGetId([
+            'school_id' => $schoolId,
             'code' => 'FIN',
             'name' => 'Final',
             'weight_percentage' => 60,

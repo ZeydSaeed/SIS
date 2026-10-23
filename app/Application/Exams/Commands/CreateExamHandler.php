@@ -55,7 +55,7 @@ final class CreateExamHandler implements CommandHandler
             throw ExamValidationException::missingTerm();
         }
 
-        if (! $this->exams->examTypeExists($command->examTypeId)) {
+        if (! $this->exams->examTypeExists($command->examTypeId, $command->schoolId)) {
             throw ExamValidationException::missingExamType();
         }
 

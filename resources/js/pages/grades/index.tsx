@@ -25,17 +25,26 @@ type GradeRow = {
     is_current: boolean;
 };
 
+type SessionOption = {
+    id: number;
+    exam_name: string;
+    subject_name: string;
+    session_date: string;
+};
+
 type PageProps = {
     grades: {
         data: GradeRow[];
     };
+    sessions: SessionOption[];
+    students: Record<number, { student_name: string; student_code: string }>;
     filters: {
         session_id: number | null;
         academic_year_id: number | null;
     };
 };
 
-export default function GradesIndex({ grades, filters }: PageProps) {
+export default function GradesIndex({ grades, sessions, students, filters }: PageProps) {
     const i18n = t();
     const [sessionId, setSessionId] = useState(filters.session_id?.toString() ?? '');
 
@@ -45,7 +54,7 @@ export default function GradesIndex({ grades, filters }: PageProps) {
         {
             id: 'student_id',
             header: i18n.grades.student,
-            cell: (row) => <span dir="ltr">{row.student_id}</span>,
+            cell: (row) => students[row.enrollment_id]?.student_name ?? <span dir="ltr">{row.student_id}</span>,
         },
         {
             id: 'score',
@@ -73,6 +82,9 @@ export default function GradesIndex({ grades, filters }: PageProps) {
             ),
         },
     ];
+
+    const sessionLabel = (session: SessionOption) =>
+        `${session.exam_name} — ${session.subject_name} — ${session.session_date}`;
 
     const onFilter = (event: FormEvent) => {
         event.preventDefault();
@@ -112,16 +124,20 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                     aria-label={i18n.common.filterGradesBySession}
                 >
                     <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                        <span>{i18n.grades.sessionId}</span>
-                        <input
-                            type="number"
-                            min={1}
+                        <span>{i18n.grades.session}</span>
+                        <select
+                            name="session_id"
                             value={sessionId}
                             onChange={(e) => setSessionId(e.target.value)}
                             className="sis-ops-hub__link min-h-11 px-3 py-2"
-                            dir="ltr"
-                            inputMode="numeric"
-                        />
+                        >
+                            <option value="">{sessions.length === 0 ? i18n.grades.noSessions : '—'}</option>
+                            {sessions.map((session) => (
+                                <option key={session.id} value={session.id}>
+                                    {sessionLabel(session)}
+                                </option>
+                            ))}
+                        </select>
                     </label>
                     <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.grades.loadGrades}
@@ -140,8 +156,9 @@ export default function GradesIndex({ grades, filters }: PageProps) {
                             className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3"
                         >
                             <div className="font-semibold">
-                                {i18n.grades.student}{' '}
-                                <span dir="ltr">{row.student_id}</span>
+                                {students[row.enrollment_id]?.student_name ?? (
+                                    <span dir="ltr">{row.student_id}</span>
+                                )}
                             </div>
                             <div className="text-sm opacity-80">
                                 {row.is_absent ? (

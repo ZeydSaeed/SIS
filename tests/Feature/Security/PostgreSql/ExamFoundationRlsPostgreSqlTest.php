@@ -24,8 +24,8 @@ class ExamFoundationRlsPostgreSqlTest extends PostgreSqlIntegrationTestCase
         $this->assertSame(0, (int) DB::selectOne('SELECT COUNT(*) AS c FROM exams.exam_sessions')->c);
         $this->assertSame(0, (int) DB::selectOne('SELECT COUNT(*) AS c FROM exams.exam_enrollments')->c);
 
-        // Global reference remains visible without school context.
-        $this->assertGreaterThan(0, (int) DB::selectOne('SELECT COUNT(*) AS c FROM exams.exam_types')->c);
+        // Exam types are per school since EXAMIS U10: fail-closed like the other exam tables.
+        $this->assertSame(0, (int) DB::selectOne('SELECT COUNT(*) AS c FROM exams.exam_types')->c);
 
         PostgreSqlRlsActor::reset();
     }
@@ -103,7 +103,13 @@ class ExamFoundationRlsPostgreSqlTest extends PostgreSqlIntegrationTestCase
         if ($reuseYearAndType !== null) {
             $yearId = $reuseYearAndType['year_id'];
             $termId = $reuseYearAndType['term_id'];
-            $typeId = $reuseYearAndType['type_id'];
+            // Exam types belong to one school (U10): each school gets its own.
+            $typeId = (int) DB::table('exams.exam_types')->insertGetId([
+                'school_id' => $schoolId,
+                'code' => 'MID',
+                'name' => 'Midterm',
+                'weight_percentage' => 40,
+            ]);
             $subjectId = $reuseYearAndType['subject_id'];
             $gradeId = $reuseYearAndType['grade_id'];
         } else {
@@ -129,6 +135,7 @@ class ExamFoundationRlsPostgreSqlTest extends PostgreSqlIntegrationTestCase
                 'updated_at' => now(),
             ]);
             $typeId = (int) DB::table('exams.exam_types')->insertGetId([
+                'school_id' => $schoolId,
                 'code' => 'MID',
                 'name' => 'Midterm',
                 'weight_percentage' => 40,

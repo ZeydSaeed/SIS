@@ -32,7 +32,7 @@ final class PhaseExamHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
     {
         $schoolId = $this->createSchool('SCH-EX-HTTP', 'Exam HTTP');
         $yearId = $this->createAcademicYear('AY-EX-HTTP');
-        [$termId, $typeId] = $this->seedTermAndType($yearId, 'H1');
+        [$termId, $typeId] = $this->seedTermAndType($schoolId, $yearId, 'H1');
         $this->actingAsGradesManagerForSchool($schoolId);
 
         $create = $this->postJson('/api/v1/exams', [
@@ -166,7 +166,7 @@ final class PhaseExamHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
     {
         $schoolId = $this->createSchool('SCH-EX-UPD', 'Exam Update HTTP');
         $yearId = $this->createAcademicYear('AY-EX-UPD');
-        [$termId, $typeId] = $this->seedTermAndType($yearId, 'U8');
+        [$termId, $typeId] = $this->seedTermAndType($schoolId, $yearId, 'U8');
         $this->actingAsGradesManagerForSchool($schoolId);
 
         $create = $this->postJson('/api/v1/exams', [
@@ -257,7 +257,7 @@ final class PhaseExamHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
     /**
      * @return array{0:int,1:int}
      */
-    private function seedTermAndType(int $yearId, string $suffix): array
+    private function seedTermAndType(int $schoolId, int $yearId, string $suffix): array
     {
         $termId = (int) DB::table(SchemaHelper::qualified('academic', 'terms'))->insertGetId([
             'academic_year_id' => $yearId,
@@ -272,6 +272,7 @@ final class PhaseExamHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
         ]);
 
         $typeId = (int) DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId([
+            'school_id' => $schoolId,
             'code' => 'TX'.substr(uniqid(), -4),
             'name' => 'Type '.$suffix,
             'weight_percentage' => 40,

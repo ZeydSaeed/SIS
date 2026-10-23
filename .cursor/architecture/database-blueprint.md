@@ -1260,11 +1260,14 @@ Queued report files (CSV / PDF) built by `GenerateAttendanceReportExportJob`; th
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | SMALLINT | PK |
-| code | VARCHAR(20) | UNIQUE NOT NULL |
+| school_id | BIGINT | FK → schools, NOT NULL (EXAMIS U10, 2026-10-23) |
+| code | VARCHAR(20) | NOT NULL; UNIQUE (school_id, code) |
 | name | VARCHAR(100) | NOT NULL |
 | weight_percentage | SMALLINT | CHECK (weight_percentage BETWEEN 0 AND 100) |
 
-**RLS:** None — global reference catalog (not school-scoped). Codes are data rows, not hard-coded DDL vocabulary.
+**Constraints:** UNIQUE (id, school_id) backs the composite FK `exams (exam_type_id, school_id) → exam_types (id, school_id)` — an exam can only use a type of its own school.  
+**RLS:** ENABLE + FORCE, fail-closed on `app.current_school_id` (policy `exam_types_school_isolation`). Until U10 this was a global catalog with no RLS.  
+**Rules:** managed per school on «أنواع الامتحانات» (`exam.type.manage`). The weight is the type's share of a term result (the weights used in a term must total 100). Once any exam uses a type, its code and weight are frozen (only the name may change), so stored results never shift silently.
 
 ### `exams.exams`
 

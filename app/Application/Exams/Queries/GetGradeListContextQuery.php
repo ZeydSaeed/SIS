@@ -1,0 +1,15 @@
+<?php
+
+namespace App\Application\Exams\Queries;
+
+final readonly class GetGradeListContextQuery
+{
+    /**
+     * @param  list<int>  $enrollmentIds
+     */
+    public function __construct(
+        public int $schoolId,
+        public int $academicYearId,
+        public array $enrollmentIds,
+    ) {}
+}

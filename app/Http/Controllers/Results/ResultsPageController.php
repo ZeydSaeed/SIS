@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Results;
 
+use App\Application\Exams\Queries\GetExamDisplayNamesHandler;
+use App\Application\Exams\Queries\GetExamDisplayNamesQuery;
 use App\Application\Results\DTOs\OfficialTermResultListItemDTO;
 use App\Application\Results\Queries\GetIssuedTranscriptMetadataHandler;
 use App\Application\Results\Queries\GetIssuedTranscriptMetadataQuery;
@@ -15,6 +17,7 @@ use App\Application\Results\Queries\ListOfficialTermResultsHandler;
 use App\Application\Results\Queries\ListOfficialTermResultsQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Http\Support\ResultsStudentPicker;
 use App\Infrastructure\Persistence\Eloquent\TermResultRecord;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
@@ -29,6 +32,8 @@ final class ResultsPageController extends Controller
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
         private readonly AcademicYearContextResolver $academicYears,
+        private readonly ResultsStudentPicker $picker,
+        private readonly GetExamDisplayNamesHandler $names,
     ) {}
 
     public function index(Request $request, ListOfficialTermResultsHandler $handler): Response
@@ -87,6 +92,8 @@ final class ResultsPageController extends Controller
             'results' => [
                 'data' => $rows,
             ],
+            'picker' => $this->picker->props($request, $schoolId, $academicYearId, $enrollmentId),
+            'names' => $this->rowNames($rows),
             'filters' => [
                 'academic_year_id' => $academicYearId,
                 'enrollment_id' => $enrollmentId,
@@ -179,6 +186,8 @@ final class ResultsPageController extends Controller
 
         return Inertia::render('results/show', [
             'terms' => $terms,
+            'picker' => $this->picker->props($request, $schoolId, $academicYearId, $enrollmentId),
+            'names' => $this->rowNames($terms),
             'annual' => $annual,
             'gpa' => $gpa,
             'filters' => [
@@ -252,6 +261,8 @@ final class ResultsPageController extends Controller
 
         return Inertia::render('results/term', [
             'term' => $term,
+            'picker' => $this->picker->props($request, $schoolId, $academicYearId, $enrollmentId),
+            'names' => $this->rowNames($termId !== null && $subjectId !== null ? [['term_id' => $termId, 'subject_id' => $subjectId]] : []),
             'filters' => [
                 'academic_year_id' => $academicYearId,
                 'enrollment_id' => $enrollmentId,
@@ -316,10 +327,27 @@ final class ResultsPageController extends Controller
 
         return Inertia::render('results/transcript', [
             'transcript' => $transcript,
+            'picker' => $this->picker->props($request, $schoolId, $academicYearId, $enrollmentId),
             'filters' => [
                 'academic_year_id' => $academicYearId,
                 'enrollment_id' => $enrollmentId,
             ],
         ]);
+    }
+
+    /**
+     * Term and subject names for result rows (ids stay as the fallback in the page).
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{terms: object, subjects: object}
+     */
+    private function rowNames(array $rows): array
+    {
+        $names = $this->names->handle(new GetExamDisplayNamesQuery(
+            termIds: array_values(array_map(static fn (array $row): int => (int) $row['term_id'], $rows)),
+            subjectIds: array_values(array_map(static fn (array $row): int => (int) $row['subject_id'], $rows)),
+        ));
+
+        return ['terms' => (object) $names['terms'], 'subjects' => (object) $names['subjects']];
     }
 }

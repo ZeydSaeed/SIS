@@ -33,15 +33,23 @@ final class FinalizeStudentGradeHandler implements CommandHandler
 
         $idempotencyKey = GradeIdempotencyGuard::requireKey($command->idempotencyKey);
 
+        $fingerprint = GradeIdempotencyGuard::fingerprint(self::COMMAND_NAME, [
+            'school_id' => $command->schoolId,
+            'grade_id' => $command->gradeId,
+            'academic_year_id' => $command->academicYearId,
+            'actor' => $command->finalizedBy,
+        ]);
         $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
         if ($cached !== null) {
+            GradeIdempotencyGuard::assertSameRequest($cached, $fingerprint, self::COMMAND_NAME);
+
             return FinalizeStudentGradeResult::fromIdempotency(
                 (int) $cached['grade_id'],
                 (int) $cached['academic_year_id'],
             );
         }
 
-        $this->unitOfWork->transaction(function () use ($command, $idempotencyKey): void {
+        $this->unitOfWork->transaction(function () use ($command, $idempotencyKey, $fingerprint): void {
             $grade = $this->grades->lockByIdentity(
                 $command->gradeId,
                 $command->academicYearId,
@@ -74,6 +82,7 @@ final class FinalizeStudentGradeHandler implements CommandHandler
             $this->idempotency->store($idempotencyKey, self::COMMAND_NAME, [
                 'grade_id' => $command->gradeId,
                 'academic_year_id' => $command->academicYearId,
+                GradeIdempotencyGuard::FINGERPRINT => $fingerprint,
             ]);
         });
 

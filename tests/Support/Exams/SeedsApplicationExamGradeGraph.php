@@ -37,6 +37,7 @@ trait SeedsApplicationExamGradeGraph
         ]);
 
         $typeId = (int) DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId([
+            'school_id' => $schoolId,
             'code' => 'MID'.substr(uniqid(), -4),
             'name' => 'Midterm '.$suffix,
             'weight_percentage' => 40,

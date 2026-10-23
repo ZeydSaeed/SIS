@@ -1,8 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { PageHeader } from '@/components/sis/page-header';
 import { StatusChip } from '@/components/sis/status-chip';
 import { t } from '@/i18n';
@@ -53,6 +55,12 @@ type PageProps = {
         data: SessionRow[];
     };
     seating: Seating;
+    admin: {
+        can_create_session: boolean;
+        can_open: boolean;
+        can_close: boolean;
+        subjects: { id: number; name: string }[];
+    };
     names: {
         terms: Record<number, string>;
         academic_years: Record<number, string>;
@@ -63,17 +71,189 @@ type PageProps = {
     };
 };
 
-/** Session status 4 = cancelled: no seating. */
+/** exams.exam_sessions.status: 1 scheduled · 2 in progress · 3 completed · 4 cancelled (no seating). */
+const SESSION_SCHEDULED = 1;
+const SESSION_IN_PROGRESS = 2;
 const SESSION_CANCELLED = 4;
+const SELECT_CLASS = 'sis-ops-hub__link min-h-11 px-3 py-2';
 
 function newKey(): string {
     return `exam-seat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** «جلسة جديدة» — subjects of the school-year's active curricula; the server validates everything again. */
+function CreateSessionForm({
+    examId,
+    subjects,
+    onDone,
+}: {
+    examId: number;
+    subjects: { id: number; name: string }[];
+    onDone: () => void;
+}) {
+    const a = t().exams.admin;
+    const [key] = useState(newKey);
+    const form = useForm({
+        subject_id: '',
+        session_date: '',
+        start_time: '',
+        end_time: '',
+        max_grade: '100',
+        pass_grade: '50',
+    });
+
+    if (subjects.length === 0) {
+        return (
+            <p className="text-sm" role="status">
+                {a.noSubjects}
+            </p>
+        );
+    }
+
+    return (
+        <form
+            className="grid max-w-xl gap-3"
+            data-window-id="exams.session.create"
+            onSubmit={(e) => {
+                e.preventDefault();
+                // <input type="time"> gives HH:MM; the request expects HH:MM:SS.
+                form.transform((data) => ({
+                    ...data,
+                    start_time: `${data.start_time}:00`,
+                    end_time: `${data.end_time}:00`,
+                }));
+                form.post(`/exams/${examId}/sessions`, {
+                    headers: { 'X-Idempotency-Key': key },
+                    preserveScroll: true,
+                    onSuccess: onDone,
+                });
+            }}
+        >
+            <OpsFormField
+                label={a.subject}
+                name="subject_id"
+                error={form.errors.subject_id}
+            >
+                <select
+                    id="subject_id"
+                    name="subject_id"
+                    required
+                    className={SELECT_CLASS}
+                    value={form.data.subject_id}
+                    onChange={(e) => form.setData('subject_id', e.target.value)}
+                >
+                    <option value="">—</option>
+                    {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                            {subject.name}
+                        </option>
+                    ))}
+                </select>
+            </OpsFormField>
+            <OpsFormField
+                label={a.sessionDate}
+                name="session_date"
+                error={form.errors.session_date}
+            >
+                <OpsTextInput
+                    name="session_date"
+                    type="date"
+                    dir="ltr"
+                    required
+                    value={form.data.session_date}
+                    error={form.errors.session_date}
+                    onChange={(e) =>
+                        form.setData('session_date', e.target.value)
+                    }
+                />
+            </OpsFormField>
+            <OpsFormField
+                label={a.startTime}
+                name="start_time"
+                error={form.errors.start_time}
+            >
+                <OpsTextInput
+                    name="start_time"
+                    type="time"
+                    dir="ltr"
+                    required
+                    value={form.data.start_time}
+                    error={form.errors.start_time}
+                    onChange={(e) => form.setData('start_time', e.target.value)}
+                />
+            </OpsFormField>
+            <OpsFormField
+                label={a.endTime}
+                name="end_time"
+                error={form.errors.end_time}
+            >
+                <OpsTextInput
+                    name="end_time"
+                    type="time"
+                    dir="ltr"
+                    required
+                    value={form.data.end_time}
+                    error={form.errors.end_time}
+                    onChange={(e) => form.setData('end_time', e.target.value)}
+                />
+            </OpsFormField>
+            <OpsFormField
+                label={a.maxGrade}
+                name="max_grade"
+                error={form.errors.max_grade}
+            >
+                <OpsTextInput
+                    name="max_grade"
+                    type="number"
+                    min={1}
+                    dir="ltr"
+                    required
+                    value={form.data.max_grade}
+                    error={form.errors.max_grade}
+                    onChange={(e) => form.setData('max_grade', e.target.value)}
+                />
+            </OpsFormField>
+            <OpsFormField
+                label={a.passGrade}
+                name="pass_grade"
+                error={form.errors.pass_grade}
+            >
+                <OpsTextInput
+                    name="pass_grade"
+                    type="number"
+                    min={0}
+                    dir="ltr"
+                    required
+                    value={form.data.pass_grade}
+                    error={form.errors.pass_grade}
+                    onChange={(e) => form.setData('pass_grade', e.target.value)}
+                />
+            </OpsFormField>
+            <div className="flex gap-2">
+                <button
+                    type="submit"
+                    disabled={form.processing}
+                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm disabled:opacity-50"
+                >
+                    {form.processing ? a.saving : a.addSession}
+                </button>
+                <button
+                    type="button"
+                    className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm"
+                    onClick={onDone}
+                >
+                    {a.cancel}
+                </button>
+            </div>
+        </form>
+    );
 }
 
 export default function ExamShow({
     exam,
     sessions,
     seating,
+    admin,
     names,
 }: PageProps) {
     const i18n = t();
@@ -83,6 +263,24 @@ export default function ExamShow({
     const [sectionId, setSectionId] = useState('');
     const [submitKey, setSubmitKey] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [creatingSession, setCreatingSession] = useState(false);
+    const [closing, setClosing] = useState<SessionRow | null>(null);
+    const [transitioning, setTransitioning] = useState(false);
+    const transition = (row: SessionRow, action: 'open' | 'close') => {
+        setTransitioning(true);
+        router.post(
+            `/exams/${exam.id}/sessions/${row.id}/${action}`,
+            {},
+            {
+                headers: { 'X-Idempotency-Key': newKey() },
+                preserveScroll: true,
+                onFinish: () => {
+                    setTransitioning(false);
+                    setClosing(null);
+                },
+            },
+        );
+    };
     const sections =
         seating.classes.find((c) => String(c.id) === classId)?.sections ?? [];
 
@@ -125,6 +323,8 @@ export default function ExamShow({
         );
     };
 
+    const rosterHref = (row: SessionRow) =>
+        `/exams/${exam.id}/sessions/${row.id}`;
     const sheetHref = (row: SessionRow) =>
         `/grades/sheet?academic_year_id=${exam.academic_year_id}&session_id=${row.id}`;
 
@@ -169,6 +369,9 @@ export default function ExamShow({
             header: i18n.modules.grades,
             cell: (row) => (
                 <span className="flex flex-wrap gap-3">
+                    <Link href={rosterHref(row)} className="underline" prefetch>
+                        {i18n.exams.roster.open}
+                    </Link>
                     <a href={sheetHref(row)} className="underline">
                         {i18n.exams.enterGrades}
                     </a>
@@ -185,6 +388,26 @@ export default function ExamShow({
                             onClick={() => openSeating(row)}
                         >
                             {s.action}
+                        </button>
+                    ) : null}
+                    {admin.can_open && row.status === SESSION_SCHEDULED ? (
+                        <button
+                            type="button"
+                            className="underline"
+                            disabled={transitioning}
+                            onClick={() => transition(row, 'open')}
+                        >
+                            {i18n.exams.admin.open}
+                        </button>
+                    ) : null}
+                    {admin.can_close && row.status === SESSION_IN_PROGRESS ? (
+                        <button
+                            type="button"
+                            className="underline"
+                            disabled={transitioning}
+                            onClick={() => setClosing(row)}
+                        >
+                            {i18n.exams.admin.close}
                         </button>
                     ) : null}
                 </span>
@@ -256,6 +479,41 @@ export default function ExamShow({
                     </div>
                 </dl>
                 <h2 className="text-lg font-semibold">{i18n.exams.sessions}</h2>
+                {admin.can_create_session ? (
+                    creatingSession ? (
+                        <CreateSessionForm
+                            examId={exam.id}
+                            subjects={admin.subjects}
+                            onDone={() => setCreatingSession(false)}
+                        />
+                    ) : (
+                        <button
+                            type="button"
+                            className="sis-ops-hub__link w-fit px-3 py-2 text-sm"
+                            onClick={() => setCreatingSession(true)}
+                        >
+                            {i18n.exams.admin.newSession}
+                        </button>
+                    )
+                ) : null}
+                <ConfirmDialog
+                    open={closing !== null}
+                    title={i18n.exams.admin.closeConfirmTitle}
+                    description={i18n.exams.admin.closeConfirmDesc}
+                    confirmLabel={i18n.exams.admin.close}
+                    confirmPending={transitioning}
+                    tone="danger"
+                    onConfirm={() => {
+                        if (closing) {
+                            transition(closing, 'close');
+                        }
+                    }}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setClosing(null);
+                        }
+                    }}
+                />
                 <DataTable
                     columns={sessionColumns}
                     rows={sessions.data}
@@ -285,6 +543,12 @@ export default function ExamShow({
                             >
                                 {i18n.exams.viewGrades}
                             </a>
+                            <Link
+                                href={rosterHref(row)}
+                                className="sis-ops-hub__link ms-2 mt-2 inline-block text-sm"
+                            >
+                                {i18n.exams.roster.open}
+                            </Link>
                             <a
                                 href={sheetHref(row)}
                                 className="sis-ops-hub__link ms-2 mt-2 inline-block text-sm"

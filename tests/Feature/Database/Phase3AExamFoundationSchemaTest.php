@@ -27,7 +27,7 @@ class Phase3AExamFoundationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable($enrollments));
 
         $this->assertTrue(Schema::hasColumns($types, [
-            'id', 'code', 'name', 'weight_percentage',
+            'id', 'school_id', 'code', 'name', 'weight_percentage',
         ]));
         $this->assertTrue(Schema::hasColumns($exams, [
             'id', 'academic_year_id', 'school_id', 'term_id', 'exam_type_id',
@@ -108,12 +108,14 @@ class Phase3AExamFoundationSchemaTest extends TestCase
         }
 
         $typesRls = DB::selectOne("
-            SELECT c.relrowsecurity AS enabled
+            SELECT c.relrowsecurity AS enabled, c.relforcerowsecurity AS forced
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = 'exams' AND c.relname = 'exam_types'
         ");
-        $this->assertFalse((bool) $typesRls->enabled, 'exam_types remains global (no RLS)');
+        // EXAMIS U10: exam types belong to one school — fail-closed RLS like the other exam tables.
+        $this->assertTrue((bool) $typesRls->enabled, 'exam_types RLS enabled');
+        $this->assertTrue((bool) $typesRls->forced, 'exam_types FORCE RLS');
 
         $policies = collect(DB::select("
             SELECT policyname FROM pg_policies WHERE schemaname = 'exams'

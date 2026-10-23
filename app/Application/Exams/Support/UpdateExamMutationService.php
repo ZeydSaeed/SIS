@@ -154,7 +154,7 @@ final class UpdateExamMutationService
             throw ExamValidationException::invalidDates();
         }
 
-        if (isset($metadata['exam_type_id']) && ! $this->exams->examTypeExists((int) $metadata['exam_type_id'])) {
+        if (isset($metadata['exam_type_id']) && ! $this->exams->examTypeExists((int) $metadata['exam_type_id'], $exam->schoolId)) {
             throw ExamValidationException::missingExamType();
         }
 

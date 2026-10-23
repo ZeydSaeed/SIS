@@ -107,9 +107,9 @@ final class ExamRepositoryGradeLookupFailingDecorator implements ExamRepositoryI
         return $this->inner->academicYearExists($academicYearId);
     }
 
-    public function examTypeExists(int $examTypeId): bool
+    public function examTypeExists(int $examTypeId, int $schoolId): bool
     {
-        return $this->inner->examTypeExists($examTypeId);
+        return $this->inner->examTypeExists($examTypeId, $schoolId);
     }
 
     public function termBelongsToAcademicYear(int $termId, int $academicYearId): bool

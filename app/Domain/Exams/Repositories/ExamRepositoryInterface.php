@@ -83,7 +83,8 @@ interface ExamRepositoryInterface
 
     public function academicYearExists(int $academicYearId): bool;
 
-    public function examTypeExists(int $examTypeId): bool;
+    /** The type must belong to the school (exam types are per school). */
+    public function examTypeExists(int $examTypeId, int $schoolId): bool;
 
     public function termBelongsToAcademicYear(int $termId, int $academicYearId): bool;
 

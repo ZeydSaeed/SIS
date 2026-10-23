@@ -14,8 +14,11 @@ use App\Http\Controllers\Attendance\StaffAttendanceController;
 use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\ClassSectionPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
+use App\Http\Controllers\Exams\ExamAdministrationController;
 use App\Http\Controllers\Exams\ExamPageController;
+use App\Http\Controllers\Exams\ExamRosterController;
 use App\Http\Controllers\Exams\ExamSeatingController;
+use App\Http\Controllers\Exams\ExamTypeController;
 use App\Http\Controllers\Grades\GradeSheetController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
@@ -34,6 +37,7 @@ use App\Http\Controllers\Organization\RoomCataloguePageController;
 use App\Http\Controllers\Organization\SchoolRegistryController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
+use App\Http\Controllers\Results\TermResultSheetController;
 use App\Http\Controllers\SchoolContextController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
@@ -381,14 +385,45 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
         Route::get('/term', [ResultsPageController::class, 'term'])->name('term');
         Route::get('/transcript', [ResultsPageController::class, 'transcript'])->name('transcript');
+        Route::get('/sheet', [TermResultSheetController::class, 'show'])->name('sheet');
+        Route::post('/sheet/calculate', [TermResultSheetController::class, 'calculate'])->name('sheet.calculate');
+        Route::post('/sheet/finalize', [TermResultSheetController::class, 'finalize'])->name('sheet.finalize');
     });
 
     Route::prefix('exams')->name('exams.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ExamPageController::class, 'index'])->name('index');
-        Route::get('/{exam}', [ExamPageController::class, 'show'])->name('show');
+        Route::get('/types', [ExamTypeController::class, 'index'])->name('types.index');
+        Route::post('/types', [ExamTypeController::class, 'store'])->name('types.store');
+        Route::post('/types/{type}', [ExamTypeController::class, 'update'])->whereNumber('type')->name('types.update');
+        Route::get('/{exam}', [ExamPageController::class, 'show'])->whereNumber('exam')->name('show');
+        Route::post('/', [ExamAdministrationController::class, 'store'])->name('store');
+        Route::post('/{exam}/sessions', [ExamAdministrationController::class, 'storeSession'])
+            ->whereNumber('exam')
+            ->name('sessions.store');
+        Route::post('/{exam}/sessions/{session}/open', [ExamAdministrationController::class, 'openSession'])
+            ->whereNumber(['exam', 'session'])
+            ->name('sessions.open');
+        Route::post('/{exam}/sessions/{session}/close', [ExamAdministrationController::class, 'closeSession'])
+            ->whereNumber(['exam', 'session'])
+            ->name('sessions.close');
         Route::post('/{exam}/sessions/{session}/seat', [ExamSeatingController::class, 'store'])
             ->whereNumber(['exam', 'session'])
             ->name('sessions.seat');
+        Route::get('/{exam}/sessions/{session}', [ExamRosterController::class, 'show'])
+            ->whereNumber(['exam', 'session'])
+            ->name('sessions.show');
+        Route::post('/{exam}/sessions/{session}/seats/{seat}', [ExamRosterController::class, 'update'])
+            ->whereNumber(['exam', 'session', 'seat'])
+            ->name('sessions.seats.update');
+        Route::post('/{exam}/sessions/{session}/seats/{seat}/present', [ExamRosterController::class, 'present'])
+            ->whereNumber(['exam', 'session', 'seat'])
+            ->name('sessions.seats.present');
+        Route::post('/{exam}/sessions/{session}/seats/{seat}/cancel', [ExamRosterController::class, 'cancel'])
+            ->whereNumber(['exam', 'session', 'seat'])
+            ->name('sessions.seats.cancel');
+        Route::post('/{exam}/sessions/{session}/seats/{seat}/reopen', [ExamRosterController::class, 'reopen'])
+            ->whereNumber(['exam', 'session', 'seat'])
+            ->name('sessions.seats.reopen');
     });
 
     Route::prefix('grades')->name('grades.')->middleware('require.school.context')->group(function (): void {

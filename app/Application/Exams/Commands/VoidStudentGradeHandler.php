@@ -37,15 +37,24 @@ final class VoidStudentGradeHandler implements CommandHandler
             throw InvalidGradeCorrectionException::forReason('Void reason is required.');
         }
 
+        $fingerprint = GradeIdempotencyGuard::fingerprint(self::COMMAND_NAME, [
+            'school_id' => $command->schoolId,
+            'grade_id' => $command->gradeId,
+            'academic_year_id' => $command->academicYearId,
+            'reason' => trim($command->reason),
+            'actor' => $command->voidedBy,
+        ]);
         $cached = $this->idempotency->find($idempotencyKey, self::COMMAND_NAME);
         if ($cached !== null) {
+            GradeIdempotencyGuard::assertSameRequest($cached, $fingerprint, self::COMMAND_NAME);
+
             return VoidStudentGradeResult::fromIdempotency(
                 (int) $cached['grade_id'],
                 (int) $cached['academic_year_id'],
             );
         }
 
-        $this->unitOfWork->transaction(function () use ($command, $idempotencyKey): void {
+        $this->unitOfWork->transaction(function () use ($command, $idempotencyKey, $fingerprint): void {
             $grade = $this->grades->lockByIdentity(
                 $command->gradeId,
                 $command->academicYearId,
@@ -74,6 +83,7 @@ final class VoidStudentGradeHandler implements CommandHandler
             $this->idempotency->store($idempotencyKey, self::COMMAND_NAME, [
                 'grade_id' => $command->gradeId,
                 'academic_year_id' => $command->academicYearId,
+                GradeIdempotencyGuard::FINGERPRINT => $fingerprint,
             ]);
         });
 

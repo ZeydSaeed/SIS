@@ -68,3 +68,68 @@ Executable: `tests/Feature/Database/PostgreSql/StudentGradesImmutabilityPostgreS
 | SC-G15 | Browser | manager seats section B via the form; repeat seats 0; viewer has no action, POST 403 | `e2e/exams/seating.spec.ts` |
 
 Executable: `tests/Feature/Database/PostgreSql/ExamSeatingPostgreSqlTest.php`, `e2e/exams/seating.spec.ts`.
+
+## EXAMIS U8 — exam administration from the web (2026-10-22)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G16 | Create exam | manager creates; same key again | one exam, redirect to it |
+| SC-G16 | Refusals | end before start; no key; `school_id` in body | error / 422, no exam |
+| SC-G16 | Session lifecycle | create → open → close; reopen a completed session | 1 → 2 → 3; refused |
+| SC-G16 | Targets | session of another exam / school | 404, status unchanged |
+| SC-G16 | Access | `grades_teacher`, `grades_viewer` | 403 on every action |
+| SC-G16 | Page | forms + lookups only for users with the permission | Inertia props |
+| SC-G16 | Browser | create exam → add session → start → close (confirm); viewer has no controls | `e2e/exams/administration.spec.ts` |
+
+Executable: `tests/Feature/Database/PostgreSql/ExamAdministrationWebPostgreSqlTest.php`, `e2e/exams/administration.spec.ts`.
+
+## EXAMIS U9 — session candidate roster «كشف المرشحين» (2026-10-23)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G17 | Roster page | every seat of the session with student, seat number, status, grade flag; action flags per permission | Inertia props |
+| SC-G17 | Lifecycle | confirm → present (only once the session is in progress); seat number frozen once present | 1 → 2 → 3; refusals flash `exams.roster.action_refused`, nothing changes |
+| SC-G17 | Lifecycle | seat number → withdraw → reopen → absent; absent is final (withdraw / reopen refused) | as stated |
+| SC-G17 | Refusals | `status=5`, `school_id` in body, no idempotency key | validation errors, unchanged |
+| SC-G17 | Targets | seat of another session; session under another exam; another school's seat / page | 404, unchanged |
+| SC-G17 | Access | `grades_teacher`, `grades_viewer` | 403 on every action |
+| SC-G17 | Browser (manual run, throwaway DB) | link from the exam page; present → «سُجّل حضور الطالب.»; absent through the confirm dialog; 390 px without horizontal scroll | verified 2026-10-23 — no committed e2e spec yet |
+
+Executable: `tests/Feature/Database/PostgreSql/ExamRosterWebPostgreSqlTest.php`.
+
+## EXAMIS U10 — exam types per school «أنواع الامتحانات» (2026-10-23)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G18 | Ownership | migration: `school_id` NOT NULL, UNIQUE (school_id, code), composite FK exams → exam_types (id, school_id), FORCE RLS | another school's type unusable in app (create exam refused) and in DB (FK error) |
+| SC-G18 | Create / replay | manager adds a type; same key again | one row, flash `flash.exams.typeCreated` |
+| SC-G18 | Refusals | weight 150, bad code, `school_id` in body, no key, duplicate code in the school | validation / `exams.types.code_taken`; same code in another school allowed |
+| SC-G18 | Frozen once used | a type used by an exam: change weight or code | `exams.types.locked_in_use`, unchanged; name change allowed |
+| SC-G18 | Isolation | page + exam form list only own types; update another school's type | 404; RLS shows only own rows, none without context |
+| SC-G18 | Access | `grades_teacher`, `grades_viewer` | page read-only (`can_manage` false), POST 403 |
+
+Executable: `tests/Feature/Database/PostgreSql/ExamTypesWebPostgreSqlTest.php` (+ fixtures updated to per-school types).
+
+## EXAMIS U11 — grades / results pages choose instead of raw ids (2026-10-23)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G19 | Grades list | session dropdown = the school's sessions of the year; student names for listed rows | Inertia props |
+| SC-G19 | Results picker | search by code finds own-school students only; chosen student described | candidates / `picker.student` |
+| SC-G19 | Isolation | another school's enrollment on /results, /results/show, /results/transcript | 404 |
+
+Executable: `tests/Feature/Database/PostgreSql/GradesResultsPickersWebPostgreSqlTest.php`. Browser (manual, throwaway DB, 2026-10-23): add type → appears in exam form → exam created; grades dropdown; results search → choose; 390 px no horizontal scroll.
+
+## EXAMIS U12 — term-results sheet (2026-10-23)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G20 | Calculate | finalized + entered + ungraded student | calculated, calculated, `results.term_no_eligible_grades`; no official row; audit |
+| SC-G20 | Finalize | same scene; finalize twice | finalized / `results.official_dataset_incomplete` ×2; second run `already_official`, no new version |
+| SC-G20 | Replay | same key twice | `replayed`, no new versions |
+| SC-G20 | Weights | type weight 40 | per-student `results.term_weight_sum_invalid`, nothing written |
+| SC-G20 | Scope | term of another year, class of another year, section of another class, `enrollment_ids` in body | coded error / validation error; nothing written |
+| SC-G20 | Access | `results_viewer` page read-only, POST 403; `grades_teacher` GET/POST 403 | |
+| SC-G20 | Page | rows = seated students with grade counts and operational/official result | Inertia props |
+
+Executable: `tests/Feature/Database/PostgreSql/TermResultSheetWebPostgreSqlTest.php`.

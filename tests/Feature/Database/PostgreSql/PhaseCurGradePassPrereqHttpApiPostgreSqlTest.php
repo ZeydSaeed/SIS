@@ -151,6 +151,7 @@ final class PhaseCurGradePassPrereqHttpApiPostgreSqlTest extends PostgreSqlInteg
             'updated_at' => now(),
         ]);
         $typeId = (int) DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId([
+            'school_id' => $schoolId,
             'code' => 'MID-CUR6',
             'name' => 'Mid CUR6',
             'weight_percentage' => 40,

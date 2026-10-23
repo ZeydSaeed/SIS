@@ -346,10 +346,11 @@ final class EloquentExamRepository implements ExamRepositoryInterface
             ->exists();
     }
 
-    public function examTypeExists(int $examTypeId): bool
+    public function examTypeExists(int $examTypeId, int $schoolId): bool
     {
         return DB::table(SchemaHelper::qualified('exams', 'exam_types'))
             ->where('id', $examTypeId)
+            ->where('school_id', $schoolId)
             ->exists();
     }
 

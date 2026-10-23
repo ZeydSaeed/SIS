@@ -102,7 +102,15 @@ trait SeedsExamGradeGraph
             'updated_at' => now(),
         ]);
 
+        // Exam types belong to one school (composite FK exams → exam_types).
         $typeId = (int) DB::table('exams.exam_types')->insertGetId([
+            'school_id' => $schoolA,
+            'code' => 'MIDG',
+            'name' => 'Midterm G',
+            'weight_percentage' => 40,
+        ]);
+        $typeIdB = (int) DB::table('exams.exam_types')->insertGetId([
+            'school_id' => $schoolB,
             'code' => 'MIDG',
             'name' => 'Midterm G',
             'weight_percentage' => 40,
@@ -124,7 +132,7 @@ trait SeedsExamGradeGraph
         ]);
 
         $seatA = $this->seedSchoolSeat($schoolA, $yearA, $termA, $typeId, $subjectId, $gradeLevelId, 'A');
-        $seatB = $this->seedSchoolSeat($schoolB, $yearB, $termB, $typeId, $subjectId, $gradeLevelId, 'B');
+        $seatB = $this->seedSchoolSeat($schoolB, $yearB, $termB, $typeIdB, $subjectId, $gradeLevelId, 'B');
 
         return [
             'school_a' => $schoolA,
@@ -134,6 +142,7 @@ trait SeedsExamGradeGraph
             'term_a' => $termA,
             'term_b' => $termB,
             'type_id' => $typeId,
+            'type_id_b' => $typeIdB,
             'subject_id' => $subjectId,
             'grade_level_id' => $gradeLevelId,
             'enrollment_a' => $seatA['enrollment_id'],

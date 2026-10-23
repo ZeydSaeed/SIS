@@ -30,7 +30,7 @@ final class AuditResultRoundingCommandPostgreSqlTest extends PostgreSqlIntegrati
 
         // Second exam (weight 50) in the same term, same subject, same student.
         $typeTwo = (int) DB::table(SchemaHelper::qualified('exams', 'exam_types'))->insertGetId([
-            'code' => 'FIN'.substr(uniqid(), -4), 'name' => 'Final RND', 'weight_percentage' => 50,
+            'school_id' => $school, 'code' => 'FIN'.substr(uniqid(), -4), 'name' => 'Final RND', 'weight_percentage' => 50,
         ]);
         $examTwo = (int) DB::table(SchemaHelper::qualified('exams', 'exams'))->insertGetId([
             'academic_year_id' => $g['year_id'], 'school_id' => $school, 'term_id' => $g['term_id'], 'exam_type_id' => $typeTwo,
