@@ -86,6 +86,9 @@ export default function ResultsIndex({ results, filters, picker, names }: PagePr
                     <a href={`/results/sheet?academic_year_id=${filters.academic_year_id ?? ''}`} className="sis-ops-hub__link ms-2 px-3 py-2 text-sm" dir="rtl" lang="ar">
                         {i18n.results.sheet.title}
                     </a>
+                    <a href={`/results/year-sheet?academic_year_id=${filters.academic_year_id ?? ''}`} className="sis-ops-hub__link ms-2 px-3 py-2 text-sm" dir="rtl" lang="ar">
+                        {i18n.results.yearSheet.title}
+                    </a>
                 </p>
                 <OpsYearFilter
                     action="/results"

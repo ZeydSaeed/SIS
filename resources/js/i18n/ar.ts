@@ -116,6 +116,10 @@ export const ar = {
                 finalize: 'اعتُمدت نتائج الطلاب رسمياً.',
                 partial: 'لم تُعالَج نتائج بعض الطلاب — راجع ملخص التنفيذ.',
             },
+            year: {
+                annual: { calculate: 'احتُسبت النتائج السنوية.', finalize: 'اعتُمدت النتائج السنوية رسمياً.' },
+                gpa: { calculate: 'احتُسب معدل السنة.', finalize: 'اعتُمد معدل السنة رسمياً.' },
+            },
         },
         grades: {
             entered: 'تم إدخال الدرجة.',
@@ -1244,6 +1248,8 @@ export const ar = {
             'results.batch.term_invalid': 'الفصل الدراسي لا يتبع هذه السنة.',
             'results.batch.class_invalid': 'الصف ليس من صفوف المدرسة في هذه السنة.',
             'results.batch.section_invalid': 'الشعبة لا تتبع الصف المختار.',
+            'results.annual_no_term_results': 'لا توجد للطالب نتائج فصول لهذه السنة (احتسب أو اعتمد نتائج الفصول أولاً).',
+            'results.gpa_official_annual_missing': 'لا توجد للطالب نتيجة سنوية رسمية بعد؛ اعتمد النتيجة السنوية أولاً.',
             'grades.idempotency_payload_conflict':
                 'أُرسل هذا الطلب سابقاً بقيم مختلفة؛ أعد تحميل الصفحة وتحقق من الدرجة المحفوظة قبل الإرسال مجدداً.',
             'exams.seating.idempotency_key_required': 'تعذّر الإجلاس: أعد المحاولة.',
@@ -2707,6 +2713,32 @@ export const ar = {
     },
     attendanceSystem: arAttendance,
     results: {
+        yearSheet: {
+            title: 'النتيجة السنوية والمعدل',
+            description: 'احتساب النتيجة السنوية ومعدل السنة لطلاب صف أو شعبة واعتمادهما رسمياً، طالباً طالباً عبر المسار الرسمي.',
+            class: 'الصف',
+            section: 'الشعبة',
+            allSections: 'كل الشعب',
+            pickHint: 'اختر الصف لعرض طلابه.',
+            noRows: 'لا يوجد طلاب نشطون في هذا الصف.',
+            student: 'الطالب',
+            code: 'الرمز',
+            termResults: 'نتائج الفصول',
+            termResultsValue: ':official رسمية من :operational',
+            annualOperational: 'السنوية المحتسبة',
+            annualOfficial: 'السنوية الرسمية',
+            gpaOperational: 'المعدل المحتسب',
+            gpaOfficial: 'المعدل الرسمي',
+            annualActions: 'النتيجة السنوية',
+            gpaActions: 'معدل السنة',
+            calculate: 'احتساب',
+            finalize: 'اعتماد',
+            orderHint: 'الترتيب: تُعتمد نتائج الفصول أولاً، ثم النتيجة السنوية، ثم المعدل (يُبنى على النتيجة السنوية الرسمية).',
+            finalizeConfirmTitle: 'اعتماد رسمي؟',
+            finalizeConfirmDesc:
+                'يُعتمد لكل طالب ما لديه من نتائج رسمية فقط، ويُتخطى من له نتيجة رسمية حالية. إعادة الاعتماد تتم عبر مسار إعادة البناء المستقل.',
+            outcomeTargets: { annual: 'النتيجة السنوية', gpa: 'المعدل' },
+        },
         sheet: {
             title: 'احتساب نتائج الفصل',
             description: 'احتساب نتائج مادة لطلاب صف أو شعبة في فصل دراسي واعتمادها رسمياً، طالباً طالباً عبر المسار الرسمي.',

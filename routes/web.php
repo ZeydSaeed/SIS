@@ -38,6 +38,7 @@ use App\Http\Controllers\Organization\SchoolRegistryController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
 use App\Http\Controllers\Results\TermResultSheetController;
+use App\Http\Controllers\Results\YearResultSheetController;
 use App\Http\Controllers\SchoolContextController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
@@ -388,6 +389,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/sheet', [TermResultSheetController::class, 'show'])->name('sheet');
         Route::post('/sheet/calculate', [TermResultSheetController::class, 'calculate'])->name('sheet.calculate');
         Route::post('/sheet/finalize', [TermResultSheetController::class, 'finalize'])->name('sheet.finalize');
+        Route::get('/year-sheet', [YearResultSheetController::class, 'show'])->name('year-sheet');
+        Route::post('/year-sheet/calculate', [YearResultSheetController::class, 'calculate'])->name('year-sheet.calculate');
+        Route::post('/year-sheet/finalize', [YearResultSheetController::class, 'finalize'])->name('year-sheet.finalize');
     });
 
     Route::prefix('exams')->name('exams.')->middleware('require.school.context')->group(function (): void {

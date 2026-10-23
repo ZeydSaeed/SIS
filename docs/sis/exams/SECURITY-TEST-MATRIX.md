@@ -133,3 +133,17 @@ Executable: `tests/Feature/Database/PostgreSql/GradesResultsPickersWebPostgreSql
 | SC-G20 | Page | rows = seated students with grade counts and operational/official result | Inertia props |
 
 Executable: `tests/Feature/Database/PostgreSql/TermResultSheetWebPostgreSqlTest.php`.
+
+## EXAMIS U13 — annual / GPA sheet (2026-10-23)
+
+| ID | Rule | Test focus | Expected |
+|----|------|------------|----------|
+| SC-G21 | Annual | term results via the term sheet; calculate, finalize, finalize again | calculated ×2 / `results.annual_no_term_results`; finalized only with official term results; then `already_official`, no new version |
+| SC-G21 | GPA | before / after the official annual result; finalize twice | `results.gpa_official_annual_missing`, then calculated → finalized (80.00) → `already_official` |
+| SC-G21 | Replay | same key twice | `replayed`, no new versions |
+| SC-G21 | Scope | class of another year, section of another class, unknown `target`, `enrollment_ids`, missing key | coded / validation error; nothing written |
+| SC-G21 | Access | `results_viewer` read-only, POST 403; `grades_teacher` GET/POST 403 | |
+| SC-G21 | Page | rows = class students with term-result counts, annual and GPA cells | Inertia props |
+
+Executable: `tests/Feature/Database/PostgreSql/YearResultSheetWebPostgreSqlTest.php` (scene shared with the term sheet
+via `tests/Support/Results/SeedsResultSheetScene.php`). Mutation: removing the `already_official` guard fails 2 tests.

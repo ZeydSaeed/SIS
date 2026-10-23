@@ -3,17 +3,14 @@
 namespace Tests\Feature\Database\PostgreSql;
 
 use App\Database\SchemaHelper;
-use App\Domain\Exams\ValueObjects\GradeStatus;
 use App\Infrastructure\Persistence\Eloquent\SecurityAuditLogRecord;
-use App\Models\User;
-use Database\Seeders\SecurityPermissionSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
-use Tests\Support\Exams\SeedsApplicationExamGradeGraph;
+use Tests\Support\Results\SeedsResultSheetScene;
 
 /**
  * EXAMIS U12 — term-results sheet: calculate / finalize the term result of a subject for every seated student of a
@@ -22,54 +19,7 @@ use Tests\Support\Exams\SeedsApplicationExamGradeGraph;
 final class TermResultSheetWebPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
     use InteractsWithSecurity;
-    use SeedsApplicationExamGradeGraph;
-
-    /** @return array<string, mixed> */
-    private function scene(int $weight = 100): array
-    {
-        $school = $this->createSchool('SCH-TRS', 'Term results');
-        $g = $this->seedExamGradeGraph($school, suffix: 'TRS');
-        $this->markSessionInProgressForGradeEntry($g['session_id']);
-        $typeId = (int) DB::table(SchemaHelper::qualified('exams', 'exams'))->where('id', $g['exam_id'])->value('exam_type_id');
-        DB::table(SchemaHelper::qualified('exams', 'exam_types'))->where('id', $typeId)->update(['weight_percentage' => $weight]);
-        $class = (int) $this->createClassForSchool($school, $g['year_id'])->id;
-        $section = (int) $this->createSectionForClass($class)->id;
-
-        $student = function (?string $score, int $status) use ($school, $g, $class, $section): int {
-            $e = $this->createActiveEnrollmentForSchool($school, $g['year_id']);
-            DB::table(SchemaHelper::qualified('enrollment', 'enrollments'))->where('id', $e->id)->update(['class_id' => $class, 'section_id' => $section]);
-            $seat = (int) DB::table(SchemaHelper::qualified('exams', 'exam_enrollments'))->insertGetId([
-                'exam_session_id' => $g['session_id'], 'school_id' => $school, 'enrollment_id' => $e->id, 'status' => 1, 'created_at' => now(),
-            ]);
-            if ($score !== null) {
-                DB::table(SchemaHelper::qualified('exams', 'student_grades'))->insert([
-                    'academic_year_id' => $g['year_id'], 'school_id' => $school, 'exam_enrollment_id' => $seat, 'exam_session_id' => $g['session_id'],
-                    'enrollment_id' => $e->id, 'student_id' => $e->student_id, 'subject_id' => $g['subject_id'], 'score' => $score, 'max_score' => 100,
-                    'is_absent' => false, 'status' => $status, 'is_current' => true, 'entered_at' => now(),
-                    'finalized_at' => $status === GradeStatus::Finalized->value ? now() : null, 'created_at' => now(), 'updated_at' => now(),
-                ]);
-            }
-
-            return (int) $e->id;
-        };
-
-        return $g + [
-            'school' => $school, 'class' => $class, 'section' => $section,
-            'final' => $student('80', GradeStatus::Finalized->value),
-            'entered' => $student('60', GradeStatus::Entered->value),
-            'ungraded' => $student(null, 0),
-        ];
-    }
-
-    private function as(string $role, int $school): User
-    {
-        $user = User::factory()->create();
-        app(SecurityPermissionSeeder::class)->{'grant'.$role}($user, $school);
-        $this->actingAs($user);
-        $this->withSession(['current_school_id' => $school]);
-
-        return $user;
-    }
+    use SeedsResultSheetScene;
 
     /** @param  array<string, mixed>  $s  @return array<string, mixed> */
     private function payload(array $s, array $overrides = []): array

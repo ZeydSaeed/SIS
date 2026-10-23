@@ -8,6 +8,6 @@ final class GpaOfficialAnnualMissingException extends SisDomainException
 {
     public static function forIdentity(): self
     {
-        return new self('results.gpa_official_annual_missing');
+        return new self('results.gpa_official_annual_missing', 'results.gpa_official_annual_missing');
     }
 }

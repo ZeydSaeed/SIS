@@ -248,3 +248,17 @@ the same request replays. **Finalize never re-finalizes:** a student with a curr
 `already_official` and untouched; re-finalizing stays on the separately authorised rebuild path. Per-student outcomes
 use the domain error codes (`results.term_no_eligible_grades`, `results.official_dataset_incomplete`,
 `results.term_weight_sum_invalid`). Audit: `results.web.term_batch.calculate|finalize`.
+
+## SC-G21 — Annual result and year GPA sheet for a class (EXAMIS U13, 2026-10-23)
+
+`GET /results/year-sheet` (`viewOfficial`) · `POST /results/year-sheet/calculate|finalize` (`results.calculate` /
+`results.finalize`) with `target` ∈ {`annual`, `gpa`}. The target is a class (+ optional section) of the school-year
+(`results.batch.class_invalid` / `section_invalid`); the server derives the students (active enrollments of the class /
+section); `enrollment_ids` / `enrollment_id` prohibited; required `X-Idempotency-Key`.
+
+Each student runs through the existing single-student Calculate / Finalize AnnualResult or Gpa command in its own
+transaction with key `sha256(target|mode|key|enrollment)`. **Finalize never re-finalizes:** a student with a current
+official annual result (resp. GPA) is reported `already_official` and untouched; rebuild stays the separate path. The
+order is the existing rule set, nothing new: annual uses the student's current term results (official ones for
+finalize), GPA requires the official annual result (`results.gpa_official_annual_missing`). Audit:
+`results.web.year_batch.{annual|gpa}.{calculate|finalize}`.

@@ -8,6 +8,6 @@ final class AnnualResultNoTermResultsException extends SisDomainException
 {
     public static function forIdentity(): self
     {
-        return new self('results.annual_no_term_results');
+        return new self('results.annual_no_term_results', 'results.annual_no_term_results');
     }
 }
