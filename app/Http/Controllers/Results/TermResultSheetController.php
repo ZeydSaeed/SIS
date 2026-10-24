@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Results;
 
 use App\Application\Results\Commands\ProcessTermResultsBatchCommand;
 use App\Application\Results\Commands\ProcessTermResultsBatchHandler;
+use App\Application\Results\Commands\PublishYearResultsCommand;
+use App\Application\Results\Commands\PublishYearResultsHandler;
+use App\Application\Results\Contracts\ResultPublicationRepositoryInterface;
 use App\Application\Results\Queries\GetTermResultSheetHandler;
 use App\Application\Results\Queries\GetTermResultSheetQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Results\CalculateTermResultsBatchRequest;
 use App\Http\Requests\Results\FinalizeTermResultsBatchRequest;
+use App\Http\Requests\Results\PublishTermResultsRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Infrastructure\Persistence\Eloquent\TermResultRecord;
+use App\Intelligence\Support\CorrelationContext;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
 use App\Security\Audit\SecurityEventType;
 use App\Security\Context\SchoolContext;
@@ -29,7 +34,7 @@ final class TermResultSheetController extends Controller
         private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
-    public function show(Request $request, GetTermResultSheetHandler $handler): Response
+    public function show(Request $request, GetTermResultSheetHandler $handler, ResultPublicationRepositoryInterface $publications): Response
     {
         $this->authorize('viewOfficial', TermResultRecord::class);
         $user = $request->user();
@@ -39,14 +44,20 @@ final class TermResultSheetController extends Controller
         $filters = ['academic_year_id' => $academicYearId, 'term_id' => $int('term_id'), 'subject_id' => $int('subject_id'), 'class_id' => $int('class_id'), 'section_id' => $int('section_id')];
 
         $sheet = $academicYearId === null
-            ? ['terms' => [], 'classes' => [], 'subjects' => [], 'rows' => []]
+            ? ['terms' => [], 'classes' => [], 'subjects' => [], 'rows' => [], 'reconciliation' => ['students' => 0, 'issues' => [], 'ready' => []]]
             : $handler->handle(new GetTermResultSheetQuery($this->schoolContext->requireId(), $academicYearId, $filters['term_id'], $filters['subject_id'], $filters['class_id'], $filters['section_id']));
 
         $this->securityAudit->record(SecurityEventType::ResultsDataAccess, 'results.web.sheet', 'allowed', $user, 'term_results', ['rows' => count($sheet['rows'])]);
 
         return Inertia::render('results/sheet', $sheet + [
             'filters' => $filters,
-            'abilities' => ['calculate' => $user->can('calculate', TermResultRecord::class), 'finalize' => $user->can('finalize', TermResultRecord::class)],
+            'publications' => $academicYearId === null || $filters['class_id'] === null || $filters['term_id'] === null || $filters['subject_id'] === null
+                ? []
+                : array_values(array_filter(
+                    $publications->activeForClass($this->schoolContext->requireId(), $academicYearId, $filters['class_id']),
+                    static fn (array $p): bool => $p['kind'] === 'term' && $p['term_id'] === $filters['term_id'] && $p['subject_id'] === $filters['subject_id'],
+                )),
+            'abilities' => ['calculate' => $user->can('calculate', TermResultRecord::class), 'finalize' => $user->can('finalize', TermResultRecord::class), 'publish' => $user->can('publish', TermResultRecord::class)],
             'outcomes' => $request->session()->get('term_results_outcome'),
         ]);
     }
@@ -59,6 +70,27 @@ final class TermResultSheetController extends Controller
     public function finalize(FinalizeTermResultsBatchRequest $request, ProcessTermResultsBatchHandler $handler): RedirectResponse
     {
         return $this->process($request, $handler, ProcessTermResultsBatchCommand::FINALIZE);
+    }
+
+    public function publish(PublishTermResultsRequest $request, PublishYearResultsHandler $handler): RedirectResponse
+    {
+        $sectionId = $request->validated('section_id');
+        $result = $handler->handle(new PublishYearResultsCommand(
+            schoolId: $this->schoolContext->requireId(),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            classId: (int) $request->validated('class_id'),
+            sectionId: $sectionId !== null ? (int) $sectionId : null,
+            kind: 'term',
+            actorUserId: $request->user()?->id,
+            correlationId: CorrelationContext::id(),
+            termId: (int) $request->validated('term_id'),
+            subjectId: (int) $request->validated('subject_id'),
+        ));
+
+        $this->securityAudit->record(SecurityEventType::ResultsDataModified, 'results.web.term_sheet.publish', 'published', $request->user(),
+            'result_publication:'.$result->publicationId, ['class_id' => (int) $request->validated('class_id'), 'participants' => $result->participants]);
+
+        return redirect()->back()->with('success', 'flash.results.batch.publish');
     }
 
     private function process(FormRequest $request, ProcessTermResultsBatchHandler $handler, string $mode): RedirectResponse

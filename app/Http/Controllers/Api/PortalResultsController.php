@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Application\Results\Contracts\ResultPublicationRepositoryInterface;
 use App\Application\Results\DTOs\IssuedTranscriptMetadataDTO;
 use App\Application\Results\DTOs\OfficialTermResultDTO;
 use App\Application\Results\Queries\GetIssuedTranscriptMetadataHandler;
@@ -26,6 +27,8 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * Student/guardian official-results portal (Phase 7.8). Ranking intentionally absent.
+ * Every official result (term, annual, GPA, transcript) is visible only while an active publication snapshots that exact
+ * version (EXAMIS A1/A3).
  */
 class PortalResultsController extends Controller
 {
@@ -38,6 +41,7 @@ class PortalResultsController extends Controller
     public function officialTerm(
         GetPortalOfficialTermResultRequest $request,
         GetOfficialTermResultHandler $handler,
+        ResultPublicationRepositoryInterface $publications,
     ): JsonResponse {
         $schoolId = $this->schoolContext->requireId();
         $enrollmentId = (int) $request->validated('enrollment_id');
@@ -54,7 +58,7 @@ class PortalResultsController extends Controller
             subjectId: (int) $request->validated('subject_id'),
         ));
 
-        if ($dto === null) {
+        if ($dto === null || ! $publications->isPublished($schoolId, $dto->academicYearId, $enrollmentId, 'term', $dto->resultVersion, $dto->termId, $dto->subjectId)) {
             return $this->notFound('results.term_not_found');
         }
 
@@ -72,6 +76,7 @@ class PortalResultsController extends Controller
     public function officialAnnual(
         GetPortalOfficialAnnualResultRequest $request,
         GetOfficialAnnualResultHandler $handler,
+        ResultPublicationRepositoryInterface $publications,
     ): JsonResponse {
         $schoolId = $this->schoolContext->requireId();
         $enrollmentId = (int) $request->validated('enrollment_id');
@@ -86,7 +91,7 @@ class PortalResultsController extends Controller
             academicYearId: (int) $request->validated('academic_year_id'),
         ));
 
-        if ($dto === null) {
+        if ($dto === null || ! $publications->isPublished($schoolId, $dto->academicYearId, $enrollmentId, 'annual', $dto->resultVersion)) {
             return $this->notFound('results.annual_not_found');
         }
 
@@ -113,6 +118,7 @@ class PortalResultsController extends Controller
     public function officialYearGpa(
         GetPortalOfficialYearGpaRequest $request,
         GetOfficialYearGpaHandler $handler,
+        ResultPublicationRepositoryInterface $publications,
     ): JsonResponse {
         $schoolId = $this->schoolContext->requireId();
         $enrollmentId = (int) $request->validated('enrollment_id');
@@ -127,7 +133,7 @@ class PortalResultsController extends Controller
             academicYearId: (int) $request->validated('academic_year_id'),
         ));
 
-        if ($dto === null) {
+        if ($dto === null || ! $publications->isPublished($schoolId, $dto->academicYearId, $enrollmentId, 'gpa', $dto->resultVersion)) {
             return $this->notFound('results.gpa_not_found');
         }
 
@@ -155,6 +161,7 @@ class PortalResultsController extends Controller
     public function issuedTranscript(
         GetPortalIssuedTranscriptMetadataRequest $request,
         GetIssuedTranscriptMetadataHandler $handler,
+        ResultPublicationRepositoryInterface $publications,
     ): JsonResponse {
         $schoolId = $this->schoolContext->requireId();
         $enrollmentId = (int) $request->validated('enrollment_id');
@@ -169,7 +176,7 @@ class PortalResultsController extends Controller
             academicYearId: (int) $request->validated('academic_year_id'),
         ));
 
-        if ($dto === null) {
+        if ($dto === null || ! $publications->isPublished($schoolId, $dto->academicYearId, $enrollmentId, 'transcript', $dto->transcriptVersion)) {
             return $this->notFound('results.transcript_not_found');
         }
 

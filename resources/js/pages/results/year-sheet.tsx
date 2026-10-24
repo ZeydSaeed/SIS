@@ -4,6 +4,7 @@ import {
     Calculator,
     FileBadge,
     ListOrdered,
+    Send,
     Sigma,
     Stamp,
 } from 'lucide-react';
@@ -20,6 +21,14 @@ import {
     useExamisEditRibbon,
     useExamisHomeFilters,
 } from '@/components/examis/examis-chrome';
+import {
+    PublicationList,
+    type Publication,
+} from '@/components/results/publication-list';
+import {
+    ReconciliationPanel,
+    type Reconciliation,
+} from '@/components/results/reconciliation-panel';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
@@ -65,7 +74,10 @@ type PageProps = {
         calculated_at: string;
     } | null;
     filters: Filters;
+    publications: Publication[];
+    reconciliation: Reconciliation;
     abilities: {
+        publish: boolean;
         calculate: boolean;
         finalize: boolean;
         buildRanking: boolean;
@@ -102,6 +114,8 @@ function YearSheetBody({
     rows,
     ranking,
     filters,
+    publications,
+    reconciliation,
     abilities,
     outcomes,
 }: PageProps) {
@@ -110,6 +124,7 @@ function YearSheetBody({
     const labels = i18n.results.sheet;
     const [working, setWorking] = useState(false);
     const [confirm, setConfirm] = useState<Confirm | null>(null);
+    const [publishing, setPublishing] = useState<Confirm | null>(null);
     const ready = filters.class_id !== null && rows.length > 0;
     const sections =
         classes.find((c) => c.id === filters.class_id)?.sections ?? [];
@@ -210,6 +225,21 @@ function YearSheetBody({
                     : []),
             ],
         });
+        const publish: PageRibbonGroup = {
+            id: 'year-sheet-publish',
+            label: s.publishActions,
+            commands: abilities.publish
+                ? (['annual', 'gpa', 'transcript'] as (Target | 'transcript')[]).map((target) => ({
+                      id: `year-sheet-${target}-publish`,
+                      label: `${s.publish} — ${s.outcomeTargets[target]}`,
+                      title: `${s.publish} — ${s.publishHint}`,
+                      icon: Send,
+                      iconTone: 'ok' as const,
+                      disabled: busy,
+                      onSelect: () => setPublishing(target),
+                  }))
+                : [],
+        };
         const ranks: PageRibbonGroup = {
             id: 'year-sheet-ranking',
             label: s.rankingActions,
@@ -247,6 +277,7 @@ function YearSheetBody({
         return [
             group('annual', s.annualActions),
             group('gpa', s.gpaActions),
+            publish,
             ranks,
         ].filter((g) => g.commands.length > 0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -389,6 +420,26 @@ function YearSheetBody({
                         .join(' · ')}
                 </p>
             ) : null}
+            {filters.class_id !== null ? (
+                <ReconciliationPanel
+                    reconciliation={reconciliation}
+                    namesById={
+                        new Map(rows.map((x) => [x.enrollment_id, x.student_name]))
+                    }
+                />
+            ) : null}
+            {filters.class_id !== null ? (
+                <PublicationList
+                    publications={publications}
+                    canWithdraw={abilities.publish}
+                    kindLabel={(p) =>
+                        s.outcomeTargets[p.kind as keyof typeof s.outcomeTargets]
+                    }
+                    sectionName={(id) =>
+                        sections.find((x) => x.id === id)?.name ?? ''
+                    }
+                />
+            ) : null}
             <AttendanceTable
                 caption={s.title}
                 storageKey="results.year-sheet"
@@ -398,6 +449,27 @@ function YearSheetBody({
                 emptyText={filters.class_id === null ? s.pickHint : s.noRows}
             />
 
+            <ConfirmDialog
+                open={publishing !== null}
+                title={s.publishConfirmTitle}
+                description={s.publishConfirmDesc}
+                confirmLabel={`${s.publish} — ${publishing ? s.outcomeTargets[publishing] : ''}`}
+                confirmPending={working}
+                tone="danger"
+                onConfirm={() => {
+                    if (publishing) {
+                        post('/results/year-sheet/publish', {
+                            target: publishing,
+                        });
+                        setPublishing(null);
+                    }
+                }}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPublishing(null);
+                    }
+                }}
+            />
             <ConfirmDialog
                 open={confirm !== null}
                 title={

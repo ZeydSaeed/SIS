@@ -11,10 +11,12 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
+use Tests\Support\Results\PublishesOfficialResults;
 
 final class Phase78PortalDenyMatrixPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
     use InteractsWithSecurity;
+    use PublishesOfficialResults;
 
     #[Test]
     public function guardian_scope_without_student_guardians_is_forbidden(): void
@@ -202,6 +204,8 @@ final class Phase78PortalDenyMatrixPostgreSqlTest extends PostgreSqlIntegrationT
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $this->publishOfficialResult($schoolId, $yearId, (int) $enrollment->id, 'annual');
 
         return [
             'school_id' => $schoolId,

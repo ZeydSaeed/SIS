@@ -85,6 +85,18 @@ final class GradePolicy
             && $this->schoolAccess->canAccessGrade($user, $grade);
     }
 
+    public function requestReview(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::GRADES_REVIEW_REQUEST)
+            && $this->schoolAccess->canAccessGrade($user);
+    }
+
+    public function decideReview(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::GRADES_REVIEW_DECIDE)
+            && $this->schoolAccess->canAccessGrade($user);
+    }
+
     public function finalize(User $user, StudentGradeRecord|string|int|null $grade = null): bool
     {
         if ($grade === null) {

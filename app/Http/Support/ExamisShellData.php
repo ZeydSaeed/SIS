@@ -30,6 +30,7 @@ final class ExamisShellData
             'types' => $exams,
             'gradeSheet' => $user->can('create', StudentGradeRecord::class),
             'grades' => $user->can('viewAny', StudentGradeRecord::class),
+            'reviews' => $user->can('viewAny', StudentGradeRecord::class),
             'termSheet' => $results,
             'yearSheet' => $results,
             'results' => $results,

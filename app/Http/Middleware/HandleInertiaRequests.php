@@ -61,6 +61,8 @@ class HandleInertiaRequests extends Middleware
             'leaveShell' => fn () => $request->is('leave', 'leave/*') ? app(\App\Http\Support\LeaveShellData::class)->build($request) : null,
             // Exams / grades / results pages: the sections the viewer may open (the shared «الأقسام» ribbon group).
             'examisShell' => fn () => $request->is('exams', 'exams/*', 'grades', 'grades/*', 'results', 'results/*') ? app(\App\Http\Support\ExamisShellData::class)->build($request) : null,
+            // Portal: the «نتائجي» sidebar entry only for viewers the portal results gate admits (the page re-checks).
+            'portalNav' => fn () => ['results' => $request->user()?->can('viewPortalOfficial') ?? false],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

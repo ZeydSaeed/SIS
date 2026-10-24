@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { BadgeCheck, Calculator } from 'lucide-react';
+import { BadgeCheck, Calculator, Send } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AttendanceTable,
@@ -13,6 +13,14 @@ import {
     useExamisEditRibbon,
     useExamisHomeFilters,
 } from '@/components/examis/examis-chrome';
+import {
+    ReconciliationPanel,
+    type Reconciliation,
+} from '@/components/results/reconciliation-panel';
+import {
+    PublicationList,
+    type Publication,
+} from '@/components/results/publication-list';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
@@ -53,7 +61,9 @@ type PageProps = {
     subjects: Option[];
     rows: Row[];
     filters: Filters;
-    abilities: { calculate: boolean; finalize: boolean };
+    publications: Publication[];
+    reconciliation: Reconciliation;
+    abilities: { calculate: boolean; finalize: boolean; publish: boolean };
     outcomes: {
         mode: 'calculate' | 'finalize';
         counts: Record<string, number>;
@@ -85,6 +95,8 @@ function SheetBody({
     subjects,
     rows,
     filters,
+    publications,
+    reconciliation,
     abilities,
     outcomes,
 }: PageProps) {
@@ -92,6 +104,7 @@ function SheetBody({
     const s = i18n.results.sheet;
     const [working, setWorking] = useState(false);
     const [confirmFinalize, setConfirmFinalize] = useState(false);
+    const [confirmPublish, setConfirmPublish] = useState(false);
     const sections =
         classes.find((c) => c.id === filters.class_id)?.sections ?? [];
     const ready =
@@ -116,7 +129,7 @@ function SheetBody({
             { preserveScroll: true },
         );
 
-    const run = (mode: 'calculate' | 'finalize') => {
+    const run = (mode: 'calculate' | 'finalize' | 'publish') => {
         setWorking(true);
         router.post(
             `/results/sheet/${mode}`,
@@ -203,6 +216,19 @@ function SheetBody({
                           iconTone: 'ok' as const,
                           disabled: busy,
                           onSelect: () => setConfirmFinalize(true),
+                      },
+                  ]
+                : []),
+            ...(abilities.publish
+                ? [
+                      {
+                          id: 'term-sheet-publish',
+                          label: s.publish,
+                          title: `${s.publish} — ${s.publishHint}`,
+                          icon: Send,
+                          iconTone: 'ok' as const,
+                          disabled: busy,
+                          onSelect: () => setConfirmPublish(true),
                       },
                   ]
                 : []),
@@ -304,6 +330,24 @@ function SheetBody({
                         .join(' · ')}
                 </p>
             ) : null}
+            {ready ? (
+                <ReconciliationPanel
+                    reconciliation={reconciliation}
+                    namesById={
+                        new Map(rows.map((x) => [x.enrollment_id, x.student_name]))
+                    }
+                />
+            ) : null}
+            {ready ? (
+                <PublicationList
+                    publications={publications}
+                    canWithdraw={abilities.publish}
+                    kindLabel={() => s.publishKind}
+                    sectionName={(id) =>
+                        sections.find((x) => x.id === id)?.name ?? ''
+                    }
+                />
+            ) : null}
             <AttendanceTable
                 caption={s.title}
                 storageKey="results.sheet"
@@ -313,6 +357,19 @@ function SheetBody({
                 emptyText={ready ? s.noRows : s.pickHint}
             />
 
+            <ConfirmDialog
+                open={confirmPublish}
+                title={s.publishConfirmTitle}
+                description={s.publishConfirmDesc}
+                confirmLabel={s.publish}
+                confirmPending={working}
+                tone="danger"
+                onConfirm={() => {
+                    run('publish');
+                    setConfirmPublish(false);
+                }}
+                onOpenChange={setConfirmPublish}
+            />
             <ConfirmDialog
                 open={confirmFinalize}
                 title={s.finalizeConfirmTitle}

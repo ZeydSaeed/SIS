@@ -6,6 +6,7 @@ import {
     GraduationCap,
     ListChecks,
     NotebookPen,
+    Scale,
     ScrollText,
     Settings2,
     type LucideIcon,
@@ -31,6 +32,7 @@ export type ExamisSection =
     | 'types'
     | 'gradeSheet'
     | 'grades'
+    | 'reviews'
     | 'termSheet'
     | 'yearSheet'
     | 'results'
@@ -41,6 +43,7 @@ const MODULE: Record<ExamisSection, 'exams' | 'grades' | 'results'> = {
     types: 'exams',
     gradeSheet: 'grades',
     grades: 'grades',
+    reviews: 'grades',
     termSheet: 'results',
     yearSheet: 'results',
     results: 'results',
@@ -62,6 +65,12 @@ const SECTIONS: Array<{
         tone: 'growth',
     },
     { key: 'grades', href: '/grades', icon: ListChecks, tone: 'forest' },
+    {
+        key: 'reviews',
+        href: '/grades/reviews',
+        icon: Scale,
+        tone: 'amber',
+    },
     {
         key: 'termSheet',
         href: '/results/sheet',

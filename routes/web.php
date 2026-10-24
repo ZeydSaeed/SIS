@@ -20,6 +20,7 @@ use App\Http\Controllers\Exams\ExamRosterController;
 use App\Http\Controllers\Exams\ExamSeatingController;
 use App\Http\Controllers\Exams\ExamTypeController;
 use App\Http\Controllers\Grades\GradeSheetController;
+use App\Http\Controllers\Grades\GradeReviewController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Imports\ImportPageController;
@@ -37,6 +38,7 @@ use App\Http\Controllers\Organization\RoomCataloguePageController;
 use App\Http\Controllers\Organization\SchoolRegistryController;
 use App\Http\Controllers\Reports\ReportsPageController;
 use App\Http\Controllers\Results\ResultsPageController;
+use App\Http\Controllers\Portal\PortalResultsPageController;
 use App\Http\Controllers\Results\TermResultSheetController;
 use App\Http\Controllers\Results\YearResultSheetController;
 use App\Http\Controllers\SchoolContextController;
@@ -381,6 +383,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('enrollment_subjects.store');
     });
 
+    Route::get('portal/results', [PortalResultsPageController::class, 'show'])->middleware('require.school.context')->name('portal.results');
+
     Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ResultsPageController::class, 'index'])->name('index');
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
@@ -389,9 +393,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/sheet', [TermResultSheetController::class, 'show'])->name('sheet');
         Route::post('/sheet/calculate', [TermResultSheetController::class, 'calculate'])->name('sheet.calculate');
         Route::post('/sheet/finalize', [TermResultSheetController::class, 'finalize'])->name('sheet.finalize');
+        Route::post('/sheet/publish', [TermResultSheetController::class, 'publish'])->name('sheet.publish');
         Route::get('/year-sheet', [YearResultSheetController::class, 'show'])->name('year-sheet');
         Route::post('/year-sheet/calculate', [YearResultSheetController::class, 'calculate'])->name('year-sheet.calculate');
         Route::post('/year-sheet/finalize', [YearResultSheetController::class, 'finalize'])->name('year-sheet.finalize');
+        Route::post('/year-sheet/publish', [YearResultSheetController::class, 'publish'])->name('year-sheet.publish');
+        Route::post('/year-sheet/publications/{publication}/withdraw', [YearResultSheetController::class, 'withdraw'])->whereNumber('publication')->name('year-sheet.withdraw');
         Route::post('/year-sheet/ranking', [YearResultSheetController::class, 'ranking'])->name('year-sheet.ranking');
         Route::post('/year-sheet/transcripts', [YearResultSheetController::class, 'transcripts'])->name('year-sheet.transcripts');
     });
@@ -447,6 +454,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/sheet/{session}', [GradeSheetController::class, 'store'])->whereNumber('session')->name('sheet.store');
         Route::post('/', [GradesPageController::class, 'store'])->name('store');
         Route::get('/actions', [GradesPageController::class, 'actions'])->name('actions');
+        Route::get('/reviews', [GradeReviewController::class, 'index'])->name('reviews');
+        Route::post('/reviews', [GradeReviewController::class, 'store'])->name('reviews.store');
+        Route::post('/reviews/{review}/start', [GradeReviewController::class, 'start'])->whereNumber('review')->name('reviews.start');
+        Route::post('/reviews/{review}/decide', [GradeReviewController::class, 'decide'])->whereNumber('review')->name('reviews.decide');
+        Route::post('/reviews/{review}/withdraw', [GradeReviewController::class, 'withdraw'])->whereNumber('review')->name('reviews.withdraw');
         Route::post('/{grade}/correct', [GradesPageController::class, 'correct'])->name('correct');
         Route::post('/{grade}/void', [GradesPageController::class, 'void'])->name('void');
         Route::post('/{grade}/finalize', [GradesPageController::class, 'finalize'])->name('finalize');

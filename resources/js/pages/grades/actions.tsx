@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { BadgeCheck, Ban, ListChecks, Pencil } from 'lucide-react';
+import { BadgeCheck, Ban, ListChecks, MessageSquareWarning, Pencil } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AttendanceWindow,
@@ -77,6 +77,7 @@ function ActionsBody({ grade, filters }: PageProps) {
     } | null>(null);
     const [voidReason, setVoidReason] = useState<string | null>(null);
     const [confirmFinalize, setConfirmFinalize] = useState(false);
+    const [reviewReason, setReviewReason] = useState<string | null>(null);
     const open = grade !== null && grade.is_current && grade.status !== VOIDED;
 
     const ribbon = useMemo((): PageRibbonGroup[] => {
@@ -121,6 +122,15 @@ function ActionsBody({ grade, filters }: PageProps) {
                         onSelect: () => setConfirmFinalize(true),
                     },
                     {
+                        id: 'grade-review-open',
+                        label: t().gradeReviews.open,
+                        icon: MessageSquareWarning,
+                        iconTone: 'rose',
+                        disabled: none,
+                        title: `${t().gradeReviews.open} — ${t().gradeReviews.openHint}`,
+                        onSelect: () => setReviewReason(''),
+                    },
+                    {
                         id: 'grade-back',
                         label: i18n.common.backToList,
                         icon: ListChecks,
@@ -143,6 +153,25 @@ function ActionsBody({ grade, filters }: PageProps) {
             : [],
         g.actionsTitle,
     );
+
+    const openReview = async (): Promise<boolean> => {
+        if (grade === null || reviewReason === null) {
+            return false;
+        }
+        setBusy(true);
+        const ok = await request(
+            '/grades/reviews',
+            {
+                grade_id: grade.id,
+                academic_year_id: grade.academic_year_id,
+                reason: reviewReason,
+            },
+            'review-open',
+        );
+        setBusy(false);
+
+        return ok;
+    };
 
     const post = async (
         action: 'correct' | 'void' | 'finalize',
@@ -305,6 +334,34 @@ function ActionsBody({ grade, filters }: PageProps) {
                                     label={g.reason}
                                     value={voidReason}
                                     onChange={setVoidReason}
+                                />
+                            ),
+                        },
+                    ]}
+                />
+            ) : null}
+
+            {reviewReason !== null ? (
+                <AttendanceWindow
+                    title={t().gradeReviews.open}
+                    pending={busy}
+                    confirmLabel={t().gradeReviews.open}
+                    confirmDisabled={reviewReason.trim().length < 3}
+                    onConfirm={() =>
+                        void openReview().then(
+                            (ok) => ok && setReviewReason(null),
+                        )
+                    }
+                    onClose={() => setReviewReason(null)}
+                    sections={[
+                        {
+                            id: 'grade-review-open',
+                            title: t().gradeReviews.openHint,
+                            content: (
+                                <WindowTextArea
+                                    label={t().gradeReviews.reason}
+                                    value={reviewReason}
+                                    onChange={setReviewReason}
                                 />
                             ),
                         },

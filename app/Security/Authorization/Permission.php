@@ -37,6 +37,10 @@ final class Permission
 
     public const GRADES_FINALIZE = 'grades.finalize';
 
+    public const GRADES_REVIEW_REQUEST = 'grades.review.request';
+
+    public const GRADES_REVIEW_DECIDE = 'grades.review.decide';
+
     public const EXAM_VIEW = 'exam.view';
 
     public const EXAM_CREATE = 'exam.create';
@@ -126,6 +130,8 @@ final class Permission
     public const RESULTS_TRANSCRIPT_ISSUE = 'results.transcript.issue';
 
     public const RESULTS_REBUILD = 'results.rebuild';
+
+    public const RESULTS_PUBLISH = 'results.publish';
 
     public const PORTAL_RESULTS_VIEW = 'portal.results.view';
 
@@ -227,6 +233,8 @@ final class Permission
             self::GRADES_CORRECT,
             self::GRADES_VOID,
             self::GRADES_FINALIZE,
+            self::GRADES_REVIEW_REQUEST,
+            self::GRADES_REVIEW_DECIDE,
             self::EXAM_VIEW,
             self::EXAM_CREATE,
             self::EXAM_UPDATE,
@@ -271,6 +279,7 @@ final class Permission
             self::RESULTS_RANKING_BUILD,
             self::RESULTS_TRANSCRIPT_ISSUE,
             self::RESULTS_REBUILD,
+            self::RESULTS_PUBLISH,
             self::PORTAL_RESULTS_VIEW,
             self::PORTAL_SCOPES_MANAGE,
             self::TEACHERS_VIEW,

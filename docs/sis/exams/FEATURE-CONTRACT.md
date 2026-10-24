@@ -1,7 +1,8 @@
 # Exams Feature Contract (Phase 3B.1)
 
 **Bounded context:** `Exams`  
-**Folders:** `app/Domain/Exams`, `app/Application/Exams`, `app/Infrastructure/Persistence/Exams`
+**Folders:** `app/Domain/Exams`, `app/Application/Exams`, `app/Infrastructure/Persistence/Exams`  
+**Target design and roadmap:** [EXAMIS-TARGET-DESIGN.md](EXAMIS-TARGET-DESIGN.md)
 
 ## Allowed
 

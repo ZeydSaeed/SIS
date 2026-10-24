@@ -48,6 +48,12 @@ final class ResultsPolicy
             && $this->schoolAccess->canAccessResults($user);
     }
 
+    public function publish(User $user): bool
+    {
+        return $this->authorization->userHasPermission($user, Permission::RESULTS_PUBLISH)
+            && $this->schoolAccess->canAccessResults($user);
+    }
+
     public function rebuild(User $user): bool
     {
         return $this->authorization->userHasPermission($user, Permission::RESULTS_REBUILD)

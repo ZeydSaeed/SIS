@@ -1,5 +1,5 @@
-import { Link } from '@inertiajs/react';
-import { LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { LayoutGrid, ScrollText } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -21,6 +21,7 @@ import type { NavItem } from '@/types';
 export function AppSidebar() {
     const i18n = t();
     const { isCurrentUrl } = useCurrentUrl();
+    const portalNav = usePage<{ portalNav?: { results: boolean } }>().props.portalNav;
     const mainNavItems: NavItem[] = getSisModuleNavItems()
         .filter((item) => !item.sidebarOnly)
         .map((item) => ({
@@ -28,6 +29,13 @@ export function AppSidebar() {
             href: item.href,
             icon: item.icon,
         }));
+    if (portalNav?.results === true) {
+        mainNavItems.push({
+            title: i18n.portalResults.title,
+            href: '/portal/results',
+            icon: ScrollText,
+        });
+    }
 
     return (
         <Sidebar collapsible="icon" variant="inset" side="right">

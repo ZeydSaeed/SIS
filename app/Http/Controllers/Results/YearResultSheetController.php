@@ -9,6 +9,11 @@ use App\Application\Results\Commands\IssueTranscriptsBatchHandler;
 use App\Application\Results\Commands\ProcessTermResultsBatchCommand;
 use App\Application\Results\Commands\ProcessYearResultsBatchCommand;
 use App\Application\Results\Commands\ProcessYearResultsBatchHandler;
+use App\Application\Results\Commands\PublishYearResultsCommand;
+use App\Application\Results\Commands\PublishYearResultsHandler;
+use App\Application\Results\Commands\WithdrawResultPublicationCommand;
+use App\Application\Results\Commands\WithdrawResultPublicationHandler;
+use App\Application\Results\Contracts\ResultPublicationRepositoryInterface;
 use App\Application\Results\Queries\GetYearResultSheetHandler;
 use App\Application\Results\Queries\GetYearResultSheetQuery;
 use App\Application\Results\Support\TermResultsBatchTargetValidator;
@@ -17,6 +22,8 @@ use App\Http\Requests\Results\BuildRankingSnapshotRequest;
 use App\Http\Requests\Results\CalculateYearResultsBatchRequest;
 use App\Http\Requests\Results\FinalizeYearResultsBatchRequest;
 use App\Http\Requests\Results\IssueTranscriptsBatchRequest;
+use App\Http\Requests\Results\PublishYearResultsRequest;
+use App\Http\Requests\Results\WithdrawResultPublicationRequest;
 use App\Http\Support\AcademicYearContextResolver;
 use App\Infrastructure\Persistence\Eloquent\TermResultRecord;
 use App\Intelligence\Support\CorrelationContext;
@@ -41,7 +48,7 @@ final class YearResultSheetController extends Controller
         private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
-    public function show(Request $request, GetYearResultSheetHandler $handler): Response
+    public function show(Request $request, GetYearResultSheetHandler $handler, ResultPublicationRepositoryInterface $publications): Response
     {
         $this->authorize('viewOfficial', TermResultRecord::class);
         $user = $request->user();
@@ -51,14 +58,21 @@ final class YearResultSheetController extends Controller
         $filters = ['academic_year_id' => $academicYearId, 'class_id' => $int('class_id'), 'section_id' => $int('section_id')];
 
         $sheet = $academicYearId === null
-            ? ['classes' => [], 'rows' => [], 'ranking' => null]
+            ? ['classes' => [], 'rows' => [], 'ranking' => null, 'reconciliation' => ['students' => 0, 'issues' => [], 'ready' => []]]
             : $handler->handle(new GetYearResultSheetQuery($this->schoolContext->requireId(), $academicYearId, $filters['class_id'], $filters['section_id']));
 
         $this->securityAudit->record(SecurityEventType::ResultsDataAccess, 'results.web.year_sheet', 'allowed', $user, 'annual_results', ['rows' => count($sheet['rows'])]);
 
         return Inertia::render('results/year-sheet', $sheet + [
             'filters' => $filters,
+            'publications' => $academicYearId === null || $filters['class_id'] === null
+                ? []
+                : array_values(array_filter(
+                    $publications->activeForClass($this->schoolContext->requireId(), $academicYearId, $filters['class_id']),
+                    static fn (array $p): bool => $p['kind'] !== 'term',
+                )),
             'abilities' => [
+                'publish' => $user->can('publish', TermResultRecord::class),
                 'calculate' => $user->can('calculate', TermResultRecord::class),
                 'finalize' => $user->can('finalize', TermResultRecord::class),
                 'buildRanking' => $user->can('buildRanking', TermResultRecord::class),
@@ -90,6 +104,35 @@ final class YearResultSheetController extends Controller
         $this->securityAudit->record(SecurityEventType::ResultsDataModified, 'results.web.year_sheet.ranking', 'built', $request->user(), 'ranking_snapshot:'.($result->rankingSnapshotId ?? 'unknown'), ['class_id' => $classId]);
 
         return redirect()->back()->with('success', 'flash.results.year.ranking');
+    }
+
+    public function publish(PublishYearResultsRequest $request, PublishYearResultsHandler $handler): RedirectResponse
+    {
+        $sectionId = $request->validated('section_id');
+        $target = (string) $request->validated('target');
+        $result = $handler->handle(new PublishYearResultsCommand(
+            schoolId: $this->schoolContext->requireId(),
+            academicYearId: (int) $request->validated('academic_year_id'),
+            classId: (int) $request->validated('class_id'),
+            sectionId: $sectionId !== null ? (int) $sectionId : null,
+            kind: $target,
+            actorUserId: $request->user()?->id,
+            correlationId: CorrelationContext::id(),
+        ));
+
+        $this->securityAudit->record(SecurityEventType::ResultsDataModified, "results.web.year_sheet.{$target}.publish", 'published', $request->user(),
+            'result_publication:'.$result->publicationId, ['class_id' => (int) $request->validated('class_id'), 'participants' => $result->participants]);
+
+        return redirect()->back()->with('success', "flash.results.year.{$target}.publish");
+    }
+
+    public function withdraw(WithdrawResultPublicationRequest $request, int $publication, WithdrawResultPublicationHandler $handler): RedirectResponse
+    {
+        $handler->handle(new WithdrawResultPublicationCommand($this->schoolContext->requireId(), $publication, (string) $request->validated('reason'), $request->user()?->id, $request->header('X-Idempotency-Key')));
+
+        $this->securityAudit->record(SecurityEventType::ResultsDataModified, 'results.web.year_sheet.withdraw', 'withdrawn', $request->user(), 'result_publication:'.$publication, []);
+
+        return redirect()->back()->with('success', 'flash.results.year.withdraw');
     }
 
     public function transcripts(IssueTranscriptsBatchRequest $request, IssueTranscriptsBatchHandler $handler): RedirectResponse

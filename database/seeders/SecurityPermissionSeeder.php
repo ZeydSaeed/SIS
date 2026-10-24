@@ -151,6 +151,12 @@ class SecurityPermissionSeeder extends Seeder
         $this->assignRole($user, 'results_manager', $schoolId);
     }
 
+    public function grantResultsPublisher(User $user, ?int $schoolId = null): void
+    {
+        $this->run();
+        $this->assignRole($user, 'results_publisher', $schoolId);
+    }
+
     public function grantPortalResultsViewer(User $user, ?int $schoolId = null): void
     {
         $this->run();

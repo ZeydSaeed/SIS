@@ -8,13 +8,16 @@ use App\Domain\Results\ValueObjects\ResultsLifecycleStatus;
 use App\Security\Authorization\Permission;
 use App\Security\Authorization\PortalScopeType;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
 use Tests\Support\Database\PostgreSqlIntegrationTestCase;
+use Tests\Support\Results\PublishesOfficialResults;
 
 final class Phase78PortalResultsHttpApiPostgreSqlTest extends PostgreSqlIntegrationTestCase
 {
     use InteractsWithSecurity;
+    use PublishesOfficialResults;
 
     #[Test]
     public function portal_results_view_permission_is_registered(): void
@@ -60,6 +63,75 @@ final class Phase78PortalResultsHttpApiPostgreSqlTest extends PostgreSqlIntegrat
             $seed['year_id'],
         ))->assertOk()
             ->assertJsonPath('data.transcript_id', $seed['transcript_id']);
+    }
+
+    #[Test]
+    public function withdrawn_publication_hides_every_official_result(): void
+    {
+        $seed = $this->seedOfficialResults('WDRAWN');
+        $user = $this->actingAsPortalResultsViewerForSchool($seed['school_id']);
+        $this->linkStudentScope((int) $user->id, $seed['student_id']);
+        DB::table(SchemaHelper::qualified('results', 'result_publications'))->where('school_id', $seed['school_id'])
+            ->update(['status' => 'withdrawn', 'withdrawn_at' => now(), 'withdraw_reason' => 'test']);
+        $query = sprintf('enrollment_id=%d&academic_year_id=%d', $seed['enrollment_id'], $seed['year_id']);
+
+        $this->getJson('/api/v1/portal/results/annual?'.$query)->assertNotFound()->assertJsonPath('error_code', 'results.annual_not_found');
+        $this->getJson('/api/v1/portal/results/gpa?'.$query)->assertNotFound()->assertJsonPath('error_code', 'results.gpa_not_found');
+        $this->getJson('/api/v1/portal/results/transcripts/issued?'.$query)->assertNotFound()->assertJsonPath('error_code', 'results.transcript_not_found');
+        $this->getJson(sprintf('/api/v1/portal/results/term?%s&term_id=%d&subject_id=%d', $query, $seed['term_id'], $seed['subject_id']))->assertNotFound();
+    }
+
+    #[Test]
+    public function a_newer_official_version_is_hidden_until_it_is_published_again(): void
+    {
+        $seed = $this->seedOfficialResults('NEWVER');
+        $user = $this->actingAsPortalResultsViewerForSchool($seed['school_id']);
+        $this->linkStudentScope((int) $user->id, $seed['student_id']);
+        $annual = SchemaHelper::qualified('results', 'annual_results');
+        // A rebuild: the published version 1 is superseded by an official version 2.
+        DB::table($annual)->where('id', $seed['annual_id'])->update(['result_version' => 2]);
+        $url = sprintf('/api/v1/portal/results/annual?enrollment_id=%d&academic_year_id=%d', $seed['enrollment_id'], $seed['year_id']);
+
+        $this->getJson($url)->assertNotFound();
+        DB::table(SchemaHelper::qualified('results', 'result_publications'))->where('school_id', $seed['school_id'])
+            ->update(['status' => 'withdrawn', 'withdrawn_at' => now(), 'withdraw_reason' => 'republish']);
+        $this->publishOfficialResult($seed['school_id'], $seed['year_id'], $seed['enrollment_id'], 'annual', 2);
+        $this->getJson($url)->assertOk()->assertJsonPath('data.result_version', 2);
+    }
+
+    #[Test]
+    public function web_page_lists_only_published_results_of_the_users_own_students(): void
+    {
+        $mine = $this->seedOfficialResults('WEB-A');
+        $other = $this->seedOfficialResults('WEB-B');
+        $user = $this->actingAsPortalResultsViewerForSchool($mine['school_id']);
+        $this->linkStudentScope((int) $user->id, $mine['student_id']);
+
+        $this->get('/portal/results')->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('portal/results')
+            ->has('rows', 1)
+            ->where('rows.0.enrollment_id', $mine['enrollment_id'])
+            ->where('rows.0.annual.version', 1)
+            ->where('rows.0.gpa.version', 1)
+            ->has('rows.0.terms', 1)
+            ->where('rows.0.transcript.version', 1));
+        $this->assertNotSame($mine['enrollment_id'], $other['enrollment_id']);
+
+        DB::table(SchemaHelper::qualified('results', 'result_publications'))->where('school_id', $mine['school_id'])
+            ->update(['status' => 'withdrawn', 'withdrawn_at' => now(), 'withdraw_reason' => 'test']);
+        $this->get('/portal/results')->assertOk()->assertInertia(fn (Assert $page) => $page->has('rows', 0));
+    }
+
+    #[Test]
+    public function web_page_needs_the_portal_permission_and_a_scope(): void
+    {
+        $seed = $this->seedOfficialResults('WEB-C');
+
+        $this->actingAsPortalResultsViewerForSchool($seed['school_id']);
+        $this->get('/portal/results')->assertOk()->assertInertia(fn (Assert $page) => $page->has('rows', 0));
+
+        $this->actingAsResultsViewerForSchool($seed['school_id']);
+        $this->get('/portal/results')->assertForbidden();
     }
 
     #[Test]
@@ -273,6 +345,11 @@ final class Phase78PortalResultsHttpApiPostgreSqlTest extends PostgreSqlIntegrat
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $this->publishOfficialResult($schoolId, $yearId, (int) $enrollment->id, 'annual');
+        $this->publishOfficialResult($schoolId, $yearId, (int) $enrollment->id, 'gpa');
+        $this->publishOfficialResult($schoolId, $yearId, (int) $enrollment->id, 'transcript');
+        $this->publishOfficialResult($schoolId, $yearId, (int) $enrollment->id, 'term', 1, $termId, $subjectId);
 
         return [
             'school_id' => $schoolId,

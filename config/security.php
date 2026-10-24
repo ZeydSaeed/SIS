@@ -18,6 +18,8 @@ return [
         'grades.correct' => 'Correct student grades',
         'grades.void' => 'Void student grades',
         'grades.finalize' => 'Finalize student grades',
+        'grades.review.request' => 'Open or withdraw a review (objection) of an official grade',
+        'grades.review.decide' => 'Take and decide grade reviews (accept = official correction, reject); never on own request or own entry',
         'exam.view' => 'View exams, sessions, and exam enrollments',
         'exam.create' => 'Create exams',
         'exam.update' => 'Update exams',
@@ -62,6 +64,7 @@ return [
         'results.ranking.build' => 'Build comparative ranking snapshots',
         'results.transcript.issue' => 'Issue transcript metadata (no PDF bytes)',
         'results.rebuild' => 'Rebuild operational or official term/annual/GPA results',
+        'results.publish' => 'Publish or withdraw official annual results / year GPA to students (separate from finalize)',
         'portal.results.view' => 'View own or linked-student official results via portal (ownership required)',
         'portal.scopes.manage' => 'Link/unlink/list portal party scopes (student|guardian) for users',
         'teachers.view' => 'View teachers assigned to the current school',
@@ -144,6 +147,8 @@ return [
             'grades.correct',
             'grades.void',
             'grades.finalize',
+            'grades.review.request',
+            'grades.review.decide',
             'exam.view',
             'exam.create',
             'exam.update',
@@ -229,6 +234,11 @@ return [
             'results.ranking.build',
             'results.transcript.issue',
             'results.rebuild',
+        ],
+        // Separation of duties: publishing official results is not implied by calculating or finalizing them.
+        'results_publisher' => [
+            'results.view',
+            'results.publish',
         ],
         'portal_results_viewer' => [
             'portal.results.view',
