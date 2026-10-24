@@ -40,6 +40,11 @@ final class EloquentTermResultRepository implements TermResultRepositoryInterfac
                     ->on('ex.school_id', '=', 'g.school_id');
             })
             ->join("{$types} as et", 'et.id', '=', 'ex.exam_type_id')
+            ->leftJoin(SchemaHelper::qualified('exams', 'exam_type_weight_versions').' as wv', static function ($join): void {
+                // the newest per-year weight version of the type, if the year has one
+                $join->on('wv.exam_type_id', '=', 'et.id')->on('wv.academic_year_id', '=', 'g.academic_year_id')
+                    ->whereRaw('wv.version_no = (SELECT max(v2.version_no) FROM exams.exam_type_weight_versions v2 WHERE v2.exam_type_id = wv.exam_type_id AND v2.academic_year_id = wv.academic_year_id)');
+            })
             ->where('g.school_id', $schoolId)
             ->where('g.enrollment_id', $enrollmentId)
             ->where('g.academic_year_id', $academicYearId)
@@ -50,7 +55,8 @@ final class EloquentTermResultRepository implements TermResultRepositoryInterfac
             ->select([
                 'g.id as grade_id',
                 'et.id as exam_type_id',
-                'et.weight_percentage',
+                DB::raw('COALESCE(wv.weight_percentage, et.weight_percentage) as weight_percentage'),
+                'wv.version_no as weight_version',
                 'g.score',
                 'g.max_score',
                 'g.is_absent',
@@ -68,6 +74,7 @@ final class EloquentTermResultRepository implements TermResultRepositoryInterfac
                 maxScore: (string) $row->max_score,
                 isAbsent: (bool) $row->is_absent,
                 status: (int) $row->status,
+                weightVersion: $row->weight_version === null ? null : (int) $row->weight_version,
             );
         }
 

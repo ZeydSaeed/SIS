@@ -63,7 +63,7 @@ final class ExamTypesWebPostgreSqlTest extends PostgreSqlIntegrationTestCase
         $this->get('/exams/types')->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('exams/types')
             ->where('can_manage', true)
-            ->where('types.data', [['id' => $types[0]['id'], 'code' => 'MID', 'name' => 'نصف السنة', 'weight_percentage' => 40, 'in_use' => false]]));
+            ->where('types.data', [['id' => $types[0]['id'], 'code' => 'MID', 'name' => 'نصف السنة', 'weight_percentage' => 40, 'in_use' => false, 'year_weight' => 40, 'year_version' => null, 'history' => []]]));
     }
 
     #[Test]

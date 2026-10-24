@@ -232,7 +232,7 @@ function YearSheetBody({
                 ? (['annual', 'gpa', 'transcript'] as (Target | 'transcript')[]).map((target) => ({
                       id: `year-sheet-${target}-publish`,
                       label: `${s.publish} — ${s.outcomeTargets[target]}`,
-                      title: `${s.publish} — ${s.publishHint}`,
+                      title: `${s.publish} — ${s.outcomeTargets[target]} — ${s.publishHint}`,
                       icon: Send,
                       iconTone: 'ok' as const,
                       disabled: busy,

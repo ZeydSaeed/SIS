@@ -408,6 +408,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/types', [ExamTypeController::class, 'index'])->name('types.index');
         Route::post('/types', [ExamTypeController::class, 'store'])->name('types.store');
         Route::post('/types/{type}', [ExamTypeController::class, 'update'])->whereNumber('type')->name('types.update');
+        Route::post('/types/{type}/weights', [ExamTypeController::class, 'weightVersion'])->whereNumber('type')->name('types.weights');
         Route::get('/{exam}', [ExamPageController::class, 'show'])->whereNumber('exam')->name('show');
         Route::post('/', [ExamAdministrationController::class, 'store'])->name('store');
         Route::post('/{exam}/sessions', [ExamAdministrationController::class, 'storeSession'])

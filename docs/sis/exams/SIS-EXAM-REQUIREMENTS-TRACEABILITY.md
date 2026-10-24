@@ -147,3 +147,21 @@ Status legend: `VERIFIED` (code + tests seen) · `PARTIAL` · `MISSING` · `BLOC
 ## ADRs written for review (2026-10-24) — no code
 `.cursor/architecture/adr/ADR-024-question-bank-and-rubrics.md` and `ADR-025-online-exam-delivery.md`, status **Proposed**.
 Rows 3, 4, 5, 7, 17 stay MISSING/BLOCKED until the owner answers the "Decisions needed" lists in the ADRs.
+
+## C — per-year weight versions of exam types (2026-10-24)
+
+- Row 1/2 → PARTIAL+: migration `2026_10_24_130000_create_exams_exam_type_weight_versions` (`exams.exam_type_weight_versions`:
+  composite FK to `exam_types (id, school_id)`, year FK, version numbers unique per type+year, reason required, INSERT-only
+  guard trigger `ENABLE ALWAYS`, RLS + FORCE). The base weight on `exam_types` stays the default; the newest version of the
+  year wins. `SaveExamTypeWeightVersionHandler` (idempotent, `exam.type.manage`), listing returns `year_weight` /
+  `year_version` / `history`, page `/exams/types` has a year filter, a «وزن السنة» column and «إصدار وزن للسنة».
+- Calculation (`EloquentTermResultRepository`) reads the effective weight; `policy_pin.weights[type] = {weight, version}`;
+  the source fingerprint includes the weights ONLY when a version exists, so results computed from base weights keep the
+  fingerprint they always had. Creating a version never recalculates stored results (tested by comparing rows before/after).
+  Weights that do not total 100 still fail closed at calculation.
+- Defaults chosen (no academic decision was given; each is the least-assuming option and is reversible): applies to one
+  academic year; effective for calculations made after the version is created (no effective-date column); same permission as
+  exam types; no recompute. Still open (D1): effective dates, separate approver, pass-threshold / absence / second-round
+  policies (rows 1, 10 stay PARTIAL).
+- Tests: `ExamTypeWeightVersionWebPostgreSqlTest` (6); filter `Grade|Permission|Exam|Result|Portal|Security|Phase7` → 282 passed;
+  `tests/Unit/Results` 29 passed. Live `sis`: migration applied, RLS + FORCE true. Browser check: NOT VERIFIED.

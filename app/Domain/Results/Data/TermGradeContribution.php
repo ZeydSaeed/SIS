@@ -15,5 +15,6 @@ final readonly class TermGradeContribution
         public string $maxScore,
         public bool $isAbsent,
         public int $status,
+        public ?int $weightVersion = null,
     ) {}
 }

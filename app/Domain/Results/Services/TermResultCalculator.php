@@ -71,9 +71,12 @@ final class TermResultCalculator
         }
 
         $weightsByType = [];
+        $weightPin = [];
         foreach ($eligible as $row) {
             $weightsByType[$row->examTypeId] = $row->weightPercentage;
+            $weightPin[$row->examTypeId] = ['weight' => $row->weightPercentage, 'version' => $row->weightVersion];
         }
+        ksort($weightPin);
         $weightSum = array_sum($weightsByType);
         if (abs($weightSum - 100.0) > self::WEIGHT_EPSILON) {
             throw TermResultWeightException::sumNotOneHundred(number_format($weightSum, 2, '.', ''));
@@ -114,7 +117,7 @@ final class TermResultCalculator
         }
 
         sort($gradeIds);
-        $fingerprint = hash('sha256', implode(',', $gradeIds).'|'.$weightSum.'|'.$mode);
+        $fingerprint = hash('sha256', implode(',', $gradeIds).'|'.$weightSum.'|'.$mode.self::versionedWeights($weightPin));
 
         return new TermResultCalculation(
             weightedTotal: $weightedTotal,
@@ -128,7 +131,25 @@ final class TermResultCalculator
                 'weight_rule' => 'sum_100_fail_closed',
                 'absent' => 'exclude_incomplete',
                 'source_grade_ids' => $gradeIds,
+                'weights' => $weightPin,
             ], $policyPin),
         );
+    }
+
+    /**
+     * A per-year weight version changes the result without changing the grades, so it must change the fingerprint. Results
+     * computed from base weights only keep the fingerprint they always had.
+     *
+     * @param  array<int, array{weight: int, version: ?int}>  $weightPin
+     */
+    private static function versionedWeights(array $weightPin): string
+    {
+        foreach ($weightPin as $pin) {
+            if ($pin['version'] !== null) {
+                return '|w:'.json_encode($weightPin, JSON_THROW_ON_ERROR);
+            }
+        }
+
+        return '';
     }
 }
