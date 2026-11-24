@@ -16,9 +16,7 @@ import {
     tableStatusCellClass,
 } from '@/components/sis/table-status-badge';
 import {
-    catalogAllSubjectTableRows,
     catalogBranches,
-    catalogCurriculumTableRows,
     catalogDepartmentsForBranch,
     catalogSubjectsFor,
 } from '@/components/curriculum/curriculum-subject-catalog';
@@ -1002,7 +1000,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
 
     const catalogSubjectRows = useMemo(() => {
         const query = filters.q.trim().toLowerCase();
-        const catalogNames = new Set<string>();
+        // Database subjects only: the fixed catalog is a reference, never listed as data.
         const rows: Array<{
             id: number | null;
             name: string;
@@ -1013,27 +1011,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             pass_grade: number;
             status: number;
             prerequisites: string;
-        }> = catalogAllSubjectTableRows().map((row) => {
-            const fromDb = subjectsByName.get(row.name);
-            catalogNames.add(row.name);
-
-            return {
-                id: fromDb?.id ?? null,
-                name: row.name,
-                name_en: fromDb?.name_en?.trim() || '',
-                subject_type: fromDb?.subject_type ?? row.subject_type,
-                credit_hours: fromDb?.credit_hours ?? row.credit_hours,
-                max_grade: fromDb?.max_grade ?? row.max_grade,
-                pass_grade: fromDb?.pass_grade ?? row.pass_grade,
-                status: fromDb?.status ?? row.status,
-                prerequisites: fromDb?.prerequisites?.trim() || '',
-            };
-        });
+        }> = [];
 
         for (const fromDb of subjects.data) {
-            if (catalogNames.has(fromDb.name)) {
-                continue;
-            }
             rows.push({
                 id: fromDb.id,
                 name: fromDb.name,
@@ -1057,7 +1037,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 row.name_en.toLowerCase().includes(query)
             );
         });
-    }, [filters.q, subjects.data, subjectsByName]);
+    }, [filters.q, subjects.data]);
 
     // Header click sorts the whole list (both views share the columns and the chosen sort).
     const subjectSort = useSortState();
@@ -1110,24 +1090,21 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         const branchNames = splitSelection(selectedBranch);
         const specNames = splitSelection(selectedSpec);
 
-        // Overview: every curriculum across years (DB) or full catalog matrix.
+        // Database curricula only: the fixed catalog is a reference, never listed as data.
+        // Overview: every curriculum across years.
         if (filters.all_curricula) {
-            if (curricula.data.length > 0) {
-                return curricula.data.map((row) => ({
-                    key: `db-${row.id}`,
-                    branch_name: row.branch_name ?? '',
-                    specialization_name: row.department_name ?? row.specialization_name ?? '',
-                    class_name: row.grade_level_name ?? '',
-                    subjects: (row.subjects ?? []).map((subject) => ({
-                        name: subject.name,
-                        subject_type: subject.subject_type,
-                        credit_hours: subject.credit_hours ?? 0,
-                        max_grade: subject.max_grade ?? 0,
-                    })),
-                }));
-            }
-
-            return catalogCurriculumTableRows();
+            return curricula.data.map((row) => ({
+                key: `db-${row.id}`,
+                branch_name: row.branch_name ?? '',
+                specialization_name: row.department_name ?? row.specialization_name ?? '',
+                class_name: row.grade_level_name ?? '',
+                subjects: (row.subjects ?? []).map((subject) => ({
+                    name: subject.name,
+                    subject_type: subject.subject_type,
+                    credit_hours: subject.credit_hours ?? 0,
+                    max_grade: subject.max_grade ?? 0,
+                })),
+            }));
         }
 
         const yearId =
@@ -1162,40 +1139,18 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return true;
         });
 
-        if (dbMatches.length > 0) {
-            return dbMatches.map((row) => ({
-                key: `db-${row.id}`,
-                branch_name: row.branch_name ?? '',
-                specialization_name: row.department_name ?? row.specialization_name ?? '',
-                class_name: row.grade_level_name ?? (classLabels[0] ?? ''),
-                subjects: (row.subjects ?? []).map((subject) => ({
-                    name: subject.name,
-                    subject_type: subject.subject_type,
-                    credit_hours: subject.credit_hours ?? 0,
-                    max_grade: subject.max_grade ?? 0,
-                })),
-            }));
-        }
-
-        // Explicit year with no DB curricula → empty list (year filter applied).
-        if (selectedYear !== '') {
-            return [];
-        }
-
-        // No explicit year yet — catalog matrix for planning until curricula exist.
-        let rows = catalogCurriculumTableRows();
-
-        if (branchNames.length > 0) {
-            rows = rows.filter((row) => branchNames.includes(row.branch_name));
-        }
-        if (specNames.length > 0) {
-            rows = rows.filter((row) => specNames.includes(row.specialization_name));
-        }
-        if (classLabels.length > 0) {
-            rows = rows.filter((row) => classLabels.includes(row.class_name));
-        }
-
-        return rows;
+        return dbMatches.map((row) => ({
+            key: `db-${row.id}`,
+            branch_name: row.branch_name ?? '',
+            specialization_name: row.department_name ?? row.specialization_name ?? '',
+            class_name: row.grade_level_name ?? (classLabels[0] ?? ''),
+            subjects: (row.subjects ?? []).map((subject) => ({
+                name: subject.name,
+                subject_type: subject.subject_type,
+                credit_hours: subject.credit_hours ?? 0,
+                max_grade: subject.max_grade ?? 0,
+            })),
+        }));
     }, [
         curricula.data,
         filterOptions.classes,
