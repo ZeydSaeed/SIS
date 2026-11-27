@@ -357,6 +357,9 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
     /** 1 نشط · 2 غير نشط · 3 مؤرشف («حذف» archives). */
     const setStatus = (kind: 'schools' | 'directorates', id: number, status: number, after?: () => void) =>
         run(() => request('post', `/organization/${kind}/${id}/${statusAction(status)}`), after);
+    /** «حذف آمن» — refused (with the reason) while schools, users or any school data use the record. */
+    const deleteRecord = (kind: 'schools' | 'directorates', id: number, after: () => void) =>
+        run(() => request('post', `/organization/${kind}/${id}/delete`), after).finally(after);
 
     const toggleSchool = (schoolId: number) =>
         setExpandedSchools((current) =>
@@ -1205,7 +1208,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                 tone="danger"
                 confirmPending={saving}
                 onConfirm={() =>
-                    deleteDirectorate && void setStatus('directorates', deleteDirectorate.id, 3, () => setDeleteDirectorate(null))
+                    deleteDirectorate && void deleteRecord('directorates', deleteDirectorate.id, () => setDeleteDirectorate(null))
                 }
                 onOpenChange={(open) => {
                     if (!open && !saving) {
@@ -1220,7 +1223,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                 confirmLabel={d.deleteSchool}
                 tone="danger"
                 confirmPending={saving}
-                onConfirm={() => deleteSchool && void setStatus('schools', deleteSchool.id, 3, () => setDeleteSchool(null))}
+                onConfirm={() => deleteSchool && void deleteRecord('schools', deleteSchool.id, () => setDeleteSchool(null))}
                 onOpenChange={(open) => {
                     if (!open && !saving) {
                         setDeleteSchool(null);

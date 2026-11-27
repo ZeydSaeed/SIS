@@ -44,6 +44,19 @@ use Illuminate\Http\RedirectResponse;
  */
 final class ExamManagementController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
+    /** «حذف الامتحان» — safe delete with its sessions; refused while seats or grades use it. */
+    public function destroy(\App\Http\Requests\Exams\CancelExamRequest $request, int $exam): \Illuminate\Http\RedirectResponse
+    {
+        return $this->safeDelete($request, 'exam', $exam, 'exam', 'flash.exams.deleted', SecurityEventType::GradeDataModified, '/exams');
+    }
+
+    /** «حذف الجلسة» — safe delete of one session; refused while seats or grades use it. */
+    public function destroySession(\App\Http\Requests\Exams\CancelExamSessionRequest $request, int $exam, int $session): \Illuminate\Http\RedirectResponse
+    {
+        return $this->safeDelete($request, 'exam_session', $session, 'exam', 'flash.exams.sessionDeleted', SecurityEventType::GradeDataModified);
+    }
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,

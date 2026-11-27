@@ -36,6 +36,20 @@ use Inertia\Response;
  */
 final class RoomCataloguePageController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
+    /** «حذف الغرفة» — safe delete; refused while the timetable, exams… use it. */
+    public function destroyRoom(ManageRoomCatalogueRequest $request, int $room): RedirectResponse
+    {
+        return $this->safeDelete($request, 'room', $room, 'room', 'flash.rooms.roomDeleted', SecurityEventType::OrganizationDataModified);
+    }
+
+    /** «حذف نوع الغرفة» — safe delete; refused while rooms use it. */
+    public function destroyType(ManageRoomCatalogueRequest $request, int $type): RedirectResponse
+    {
+        return $this->safeDelete($request, 'room_type', $type, 'room', 'flash.rooms.typeDeleted', SecurityEventType::OrganizationDataModified);
+    }
+
     private const SORTS = ['code', 'name', 'room_number', 'type', 'capacity', 'building', 'floor', 'branch', 'status', 'practical', 'weekly_lessons'];
 
     public function __construct(

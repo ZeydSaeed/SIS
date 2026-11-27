@@ -60,6 +60,8 @@ use Inertia\Response;
  */
 final class ClassSectionPageController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
@@ -201,6 +203,18 @@ final class ClassSectionPageController extends Controller
         ));
 
         return $this->respond($request, $result, 'enrollment.web.class.deactivate', 'class', 'flash.structure.classDeactivated', $class);
+    }
+
+    /** «حذف الصف» — safe delete with its unused sections; refused while enrolments, timetable… use it. */
+    public function destroyClass(int $class, DeactivateClassRequest $request): RedirectResponse
+    {
+        return $this->safeDelete($request, 'class', $class, 'class', 'flash.structure.classDeleted', SecurityEventType::EnrollmentDataModified);
+    }
+
+    /** «حذف الشعبة» — safe delete; refused while enrolments, attendance, timetable… use it. */
+    public function destroySection(int $section, DeactivateSectionRequest $request): RedirectResponse
+    {
+        return $this->safeDelete($request, 'section', $section, 'section', 'flash.structure.sectionDeleted', SecurityEventType::EnrollmentDataModified);
     }
 
     public function reactivateClass(int $class, ReactivateClassRequest $request, ReactivateClassHandler $handler): RedirectResponse

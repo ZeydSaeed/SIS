@@ -176,6 +176,8 @@ function HolidaysPage({
         queue: number[];
     } | null>(null);
     const [confirmOut, setConfirmOut] = useState<Holiday[] | null>(null);
+    /** «حذف» (safe delete) of the selected holiday(s). */
+    const [confirmDelete, setConfirmDelete] = useState<Holiday[] | null>(null);
     const [saving, setSaving] = useState(false);
 
     // One holiday = the action target; several checked = a batch (take out / put back only).
@@ -366,6 +368,17 @@ function HolidaysPage({
 
             return true;
         }, after);
+    /** «حذف آمن» one holiday after another (the school's own only) — stops at the first refusal. */
+    const deleteMany = (items: Holiday[]) =>
+        run(async () => {
+            for (const holiday of items.filter((item) => !item.global)) {
+                if (!(await request('post', `/leave/holidays/${holiday.id}/delete`))) {
+                    return false;
+                }
+            }
+
+            return true;
+        }).finally(() => setConfirmDelete(null));
 
     const saveHoliday = () => {
         if (sheet === null) {
@@ -409,8 +422,7 @@ function HolidaysPage({
                       ? {
                             id: 'out',
                             label: h.remove,
-                            icon: Trash2,
-                            danger: true,
+                            icon: CircleSlash,
                             separator: true,
                             onSelect: () => setConfirmOut([holiday]),
                         }
@@ -421,6 +433,13 @@ function HolidaysPage({
                             separator: true,
                             onSelect: () => void setStatusMany([holiday], true),
                         },
+                  {
+                      id: 'delete',
+                      label: i18n.common.delete,
+                      icon: Trash2,
+                      danger: true,
+                      onSelect: () => setConfirmDelete([holiday]),
+                  },
               ]
             : []),
     ];
@@ -495,13 +514,21 @@ function HolidaysPage({
                                   : {
                                         id: 'holidays-out',
                                         label: h.remove,
-                                        icon: Trash2,
-                                        iconTone: 'danger' as const,
-                                        tone: 'delete' as const,
+                                        icon: CircleSlash,
+                                        iconTone: 'warning' as const,
                                         disabled: nothingToChange || saving,
                                         onSelect: () =>
                                             setConfirmOut(editableTargets),
                                     },
+                              {
+                                  id: 'holidays-delete',
+                                  label: i18n.common.delete,
+                                  icon: Trash2,
+                                  iconTone: 'danger' as const,
+                                  tone: 'delete' as const,
+                                  disabled: editableTargets.length === 0 || saving,
+                                  onSelect: () => setConfirmDelete(editableTargets),
+                              },
                           ]
                         : []),
                 ],
@@ -1058,6 +1085,20 @@ function HolidaysPage({
                 />
             ) : null}
 
+            <ConfirmDialog
+                open={confirmDelete !== null}
+                title={h.deleteTitle}
+                description={`${h.deleteConfirm} (${confirmDelete?.filter((item) => !item.global).length ?? 0})`}
+                confirmLabel={i18n.common.delete}
+                tone="danger"
+                confirmPending={saving}
+                onConfirm={() => confirmDelete !== null && void deleteMany(confirmDelete)}
+                onOpenChange={(open) => {
+                    if (!open && !saving) {
+                        setConfirmDelete(null);
+                    }
+                }}
+            />
             <ConfirmDialog
                 open={confirmOut !== null}
                 title={h.remove}

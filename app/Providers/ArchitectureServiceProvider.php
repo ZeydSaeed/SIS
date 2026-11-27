@@ -259,6 +259,7 @@ class ArchitectureServiceProvider extends ServiceProvider
         $this->app->singleton(UnitOfWork::class, EloquentUnitOfWork::class);
         $this->app->singleton(OutboxRepository::class, EloquentOutboxRepository::class);
         $this->app->singleton(IdempotencyStore::class, EloquentIdempotencyStore::class);
+        $this->app->singleton(\App\Application\Contracts\SafeDeleter::class, \App\Infrastructure\Persistence\SafeDelete\PostgresSafeDeleter::class);
 
         $this->app->bind(EnrollmentRepositoryInterface::class, EloquentEnrollmentRepository::class);
         $this->app->bind(AdmissionRepositoryInterface::class, EloquentAdmissionRepository::class);

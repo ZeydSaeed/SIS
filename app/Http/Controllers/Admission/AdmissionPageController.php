@@ -59,6 +59,13 @@ use Inertia\Response;
 
 final class AdmissionPageController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
+    /** «حذف فترة التقديم» — safe delete; refused while applications use it. */
+    public function destroyPeriod(\App\Http\Requests\Admission\DeleteApplicationPeriodRequest $request, int $period): \Illuminate\Http\RedirectResponse
+    {
+        return $this->safeDelete($request, 'admission_period', $period, 'period', 'flash.admission.periodDeleted', SecurityEventType::AdmissionDataModified);
+    }
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,

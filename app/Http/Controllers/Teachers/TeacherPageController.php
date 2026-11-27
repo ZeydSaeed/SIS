@@ -289,6 +289,14 @@ final class TeacherPageController extends Controller
         return $this->respond($request, $result, 'teachers.web.deactivate', 'deactivated', 'teacher:'.$teacher, 'flash.teachers.deactivated');
     }
 
+    /** «حذف المدرس» — real delete when nothing else uses the teacher; otherwise refused (deactivate instead). */
+    public function destroy(int $teacher, \App\Http\Requests\Teachers\DeleteTeacherRequest $request, \App\Application\Shared\Commands\DeleteRecordHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new \App\Application\Shared\Commands\DeleteRecordCommand('teacher', $this->schoolContext->requireId(), $teacher));
+
+        return $this->respond($request, $result, 'teachers.web.delete', 'deleted', 'teacher:'.$teacher, 'flash.teachers.deleted');
+    }
+
     public function reactivate(int $teacher, ReactivateTeacherRequest $request, ReactivateTeacherHandler $handler): RedirectResponse
     {
         $result = $handler->handle(new ReactivateTeacherCommand(

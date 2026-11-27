@@ -233,6 +233,8 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
     const [typesOpen, setTypesOpen] = useState(false);
     const [appearanceFor, setAppearanceFor] = useState<Room | null>(null);
     const [confirmOut, setConfirmOut] = useState<Room[] | null>(null);
+    /** «حذف» (safe delete) of the selected room(s). */
+    const [confirmDelete, setConfirmDelete] = useState<Room[] | null>(null);
     const [saving, setSaving] = useState(false);
 
     // One room = the action target; several checked rooms = a batch (activate / deactivate only).
@@ -338,6 +340,17 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
             return true;
         }, after);
     const setStatus = (room: Room, active: boolean, after?: () => void) => setStatusMany([room], active, after);
+    /** «حذف آمن» one room after another — stops at the first one still used (its reason is shown). */
+    const deleteMany = (items: Room[]) =>
+        run(async () => {
+            for (const room of items) {
+                if (!(await request('post', `/organization/rooms/${room.id}/delete`))) {
+                    return false;
+                }
+            }
+
+            return true;
+        }).finally(() => setConfirmDelete(null));
     const openTimetable = (room: Room) => router.get('/timetable', { view: 'room', room_id: room.id });
 
     const saveRoom = () => {
@@ -380,8 +393,9 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
         ...(canManage
             ? [
                   room.status === ACTIVE
-                      ? { id: 'out', label: r.deactivate, icon: Trash2, danger: true, separator: true, disabled: room.links + room.weekly_lessons > 0, onSelect: () => setConfirmOut([room]) }
+                      ? { id: 'out', label: r.deactivate, icon: CircleSlash, separator: true, disabled: room.links + room.weekly_lessons > 0, onSelect: () => setConfirmOut([room]) }
                       : { id: 'in', label: r.reactivate, icon: RotateCcw, separator: true, onSelect: () => void setStatus(room, true) },
+                  { id: 'delete', label: i18n.common.delete, icon: Trash2, danger: true, onSelect: () => setConfirmDelete([room]) },
               ]
             : []),
     ];
@@ -405,7 +419,8 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
                               { id: 'rooms-appearance', label: i18n.appearance.title, icon: Palette, iconTone: 'rose' as const, disabled: notOne, onSelect: () => selected && setAppearanceFor(selected) },
                               allOut
                                   ? { id: 'rooms-in', label: r.reactivate, icon: RotateCcw, iconTone: 'ok' as const, disabled: saving, onSelect: () => void setStatusMany(targets, true) }
-                                  : { id: 'rooms-out', label: r.deactivate, icon: Trash2, iconTone: 'danger' as const, tone: 'delete' as const, disabled: none || saving, onSelect: () => setConfirmOut(targets) },
+                                  : { id: 'rooms-out', label: r.deactivate, icon: CircleSlash, iconTone: 'warning' as const, disabled: none || saving, onSelect: () => setConfirmOut(targets) },
+                              { id: 'rooms-delete', label: i18n.common.delete, icon: Trash2, iconTone: 'danger' as const, tone: 'delete' as const, disabled: none || saving, onSelect: () => setConfirmDelete(targets) },
                           ]
                         : []),
                     { id: 'rooms-timetable', label: r.openTimetable, icon: CalendarRange, iconTone: 'education', disabled: notOne, onSelect: () => selected && openTimetable(selected) },
@@ -725,6 +740,20 @@ function RoomsPage({ rooms, types, branches, stats, pagination, filters, authori
             ) : null}
 
             <ConfirmDialog
+                open={confirmDelete !== null}
+                title={r.deleteRoom}
+                description={`${r.deleteRoomConfirm} (${confirmDelete?.length ?? 0})`}
+                confirmLabel={i18n.common.delete}
+                tone="danger"
+                confirmPending={saving}
+                onConfirm={() => confirmDelete !== null && void deleteMany(confirmDelete)}
+                onOpenChange={(open) => {
+                    if (!open && !saving) {
+                        setConfirmDelete(null);
+                    }
+                }}
+            />
+            <ConfirmDialog
                 open={confirmOut !== null}
                 title={r.deactivate}
                 description={r.deactivateConfirm}
@@ -926,6 +955,17 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
     );
     const [form, setForm] = useState<TypeForm | null>(null);
     const [saving, setSaving] = useState(false);
+    /** «حذف» (safe delete) of one of the school's own room types. */
+    const [deleteType, setDeleteType] = useState<RoomType | null>(null);
+    const confirmDeleteType = async () => {
+        if (deleteType === null) {
+            return;
+        }
+        setSaving(true);
+        await request('post', `/organization/room-types/${deleteType.id}/delete`);
+        setSaving(false);
+        setDeleteType(null);
+    };
     const kindOptions = KINDS.map((kind) => ({ value: String(kind), label: r.kinds[kind] ?? String(kind) }));
 
     const save = async () => {
@@ -1005,6 +1045,17 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
                                                         <Button type="button" size="sm" variant="outline" disabled={saving || (type.status === ACTIVE && type.rooms > 0)} onClick={() => void toggle(type)}>
                                                             {type.status === ACTIVE ? r.deactivateType : r.reactivateType}
                                                         </Button>
+                                                        {/* «حذف» — safe delete; refused while rooms use the type. */}
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            disabled={saving || form !== null}
+                                                            title={type.rooms > 0 ? r.deleteTypeInUse : r.deleteType}
+                                                            onClick={() => setDeleteType(type)}
+                                                        >
+                                                            {i18n.common.delete}
+                                                        </Button>
                                                     </>
                                                 ) : canManage ? (
                                                     <Button
@@ -1072,6 +1123,20 @@ function RoomTypesSheet({ types, canManage, onClose }: { types: RoomType[]; canM
                     </div>
                 </RegistrySheetDialog>
             ) : null}
+            <ConfirmDialog
+                open={deleteType !== null}
+                title={r.deleteType}
+                description={`${r.deleteTypeConfirm}${deleteType !== null ? ` (${deleteType.name})` : ''}`}
+                confirmLabel={i18n.common.delete}
+                tone="danger"
+                confirmPending={saving}
+                onConfirm={() => void confirmDeleteType()}
+                onOpenChange={(open) => {
+                    if (!open && !saving) {
+                        setDeleteType(null);
+                    }
+                }}
+            />
         </RegistrySheetDialog>
     );
 }

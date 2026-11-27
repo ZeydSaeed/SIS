@@ -21,6 +21,8 @@ use Illuminate\Http\Request;
 
 final class DirectorateRegistryController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
     public function __construct(
         private readonly SecurityAuditLoggerInterface $securityAudit,
         private readonly SchoolScopeService $schoolScope,
@@ -87,6 +89,12 @@ final class DirectorateRegistryController extends Controller
     public function reactivate(int $directorate, ChangeDirectorateStatusRequest $request, ChangeDirectorateStatusHandler $handler): RedirectResponse
     {
         return $this->changeStatus($directorate, DirectorateStatus::Active, $request, $handler);
+    }
+
+    /** «حذف المديرية» — safe delete; refused while schools or other data use it. */
+    public function destroy(int $directorate, ChangeDirectorateStatusRequest $request): RedirectResponse
+    {
+        return $this->safeDelete($request, 'directorate', $directorate, 'directorate', 'flash.organization.directorateDeleted', SecurityEventType::OrganizationDataModified);
     }
 
     public function archive(int $directorate, ChangeDirectorateStatusRequest $request, ChangeDirectorateStatusHandler $handler): RedirectResponse

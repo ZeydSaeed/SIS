@@ -93,7 +93,6 @@ const StudentEnrollmentDialog = lazy(async () => {
 
 const STUDENTS_PER_PAGE = 17;
 const STUDENT_STATUS_ACTIVE = 1;
-const STUDENT_STATUS_WITHDRAWN = 4;
 
 const STUDENT_STATUS_TABS: Array<{
     status: number | null;
@@ -1344,8 +1343,7 @@ export function StudentList({
         return rows.filter((row) => selected.has(row.id));
     }, [actionIds, rows]);
     const hasViewTargets = viewTargets.length > 0;
-    const canDelete =
-        canSelect && selectedStudent !== null && selectedStudent.status !== STUDENT_STATUS_WITHDRAWN;
+    const canDelete = canSelect && selectedStudent !== null;
 
     const openStudentFile = useCallback(
         (row: StudentListItem) => {
@@ -1750,17 +1748,10 @@ export function StudentList({
         }
 
         setDeleting(true);
-        setStatusOverrides((current) => ({
-            ...current,
-            [deleteTarget.id]: STUDENT_STATUS_WITHDRAWN,
-        }));
-        publishStudentStatusSync([deleteTarget.id], STUDENT_STATUS_WITHDRAWN, 'students');
+        // «حذف آمن»: a real delete; refused (with the reason) when the student has grades, attendance, results…
         router.post(
-            '/students/bulk-status',
-            {
-                student_ids: [deleteTarget.id],
-                status: STUDENT_STATUS_WITHDRAWN,
-            },
+            `/students/${deleteTarget.id}/delete`,
+            {},
             {
                 ...sisSmoothMutation(['students', 'filters', 'authorization']),
                 onSuccess: () => {
@@ -1772,12 +1763,6 @@ export function StudentList({
                     setCheckedIds((current) => current.filter((id) => id !== deleteTarget.id));
                 },
                 onError: (errors) => {
-                    setStatusOverrides((current) => {
-                        const next = { ...current };
-                        delete next[deleteTarget.id];
-
-                        return next;
-                    });
                     showInertiaErrors(errors, i18n.errors.deleteFailed);
                 },
                 onFinish: () => {

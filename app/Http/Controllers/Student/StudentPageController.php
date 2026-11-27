@@ -206,6 +206,28 @@ final class StudentPageController extends Controller
             ->with('success', 'flash.studentStatusesUpdated');
     }
 
+    /** «حذف الطالب» — real delete when nothing but its placement uses the student; otherwise refused (withdraw instead). */
+    public function destroy(
+        int $student,
+        \App\Http\Requests\Student\DeleteStudentRequest $request,
+        \App\Application\Shared\Commands\DeleteRecordHandler $handler,
+    ): RedirectResponse {
+        $result = $handler->handle(new \App\Application\Shared\Commands\DeleteRecordCommand('student', $this->schoolContext->requireId(), $student));
+        if ($result->failed()) {
+            return redirect()->back()->withErrors(['student' => $result->errors[0]]);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::StudentDataModified,
+            'students.web.delete',
+            'deleted',
+            $request->user(),
+            'student:'.$student,
+        );
+
+        return redirect()->back()->with('success', 'flash.studentDeleted');
+    }
+
     public function update(
         UpdateStudentListRowRequest $request,
         int $student,

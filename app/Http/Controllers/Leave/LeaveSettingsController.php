@@ -35,6 +35,13 @@ use Illuminate\Http\Request;
 /** «أنواع الإجازات والسياسات» and «أرصدة الإجازات» writes — thin; rules live in the handlers. */
 final class LeaveSettingsController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
+    /** «حذف نوع الإجازة» — safe delete with its policy versions; refused while requests / balances use it. */
+    public function destroyType(\App\Http\Requests\Leave\ManageLeaveTypeRequest $request, int $type): \Illuminate\Http\RedirectResponse
+    {
+        return $this->safeDelete($request, 'leave_type', $type, 'leave', 'flash.leave.typeDeleted', SecurityEventType::HrDataModified);
+    }
     public function __construct(
         private readonly LeaveRequestContext $context,
         private readonly SecurityAuditLoggerInterface $securityAudit,

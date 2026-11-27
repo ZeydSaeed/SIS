@@ -20,6 +20,8 @@ use Illuminate\Http\RedirectResponse;
 
 final class SchoolRegistryController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
@@ -105,6 +107,12 @@ final class SchoolRegistryController extends Controller
     public function reactivate(int $school, ChangeSchoolStatusRequest $request, ChangeSchoolStatusHandler $handler): RedirectResponse
     {
         return $this->changeStatus($school, SchoolStatus::Active, $request, $handler);
+    }
+
+    /** «حذف المدرسة» — safe delete; refused while any school data exists, and never for the current school. */
+    public function destroy(int $school, ChangeSchoolStatusRequest $request): RedirectResponse
+    {
+        return $this->safeDelete($request, 'school', $school, 'school', 'flash.organization.schoolDeleted', SecurityEventType::OrganizationDataModified);
     }
 
     public function archive(int $school, ChangeSchoolStatusRequest $request, ChangeSchoolStatusHandler $handler): RedirectResponse

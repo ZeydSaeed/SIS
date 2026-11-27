@@ -11,7 +11,6 @@ import {
     Pencil,
     Plus,
     PlusCircle,
-    RotateCcw,
     Save,
     School,
     Trash2,
@@ -377,32 +376,6 @@ function ClassesSectionsPage({
         );
     };
 
-    const setClassStatus = (
-        item: SchoolClass,
-        active: boolean,
-        after?: () => void,
-    ) =>
-        run(
-            () =>
-                request(
-                    'post',
-                    `/organization/classes/${item.id}/${active ? 'reactivate' : 'deactivate'}`,
-                ),
-            after,
-        );
-    const setSectionStatus = (
-        section: Section,
-        active: boolean,
-        after?: () => void,
-    ) =>
-        run(
-            () =>
-                request(
-                    'post',
-                    `/organization/sections/${section.id}/${active ? 'reactivate' : 'deactivate'}`,
-                ),
-            after,
-        );
 
     const openAddSection = () =>
         setSectionDraft({
@@ -442,8 +415,6 @@ function ClassesSectionsPage({
             : Math.round((withHomeroom / allSections.length) * 100);
     const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
         const noSelection = selected === null;
-        const target = selectedSection ?? selected;
-        const targetActive = target?.status === ACTIVE;
         const groups: PageRibbonGroup[] = [
             {
                 id: 'classes-actions',
@@ -515,51 +486,28 @@ function ClassesSectionsPage({
                             setCollapsed(true);
                         },
                     },
-                    // Fixed order: عرض · تحرير · حفظ · إلغاء · حذف — an inactive item shows «تفعيل» in the
-                    // same last slot, so the group keeps its width and order (delete = deactivate; records stay).
+                    // Fixed order: عرض · تحرير · حفظ · إلغاء · حذف. «حذف» is a safe (real) delete of the selected
+                    // class or section; switching it off / on again is the «الحالة» field of its form.
                     ...(canManage
                         ? [
-                              noSelection || targetActive
-                                  ? {
-                                        id: 'classes-delete',
-                                        label: i18n.common.delete,
-                                        icon: Trash2,
-                                        tone: 'delete' as const,
-                                        title: noSelection
-                                            ? r.needsSelection
-                                            : selectedSection !== null
-                                              ? c.deactivateSection
-                                              : c.deactivateClass,
-                                        disabled: noSelection || saving,
-                                        onSelect: () =>
-                                            setConfirmDeactivate(
-                                                selectedSection !== null
-                                                    ? 'section'
-                                                    : 'class',
-                                            ),
-                                    }
-                                  : {
-                                        id: 'classes-reactivate',
-                                        label: c.reactivate,
-                                        icon: RotateCcw,
-                                        iconTone: 'ok' as const,
-                                        title:
-                                            selectedSection !== null
-                                                ? c.reactivateSection
-                                                : c.reactivateClass,
-                                        disabled: saving,
-                                        onSelect: () =>
-                                            selectedSection !== null
-                                                ? void setSectionStatus(
-                                                      selectedSection,
-                                                      true,
-                                                  )
-                                                : selected &&
-                                                  void setClassStatus(
-                                                      selected,
-                                                      true,
-                                                  ),
-                                    },
+                              {
+                                  id: 'classes-delete',
+                                  label: i18n.common.delete,
+                                  icon: Trash2,
+                                  tone: 'delete' as const,
+                                  title: noSelection
+                                      ? r.needsSelection
+                                      : selectedSection !== null
+                                        ? c.deleteSection
+                                        : c.deleteClass,
+                                  disabled: noSelection || saving,
+                                  onSelect: () =>
+                                      setConfirmDeactivate(
+                                          selectedSection !== null
+                                              ? 'section'
+                                              : 'class',
+                                      ),
+                              },
                           ]
                         : []),
                 ],
@@ -1419,34 +1367,32 @@ function ClassesSectionsPage({
                 open={confirmDeactivate !== null && confirmTarget !== null}
                 title={
                     confirmDeactivate === 'section'
-                        ? c.deactivateSection
-                        : c.deactivateClass
+                        ? c.deleteSection
+                        : c.deleteClass
                 }
                 description={
                     confirmDeactivate === 'section'
-                        ? c.deactivateSectionConfirm
-                        : c.deactivateClassConfirm
+                        ? c.deleteSectionConfirm
+                        : c.deleteClassConfirm
                 }
-                confirmLabel={
-                    confirmDeactivate === 'section'
-                        ? c.deactivateSection
-                        : c.deactivateClass
-                }
+                confirmLabel={i18n.common.delete}
                 tone="danger"
                 confirmPending={saving}
                 onConfirm={() => {
-                    const done = () => setConfirmDeactivate(null);
-                    if (
-                        confirmDeactivate === 'section' &&
-                        selectedSection !== null
-                    ) {
-                        void setSectionStatus(selectedSection, false, done);
-                    } else if (
-                        confirmDeactivate === 'class' &&
-                        selected !== null
-                    ) {
-                        void setClassStatus(selected, false, done);
+                    // «حذف آمن»: refused (with the reason) while enrolments, timetable… use it.
+                    const url =
+                        confirmDeactivate === 'section' && selectedSection !== null
+                            ? `/organization/sections/${selectedSection.id}/delete`
+                            : confirmDeactivate === 'class' && selected !== null
+                              ? `/organization/classes/${selected.id}/delete`
+                              : null;
+                    if (url === null) {
+                        return;
                     }
+                    void run(
+                        () => request('post', url),
+                        () => setSelectedSectionId(null),
+                    ).finally(() => setConfirmDeactivate(null));
                 }}
                 onOpenChange={(open) => {
                     if (!open && !saving) {

@@ -616,9 +616,10 @@ export function AdmissionPeriodsCard({
         }
 
         setArchiving(true);
+        // «حذف آمن»: refused (with the reason) while applications use the period.
         router.post(
-            `/admission/periods/${archiveTarget.id}/archive`,
-            { academic_year_id: academicYearId },
+            `/admission/periods/${archiveTarget.id}/delete`,
+            {},
             {
                 preserveScroll: true,
                 preserveState: true,
@@ -835,9 +836,9 @@ export function AdmissionPeriodsCard({
             </div>
             <ConfirmDialog
                 open={archiveTarget !== null}
-                title={i18n.admission.archivePeriodTitle}
-                description={i18n.admission.archivePeriodConfirm}
-                confirmLabel={i18n.admission.deletePeriod}
+                title={i18n.admission.deletePeriod}
+                description={i18n.admission.deletePeriodConfirm}
+                confirmLabel={i18n.common.delete}
                 tone="danger"
                 confirmPending={archiving}
                 onConfirm={confirmArchive}

@@ -203,6 +203,12 @@ type ConfirmState =
     | { kind: 'link-deactivate'; id: number }
     | { kind: 'link-reactivate'; id: number }
     | { kind: 'subjects-delete'; ids: number[]; count: number }
+    | {
+          kind: 'curricula-remove';
+          pairs: Array<{ curriculumId: number; subjectId: number }>;
+          count: number;
+          plans: number;
+      }
     | null;
 
 export function newIdempotencyKey(prefix: string): string {
@@ -1340,29 +1346,53 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             return;
         }
 
-        const activeTargets = selectedNames
+        // «حذف آمن» — any selected subject that exists in the database (active or not).
+        const targets = selectedNames
             .map((name) => subjectsByName.get(name))
-            .filter(
-                (row): row is SubjectRow =>
-                    row !== undefined && Number(row.status) === 1,
-            );
+            .filter((row): row is SubjectRow => row !== undefined);
 
-        if (activeTargets.length === 0) {
-            const anyInDatabase = selectedNames.some((name) => subjectsByName.has(name));
-            showWarning(anyInDatabase ? c.deleteAlreadyInactive : c.subjectNotInDatabase);
+        if (targets.length === 0) {
+            showWarning(c.subjectNotInDatabase);
+
+            return;
+        }
+
+        if (activeView === 'curricula') {
+            // Curricula table: remove the selected subjects from the curricula shown (the subjects themselves stay).
+            const pairs: Array<{ curriculumId: number; subjectId: number }> = [];
+            const plans = new Set<number>();
+            for (const plan of catalogCurriculumRows) {
+                const curriculumId = Number(String(plan.key).replace(/^db-/, ''));
+                if (!String(plan.key).startsWith('db-') || !Number.isFinite(curriculumId)) {
+                    continue;
+                }
+                for (const subject of targets) {
+                    if (plan.subjects.some((s) => s.name === subject.name)) {
+                        pairs.push({ curriculumId, subjectId: subject.id });
+                        plans.add(curriculumId);
+                    }
+                }
+            }
+            if (pairs.length === 0) {
+                showWarning(c.subjectNotInDatabase);
+
+                return;
+            }
+            setConfirm({ kind: 'curricula-remove', pairs, count: targets.length, plans: plans.size });
 
             return;
         }
 
         setConfirm({
             kind: 'subjects-delete',
-            ids: activeTargets.map((row) => row.id),
-            count: activeTargets.length,
+            ids: targets.map((row) => row.id),
+            count: targets.length,
         });
     }, [
-        c.deleteAlreadyInactive,
+        activeView,
         c.subjectNotInDatabase,
         canManage,
+        catalogCurriculumRows,
         hasSelection,
         selectedNames,
         showWarning,
@@ -1560,28 +1590,25 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             case 'link-reactivate':
                 router.post(`/curriculum/curriculum-subjects/${confirm.id}/reactivate`, {}, { preserveScroll: true, headers, onFinish: done });
                 break;
-            case 'subjects-delete': {
-                const ids = confirm.ids;
-                let remaining = ids.length;
-                const finishOne = (): void => {
-                    remaining -= 1;
-                    if (remaining <= 0) {
+            case 'subjects-delete':
+            case 'curricula-remove': {
+                // One request after another: a new Inertia visit would cancel the one still running.
+                const urls =
+                    confirm.kind === 'subjects-delete'
+                        ? confirm.ids.map((id) => `/curriculum/subjects/${id}/delete`)
+                        : confirm.pairs.map(
+                              (pair) => `/curriculum/curricula/${pair.curriculumId}/subjects/${pair.subjectId}/delete`,
+                          );
+                const runNext = (index: number): void => {
+                    if (index >= urls.length) {
                         clearSelection();
                         done();
-                    }
-                };
 
-                for (const id of ids) {
-                    router.post(
-                        `/curriculum/subjects/${id}/deactivate`,
-                        {},
-                        {
-                            preserveScroll: true,
-                            headers: { 'X-Idempotency-Key': newIdempotencyKey('curriculum') },
-                            onFinish: finishOne,
-                        },
-                    );
-                }
+                        return;
+                    }
+                    router.post(urls[index], {}, { preserveScroll: true, onFinish: () => runNext(index + 1) });
+                };
+                runNext(0);
                 break;
             }
         }
@@ -1611,6 +1638,14 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                         confirm.count > 1
                             ? c.deleteConfirmMany.replace(':count', String(confirm.count))
                             : c.deleteConfirm,
+                    confirmLabel: i18n.common.delete,
+                };
+            case 'curricula-remove':
+                return {
+                    title: c.removeFromCurriculaTitle,
+                    description: c.removeFromCurriculaConfirm
+                        .replace(':count', String(confirm.count))
+                        .replace(':plans', String(confirm.plans)),
                     confirmLabel: i18n.common.delete,
                 };
         }

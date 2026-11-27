@@ -67,6 +67,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [StudentPageController::class, 'store'])->name('store');
         Route::post('/bulk-status', [StudentPageController::class, 'bulkStatus'])->name('bulk-status');
         Route::put('/{student}', [StudentPageController::class, 'update'])->whereNumber('student')->name('update');
+        // «حذف» — safe delete (refused when grades / attendance / results… reference the student).
+        Route::post('/{student}/delete', [StudentPageController::class, 'destroy'])->whereNumber('student')->name('delete');
         Route::post('/{student}/documents/upload', [StudentPageController::class, 'uploadDocument'])
             ->whereNumber('student')
             ->name('documents.upload');
@@ -89,6 +91,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/schools/{school}/archive', [SchoolRegistryController::class, 'archive'])
             ->whereNumber('school')
             ->name('schools.archive');
+        // «حذف» — safe deletes (refused, with the reason, while other data uses the record).
+        Route::post('/schools/{school}/delete', [SchoolRegistryController::class, 'destroy'])->whereNumber('school')->name('schools.delete');
+        Route::post('/directorates/{directorate}/delete', [DirectorateRegistryController::class, 'destroy'])->whereNumber('directorate')->name('directorates.delete');
+        Route::post('/classes/{class}/delete', [ClassSectionPageController::class, 'destroyClass'])->whereNumber('class')->name('classes.delete');
+        Route::post('/sections/{section}/delete', [ClassSectionPageController::class, 'destroySection'])->whereNumber('section')->name('sections.delete');
+        Route::post('/rooms/{room}/delete', [RoomCataloguePageController::class, 'destroyRoom'])->whereNumber('room')->name('rooms.delete');
+        Route::post('/room-types/{type}/delete', [RoomCataloguePageController::class, 'destroyType'])->whereNumber('type')->name('room-types.delete');
         Route::post('/directorates', [DirectorateRegistryController::class, 'store'])->name('directorates.store');
         Route::patch('/directorates/{directorate}', [DirectorateRegistryController::class, 'update'])
             ->whereNumber('directorate')
@@ -103,9 +112,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('directorate')
             ->name('directorates.archive');
 
-        // «الفروع والاختصاصات» — branches and departments of the current school (delete = deactivate).
+        // «الفروع والاختصاصات» — branches and departments of the current school («حذف» = safe delete).
         Route::get('/branches', [BranchStructurePageController::class, 'index'])->name('branches.index');
-        // «الصفوف والشعب» — classes / sections of the year with capacity and homeroom teacher (delete = deactivate).
+        // «الصفوف والشعب» — classes / sections of the year with capacity and homeroom teacher («حذف» = safe delete).
         Route::get('/classes-sections', [ClassSectionPageController::class, 'index'])->name('classes-sections.index');
         Route::post('/classes', [ClassSectionPageController::class, 'storeClass'])->name('classes.store');
         Route::patch('/classes/{class}', [ClassSectionPageController::class, 'updateClass'])->whereNumber('class')->name('classes.update');
@@ -172,6 +181,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/periods/{period}/archive', [AdmissionPageController::class, 'archivePeriod'])
             ->whereNumber('period')
             ->name('periods.archive');
+        Route::post('/periods/{period}/delete', [AdmissionPageController::class, 'destroyPeriod'])->whereNumber('period')->name('periods.delete');
         Route::post('/applications', [AdmissionPageController::class, 'storeApplication'])->name('applications.store');
         Route::post('/applications/register-student', [AdmissionPageController::class, 'registerStudent'])
             ->name('applications.register-student');
@@ -259,6 +269,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/{teacher}/appearance', [TeacherPageController::class, 'updateAppearance'])->whereNumber('teacher')->name('appearance');
         Route::post('/{teacher}/deactivate', [TeacherPageController::class, 'deactivate'])->whereNumber('teacher')->name('deactivate');
         Route::post('/{teacher}/reactivate', [TeacherPageController::class, 'reactivate'])->whereNumber('teacher')->name('reactivate');
+        // «حذف» — safe delete (refused when schedules / attendance / leave… reference the teacher).
+        Route::post('/{teacher}/delete', [TeacherPageController::class, 'destroy'])->whereNumber('teacher')->name('delete');
         Route::post('/{teacher}/subjects', [TeacherPageController::class, 'assignSubject'])->whereNumber('teacher')->name('subjects.assign');
         Route::post('/{teacher}/subjects/unlink', [TeacherPageController::class, 'unlinkSubject'])->whereNumber('teacher')->name('subjects.unlink');
         Route::post('/bulk-status', [TeacherPageController::class, 'bulkStatus'])->name('bulk-status');
@@ -355,6 +367,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/curriculum-subjects/{link}/reactivate', [CurriculumPageController::class, 'reactivateCurriculumSubject'])
             ->whereNumber('link')
             ->name('curriculum_subjects.reactivate');
+        // «حذف» — safe deletes (refused, with the reason, while other data uses the record).
+        Route::post('/subjects/{subject}/delete', [CurriculumPageController::class, 'destroySubject'])->whereNumber('subject')->name('subjects.delete');
+        Route::post('/curricula/{curriculum}/delete', [CurriculumPageController::class, 'destroyCurriculum'])->whereNumber('curriculum')->name('curricula.delete');
+        Route::post('/curriculum-subjects/{link}/delete', [CurriculumPageController::class, 'destroyCurriculumSubject'])->whereNumber('link')->name('curriculum_subjects.delete');
+        Route::post('/curricula/{curriculum}/subjects/{subject}/delete', [CurriculumPageController::class, 'destroyCurriculumSubjectPair'])
+            ->whereNumber(['curriculum', 'subject'])
+            ->name('curriculum_subjects.delete-pair');
+        Route::post('/prerequisites/{prerequisite}/delete', [CurriculumPageController::class, 'destroyPrerequisite'])->whereNumber('prerequisite')->name('prerequisites.delete');
         // «نظري / عملي» hours of a subject in a curriculum (weekly hours = their sum).
         Route::patch('/curriculum-subjects/{link}/hours', [CurriculumPageController::class, 'updateCurriculumSubjectHours'])
             ->whereNumber('link')
@@ -410,6 +430,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [ExamManagementController::class, 'store'])->name('store');
         Route::post('/{exam}/update', [ExamManagementController::class, 'update'])->whereNumber('exam')->name('update');
         Route::post('/{exam}/cancel', [ExamManagementController::class, 'cancel'])->whereNumber('exam')->name('cancel');
+        Route::post('/{exam}/delete', [ExamManagementController::class, 'destroy'])->whereNumber('exam')->name('delete');
+        Route::post('/{exam}/sessions/{session}/delete', [ExamManagementController::class, 'destroySession'])->whereNumber(['exam', 'session'])->name('sessions.delete');
         Route::post('/{exam}/sessions', [ExamManagementController::class, 'storeSession'])->whereNumber('exam')->name('sessions.store');
         Route::post('/{exam}/sessions/{session}/update', [ExamManagementController::class, 'updateSession'])->whereNumber(['exam', 'session'])->name('sessions.update');
         Route::post('/{exam}/sessions/{session}/open', [ExamManagementController::class, 'openSession'])->whereNumber(['exam', 'session'])->name('sessions.open');
@@ -459,11 +481,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])->whereNumber('leaveRequest')->name('requests.cancel');
         Route::post('/requests/{leaveRequest}/attachments', [LeaveRequestController::class, 'attach'])->whereNumber('leaveRequest')->middleware('throttle:20,1')->name('requests.attach');
         Route::get('/requests/{leaveRequest}/attachments/{document}', [LeavePageController::class, 'attachment'])->whereNumber(['leaveRequest', 'document'])->name('requests.attachment');
-        // «العطل» — the school calendar's holidays (a holiday is taken out of the calendar, never deleted).
+        // «العطل» — the school calendar's holidays (out of the calendar = status; «حذف» = safe delete).
         Route::get('/holidays', [HolidayPageController::class, 'index'])->name('holidays.index');
         Route::post('/holidays', [HolidayPageController::class, 'store'])->name('holidays.store');
         Route::patch('/holidays/{holiday}', [HolidayPageController::class, 'update'])->whereNumber('holiday')->name('holidays.update');
         Route::post('/holidays/{holiday}/status', [HolidayPageController::class, 'changeStatus'])->whereNumber('holiday')->name('holidays.status');
+        Route::post('/holidays/{holiday}/delete', [HolidayPageController::class, 'destroy'])->whereNumber('holiday')->name('holidays.delete');
         Route::get('/delegations', [LeaveDelegationController::class, 'index'])->name('delegations.index');
         Route::post('/delegations', [LeaveDelegationController::class, 'store'])->name('delegations.store');
         Route::post('/delegations/{delegation}/revoke', [LeaveDelegationController::class, 'revoke'])->whereNumber('delegation')->name('delegations.revoke');
@@ -478,6 +501,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/types/suggested', [LeaveSettingsController::class, 'addSuggested'])->name('types.suggested');
         Route::patch('/types/{type}', [LeaveSettingsController::class, 'updateType'])->whereNumber('type')->name('types.update');
         Route::post('/types/{type}/status', [LeaveSettingsController::class, 'typeStatus'])->whereNumber('type')->name('types.status');
+        Route::post('/types/{type}/delete', [LeaveSettingsController::class, 'destroyType'])->whereNumber('type')->name('types.delete');
         Route::post('/types/{type}/policy', [LeaveSettingsController::class, 'publishPolicy'])->whereNumber('type')->name('types.policy');
         Route::get('/calendar', [LeavePageController::class, 'calendar'])->name('calendar');
         Route::get('/reports', [LeavePageController::class, 'reports'])->name('reports');

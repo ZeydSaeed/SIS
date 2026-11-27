@@ -63,6 +63,9 @@ use App\Http\Requests\Curriculum\DeactivateSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectRequest;
 use App\Http\Requests\Curriculum\LinkCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\UpdateCurriculumSubjectHoursRequest;
+use App\Http\Requests\Curriculum\DeleteCurriculumRecordRequest;
+use App\Application\Shared\Commands\DeleteRecordCommand;
+use App\Application\Shared\Commands\DeleteRecordHandler;
 use App\Http\Requests\Curriculum\ReactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\ReactivateSubjectPrerequisiteRequest;
@@ -680,6 +683,73 @@ final class CurriculumPageController extends Controller
         );
 
         return redirect()->back()->with('success', 'flash.curriculum.subjectHoursUpdated');
+    }
+
+    /** «حذف المادة» (shared catalogue) — refused while a curriculum, teacher, grade… uses it. */
+    public function destroySubject(int $subject, DeleteCurriculumRecordRequest $request, DeleteRecordHandler $handler): RedirectResponse
+    {
+        return $this->deleteRecord($request, $handler, 'subject', $subject, 'flash.curriculum.subjectDeleted');
+    }
+
+    /** «حذف المنهج» — with its subject lines (the subjects stay). */
+    public function destroyCurriculum(int $curriculum, DeleteCurriculumRecordRequest $request, DeleteRecordHandler $handler): RedirectResponse
+    {
+        return $this->deleteRecord($request, $handler, 'curriculum', $curriculum, 'flash.curriculum.curriculumDeleted');
+    }
+
+    /** Remove one subject line from a curriculum. */
+    public function destroyCurriculumSubject(int $link, DeleteCurriculumRecordRequest $request, DeleteRecordHandler $handler): RedirectResponse
+    {
+        return $this->deleteRecord($request, $handler, 'curriculum_subject', $link, 'flash.curriculum.subjectLinkDeleted');
+    }
+
+    /** Remove a subject from a curriculum by the pair (curriculum, subject) — used by the curricula table. */
+    public function destroyCurriculumSubjectPair(
+        int $curriculum,
+        int $subject,
+        DeleteCurriculumRecordRequest $request,
+        DeleteRecordHandler $handler,
+        ListCurriculumSubjectsHandler $links,
+    ): RedirectResponse {
+        $match = null;
+        foreach ($links->handle(new ListCurriculumSubjectsQuery($this->schoolContext->requireId(), $curriculum, true)) ?? [] as $link) {
+            if ($link->subjectId === $subject) {
+                $match = $link->id;
+            }
+        }
+        if ($match === null) {
+            return redirect()->back()->withErrors(['delete' => 'delete.not_found']);
+        }
+
+        return $this->deleteRecord($request, $handler, 'curriculum_subject', $match, 'flash.curriculum.subjectLinkDeleted');
+    }
+
+    public function destroyPrerequisite(int $prerequisite, DeleteCurriculumRecordRequest $request, DeleteRecordHandler $handler): RedirectResponse
+    {
+        return $this->deleteRecord($request, $handler, 'prerequisite', $prerequisite, 'flash.curriculum.prerequisiteDeleted');
+    }
+
+    private function deleteRecord(
+        DeleteCurriculumRecordRequest $request,
+        DeleteRecordHandler $handler,
+        string $entity,
+        int $id,
+        string $flash,
+    ): RedirectResponse {
+        $result = $handler->handle(new DeleteRecordCommand($entity, $this->schoolContext->requireId(), $id));
+        if ($result->failed()) {
+            return redirect()->back()->withErrors(['delete' => $result->errors[0]]);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.web.'.$entity.'.delete',
+            'deleted',
+            $request->user(),
+            $entity.':'.$id,
+        );
+
+        return redirect()->back()->with('success', $flash);
     }
 
     private function nullableHours(mixed $value): ?int

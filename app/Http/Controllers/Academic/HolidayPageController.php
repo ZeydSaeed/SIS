@@ -36,6 +36,13 @@ use Inertia\Response;
  */
 final class HolidayPageController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
+    /** «حذف العطلة» — safe delete of this school's holiday. */
+    public function destroy(\App\Http\Requests\Academic\ManageHolidayRequest $request, int $holiday): \Illuminate\Http\RedirectResponse
+    {
+        return $this->safeDelete($request, 'holiday', $holiday, 'holiday', 'flash.holidays.deleted', SecurityEventType::AcademicDataModified);
+    }
     private const PER_PAGE = 100;
 
     public function __construct(

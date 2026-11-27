@@ -93,6 +93,9 @@ export type CurriculumShowProps = {
 };
 
 type ConfirmState =
+    | { kind: 'link-delete'; id: number }
+    | { kind: 'prereq-delete'; id: number }
+    | { kind: 'plan-delete' }
     | { kind: 'link-deactivate'; id: number }
     | { kind: 'link-reactivate'; id: number }
     | { kind: 'prereq-deactivate'; id: number }
@@ -413,16 +416,34 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                             >
                                 {c.deactivate}
                             </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setConfirm({ kind: 'link-delete', id: row.id })}
+                            >
+                                {i18n.common.delete}
+                            </Button>
                         </span>
                     ) : (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirm({ kind: 'link-reactivate', id: row.id })}
-                        >
-                            {c.reactivate}
-                        </Button>
+                        <span className="flex flex-wrap gap-1">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfirm({ kind: 'link-reactivate', id: row.id })}
+                            >
+                                {c.reactivate}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setConfirm({ kind: 'link-delete', id: row.id })}
+                            >
+                                {i18n.common.delete}
+                            </Button>
+                        </span>
                     )
                 ) : (
                     '—'
@@ -454,25 +475,35 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             header: c.actions,
             cell: (row) =>
                 canManage ? (
-                    row.status === 1 ? (
+                    <span className="flex flex-wrap gap-1">
+                        {row.status === 1 ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfirm({ kind: 'prereq-deactivate', id: row.id })}
+                            >
+                                {c.deactivate}
+                            </Button>
+                        ) : (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfirm({ kind: 'prereq-reactivate', id: row.id })}
+                            >
+                                {c.reactivate}
+                            </Button>
+                        )}
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="destructive"
                             size="sm"
-                            onClick={() => setConfirm({ kind: 'prereq-deactivate', id: row.id })}
+                            onClick={() => setConfirm({ kind: 'prereq-delete', id: row.id })}
                         >
-                            {c.deactivate}
+                            {i18n.common.delete}
                         </Button>
-                    ) : (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirm({ kind: 'prereq-reactivate', id: row.id })}
-                        >
-                            {c.reactivate}
-                        </Button>
-                    )
+                    </span>
                 ) : (
                     '—'
                 ),
@@ -531,6 +562,19 @@ export function CurriculumDetail(props: CurriculumShowProps) {
         const headers = { 'X-Idempotency-Key': newIdempotencyKey('curriculum') };
 
         switch (confirm.kind) {
+            // «حذف آمن» — the reason is shown when refused.
+            case 'link-delete':
+                router.post(`/curriculum/curriculum-subjects/${confirm.id}/delete`, {}, { preserveScroll: true, onFinish: done });
+                break;
+            case 'prereq-delete':
+                router.post(`/curriculum/prerequisites/${confirm.id}/delete`, {}, { preserveScroll: true, onFinish: done });
+                break;
+            case 'plan-delete':
+                router.post(`/curriculum/curricula/${curriculum.id}/delete`, {}, {
+                    onSuccess: () => router.visit('/curriculum?view=curricula'),
+                    onFinish: done,
+                });
+                break;
             case 'link-deactivate':
                 router.post(
                     `/curriculum/curriculum-subjects/${confirm.id}/deactivate`,
@@ -574,6 +618,12 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             return { title: '', description: '' };
         }
         switch (confirm.kind) {
+            case 'link-delete':
+                return { title: i18n.common.delete, description: c.deleteLinkConfirm };
+            case 'prereq-delete':
+                return { title: i18n.common.delete, description: c.deletePrerequisiteConfirm };
+            case 'plan-delete':
+                return { title: c.deleteCurriculum, description: c.deleteCurriculumConfirm };
             case 'link-deactivate':
                 return { title: c.deactivate, description: c.confirmDeactivateLink };
             case 'link-reactivate':
@@ -585,7 +635,7 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             case 'apply-enrollments':
                 return { title: c.applyToEnrollments, description: c.confirmApplyToEnrollments };
         }
-    }, [c, confirm]);
+    }, [c, confirm, i18n.common.delete]);
 
     const assignSubject = (subjectId: number, isElective: boolean): void => {
         if (selectedEnrollmentId === null || !canAssign) {
@@ -665,14 +715,21 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                             </dd>
                         </div>
                     </dl>
-                    {canManage && curriculum.status === 1 ? (
-                        <Button
-                            type="button"
-                            className="self-start"
-                            onClick={() => setPlanDialogOpen(true)}
-                        >
-                            {c.editPlan}
-                        </Button>
+                    {canManage ? (
+                        <div className="flex flex-wrap gap-2 self-start">
+                            {curriculum.status === 1 ? (
+                                <Button type="button" onClick={() => setPlanDialogOpen(true)}>
+                                    {c.editPlan}
+                                </Button>
+                            ) : null}
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={() => setConfirm({ kind: 'plan-delete' })}
+                            >
+                                {c.deleteCurriculum}
+                            </Button>
+                        </div>
                     ) : null}
                 </section>
             ) : null}
@@ -1078,7 +1135,11 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 description={confirmCopy.description}
                 confirmPending={confirmPending}
                 tone={
-                    confirm?.kind === 'link-deactivate' || confirm?.kind === 'prereq-deactivate'
+                    confirm?.kind === 'link-deactivate' ||
+                    confirm?.kind === 'prereq-deactivate' ||
+                    confirm?.kind === 'link-delete' ||
+                    confirm?.kind === 'prereq-delete' ||
+                    confirm?.kind === 'plan-delete'
                         ? 'danger'
                         : 'default'
                 }

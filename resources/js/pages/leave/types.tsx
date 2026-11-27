@@ -1,4 +1,5 @@
 import {
+    CircleSlash,
     History,
     Pencil,
     PlusCircle,
@@ -28,6 +29,7 @@ import {
     RegistryListField,
     RegistryTextField,
 } from '@/components/organization/registry-sheet';
+import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import type { ContextMenuItem } from '@/components/sis/context-menu';
 import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
 import { t } from '@/i18n';
@@ -127,6 +129,8 @@ function TypesPage({ types, abilities }: Props) {
     } | null>(null);
     const [historyOf, setHistoryOf] = useState<LeaveType | null>(null);
     const [busy, setBusy] = useState(false);
+    /** «حذف» (safe delete) of one leave type. */
+    const [deleteType, setDeleteType] = useState<LeaveType | null>(null);
     const can = abilities.policies;
 
     const policyPayload = (p: PolicyForm) => ({
@@ -359,12 +363,20 @@ function TypesPage({ types, abilities }: Props) {
                                   : {
                                         id: 'leave-type-off',
                                         label: l.deactivateType,
-                                        icon: Trash2,
-                                        iconTone: 'danger' as const,
-                                        tone: 'delete' as const,
+                                        icon: CircleSlash,
+                                        iconTone: 'warning' as const,
                                         disabled: one === null || busy,
                                         onSelect: () => one && toggle(one),
                                     },
+                              {
+                                  id: 'leave-type-delete',
+                                  label: t().common.delete,
+                                  icon: Trash2,
+                                  iconTone: 'danger' as const,
+                                  tone: 'delete' as const,
+                                  disabled: one === null || busy,
+                                  onSelect: () => one && setDeleteType(one),
+                              },
                               {
                                   id: 'leave-type-suggested',
                                   label: l.suggested,
@@ -835,6 +847,31 @@ function TypesPage({ types, abilities }: Props) {
                     ]}
                 />
             ) : null}
+            <ConfirmDialog
+                open={deleteType !== null}
+                title={l.deleteType}
+                description={`${l.deleteTypeConfirm}${deleteType !== null ? ` (${deleteType.name_ar})` : ''}`}
+                confirmLabel={t().common.delete}
+                tone="danger"
+                confirmPending={busy}
+                onConfirm={() => {
+                    if (deleteType === null) {
+                        return;
+                    }
+                    setBusy(true);
+                    write('post', `${PATH}/${deleteType.id}/delete`, {}, {
+                        onFinish: () => {
+                            setBusy(false);
+                            setDeleteType(null);
+                        },
+                    });
+                }}
+                onOpenChange={(open) => {
+                    if (!open && !busy) {
+                        setDeleteType(null);
+                    }
+                }}
+            />
         </LeavePage>
     );
 }

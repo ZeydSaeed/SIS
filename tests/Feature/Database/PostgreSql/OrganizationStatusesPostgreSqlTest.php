@@ -135,7 +135,7 @@ final class OrganizationStatusesPostgreSqlTest extends PostgreSqlIntegrationTest
                 ->assertSessionHasErrors(['department' => 'organization.department_in_use']);
         }
         $this->send('post', '/organization/departments/delete', ['department_ids' => [$accounting]])
-            ->assertSessionHasErrors(['department' => 'organization.department_in_use']);
+            ->assertSessionHasErrors(['department' => 'delete.linked?with='.rawurlencode('التسجيل في الصفوف')]);
         $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'departments'), ['id' => $accounting, 'status' => 1]);
     }
 

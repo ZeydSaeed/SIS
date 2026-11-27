@@ -6,10 +6,6 @@ use App\Application\Organization\Commands\CreateBranchCommand;
 use App\Application\Organization\Commands\CreateBranchHandler;
 use App\Application\Organization\Commands\CreateDepartmentCommand;
 use App\Application\Organization\Commands\CreateDepartmentHandler;
-use App\Application\Organization\Commands\DeleteBranchCommand;
-use App\Application\Organization\Commands\DeleteBranchHandler;
-use App\Application\Organization\Commands\DeleteDepartmentsCommand;
-use App\Application\Organization\Commands\DeleteDepartmentsHandler;
 use App\Application\Organization\Commands\UpdateBranchCommand;
 use App\Application\Organization\Commands\UpdateBranchHandler;
 use App\Application\Organization\Commands\UpdateDepartmentCommand;
@@ -33,6 +29,8 @@ use Inertia\Response;
 /** «الفروع والاختصاصات»: the current school's branches and their departments. */
 final class BranchStructurePageController extends Controller
 {
+    use \App\Http\Controllers\Concerns\RespondsToSafeDelete;
+
     public function __construct(
         private readonly SchoolContext $schoolContext,
         private readonly SecurityAuditLoggerInterface $securityAudit,
@@ -76,15 +74,10 @@ final class BranchStructurePageController extends Controller
         ));
     }
 
-    public function destroyBranch(ManageBranchStructureRequest $request, int $branch, DeleteBranchHandler $handler): RedirectResponse
+    /** «حذف الفرع» — safe delete (with its unused departments); refused while students, rooms… use it. */
+    public function destroyBranch(ManageBranchStructureRequest $request, int $branch): RedirectResponse
     {
-        return $this->respond($request, 'branch', 'organization.web.branches.delete', 'flash.organization.branchDeleted', $handler->handle(
-            new DeleteBranchCommand(
-                schoolId: $this->schoolContext->requireId(),
-                branchId: $branch,
-                idempotencyKey: (string) $request->header('X-Idempotency-Key'),
-            ),
-        ));
+        return $this->safeDelete($request, 'branch', $branch, 'branch', 'flash.organization.branchDeleted', SecurityEventType::OrganizationDataModified);
     }
 
     public function storeDepartment(SaveDepartmentRequest $request, CreateDepartmentHandler $handler): RedirectResponse
@@ -116,15 +109,20 @@ final class BranchStructurePageController extends Controller
         ));
     }
 
-    public function destroyDepartments(DeleteDepartmentsRequest $request, DeleteDepartmentsHandler $handler): RedirectResponse
+    /** «حذف الاختصاص» — safe delete of each; stops at the first one still in use (those before it are deleted). */
+    public function destroyDepartments(DeleteDepartmentsRequest $request, \App\Application\Shared\Commands\DeleteRecordHandler $handler): RedirectResponse
     {
-        return $this->respond($request, 'department', 'organization.web.departments.delete', 'flash.organization.departmentsDeleted', $handler->handle(
-            new DeleteDepartmentsCommand(
-                schoolId: $this->schoolContext->requireId(),
-                departmentIds: array_map('intval', (array) $request->validated('department_ids')),
-                idempotencyKey: (string) $request->header('X-Idempotency-Key'),
-            ),
-        ));
+        $user = $request->user();
+        assert($user !== null);
+        $ids = array_values(array_map('intval', (array) $request->validated('department_ids')));
+        // All or nothing: one department still in use keeps every selected one.
+        $result = $handler->handle(new \App\Application\Shared\Commands\DeleteRecordCommand('department', $this->schoolContext->requireId(), 0, $ids));
+        if ($result->failed()) {
+            return redirect()->back()->withErrors(['department' => $result->errors[0]]);
+        }
+        $this->securityAudit->record(SecurityEventType::OrganizationDataModified, 'web.department.delete', 'deleted', $user, 'department:'.implode(',', $ids));
+
+        return redirect()->back()->with('success', 'flash.organization.departmentsDeleted');
     }
 
     private function respond(Request $request, string $errorKey, string $auditAction, string $flash, BranchStructureResult $result): RedirectResponse

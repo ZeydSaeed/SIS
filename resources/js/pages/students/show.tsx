@@ -20,7 +20,6 @@ import { StudentViewDialog } from '@/components/students/student-record-form';
 import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
-const STUDENT_STATUS_WITHDRAWN = 4;
 
 type PageProps = {
     student: StudentDetail;
@@ -34,7 +33,8 @@ export default function StudentsShow({ student, authorization }: PageProps) {
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const canUpdate = authorization.canUpdate;
-    const canDelete = canUpdate && student.status !== STUDENT_STATUS_WITHDRAWN;
+    // A withdrawn student can be deleted too (safe delete refuses it when grades / attendance… exist).
+    const canDelete = canUpdate;
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.students.title, href: '/students' },
@@ -166,14 +166,13 @@ export default function StudentsShow({ student, authorization }: PageProps) {
                 confirmPending={deleting}
                 onConfirm={() => {
                     setDeleting(true);
+                    // «حذف آمن»: back to the list when deleted; the reason is shown when refused.
                     router.post(
-                        '/students/bulk-status',
-                        {
-                            student_ids: [student.id],
-                            status: STUDENT_STATUS_WITHDRAWN,
-                        },
+                        `/students/${student.id}/delete`,
+                        {},
                         {
                             preserveScroll: true,
+                            onSuccess: () => router.visit('/students'),
                             onFinish: () => {
                                 setDeleting(false);
                                 setConfirmDelete(false);

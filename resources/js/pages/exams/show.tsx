@@ -7,6 +7,7 @@ import {
     GraduationCap,
     Pencil,
     Plus,
+    Trash2,
     XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -97,6 +98,8 @@ const SESSION = {
 
 type Confirm =
     | { kind: 'cancelExam' }
+    | { kind: 'deleteExam' }
+    | { kind: 'deleteSession'; session: SessionRow }
     | { kind: 'advance'; to: number }
     | { kind: 'closeSession' | 'cancelSession'; session: SessionRow };
 
@@ -187,6 +190,15 @@ export default function ExamShow({ exam, sessions, names, admin }: PageProps) {
                 disabled: terminal || busy,
                 onSelect: () => setConfirm({ kind: 'cancelExam' }),
             });
+            // «حذف» — safe delete (with its sessions); refused once students are seated or graded.
+            examCommands.push({
+                id: 'exam-delete',
+                label: i18n.common.delete,
+                icon: Trash2,
+                tone: 'delete',
+                disabled: busy,
+                onSelect: () => setConfirm({ kind: 'deleteExam' }),
+            });
         }
         if (examCommands.length > 0) {
             groups.push({ id: 'exam', label: a.exam, commands: examCommands });
@@ -224,6 +236,16 @@ export default function ExamShow({ exam, sessions, names, admin }: PageProps) {
                 onSelect: () =>
                     selected &&
                     setConfirm({ kind: 'cancelSession', session: selected }),
+            });
+            sessionCommands.push({
+                id: 'session-delete',
+                label: i18n.common.delete,
+                icon: Trash2,
+                tone: 'delete',
+                disabled: selected === null || busy,
+                onSelect: () =>
+                    selected &&
+                    setConfirm({ kind: 'deleteSession', session: selected }),
             });
         }
         if (sessionCommands.length > 0) {
@@ -337,6 +359,10 @@ export default function ExamShow({ exam, sessions, names, admin }: PageProps) {
 
     const confirmText = (() => {
         if (confirm === null) return { title: '', description: '', label: '' };
+        if (confirm.kind === 'deleteExam')
+            return { title: a.deleteExamTitle, description: a.deleteExamDesc, label: i18n.common.delete };
+        if (confirm.kind === 'deleteSession')
+            return { title: a.deleteSessionTitle, description: a.deleteSessionDesc, label: i18n.common.delete };
         if (confirm.kind === 'cancelExam')
             return {
                 title: a.cancelExamTitle,
@@ -367,7 +393,9 @@ export default function ExamShow({ exam, sessions, names, admin }: PageProps) {
 
     const runConfirm = () => {
         if (confirm === null) return;
-        if (confirm.kind === 'cancelExam') act(`${base}/cancel`);
+        if (confirm.kind === 'deleteExam') act(`${base}/delete`);
+        else if (confirm.kind === 'deleteSession') act(`${base}/sessions/${confirm.session.id}/delete`);
+        else if (confirm.kind === 'cancelExam') act(`${base}/cancel`);
         else if (confirm.kind === 'advance')
             act(`${base}/update`, { target_status: confirm.to });
         else if (confirm.kind === 'closeSession')
@@ -543,7 +571,9 @@ export default function ExamShow({ exam, sessions, names, admin }: PageProps) {
                 confirmPending={busy}
                 tone={
                     confirm?.kind === 'cancelExam' ||
-                    confirm?.kind === 'cancelSession'
+                    confirm?.kind === 'cancelSession' ||
+                    confirm?.kind === 'deleteExam' ||
+                    confirm?.kind === 'deleteSession'
                         ? 'danger'
                         : 'default'
                 }

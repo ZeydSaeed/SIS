@@ -636,6 +636,8 @@ function TeachersPage({
     const [teachingForm, setTeachingForm] =
         useState<TeachingForm>(EMPTY_TEACHING);
     const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+    /** «حذف» (safe delete) of the one selected teacher. */
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [endTarget, setEndTarget] = useState<Assignment | null>(null);
 
     const filteredRows = useMemo(() => {
@@ -1152,9 +1154,9 @@ function TeachersPage({
                     label: i18n.common.delete,
                     icon: Trash2,
                     tone: 'delete',
-                    title: selectionTitle(tc.setInactive),
-                    disabled: !hasSelection || saving,
-                    onSelect: () => setConfirmDeactivate(true),
+                    title: single === null ? tc.deleteNeedsOne : tc.deleteTitle,
+                    disabled: single === null || saving,
+                    onSelect: () => setConfirmDelete(true),
                 },
             );
         }
@@ -2527,6 +2529,32 @@ function TeachersPage({
                     onClose={() => setAppearanceTeacher(null)}
                 />
             ) : null}
+            <ConfirmDialog
+                open={confirmDelete && single !== null}
+                title={tc.deleteTitle}
+                description={`${tc.deleteConfirm}${single !== null ? ` (${single.full_name})` : ''}`}
+                confirmLabel={i18n.common.delete}
+                tone="danger"
+                confirmPending={saving}
+                onConfirm={() => {
+                    if (single === null) {
+                        return;
+                    }
+                    void run(
+                        () => request('post', `/teachers/${single.id}/delete`, {}),
+                        () => {
+                            setConfirmDelete(false);
+                            setSelectedId(null);
+                            setCheckedIds([]);
+                        },
+                    ).finally(() => setConfirmDelete(false));
+                }}
+                onOpenChange={(open) => {
+                    if (!open && !saving) {
+                        setConfirmDelete(false);
+                    }
+                }}
+            />
             <ConfirmDialog
                 open={confirmDeactivate}
                 title={tc.deactivate}

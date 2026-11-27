@@ -86,12 +86,13 @@ final class OrganizationBranchStructurePostgreSqlTest extends PostgreSqlIntegrat
         $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'branches'), ['id' => $id, 'name' => 'التجاري والإداري', 'description' => null]);
 
         $this->createDepartment($id, 'المحاسبة');
+        // «حذف آمن»: a branch that still has departments is refused, naming them.
         $this->send('post', "/organization/branches/{$id}/delete")
-            ->assertSessionHasErrors(['branch' => 'organization.branch_has_departments']);
+            ->assertSessionHasErrors(['branch' => 'delete.linked?with='.rawurlencode('الاختصاصات')]);
 
         $empty = $this->createBranch('الفندقي والسياحي');
         $this->send('post', "/organization/branches/{$empty}/delete")->assertSessionHasNoErrors();
-        $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'branches'), ['id' => $empty, 'status' => 3]);
+        $this->assertDatabaseMissing(SchemaHelper::qualified('organization', 'branches'), ['id' => $empty]);
         // A deleted branch name can be reused.
         $this->createBranch('الفندقي والسياحي');
 
@@ -126,15 +127,16 @@ final class OrganizationBranchStructurePostgreSqlTest extends PostgreSqlIntegrat
         $this->enrollInDepartment($industrial, $mechanics);
         $this->send('patch', "/organization/departments/{$mechanics}", ['name' => 'الميكانيك', 'branch_id' => $health])
             ->assertSessionHasErrors(['department' => 'organization.department_in_use']);
+        // All or nothing: the used department keeps the unused one too.
         $this->send('post', '/organization/departments/delete', ['department_ids' => [$electricity, $mechanics]])
-            ->assertSessionHasErrors(['department' => 'organization.department_in_use']);
+            ->assertSessionHasErrors(['department' => 'delete.linked?with='.rawurlencode('التسجيل في الصفوف')]);
         $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'departments'), ['id' => $electricity, 'status' => 1]);
         // Renaming in place stays allowed.
         $this->send('patch', "/organization/departments/{$mechanics}", ['name' => 'ميكانيك السيارات', 'branch_id' => $industrial])
             ->assertSessionHasNoErrors();
 
         $this->send('post', '/organization/departments/delete', ['department_ids' => [$electricity]])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas(SchemaHelper::qualified('organization', 'departments'), ['id' => $electricity, 'status' => 3]);
+        $this->assertDatabaseMissing(SchemaHelper::qualified('organization', 'departments'), ['id' => $electricity]);
         // The used branch cannot be deleted either.
         $this->send('post', '/organization/departments/delete', ['department_ids' => []])->assertSessionHasErrors(['department_ids']);
     }
