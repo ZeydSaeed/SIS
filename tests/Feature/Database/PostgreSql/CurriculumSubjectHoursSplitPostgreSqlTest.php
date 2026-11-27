@@ -6,6 +6,7 @@ use App\Database\SchemaHelper;
 use App\Models\User;
 use Database\Seeders\SecurityPermissionSeeder;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\InteractsWithSecurity;
@@ -52,5 +53,34 @@ final class CurriculumSubjectHoursSplitPostgreSqlTest extends PostgreSqlIntegrat
             ->patch('/curriculum/curriculum-subjects/'.$row->id.'/hours', ['theory_hours' => 30, 'practical_hours' => 20])
             ->assertSessionHasErrors('link');
         $this->assertSame(3, (int) DB::table($links)->where('id', $row->id)->value('weekly_hours'));
+    }
+
+    #[Test]
+    public function the_curricula_overview_gives_each_curriculum_its_subject_count_and_hours(): void
+    {
+        $this->withoutVite();
+        $schoolId = $this->createSchool('SCH-OVC', 'Curricula overview');
+        $yearId = $this->createAcademicYear('AY-OVC');
+        $gradeId = $this->createGradeLevel('G-OVC');
+        $user = User::factory()->create();
+        app(SecurityPermissionSeeder::class)->grantCurriculumManager($user, $schoolId);
+        Sanctum::actingAs($user);
+        $this->withHeader('X-School-Id', (string) $schoolId);
+        $subjectId = (int) $this->postJson('/api/v1/curriculum/subjects', ['code' => 'OVC-S', 'name' => 'Networks', 'subject_type' => 2], ['X-Idempotency-Key' => 'ovc-s'])
+            ->assertCreated()->json('data.subject_id');
+        $curriculumId = (int) $this->postJson('/api/v1/curriculum/curricula', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'OVC'], ['X-Idempotency-Key' => 'ovc-c'])
+            ->assertCreated()->json('data.curriculum_id');
+        $this->from('/curriculum')->withHeader('X-Idempotency-Key', 'ovc-l')
+            ->post('/curriculum/curricula/'.$curriculumId.'/subjects', ['subject_id' => $subjectId, 'theory_hours' => 2, 'practical_hours' => 3, 'is_required' => true])
+            ->assertSessionHas('success', 'flash.curriculum.subjectLinked');
+
+        $this->actingAs($user)->withSession(['current_school_id' => $schoolId])
+            ->get('/curriculum/overview?view=curricula&academic_year_id='.$yearId)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('curriculum/index')
+                ->where('curricula.data.0.id', $curriculumId)
+                ->where('curricula.data.0.subject_count', 1)
+                ->where('curricula.data.0.total_hours', 5));
     }
 }

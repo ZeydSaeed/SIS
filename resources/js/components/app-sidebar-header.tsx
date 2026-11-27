@@ -35,7 +35,8 @@ import { direction, t } from '@/i18n';
 import {
     dispatchOpenCreateCurriculum,
     dispatchOpenCreateSubject,
-    isCurriculumWorkspacePath,
+    isCurriculaWorkspacePath,
+    isSubjectsWorkspacePath,
 } from '@/lib/curriculum-create-subject-event';
 import appearance from '@/routes/appearance';
 import { edit as profileEdit } from '@/routes/profile';
@@ -273,7 +274,7 @@ export function AppSidebarHeader({
 
         if (id === 'addSubject') {
             const currentUrl = page.url.split('?')[0] ?? page.url;
-            if (isCurriculumWorkspacePath(currentUrl)) {
+            if (isSubjectsWorkspacePath(currentUrl)) {
                 dispatchOpenCreateSubject();
 
                 return;
@@ -286,13 +287,13 @@ export function AppSidebarHeader({
 
         if (id === 'addCurriculum') {
             const currentUrl = page.url.split('?')[0] ?? page.url;
-            if (isCurriculumWorkspacePath(currentUrl)) {
+            if (isCurriculaWorkspacePath(currentUrl)) {
                 dispatchOpenCreateCurriculum();
 
                 return;
             }
 
-            router.visit('/curriculum?create_curriculum=1');
+            router.visit('/curriculum/curricula?create_curriculum=1');
 
             return;
         }

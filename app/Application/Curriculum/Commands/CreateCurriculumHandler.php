@@ -46,6 +46,9 @@ final class CreateCurriculumHandler implements CommandHandler
             $command->name,
             $command->specializationId,
             $command->departmentId,
+            $command->branchId,
+            $command->classId,
+            $command->sectionId,
         );
         if ($error !== null) {
             return CreateCurriculumResult::failure([$error]);
@@ -71,6 +74,9 @@ final class CreateCurriculumHandler implements CommandHandler
                 $command->specializationId,
                 $createdAt,
                 $command->departmentId,
+                $command->branchId,
+                $command->classId,
+                $command->sectionId,
             );
 
             if ($subjectIds !== []) {

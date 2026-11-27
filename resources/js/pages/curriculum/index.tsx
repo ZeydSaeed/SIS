@@ -14,7 +14,7 @@ export default function CurriculumIndex(props: CurriculumPageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={i18n.curriculum.title} />
-            <CurriculumWorkspace {...props} />
+            <CurriculumWorkspace {...props} view="subjects" />
         </AppLayout>
     );
 }

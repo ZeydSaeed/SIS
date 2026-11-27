@@ -19,9 +19,43 @@ interface CurriculumRepositoryInterface
         ?int $specializationId,
         string $createdAt,
         ?int $departmentId = null,
+        ?int $branchId = null,
+        ?int $classId = null,
+        ?int $sectionId = null,
     ): int;
 
     public function departmentActiveInSchool(int $schoolId, int $departmentId): bool;
+
+    public function branchActiveInSchool(int $schoolId, int $branchId): bool;
+
+    public function departmentActiveInBranch(int $departmentId, int $branchId): bool;
+
+    /** The grade level of an active class of the school and year, or null when there is no such class. */
+    public function activeClassGradeLevel(int $schoolId, int $academicYearId, int $classId): ?int;
+
+    public function sectionActiveInClass(int $sectionId, int $classId): bool;
+
+    /** An active curriculum already covers this branch / department / section in the year (optionally ignoring one). */
+    public function activeScopeExists(
+        int $schoolId,
+        int $academicYearId,
+        int $branchId,
+        ?int $departmentId,
+        int $sectionId,
+        ?int $exceptCurriculumId = null,
+    ): bool;
+
+    /** Any teacher (active or ended) is recorded on one of the curriculum's subject lines. */
+    public function hasLineTeachers(int $schoolId, int $curriculumId): bool;
+
+    /**
+     * Per curriculum: active subject lines, their weekly hours, and how many of them have an active main teacher
+     * (one query for the whole page).
+     *
+     * @param  list<int>  $curriculumIds
+     * @return array<int, array{subjects: int, hours: int, staffed: int}>
+     */
+    public function lineStats(int $schoolId, array $curriculumIds): array;
 
     /** An active curriculum of the department for the grade and year already exists (optionally ignoring one). */
     public function activeCurriculumExists(int $schoolId, int $academicYearId, int $gradeLevelId, int $departmentId, ?int $exceptCurriculumId = null): bool;
@@ -99,6 +133,13 @@ interface CurriculumRepositoryInterface
 
     /** @return list<CurriculumSubjectSnapshot> */
     public function listLinks(int $schoolId, int $curriculumId): array;
+
+    /**
+     * The school's curricula each subject is linked to (any line status) — the «حذف» warning names them.
+     *
+     * @return array<int, list<string>> subject id → curriculum names
+     */
+    public function curriculumNamesBySubject(int $schoolId): array;
 
     public function deactivateLink(int $schoolId, int $linkId): bool;
 

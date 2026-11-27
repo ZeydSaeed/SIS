@@ -1,6 +1,10 @@
 import { router, usePage } from '@inertiajs/react';
 import {
+    BookOpen,
+    BookOpenCheck,
     CheckCircle2,
+    GraduationCap,
+    ScrollText,
     CircleSlash,
     Eye,
     Filter,
@@ -9,6 +13,7 @@ import {
     Pencil,
     Trash2,
     XCircle,
+    type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -102,11 +107,58 @@ export type CurriculumRow = {
     department_name: string | null;
     branch_id: number | null;
     branch_name: string | null;
+    /** الصف (enrollment.classes) and الشعبة the curriculum belongs to — null on curricula made before 2026-11-27. */
+    class_id?: number | null;
+    class_name?: string | null;
+    section_id?: number | null;
+    section_name?: string | null;
     status: number;
     academic_year_id: number;
     school_id?: number;
     subjects?: CurriculumNestedSubject[];
+    /** Active subject lines, their total weekly hours, and how many have their main teacher. */
+    subject_count?: number;
+    total_hours?: number;
+    staffed_count?: number;
+    /** «مكتمل»: it has subjects and every one of them has its main teacher. */
+    is_complete?: boolean;
 };
+
+/** A teacher of a subject in a curriculum: role 1 = مدرس المادة (الرئيسي), 2 = مدرس مساعد. */
+export type CurriculumLineTeacher = {
+    assignment_id: number;
+    teacher_id: number;
+    name: string;
+    employee_code: string;
+    role: 1 | 2;
+};
+
+export type TeacherOption = { id: number; name: string; employee_code: string };
+
+/** «المناهج» overview icon by the curriculum's class: an open book, a checked book, a graduation cap. */
+const CURRICULUM_STAGE_ICONS: LucideIcon[] = [BookOpen, BookOpenCheck, GraduationCap];
+
+function curriculaOverviewCards(rows: CurriculumRow[]): OverviewCard[] {
+    const stages = [...new Set(rows.map((row) => row.grade_level_id))].sort((a, b) => a - b);
+    const tones = ['submitted', 'interview', 'waitlisted', 'transfer', 'under-review'];
+
+    return [...rows]
+        .sort((a, b) => a.grade_level_id - b.grade_level_id || a.name.localeCompare(b.name, 'ar'))
+        .map((row) => {
+            const stage = stages.indexOf(row.grade_level_id);
+
+            return {
+                key: `curriculum-${row.id}`,
+                // «مكتمل» once every subject has its main teacher.
+                label: `${row.name} · ${row.is_complete ? t().curriculum.planComplete : t().curriculum.planIncomplete}`,
+                icon: CURRICULUM_STAGE_ICONS[stage] ?? ScrollText,
+                count: row.subject_count ?? 0,
+                // An inactive curriculum is greyed like a withdrawn application.
+                tone: row.status === 1 ? (tones[stage % tones.length] ?? 'submitted') : 'withdrawn',
+                href: `/curriculum/curricula/${row.id}`,
+            };
+        });
+}
 
 export type SubjectRow = {
     id: number;
@@ -122,6 +174,8 @@ export type SubjectRow = {
     /** «الاختصار واللون» (shown on the timetable). */
     abbreviation?: string | null;
     color_hue?: number | null;
+    /** This school's curricula that use the subject (the «حذف» warning names them). */
+    curricula?: string[];
 };
 
 export type LinkedSubjectRow = {
@@ -137,6 +191,8 @@ export type LinkedSubjectRow = {
     is_required: boolean;
     subject_order: number;
     status: number;
+    /** «المدرسون» of the subject in this curriculum (main teacher first) — on the curriculum page. */
+    teachers?: CurriculumLineTeacher[];
 };
 
 export type CurriculumPagination = {
@@ -148,6 +204,8 @@ export type CurriculumPagination = {
 
 export type CurriculumFilterOptions = {
     classes: Array<{ id: number; code: string; name: string; grade_level_id: number }>;
+    /** Sections (A / B / C) of the year's classes. */
+    sections?: Array<{ id: number; class_id: number; code: string; name: string }>;
     branches: Array<{ id: number; code: string; name: string }>;
     departments: Array<{ id: number; branch_id: number | null; code: string; name: string }>;
     specializations: Array<{
@@ -202,7 +260,13 @@ type ConfirmState =
     | { kind: 'subject-reactivate'; id: number }
     | { kind: 'link-deactivate'; id: number }
     | { kind: 'link-reactivate'; id: number }
-    | { kind: 'subjects-delete'; ids: number[]; count: number }
+    | {
+          kind: 'subjects-delete';
+          ids: number[];
+          count: number;
+          /** Subjects linked to a curriculum: the warning names them and offers «تعديل المادة» instead. */
+          linked: Array<{ name: string; curricula: string[] }>;
+      }
     | {
           kind: 'curricula-remove';
           pairs: Array<{ curriculumId: number; subjectId: number }>;
@@ -437,9 +501,13 @@ function initialEditFilter(): CurriculumEditFilter {
     return CURRICULUM_STATUS_TABS.find((tab) => tab.id === id)?.filter ?? { kind: 'all' };
 }
 
-export function CurriculumWorkspace(props: CurriculumPageProps) {
+export function CurriculumWorkspace(props: CurriculumPageProps & { view: CurriculumListView }) {
     const isOverviewPage = useIsOverview();
-    useOverviewHome('/curriculum', !isOverviewPage);
+    const pageUrl = usePage().url;
+    // Two pages, one workspace: «المواد» = /curriculum, «المناهج» = /curriculum/curricula (each with its own overview).
+    const activeView = props.view;
+    const basePath = activeView === 'curricula' ? '/curriculum/curricula' : '/curriculum';
+    useOverviewHome(basePath, !isOverviewPage);
     const curricula = useMemo(
         () => normalizePagedRows<CurriculumRow>(props.curricula),
         [props.curricula],
@@ -494,33 +562,21 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [confirm, setConfirm] = useState<ConfirmState>(null);
     const [confirmPending, setConfirmPending] = useState(false);
-    const [activeView, setActiveView] = useState<CurriculumListView>('subjects');
     const [editFilter, setEditFilter] = useState<CurriculumEditFilter>(initialEditFilter);
     const [selectedNames, setSelectedNames] = useState<string[]>([]);
     const [listPage, setListPage] = useState(() => readStoredListPage('curriculum', 1));
     const scrollerRef = useRef<HTMLDivElement>(null);
     const canManage = props.authorization?.canManage === true;
-    const pageUrl = usePage().url;
-    const urlView = new URLSearchParams(pageUrl.split('?')[1] ?? '').get('view') === 'curricula' ? 'curricula' : 'subjects';
-
-    // No in-page «المواد / المناهج» tabs: the sidebar picks the view —
-    // «المواد» = /curriculum (subjects), «المناهج» = /curriculum?view=curricula.
-    useEffect(() => {
-        setActiveView(urlView);
-    }, [urlView]);
-
     useEffect(() => {
         if (!canManage) {
             return;
         }
 
         const onOpenCreateSubject = (): void => {
-            setActiveView('subjects');
             setSubjectCreateOpen(true);
         };
 
         const onOpenCreateCurriculum = (): void => {
-            setActiveView('curricula');
             setPlanSheetPlan(null);
             setPlanSheetEditing(false);
             setPlanCreateOpen(true);
@@ -545,12 +601,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         }
 
         if (createSubject) {
-            setActiveView('subjects');
             setSubjectCreateOpen(true);
             params.delete('create_subject');
         }
         if (createCurriculum) {
-            setActiveView('curricula');
             setPlanCreateOpen(true);
             params.delete('create_curriculum');
         }
@@ -640,11 +694,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                 : (currentYearId ?? filters.academic_year_id);
 
         router.get(
-            '/curriculum',
+            basePath,
             {
                 ...omitEmpty({
-                    // Stay on the view the sidebar opened (المواد / المناهج).
-                    view: activeView === 'curricula' ? 'curricula' : undefined,
                     academic_year_id: yearForRequest ?? undefined,
                     all_curricula: showAll ? 1 : undefined,
                     curriculum_id: next.curriculum_id,
@@ -839,7 +891,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
         setSelectedSpec('');
         setSelectedClass('');
         clearCurriculumStoredFilters();
-        setActiveView('curricula');
         visitIndex({
             academic_year_id: null,
             all_curricula: true,
@@ -1387,6 +1438,9 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             kind: 'subjects-delete',
             ids: targets.map((row) => row.id),
             count: targets.length,
+            linked: targets
+                .filter((row) => (row.curricula ?? []).length > 0)
+                .map((row) => ({ name: row.name, curricula: row.curricula ?? [] })),
         });
     }, [
         activeView,
@@ -1599,6 +1653,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                         : confirm.pairs.map(
                               (pair) => `/curriculum/curricula/${pair.curriculumId}/subjects/${pair.subjectId}/delete`,
                           );
+                // After the «مربوطة بمنهج» warning the owner chose to remove the subjects from the curricula too.
+                const body = confirm.kind === 'subjects-delete' && confirm.linked.length > 0 ? { detach_curricula: 1 } : {};
                 const runNext = (index: number): void => {
                     if (index >= urls.length) {
                         clearSelection();
@@ -1606,7 +1662,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
 
                         return;
                     }
-                    router.post(urls[index], {}, { preserveScroll: true, onFinish: () => runNext(index + 1) });
+                    router.post(urls[index], body, { preserveScroll: true, onFinish: () => runNext(index + 1) });
                 };
                 runNext(0);
                 break;
@@ -1632,6 +1688,17 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             case 'link-reactivate':
                 return { title: c.reactivate, description: c.confirmReactivateLink, confirmLabel: undefined };
             case 'subjects-delete':
+                if (confirm.linked.length > 0) {
+                    return {
+                        title: c.deleteLinkedTitle,
+                        description: c.deleteLinkedConfirm.replace(
+                            ':list',
+                            confirm.linked.map((row) => `«${row.name}»: ${row.curricula.join('، ')}`).join(' · '),
+                        ),
+                        confirmLabel: c.deleteLinkedAction,
+                    };
+                }
+
                 return {
                     title: confirm.count > 1 ? c.deleteTitleMany : c.deleteTitle,
                     description:
@@ -1652,6 +1719,29 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     }, [c, confirm, i18n.common.delete]);
 
     const overviewTones = ['interview', 'transfer', 'withdrawn', 'submitted', 'waitlisted', 'under-review'];
+    if (isOverviewPage && activeView === 'curricula') {
+        const overviewText = t().overview;
+
+        return (
+            <ModuleOverview
+                title={overviewText.curriculaTitle}
+                listPath="/curriculum/curricula"
+                allLabel={overviewText.allCurricula}
+                openLabel={overviewText.openCurriculum}
+                cards={[
+                    {
+                        key: 'all',
+                        label: overviewText.allCurricula,
+                        icon: ScrollText,
+                        count: curricula.data.length,
+                        tone: 'submitted',
+                        href: '/curriculum/curricula',
+                    },
+                    ...curriculaOverviewCards(curricula.data),
+                ]}
+            />
+        );
+    }
     if (isOverviewPage) {
         return (
             <ModuleOverview
@@ -2153,6 +2243,21 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
                         : 'default'
                 }
                 onConfirm={runConfirm}
+                extraAction={
+                    confirm?.kind === 'subjects-delete' && confirm.linked.length > 0
+                        ? {
+                              label: c.editSubjectAction,
+                              onClick: () => {
+                                  // «تعديل المادة» instead of deleting it: the subjects sheet, in edit mode.
+                                  const rows = subjects.data.filter((row) => confirm.ids.includes(row.id));
+                                  setConfirm(null);
+                                  setSubjectSheetSubjects(rows);
+                                  setSubjectSheetEditing(true);
+                                  setSubjectSheetFocusAppearance(false);
+                              },
+                          }
+                        : undefined
+                }
                 onOpenChange={(open) => {
                     if (!open) {
                         setConfirm(null);

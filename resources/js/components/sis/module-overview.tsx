@@ -21,8 +21,9 @@ export type OverviewCard = {
 /** Overview paths end with `/overview` (e.g. `/students/overview`); the list keeps the module's own path. */
 export const OVERVIEW_SUFFIX = '/overview';
 
-export function overviewPath(listPath: string): string {
-    return `${listPath}${OVERVIEW_SUFFIX}`;
+/** `query` keeps a view of the module (e.g. `view=curricula`): its own overview on the same path. */
+export function overviewPath(listPath: string, query?: string): string {
+    return `${listPath}${OVERVIEW_SUFFIX}${query ? `?${query}` : ''}`;
 }
 
 /** True when the visited page is a module's overview. */
@@ -33,13 +34,13 @@ export function useIsOverview(): boolean {
 }
 
 /** On a module's list page: the title bar's home button goes back to the module's overview. */
-export function useOverviewHome(listPath: string, enabled = true): void {
+export function useOverviewHome(listPath: string, enabled = true, query?: string): void {
     const label = t().overview.back;
 
     useRegisterPageTitlebarHome(
         useMemo(
-            () => (enabled ? { href: overviewPath(listPath), ariaLabel: label } : null),
-            [enabled, label, listPath],
+            () => (enabled ? { href: overviewPath(listPath, query), ariaLabel: label } : null),
+            [enabled, label, listPath, query],
         ),
     );
 }
@@ -62,6 +63,7 @@ export function ModuleOverview({
     allLabel,
     withBar = true,
     segments,
+    openLabel,
 }: {
     title: string;
     /** The module's list page: «all» and the search open it. */
@@ -74,6 +76,8 @@ export function ModuleOverview({
     withBar?: boolean;
     /** The bar and legend's shares when they differ from the cards (a module made of sections, e.g. the day's attendance). */
     segments?: Array<{ key: string; label: string; count: number; tone: string }>;
+    /** What pressing a card does, for screen readers (default «عرض القائمة»). */
+    openLabel?: string;
 }) {
     const text = t().overview;
     const all = cards.find((card) => card.key === 'all');
@@ -96,7 +100,7 @@ export function ModuleOverview({
                 onDraftChange: () => undefined,
                 onCommit: (next: string) => {
                     window.location.assign(
-                        `${listPath}?q=${encodeURIComponent(next.trim())}`,
+                        `${listPath}${listPath.includes('?') ? '&' : '?'}q=${encodeURIComponent(next.trim())}`,
                     );
                 },
             }),
@@ -207,7 +211,7 @@ export function ModuleOverview({
                                             key={card.key}
                                             href={card.href}
                                             className={`sis-follow-up-card sis-follow-up-tone--${card.tone}`}
-                                            aria-label={`${card.label}${card.count !== undefined ? `: ${card.count}` : ''} — ${text.open}`}
+                                            aria-label={`${card.label}${card.count !== undefined ? `: ${card.count}` : ''} — ${openLabel ?? text.open}`}
                                         >
                                             <span
                                                 className="sis-follow-up-card__avatar"

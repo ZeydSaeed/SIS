@@ -13,5 +13,9 @@ final readonly class CurriculumSnapshot
         public string $name,
         public int $status,
         public ?int $departmentId = null,
+        /** الفرع / الصف / الشعبة the curriculum belongs to (null on curricula made before 2026-11-27). */
+        public ?int $branchId = null,
+        public ?int $classId = null,
+        public ?int $sectionId = null,
     ) {}
 }

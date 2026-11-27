@@ -26,13 +26,30 @@ final class UpdateCurriculumGuard
         if (array_key_exists('name', $fields) && trim((string) $fields['name']) === '') {
             return 'curriculum.curriculum_name_invalid';
         }
+        $current = $this->curricula->findActiveInSchool($schoolId, $curriculumId);
+        if ($current !== null && array_key_exists('department_id', $fields)
+            && $fields['department_id'] !== $current->departmentId
+            && $this->curricula->hasLineTeachers($schoolId, $curriculumId)) {
+            // Its teachers were assigned for this department: remove them before moving the curriculum.
+            return 'curriculum.scope_locked_by_teachers';
+        }
+        if ($current !== null && array_key_exists('department_id', $fields) && $fields['department_id'] === null
+            && $current->sectionId !== null) {
+            return 'curriculum.department_required';
+        }
         if (array_key_exists('department_id', $fields) && $fields['department_id'] !== null) {
             $departmentId = (int) $fields['department_id'];
             if ($departmentId < 1 || ! $this->curricula->departmentActiveInSchool($schoolId, $departmentId)) {
                 return 'curriculum.department_invalid';
             }
-            $current = $this->curricula->findActiveInSchool($schoolId, $curriculumId);
-            if ($current !== null && $this->curricula->activeCurriculumExists($schoolId, $current->academicYearId, $current->gradeLevelId, $departmentId, $curriculumId)) {
+            if ($current !== null && $current->branchId !== null
+                && ! $this->curricula->departmentActiveInBranch($departmentId, $current->branchId)) {
+                return 'curriculum.department_not_in_branch';
+            }
+            $duplicate = $current === null ? false : ($current->sectionId !== null && $current->branchId !== null
+                ? $this->curricula->activeScopeExists($schoolId, $current->academicYearId, $current->branchId, $departmentId, $current->sectionId, $curriculumId)
+                : $this->curricula->activeCurriculumExists($schoolId, $current->academicYearId, $current->gradeLevelId, $departmentId, $curriculumId));
+            if ($duplicate) {
                 return 'curriculum.curriculum_exists';
             }
         }

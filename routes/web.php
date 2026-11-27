@@ -342,6 +342,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('curriculum')->name('curriculum.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [CurriculumPageController::class, 'index'])->name('index');
         Route::get('/overview', [CurriculumPageController::class, 'index'])->name('overview');
+        // «المناهج» is its own page (and overview), apart from «المواد» (/curriculum).
+        Route::get('/curricula', [CurriculumPageController::class, 'index'])->name('curricula.index');
+        Route::get('/curricula/overview', [CurriculumPageController::class, 'index'])->name('curricula.overview');
         Route::get('/curricula/{curriculum}', [CurriculumPageController::class, 'show'])
             ->whereNumber('curriculum')
             ->name('show');
@@ -379,6 +382,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/curriculum-subjects/{link}/hours', [CurriculumPageController::class, 'updateCurriculumSubjectHours'])
             ->whereNumber('link')
             ->name('curriculum_subjects.hours');
+        // «المدرسون» of a subject in a curriculum: main (or only) teacher, then assistants.
+        Route::post('/curriculum-subjects/{link}/teachers', [CurriculumPageController::class, 'storeCurriculumTeacher'])
+            ->whereNumber('link')
+            ->name('curriculum_subjects.teachers.store');
+        Route::post('/curriculum-subjects/{link}/teachers/{assignment}/end', [CurriculumPageController::class, 'endCurriculumTeacher'])
+            ->whereNumber(['link', 'assignment'])
+            ->name('curriculum_subjects.teachers.end');
         Route::post('/subjects', [CurriculumPageController::class, 'storeSubject'])->name('subjects.store');
         Route::patch('/subjects/{subject}', [CurriculumPageController::class, 'updateSubject'])
             ->whereNumber('subject')

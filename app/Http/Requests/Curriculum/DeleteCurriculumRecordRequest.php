@@ -16,6 +16,10 @@ class DeleteCurriculumRecordRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return array_merge(['school_id' => ['prohibited']], SecuritySensitiveFieldGuard::prohibitedRules());
+        return array_merge([
+            'school_id' => ['prohibited'],
+            // Subject only: also remove it from this school's curricula (after the «مربوطة بمنهج» warning).
+            'detach_curricula' => ['sometimes', 'boolean'],
+        ], SecuritySensitiveFieldGuard::prohibitedRules());
     }
 }

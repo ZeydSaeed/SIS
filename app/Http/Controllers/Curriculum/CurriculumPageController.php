@@ -39,8 +39,12 @@ use App\Application\Curriculum\Queries\GetCurriculumHandler;
 use App\Application\Curriculum\Queries\GetCurriculumQuery;
 use App\Application\Curriculum\Queries\ListCurriculaHandler;
 use App\Application\Curriculum\Queries\ListCurriculaQuery;
+use App\Application\Curriculum\Queries\ListCurriculumLineStatsHandler;
+use App\Application\Curriculum\Queries\ListCurriculumLineStatsQuery;
 use App\Application\Curriculum\Queries\ListCurriculumSubjectsHandler;
 use App\Application\Curriculum\Queries\ListCurriculumSubjectsQuery;
+use App\Application\Curriculum\Queries\ListSubjectCurriculumUsageHandler;
+use App\Application\Curriculum\Queries\ListSubjectCurriculumUsageQuery;
 use App\Application\Curriculum\Queries\ListSubjectPrerequisitesHandler;
 use App\Application\Curriculum\Queries\ListSubjectPrerequisitesQuery;
 use App\Application\Curriculum\Queries\ListSubjectsHandler;
@@ -55,7 +59,15 @@ use App\Http\Support\QueryIdList;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Curriculum\AddSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\ApplyCurriculumToEnrollmentsRequest;
-use App\Http\Requests\Curriculum\CreateCurriculumRequest;
+use App\Application\Teachers\Commands\AssignCurriculumTeacherCommand;
+use App\Application\Teachers\Commands\AssignCurriculumTeacherHandler;
+use App\Application\Teachers\Commands\EndCurriculumTeacherCommand;
+use App\Application\Teachers\Commands\EndCurriculumTeacherHandler;
+use App\Application\Teachers\Queries\ListCurriculumTeachersHandler;
+use App\Application\Teachers\Queries\ListCurriculumTeachersQuery;
+use App\Http\Requests\Curriculum\AssignCurriculumTeacherRequest;
+use App\Http\Requests\Curriculum\CreateCurriculumPageRequest;
+use App\Http\Requests\Curriculum\EndCurriculumTeacherRequest;
 use App\Http\Requests\Curriculum\CreateSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\DeactivateCurriculumSubjectRequest;
@@ -98,6 +110,8 @@ final class CurriculumPageController extends Controller
         ListSubjectsHandler $subjectsHandler,
         ListCurriculumSubjectsHandler $linksHandler,
         EnrollmentReadRepositoryInterface $enrollmentReads,
+        ListSubjectCurriculumUsageHandler $usageHandler,
+        ListCurriculumLineStatsHandler $statsHandler,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -126,7 +140,10 @@ final class CurriculumPageController extends Controller
         $branchIds = $allCurricula ? [] : QueryIdList::from($request, 'branch_id');
         $departmentFilterIds = $allCurricula ? [] : QueryIdList::from($request, 'department_id');
         $page = max(1, (int) $request->query('page', 1));
-        $perPage = min(max(1, (int) $request->query('per_page', $allCurricula ? 100 : 17)), 100);
+        // «المناهج» (/curriculum/curricula) is its own page; its overview is a card per curriculum, the whole year at once.
+        $curriculaPage = $request->routeIs('curriculum.curricula.index', 'curriculum.curricula.overview');
+        $curriculaOverview = $request->routeIs('curriculum.curricula.overview');
+        $perPage = min(max(1, (int) $request->query('per_page', ($allCurricula || $curriculaOverview) ? 100 : 17)), 100);
 
         $subjectQ = trim((string) $request->query('subject_q', ''));
         $subjectStatus = $request->filled('subject_status') ? (int) $request->query('subject_status') : null;
@@ -196,7 +213,7 @@ final class CurriculumPageController extends Controller
             paginate: true,
         ));
         assert(isset($subjectsForCatalog['items']));
-        $mapSubjectRow = static fn (SubjectDTO $dto): array => [
+        $mapSubjectBase = static fn (SubjectDTO $dto): array => [
             'id' => $dto->id,
             'code' => $dto->code,
             'name' => $dto->name,
@@ -209,6 +226,11 @@ final class CurriculumPageController extends Controller
             'prerequisites' => $dto->prerequisitesText ?? '',
             'abbreviation' => $dto->abbreviation,
             'color_hue' => $dto->colorHue,
+        ];
+        // The «حذف» warning: which of this school's curricula use each subject.
+        $curriculaBySubject = $usageHandler->handle(new ListSubjectCurriculumUsageQuery($schoolId));
+        $mapSubjectRow = static fn (SubjectDTO $dto): array => $mapSubjectBase($dto) + [
+            'curricula' => $curriculaBySubject[$dto->id] ?? [],
         ];
         $subjectsPayload = [
             'data' => array_map($mapSubjectRow, $subjectsForCatalog['items']),
@@ -231,6 +253,9 @@ final class CurriculumPageController extends Controller
             assert($dto instanceof SubjectDTO);
             $subjectById[$dto->id] = $mapSubjectRow($dto);
         }
+
+        // Subject count, weekly hours and «مكتمل» (every subject has its main teacher) — one query for the page.
+        $curriculaPayload['data'] = $this->withLineStats($curriculaPayload['data'], $schoolId, $statsHandler);
 
         $linkedSubjects = [];
         if ($selectedCurriculumId !== null && $academicYearId !== null) {
@@ -297,7 +322,7 @@ final class CurriculumPageController extends Controller
             ],
         );
 
-        return Inertia::render('curriculum/index', [
+        return Inertia::render($curriculaPage ? 'curriculum/curricula' : 'curriculum/index', [
             'curricula' => $curriculaPayload,
             'subjects' => $subjectsPayload,
             'linkedSubjects' => $linkedSubjects,
@@ -323,6 +348,7 @@ final class CurriculumPageController extends Controller
             ],
             'filterOptions' => [
                 'classes' => $filterOptions['classes'] ?? [],
+                'sections' => $filterOptions['sections'] ?? [],
                 'branches' => $filterOptions['branches'] ?? [],
                 'departments' => $filterOptions['departments'] ?? [],
                 'specializations' => $filterOptions['specializations'] ?? [],
@@ -335,7 +361,7 @@ final class CurriculumPageController extends Controller
     }
 
     public function storeCurriculum(
-        CreateCurriculumRequest $request,
+        CreateCurriculumPageRequest $request,
         CreateCurriculumHandler $handler,
     ): RedirectResponse {
         $schoolId = $this->schoolContext->requireId();
@@ -350,9 +376,10 @@ final class CurriculumPageController extends Controller
                 : null,
             idempotencyKey: $this->idempotencyKey($request),
             subjectIds: array_map(static fn (mixed $id): int => (int) $id, is_array($subjectIds) ? $subjectIds : []),
-            departmentId: $request->validated('department_id') !== null
-                ? (int) $request->validated('department_id')
-                : null,
+            departmentId: (int) $request->validated('department_id'),
+            branchId: (int) $request->validated('branch_id'),
+            classId: (int) $request->validated('class_id'),
+            sectionId: (int) $request->validated('section_id'),
         ));
 
         if ($result->failed()) {
@@ -688,13 +715,77 @@ final class CurriculumPageController extends Controller
     /** «حذف المادة» (shared catalogue) — refused while a curriculum, teacher, grade… uses it. */
     public function destroySubject(int $subject, DeleteCurriculumRecordRequest $request, DeleteRecordHandler $handler): RedirectResponse
     {
-        return $this->deleteRecord($request, $handler, 'subject', $subject, 'flash.curriculum.subjectDeleted');
+        // Linked to a curriculum: refused (`delete.linked?with=المناهج`) unless the owner chose
+        // «حذف من المناهج وحذف المادة» in the warning.
+        $entity = $request->boolean('detach_curricula') ? 'subject_detach' : 'subject';
+
+        return $this->deleteRecord($request, $handler, $entity, $subject, 'flash.curriculum.subjectDeleted');
     }
 
     /** «حذف المنهج» — with its subject lines (the subjects stay). */
     public function destroyCurriculum(int $curriculum, DeleteCurriculumRecordRequest $request, DeleteRecordHandler $handler): RedirectResponse
     {
         return $this->deleteRecord($request, $handler, 'curriculum', $curriculum, 'flash.curriculum.curriculumDeleted');
+    }
+
+    /** «المدرسون» of a curriculum subject: the main (or only) teacher, or an assistant once the main one is set. */
+    public function storeCurriculumTeacher(
+        int $link,
+        AssignCurriculumTeacherRequest $request,
+        AssignCurriculumTeacherHandler $handler,
+    ): RedirectResponse {
+        $result = $handler->handle(new AssignCurriculumTeacherCommand(
+            schoolId: $this->schoolContext->requireId(),
+            curriculumSubjectId: $link,
+            teacherId: (int) $request->validated('teacher_id'),
+            role: (int) $request->validated('teacher_role'),
+            replaceMain: $request->boolean('replace_main'),
+            idempotencyKey: $this->idempotencyKey($request),
+        ));
+
+        if ($result->failed()) {
+            return redirect()->back()->withErrors(['teacher' => $result->errors[0] ?? 'teachers.assignment_failed']);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.web.curriculum_subjects.teachers.store',
+            'assigned',
+            $request->user(),
+            'teaching_assignment:'.$result->assignmentId,
+            ['curriculum_subject_id' => $link, 'role' => (int) $request->validated('teacher_role')],
+        );
+
+        return redirect()->back()->with('success', 'flash.curriculum.teacherAssigned');
+    }
+
+    /** The teacher leaves the subject (ended with today's date; the history row stays). */
+    public function endCurriculumTeacher(
+        int $link,
+        int $assignment,
+        EndCurriculumTeacherRequest $request,
+        EndCurriculumTeacherHandler $handler,
+    ): RedirectResponse {
+        $result = $handler->handle(new EndCurriculumTeacherCommand(
+            schoolId: $this->schoolContext->requireId(),
+            curriculumSubjectId: $link,
+            assignmentId: $assignment,
+        ));
+
+        if ($result->failed()) {
+            return redirect()->back()->withErrors(['teacher' => $result->errors[0] ?? 'teachers.assignment_not_found']);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.web.curriculum_subjects.teachers.end',
+            'ended',
+            $request->user(),
+            'teaching_assignment:'.$assignment,
+            ['curriculum_subject_id' => $link],
+        );
+
+        return redirect()->back()->with('success', 'flash.curriculum.teacherRemoved');
     }
 
     /** Remove one subject line from a curriculum. */
@@ -822,6 +913,8 @@ final class CurriculumPageController extends Controller
         ListSubjectPrerequisitesHandler $prereqHandler,
         EnrollmentReadRepositoryInterface $enrollmentReads,
         ListEnrollmentSubjectsHandler $enrollmentSubjectsHandler,
+        ListCurriculumTeachersHandler $teachersHandler,
+        ListCurriculumLineStatsHandler $statsHandler,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -837,7 +930,9 @@ final class CurriculumPageController extends Controller
 
         $filterOptions = $enrollmentReads->listFilterOptions($schoolId, $dto->academicYearId);
         $meta = $this->buildLabelMaps($filterOptions);
-        $plan = $this->mapCurriculumRow($dto, $meta);
+        [$plan] = $this->withLineStats([$this->mapCurriculumRow($dto, $meta)], $schoolId, $statsHandler);
+        // «المدرسون» of each subject line (main teacher first) and the school's teachers for the year.
+        $curriculumTeachers = $teachersHandler->handle(new ListCurriculumTeachersQuery($schoolId, $curriculum, $dto->academicYearId));
 
         $activeSubjects = $subjectsHandler->handle(new ListSubjectsQuery(includeInactive: false));
         assert(is_array($activeSubjects) && ! isset($activeSubjects['items']));
@@ -873,6 +968,13 @@ final class CurriculumPageController extends Controller
                 'is_required' => $link->isRequired,
                 'subject_order' => $link->subjectOrder,
                 'status' => $link->status,
+                'teachers' => array_map(static fn (array $row): array => [
+                    'assignment_id' => $row['assignment_id'],
+                    'teacher_id' => $row['teacher_id'],
+                    'name' => $row['teacher_name'],
+                    'employee_code' => $row['employee_code'],
+                    'role' => $row['role'],
+                ], $curriculumTeachers['byLine'][$link->id] ?? []),
             ];
 
             foreach ($prereqHandler->handle(new ListSubjectPrerequisitesQuery($link->subjectId, true)) as $prereq) {
@@ -944,6 +1046,7 @@ final class CurriculumPageController extends Controller
             'linkedSubjects' => $linkedSubjects,
             'prerequisites' => $prerequisites,
             'subjectOptions' => array_values($subjectById),
+            'teacherOptions' => $curriculumTeachers['options'],
             'enrollments' => [
                 'data' => array_map(static fn ($e): array => $e->toArray(), $enrollmentsResult['items']),
                 'pagination' => $enrollmentsResult['pagination'],
@@ -952,6 +1055,7 @@ final class CurriculumPageController extends Controller
             'enrollmentSubjects' => $enrollmentSubjects,
             'filterOptions' => [
                 'classes' => $filterOptions['classes'] ?? [],
+                'sections' => $filterOptions['sections'] ?? [],
                 'branches' => $filterOptions['branches'] ?? [],
                 'departments' => $filterOptions['departments'] ?? [],
                 'specializations' => $filterOptions['specializations'] ?? [],
@@ -1083,7 +1187,7 @@ final class CurriculumPageController extends Controller
 
     /**
      * @param  array<string, mixed>  $filterOptions
-     * @return array{gradeNames: array<int, string>, specNames: array<int, string>, specMeta: array<int, array{department_id: ?int, name: string}>, departmentMeta: array<int, array{branch_id: ?int, name: string}>, branchNames: array<int, string>}
+     * @return array{gradeNames: array<int, string>, specNames: array<int, string>, specMeta: array<int, array{department_id: ?int, name: string}>, departmentMeta: array<int, array{branch_id: ?int, name: string}>, branchNames: array<int, string>, classNames: array<int, string>, sectionNames: array<int, string>}
      */
     private function buildLabelMaps(array $filterOptions): array
     {
@@ -1118,8 +1222,16 @@ final class CurriculumPageController extends Controller
         foreach ($filterOptions['branches'] ?? [] as $branch) {
             $branchNames[(int) $branch['id']] = (string) $branch['name'];
         }
+        $classNames = [];
+        foreach ($filterOptions['classes'] ?? [] as $class) {
+            $classNames[(int) $class['id']] = (string) $class['name'];
+        }
+        $sectionNames = [];
+        foreach ($filterOptions['sections'] ?? [] as $section) {
+            $sectionNames[(int) $section['id']] = (string) $section['name'];
+        }
 
-        return compact('gradeNames', 'specNames', 'specMeta', 'departmentMeta', 'branchNames');
+        return compact('gradeNames', 'specNames', 'specMeta', 'departmentMeta', 'branchNames', 'classNames', 'sectionNames');
     }
 
     /**
@@ -1181,7 +1293,7 @@ final class CurriculumPageController extends Controller
     }
 
     /**
-     * @param  array{gradeNames: array<int, string>, specNames: array<int, string>, specMeta: array<int, array{department_id: ?int, name: string}>, departmentMeta: array<int, array{branch_id: ?int, name: string}>, branchNames: array<int, string>}  $meta
+     * @param  array{gradeNames: array<int, string>, specNames: array<int, string>, specMeta: array<int, array{department_id: ?int, name: string}>, departmentMeta: array<int, array{branch_id: ?int, name: string}>, branchNames: array<int, string>, classNames: array<int, string>, sectionNames: array<int, string>}  $meta
      * @return array<string, mixed>
      */
     private function mapCurriculumRow(CurriculumDTO $dto, array $meta): array
@@ -1190,7 +1302,9 @@ final class CurriculumPageController extends Controller
         // الاختصاص = the branch department stored on the curriculum (legacy: via specialization).
         $departmentId = $dto->departmentId
             ?? ($specId !== null ? ($meta['specMeta'][$specId]['department_id'] ?? null) : null);
-        $branchId = $departmentId !== null ? ($meta['departmentMeta'][$departmentId]['branch_id'] ?? null) : null;
+        // الفرع is stored on the curriculum (2026-11-27); older rows take it from the department.
+        $branchId = $dto->branchId
+            ?? ($departmentId !== null ? ($meta['departmentMeta'][$departmentId]['branch_id'] ?? null) : null);
 
         return [
             'id' => $dto->id,
@@ -1205,11 +1319,32 @@ final class CurriculumPageController extends Controller
                 : null,
             'branch_id' => $branchId,
             'branch_name' => $branchId !== null ? ($meta['branchNames'][$branchId] ?? null) : null,
+            'class_id' => $dto->classId,
+            'class_name' => $dto->classId !== null ? ($meta['classNames'][$dto->classId] ?? null) : null,
+            'section_id' => $dto->sectionId,
+            'section_name' => $dto->sectionId !== null ? ($meta['sectionNames'][$dto->sectionId] ?? null) : null,
             'status' => $dto->status,
             'academic_year_id' => $dto->academicYearId,
             'school_id' => $dto->schoolId,
             'subjects' => [],
         ];
+    }
+
+    /**
+     * Each curriculum row: its active subject lines, their total weekly hours, how many have their main teacher,
+     * and «مكتمل» — the overview cards and the list read these.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function withLineStats(array $rows, int $schoolId, ListCurriculumLineStatsHandler $statsHandler): array
+    {
+        $stats = $statsHandler->handle(new ListCurriculumLineStatsQuery(
+            $schoolId,
+            array_map(static fn (array $row): int => (int) $row['id'], $rows),
+        ));
+
+        return array_map(static fn (array $row): array => $row + ($stats[(int) $row['id']] ?? []), $rows);
     }
 
     private function idempotencyKey(Request $request): string

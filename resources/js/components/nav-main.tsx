@@ -32,15 +32,19 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
         if (!isCurrentOrParentUrl(pathOf(href)) || !matchesQuery(href)) {
             return false;
         }
-        // A plain link (/curriculum) yields to a sibling on the same path whose query matches (/curriculum?view=…).
-        return (
-            href.includes('?') ||
-            !items.some((other) => {
-                const otherHref = other.href.toString();
+        // A link yields to a sibling that matches the page more closely: a deeper path (/curriculum →
+        // /curriculum/curricula) or, on the same path, one whose query matches too (/curriculum?view=…).
+        const path = pathOf(href);
 
-                return otherHref.includes('?') && pathOf(otherHref) === pathOf(href) && matchesQuery(otherHref);
-            })
-        );
+        return !items.some((other) => {
+            const otherHref = other.href.toString();
+            const otherPath = pathOf(otherHref);
+            if (otherHref === href || !isCurrentOrParentUrl(otherPath) || !matchesQuery(otherHref)) {
+                return false;
+            }
+
+            return otherPath.length > path.length || (otherPath === path && otherHref.includes('?') && !href.includes('?'));
+        });
     };
 
     return (

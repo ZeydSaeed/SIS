@@ -28,6 +28,9 @@ final class GetCurriculumHandler
             name: $row->name,
             status: $row->status,
             departmentId: $row->departmentId,
+            branchId: $row->branchId,
+            classId: $row->classId,
+            sectionId: $row->sectionId,
         );
     }
 }

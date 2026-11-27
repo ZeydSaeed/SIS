@@ -20,6 +20,8 @@ type ConfirmDialogProps = {
     tone?: ConfirmDialogTone;
     onConfirm: () => void;
     onOpenChange: (open: boolean) => void;
+    /** A third choice between «إلغاء» and the confirm button (e.g. «تعديل المادة» instead of deleting it). */
+    extraAction?: { label: string; onClick: () => void };
 };
 
 /**
@@ -36,6 +38,7 @@ export function ConfirmDialog({
     tone = 'default',
     onConfirm,
     onOpenChange,
+    extraAction,
 }: ConfirmDialogProps) {
     const i18n = t();
     const confirm = confirmLabel ?? i18n.dialog.confirm;
@@ -86,6 +89,15 @@ export function ConfirmDialog({
                         >
                             {cancel}
                         </button>
+                        {extraAction !== undefined ? (
+                            <button
+                                type="button"
+                                onClick={extraAction.onClick}
+                                disabled={confirmPending}
+                            >
+                                {extraAction.label}
+                            </button>
+                        ) : null}
                         <button
                             type="button"
                             onClick={onConfirm}

@@ -99,7 +99,7 @@ const MODULE_DEFS: Record<
     branches: { href: '/organization/branches', icon: Network },
     classesSections: { href: '/organization/classes-sections', icon: School },
     subjects: { href: '/curriculum', icon: Library },
-    curriculum: { href: '/curriculum?view=curricula', icon: BookOpen },
+    curriculum: { href: '/curriculum/curricula/overview', icon: BookOpen },
     exams: { href: '/exams', icon: NotebookPen },
     grades: { href: '/grades', icon: ListChecks },
     results: { href: '/results', icon: ScrollText },

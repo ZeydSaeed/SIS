@@ -10,7 +10,9 @@ use App\Domain\Teachers\Data\TeacherSubjectSnapshot;
 use App\Domain\Teachers\Data\TeachingAssignmentData;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\ValueObjects\QualificationStatus;
+use App\Domain\Teachers\ValueObjects\TeacherStatus;
 use App\Domain\Teachers\ValueObjects\TeachingAssignmentStatus;
+use App\Domain\Teachers\ValueObjects\TeachingRole;
 use Illuminate\Support\Facades\DB;
 
 final class EloquentTeacherRepository implements TeacherRepositoryInterface
@@ -204,6 +206,8 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
             'department_id' => $data->departmentId,
             'class_id' => $data->classId,
             'section_id' => $data->sectionId,
+            'curriculum_subject_id' => $data->curriculumSubjectId,
+            'role' => $data->role,
             'status' => TeachingAssignmentStatus::Active,
             'effective_from' => $data->effectiveFrom,
             'effective_to' => null,
@@ -219,13 +223,103 @@ final class EloquentTeacherRepository implements TeacherRepositoryInterface
         $row = DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
             ->where('id', $assignmentId)
             ->where('school_id', $schoolId)
-            ->first(['teacher_id', 'subject_id', 'status']);
+            ->first(['teacher_id', 'subject_id', 'status', 'role', 'curriculum_subject_id']);
 
         return $row === null ? null : [
             'teacher_id' => (int) $row->teacher_id,
             'subject_id' => (int) $row->subject_id,
             'status' => (int) $row->status,
+            'role' => (int) $row->role,
+            'curriculum_subject_id' => $row->curriculum_subject_id === null ? null : (int) $row->curriculum_subject_id,
         ];
+    }
+
+    public function lineTeacherCounts(int $schoolId, int $curriculumSubjectId): array
+    {
+        $this->bindSchool($schoolId);
+
+        $row = DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('school_id', $schoolId)
+            ->where('curriculum_subject_id', $curriculumSubjectId)
+            ->where('status', TeachingAssignmentStatus::Active)
+            ->selectRaw('COUNT(*) FILTER (WHERE role = ?) AS mains, COUNT(*) FILTER (WHERE role = ?) AS assistants', [TeachingRole::Main, TeachingRole::Assistant])
+            ->first();
+
+        return [(int) ($row->mains ?? 0), (int) ($row->assistants ?? 0)];
+    }
+
+    public function lineMainAssignmentId(int $schoolId, int $curriculumSubjectId): ?int
+    {
+        $this->bindSchool($schoolId);
+
+        $id = DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('school_id', $schoolId)
+            ->where('curriculum_subject_id', $curriculumSubjectId)
+            ->where('status', TeachingAssignmentStatus::Active)
+            ->where('role', TeachingRole::Main)
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    public function teacherActiveOnLine(int $schoolId, int $curriculumSubjectId, int $teacherId): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
+            ->where('school_id', $schoolId)
+            ->where('curriculum_subject_id', $curriculumSubjectId)
+            ->where('teacher_id', $teacherId)
+            ->where('status', TeachingAssignmentStatus::Active)
+            ->exists();
+    }
+
+    public function listCurriculumLineTeachers(int $schoolId, int $curriculumId): array
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments').' as ta')
+            ->join(SchemaHelper::qualified('curriculum', 'curriculum_subjects').' as cs', 'cs.id', '=', 'ta.curriculum_subject_id')
+            ->join(SchemaHelper::qualified('teachers', 'teachers').' as t', 't.id', '=', 'ta.teacher_id')
+            ->where('cs.curriculum_id', $curriculumId)
+            ->where('ta.school_id', $schoolId)
+            ->where('ta.status', TeachingAssignmentStatus::Active)
+            ->orderBy('ta.curriculum_subject_id')
+            ->orderBy('ta.role')
+            ->orderBy('t.full_name')
+            ->get(['ta.id', 'ta.curriculum_subject_id', 'ta.teacher_id', 't.full_name', 't.employee_code', 'ta.role'])
+            ->map(static fn (object $row): array => [
+                'assignment_id' => (int) $row->id,
+                'curriculum_subject_id' => (int) $row->curriculum_subject_id,
+                'teacher_id' => (int) $row->teacher_id,
+                'teacher_name' => (string) $row->full_name,
+                'employee_code' => (string) $row->employee_code,
+                'role' => (int) $row->role,
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function listTeacherOptions(int $schoolId, int $academicYearId): array
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('teachers', 'teachers').' as t')
+            ->join(SchemaHelper::qualified('teachers', 'teacher_schools').' as ts', 'ts.teacher_id', '=', 't.id')
+            ->where('ts.school_id', $schoolId)
+            ->where('ts.academic_year_id', $academicYearId)
+            ->whereNull('ts.left_at')
+            ->where('t.status', TeacherStatus::Active)
+            ->distinct()
+            ->orderBy('t.full_name')
+            ->get(['t.id', 't.full_name', 't.employee_code'])
+            ->map(static fn (object $row): array => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->full_name,
+                'employee_code' => (string) $row->employee_code,
+            ])
+            ->values()
+            ->all();
     }
 
     public function endTeachingAssignment(int $schoolId, int $assignmentId, string $effectiveTo, string $at): bool

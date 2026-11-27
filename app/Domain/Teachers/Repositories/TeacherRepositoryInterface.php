@@ -60,9 +60,35 @@ interface TeacherRepositoryInterface
     public function addTeachingAssignment(TeachingAssignmentData $data): int;
 
     /**
-     * @return array{teacher_id:int, subject_id:int, status:int}|null
+     * @return array{teacher_id:int, subject_id:int, status:int, role:int, curriculum_subject_id:?int}|null
      */
     public function findTeachingAssignment(int $schoolId, int $assignmentId): ?array;
+
+    /**
+     * Active teachers of a curriculum subject line by role.
+     *
+     * @return array{0: int, 1: int} [main count, assistant count]
+     */
+    public function lineTeacherCounts(int $schoolId, int $curriculumSubjectId): array;
+
+    /** Id of the line's active main teacher row, or null. */
+    public function lineMainAssignmentId(int $schoolId, int $curriculumSubjectId): ?int;
+
+    public function teacherActiveOnLine(int $schoolId, int $curriculumSubjectId, int $teacherId): bool;
+
+    /**
+     * Active teachers of every subject line of a curriculum (one query), main teacher first.
+     *
+     * @return list<array{assignment_id:int, curriculum_subject_id:int, teacher_id:int, teacher_name:string, employee_code:string, role:int}>
+     */
+    public function listCurriculumLineTeachers(int $schoolId, int $curriculumId): array;
+
+    /**
+     * The school's active teachers for the year (the picker on «المناهج»).
+     *
+     * @return list<array{id:int, name:string, employee_code:string}>
+     */
+    public function listTeacherOptions(int $schoolId, int $academicYearId): array;
 
     /** Ends an active assignment (status 2 + effective_to). False when not active in the school. */
     public function endTeachingAssignment(int $schoolId, int $assignmentId, string $effectiveTo, string $at): bool;

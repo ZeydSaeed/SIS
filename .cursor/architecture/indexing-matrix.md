@@ -274,3 +274,13 @@ ALTER TABLE attendance.records SET (
 - [ ] Checked for Sequential Scan on large tables
 - [ ] Verified Index Only Scan where covering index exists
 - [ ] Pagination uses keyset/cursor, not OFFSET on large tables
+
+## Curriculum place and subject teachers (2026-11-27, migration `2026_11_27_130000`)
+
+| Table | Index | Query it serves |
+|-------|-------|-----------------|
+| `curriculum.curricula` | partial `UNIQUE(school_id, academic_year_id, branch_id, COALESCE(department_id,0), section_id) WHERE status = 1 AND section_id IS NOT NULL` | integrity (one active curriculum per branch / department / section) + `activeScopeExists` |
+| `teachers.teaching_assignments` | partial `BTREE(curriculum_subject_id) WHERE curriculum_subject_id IS NOT NULL` | a curriculum's teachers by line (`listCurriculumLineTeachers`, `lineStats`), «حذف المنهج / المادة» deletes by line |
+| `teachers.teaching_assignments` | partial `UNIQUE(curriculum_subject_id) WHERE status = 1 AND role = 1 AND curriculum_subject_id IS NOT NULL` | integrity (one active main teacher per line) + `lineMainAssignmentId` |
+
+No index on `curricula.branch_id / class_id / section_id`: the table is small per school and reads already narrow by `(school_id, academic_year_id, grade_level_id)`; revisit with EXPLAIN if branch/class deletes become slow.

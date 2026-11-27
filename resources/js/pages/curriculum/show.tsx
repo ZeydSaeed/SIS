@@ -10,7 +10,7 @@ import type { BreadcrumbItem } from '@/types';
 export default function CurriculumShow(props: CurriculumShowProps) {
     const i18n = t();
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: i18n.curriculum.title, href: '/curriculum' },
+        { title: i18n.overview.curriculaTitle, href: '/curriculum/curricula' },
         {
             title: props.curriculum.name,
             href: `/curriculum/curricula/${props.curriculum.id}`,

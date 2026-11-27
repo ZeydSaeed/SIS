@@ -34,6 +34,9 @@ type Draft = {
     branch_id: string;
     /** الاختصاص — department of the selected branch. */
     department_id: string;
+    /** الصف (enrollment.classes id) and الشعبة of that class. */
+    class_id: string;
+    section_id: string;
     status: string;
 };
 
@@ -195,6 +198,10 @@ export function blankCurriculumPlan(academicYearId: number | null): CurriculumRo
         department_name: null,
         branch_id: null,
         branch_name: null,
+        class_id: null,
+        class_name: null,
+        section_id: null,
+        section_name: null,
         status: 1,
         academic_year_id: academicYearId ?? 0,
         school_id: undefined,
@@ -209,6 +216,8 @@ function toDraft(plan: CurriculumRow): Draft {
         grade_level_id: plan.grade_level_id > 0 ? String(plan.grade_level_id) : '',
         branch_id: plan.branch_id !== null ? String(plan.branch_id) : '',
         department_id: plan.department_id !== null ? String(plan.department_id) : '',
+        class_id: plan.class_id ? String(plan.class_id) : '',
+        section_id: plan.section_id ? String(plan.section_id) : '',
         status: String(Number(plan.status) === 1 ? 1 : 2),
     };
 }
@@ -218,14 +227,23 @@ function suggestPlanName(
     branchId: string,
     departmentId: string,
     gradeLevelId: string,
+    sectionId = '',
 ): string {
     const branch = filterOptions.branches.find((item) => String(item.id) === branchId);
     const spec = filterOptions.departments.find((item) => String(item.id) === departmentId);
     const gradeClass = filterOptions.classes.find(
         (item) => String(item.grade_level_id) === gradeLevelId,
     );
+    const section = (filterOptions.sections ?? []).find((item) => String(item.id) === sectionId);
 
-    return [branch?.name, spec?.name, gradeClass?.name].filter(Boolean).join(' — ');
+    return [branch?.name, spec?.name, gradeClass?.name, section?.name].filter(Boolean).join(' — ');
+}
+
+/** The year's class for a grade level (the sheet picks الصف by level: الأول / الثاني / الثالث). */
+function classIdForGrade(filterOptions: CurriculumFilterOptions, gradeLevelId: string): string {
+    const match = filterOptions.classes.find((item) => String(item.grade_level_id) === gradeLevelId);
+
+    return match ? String(match.id) : '';
 }
 
 function CurriculumPlanRecordForm({
@@ -272,6 +290,9 @@ function CurriculumPlanRecordForm({
         if (isCreate && base.grade_level_id === '' && filterOptions.classes[0]) {
             base.grade_level_id = String(filterOptions.classes[0].grade_level_id);
         }
+        if (isCreate && base.class_id === '') {
+            base.class_id = classIdForGrade(filterOptions, base.grade_level_id);
+        }
 
         return base;
     });
@@ -288,10 +309,13 @@ function CurriculumPlanRecordForm({
         if (isCreate && next.grade_level_id === '' && filterOptions.classes[0]) {
             next.grade_level_id = String(filterOptions.classes[0].grade_level_id);
         }
+        if (isCreate && next.class_id === '') {
+            next.class_id = classIdForGrade(filterOptions, next.grade_level_id);
+        }
         setDraft(next);
         setEditing((isCreate || initialEditing) && canManage);
         setPendingStatus(null);
-    }, [canManage, defaultAcademicYearId, filterOptions.classes, initialEditing, isCreate, plan]);
+    }, [canManage, defaultAcademicYearId, filterOptions, initialEditing, isCreate, plan]);
 
     const statusOptions = useMemo(
         () => [
@@ -327,6 +351,14 @@ function CurriculumPlanRecordForm({
         [branchDepartments],
     );
 
+    const sectionOptions = useMemo(
+        () =>
+            (filterOptions.sections ?? [])
+                .filter((item) => String(item.class_id) === draft.class_id)
+                .map((item) => ({ value: String(item.id), label: item.name })),
+        [draft.class_id, filterOptions.sections],
+    );
+
     const selectedClassKey = useMemo(
         () =>
             resolveSisClassKey(
@@ -348,6 +380,7 @@ function CurriculumPlanRecordForm({
     const gradeDisplay = plan.grade_level_name ?? '—';
     const branchDisplay = plan.branch_name ?? '—';
     const departmentDisplay = plan.department_name ?? '—';
+    const sectionDisplay = plan.section_name ?? '—';
     const schoolDisplay =
         plan.school_id !== undefined && plan.school_id !== null
             ? String(plan.school_id)
@@ -361,6 +394,12 @@ function CurriculumPlanRecordForm({
         draft.name.trim() !== '' &&
         draft.academic_year_id !== '' &&
         draft.grade_level_id !== '' &&
+        // A new curriculum names its full place: الفرع، الاختصاص، الصف، الشعبة.
+        (!isCreate ||
+            (draft.branch_id !== '' &&
+                draft.department_id !== '' &&
+                draft.class_id !== '' &&
+                draft.section_id !== '')) &&
         !saving;
 
     const setField = <K extends keyof Draft>(key: K, value: Draft[K]): void => {
@@ -372,23 +411,30 @@ function CurriculumPlanRecordForm({
         nextSpecId: string,
         nextGradeId: string,
         force = false,
+        nextSectionId?: string,
     ): void => {
         setDraft((current) => {
+            // Another class: its own sections (the chosen one belongs to the previous class).
+            const classId =
+                nextGradeId === current.grade_level_id && current.class_id !== ''
+                    ? current.class_id
+                    : classIdForGrade(filterOptions, nextGradeId);
+            const sectionId = nextSectionId ?? (classId === current.class_id ? current.section_id : '');
+            const place = {
+                branch_id: nextBranchId,
+                department_id: nextSpecId,
+                grade_level_id: nextGradeId,
+                class_id: classId,
+                section_id: sectionId,
+            };
             if (!force && current.name.trim() !== '') {
-                return {
-                    ...current,
-                    branch_id: nextBranchId,
-                    department_id: nextSpecId,
-                    grade_level_id: nextGradeId,
-                };
+                return { ...current, ...place };
             }
 
             return {
                 ...current,
-                branch_id: nextBranchId,
-                department_id: nextSpecId,
-                grade_level_id: nextGradeId,
-                name: suggestPlanName(filterOptions, nextBranchId, nextSpecId, nextGradeId),
+                ...place,
+                name: suggestPlanName(filterOptions, nextBranchId, nextSpecId, nextGradeId, sectionId),
             };
         });
     };
@@ -402,6 +448,7 @@ function CurriculumPlanRecordForm({
                       draft.branch_id,
                       draft.department_id,
                       draft.grade_level_id,
+                      draft.section_id,
                   );
 
         if (planName === '' || draft.academic_year_id === '' || draft.grade_level_id === '') {
@@ -416,7 +463,10 @@ function CurriculumPlanRecordForm({
                 academic_year_id: Number(draft.academic_year_id),
                 grade_level_id: Number(draft.grade_level_id),
                 name: planName,
+                branch_id: draft.branch_id === '' ? null : Number(draft.branch_id),
                 department_id: draft.department_id === '' ? null : Number(draft.department_id),
+                class_id: draft.class_id === '' ? null : Number(draft.class_id),
+                section_id: draft.section_id === '' ? null : Number(draft.section_id),
             },
             {
                 preserveScroll: true,
@@ -442,6 +492,8 @@ function CurriculumPlanRecordForm({
                     next.academic_year_id = draft.academic_year_id;
                     next.grade_level_id = draft.grade_level_id;
                     next.branch_id = draft.branch_id;
+                    next.department_id = draft.department_id;
+                    next.class_id = draft.class_id;
                     setDraft(next);
                     showSuccess({ description: c.planCreatedContinue });
                     requestAnimationFrame(() => {
@@ -764,6 +816,33 @@ function CurriculumPlanRecordForm({
                             );
                         }}
                     />
+                    {structureEditable ? (
+                        <SheetListField
+                            label={c.section}
+                            editing
+                            value={draft.section_id}
+                            display={sectionDisplay}
+                            includeBlank
+                            required
+                            options={sectionOptions}
+                            fieldClassName="sis-enrollment-record-sheet__field--narrow"
+                            onChange={(value) => {
+                                applySuggestedName(
+                                    draft.branch_id,
+                                    draft.department_id,
+                                    draft.grade_level_id,
+                                    true,
+                                    value,
+                                );
+                            }}
+                        />
+                    ) : (
+                        <SheetDisplayField
+                            label={c.section}
+                            display={sectionDisplay}
+                            fieldClassName="sis-enrollment-record-sheet__field--narrow"
+                        />
+                    )}
                 </div>
                 {isCreate ? (
                     <p className="sis-admission-sheet__hint text-muted-foreground mt-2 text-xs">

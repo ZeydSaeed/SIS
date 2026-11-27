@@ -221,6 +221,8 @@ export const ar = {
             subjectDeleted: 'تم حذف المادة نهائياً.',
             curriculumDeleted: 'تم حذف المنهج نهائياً.',
             subjectLinkDeleted: 'تم حذف المادة من المنهج.',
+            teacherAssigned: 'تم إسناد المدرس للمادة.',
+            teacherRemoved: 'تم إلغاء إسناد المدرس.',
             prerequisiteDeleted: 'تم حذف المتطلب السابق.',
             prerequisiteCreated: 'تم إضافة المتطلب السابق.',
             prerequisiteDeactivated: 'تم تعطيل المتطلب السابق.',
@@ -597,6 +599,10 @@ export const ar = {
         allTeachers: 'كل المعلمين',
         allRooms: 'كل الغرف',
         allSubjects: 'كل المواد',
+        curriculaTitle: 'المناهج الدراسية',
+        allCurricula: 'كل المناهج',
+        openCurriculum: 'فتح المنهج',
+        curriculaEmpty: 'لا توجد مناهج في هذه السنة الدراسية.',
     },
     /** Show / hide the panels around a page's table (attendance and leave pages). */
     shellPanels: {
@@ -1710,6 +1716,26 @@ export const ar = {
                 'يوجد منهج فعّال لهذا الاختصاص والصف في السنة المختارة. عدّل المنهج الموجود أو عطّله قبل إنشاء منهج آخر.',
             'curriculum.department_invalid':
                 'الاختصاص غير صالح أو لا يتبع هذه المدرسة.',
+            'curriculum.branch_invalid': 'الفرع غير نشط أو لا يتبع هذه المدرسة.',
+            'curriculum.department_not_in_branch': 'الاختصاص لا يتبع الفرع المختار.',
+            'curriculum.department_required': 'المنهج تابع لشعبة؛ لا يمكن ترك الاختصاص فارغاً.',
+            'curriculum.class_invalid': 'الصف غير نشط أو لا يتبع هذه المدرسة والسنة الدراسية.',
+            'curriculum.class_grade_mismatch': 'الصف المختار لا يطابق المرحلة.',
+            'curriculum.section_invalid': 'الشعبة غير نشطة أو لا تتبع الصف المختار.',
+            'curriculum.section_needs_class': 'اختر الفرع والصف قبل الشعبة.',
+            'curriculum.scope_locked_by_teachers':
+                'لمواد هذا المنهج مدرسون مسندون؛ ألغِ إسنادهم قبل تغيير الاختصاص.',
+            'teachers.curriculum_line_not_found': 'المادة غير موجودة في هذا المنهج.',
+            'teachers.curriculum_line_inactive': 'المادة أو المنهج معطّل؛ فعّله قبل إسناد المدرسين.',
+            'teachers.curriculum_not_placed':
+                'المنهج غير مرتبط بفرع وصف وشعبة؛ لا يمكن إسناد مدرسين لمواده.',
+            'teachers.teaching_role_invalid': 'نوع الإسناد غير صالح.',
+            'teachers.curriculum_teacher_exists': 'هذا المدرس مسند لهذه المادة مسبقاً.',
+            'teachers.curriculum_main_exists':
+                'للمادة مدرس رئيسي؛ أضف مدرساً مساعداً أو اختر «تغيير المدرس الرئيسي».',
+            'teachers.curriculum_assistant_needs_main': 'أسند المدرس الرئيسي للمادة قبل المدرس المساعد.',
+            'teachers.curriculum_main_has_assistants':
+                'للمادة مدرسون مساعدون؛ ألغِ إسنادهم أو غيّر المدرس الرئيسي بدلاً من إلغائه.',
             'curriculum.specialization_invalid': 'التخصص غير صالح.',
             'curriculum.weekly_hours_invalid': 'عدد الحصص الأسبوعية غير صالح.',
             'curriculum.curriculum_subject_not_found':
@@ -3890,12 +3916,35 @@ export const ar = {
             'ستُحذف المادة نهائياً من البرنامج، ولا يمكن التراجع. إن كانت مستخدمة في منهج أو مسندة لمعلم أو لها درجات فلن تُحذف، ويمكنك «تعطيلها» بدلاً من ذلك. هل تريد المتابعة؟',
         deleteConfirmMany:
             'ستُحذف :count مواد نهائياً، ولا يمكن التراجع. المادة المستخدمة في منهج أو المسندة لمعلم أو التي لها درجات لن تُحذف. هل تريد المتابعة؟',
+        deleteLinkedTitle: 'تنبيه: المادة مربوطة بمنهج',
+        deleteLinkedConfirm:
+            'هذه المواد مربوطة بمناهج المدرسة — :list. إن تابعت الحذف فستُحذف من هذه المناهج أولاً ثم تُحذف نهائياً، ولا يمكن التراجع. ويمكنك بدلاً من ذلك «تعديل المادة».',
+        deleteLinkedAction: 'حذف من المناهج وحذف المادة',
+        editSubjectAction: 'تعديل المادة',
         removeFromCurriculaTitle: 'حذف المواد من المناهج',
         removeFromCurriculaConfirm:
             'ستُحذف :count مواد من :plans مناهج معروضة حالياً (تبقى المواد نفسها في قائمة المواد). هل تريد المتابعة؟',
         deleteCurriculum: 'حذف المنهج',
         deleteCurriculumConfirm:
-            'سيُحذف المنهج نهائياً مع قائمة مواده (تبقى المواد نفسها في قائمة المواد)، ولا يمكن التراجع. هل تريد المتابعة؟',
+            'سيُحذف المنهج نهائياً مع مواده وإسناد مدرسيها (تبقى المواد نفسها في قائمة المواد)، ولا يمكن التراجع. هل تريد المتابعة؟',
+        section: 'الشعبة',
+        classLabel: 'الصف',
+        planComplete: 'مكتمل',
+        planIncomplete: 'غير مكتمل',
+        planCompleteness: 'اكتمال المنهج',
+        planCompletenessDetail: ':staffed من :total مادة لها مدرس',
+        teachers: 'المدرسون',
+        noTeacher: 'لا يوجد مدرس',
+        mainTeacher: 'مدرس المادة',
+        assistantTeacher: 'مدرس مساعد',
+        assignTeacher: 'إسناد مدرس',
+        assignTeacherTitle: 'إسناد مدرس للمادة',
+        teacherLabel: 'المدرس',
+        teacherRole: 'نوع الإسناد',
+        replaceMainTeacher: 'تغيير المدرس الرئيسي',
+        removeTeacher: 'إلغاء الإسناد',
+        confirmRemoveTeacher: 'سيُلغى إسناد هذا المدرس للمادة (يبقى في سجل التدريس). هل تريد المتابعة؟',
+        noTeacherOptions: 'لا يوجد معلمون في هذه المدرسة لهذه السنة الدراسية.',
         deleteLinkConfirm: 'ستُحذف هذه المادة من المنهج (تبقى المادة في قائمة المواد). هل تريد المتابعة؟',
         deletePrerequisiteConfirm: 'سيُحذف هذا المتطلب السابق نهائياً. هل تريد المتابعة؟',
         deleteAlreadyInactive: 'المواد المحددة معطّلة مسبقاً أو غير قابلة للحذف.',

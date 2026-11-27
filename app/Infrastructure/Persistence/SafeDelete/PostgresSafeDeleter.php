@@ -67,19 +67,45 @@ final class PostgresSafeDeleter implements SafeDeleter
                 'DELETE FROM curriculum.prerequisites WHERE subject_id = {id} OR prerequisite_subject_id = {id}',
             ],
         ],
-        // Curriculum of this school: its subject lines go with it (the subjects themselves stay).
+        // «حذف من المناهج وحذف المادة»: the owner confirmed the warning — the subject's lines in this school's
+        // curricula go with it, with the teachers set on those lines and the subject's «المواد المسندة» rows in this
+        // school. A line in another school's curriculum, a teacher assigned on «المعلمون», a grade, the timetable…
+        // still keeps it.
+        'subject_detach' => [
+            'table' => 'curriculum.subjects',
+            'scope' => 'TRUE',
+            'owned' => [
+                'DELETE FROM teachers.teaching_assignments WHERE school_id = {school} AND curriculum_subject_id IN (SELECT cs.id FROM curriculum.curriculum_subjects cs JOIN curriculum.curricula c ON c.id = cs.curriculum_id WHERE cs.subject_id = {id} AND c.school_id = {school})',
+                'DELETE FROM teachers.teacher_subjects ts WHERE ts.subject_id = {id} AND ts.school_id = {school} AND NOT EXISTS (SELECT 1 FROM teachers.teaching_assignments ta WHERE ta.teacher_id = ts.teacher_id AND ta.subject_id = ts.subject_id AND ta.school_id = ts.school_id)',
+                'DELETE FROM curriculum.curriculum_subjects WHERE subject_id = {id} AND curriculum_id IN (SELECT id FROM curriculum.curricula WHERE school_id = {school})',
+                'DELETE FROM curriculum.prerequisites WHERE subject_id = {id} OR prerequisite_subject_id = {id}',
+            ],
+        ],
+        // Curriculum of this school: its subject lines and the teachers set on them go with it — and a teacher's
+        // «المواد المسندة» row that only this curriculum gave (no other teaching assignment, no timetable lesson).
+        // The subjects themselves stay in «المواد».
         'curriculum' => [
             'table' => 'curriculum.curricula',
             'scope' => 'school_id = {school}',
             'owned' => [
+                'DELETE FROM teachers.teacher_subjects ts WHERE EXISTS (SELECT 1 FROM teachers.teaching_assignments ta JOIN curriculum.curriculum_subjects cs ON cs.id = ta.curriculum_subject_id WHERE cs.curriculum_id = {id} AND ta.teacher_id = ts.teacher_id AND ta.subject_id = ts.subject_id AND ta.academic_year_id = ts.academic_year_id AND ta.school_id = ts.school_id)'
+                    .' AND NOT EXISTS (SELECT 1 FROM teachers.teaching_assignments ta WHERE ta.teacher_id = ts.teacher_id AND ta.subject_id = ts.subject_id AND ta.academic_year_id = ts.academic_year_id AND ta.school_id = ts.school_id AND (ta.curriculum_subject_id IS NULL OR ta.curriculum_subject_id NOT IN (SELECT id FROM curriculum.curriculum_subjects WHERE curriculum_id = {id})))'
+                    .' AND NOT EXISTS (SELECT 1 FROM timetable.schedules s WHERE ts.teacher_id IN (s.teacher_id, s.co_teacher_id) AND s.subject_id = ts.subject_id AND s.academic_year_id = ts.academic_year_id AND s.school_id = ts.school_id)',
+                'DELETE FROM teachers.teaching_assignments WHERE curriculum_subject_id IN (SELECT id FROM curriculum.curriculum_subjects WHERE curriculum_id = {id})',
                 'DELETE FROM curriculum.curriculum_subjects WHERE curriculum_id = {id}',
             ],
         ],
-        // One subject line of a curriculum of this school.
+        // One subject line of a curriculum of this school, with the teachers set on it (and, as above, the
+        // «المواد المسندة» rows only this line gave).
         'curriculum_subject' => [
             'table' => 'curriculum.curriculum_subjects',
             'scope' => 'EXISTS (SELECT 1 FROM curriculum.curricula c WHERE c.id = curriculum_subjects.curriculum_id AND c.school_id = {school})',
-            'owned' => [],
+            'owned' => [
+                'DELETE FROM teachers.teacher_subjects ts WHERE EXISTS (SELECT 1 FROM teachers.teaching_assignments ta WHERE ta.curriculum_subject_id = {id} AND ta.teacher_id = ts.teacher_id AND ta.subject_id = ts.subject_id AND ta.academic_year_id = ts.academic_year_id AND ta.school_id = ts.school_id)'
+                    .' AND NOT EXISTS (SELECT 1 FROM teachers.teaching_assignments ta WHERE ta.teacher_id = ts.teacher_id AND ta.subject_id = ts.subject_id AND ta.academic_year_id = ts.academic_year_id AND ta.school_id = ts.school_id AND ta.curriculum_subject_id IS DISTINCT FROM CAST({id} AS bigint))'
+                    .' AND NOT EXISTS (SELECT 1 FROM timetable.schedules s WHERE ts.teacher_id IN (s.teacher_id, s.co_teacher_id) AND s.subject_id = ts.subject_id AND s.academic_year_id = ts.academic_year_id AND s.school_id = ts.school_id)',
+                'DELETE FROM teachers.teaching_assignments WHERE curriculum_subject_id = {id}',
+            ],
         ],
         // Prerequisite rule between two subjects (shared catalogue).
         'prerequisite' => [

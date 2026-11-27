@@ -32,8 +32,20 @@ final class ReactivateCurriculumHandler implements CommandHandler
             return ReactivateCurriculumResult::fromIdempotency((int) $cached['curriculum_id']);
         }
 
-        if ($this->curricula->findInactiveInSchool($command->schoolId, $command->curriculumId) === null) {
+        $inactive = $this->curricula->findInactiveInSchool($command->schoolId, $command->curriculumId);
+        if ($inactive === null) {
             return ReactivateCurriculumResult::failure(['curriculum.curriculum_not_found']);
+        }
+        // One active curriculum per branch / department / section (curricula_active_scope_unique).
+        if ($inactive->sectionId !== null && $inactive->branchId !== null && $this->curricula->activeScopeExists(
+            $command->schoolId,
+            $inactive->academicYearId,
+            $inactive->branchId,
+            $inactive->departmentId,
+            $inactive->sectionId,
+            $command->curriculumId,
+        )) {
+            return ReactivateCurriculumResult::failure(['curriculum.curriculum_exists']);
         }
 
         $this->unitOfWork->transaction(function () use ($command, $key): void {

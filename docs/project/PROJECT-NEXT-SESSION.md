@@ -1,5 +1,18 @@
 # SIS — نقطة الاستئناف (عامة)
 
+## ▶ أحدث نقطة توقف — 2026-11-27 ~19:50 (+03:00)، جلسة `f3e0d7ae` (المواد والمناهج)
+
+**الفرع:** `V2` · **HEAD:** `5a76726` · **Git:** 64 مدخلًا، md5 `233aafee278962b3d6056e6e196f7809` (يشمل مدخلات جلسة `1ab08ec2`: `use-nav-order.ts`، `nav-main.tsx`، `app.css`). لا commit.
+
+- **اكتمل (مُختبَر):** صفحتا «المواد» و«المناهج» المستقلتان؛ المنهج تابع لفرع/اختصاص/صف/شعبة؛ مدرس رئيسي + مساعدون لكل مادة منهج و«مكتمل»؛ حذف المنهج ← أسطره ومدرسوها؛ حذف المادة ← من المناهج أولًا. التفاصيل والأرقام: `PROJECT-CHANGELOG.md` 2026-11-27.
+- **قاعدة `sis`:** جداول المواد/المناهج/المعلمين فارغة والعدادات = 1؛ migration `2026_11_27_130000` مطبّقة؛ `2026_10_27_100000_create_bank_questions_and_versions` معلّقة عمدًا (EXAMIS).
+- **ملفات هذه الجلسة:** الـ migration، Curriculum (Domain/Application/Infrastructure/Http)، Teachers (`AssignCurriculumTeacher*`، `EndCurriculumTeacher*`، `ListCurriculumTeachers*`، `CurriculumTeacherGuard`، `TeachingRole`، `CurriculumLinePlacement`، `CurriculumLineCatalogPort` + adapter)، `PostgresSafeDeleter`، `routes/web.php`، الواجهة (`curriculum-plan-sheet/detail/workspace`، `ar.ts`)، الاختبارات، blueprint + indexing-matrix. الملفات المعدّلة قبلها من جلسة سابقة (فصل الصفحتين) أُكملت ولم تُحذف.
+- **الاختبارات:** `CurriculumScopeTeachersPostgreSqlTest` 5/5، `CurriculumTeacherGuardTest` 3/3، 205/211 في المجموعة الأوسع (6 فاشلة سابقة ولا علاقة لها: GradeEntrySheet/ExamSeating — مسارات غير موجودة في HEAD؛ GraduationWritePath معروف). المتصفح: **NOT RUN**.
+- **قرارات المالك (2026-11-27):** المواد تبقى عند حذف المنهج (PD-006 ACCEPTED)؛ طلب commit — حُفظ عمل المواد والمناهج في commit على `V2` (دون ملفات جلسة `1ab08ec2`). ما زالت الموافقة على migration `sis` (PD-005) للعلم.
+- **التالي المقترح:** فحص الواجهة في المتصفح (إنشاء منهج بالشعبة، إسناد مدرسين، الحذف). **لا تفعل:** لا `git stash` على الشجرة المشتركة؛ لا تطبّق migration البنك على `sis`.
+
+---
+
 **آخر تحديث:** 2026-10-25 18:21 (+03:00) · **الفرع:** `V2` · **HEAD:** `4472454` · **Git:** 59 مدخلًا عند 18:21 ويزيد ما دامت جلسة U-01 تعمل (انظر §3). لا commit.
 **لمهام EXAMIS:** هذا الملف لا يكفي — اقرأ `docs/examis/EXAMIS-NEXT-SESSION.md` بعده.
 

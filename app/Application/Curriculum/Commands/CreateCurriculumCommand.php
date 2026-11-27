@@ -19,5 +19,9 @@ final readonly class CreateCurriculumCommand implements Command
         public array $subjectIds = [],
         /** الاختصاص (branch department) the curriculum belongs to. */
         public ?int $departmentId = null,
+        /** الفرع / الصف (enrollment.classes) / الشعبة — required by the «المناهج» page. */
+        public ?int $branchId = null,
+        public ?int $classId = null,
+        public ?int $sectionId = null,
     ) {}
 }

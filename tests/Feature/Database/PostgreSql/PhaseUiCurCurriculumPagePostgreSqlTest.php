@@ -79,6 +79,15 @@ final class PhaseUiCurCurriculumPagePostgreSqlTest extends PostgreSqlIntegration
             'status' => 1,
         ]);
 
+        // The page names the full place (2026-11-27): الفرع، الاختصاص، الصف، الشعبة.
+        $branchId = (int) DB::table(SchemaHelper::qualified('organization', 'branches'))->insertGetId([
+            'school_id' => $schoolId, 'code' => 'BR-CUR-CR', 'name' => 'الصناعي', 'status' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $departmentId = $this->createDepartmentForSchool($schoolId, 'كهرباء', $branchId);
+        $classId = (int) $this->createClassForSchool($schoolId, $yearId, $gradeId)->id;
+        $sectionId = (int) $this->createSectionForClass($classId)->id;
+
         $this->actingAsCurriculumManagerWeb(schoolId: $schoolId);
 
         $response = $this->withHeader('X-Idempotency-Key', 'web-cur-create-1')
@@ -87,6 +96,10 @@ final class PhaseUiCurCurriculumPagePostgreSqlTest extends PostgreSqlIntegration
                 'grade_level_id' => $gradeId,
                 'name' => 'الصناعي — كهرباء — الأول',
                 'specialization_id' => $specId,
+                'branch_id' => $branchId,
+                'department_id' => $departmentId,
+                'class_id' => $classId,
+                'section_id' => $sectionId,
             ]);
 
         $curriculumId = (int) DB::table(SchemaHelper::qualified('curriculum', 'curricula'))

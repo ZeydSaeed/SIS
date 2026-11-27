@@ -806,12 +806,15 @@ Where a teacher teaches a subject: branch (الفرع) → optional department (
 | department_id | BIGINT | FK → organization.departments, nullable — NULL = كل اختصاصات الفرع |
 | class_id | BIGINT | FK → enrollment.classes, nullable — NULL = كل الصفوف |
 | section_id | BIGINT | FK → enrollment.sections, nullable; CHECK section ⇒ class |
+| curriculum_subject_id | BIGINT | FK → curriculum.curriculum_subjects (restrict), nullable — the curriculum line it was assigned on («المناهج»); NULL = set on «المعلمون» (2026-11-27) |
+| role | SMALLINT | NOT NULL DEFAULT 1, CHECK IN (1, 2) — 1 مدرس المادة / الرئيسي, 2 مدرس مساعد (2026-11-27) |
 | status | SMALLINT | NOT NULL DEFAULT 1, CHECK (1 active, 2 ended) |
 | effective_from | DATE | NOT NULL |
 | effective_to | DATE | nullable, CHECK ≥ effective_from — set when ended |
 | created_at / updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id, academic_year_id)` (roster read), partial `UNIQUE(teacher_id, academic_year_id, subject_id, branch_id, COALESCE(department_id,0), COALESCE(class_id,0), COALESCE(section_id,0)) WHERE status = 1`.
+**Indexes:** `BTREE(school_id, academic_year_id)` (roster read), partial `UNIQUE(teacher_id, academic_year_id, subject_id, branch_id, COALESCE(department_id,0), COALESCE(class_id,0), COALESCE(section_id,0)) WHERE status = 1`; (2026-11-27, migration `2026_11_27_130000`) partial `BTREE(curriculum_subject_id) WHERE curriculum_subject_id IS NOT NULL` (a curriculum's teachers by line; «حذف المنهج / المادة» by line), partial `UNIQUE(curriculum_subject_id) WHERE status = 1 AND role = 1 AND curriculum_subject_id IS NOT NULL` (one active main teacher per line).
+**Curriculum lines (2026-11-27):** trigger `teaching_assignments_line_check` — a line-bound row has the line's subject and the curriculum's school / year / branch / department / class / section. Rules (`CurriculumTeacherGuard`): the main teacher first, then any number of assistants; the main teacher is replaced («تغيير المدرس الرئيسي» ends the old row) and cannot be ended while assistants remain. «حذف المنهج» / «حذف المادة من المنهج» / «حذف من المناهج وحذف المادة» delete the line-bound rows with the line (safe delete).
 **Security:** FORCE RLS school isolation on `school_id`; hard DELETE rejected by trigger (end = status 2 + effective_to).
 **Rules (`TeachingAssignmentGuard`):** branch of the school, department of the branch, class of the school/year, section of the class (all active); the subject is in an active curriculum of the school/year for the department (or of any department of the branch when branch-wide, or a general curriculum). Adding an assignment also inserts `teacher_subjects` (المواد المسندة) in the same transaction; unlinking a subject ends its active assignments.
 
@@ -885,12 +888,16 @@ Seeded: مدرس، مدرس أول، مدرس مساعد، أستاذ، أستا
 | grade_level_id | SMALLINT | FK → grade_levels |
 | specialization_id | BIGINT | FK → specializations, nullable — legacy, no longer set by the UI |
 | department_id | BIGINT | FK → organization.departments, nullable, restrict — الاختصاص (department of the branch); 2026-10-05 |
+| branch_id | BIGINT | FK → organization.branches, nullable, restrict — الفرع (backfilled from the department); 2026-11-27 |
+| class_id | BIGINT | FK → enrollment.classes, nullable, restrict — الصف; 2026-11-27 |
+| section_id | BIGINT | FK → enrollment.sections, nullable, restrict — الشعبة; CHECK section ⇒ class + branch; 2026-11-27 |
 | name | VARCHAR(255) | NOT NULL |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
-**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)` (no index on `department_id` — matching already narrows by this index)  
+**Indexes:** `BTREE(school_id, academic_year_id, grade_level_id)` (no index on `department_id` — matching already narrows by this index); partial `UNIQUE(school_id, academic_year_id, branch_id, COALESCE(department_id,0), section_id) WHERE status = 1 AND section_id IS NOT NULL` (`curricula_active_scope_unique`, 2026-11-27 — one active curriculum per branch / department / section)
+**Place (2026-11-27, migration `2026_11_27_130000`):** the «المناهج» page requires الفرع، الاختصاص، الصف، الشعبة (`CreateCurriculumPageRequest`); the v1 API keeps them optional. Trigger `curricula_scope_check`: branch of the school, department of the branch, class of the school / year / grade level, section of the class. The department of a curriculum whose lines have teachers cannot change (`curriculum.scope_locked_by_teachers`). «مكتمل» = it has active lines and each has an active main teacher (`teachers.teaching_assignments.role = 1`).  
 **Governance (2026-10-05):** a curriculum belongs to a branch's الاختصاص via `department_id` and governs the enrollments of that department (NULL = all departments) for its year + class level. The separate vocational specialization is no longer used by the UI; columns kept (reversible).  
 **Security (CUR-U03):** FORCE RLS on `school_id`; hard DELETE rejected by trigger; soft `status`.  
 **v1 HTTP:** `POST/GET …/curriculum/curricula`; `POST …/curricula/{id}/deactivate|reactivate`.  

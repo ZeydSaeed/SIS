@@ -16,5 +16,9 @@ final readonly class TeachingAssignmentData
         public ?int $sectionId,
         public string $effectiveFrom,
         public string $at,
+        /** TeachingRole — 1 main (default), 2 assistant. */
+        public int $role = 1,
+        /** The curriculum subject line it was assigned on («المناهج»); null when set on «المعلمون». */
+        public ?int $curriculumSubjectId = null,
     ) {}
 }

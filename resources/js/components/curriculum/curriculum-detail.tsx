@@ -9,10 +9,12 @@ import {
     postWithIdempotency,
     statusLabel,
     type CurriculumFilterOptions,
+    type CurriculumLineTeacher,
     type CurriculumPagination,
     type CurriculumRow,
     type LinkedSubjectRow,
     type SubjectRow,
+    type TeacherOption,
 } from '@/components/curriculum/curriculum-workspace';
 import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
@@ -76,6 +78,8 @@ export type CurriculumShowProps = {
     linkedSubjects: LinkedSubjectRow[];
     prerequisites: PrerequisiteRow[];
     subjectOptions: SubjectRow[];
+    /** The school's teachers for the curriculum's year (the «إسناد مدرس» picker). */
+    teacherOptions?: TeacherOption[];
     enrollments: { data: EnrollmentListRow[]; pagination: CurriculumPagination };
     selectedEnrollmentId: number | null;
     enrollmentSubjects: EnrollmentSubjectRow[];
@@ -101,6 +105,7 @@ type ConfirmState =
     | { kind: 'prereq-deactivate'; id: number }
     | { kind: 'prereq-reactivate'; id: number }
     | { kind: 'apply-enrollments' }
+    | { kind: 'teacher-remove'; lineId: number; assignmentId: number }
     | null;
 
 function normalizeTab(tab: string): CurriculumShowTab {
@@ -142,6 +147,7 @@ export function CurriculumDetail(props: CurriculumShowProps) {
         linkedSubjects,
         prerequisites,
         subjectOptions,
+        teacherOptions = [],
         enrollments,
         selectedEnrollmentId,
         enrollmentSubjects,
@@ -174,6 +180,14 @@ export function CurriculumDetail(props: CurriculumShowProps) {
     const [confirm, setConfirm] = useState<ConfirmState>(null);
     const [confirmPending, setConfirmPending] = useState(false);
     const [assignPendingId, setAssignPendingId] = useState<number | null>(null);
+    /** «إسناد مدرس» of one subject line: the main (or only) teacher, an assistant, or a new main teacher. */
+    const [teacherAssign, setTeacherAssign] = useState<{
+        lineId: number;
+        name: string;
+        hasMain: boolean;
+        teacherId: string;
+        mode: 'main' | 'assistant' | 'replace';
+    } | null>(null);
 
     const visitShow = (overrides: Record<string, string | number | null | undefined> = {}): void => {
         const next = {
@@ -381,6 +395,44 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             hideOnMobile: true,
         },
         {
+            id: 'teachers',
+            header: c.teachers,
+            cell: (row) => {
+                const teachers: CurriculumLineTeacher[] = row.teachers ?? [];
+                if (teachers.length === 0) {
+                    return c.noTeacher;
+                }
+
+                return (
+                    <span className="flex flex-col gap-1">
+                        {teachers.map((teacher) => (
+                            <span key={teacher.assignment_id} className="flex flex-wrap items-center gap-1">
+                                <span>
+                                    {teacher.name} ({teacher.role === 1 ? c.mainTeacher : c.assistantTeacher})
+                                </span>
+                                {canManage && row.status === 1 ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            setConfirm({
+                                                kind: 'teacher-remove',
+                                                lineId: row.id,
+                                                assignmentId: teacher.assignment_id,
+                                            })
+                                        }
+                                    >
+                                        {c.removeTeacher}
+                                    </Button>
+                                ) : null}
+                            </span>
+                        ))}
+                    </span>
+                );
+            },
+        },
+        {
             id: 'status',
             header: i18n.common.status,
             cell: (row) => statusLabel(row.status, i18n.status.active, i18n.status.inactive),
@@ -392,6 +444,25 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 canManage ? (
                     row.status === 1 ? (
                         <span className="flex flex-wrap gap-1">
+                            {curriculum.status === 1 ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const hasMain = (row.teachers ?? []).some((teacher) => teacher.role === 1);
+                                        setTeacherAssign({
+                                            lineId: row.id,
+                                            name: row.subject_name ?? String(row.subject_id),
+                                            hasMain,
+                                            teacherId: '',
+                                            mode: hasMain ? 'assistant' : 'main',
+                                        });
+                                    }}
+                                >
+                                    {c.assignTeacher}
+                                </Button>
+                            ) : null}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -571,7 +642,7 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 break;
             case 'plan-delete':
                 router.post(`/curriculum/curricula/${curriculum.id}/delete`, {}, {
-                    onSuccess: () => router.visit('/curriculum?view=curricula'),
+                    onSuccess: () => router.visit('/curriculum/curricula'),
                     onFinish: done,
                 });
                 break;
@@ -610,6 +681,13 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                     { preserveScroll: true, headers, onFinish: done },
                 );
                 break;
+            case 'teacher-remove':
+                router.post(
+                    `/curriculum/curriculum-subjects/${confirm.lineId}/teachers/${confirm.assignmentId}/end`,
+                    {},
+                    { preserveScroll: true, onFinish: done },
+                );
+                break;
         }
     };
 
@@ -634,6 +712,8 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 return { title: c.reactivate, description: c.confirmReactivatePrerequisite };
             case 'apply-enrollments':
                 return { title: c.applyToEnrollments, description: c.confirmApplyToEnrollments };
+            case 'teacher-remove':
+                return { title: c.removeTeacher, description: c.confirmRemoveTeacher };
         }
     }, [c, confirm, i18n.common.delete]);
 
@@ -667,7 +747,7 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 description={c.showDescription}
                 icon={<BookOpen className="size-6" aria-hidden />}
                 actions={
-                    <Button type="button" variant="outline" onClick={() => router.get('/curriculum')}>
+                    <Button type="button" variant="outline" onClick={() => router.get('/curriculum/curricula')}>
                         {i18n.common.backToList}
                     </Button>
                 }
@@ -682,6 +762,16 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 </span>
                 <span>
                     {c.gradeLevel}: {curriculum.grade_level_name ?? curriculum.grade_level_id}
+                </span>
+                <span>
+                    {c.section}: {curriculum.section_name ?? '—'}
+                </span>
+                <span>
+                    {c.planCompleteness}: {curriculum.is_complete ? c.planComplete : c.planIncomplete} (
+                    {c.planCompletenessDetail
+                        .replace(':staffed', String(curriculum.staffed_count ?? 0))
+                        .replace(':total', String(curriculum.subject_count ?? 0))}
+                    )
                 </span>
                 <span>
                     {i18n.common.status}:{' '}
@@ -713,6 +803,10 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                             <dd className="font-medium">
                                 {curriculum.grade_level_name ?? curriculum.grade_level_id}
                             </dd>
+                        </div>
+                        <div>
+                            <dt className="text-muted-foreground text-sm">{c.section}</dt>
+                            <dd className="font-medium">{curriculum.section_name ?? '—'}</dd>
                         </div>
                     </dl>
                     {canManage ? (
@@ -1129,6 +1223,86 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 </DialogContent>
             </Dialog>
 
+            <Dialog
+                open={teacherAssign !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setTeacherAssign(null);
+                    }
+                }}
+            >
+                <DialogContent className="sis-ops-hub sm:max-w-md" dir="rtl" lang="ar">
+                    <DialogHeader>
+                        <DialogTitle>{c.assignTeacherTitle}</DialogTitle>
+                        <DialogDescription>{teacherAssign?.name}</DialogDescription>
+                    </DialogHeader>
+                    {teacherAssign !== null ? (
+                        <form
+                            className="flex flex-col gap-3"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                if (teacherAssign.teacherId === '') {
+                                    return;
+                                }
+                                postWithIdempotency(`/curriculum/curriculum-subjects/${teacherAssign.lineId}/teachers`, {
+                                    teacher_id: Number(teacherAssign.teacherId),
+                                    teacher_role: teacherAssign.mode === 'assistant' ? 2 : 1,
+                                    replace_main: teacherAssign.mode === 'replace',
+                                });
+                                setTeacherAssign(null);
+                            }}
+                        >
+                            {teacherOptions.length === 0 ? (
+                                <p className="text-muted-foreground text-sm">{c.noTeacherOptions}</p>
+                            ) : null}
+                            <OpsFormField label={c.teacherLabel} name="teacher_id">
+                                <SisListSelect
+                                    name="teacher_id"
+                                    ariaLabel={c.teacherLabel}
+                                    value={teacherAssign.teacherId}
+                                    required
+                                    includeBlank
+                                    options={teacherOptions.map((teacher) => ({
+                                        value: String(teacher.id),
+                                        label: `${teacher.name} (${teacher.employee_code})`,
+                                    }))}
+                                    onChange={(value) => setTeacherAssign({ ...teacherAssign, teacherId: value })}
+                                />
+                            </OpsFormField>
+                            <OpsFormField label={c.teacherRole} name="teacher_role">
+                                <SisListSelect
+                                    name="teacher_role"
+                                    ariaLabel={c.teacherRole}
+                                    value={teacherAssign.mode}
+                                    options={
+                                        teacherAssign.hasMain
+                                            ? [
+                                                  { value: 'assistant', label: c.assistantTeacher },
+                                                  { value: 'replace', label: c.replaceMainTeacher },
+                                              ]
+                                            : [{ value: 'main', label: c.mainTeacher }]
+                                    }
+                                    onChange={(value) =>
+                                        setTeacherAssign({
+                                            ...teacherAssign,
+                                            mode: value === 'replace' ? 'replace' : value === 'assistant' ? 'assistant' : 'main',
+                                        })
+                                    }
+                                />
+                            </OpsFormField>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button type="button" variant="outline" onClick={() => setTeacherAssign(null)}>
+                                    {c.cancel}
+                                </Button>
+                                <Button type="submit" disabled={teacherAssign.teacherId === ''}>
+                                    {c.assignTeacher}
+                                </Button>
+                            </div>
+                        </form>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
+
             <ConfirmDialog
                 open={confirm !== null}
                 title={confirmCopy.title}
@@ -1139,7 +1313,8 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                     confirm?.kind === 'prereq-deactivate' ||
                     confirm?.kind === 'link-delete' ||
                     confirm?.kind === 'prereq-delete' ||
-                    confirm?.kind === 'plan-delete'
+                    confirm?.kind === 'plan-delete' ||
+                    confirm?.kind === 'teacher-remove'
                         ? 'danger'
                         : 'default'
                 }
