@@ -164,3 +164,44 @@ For significant work, include an **SIS CHANGE REPORT** (see Constitution §81 / 
 - Extend legacy shadcn/Instrument Sans palette on touched UI
 - Refactor unrelated code inside a feature task — note `TECHNICAL DEBT:` instead
 - Push to remote or amend commits unless explicitly requested
+
+## EXAMIS PROJECT PROTOCOL
+
+Applies to any task on exams, grades, results, question bank, online delivery or SurveyKing. Procedure: `/examis-project-protocol`
+(`.claude/skills/examis-project-protocol/SKILL.md`). Plan and phases: `docs/examis/EXAMIS-MASTER-PLAN.md`.
+
+1. Read `docs/examis/EXAMIS-PROJECT-STATE.md` and `docs/examis/EXAMIS-NEXT-SESSION.md` first.
+2. Check the related decisions in `docs/examis/EXAMIS-DECISIONS.md`; never re-open an accepted one without a documented reason.
+3. Verify `git status`, branch and HEAD against the state file; record any drift before working.
+4. Do not redo finished work. A previous report or conversation summary is not evidence — the repository and test runs are.
+5. SurveyKing (`D:\Projects\SurveyKing`) is read-only reference material: no edits, runs, installs or copied code.
+6. No writes to the live `sis` database; write tests only on a throwaway database (`docs/examis/EXAMIS-OPERATIONS.md`).
+7. Before ending a session, update `EXAMIS-PROJECT-STATE.md`, `EXAMIS-NEXT-SESSION.md`, `EXAMIS-TEST-REGISTER.md`, `EXAMIS-CHANGELOG.md`.
+
+## SESSION MEMORY PROTOCOL
+
+A new session knows nothing of earlier conversations. Persistent state lives in repository files, not in chat or auto-memory.
+Map of all memory files: `docs/project/PROJECT-MASTER-CONTEXT.md`.
+
+| Work | State | Resume | Decisions | Changelog |
+|------|-------|--------|-----------|-----------|
+| SIS general | `docs/project/PROJECT-STATE.md` | `docs/project/PROJECT-NEXT-SESSION.md` | `docs/project/PROJECT-DECISIONS.md` | `docs/project/PROJECT-CHANGELOG.md` |
+| EXAMIS | `docs/examis/EXAMIS-PROJECT-STATE.md` | `docs/examis/EXAMIS-NEXT-SESSION.md` | `docs/examis/EXAMIS-DECISIONS.md` | `docs/examis/EXAMIS-CHANGELOG.md` |
+
+`D:\Projects\sis-examis-lab` is a tools folder (not Git, not a copy of SIS); its state is part of EXAMIS. Never merge the two state sets.
+
+**Start of session — before any change:**
+
+1. Read `docs/project/PROJECT-NEXT-SESSION.md`, then the workstream's state and resume files, then the related decisions and risks.
+2. Run `powershell -ExecutionPolicy Bypass -File .\scripts\session-resume-check.ps1` (read-only). Compare branch, HEAD and Git entry count/md5 with the resume file; write any drift into the state file before working.
+3. If the script lists another recently active session, do not edit the files or state documents it is working on; ask the owner.
+4. Give the owner a short summary: project and branch, last completed unit, unfinished unit, risks/blocks, proposed next step. Then wait for the task.
+
+**Rules:**
+
+- The repository and real test runs are the evidence. Do not redo finished work without checking it; do not report a test as passed unless it ran.
+- An earlier proposal, plan or "next step" is not approval. Only an owner message or a decision recorded as `ACCEPTED` authorises execution; design approval ≠ implementation approval.
+- Keep accepted decisions, proposals (`PROPOSED`) and open issues apart in the decisions files.
+- Auto-memory holds owner preferences, corrections and environment lessons only; never use it as the record of decisions or results. Where it conflicts with the repository, the repository wins — note the conflict.
+
+**End of every work unit or session:** update the state and resume files with what was actually done (not planned), the test commands and results (`NOT RUN` / `BLOCKED` with reason), the Git modified/untracked entries (no cleanup), new decisions, the exact next step and what not to do. Re-read the written files before claiming they are saved.

@@ -26,6 +26,19 @@ final class PortalPartyAccessService
             && $this->schoolAccess->canAccessResults($user);
     }
 
+    /**
+     * A portal-only account (a student or guardian): admitted by the portal and holding no permission besides the
+     * portal's own. Used to hide staff navigation; every staff page still checks its own permission on the server.
+     */
+    public function isPortalOnly(User $user): bool
+    {
+        if (! $this->canViewPortal($user)) {
+            return false;
+        }
+
+        return array_diff($this->authorization->permissionsFor($user), [Permission::PORTAL_RESULTS_VIEW]) === [];
+    }
+
     public function canAccessEnrollment(User $user, int $enrollmentId, int $schoolId): bool
     {
         if (! $this->canViewPortal($user)) {

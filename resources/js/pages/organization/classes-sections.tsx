@@ -41,7 +41,10 @@ import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { initialSearchParam } from '@/lib/initial-search';
-import { sisSectionSelectOptions } from '@/lib/sis-class-section-options';
+import {
+    SIS_SECTION_OPTIONS,
+    sisSectionSelectOptions,
+} from '@/lib/sis-class-section-options';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -219,6 +222,8 @@ function ClassesSectionsPage({
     const [saving, setSaving] = useState(false);
     const [addOpen, setAddOpen] = useState(false);
     const [newClass, setNewClass] = useState<ClassForm>(classFormOf(null));
+    /** Sections created with the new class (A / B / C); none = a class without sections. */
+    const [newSections, setNewSections] = useState<string[]>([]);
     const [sectionDraft, setSectionDraft] = useState<SectionDraft | null>(null);
     const [confirmDeactivate, setConfirmDeactivate] = useState<
         'class' | 'section' | null
@@ -332,10 +337,14 @@ function ClassesSectionsPage({
                     grade_level_id: Number(newClass.grade_level_id),
                     capacity: capacityValue(newClass.capacity),
                     status: Number(newClass.status),
+                    sections: SIS_SECTION_OPTIONS.map(
+                        (option) => option.value as string,
+                    ).filter((letter) => newSections.includes(letter)),
                 }),
             () => {
                 setAddOpen(false);
                 setNewClass(classFormOf(null));
+                setNewSections([]);
             },
         );
 
@@ -506,18 +515,21 @@ function ClassesSectionsPage({
                             setCollapsed(true);
                         },
                     },
+                    // Fixed order: عرض · تحرير · حفظ · إلغاء · حذف — an inactive item shows «تفعيل» in the
+                    // same last slot, so the group keeps its width and order (delete = deactivate; records stay).
                     ...(canManage
                         ? [
-                              targetActive || noSelection
+                              noSelection || targetActive
                                   ? {
                                         id: 'classes-delete',
                                         label: i18n.common.delete,
                                         icon: Trash2,
                                         tone: 'delete' as const,
-                                        title:
-                                            selectedSection !== null
-                                                ? c.deactivateSection
-                                                : c.deactivateClass,
+                                        title: noSelection
+                                            ? r.needsSelection
+                                            : selectedSection !== null
+                                              ? c.deactivateSection
+                                              : c.deactivateClass,
                                         disabled: noSelection || saving,
                                         onSelect: () =>
                                             setConfirmDeactivate(
@@ -530,6 +542,11 @@ function ClassesSectionsPage({
                                         id: 'classes-reactivate',
                                         label: c.reactivate,
                                         icon: RotateCcw,
+                                        iconTone: 'ok' as const,
+                                        title:
+                                            selectedSection !== null
+                                                ? c.reactivateSection
+                                                : c.reactivateClass,
                                         disabled: saving,
                                         onSelect: () =>
                                             selectedSection !== null
@@ -631,6 +648,13 @@ function ClassesSectionsPage({
                         onSelect: () => setAddOpen(true),
                     },
                     {
+                        id: 'sections-add',
+                        label: c.addSection,
+                        icon: LayoutGrid,
+                        disabled: noSelection || selected?.status !== ACTIVE,
+                        onSelect: openAddSection,
+                    },
+                    {
                         id: 'classes-appearance',
                         label: i18n.appearance.title,
                         icon: Palette,
@@ -639,13 +663,6 @@ function ClassesSectionsPage({
                             : i18n.appearance.edit,
                         disabled: noSelection,
                         onSelect: () => setAppearanceOpen(true),
-                    },
-                    {
-                        id: 'sections-add',
-                        label: c.addSection,
-                        icon: LayoutGrid,
-                        disabled: noSelection || selected?.status !== ACTIVE,
-                        onSelect: openAddSection,
                     },
                 ],
             });
@@ -719,27 +736,27 @@ function ClassesSectionsPage({
         value: ClassForm,
         onChange: (next: ClassForm) => void,
         editing: boolean,
-        ref?: typeof nameInputRef,
+        options: Array<{ value: string; label: string }> = gradeOptions,
     ) => (
         <>
-            <RegistryTextField
-                label={c.className}
-                inputRef={ref}
-                editing={editing}
-                required
-                value={value.name}
-                onChange={(name) => onChange({ ...value, name })}
-                fieldClassName="sis-branches-field--wide"
-            />
+            {/* «الصف» only (الأول / الثاني / الثالث) — no separate «المرحلة»; the class name follows the pick. */}
             <RegistryListField
-                label={c.gradeLevel}
+                label={c.class}
                 editing={editing}
                 required
                 value={value.grade_level_id}
-                display={gradeName.get(Number(value.grade_level_id)) ?? '—'}
-                options={gradeOptions}
+                display={
+                    value.name !== ''
+                        ? value.name
+                        : (gradeName.get(Number(value.grade_level_id)) ?? '—')
+                }
+                options={options}
                 onChange={(grade_level_id) =>
-                    onChange({ ...value, grade_level_id })
+                    onChange({
+                        ...value,
+                        grade_level_id,
+                        name: gradeName.get(Number(grade_level_id)) ?? '',
+                    })
                 }
                 fieldClassName="sis-branches-field--wide"
             />
@@ -887,10 +904,9 @@ function ClassesSectionsPage({
                                                     )}
                                                 </span>
                                                 <span className="sis-branches-item__meta">
-                                                    {gradeName.get(
-                                                        item.grade_level_id,
-                                                    ) ?? '—'}
-                                                    {` · ${item.sections.length} ${c.sectionsCount}`}
+                                                    {item.sections.length === 0
+                                                        ? c.classOnly
+                                                        : `${item.sections.length} ${c.sectionsCount}`}
                                                 </span>
                                             </span>
                                         </span>
@@ -956,13 +972,8 @@ function ClassesSectionsPage({
                                 </div>
 
                                 {collapsed ? null : (
-                                    <div className="sis-branches-detail__form">
-                                        {classFields(
-                                            form,
-                                            setForm,
-                                            canManage,
-                                            nameInputRef,
-                                        )}
+                                    <div className="sis-branches-detail__form sis-detail-form--boxed">
+                                        {classFields(form, setForm, canManage)}
                                         {canManage ? (
                                             <div className="sis-branches-detail__buttons">
                                                 <Button
@@ -1143,11 +1154,66 @@ function ClassesSectionsPage({
                 <RegistrySheetDialog
                     title={c.addClass}
                     className="sis-branches-sheet"
-                    onClose={() => setAddOpen(false)}
+                    onClose={() => {
+                        setAddOpen(false);
+                        setNewSections([]);
+                    }}
                 >
                     <SheetSection id="classes-add" title={c.addClass}>
                         <div className="sis-admission-sheet__row sis-admission-sheet__row--full sis-branches-sheet__row">
+                            {/* «الصف»: الأول / الثاني / الثالث. */}
                             {classFields(newClass, setNewClass, true)}
+                            {/* Sections of the new class: any of A / B / C, or none (a class without sections). */}
+                            <div className="sis-admission-sheet__field sis-branches-field--wide">
+                                <span className="sis-admission-sheet__label">
+                                    {c.sectionsPick}
+                                </span>
+                                <div
+                                    className="flex flex-wrap items-center gap-2"
+                                    role="group"
+                                    aria-label={c.sectionsPick}
+                                    dir="ltr"
+                                >
+                                    {SIS_SECTION_OPTIONS.map((option) => {
+                                        const on = newSections.includes(
+                                            option.value,
+                                        );
+
+                                        return (
+                                            <Button
+                                                key={option.value}
+                                                type="button"
+                                                size="sm"
+                                                variant={
+                                                    on ? 'default' : 'outline'
+                                                }
+                                                aria-pressed={on}
+                                                onClick={() =>
+                                                    setNewSections((current) =>
+                                                        on
+                                                            ? current.filter(
+                                                                  (letter) =>
+                                                                      letter !==
+                                                                      option.value,
+                                                              )
+                                                            : [
+                                                                  ...current,
+                                                                  option.value,
+                                                              ],
+                                                    )
+                                                }
+                                            >
+                                                {option.label}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                                <span className="sis-branches-item__meta">
+                                    {newSections.length === 0
+                                        ? c.classOnlyHint
+                                        : `${newSections.length} ${c.sectionsCount}`}
+                                </span>
+                            </div>
                         </div>
                     </SheetSection>
                     <div className="sis-admission-sheet__actions">

@@ -10,7 +10,10 @@ use App\Application\Results\Results\WithdrawResultPublicationResult;
 use App\Domain\Results\Exceptions\ResultPublicationException;
 use App\Domain\Results\Support\TermResultIdempotencyGuard;
 
-/** A repeated request (same key) replays instead of failing on the already-withdrawn publication. */
+/**
+ * A repeated request (same key, same publication) replays instead of failing on the already-withdrawn publication;
+ * the same key sent for another publication is refused, never replayed as the first one.
+ */
 final class WithdrawResultPublicationHandler implements CommandHandler
 {
     private const COMMAND_NAME = 'WithdrawResultPublication';
@@ -27,7 +30,11 @@ final class WithdrawResultPublicationHandler implements CommandHandler
         $key = TermResultIdempotencyGuard::requireKey($command->idempotencyKey);
         $cached = $this->idempotency->find($key, self::COMMAND_NAME);
         if ($cached !== null) {
-            return new WithdrawResultPublicationResult((int) $cached['publication_id'], true);
+            if ((int) $cached['publication_id'] !== $command->publicationId) {
+                throw ResultPublicationException::idempotencyConflict();
+            }
+
+            return new WithdrawResultPublicationResult($command->publicationId, true);
         }
 
         $reason = trim($command->reason);

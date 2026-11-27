@@ -41,6 +41,39 @@ final class ClassSectionPagePostgreSqlTest extends PostgreSqlIntegrationTestCase
     }
 
     #[Test]
+    public function a_new_class_can_come_with_sections_or_none(): void
+    {
+        [$schoolId, $yearId, $gradeId] = $this->seedSchool('CS-SEC');
+        $this->actingAsEnrollmentManagerForSchool($schoolId);
+        $go = fn (string $method, string $uri, array $payload, string $key) => $this->from('/organization/classes-sections')
+            ->withHeader('X-Idempotency-Key', $key)->{$method}($uri, $payload);
+
+        // With sections A and C.
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الأول', 'sections' => ['A', 'C']], 'cs-sec-1')
+            ->assertSessionHas('success', 'flash.structure.classCreated');
+        $classId = (int) DB::table('enrollment.classes')->where('school_id', $schoolId)->where('name', 'الأول')->value('id');
+        $this->assertSame(['A', 'C'], DB::table('enrollment.sections')->where('class_id', $classId)->orderBy('name')->pluck('name')->all());
+
+        // Retried with the same key: no duplicate sections.
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الأول', 'sections' => ['A', 'C']], 'cs-sec-1');
+        $this->assertSame(2, DB::table('enrollment.sections')->where('class_id', $classId)->count());
+
+        // Without sections: a class only.
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الثاني'], 'cs-sec-2')
+            ->assertSessionHas('success', 'flash.structure.classCreated');
+        $other = (int) DB::table('enrollment.classes')->where('school_id', $schoolId)->where('name', 'الثاني')->value('id');
+        $this->assertSame(0, DB::table('enrollment.sections')->where('class_id', $other)->count());
+
+        // Only A / B / C, no repeats, and not on edit.
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الثالث', 'sections' => ['D']], 'cs-sec-3')
+            ->assertSessionHasErrors('sections.0');
+        $go('post', '/organization/classes', ['academic_year_id' => $yearId, 'grade_level_id' => $gradeId, 'name' => 'الثالث', 'sections' => ['A', 'A']], 'cs-sec-4')
+            ->assertSessionHasErrors('sections.0');
+        $go('patch', '/organization/classes/'.$other, ['grade_level_id' => $gradeId, 'name' => 'الثاني', 'sections' => ['A']], 'cs-sec-5')
+            ->assertSessionHasErrors('sections');
+    }
+
+    #[Test]
     public function the_form_sets_class_and_section_status(): void
     {
         [$schoolId, $yearId, $gradeId] = $this->seedSchool('CS-ST');

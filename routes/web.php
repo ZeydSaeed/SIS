@@ -14,13 +14,9 @@ use App\Http\Controllers\Attendance\StaffAttendanceController;
 use App\Http\Controllers\Curriculum\CurriculumPageController;
 use App\Http\Controllers\Enrollment\ClassSectionPageController;
 use App\Http\Controllers\Enrollment\EnrollmentPageController;
-use App\Http\Controllers\Exams\ExamAdministrationController;
+use App\Http\Controllers\Bank\QuestionBankController;
+use App\Http\Controllers\Exams\ExamManagementController;
 use App\Http\Controllers\Exams\ExamPageController;
-use App\Http\Controllers\Exams\ExamRosterController;
-use App\Http\Controllers\Exams\ExamSeatingController;
-use App\Http\Controllers\Exams\ExamTypeController;
-use App\Http\Controllers\Grades\GradeSheetController;
-use App\Http\Controllers\Grades\GradeReviewController;
 use App\Http\Controllers\Grades\GradesPageController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Imports\ImportPageController;
@@ -36,11 +32,11 @@ use App\Http\Controllers\Organization\DirectorateRegistryController;
 use App\Http\Controllers\Organization\DirectorateSchoolPageController;
 use App\Http\Controllers\Organization\RoomCataloguePageController;
 use App\Http\Controllers\Organization\SchoolRegistryController;
+use App\Http\Controllers\Portal\PortalPublishedResultsPageController;
 use App\Http\Controllers\Reports\ReportsPageController;
+use App\Http\Controllers\Results\ResultPublicationController;
 use App\Http\Controllers\Results\ResultsPageController;
-use App\Http\Controllers\Portal\PortalResultsPageController;
-use App\Http\Controllers\Results\TermResultSheetController;
-use App\Http\Controllers\Results\YearResultSheetController;
+use App\Http\Controllers\Results\TermResultPublicationController;
 use App\Http\Controllers\SchoolContextController;
 use App\Http\Controllers\Student\StudentPageController;
 use App\Http\Controllers\Teachers\TeacherPageController;
@@ -359,6 +355,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/curriculum-subjects/{link}/reactivate', [CurriculumPageController::class, 'reactivateCurriculumSubject'])
             ->whereNumber('link')
             ->name('curriculum_subjects.reactivate');
+        // «نظري / عملي» hours of a subject in a curriculum (weekly hours = their sum).
+        Route::patch('/curriculum-subjects/{link}/hours', [CurriculumPageController::class, 'updateCurriculumSubjectHours'])
+            ->whereNumber('link')
+            ->name('curriculum_subjects.hours');
         Route::post('/subjects', [CurriculumPageController::class, 'storeSubject'])->name('subjects.store');
         Route::patch('/subjects/{subject}', [CurriculumPageController::class, 'updateSubject'])
             ->whereNumber('subject')
@@ -383,83 +383,57 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('enrollment_subjects.store');
     });
 
-    Route::get('portal/results', [PortalResultsPageController::class, 'show'])->middleware('require.school.context')->name('portal.results');
+    // EXAMIS U-02 — «نتائجي»: published results of the signed-in student / guardian only.
+    Route::get('portal/results', [PortalPublishedResultsPageController::class, 'show'])->middleware('require.school.context')->name('portal.results');
 
     Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ResultsPageController::class, 'index'])->name('index');
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
         Route::get('/term', [ResultsPageController::class, 'term'])->name('term');
         Route::get('/transcript', [ResultsPageController::class, 'transcript'])->name('transcript');
-        Route::get('/sheet', [TermResultSheetController::class, 'show'])->name('sheet');
-        Route::post('/sheet/calculate', [TermResultSheetController::class, 'calculate'])->name('sheet.calculate');
-        Route::post('/sheet/finalize', [TermResultSheetController::class, 'finalize'])->name('sheet.finalize');
-        Route::post('/sheet/publish', [TermResultSheetController::class, 'publish'])->name('sheet.publish');
-        Route::get('/year-sheet', [YearResultSheetController::class, 'show'])->name('year-sheet');
-        Route::post('/year-sheet/calculate', [YearResultSheetController::class, 'calculate'])->name('year-sheet.calculate');
-        Route::post('/year-sheet/finalize', [YearResultSheetController::class, 'finalize'])->name('year-sheet.finalize');
-        Route::post('/year-sheet/publish', [YearResultSheetController::class, 'publish'])->name('year-sheet.publish');
-        Route::post('/year-sheet/publications/{publication}/withdraw', [YearResultSheetController::class, 'withdraw'])->whereNumber('publication')->name('year-sheet.withdraw');
-        Route::post('/year-sheet/ranking', [YearResultSheetController::class, 'ranking'])->name('year-sheet.ranking');
-        Route::post('/year-sheet/transcripts', [YearResultSheetController::class, 'transcripts'])->name('year-sheet.transcripts');
+        // EXAMIS U-01 — publish / withdraw official annual results and year GPAs of a class.
+        Route::get('/publications', [ResultPublicationController::class, 'index'])->name('publications.index');
+        Route::post('/publications', [ResultPublicationController::class, 'store'])->name('publications.store');
+        Route::post('/publications/{publication}/withdraw', [ResultPublicationController::class, 'withdraw'])
+            ->whereNumber('publication')
+            ->name('publications.withdraw');
+        // EXAMIS U-03 — publish official term results (one term + subject) of a class; withdrawal above.
+        Route::get('/term-publications', [TermResultPublicationController::class, 'index'])->name('term_publications.index');
+        Route::post('/term-publications', [TermResultPublicationController::class, 'store'])->name('term_publications.store');
     });
 
     Route::prefix('exams')->name('exams.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ExamPageController::class, 'index'])->name('index');
-        Route::get('/types', [ExamTypeController::class, 'index'])->name('types.index');
-        Route::post('/types', [ExamTypeController::class, 'store'])->name('types.store');
-        Route::post('/types/{type}', [ExamTypeController::class, 'update'])->whereNumber('type')->name('types.update');
-        Route::post('/types/{type}/weights', [ExamTypeController::class, 'weightVersion'])->whereNumber('type')->name('types.weights');
+        // L-F1: numeric only (a non-numeric id is a 404, not a type error).
         Route::get('/{exam}', [ExamPageController::class, 'show'])->whereNumber('exam')->name('show');
-        Route::post('/', [ExamAdministrationController::class, 'store'])->name('store');
-        Route::post('/{exam}/sessions', [ExamAdministrationController::class, 'storeSession'])
-            ->whereNumber('exam')
-            ->name('sessions.store');
-        Route::post('/{exam}/update', [ExamAdministrationController::class, 'update'])->whereNumber('exam')->name('update');
-        Route::post('/{exam}/cancel', [ExamAdministrationController::class, 'cancel'])->whereNumber('exam')->name('cancel');
-        Route::post('/{exam}/sessions/{session}/update', [ExamAdministrationController::class, 'updateSession'])
-            ->whereNumber(['exam', 'session'])
-            ->name('sessions.update');
-        Route::post('/{exam}/sessions/{session}/cancel', [ExamAdministrationController::class, 'cancelSession'])
-            ->whereNumber(['exam', 'session'])
-            ->name('sessions.cancel');
-        Route::post('/{exam}/sessions/{session}/open', [ExamAdministrationController::class, 'openSession'])
-            ->whereNumber(['exam', 'session'])
-            ->name('sessions.open');
-        Route::post('/{exam}/sessions/{session}/close', [ExamAdministrationController::class, 'closeSession'])
-            ->whereNumber(['exam', 'session'])
-            ->name('sessions.close');
-        Route::post('/{exam}/sessions/{session}/seat', [ExamSeatingController::class, 'store'])
-            ->whereNumber(['exam', 'session'])
-            ->name('sessions.seat');
-        Route::get('/{exam}/sessions/{session}', [ExamRosterController::class, 'show'])
-            ->whereNumber(['exam', 'session'])
-            ->name('sessions.show');
-        Route::post('/{exam}/sessions/{session}/seats/{seat}', [ExamRosterController::class, 'update'])
-            ->whereNumber(['exam', 'session', 'seat'])
-            ->name('sessions.seats.update');
-        Route::post('/{exam}/sessions/{session}/seats/{seat}/present', [ExamRosterController::class, 'present'])
-            ->whereNumber(['exam', 'session', 'seat'])
-            ->name('sessions.seats.present');
-        Route::post('/{exam}/sessions/{session}/seats/{seat}/cancel', [ExamRosterController::class, 'cancel'])
-            ->whereNumber(['exam', 'session', 'seat'])
-            ->name('sessions.seats.cancel');
-        Route::post('/{exam}/sessions/{session}/seats/{seat}/reopen', [ExamRosterController::class, 'reopen'])
-            ->whereNumber(['exam', 'session', 'seat'])
-            ->name('sessions.seats.reopen');
+        // EXAMIS 7.2 — exams and their sessions from the web (same requests, permissions and idempotency as the API).
+        Route::post('/', [ExamManagementController::class, 'store'])->name('store');
+        Route::post('/{exam}/update', [ExamManagementController::class, 'update'])->whereNumber('exam')->name('update');
+        Route::post('/{exam}/cancel', [ExamManagementController::class, 'cancel'])->whereNumber('exam')->name('cancel');
+        Route::post('/{exam}/sessions', [ExamManagementController::class, 'storeSession'])->whereNumber('exam')->name('sessions.store');
+        Route::post('/{exam}/sessions/{session}/update', [ExamManagementController::class, 'updateSession'])->whereNumber(['exam', 'session'])->name('sessions.update');
+        Route::post('/{exam}/sessions/{session}/open', [ExamManagementController::class, 'openSession'])->whereNumber(['exam', 'session'])->name('sessions.open');
+        Route::post('/{exam}/sessions/{session}/close', [ExamManagementController::class, 'closeSession'])->whereNumber(['exam', 'session'])->name('sessions.close');
+        Route::post('/{exam}/sessions/{session}/cancel', [ExamManagementController::class, 'cancelSession'])->whereNumber(['exam', 'session'])->name('sessions.cancel');
+    });
+
+    // EXAMIS 7.3a — «بنك الأسئلة»: questions with versions, four-eyes approval, retire (never delete).
+    Route::prefix('bank/questions')->name('bank.questions.')->middleware('require.school.context')->group(function (): void {
+        Route::get('/', [QuestionBankController::class, 'index'])->name('index');
+        Route::get('/{question}', [QuestionBankController::class, 'show'])->whereNumber('question')->name('show');
+        Route::post('/', [QuestionBankController::class, 'store'])->middleware('throttle:60,1')->name('store');
+        Route::post('/{question}/revise', [QuestionBankController::class, 'revise'])->whereNumber('question')->name('revise');
+        Route::post('/{question}/retire', [QuestionBankController::class, 'retire'])->whereNumber('question')->name('retire');
+        Route::post('/versions/{version}/update', [QuestionBankController::class, 'update'])->whereNumber('version')->name('versions.update');
+        Route::post('/versions/{version}/submit', [QuestionBankController::class, 'submit'])->whereNumber('version')->name('versions.submit');
+        Route::post('/versions/{version}/decide', [QuestionBankController::class, 'decide'])->whereNumber('version')->name('versions.decide');
     });
 
     Route::prefix('grades')->name('grades.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [GradesPageController::class, 'index'])->name('index');
         Route::get('/enter', [GradesPageController::class, 'enterForm'])->name('enter');
-        Route::get('/sheet', [GradeSheetController::class, 'show'])->name('sheet');
-        Route::post('/sheet/{session}', [GradeSheetController::class, 'store'])->whereNumber('session')->name('sheet.store');
         Route::post('/', [GradesPageController::class, 'store'])->name('store');
         Route::get('/actions', [GradesPageController::class, 'actions'])->name('actions');
-        Route::get('/reviews', [GradeReviewController::class, 'index'])->name('reviews');
-        Route::post('/reviews', [GradeReviewController::class, 'store'])->name('reviews.store');
-        Route::post('/reviews/{review}/start', [GradeReviewController::class, 'start'])->whereNumber('review')->name('reviews.start');
-        Route::post('/reviews/{review}/decide', [GradeReviewController::class, 'decide'])->whereNumber('review')->name('reviews.decide');
-        Route::post('/reviews/{review}/withdraw', [GradeReviewController::class, 'withdraw'])->whereNumber('review')->name('reviews.withdraw');
         Route::post('/{grade}/correct', [GradesPageController::class, 'correct'])->name('correct');
         Route::post('/{grade}/void', [GradesPageController::class, 'void'])->name('void');
         Route::post('/{grade}/finalize', [GradesPageController::class, 'finalize'])->name('finalize');

@@ -18,6 +18,8 @@ use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteCommand;
 use App\Application\Curriculum\Commands\DeactivateSubjectPrerequisiteHandler;
 use App\Application\Curriculum\Commands\LinkCurriculumSubjectCommand;
 use App\Application\Curriculum\Commands\LinkCurriculumSubjectHandler;
+use App\Application\Curriculum\Commands\UpdateCurriculumSubjectHoursCommand;
+use App\Application\Curriculum\Commands\UpdateCurriculumSubjectHoursHandler;
 use App\Application\Curriculum\Commands\ReactivateCurriculumCommand;
 use App\Application\Curriculum\Commands\ReactivateCurriculumHandler;
 use App\Application\Curriculum\Commands\ReactivateCurriculumSubjectCommand;
@@ -60,6 +62,7 @@ use App\Http\Requests\Curriculum\DeactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectPrerequisiteRequest;
 use App\Http\Requests\Curriculum\DeactivateSubjectRequest;
 use App\Http\Requests\Curriculum\LinkCurriculumSubjectRequest;
+use App\Http\Requests\Curriculum\UpdateCurriculumSubjectHoursRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumRequest;
 use App\Http\Requests\Curriculum\ReactivateCurriculumSubjectRequest;
 use App\Http\Requests\Curriculum\ReactivateSubjectPrerequisiteRequest;
@@ -245,6 +248,8 @@ final class CurriculumPageController extends Controller
                             'subject_code' => $subject['code'] ?? null,
                             'subject_name' => $subject['name'] ?? null,
                             'weekly_hours' => $dto->weeklyHours,
+                            'theory_hours' => $dto->theoryHours,
+                            'practical_hours' => $dto->practicalHours,
                             'is_required' => $dto->isRequired,
                             'subject_order' => $dto->subjectOrder,
                             'status' => $dto->status,
@@ -625,6 +630,8 @@ final class CurriculumPageController extends Controller
             isRequired: (bool) ($request->validated('is_required') ?? true),
             subjectOrder: (int) ($request->validated('subject_order') ?? 0),
             idempotencyKey: $this->idempotencyKey($request),
+            theoryHours: $this->nullableHours($request->validated('theory_hours')),
+            practicalHours: $this->nullableHours($request->validated('practical_hours')),
         ));
 
         if ($result->failed()) {
@@ -642,6 +649,42 @@ final class CurriculumPageController extends Controller
         );
 
         return redirect()->back()->with('success', 'flash.curriculum.subjectLinked');
+    }
+
+    /** «نظري / عملي» hours of a subject in a curriculum. */
+    public function updateCurriculumSubjectHours(
+        int $link,
+        UpdateCurriculumSubjectHoursRequest $request,
+        UpdateCurriculumSubjectHoursHandler $handler,
+    ): RedirectResponse {
+        $result = $handler->handle(new UpdateCurriculumSubjectHoursCommand(
+            schoolId: $this->schoolContext->requireId(),
+            linkId: $link,
+            theoryHours: $this->nullableHours($request->validated('theory_hours')),
+            practicalHours: $this->nullableHours($request->validated('practical_hours')),
+            idempotencyKey: $this->idempotencyKey($request),
+        ));
+
+        if ($result->failed()) {
+            return redirect()->back()->withErrors([
+                'link' => $result->errors[0] ?? 'curriculum.curriculum_subject_link_failed',
+            ]);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.web.curriculum_subjects.hours',
+            'updated',
+            $request->user(),
+            'curriculum_subject:'.$result->linkId,
+        );
+
+        return redirect()->back()->with('success', 'flash.curriculum.subjectHoursUpdated');
+    }
+
+    private function nullableHours(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
     }
 
     public function deactivateCurriculumSubject(
@@ -755,6 +798,8 @@ final class CurriculumPageController extends Controller
                 'subject_code' => $subject['code'] ?? null,
                 'subject_name' => $subject['name'] ?? null,
                 'weekly_hours' => $link->weeklyHours,
+                'theory_hours' => $link->theoryHours,
+                'practical_hours' => $link->practicalHours,
                 'is_required' => $link->isRequired,
                 'subject_order' => $link->subjectOrder,
                 'status' => $link->status,

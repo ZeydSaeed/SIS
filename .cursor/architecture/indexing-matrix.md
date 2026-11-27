@@ -197,6 +197,19 @@
 | documents.import_batches · (school, created_at DESC) | B-Tree | «عمليات الاستيراد» history (latest first) |
 | documents.import_rows · (batch, status) | B-Tree | Preview filter by status, commit of valid rows, error report |
 
+### `bank` question bank (EXAMIS 7.3a, 2026-10-27)
+
+| Table · column(s) | Type | Reason (query pattern) |
+|-------------------|------|------------------------|
+| questions · (id, school_id) | UNIQUE | Target of the composite FK from question_versions (a version lives in its question's school) |
+| questions · (school_id, subject_id, status) | B-Tree | «بنك الأسئلة» list: questions of the school, filtered by subject / retired |
+| question_versions · (question_id, version_no) | UNIQUE | Numbering; latest version of a question (list join, revise) |
+| question_versions · (question_id) WHERE status IN (draft, in_review) | partial UNIQUE | One open version per question (also serialises revise) |
+| question_versions · (question_id) WHERE status = approved | partial UNIQUE | One approved version per question (approve supersedes first) |
+| question_versions · (school_id, status) | B-Tree | Review queue of a school (in_review) |
+
+> The list filters `stem ILIKE '%…%'` with a 100-character search on one school's rows (server pagination, 25 per page). No trigram index yet: measure before adding one (correctness > performance).
+
 ## PostgreSQL Index Examples
 
 ```sql

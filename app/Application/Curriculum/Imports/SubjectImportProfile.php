@@ -23,7 +23,7 @@ use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
  */
 final class SubjectImportProfile implements ImportProfile
 {
-    private const TYPES = ['اساسي' => 1, 'اساسيه' => 1, 'نظري' => 1, 'core' => 1, 'اختياري' => 2, 'elective' => 2, 'عملي' => 3, 'practical' => 3];
+    private const TYPES = ['اساسي' => 1, 'اساسيه' => 1, 'نظري' => 4, 'theory' => 4, 'core' => 1, 'اختياري' => 2, 'elective' => 2, 'عملي' => 3, 'practical' => 3];
 
     public function __construct(
         private readonly SubjectRepositoryInterface $subjects,
@@ -56,7 +56,7 @@ final class SubjectImportProfile implements ImportProfile
             ['key' => 'name', 'label' => 'اسم المادة', 'required' => true, 'aliases' => ['name', 'subject', 'المادة'], 'example' => 'مبادئ حاسوب'],
             ['key' => 'name_en', 'label' => 'الاسم الإنجليزي', 'required' => false, 'aliases' => ['english name', 'name en'], 'example' => 'Computer Basics'],
             ['key' => 'abbreviation', 'label' => 'الاختصار', 'required' => false, 'aliases' => ['abbreviation', 'short name'], 'example' => 'م.ح'],
-            ['key' => 'subject_type', 'label' => 'نوع المادة', 'required' => false, 'aliases' => ['type', 'subject type', 'النوع'], 'example' => 'نظري', 'hint' => 'نظري / اختياري / عملي'],
+            ['key' => 'subject_type', 'label' => 'نوع المادة', 'required' => false, 'aliases' => ['type', 'subject type', 'النوع'], 'example' => 'نظري', 'hint' => 'أساسي / اختياري / عملي / نظري'],
             ['key' => 'credit_hours', 'label' => 'الساعات', 'required' => false, 'aliases' => ['credit hours', 'hours'], 'example' => '3'],
             ['key' => 'max_grade', 'label' => 'الدرجة العظمى', 'required' => false, 'aliases' => ['max grade'], 'example' => '100'],
             ['key' => 'pass_grade', 'label' => 'درجة النجاح', 'required' => false, 'aliases' => ['pass grade'], 'example' => '50'],
@@ -174,7 +174,7 @@ final class SubjectImportProfile implements ImportProfile
             return null;
         }
 
-        return ImportValues::int($value, 1, 3) ?? self::TYPES[ImportValues::header($value)] ?? false;
+        return ImportValues::int($value, 1, 4) ?? self::TYPES[ImportValues::header($value)] ?? false;
     }
 
     /** @return array<string, int> upper(code) → subject id (the whole catalogue, active or not) */

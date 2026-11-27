@@ -39,6 +39,8 @@ class SchemaHelper
             'intelligence',
             // «الإجازات والغياب» (2026-10-18, migration `2026_10_18_120000_create_leave_schema`).
             'leave',
+            // EXAMIS 7.3a question bank (2026-10-27, migration `2026_10_27_100000_create_bank_questions_and_versions`).
+            'bank',
         ];
     }
 

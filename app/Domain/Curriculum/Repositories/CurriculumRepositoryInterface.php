@@ -83,7 +83,12 @@ interface CurriculumRepositoryInterface
         bool $isRequired,
         int $subjectOrder,
         string $createdAt,
+        ?int $theoryHours = null,
+        ?int $practicalHours = null,
     ): int;
+
+    /** Set «نظري» / «عملي» hours of an active link; weekly_hours becomes their sum. */
+    public function updateLinkHours(int $schoolId, int $linkId, ?int $theoryHours, ?int $practicalHours): bool;
 
     public function findActiveLink(int $schoolId, int $linkId): ?CurriculumSubjectSnapshot;
 

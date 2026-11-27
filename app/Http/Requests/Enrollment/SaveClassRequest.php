@@ -37,6 +37,9 @@ class SaveClassRequest extends FormRequest
             'school_id' => ['prohibited'],
             'code' => ['prohibited'],
             'status' => ['sometimes', 'integer', 'in:1,2'],
+            // Optional sections created with a new class (A / B / C); empty or absent = a class without sections.
+            'sections' => [$this->isMethod('post') ? 'sometimes' : 'prohibited', 'array', 'max:3'],
+            'sections.*' => ['string', 'in:A,B,C', 'distinct'],
         ],
             // «الحالة» (نشط / غير نشط) is part of this form (in:1,2 above) — every other sensitive field stays prohibited.
             Arr::except(SecuritySensitiveFieldGuard::prohibitedRules(), ['status']),

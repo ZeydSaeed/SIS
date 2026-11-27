@@ -1,9 +1,26 @@
 # ADR-024: Question Bank, Rubrics and Blueprint-Built Exams
 
 ## Status
-**Proposed — 2026-10-24. Not approved. No code, migration or UI exists for this ADR.** Implementation starts only after
-the human owner approves it (see "Decisions needed"). Part of the EXAMIS program (`docs/sis/exams/EXAMIS-TARGET-DESIGN.md`,
-phase D).
+**Proposed — 2026-10-24.** The owner answered the "Decisions needed" on 2026-10-27 (EXAMIS DEC-047..054, recorded in
+`docs/examis/EXAMIS-DECISIONS.md`) and authorised unit **7.3a — questions only**. The design choices made for 7.3a are
+DEC-055..058 (**PROPOSED**, awaiting the owner). Rubrics, categories, tags, assets, blueprints and exam forms below remain
+**unbuilt proposals**. Part of the EXAMIS program (`docs/sis/exams/EXAMIS-TARGET-DESIGN.md`, phase D).
+
+### What 7.3a built (2026-10-27, not committed, live `sis` not migrated)
+| Owner answer | What exists |
+|---|---|
+| Versions + four eyes; self-approval setting audited, default off (DEC-047) | `bank.questions` + `bank.question_versions`. Four eyes in the handler **and** a CHECK. The self-approval setting is **not built** (DEC-056): enabling it later needs a migration and approval |
+| First-release types: single choice, multiple choice, true/false, long answer (manual) (DEC-048) | Exactly these four; short text, numeric and multi-part from §1 are **not** in 7.3a |
+| Plain text only (DEC-049) | Stem, options and guidance are plain text (control characters removed); no rich text, math or images |
+| The subject teacher authors; approval by a separate permission (DEC-050) | `bank.question.view` / `.author` / `.approve`; teachers author the subjects of their active teaching assignments in the current year; approvers are school-wide |
+| No import/export in release 1 (DEC-051) | None |
+| Never deleted; retire by status (DEC-052) | Guard triggers refuse DELETE; `retired` is final |
+
+Differences from §1/§2 below: the lifecycle status lives on the **version** (`draft → in_review → approved | rejected`,
+`approved → superseded`), the question only carries `active | retired`; there is no `current_version_id` (the approved
+version is the one with `status = approved`, one at most by a partial UNIQUE). A draft is a working copy its author edits
+in place; content freezes at submission (trigger), and later changes are a new version (DEC-057). Questions are not
+year-scoped (DEC-055).
 
 ## Context
 SIS has exams, sessions, seats and grades (`exams.*`) and results (`results.*`), but no questions: an exam is a header with

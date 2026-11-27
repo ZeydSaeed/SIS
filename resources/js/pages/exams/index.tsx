@@ -1,29 +1,15 @@
-import { router } from '@inertiajs/react';
-import { Eye, PlusCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import {
-    AttendanceTable,
-    AttendanceWindow,
-    useAttendanceMessages,
-    useAttendanceSelection,
-    useYearFilterSpec,
-    type AttendanceColumn,
-} from '@/components/attendance/attendance-chrome';
-import {
-    ExamisPage,
-    useExamisEditRibbon,
-    useExamisHomeFilters,
-    useExamisRequest,
-} from '@/components/examis/examis-chrome';
-import {
-    RegistryListField,
-    RegistryTextField,
-} from '@/components/organization/registry-sheet';
-import type { PageRibbonGroup } from '@/components/sis/page-ribbon-context';
-import type { FilterSpec } from '@/components/sis/ribbon-filter';
-import { statusChipLabel } from '@/components/sis/status-chip';
-import { t } from '@/i18n';
+import { Head, router } from '@inertiajs/react';
+import { Eye, GraduationCap, Library, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { ExamFormDialog, type Option } from '@/components/exams/exam-forms';
+import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { OpsYearFilter } from '@/components/sis/ops-year-filter';
+import { PageHeader } from '@/components/sis/page-header';
+import { type PageRibbonGroup } from '@/components/sis/page-ribbon-context';
+import { StatusChip } from '@/components/sis/status-chip';
+import { EditRibbon } from '@/components/exams/edit-ribbon';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type ExamRow = {
@@ -42,173 +28,78 @@ type PageProps = {
     exams: {
         data: ExamRow[];
     };
-    names: { terms: Record<number, string> };
-    admin: {
-        can_create: boolean;
-        terms: { id: number; name: string }[];
-        exam_types: { id: number; name: string; weight_percentage: number }[];
-    };
     filters: {
         academic_year_id: number | null;
         status: number | null;
     };
-};
-
-const EXAM_STATUSES = [1, 2, 3, 4, 5];
-/** Shared status palette: draft steel, scheduled sky, in progress ok, completed amber, cancelled danger. */
-const STATUS_TONE: Record<number, number> = { 1: 0, 2: 3, 3: 1, 4: 2, 5: 4 };
-
-type Draft = {
-    name: string;
-    term_id: string;
-    exam_type_id: string;
-    start_date: string;
-    end_date: string;
-};
-
-const EMPTY_DRAFT: Draft = {
-    name: '',
-    term_id: '',
-    exam_type_id: '',
-    start_date: '',
-    end_date: '',
-};
-
-export default function ExamsIndex(props: PageProps) {
-    const i18n = t();
-    const breadcrumbs: BreadcrumbItem[] = [
-        { title: i18n.exams.title, href: '/exams' },
-    ];
-
-    return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <ExamsBody {...props} />
-        </AppLayout>
-    );
-}
-
-function ExamsBody({ exams, names, admin, filters }: PageProps) {
-    const i18n = t();
-    const a = i18n.exams.admin;
-    const request = useExamisRequest();
-    const [draft, setDraft] = useState<Draft | null>(null);
-    const [saving, setSaving] = useState(false);
-    const rows = exams.data;
-    const selection = useAttendanceSelection(rows, (row) => row.id);
-    const canCreate = admin.can_create && filters.academic_year_id !== null;
-
-    const visit = (patch: Partial<PageProps['filters']>) =>
-        router.get(
-            '/exams',
-            Object.fromEntries(
-                Object.entries({ ...filters, ...patch }).filter(
-                    ([, value]) => value !== null && value !== undefined,
-                ),
-            ),
-            { preserveScroll: true },
-        );
-    const open = (row: ExamRow) => router.visit(`/exams/${row.id}`);
-
-    const yearSpec = useYearFilterSpec(filters.academic_year_id, (id) =>
-        visit({ academic_year_id: id }),
-    );
-    const statusSpec: FilterSpec = {
-        key: 'status',
-        type: 'single',
-        label: i18n.common.status,
-        value: filters.status === null ? '' : String(filters.status),
-        options: [
-            { value: '', label: `${i18n.common.status}: —` },
-            ...EXAM_STATUSES.map((status) => ({
-                value: String(status),
-                label: statusChipLabel('exam', status),
-            })),
-        ],
-        onChange: (value) =>
-            visit({ status: value === '' ? null : Number(value) }),
+    /** EXAMIS 7.2: display names (`terms[id]`) instead of raw ids. */
+    names: { terms?: Record<number, string> };
+    admin: {
+        can_create: boolean;
+        terms: Option[];
+        exam_types: Option[];
+        /** EXAMIS 7.3a: «بنك الأسئلة» is linked only for users who may open it. */
+        can_view_bank: boolean;
     };
-    useExamisHomeFilters(
-        [yearSpec, statusSpec],
-        [filters, yearSpec.options.length],
-    );
+};
 
+export default function ExamsIndex({ exams, filters, names, admin }: PageProps) {
+    const i18n = t();
+    const [creating, setCreating] = useState(false);
+    // The «تحرير» ribbon: «امتحان جديد» (exam.create) and «عرض» of the selected row.
+    const [selectedId, setSelectedId] = useState<number | null>(exams.data[0]?.id ?? null);
+    useEffect(() => {
+        if (!exams.data.some((row) => row.id === selectedId)) {
+            setSelectedId(exams.data[0]?.id ?? null);
+        }
+    }, [exams.data, selectedId]);
     const ribbon = useMemo((): PageRibbonGroup[] => {
-        const target = selection.targets[0];
-
-        return [
-            {
-                id: 'exams-actions',
-                label: i18n.examisChrome.actions,
-                commands: [
-                    {
-                        id: 'exams-view',
-                        label: i18n.common.view,
-                        icon: Eye,
-                        iconTone: 'sky',
-                        disabled: target === undefined,
-                        onSelect: () => target && open(target),
-                    },
-                    ...(canCreate
-                        ? [
-                              {
-                                  id: 'exams-add',
-                                  label: a.newExam,
-                                  icon: PlusCircle,
-                                  iconTone: 'ok' as const,
-                                  onSelect: () => setDraft(EMPTY_DRAFT),
-                              },
-                          ]
-                        : []),
-                ],
-            },
-        ];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selection.targets, canCreate]);
-    useExamisEditRibbon('exams', ribbon);
-
-    // The create form offers existing types and terms only: say why it cannot open instead of an empty form.
-    useAttendanceMessages(
-        canCreate && admin.exam_types.length === 0
-            ? [{ key: 'no-types', text: a.noExamTypes, tone: 'warning' }]
-            : canCreate && admin.terms.length === 0
-              ? [{ key: 'no-terms', text: a.noTerms, tone: 'warning' }]
-              : [],
-        i18n.exams.title,
-    );
-
-    const save = async () => {
-        if (draft === null || filters.academic_year_id === null) {
-            return;
+        const commands: PageRibbonGroup['commands'] = [];
+        if (admin.can_create) {
+            commands.push({
+                id: 'exam-new',
+                label: i18n.exams.admin.newExam,
+                icon: Plus,
+                disabled: admin.exam_types.length === 0 || admin.terms.length === 0,
+                onSelect: () => setCreating(true),
+            });
         }
-        setSaving(true);
-        const ok = await request(
-            '/exams',
-            { academic_year_id: filters.academic_year_id, ...draft },
-            'exam-create',
-        );
-        setSaving(false);
-        if (ok) {
-            setDraft(null);
+        commands.push({
+            id: 'exam-view',
+            label: i18n.common.view,
+            icon: Eye,
+            disabled: selectedId === null,
+            onSelect: () => selectedId !== null && router.visit(`/exams/${selectedId}`),
+        });
+        if (admin.can_view_bank) {
+            commands.push({
+                id: 'exam-bank',
+                label: i18n.bank.link,
+                icon: Library,
+                onSelect: () => router.visit('/bank/questions'),
+            });
         }
-    };
 
-    const columns: AttendanceColumn<ExamRow>[] = [
+        return [{ id: 'exams', label: i18n.exams.title, commands }];
+    }, [admin, i18n, selectedId]);
+
+    const breadcrumbs: BreadcrumbItem[] = [{ title: i18n.exams.title, href: '/exams' }];
+
+    const columns: DataTableColumn<ExamRow>[] = [
         {
             id: 'name',
             header: i18n.exams.name,
-            kind: 'name',
             cell: (row) => row.name,
         },
         {
-            id: 'term',
+            id: 'term_id',
             header: i18n.exams.term,
-            kind: 'text',
-            cell: (row) => names.terms[row.term_id] ?? String(row.term_id),
+            cell: (row) => names.terms?.[row.term_id] ?? '—',
+            hideOnMobile: true,
         },
         {
             id: 'dates',
             header: i18n.exams.dates,
-            kind: 'text',
             cell: (row) => (
                 <span dir="ltr">
                     {row.start_date} – {row.end_date}
@@ -218,136 +109,79 @@ function ExamsBody({ exams, names, admin, filters }: PageProps) {
         {
             id: 'status',
             header: i18n.common.status,
-            kind: 'status',
-            tone: (row) => STATUS_TONE[row.status] ?? 0,
-            cell: (row) => statusChipLabel('exam', row.status),
+            cell: (row) => <StatusChip kind="exam" status={row.status} />,
+        },
+        {
+            id: 'actions',
+            header: i18n.common.open,
+            cell: (row) => (
+                <a href={`/exams/${row.id}`} className="underline">
+                    {i18n.common.view}
+                </a>
+            ),
         },
     ];
 
-    const typeOptions = admin.exam_types.map((type) => ({
-        value: String(type.id),
-        label: `${type.name} (${type.weight_percentage}%)`,
-    }));
-    const termOptions = admin.terms.map((term) => ({
-        value: String(term.id),
-        label: term.name,
-    }));
-    const ready =
-        draft !== null &&
-        draft.name.trim() !== '' &&
-        draft.term_id !== '' &&
-        draft.exam_type_id !== '' &&
-        draft.start_date !== '' &&
-        draft.end_date !== '';
-
     return (
-        <ExamisPage title={i18n.exams.title} windowId="exams.index">
-            <AttendanceTable
-                caption={i18n.exams.tableCaption}
-                storageKey="exams.index"
-                rows={rows}
-                rowKey={(row) => row.id}
-                columns={columns}
-                selection={selection}
-                onOpen={open}
-                emptyText={
-                    filters.academic_year_id
-                        ? i18n.exams.emptyDesc
-                        : i18n.exams.selectYearContext
-                }
-            />
-
-            {draft !== null &&
-            admin.exam_types.length > 0 &&
-            admin.terms.length > 0 ? (
-                <AttendanceWindow
-                    title={a.newExam}
-                    columns={2}
-                    pending={saving}
-                    confirmLabel={a.create}
-                    confirmDisabled={!ready}
-                    onConfirm={() => void save()}
-                    onClose={() => setDraft(null)}
-                    sections={[
-                        {
-                            id: 'exam-create',
-                            title: a.newExam,
-                            content: (
-                                <div
-                                    data-window-id="exams.create"
-                                    className="contents"
-                                >
-                                    <RegistryTextField
-                                        label={a.examName}
-                                        editing
-                                        required
-                                        fieldClassName="sis-branches-field--wide"
-                                        value={draft.name}
-                                        onChange={(name) =>
-                                            setDraft({ ...draft, name })
-                                        }
-                                    />
-                                    <RegistryListField
-                                        label={a.term}
-                                        editing
-                                        required
-                                        value={draft.term_id}
-                                        display={
-                                            termOptions.find(
-                                                (o) =>
-                                                    o.value === draft.term_id,
-                                            )?.label ?? '—'
-                                        }
-                                        options={termOptions}
-                                        onChange={(term_id) =>
-                                            setDraft({ ...draft, term_id })
-                                        }
-                                    />
-                                    <RegistryListField
-                                        label={a.examType}
-                                        editing
-                                        required
-                                        value={draft.exam_type_id}
-                                        display={
-                                            typeOptions.find(
-                                                (o) =>
-                                                    o.value ===
-                                                    draft.exam_type_id,
-                                            )?.label ?? '—'
-                                        }
-                                        options={typeOptions}
-                                        onChange={(exam_type_id) =>
-                                            setDraft({ ...draft, exam_type_id })
-                                        }
-                                    />
-                                    <RegistryTextField
-                                        label={a.startDate}
-                                        editing
-                                        required
-                                        type="date"
-                                        dir="ltr"
-                                        value={draft.start_date}
-                                        onChange={(start_date) =>
-                                            setDraft({ ...draft, start_date })
-                                        }
-                                    />
-                                    <RegistryTextField
-                                        label={a.endDate}
-                                        editing
-                                        required
-                                        type="date"
-                                        dir="ltr"
-                                        value={draft.end_date}
-                                        onChange={(end_date) =>
-                                            setDraft({ ...draft, end_date })
-                                        }
-                                    />
-                                </div>
-                            ),
-                        },
-                    ]}
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <EditRibbon groups={ribbon} />
+            <Head title={i18n.exams.title} />
+            <div className="sis-ops-hub flex flex-col gap-4 p-4">
+                <PageHeader
+                    title={i18n.exams.title}
+                    description={i18n.exams.description}
+                    icon={<GraduationCap className="size-6" aria-hidden />}
+                />
+                <OpsYearFilter action="/exams" academicYearId={filters.academic_year_id} label={i18n.context.year} />
+                {admin.can_create && admin.exam_types.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">{i18n.exams.admin.noExamTypes}</p>
+                ) : null}
+                {admin.can_create && admin.terms.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">{i18n.exams.admin.noTerms}</p>
+                ) : null}
+                <DataTable
+                    columns={columns}
+                    rows={exams.data}
+                    rowKey={(row) => row.id}
+                    onRowClick={(row) => setSelectedId(row.id)}
+                    isRowSelected={(row) => row.id === selectedId}
+                    getRowAriaLabel={(row) => row.name}
+                    emptyTitle={i18n.exams.emptyTitle}
+                    emptyDescription={
+                        filters.academic_year_id ? i18n.exams.emptyDesc : i18n.exams.selectYearContext
+                    }
+                    caption={i18n.exams.tableCaption}
+                    mobileCard={(row) => (
+                        <a
+                            href={`/exams/${row.id}`}
+                            className="block rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_20%,white)] p-3"
+                        >
+                            <div className="font-semibold">{row.name}</div>
+                            <div className="text-sm opacity-80">
+                                <span dir="ltr">
+                                    {row.start_date} – {row.end_date}
+                                </span>
+                            </div>
+                            <div className="text-sm opacity-80">
+                                <StatusChip kind="exam" status={row.status} />
+                            </div>
+                        </a>
+                    )}
+                />
+            </div>
+            {admin.can_create ? (
+                <ExamFormDialog
+                    open={creating}
+                    mode="create"
+                    url="/exams"
+                    academicYearId={filters.academic_year_id}
+                    initial={{ name: '', term_id: null, exam_type_id: null, start_date: '', end_date: '' }}
+                    terms={admin.terms}
+                    examTypes={admin.exam_types}
+                    allowTypeAndTerm
+                    onClose={() => setCreating(false)}
                 />
             ) : null}
-        </ExamisPage>
+        </AppLayout>
     );
 }

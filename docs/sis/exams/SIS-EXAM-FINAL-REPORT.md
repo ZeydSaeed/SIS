@@ -1,5 +1,13 @@
 # SIS Exam Platform — Readiness Report (interim, 2026-10-24)
 
+> **2026-10-24 — PAGES REVERTED (owner's instruction).** The exams / grades / results web pages were returned to their
+> original code (state of commit `1738c8c`, before the EXAMIS UI work): React pages, their HTTP controllers, their routes and
+> the small page hooks (sidebar «نتائجي» link, `examisShell` / `portalNav` Inertia props, ribbon accent). The backend (handlers,
+> repositories, migrations, tables, API) was NOT reverted. Everything below that describes pages, screens or browser checks
+> describes the committed state at `4472454`, **not the current working tree**. Backup of the previous working tree:
+> `D:\Projects\sis_backup_examis_pages_2026-10-24\`.
+
+
 **Verdict: NOT operationally ready as a complete exam platform.** The results/grades/publication chain is built, tested and
 checked in a browser on a throwaway database. The question bank and the online exam are NOT built (design only, awaiting
 approval). Branch V2. Committed by the owner in `faea262` and before: units U1–U15, publication (A1/A1b), reconciliation (A2), portal (A3), grade reviews (B), ADR-024/025. NOT committed: per-year weight versions (C, migration `2026_10_24_130000`), this report and the operations documents. Operational task list: [SIS-EXAM-OPERATIONS-TASKS.md](SIS-EXAM-OPERATIONS-TASKS.md); notes: [SIS-EXAM-OPERATIONS.md](SIS-EXAM-OPERATIONS.md).

@@ -1,14 +1,13 @@
 import { cn } from '@/lib/utils';
+import { APP_LOGO_SRC } from '@/components/app-logo-icon';
 
 type AppLogoProps = {
     className?: string;
-    /** on-dark = Pearl mark (sidebar). on-light = Night mark (pearl surfaces). */
+    /** Kept for callers; the round logo reads on dark and light surfaces alike. */
     tone?: 'on-dark' | 'on-light';
 };
 
-/**
- * SIS mark without yellow plate — mask-colored to chrome tokens.
- */
+/** Program logo — the round Ishtar Tech seal, transparent outside the circle (sidebar, header, every sheet). */
 export default function AppLogo({ className, tone = 'on-dark' }: AppLogoProps) {
     return (
         <div
@@ -19,7 +18,7 @@ export default function AppLogo({ className, tone = 'on-dark' }: AppLogoProps) {
             )}
             aria-hidden="true"
         >
-            <span className="sis-app-logo__mark" />
+            <img className="sis-app-logo__img" src={APP_LOGO_SRC} alt="" decoding="async" draggable={false} />
         </div>
     );
 }

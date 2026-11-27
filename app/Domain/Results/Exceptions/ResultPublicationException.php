@@ -32,6 +32,18 @@ final class ResultPublicationException extends SisDomainException
         return new self('The term and subject of a term publication must belong to the academic year.', 'results.publish.scope_invalid');
     }
 
+    /** The official results changed between building the snapshot and locking its rows (a concurrent rebuild). */
+    public static function snapshotChanged(): self
+    {
+        return new self('The official results of the scope changed while publishing; try again.', 'results.publish.changed');
+    }
+
+    /** The idempotency key was already used to withdraw another publication. */
+    public static function idempotencyConflict(): self
+    {
+        return new self('Idempotency key of WithdrawResultPublication reused for another publication.', 'results.publish.idempotency_conflict');
+    }
+
     public static function kindInvalid(string $kind): self
     {
         return new self("Unknown result kind {$kind}.", 'results.publish.kind_invalid');

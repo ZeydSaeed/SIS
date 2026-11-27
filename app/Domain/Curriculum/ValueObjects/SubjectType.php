@@ -7,4 +7,5 @@ enum SubjectType: int
     case Core = 1;
     case Elective = 2;
     case Practical = 3;
+    case Theory = 4;
 }

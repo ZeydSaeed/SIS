@@ -1,17 +1,9 @@
-import { router } from '@inertiajs/react';
-import {
-    AttendanceTable,
-    useAttendanceMessages,
-    type AttendanceColumn,
-} from '@/components/attendance/attendance-chrome';
-import { ExamisPage } from '@/components/examis/examis-chrome';
-import {
-    ResultsStudentPicker,
-    useResultsStudentChrome,
-    type ResultsPicker,
-} from '@/components/results/results-student-picker';
-import { t } from '@/i18n';
+import { Head, Link, router } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
+import { ScrollText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type TermRow = {
@@ -42,131 +34,151 @@ type PageProps = {
         academic_year_id: number | null;
         enrollment_id: number | null;
     };
-    picker: ResultsPicker;
-    names: { terms: Record<number, string>; subjects: Record<number, string> };
 };
 
-export default function ResultsShow(props: PageProps) {
+export default function ResultsShow({ terms, annual, gpa, filters }: PageProps) {
     const i18n = t();
+    const [enrollmentId, setEnrollmentId] = useState(filters.enrollment_id?.toString() ?? '');
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: i18n.modules.results, href: '/results' },
         { title: i18n.results.summaryBreadcrumb, href: '/results/show' },
     ];
 
+    const onFilter = (event: FormEvent) => {
+        event.preventDefault();
+        const parsed = Number.parseInt(enrollmentId, 10);
+        router.get(
+            '/results/show',
+            {
+                academic_year_id: filters.academic_year_id ?? undefined,
+                enrollment_id: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <SummaryBody {...props} />
+            <Head title={i18n.results.summaryHead} />
+            <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
+                <PageHeader
+                    title={i18n.results.summaryTitle}
+                    description={i18n.results.summaryDesc}
+                    icon={<ScrollText className="size-6" aria-hidden />}
+                />
+                <form
+                    onSubmit={onFilter}
+                    className="flex flex-col gap-3 sm:flex-row sm:items-end"
+                    aria-label={i18n.common.filterEnrollmentResults}
+                >
+                    <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+                        <span>{i18n.results.enrollmentId}</span>
+                        <input
+                            type="number"
+                            min={1}
+                            inputMode="numeric"
+                            className="sis-ops-hub__link min-h-11 px-3 py-2" dir="rtl" lang="ar"
+                            value={enrollmentId}
+                            onChange={(e) => setEnrollmentId(e.target.value)}
+                            dir="ltr"
+                        />
+                    </label>
+                    <button type="submit" className="sis-ops-hub__link min-h-11 px-4 py-2 text-sm" dir="rtl" lang="ar">
+                        {i18n.results.loadSummary}
+                    </button>
+                </form>
+
+                <section aria-labelledby="annual-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
+                    <h2 id="annual-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
+                        {i18n.results.annual}
+                    </h2>
+                    {annual ? (
+                        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                            <div>
+                                <dt className="opacity-70">{i18n.results.averageWeightedTotal}</dt>
+                                <dd>
+                                    <span dir="ltr">{annual.average_weighted_total ?? '—'}</span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="opacity-70">{i18n.results.version}</dt>
+                                <dd>
+                                    <span dir="ltr">{annual.result_version}</span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="opacity-70">{i18n.results.incomplete}</dt>
+                                <dd>{annual.incomplete ? i18n.common.yes : i18n.common.no}</dd>
+                            </div>
+                        </dl>
+                    ) : (
+                        <p className="text-sm opacity-80">{i18n.results.noAnnual}</p>
+                    )}
+                </section>
+
+                <section aria-labelledby="gpa-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
+                    <h2 id="gpa-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
+                        {i18n.results.yearGpa}
+                    </h2>
+                    {gpa ? (
+                        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                            <div>
+                                <dt className="opacity-70">{i18n.results.gpaLabel}</dt>
+                                <dd>
+                                    <span dir="ltr">
+                                        {gpa.gpa_value ?? '—'} ({gpa.scale_code})
+                                    </span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="opacity-70">{i18n.results.version}</dt>
+                                <dd>
+                                    <span dir="ltr">{gpa.result_version}</span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="opacity-70">{i18n.results.incomplete}</dt>
+                                <dd>{gpa.incomplete ? i18n.common.yes : i18n.common.no}</dd>
+                            </div>
+                        </dl>
+                    ) : (
+                        <p className="text-sm opacity-80">{i18n.results.noGpa}</p>
+                    )}
+                </section>
+
+                <section aria-labelledby="terms-heading" className="sis-ops-hub__section" dir="rtl" lang="ar">
+                    <h2 id="terms-heading" className="sis-ops-hub__section-title" dir="rtl" lang="ar">
+                        {i18n.results.termSubjects}
+                    </h2>
+                    {terms.length === 0 ? (
+                        <p className="text-sm opacity-80">{i18n.results.noTerms}</p>
+                    ) : (
+                        <ul className="sis-ops-hub__links" dir="rtl" lang="ar">
+                            {terms.map((row) => (
+                                <li key={row.term_result_id}>
+                                    <Link
+                                        href={`/results/term?enrollment_id=${filters.enrollment_id}&academic_year_id=${filters.academic_year_id}&term_id=${row.term_id}&subject_id=${row.subject_id}`}
+                                        className="sis-ops-hub__link" dir="rtl" lang="ar"
+                                        prefetch
+                                    >
+                                        <span className="sis-ops-hub__link-title" dir="rtl" lang="ar">
+                                            {i18n.results.term}{' '}
+                                            <span dir="ltr">{row.term_id}</span> · {i18n.results.subject}{' '}
+                                            <span dir="ltr">{row.subject_id}</span>
+                                        </span>
+                                        <span className="sis-ops-hub__link-desc" dir="rtl" lang="ar">
+                                            {i18n.results.totalShort}{' '}
+                                            <span dir="ltr">{row.weighted_total ?? '—'}</span>
+                                            {row.incomplete ? ` · ${i18n.results.incomplete}` : ''}
+                                        </span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
+            </div>
         </AppLayout>
-    );
-}
-
-/** The chosen student's official annual result, year GPA and term results. */
-function SummaryBody({
-    terms,
-    annual,
-    gpa,
-    filters,
-    picker,
-    names,
-}: PageProps) {
-    const i18n = t();
-    const r = i18n.results;
-    useResultsStudentChrome('summary', filters.academic_year_id, picker);
-    useAttendanceMessages(
-        picker.student === null &&
-            picker.q === '' &&
-            picker.candidates.length === 0
-            ? [{ key: 'pick-student', text: r.pickStudent, tone: 'info' }]
-            : [],
-        r.summaryTitle,
-    );
-
-    const columns: AttendanceColumn<TermRow>[] = [
-        {
-            id: 'term',
-            header: r.term,
-            kind: 'text',
-            cell: (row) => names.terms[row.term_id] ?? String(row.term_id),
-        },
-        {
-            id: 'subject',
-            header: r.subject,
-            kind: 'name',
-            cell: (row) =>
-                names.subjects[row.subject_id] ?? String(row.subject_id),
-        },
-        {
-            id: 'total',
-            header: r.weightedTotal,
-            kind: 'num',
-            cell: (row) => <span dir="ltr">{row.weighted_total ?? '—'}</span>,
-        },
-        {
-            id: 'incomplete',
-            header: r.incomplete,
-            kind: 'text',
-            cell: (row) => (row.incomplete ? i18n.common.yes : i18n.common.no),
-        },
-    ];
-
-    return (
-        <ExamisPage title={r.summaryTitle} windowId="results.show">
-            <ResultsStudentPicker
-                path="/results/show"
-                academicYearId={filters.academic_year_id}
-                picker={picker}
-            />
-            {picker.student ? (
-                <>
-                    <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                        <div className="flex gap-1" data-annual>
-                            <dt className="font-semibold">{r.annual}:</dt>
-                            <dd>
-                                {annual ? (
-                                    <span dir="ltr">
-                                        {annual.average_weighted_total ?? '—'}
-                                    </span>
-                                ) : (
-                                    r.noAnnual
-                                )}
-                                {annual
-                                    ? ` · ${r.version} ${annual.result_version}${annual.incomplete ? ` · ${r.incomplete}` : ''}`
-                                    : ''}
-                            </dd>
-                        </div>
-                        <div className="flex gap-1" data-gpa>
-                            <dt className="font-semibold">{r.yearGpa}:</dt>
-                            <dd>
-                                {gpa ? (
-                                    <span dir="ltr">
-                                        {gpa.gpa_value ?? '—'} ({gpa.scale_code}
-                                        )
-                                    </span>
-                                ) : (
-                                    r.noGpa
-                                )}
-                                {gpa
-                                    ? ` · ${r.version} ${gpa.result_version}${gpa.incomplete ? ` · ${r.incomplete}` : ''}`
-                                    : ''}
-                            </dd>
-                        </div>
-                    </dl>
-                    <AttendanceTable
-                        caption={r.termSubjects}
-                        storageKey="results.show"
-                        rows={terms}
-                        rowKey={(row) => row.term_result_id}
-                        columns={columns}
-                        fit={false}
-                        onOpen={(row) =>
-                            router.visit(
-                                `/results/term?enrollment_id=${filters.enrollment_id}&academic_year_id=${filters.academic_year_id}&term_id=${row.term_id}&subject_id=${row.subject_id}`,
-                            )
-                        }
-                        emptyText={r.noTerms}
-                    />
-                </>
-            ) : null}
-        </ExamisPage>
     );
 }

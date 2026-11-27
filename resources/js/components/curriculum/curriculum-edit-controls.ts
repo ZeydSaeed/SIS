@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
     BookOpen,
+    BookText,
     CheckCircle2,
     CircleSlash,
     History,
@@ -13,7 +14,7 @@ import {
 export type CurriculumEditFilter =
     | { kind: 'all' }
     | { kind: 'status'; value: 1 | 2 }
-    | { kind: 'type'; value: 1 | 2 | 3 }
+    | { kind: 'type'; value: 1 | 2 | 3 | 4 }
     | { kind: 'superseded' };
 
 export type CurriculumStatusTab = {
@@ -26,22 +27,24 @@ export type CurriculumStatusTab = {
         | 'filterInactive'
         | 'subjectTypeCore'
         | 'subjectTypeSpecialization'
-        | 'subjectTypePractical';
+        | 'subjectTypePractical'
+        | 'subjectTypeTheory';
 };
 
 export type CurriculumDistributionAction = {
     id: string;
     icon: LucideIcon;
-    /** Apply subject status (1 active / 2 inactive) or subject_type (1/2/3). */
+    /** Apply subject status (1 active / 2 inactive) or subject_type (1/2/3/4). */
     apply:
         | { kind: 'status'; value: 1 | 2 }
-        | { kind: 'type'; value: 1 | 2 | 3 };
+        | { kind: 'type'; value: 1 | 2 | 3 | 4 };
     labelKey:
         | 'filterActive'
         | 'filterInactive'
         | 'subjectTypeCore'
         | 'subjectTypeSpecialization'
-        | 'subjectTypePractical';
+        | 'subjectTypePractical'
+        | 'subjectTypeTheory';
 };
 
 export const CURRICULUM_STATUS_TABS: CurriculumStatusTab[] = [
@@ -76,6 +79,12 @@ export const CURRICULUM_STATUS_TABS: CurriculumStatusTab[] = [
         icon: Wrench,
         labelKey: 'subjectTypePractical',
     },
+    {
+        id: 'status-theory',
+        filter: { kind: 'type', value: 4 },
+        icon: BookText,
+        labelKey: 'subjectTypeTheory',
+    },
 ];
 
 export const CURRICULUM_DISTRIBUTION_ACTIONS: CurriculumDistributionAction[] = [
@@ -108,6 +117,12 @@ export const CURRICULUM_DISTRIBUTION_ACTIONS: CurriculumDistributionAction[] = [
         icon: Wrench,
         apply: { kind: 'type', value: 3 },
         labelKey: 'subjectTypePractical',
+    },
+    {
+        id: 'dist-theory',
+        icon: BookText,
+        apply: { kind: 'type', value: 4 },
+        labelKey: 'subjectTypeTheory',
     },
 ];
 

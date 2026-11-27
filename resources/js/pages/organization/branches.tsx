@@ -635,7 +635,7 @@ function BranchesPage({ branches, authorization }: Props) {
                                 </div>
 
                                 {collapsed ? null : (
-                                    <div className="sis-branches-detail__form">
+                                    <div className="sis-branches-detail__form sis-detail-form--boxed">
                                         <RegistryTextField
                                             label={b.branchName}
                                             inputRef={nameInputRef}

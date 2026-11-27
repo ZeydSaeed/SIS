@@ -131,6 +131,9 @@ export type LinkedSubjectRow = {
     subject_code: string | null;
     subject_name: string | null;
     weekly_hours: number | null;
+    /** «نظري» / «عملي» split; null when only the total is known. */
+    theory_hours?: number | null;
+    practical_hours?: number | null;
     is_required: boolean;
     subject_order: number;
     status: number;
@@ -247,6 +250,9 @@ export function subjectTypeLabel(
     }
     if (type === 3) {
         return i18n.subjectTypePractical;
+    }
+    if (type === 4) {
+        return i18n.subjectTypeTheory;
     }
 
     return i18n.subjectTypeCore;
@@ -489,6 +495,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const canManage = props.authorization?.canManage === true;
     const pageUrl = usePage().url;
+    const urlView = new URLSearchParams(pageUrl.split('?')[1] ?? '').get('view') === 'curricula' ? 'curricula' : 'subjects';
+
+    // No in-page «المواد / المناهج» tabs: the sidebar picks the view —
+    // «المواد» = /curriculum (subjects), «المناهج» = /curriculum?view=curricula.
+    useEffect(() => {
+        setActiveView(urlView);
+    }, [urlView]);
 
     useEffect(() => {
         if (!canManage) {
@@ -624,6 +637,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             '/curriculum',
             {
                 ...omitEmpty({
+                    // Stay on the view the sidebar opened (المواد / المناهج).
+                    view: activeView === 'curricula' ? 'curricula' : undefined,
                     academic_year_id: yearForRequest ?? undefined,
                     all_curricula: showAll ? 1 : undefined,
                     curriculum_id: next.curriculum_id,
@@ -1265,7 +1280,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
     );
 
     const applyDistribution = useCallback(
-        (apply: { kind: 'status'; value: 1 | 2 } | { kind: 'type'; value: 1 | 2 | 3 }): void => {
+        (apply: { kind: 'status'; value: 1 | 2 } | { kind: 'type'; value: 1 | 2 | 3 | 4 }): void => {
             if (!canManage || !hasSelection) {
                 return;
             }
@@ -1627,31 +1642,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps) {
             lang="ar"
         >
             <div className="sis-admission-page-body">
-                <div
-                    className="sis-curriculum-view-tabs"
-                    role="tablist"
-                    aria-label={c.title}
-                >
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={activeView === 'subjects'}
-                        className={`sis-curriculum-view-tabs__btn${activeView === 'subjects' ? ' is-active' : ''}`}
-                        onClick={() => setActiveView('subjects')}
-                    >
-                        {c.viewSubjects}
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={activeView === 'curricula'}
-                        className={`sis-curriculum-view-tabs__btn${activeView === 'curricula' ? ' is-active' : ''}`}
-                        onClick={() => setActiveView('curricula')}
-                    >
-                        {c.viewCurricula}
-                    </button>
-                </div>
-
                 <section
                     aria-label={
                         activeView === 'subjects' ? c.subjectsCaption : c.plansCaption
@@ -2154,7 +2144,8 @@ export function LinkSubjectDialog({
     const i18n = t();
     const c = i18n.curriculum;
     const [subjectId, setSubjectId] = useState('');
-    const [weeklyHours, setWeeklyHours] = useState('2');
+    const [theoryHours, setTheoryHours] = useState('2');
+    const [practicalHours, setPracticalHours] = useState('0');
     const [isRequired, setIsRequired] = useState('1');
     const [subjectOrder, setSubjectOrder] = useState('0');
 
@@ -2236,7 +2227,8 @@ export function LinkSubjectDialog({
                             }
                             postWithIdempotency(`/curriculum/curricula/${curriculum.id}/subjects`, {
                                 subject_id: Number(subjectId),
-                                weekly_hours: weeklyHours === '' ? null : Number(weeklyHours),
+                                theory_hours: theoryHours === '' ? null : Number(theoryHours),
+                                practical_hours: practicalHours === '' ? null : Number(practicalHours),
                                 is_required: isRequired === '1',
                                 subject_order: Number(subjectOrder) || 0,
                             });
@@ -2253,7 +2245,14 @@ export function LinkSubjectDialog({
                                     setSubjectId(value);
                                     const subject = availableSubjects.find((s) => String(s.id) === value);
                                     if (subject?.credit_hours != null) {
-                                        setWeeklyHours(String(subject.credit_hours));
+                                        // A practical subject's default hours go to «عملي», the rest to «نظري».
+                                        if (subject.subject_type === 3) {
+                                            setTheoryHours('0');
+                                            setPracticalHours(String(subject.credit_hours));
+                                        } else {
+                                            setTheoryHours(String(subject.credit_hours));
+                                            setPracticalHours('0');
+                                        }
                                     }
                                 }}
                                 options={availableSubjects.map((s) => ({
@@ -2262,16 +2261,39 @@ export function LinkSubjectDialog({
                                 }))}
                             />
                         </OpsFormField>
-                        <OpsFormField label={c.weeklyHours} name="weekly_hours">
-                            <OpsTextInput
-                                name="weekly_hours"
-                                type="number"
-                                min={0}
-                                dir="ltr"
-                                defaultValue={2}
-                                onChange={(e) => setWeeklyHours(e.target.value)}
-                            />
-                        </OpsFormField>
+                        <div className="grid grid-cols-3 items-end gap-3">
+                            <OpsFormField label={c.theoryHours} name="theory_hours">
+                                <OpsTextInput
+                                    name="theory_hours"
+                                    type="number"
+                                    min={0}
+                                    max={40}
+                                    dir="ltr"
+                                    value={theoryHours}
+                                    onChange={(e) => setTheoryHours(e.target.value)}
+                                />
+                            </OpsFormField>
+                            <OpsFormField label={c.practicalHours} name="practical_hours">
+                                <OpsTextInput
+                                    name="practical_hours"
+                                    type="number"
+                                    min={0}
+                                    max={40}
+                                    dir="ltr"
+                                    value={practicalHours}
+                                    onChange={(e) => setPracticalHours(e.target.value)}
+                                />
+                            </OpsFormField>
+                            <OpsFormField label={c.totalHours} name="total_hours">
+                                <OpsTextInput
+                                    name="total_hours"
+                                    type="number"
+                                    dir="ltr"
+                                    readOnly
+                                    value={(Number(theoryHours) || 0) + (Number(practicalHours) || 0)}
+                                />
+                            </OpsFormField>
+                        </div>
                         <OpsFormField label={c.isRequired} name="is_required">
                             <SisListSelect
                                 name="is_required"

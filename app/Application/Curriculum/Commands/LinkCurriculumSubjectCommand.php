@@ -14,5 +14,8 @@ final readonly class LinkCurriculumSubjectCommand implements Command
         public bool $isRequired,
         public int $subjectOrder,
         public ?string $idempotencyKey,
+        /** «نظري» / «عملي» split; when either is given weekly hours become their sum. */
+        public ?int $theoryHours = null,
+        public ?int $practicalHours = null,
     ) {}
 }

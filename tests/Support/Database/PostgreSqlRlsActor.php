@@ -27,6 +27,8 @@ final class PostgreSqlRlsActor
             'organization', 'academic', 'vocational', 'students', 'guardians', 'admission',
             'enrollment', 'teachers', 'curriculum', 'timetable', 'attendance', 'exams',
             'results', 'graduation', 'certificates', 'security', 'audit', 'public', 'hr', 'leave',
+            // EXAMIS 7.3a question bank.
+            'bank',
         ];
 
         foreach ($schemas as $schema) {

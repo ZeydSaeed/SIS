@@ -20,7 +20,7 @@ class UpdateSubjectRequest extends FormRequest
         return array_merge([
             'name' => ['sometimes', 'string', 'max:255'],
             'name_en' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'subject_type' => ['sometimes', 'integer', 'in:1,2,3'],
+            'subject_type' => ['sometimes', 'integer', 'in:1,2,3,4'],
             'credit_hours' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['sometimes', 'integer', 'min:0', 'max:1000'],

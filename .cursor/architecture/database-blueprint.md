@@ -1253,7 +1253,7 @@ Queued report files (CSV / PDF) built by `GenerateAttendanceReportExportJob`; th
 
 ---
 
-## Schema: `exams` (5 tables)
+## Schema: `exams` (7 tables)
 
 ### `exams.exam_types`
 
@@ -1391,7 +1391,48 @@ Queued report files (CSV / PDF) built by `GenerateAttendanceReportExportJob`; th
 > **Phase 3B enrichment (approved):** replaces earlier blueprint sketch (`grade` → `score`; adds `exam_enrollment_id`, `school_id`, lifecycle, partition PK). Object count remains **87**.
 ---
 
-## Schema: `results` (6 tables)
+### `exams.grade_reviews` — EXAMIS (2026-10-24, migration `2026_10_24_110000_create_exams_grade_reviews`)
+
+> A review (objection) of an official grade: a request plus a lifecycle. The grade itself only changes through the official correction (VOID + INSERT); accepting records the resulting grade. FORCE RLS on `school_id`; guard trigger (ENABLE ALWAYS): no DELETE, a decided review is final, the request is immutable.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| review_number | VARCHAR(32) | GENERATED `'GR-' || lpad(id, 6)` STORED; UNIQUE (school_id, review_number) |
+| school_id | BIGINT | FK → schools NOT NULL |
+| academic_year_id | BIGINT | NOT NULL |
+| grade_id | BIGINT | FK → exams.student_grades (with academic_year_id) NOT NULL |
+| score_at_request / absent_at_request | NUMERIC(8,2) / BOOLEAN | the grade when the review was filed |
+| reason | TEXT | NOT NULL, CHECK not blank |
+| requested_by / requested_at | BIGINT / TIMESTAMPTZ | FK users |
+| status | VARCHAR(16) | `submitted` · `under_review` · `accepted` · `rejected` · `withdrawn` |
+| assigned_to / started_at | BIGINT / TIMESTAMPTZ | required when `under_review` |
+| decided_by / decided_at / decision_note | | required when accepted/rejected (see TECHNICAL DEBT below) |
+| resulting_grade_id | BIGINT | set iff `accepted` |
+| correlation_id / created_at / updated_at | | |
+
+**Indexes:** UNIQUE partial one open review per grade (`submitted`, `under_review`); `(school_id, academic_year_id, status)`
+
+> TECHNICAL DEBT (EXAMIS L-F, 2026-10-27): the decision CHECK uses `length(btrim(decision_note)) > 0` without COALESCE — a NULL note makes the CHECK unknown, which PostgreSQL accepts. The handler requires the note; tightening the CHECK needs its own migration.
+
+### `exams.exam_type_weight_versions` — EXAMIS (2026-10-24, migration `2026_10_24_130000_create_exams_exam_type_weight_versions`)
+
+> Versioned weight of an exam type per academic year (effective from creation); the term result calculator reads the version in force. Insert-only (trigger), FORCE RLS on `school_id`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| exam_type_id | BIGINT | FK → exams.exam_types NOT NULL |
+| academic_year_id | BIGINT | FK → academic_years NOT NULL |
+| version_no | INT | NOT NULL ≥ 1; UNIQUE (exam_type_id, academic_year_id, version_no) |
+| weight_percentage | SMALLINT | NOT NULL 0–100 |
+| reason | TEXT | NOT NULL, CHECK not blank |
+| created_by / created_at | | |
+
+**Indexes:** `(school_id, academic_year_id)`
+
+## Schema: `results` (7 tables)
 
 ### `results.term_results`
 
@@ -1542,6 +1583,29 @@ Queued report files (CSV / PDF) built by `GenerateAttendanceReportExportJob`; th
 **Triggers:** reject hard DELETE
 
 ---
+
+### `results.result_publications` — EXAMIS (2026-10-24, migrations `2026_10_24_100000_create_results_result_publications` + `2026_10_24_120000_extend_result_publications_for_term_and_transcript`)
+
+> What the portal shows: a frozen snapshot of the official results of a class (or section) at publication time. One active publication per scope; withdrawing needs a reason and is final (publish again = a new row). Guard trigger: no DELETE, withdrawn is final, the snapshot is immutable. FORCE RLS on `school_id`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| school_id | BIGINT | FK → schools NOT NULL |
+| academic_year_id / class_id / section_id | BIGINT | FKs; section nullable (whole class) |
+| term_id / subject_id | BIGINT | FKs; set iff `kind = 'term'` |
+| kind | VARCHAR(16) | `annual` · `gpa` · `term` · `transcript` |
+| status | VARCHAR(16) | `published` · `withdrawn` |
+| participant_count | INT | NOT NULL ≥ 1 |
+| source_fingerprint | VARCHAR(128) | NOT NULL — drift check against the official rows |
+| published_snapshot | JSONB | NOT NULL, immutable |
+| published_by / published_at | | |
+| withdrawn_by / withdrawn_at / withdraw_reason | | required when withdrawn (see TECHNICAL DEBT below) |
+| correlation_id / created_at / updated_at | | |
+
+**Indexes:** UNIQUE partial active scope (published); `(school_id, academic_year_id)`
+
+> TECHNICAL DEBT (EXAMIS L-F, 2026-10-27): the withdrawn CHECK uses `length(btrim(withdraw_reason)) > 0` without COALESCE — a NULL reason is accepted by the CHECK. The handler requires the reason.
 
 ## Schema: `promotion` (2 tables — Phase PT-U01 LIVE)
 
@@ -2177,6 +2241,46 @@ An approver lets another user decide leave in the school between two dates. The 
 
 ---
 
+## Schema: `bank` (2 tables — EXAMIS 7.3a question bank, 2026-10-27, migration `2026_10_27_100000_create_bank_questions_and_versions`)
+
+> A question of one subject of one school (`bank.questions`, stable identity) with its content in versions (`bank.question_versions`). **Not year-scoped** (DEC-055, documented exception to the `academic_year_id` rule: a question is curriculum material reused across years; authoring scope = the teacher's subjects in the current year). A draft changes; its content freezes once submitted (DEC-057); approval needs a second person (four eyes in the handler AND a CHECK, DEC-056); approving supersedes the previous approved version. Never deleted: a question retires (DEC-052). Plain text only (DEC-049). Both tables: ENABLE + **FORCE RLS** on `app.current_school_id` (fail-closed), guard triggers `ENABLE ALWAYS`.
+
+### `bank.questions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY; UNIQUE (id, school_id) for the version FK |
+| school_id | BIGINT | FK → organization.schools NOT NULL |
+| subject_id | BIGINT | FK → curriculum.subjects NOT NULL |
+| status | VARCHAR(16) | `active` · `retired` (retired is final) |
+| created_by | BIGINT | FK users |
+| retired_by / retired_at / retire_reason | | all set iff retired (reason not blank, COALESCE-safe CHECK) |
+| created_at / updated_at | TIMESTAMPTZ | |
+
+**Indexes:** `(school_id, subject_id, status)`
+**Guard:** no DELETE; a retired question is final; school, subject, author and created_at immutable.
+
+### `bank.question_versions`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | BIGINT | PK IDENTITY |
+| question_id + school_id | BIGINT | composite FK → bank.questions (id, school_id) — a version lives in its question's school |
+| version_no | INT | ≥ 1; UNIQUE (question_id, version_no) |
+| type | VARCHAR(24) | `single_choice` · `multiple_choice` · `true_false` · `long_answer` |
+| stem | TEXT | not blank, ≤ 5000 |
+| payload | JSONB | object: `{options:[{key,text}], correct:[keys]}` · `{answer: bool}` · `{guidance}` — the answer key is served only to authors/approvers |
+| max_mark | NUMERIC(6,2) | > 0 and ≤ 1000 |
+| status | VARCHAR(16) | `draft` · `in_review` · `approved` · `rejected` · `superseded` |
+| created_by | BIGINT | FK users NOT NULL |
+| submitted_by / submitted_at | | required unless draft |
+| decided_by / decided_at / decision_note | | required when approved/rejected/superseded; note required when rejected |
+| created_at / updated_at | TIMESTAMPTZ | |
+
+**CHECK four eyes:** `status NOT IN ('approved','superseded') OR decided_by <> created_by`
+**Indexes:** UNIQUE partial one open version per question (`draft`, `in_review`); UNIQUE partial one approved version per question; `(school_id, status)`
+**Guard:** no DELETE; rejected/superseded final; identity immutable; content immutable unless draft; transitions only draft→in_review, in_review→approved|rejected, approved→superseded.
+
 ## Schema: `security` (8 tables)
 
 ### `security.users`
@@ -2502,8 +2606,8 @@ curriculum.subjects
 | curriculum | 4 |
 | timetable | 14 |
 | attendance | 10 |
-| exams | 5 |
-| results | 6 |
+| exams | 7 |
+| results | 7 |
 | promotion | 2 |
 | transfers | 2 |
 | graduation | 2 |
@@ -2513,10 +2617,13 @@ curriculum.subjects
 | communication | 3 |
 | workflow | 2 |
 | hr | 3 |
+| bank | 2 |
 | security | 8 |
 | audit | 2 |
 | reports | 8 |
-| **Total** | **112** |
+| **Total** | **117** |
+
+> 2026-10-27 (EXAMIS 7.3a): +2 exams, +1 results, +2 bank. TECHNICAL DEBT: the `leave` (6) and `intelligence` (9) schemas documented above are not in this count — left as they were.
 
 ## Partition Strategy (⚡)
 

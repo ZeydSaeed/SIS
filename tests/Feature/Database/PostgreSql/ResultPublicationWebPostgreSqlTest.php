@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Database\PostgreSql;
 
+use App\Application\Results\Contracts\ResultPublicationRepositoryInterface;
 use App\Database\SchemaHelper;
+use App\Domain\Results\Exceptions\ResultPublicationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
@@ -116,7 +118,7 @@ final class ResultPublicationWebPostgreSqlTest extends PostgreSqlIntegrationTest
         $this->assertSame('term', $row->kind);
         $this->assertSame($s['term_id'], (int) $row->term_id);
         $url = "/results/sheet?academic_year_id={$s['year_id']}&term_id={$s['term_id']}&subject_id={$s['subject_id']}&class_id={$s['class']}";
-        $this->get($url)->assertOk()->assertInertia(fn (Assert $page) => $page->where('publications.0.drifted', 0)->where('abilities.publish', true));
+        $this->get($url)->assertOk()->assertInertia(fn (Assert $page) => $page->where('publications.0.drifted', 0)->where('abilities.publish', true)->where('publications.0.published_by_name', fn ($n): bool => is_string($n) && $n !== ''));
 
         DB::table(SchemaHelper::qualified('results', 'term_results'))->where('enrollment_id', $s['final'])->where('is_current_official', true)->update(['result_version' => 3]);
         $this->get($url)->assertInertia(fn (Assert $page) => $page->where('publications.0.drifted', 1));
@@ -152,6 +154,19 @@ final class ResultPublicationWebPostgreSqlTest extends PostgreSqlIntegrationTest
         $this->get("/results/sheet?academic_year_id={$s['year_id']}&term_id={$s['term_id']}&subject_id={$s['subject_id']}&class_id={$s['class']}")->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('reconciliation.ready.term', false)
                 ->where('reconciliation.issues', fn ($issues): bool => ($counts($issues)['not_graded'] ?? 0) === 1 && ($counts($issues)['not_finalized'] ?? 0) === 1));
+    }
+
+    #[Test]
+    public function a_race_past_the_overlap_check_is_reported_as_already_published_not_as_a_database_error(): void
+    {
+        $s = $this->sceneWithOneOfficialAnnual();
+        $repository = app(ResultPublicationRepositoryInterface::class);
+        $snapshot = [['enrollment_id' => $s['final'], 'version' => 1, 'value' => '80.00']];
+
+        $repository->insert($s['school'], $s['year_id'], $s['class'], null, 'annual', null, null, $snapshot, str_repeat('e', 64), null, null);
+        // The second insert is what the loser of a race executes after both passed `activeOverlapping`.
+        $this->expectExceptionObject(ResultPublicationException::alreadyPublished());
+        DB::transaction(fn () => $repository->insert($s['school'], $s['year_id'], $s['class'], null, 'annual', null, null, $snapshot, str_repeat('f', 64), null, null));
     }
 
     #[Test]

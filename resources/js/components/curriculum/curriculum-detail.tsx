@@ -5,6 +5,7 @@ import { CurriculumPlanSheetDialog } from '@/components/curriculum/curriculum-pl
 import {
     LinkSubjectDialog,
     newIdempotencyKey,
+    patchWithIdempotency,
     postWithIdempotency,
     statusLabel,
     type CurriculumFilterOptions,
@@ -26,6 +27,13 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { t } from '@/i18n';
 import {
     collectInertiaErrorMessages,
@@ -151,6 +159,13 @@ export function CurriculumDetail(props: CurriculumShowProps) {
 
     const [planDialogOpen, setPlanDialogOpen] = useState(false);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+    /** «الساعات» dialog of one subject in the plan (نظري / عملي). */
+    const [hoursEdit, setHoursEdit] = useState<{
+        id: number;
+        name: string;
+        theory: string;
+        practical: string;
+    } | null>(null);
     const [prereqSubjectId, setPrereqSubjectId] = useState('');
     const [prereqRequiredId, setPrereqRequiredId] = useState('');
     const [confirm, setConfirm] = useState<ConfirmState>(null);
@@ -304,6 +319,25 @@ export function CurriculumDetail(props: CurriculumShowProps) {
         return raw.map((message) => resolveErrorMessage(message, message));
     }, [inertiaErrors.enrollment_subject, inertiaErrors.prerequisite]);
 
+    /** «نظري / عملي» of a row: the stored split, or the total as «نظري» for rows linked before the split existed. */
+    const splitOf = (row: LinkedSubjectRow): { theory: number | null; practical: number | null } =>
+        row.theory_hours != null || row.practical_hours != null
+            ? { theory: row.theory_hours ?? null, practical: row.practical_hours ?? null }
+            : { theory: row.weekly_hours, practical: null };
+    const hoursCell = (value: number | null) =>
+        value !== null && value > 0 ? <span dir="ltr">{value}</span> : '—';
+    const hoursTotals = activeLinkedSubjects.reduce(
+        (sum, row) => {
+            const split = splitOf(row);
+
+            return {
+                theory: sum.theory + (split.theory ?? 0),
+                practical: sum.practical + (split.practical ?? 0),
+            };
+        },
+        { theory: 0, practical: 0 },
+    );
+
     const linkedColumns: DataTableColumn<LinkedSubjectRow>[] = [
         {
             id: 'subject',
@@ -318,10 +352,19 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             hideOnMobile: true,
         },
         {
+            id: 'theory',
+            header: c.theoryHours,
+            cell: (row) => hoursCell(splitOf(row).theory),
+        },
+        {
+            id: 'practical',
+            header: c.practicalHours,
+            cell: (row) => hoursCell(splitOf(row).practical),
+        },
+        {
             id: 'hours',
-            header: c.weeklyHours,
-            cell: (row) =>
-                row.weekly_hours !== null ? <span dir="ltr">{row.weekly_hours}</span> : '—',
+            header: c.totalHours,
+            cell: (row) => hoursCell(row.weekly_hours),
         },
         {
             id: 'required',
@@ -345,14 +388,32 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             cell: (row) =>
                 canManage ? (
                     row.status === 1 ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirm({ kind: 'link-deactivate', id: row.id })}
-                        >
-                            {c.deactivate}
-                        </Button>
+                        <span className="flex flex-wrap gap-1">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    const split = splitOf(row);
+                                    setHoursEdit({
+                                        id: row.id,
+                                        name: row.subject_name ?? String(row.subject_id),
+                                        theory: split.theory === null ? '' : String(split.theory),
+                                        practical: split.practical === null ? '' : String(split.practical),
+                                    });
+                                }}
+                            >
+                                {c.editHours}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setConfirm({ kind: 'link-deactivate', id: row.id })}
+                            >
+                                {c.deactivate}
+                            </Button>
+                        </span>
                     ) : (
                         <Button
                             type="button"
@@ -645,6 +706,26 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                             </div>
                         )}
                     />
+                    {/* Plan totals (active subjects): مجموع النظري · مجموع العملي · المجموع الكلي. */}
+                    {activeLinkedSubjects.length > 0 ? (
+                        <dl
+                            className="grid grid-cols-3 gap-2 rounded-md border border-[color:var(--sis-powder-blue)] p-3 text-center"
+                            aria-label={c.totalAll}
+                        >
+                            {[
+                                [c.totalTheory, hoursTotals.theory],
+                                [c.totalPractical, hoursTotals.practical],
+                                [c.totalAll, hoursTotals.theory + hoursTotals.practical],
+                            ].map(([label, value]) => (
+                                <div key={String(label)}>
+                                    <dt className="text-muted-foreground text-sm">{label}</dt>
+                                    <dd className="text-lg font-semibold" dir="ltr">
+                                        {value}
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
+                    ) : null}
                 </section>
             ) : null}
 
@@ -921,6 +1002,75 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 subjects={subjectOptions.filter((s) => s.status === 1)}
                 existingSubjectIds={new Set(linkedSubjects.map((l) => l.subject_id))}
             />
+
+            <Dialog
+                open={hoursEdit !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setHoursEdit(null);
+                    }
+                }}
+            >
+                <DialogContent className="sis-ops-hub sm:max-w-md" dir="rtl" lang="ar">
+                    <DialogHeader>
+                        <DialogTitle>{c.editHoursTitle}</DialogTitle>
+                        <DialogDescription>{hoursEdit?.name}</DialogDescription>
+                    </DialogHeader>
+                    {hoursEdit !== null ? (
+                        <form
+                            className="flex flex-col gap-3"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                patchWithIdempotency(`/curriculum/curriculum-subjects/${hoursEdit.id}/hours`, {
+                                    theory_hours: hoursEdit.theory === '' ? null : Number(hoursEdit.theory),
+                                    practical_hours: hoursEdit.practical === '' ? null : Number(hoursEdit.practical),
+                                });
+                                setHoursEdit(null);
+                            }}
+                        >
+                            <div className="grid grid-cols-3 items-end gap-3">
+                                <OpsFormField label={c.theoryHours} name="theory_hours">
+                                    <OpsTextInput
+                                        name="theory_hours"
+                                        type="number"
+                                        min={0}
+                                        max={40}
+                                        dir="ltr"
+                                        value={hoursEdit.theory}
+                                        onChange={(e) => setHoursEdit({ ...hoursEdit, theory: e.target.value })}
+                                    />
+                                </OpsFormField>
+                                <OpsFormField label={c.practicalHours} name="practical_hours">
+                                    <OpsTextInput
+                                        name="practical_hours"
+                                        type="number"
+                                        min={0}
+                                        max={40}
+                                        dir="ltr"
+                                        value={hoursEdit.practical}
+                                        onChange={(e) => setHoursEdit({ ...hoursEdit, practical: e.target.value })}
+                                    />
+                                </OpsFormField>
+                                <OpsFormField label={c.totalHours} name="total_hours">
+                                    <OpsTextInput
+                                        name="total_hours"
+                                        type="number"
+                                        dir="ltr"
+                                        readOnly
+                                        value={(Number(hoursEdit.theory) || 0) + (Number(hoursEdit.practical) || 0)}
+                                    />
+                                </OpsFormField>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button type="button" variant="outline" onClick={() => setHoursEdit(null)}>
+                                    {c.cancel}
+                                </Button>
+                                <Button type="submit">{c.save}</Button>
+                            </div>
+                        </form>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
 
             <ConfirmDialog
                 open={confirm !== null}

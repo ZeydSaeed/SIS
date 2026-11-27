@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { t } from '@/i18n';
 
 export const SIS_SEARCH_DEBOUNCE_MS = 300;
@@ -131,7 +132,7 @@ export const SisSearchField = memo(function SisSearchField({
                 </button>
             ) : null}
             <span className="sis-admission-search__brand" aria-hidden="true" title={i18n.brand}>
-                <span className="sis-admission-search__brand-mark" />
+                <AppLogoIcon className="sis-admission-search__brand-mark" />
             </span>
         </label>
     );

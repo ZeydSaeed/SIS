@@ -966,8 +966,6 @@ body.sis-table-col-resizing * {
 .sis-titlebar__search .sis-admission-search__brand-mark {
     width: 1.2rem;
     height: 1.2rem;
-    /* Same yellow as the sidebar logo mark. */
-    background-color: #ffff00;
     opacity: 1;
 }
 
@@ -7875,55 +7873,32 @@ body:has(.sis-admission-sheet-dialog--maximized) :is([data-slot='dialog-overlay'
     display: block;
     width: 1.2rem;
     height: 1.2rem;
-    background-color: #000000;
-    border-radius: 0;
+    border-radius: 50%;
     box-shadow: none;
-    -webkit-mask-image: url('/sis-mark-transparent.png?v=sis2');
-    mask-image: url('/sis-mark-transparent.png?v=sis2');
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
+    background: transparent;
+    object-fit: contain;
 }
 
-/* App logo — no yellow plate; mark color from surface tone */
+/* App logo — the round Ishtar Tech seal, circular, no plate behind it. */
 .sis-app-logo {
     display: flex;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 2.25rem;
+    height: 2.25rem;
     overflow: hidden;
-    border-radius: 0.35rem;
+    border-radius: 50%;
     background: transparent;
     margin-inline: auto;
 }
 
-.sis-app-logo__mark {
+.sis-app-logo__img {
     display: block;
     width: 100%;
     height: 100%;
-    -webkit-mask-image: url('/sis-mark-transparent.png?v=sis2');
-    mask-image: url('/sis-mark-transparent.png?v=sis2');
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-}
-
-/* Sidebar (Night): yellow mark — same ink as former yellow plate */
-.sis-app-logo--on-dark .sis-app-logo__mark {
-    background-color: #ffff00;
-}
-
-/* Light surfaces: yellow mark */
-.sis-app-logo--on-light .sis-app-logo__mark {
-    background-color: #ffff00;
+    border-radius: 50%;
+    object-fit: contain;
 }
 
 /* Center logo in sidebar header (expanded + icon-collapsed) */
@@ -8912,22 +8887,25 @@ body:has([data-slot='sidebar'][data-side='left'][data-state='collapsed'][data-co
 
 .sis-admission-sheet__hero-logo {
     display: flex;
+    align-self: stretch;
     align-items: center;
     justify-content: center;
-    padding: 0.2rem;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    padding: 0.15rem 0.1rem;
     background: transparent;
 }
 
+/* Fits inside any form / window bar: as tall as the bar allows (at most 1.65rem), never sticking out of it. */
 .sis-admission-sheet__logo.sis-app-logo {
-    width: 1.55rem;
-    height: 1.55rem;
+    width: auto;
+    height: 100%;
+    max-height: 1.65rem;
+    aspect-ratio: 1;
     margin: 0;
-    border-radius: 0;
+    border-radius: 50%;
     background: transparent !important;
-}
-
-.sis-admission-sheet__logo .sis-app-logo__mark {
-    background-color: #ffff00;
 }
 
 .sis-admission-sheet__section {
@@ -13351,6 +13329,71 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
 .sis-branches-page .sis-branches-field--wide {
     grid-column: 1 / -1;
     width: 100%;
+}
+
+/* Registry detail forms («الفروع والاختصاصات», «الصفوف والشعب»): clear, boxed fields in a row. */
+.sis-detail-form--boxed {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
+}
+
+.sis-detail-form--boxed > .sis-admission-sheet__field.sis-branches-field--wide {
+    grid-column: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.sis-detail-form--boxed .sis-admission-sheet__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--sis-oxford);
+}
+
+.sis-detail-form--boxed .sis-admission-sheet__control,
+.sis-detail-form--boxed .sis-list-select__trigger.sis-admission-sheet__control {
+    height: 2.1rem;
+    min-height: 2.1rem;
+    padding-inline: 0.6rem;
+    border: 1px solid var(--sis-mist);
+    border-radius: var(--sis-field-radius);
+    background: var(--sis-curriculum-table) !important;
+    font-size: 0.82rem;
+}
+
+.sis-detail-form--boxed .sis-admission-sheet__control:hover,
+.sis-detail-form--boxed .sis-admission-sheet__control:focus-visible,
+.sis-detail-form--boxed .sis-list-select__trigger.sis-admission-sheet__control[aria-expanded='true'] {
+    border-color: var(--sis-steel);
+    outline: none;
+}
+
+.sis-detail-form--boxed .sis-admission-sheet__control::placeholder {
+    color: var(--sis-steel);
+    font-weight: 400;
+}
+
+/* «الوصف» (textarea) takes the full row and grows with its text. */
+.sis-detail-form--boxed > .sis-admission-sheet__field:has(textarea) {
+    grid-column: 1 / -1;
+}
+
+.sis-detail-form--boxed textarea.sis-admission-sheet__control {
+    display: block;
+    height: auto;
+    min-height: 4.5rem;
+    padding-block: 0.45rem;
+    white-space: pre-wrap;
+    overflow: auto;
+    resize: vertical;
+}
+
+.sis-detail-form--boxed > .sis-branches-detail__buttons {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
 }
 
 .sis-branches-textarea {

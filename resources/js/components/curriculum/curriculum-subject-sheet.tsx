@@ -95,6 +95,9 @@ function subjectTypeLabel(
     if (type === 3) {
         return curriculumI18n.subjectTypePractical;
     }
+    if (type === 4) {
+        return curriculumI18n.subjectTypeTheory;
+    }
 
     return curriculumI18n.subjectTypeCore;
 }
@@ -262,8 +265,14 @@ function SubjectRecordForm({
             { value: '1', label: c.subjectTypeCore },
             { value: '2', label: c.subjectTypeSpecialization },
             { value: '3', label: c.subjectTypePractical },
+            { value: '4', label: c.subjectTypeTheory },
         ],
-        [c.subjectTypeCore, c.subjectTypePractical, c.subjectTypeSpecialization],
+        [
+            c.subjectTypeCore,
+            c.subjectTypePractical,
+            c.subjectTypeSpecialization,
+            c.subjectTypeTheory,
+        ],
     );
 
     const statusOptions = useMemo(

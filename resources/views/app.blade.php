@@ -39,9 +39,9 @@
             }
         </style>
 
-        <link rel="icon" href="/favicon.svg?v=sis8" type="image/svg+xml">
-        <link rel="icon" href="/favicon.ico?v=sis8" sizes="any">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=sis8">
+        <link rel="icon" href="/ishtar-logo-64.png?v=ishtar1" type="image/png">
+        <link rel="icon" href="/ishtar-favicon.ico?v=ishtar1" sizes="any">
+        <link rel="apple-touch-icon" href="/ishtar-logo-192.png?v=ishtar1">
         <link rel="manifest" href="/manifest.webmanifest">
 
         <script type="module" src="https://cdn.jsdelivr.net/npm/ionicons@7.4.0/dist/ionicons/ionicons.esm.js"></script>

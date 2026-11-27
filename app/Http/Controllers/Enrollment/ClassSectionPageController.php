@@ -143,17 +143,36 @@ final class ClassSectionPageController extends Controller
         ]);
     }
 
-    public function storeClass(SaveClassRequest $request, CreateClassHandler $handler): RedirectResponse
+    public function storeClass(SaveClassRequest $request, CreateClassHandler $handler, CreateSectionHandler $sections): RedirectResponse
     {
+        $schoolId = $this->schoolContext->requireId();
+        $key = $request->header('X-Idempotency-Key');
         $result = $handler->handle(new CreateClassCommand(
-            schoolId: $this->schoolContext->requireId(),
+            schoolId: $schoolId,
             academicYearId: (int) $request->validated('academic_year_id'),
             gradeLevelId: (int) $request->validated('grade_level_id'),
             name: (string) $request->validated('name'),
             capacity: $this->nullableInt($request->validated('capacity')),
-            idempotencyKey: $request->header('X-Idempotency-Key'),
+            idempotencyKey: $key,
             status: $this->nullableInt($request->validated('status')),
         ));
+
+        // Sections picked with the new class (A / B / C); none = a class without sections.
+        if (! $result->failed() && $result->id !== null) {
+            foreach ((array) ($request->validated('sections') ?? []) as $letter) {
+                $section = $sections->handle(new CreateSectionCommand(
+                    schoolId: $schoolId,
+                    classId: $result->id,
+                    name: (string) $letter,
+                    capacity: null,
+                    homeroomTeacherId: null,
+                    idempotencyKey: $key.':section:'.$letter,
+                ));
+                if ($section->failed()) {
+                    return redirect()->back()->withErrors(['section' => $section->errors[0] ?? 'enrollment.structure_failed']);
+                }
+            }
+        }
 
         return $this->respond($request, $result, 'enrollment.web.class.store', 'class', 'flash.structure.classCreated');
     }

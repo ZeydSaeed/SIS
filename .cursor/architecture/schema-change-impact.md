@@ -350,6 +350,23 @@ proposed_optimization:
 
 ---
 
+## Change log — 2026-10-27 schema `bank` (EXAMIS 7.3a question bank)
+
+| Item | Value |
+|------|-------|
+| Class | Medium (additive: new schema + 2 tables + triggers + RLS; no change to existing tables or data) |
+| Tables | `bank.questions`, `bank.question_versions` (migration `2026_10_27_100000_create_bank_questions_and_versions`) |
+| Change | Questions of a subject with versioned content; four-eyes CHECK; one open / one approved version (partial UNIQUE); guard triggers `ENABLE ALWAYS` (no DELETE, final states, frozen content after submission, allowed transitions only); FORCE RLS on `school_id`. `SchemaHelper::schemas()` lists `bank` |
+| Year scope | Not year-scoped — DEC-055 (PROPOSED) documented exception: a question is reusable curriculum material; authoring scope uses the current year's teaching assignments |
+| App impact | New pages `/bank/questions`; new permissions `bank.question.view/author/approve` (roles `grades_teacher`, `grades_manager`). Nothing existing reads the schema |
+| Rollback | `down()` drops both tables, both functions and the schema; verified up → down → up on `sis_test_examis_20261027_bank` only |
+| Live database | **Not migrated** (`sis` untouched, DEC-053) |
+| Tests | `QuestionBankSchemaPostgreSqlTest` (triggers, CHECKs, partial UNIQUEs, composite FK, RLS under a non-superuser role), `QuestionBankWebPostgreSqlTest`, `tests/Unit/Domain/Bank/QuestionContentTest` |
+| Found while testing | A `length(btrim(col)) > 0` CHECK on a nullable column accepts NULL (unknown = pass) — fixed here with COALESCE; the same pattern remains in `results.result_publications` (withdraw_reason) and `exams.grade_reviews` (decision_note) — TECHNICAL DEBT, handlers enforce it |
+| Blueprint | Updated (`bank` schema, plus the missing EXAMIS tables `exams.grade_reviews`, `exams.exam_type_weight_versions`, `results.result_publications`; count summary 112 → 117) |
+
+---
+
 ## Related
 
 - [DATABASE-ADAPTIVE-GOVERNANCE.md](./DATABASE-ADAPTIVE-GOVERNANCE.md)

@@ -40,7 +40,7 @@ final class LinkCurriculumSubjectHandler implements CommandHandler
             $command->subjectId,
             $command->weeklyHours,
             $command->subjectOrder,
-        );
+        ) ?? $this->guard->hoursSplitError($command->theoryHours, $command->practicalHours);
         if ($error !== null) {
             return LinkCurriculumSubjectResult::failure([$error]);
         }
@@ -54,6 +54,8 @@ final class LinkCurriculumSubjectHandler implements CommandHandler
                 $command->isRequired,
                 $command->subjectOrder,
                 (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+                $command->theoryHours,
+                $command->practicalHours,
             );
             $this->outbox->stage(new CurriculumSubjectLinked(
                 $id,

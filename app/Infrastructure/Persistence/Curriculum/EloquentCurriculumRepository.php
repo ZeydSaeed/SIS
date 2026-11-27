@@ -298,8 +298,11 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         bool $isRequired,
         int $subjectOrder,
         string $createdAt,
+        ?int $theoryHours = null,
+        ?int $practicalHours = null,
     ): int {
         $this->bindSchool($schoolId);
+        $weeklyHours = self::totalHours($weeklyHours, $theoryHours, $practicalHours);
 
         $existing = DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects'))
             ->where('curriculum_id', $curriculumId)
@@ -313,6 +316,8 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
                     ->update([
                         'status' => CurriculumStatus::Active->value,
                         'weekly_hours' => $weeklyHours,
+                        'theory_hours' => $theoryHours,
+                        'practical_hours' => $practicalHours,
                         'is_required' => $isRequired,
                         'subject_order' => $subjectOrder,
                     ]);
@@ -325,11 +330,41 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             'curriculum_id' => $curriculumId,
             'subject_id' => $subjectId,
             'weekly_hours' => $weeklyHours,
+            'theory_hours' => $theoryHours,
+            'practical_hours' => $practicalHours,
             'is_required' => $isRequired,
             'subject_order' => $subjectOrder,
             'status' => CurriculumStatus::Active->value,
             'created_at' => $createdAt,
         ]);
+    }
+
+    public function updateLinkHours(int $schoolId, int $linkId, ?int $theoryHours, ?int $practicalHours): bool
+    {
+        $this->bindSchool($schoolId);
+        if ($this->findActiveLink($schoolId, $linkId) === null) {
+            return false;
+        }
+
+        return DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects'))
+            ->where('id', $linkId)
+            ->where('status', CurriculumStatus::Active->value)
+            ->update([
+                'theory_hours' => $theoryHours,
+                'practical_hours' => $practicalHours,
+                'weekly_hours' => self::totalHours(null, $theoryHours, $practicalHours),
+            ]) > 0;
+    }
+
+    /** The timetable reads weekly_hours: with a «نظري / عملي» split it is their sum (0 → no hours). */
+    private static function totalHours(?int $weeklyHours, ?int $theoryHours, ?int $practicalHours): ?int
+    {
+        if ($theoryHours === null && $practicalHours === null) {
+            return $weeklyHours;
+        }
+        $sum = ($theoryHours ?? 0) + ($practicalHours ?? 0);
+
+        return $sum > 0 ? $sum : null;
     }
 
     public function findActiveLink(int $schoolId, int $linkId): ?CurriculumSubjectSnapshot
@@ -342,7 +377,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('c.school_id', $schoolId)
             ->where('cs.status', CurriculumStatus::Active->value)
             ->first([
-                'cs.id', 'cs.curriculum_id', 'cs.subject_id', 'cs.weekly_hours',
+                'cs.id', 'cs.curriculum_id', 'cs.subject_id', 'cs.weekly_hours', 'cs.theory_hours', 'cs.practical_hours',
                 'cs.is_required', 'cs.subject_order', 'cs.status',
             ]);
 
@@ -359,7 +394,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->where('c.school_id', $schoolId)
             ->where('cs.status', CurriculumStatus::Inactive->value)
             ->first([
-                'cs.id', 'cs.curriculum_id', 'cs.subject_id', 'cs.weekly_hours',
+                'cs.id', 'cs.curriculum_id', 'cs.subject_id', 'cs.weekly_hours', 'cs.theory_hours', 'cs.practical_hours',
                 'cs.is_required', 'cs.subject_order', 'cs.status',
             ]);
 
@@ -376,7 +411,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->orderBy('subject_order')
             ->orderBy('id')
             ->get([
-                'id', 'curriculum_id', 'subject_id', 'weekly_hours',
+                'id', 'curriculum_id', 'subject_id', 'weekly_hours', 'theory_hours', 'practical_hours',
                 'is_required', 'subject_order', 'status',
             ]);
 
@@ -392,7 +427,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->orderBy('subject_order')
             ->orderBy('id')
             ->get([
-                'id', 'curriculum_id', 'subject_id', 'weekly_hours',
+                'id', 'curriculum_id', 'subject_id', 'weekly_hours', 'theory_hours', 'practical_hours',
                 'is_required', 'subject_order', 'status',
             ]);
 
@@ -457,6 +492,8 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             isRequired: (bool) $row->is_required,
             subjectOrder: (int) $row->subject_order,
             status: (int) $row->status,
+            theoryHours: isset($row->theory_hours) ? (int) $row->theory_hours : null,
+            practicalHours: isset($row->practical_hours) ? (int) $row->practical_hours : null,
         );
     }
 

@@ -41,4 +41,16 @@ final class LinkCurriculumSubjectGuard
 
         return null;
     }
+
+    /** «نظري» / «عملي» hours: each 0–40, and together at most 40. */
+    public function hoursSplitError(?int $theoryHours, ?int $practicalHours): ?string
+    {
+        foreach ([$theoryHours, $practicalHours] as $hours) {
+            if ($hours !== null && ($hours < 0 || $hours > 40)) {
+                return 'curriculum.weekly_hours_invalid';
+            }
+        }
+
+        return ($theoryHours ?? 0) + ($practicalHours ?? 0) > 40 ? 'curriculum.weekly_hours_invalid' : null;
+    }
 }

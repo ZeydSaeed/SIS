@@ -38,6 +38,8 @@ type OpsTextInputProps = {
     defaultValue?: string | number;
     value?: string | number;
     min?: number;
+    max?: number;
+    readOnly?: boolean;
     dir?: 'ltr' | 'rtl';
     error?: string;
     placeholder?: string;
@@ -52,6 +54,8 @@ export function OpsTextInput({
     defaultValue,
     value,
     min,
+    max,
+    readOnly,
     dir = 'ltr',
     error,
     placeholder,
@@ -66,6 +70,8 @@ export function OpsTextInput({
             required={required}
             {...(value !== undefined ? { value } : { defaultValue })}
             min={min}
+            max={max}
+            readOnly={readOnly}
             placeholder={placeholder}
             className={['sis-ops-hub__link min-h-11 px-3 py-2', className].filter(Boolean).join(' ')}
             dir={dir}

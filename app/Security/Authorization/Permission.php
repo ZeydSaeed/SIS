@@ -41,6 +41,14 @@ final class Permission
 
     public const GRADES_REVIEW_DECIDE = 'grades.review.decide';
 
+    public const BANK_QUESTION_VIEW = 'bank.question.view';
+
+    /** Write drafts of the subjects of the user's own teaching assignments (school-wide with BANK_QUESTION_APPROVE). */
+    public const BANK_QUESTION_AUTHOR = 'bank.question.author';
+
+    /** Decide versions under review (never one's own) and retire questions. */
+    public const BANK_QUESTION_APPROVE = 'bank.question.approve';
+
     public const EXAM_VIEW = 'exam.view';
 
     public const EXAM_CREATE = 'exam.create';
@@ -235,6 +243,9 @@ final class Permission
             self::GRADES_FINALIZE,
             self::GRADES_REVIEW_REQUEST,
             self::GRADES_REVIEW_DECIDE,
+            self::BANK_QUESTION_VIEW,
+            self::BANK_QUESTION_AUTHOR,
+            self::BANK_QUESTION_APPROVE,
             self::EXAM_VIEW,
             self::EXAM_CREATE,
             self::EXAM_UPDATE,

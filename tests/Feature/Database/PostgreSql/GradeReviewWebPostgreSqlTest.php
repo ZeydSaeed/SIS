@@ -205,6 +205,33 @@ final class GradeReviewWebPostgreSqlTest extends PostgreSqlIntegrationTestCase
     }
 
     #[Test]
+    public function the_grade_actions_page_names_the_student_subject_and_exam_instead_of_ids(): void
+    {
+        $s = $this->scene();
+        $this->as('GradesManager', $s['school']);
+        $gradeId = $this->currentGradeId($s);
+
+        $this->get("/grades/actions?grade_id={$gradeId}&academic_year_id={$s['year_id']}")->assertOk()
+            ->assertInertia(fn ($page) => $page->component('grades/actions')
+                ->where('context.student_name', 'Test Student')->whereType('context.student_code', 'string')
+                ->whereType('context.subject_name', 'string')->whereType('context.exam_name', 'string')->whereType('context.session_date', 'string'));
+        $this->get('/grades/actions')->assertOk()->assertInertia(fn ($page) => $page->where('grade', null)->where('context', null));
+    }
+
+    #[Test]
+    public function the_list_shows_dates_and_the_grade_after_an_accepted_decision(): void
+    {
+        [, $s, $id] = $this->opened();
+        $this->as('GradesManager', $s['school']);
+        $this->act("/grades/reviews/{$id}/start", [], 'rv-l1');
+        $this->decide($id, 'accept', ['score' => '85'], 'rv-l2')->assertSessionHas('success');
+
+        $this->get("/grades/reviews?academic_year_id={$s['year_id']}")->assertOk()->assertInertia(fn ($page) => $page
+            ->where('rows.0.status', 'accepted')->where('rows.0.resulting_score', '85.00')->whereType('rows.0.decided_at', 'string')
+            ->whereType('rows.0.requested_at', 'string')->where('rows.0.requester_name', fn ($n): bool => is_string($n) && $n !== ''));
+    }
+
+    #[Test]
     public function the_list_page_shows_names_and_status(): void
     {
         [, $s] = $this->opened();

@@ -10,8 +10,6 @@ use App\Application\Exams\Queries\GetExamFormLookupsHandler;
 use App\Application\Exams\Queries\GetExamFormLookupsQuery;
 use App\Application\Exams\Queries\GetExamHandler;
 use App\Application\Exams\Queries\GetExamQuery;
-use App\Application\Exams\Queries\GetExamSeatingContextHandler;
-use App\Application\Exams\Queries\GetExamSeatingContextQuery;
 use App\Application\Exams\Queries\ListExamSessionsHandler;
 use App\Application\Exams\Queries\ListExamSessionsQuery;
 use App\Application\Exams\Queries\ListExamsHandler;
@@ -19,6 +17,7 @@ use App\Application\Exams\Queries\ListExamsQuery;
 use App\Domain\Exams\Exceptions\ExamNotFoundException;
 use App\Http\Controllers\Controller;
 use App\Http\Support\AcademicYearContextResolver;
+use App\Infrastructure\Persistence\Eloquent\BankQuestionRecord;
 use App\Infrastructure\Persistence\Eloquent\ExamRecord;
 use App\Models\User;
 use App\Security\Audit\Contracts\SecurityAuditLoggerInterface;
@@ -69,6 +68,7 @@ final class ExamPageController extends Controller
             'exams' => [
                 'data' => array_map(static fn (ExamDTO $dto): array => $dto->toArray(), $items),
             ],
+            // EXAMIS 7.2: display names instead of raw ids, and the create form only for exam.create.
             'names' => $namesHandler->handle(new GetExamDisplayNamesQuery(
                 termIds: array_map(static fn (ExamDTO $dto): int => $dto->termId, $items),
             )),
@@ -85,7 +85,6 @@ final class ExamPageController extends Controller
         int $exam,
         GetExamHandler $examHandler,
         ListExamSessionsHandler $sessionsHandler,
-        GetExamSeatingContextHandler $seatingHandler,
         GetExamDisplayNamesHandler $namesHandler,
         GetExamFormLookupsHandler $lookupsHandler,
     ): Response {
@@ -123,30 +122,18 @@ final class ExamPageController extends Controller
             ['session_count' => count($sessions)],
         );
 
-        $canSeat = $user->can('createEnrollment', ExamRecord::class);
-        $seating = $seatingHandler->handle(new GetExamSeatingContextQuery(
-            schoolId: $schoolId,
-            academicYearId: $dto->academicYearId,
-            examSessionIds: array_map(static fn (ExamSessionDTO $session): int => $session->id, $sessions),
-        ));
-
         return Inertia::render('exams/show', [
             'exam' => $dto->toArray(),
             'sessions' => [
                 'data' => array_map(static fn (ExamSessionDTO $session): array => $session->toArray(), $sessions),
             ],
+            // EXAMIS 7.2: names of the year, term and session subjects; the forms only for the permissions held.
             'names' => $namesHandler->handle(new GetExamDisplayNamesQuery(
                 termIds: [$dto->termId],
                 academicYearIds: [$dto->academicYearId],
                 subjectIds: array_map(static fn (ExamSessionDTO $session): int => $session->subjectId, $sessions),
             )),
             'admin' => $this->sessionForms($user, $schoolId, $dto->academicYearId, $lookupsHandler),
-            'seating' => [
-                'can_seat' => $canSeat,
-                'classes' => $canSeat ? $seating['classes'] : [],
-                'seat_counts' => $seating['seat_counts'],
-                'result' => $request->session()->get('exam_seating_result'),
-            ],
             'filters' => [
                 'session_status' => $sessionStatus,
             ],
@@ -154,9 +141,11 @@ final class ExamPageController extends Controller
     }
 
     /**
-     * Create-exam form: shown only with exam.create and an academic year; choices are existing terms and exam types.
+     * Create-exam form: only with exam.create and an academic year; choices are the year's terms and the school's types.
      *
-     * @return array{can_create: bool, terms: list<array{id: int, name: string}>, exam_types: list<array{id: int, name: string, weight_percentage: int}>}
+     * `can_view_bank` (EXAMIS 7.3a): the ribbon links «بنك الأسئلة» only for users who may open it.
+     *
+     * @return array{can_create: bool, terms: list<array{id: int, name: string}>, exam_types: list<array<string, mixed>>, can_view_bank: bool}
      */
     private function createExamForm(User $user, int $schoolId, ?int $academicYearId, GetExamFormLookupsHandler $lookups): array
     {
@@ -165,12 +154,17 @@ final class ExamPageController extends Controller
             ? $lookups->handle(new GetExamFormLookupsQuery($schoolId, $academicYearId, forExam: true, forSession: false))
             : ['terms' => [], 'exam_types' => []];
 
-        return ['can_create' => $canCreate, 'terms' => $choices['terms'], 'exam_types' => $choices['exam_types']];
+        return [
+            'can_create' => $canCreate,
+            'terms' => $choices['terms'],
+            'exam_types' => $choices['exam_types'],
+            'can_view_bank' => $user->can('viewAny', BankQuestionRecord::class),
+        ];
     }
 
     /**
-     * Exam and session forms: edit / cancel the exam (exam.update · exam.cancel; existing terms and types), create
-     * (subjects of the school-year's active curricula), edit / cancel (exam.session.update), open and close sessions.
+     * Exam and session forms: edit / cancel the exam (exam.update · exam.cancel), create sessions (subjects of the
+     * school-year), edit / cancel (exam.session.update), open and close (exam.session.open · exam.session.close).
      *
      * @return array<string, mixed>
      */

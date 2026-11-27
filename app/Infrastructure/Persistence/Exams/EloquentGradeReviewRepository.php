@@ -69,6 +69,9 @@ final class EloquentGradeReviewRepository implements GradeReviewRepositoryInterf
             })
             ->join(SchemaHelper::qualified('students', 'students').' as st', 'st.id', '=', 'g.student_id')
             ->join(SchemaHelper::qualified('curriculum', 'subjects').' as sub', 'sub.id', '=', 'g.subject_id')
+            ->leftJoin(SchemaHelper::qualified('exams', 'student_grades').' as rg', static function ($join): void {
+                $join->on('rg.id', '=', 'r.resulting_grade_id')->on('rg.academic_year_id', '=', 'r.academic_year_id');
+            })
             ->leftJoin('public.users as rq', 'rq.id', '=', 'r.requested_by')
             ->leftJoin('public.users as asg', 'asg.id', '=', 'r.assigned_to')
             ->where('r.school_id', $schoolId)->where('r.academic_year_id', $academicYearId)
@@ -78,7 +81,7 @@ final class EloquentGradeReviewRepository implements GradeReviewRepositoryInterf
                 'r.id', 'r.review_number', 'r.grade_id', 'r.academic_year_id', 'r.status', 'r.reason', 'r.score_at_request', 'r.absent_at_request',
                 'r.requested_at', 'r.decided_at', 'r.decision_note', 'r.requested_by', 'r.assigned_to', 'r.resulting_grade_id',
                 'g.max_score', 'st.full_name as student_name', 'st.student_code', 'sub.name as subject_name',
-                'rq.name as requester_name', 'asg.name as assignee_name',
+                'rq.name as requester_name', 'asg.name as assignee_name', 'rg.score as resulting_score', 'rg.is_absent as resulting_absent',
             ])
             ->map(static fn (object $r): array => (array) $r)
             ->all();

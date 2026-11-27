@@ -1,5 +1,13 @@
 # SIS Exam Platform — Requirements Traceability (Phase 0 baseline)
 
+> **2026-10-24 — PAGES REVERTED (owner's instruction).** The exams / grades / results web pages were returned to their
+> original code (state of commit `1738c8c`, before the EXAMIS UI work): React pages, their HTTP controllers, their routes and
+> the small page hooks (sidebar «نتائجي» link, `examisShell` / `portalNav` Inertia props, ribbon accent). The backend (handlers,
+> repositories, migrations, tables, API) was NOT reverted. Everything below that describes pages, screens or browser checks
+> describes the committed state at `4472454`, **not the current working tree**. Backup of the previous working tree:
+> `D:\Projects\sis_backup_examis_pages_2026-10-24\`.
+
+
 **Date:** 2026-10-24 · **Code baseline:** `bcb889a` (branch V2) · **Status:** Phase 0 baseline; updated per unit.
 Complements [EXAMIS-TARGET-DESIGN.md](EXAMIS-TARGET-DESIGN.md) (principles, roadmap A–E). No duplicate
 documents are created: the roadmap lives there, this file is the evidence matrix.

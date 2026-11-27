@@ -12,5 +12,7 @@ final readonly class CurriculumSubjectDTO
         public bool $isRequired,
         public int $subjectOrder,
         public int $status,
+        public ?int $theoryHours = null,
+        public ?int $practicalHours = null,
     ) {}
 }

@@ -302,9 +302,11 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
             { id: 'addGuardian', label: 'ولي امر طالب', icon: UserPlus },
         ],
     },
+    // Max three commands per group so each stays on one row (a group wraps past 20rem).
+    // Order follows the school hierarchy: المديرية ← المدرسة ← الفرع/الاختصاص ← الصف/الشعبة.
     {
         id: 'school',
-        label: 'المديريات والمدارس',
+        label: 'الهيكل التنظيمي',
         items: [
             {
                 id: 'directoratesSchools',
@@ -320,21 +322,27 @@ const ADD_RIBBON_GROUPS: RibbonGroup[] = [
             },
             {
                 id: 'classesSections',
-                label: 'الصفوف والشعب',
+                label: 'الصف والشعب',
                 icon: LayoutGrid,
                 iconTone: 'education',
             },
+        ],
+    },
+    {
+        id: 'school-data',
+        label: 'المرافق والبيانات',
+        items: [
             {
                 id: 'roomsCatalogue',
                 label: 'الغرف الدراسية',
                 icon: DoorOpen,
-                iconTone: 'authority',
+                iconTone: 'steel',
             },
             {
                 id: 'importCenter',
                 label: 'استيراد Excel',
                 icon: FileDown,
-                iconTone: 'growth',
+                iconTone: 'forest',
             },
         ],
     },
@@ -738,10 +746,6 @@ export function TitleBarRibbon({
     // «الحضور»: the same coloured command icons and ribbon look as «الغرف الدراسية».
     const isAttendancePage =
         path === '/attendance' || path.startsWith('/attendance/');
-    // «الامتحانات» / «الدرجات» / «النتائج»: the same coloured command icons and ribbon look as «الحضور».
-    const isExamisPage = ['/exams', '/grades', '/results'].some(
-        (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-    );
     const isTeachersPage =
         path === '/teachers' || path.startsWith('/teachers/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
@@ -975,7 +979,7 @@ export function TitleBarRibbon({
         isTimetablePage ? 'sis-ribbon--timetable-page' : '',
         tab === 'add' ? 'sis-ribbon--tab-add' : '',
         isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-        isRoomsPage || isAttendancePage || isExamisPage
+        isRoomsPage || isAttendancePage
             ? 'sis-ribbon--coloured-icons'
             : '',
     ].filter(Boolean);
@@ -1079,7 +1083,7 @@ export function TitleBarRibbon({
                 isTimetablePage ? 'sis-ribbon--timetable-page' : '',
                 tab === 'add' ? 'sis-ribbon--tab-add' : '',
                 isTeachersPage ? 'sis-ribbon--teachers-page' : '',
-                isRoomsPage || isAttendancePage || isExamisPage
+                isRoomsPage || isAttendancePage
                     ? 'sis-ribbon--coloured-icons'
                     : '',
             ]

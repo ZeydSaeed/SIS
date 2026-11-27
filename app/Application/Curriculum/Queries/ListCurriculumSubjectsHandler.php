@@ -36,6 +36,8 @@ final class ListCurriculumSubjectsHandler
                 isRequired: $row->isRequired,
                 subjectOrder: $row->subjectOrder,
                 status: $row->status,
+                theoryHours: $row->theoryHours,
+                practicalHours: $row->practicalHours,
             ),
             $rows,
         );

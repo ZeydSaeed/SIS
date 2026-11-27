@@ -16,9 +16,12 @@ import {
     GraduationCap,
     HeartPulse,
     LayoutGrid,
+    Library,
     ListChecks,
     MessagesSquare,
+    Network,
     NotebookPen,
+    School,
     ScrollText,
     UserPlus,
     UserRound,
@@ -60,6 +63,9 @@ type ModuleKey =
     | 'leave'
     | 'rooms'
     | 'timetable'
+    | 'branches'
+    | 'classesSections'
+    | 'subjects'
     | 'curriculum'
     | 'exams'
     | 'grades'
@@ -90,7 +96,10 @@ const MODULE_DEFS: Record<
     leave: { href: '/leave/overview', icon: Plane },
     rooms: { href: '/organization/rooms/overview', icon: DoorOpen },
     timetable: { href: '/timetable', icon: CalendarRange },
-    curriculum: { href: '/curriculum/overview', icon: BookOpen },
+    branches: { href: '/organization/branches', icon: Network },
+    classesSections: { href: '/organization/classes-sections', icon: School },
+    subjects: { href: '/curriculum', icon: Library },
+    curriculum: { href: '/curriculum?view=curricula', icon: BookOpen },
     exams: { href: '/exams', icon: NotebookPen },
     grades: { href: '/grades', icon: ListChecks },
     results: { href: '/results', icon: ScrollText },
@@ -128,6 +137,9 @@ export function getSisSidebarSections(): SisNavSection[] {
                 moduleItem('admission'),
                 moduleItem('students'),
                 moduleItem('enrollments'),
+                moduleItem('branches'),
+                moduleItem('classesSections'),
+                moduleItem('subjects'),
                 moduleItem('curriculum'),
                 moduleItem('teachers'),
                 moduleItem('rooms'),

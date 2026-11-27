@@ -21,9 +21,11 @@ import type { NavItem } from '@/types';
 export function AppSidebar() {
     const i18n = t();
     const { isCurrentUrl } = useCurrentUrl();
-    const portalNav = usePage<{ portalNav?: { results: boolean } }>().props.portalNav;
+    // EXAMIS U-02: computed on the server (gate viewPortalOfficial); the page re-checks.
+    const portalNav = usePage<{ portalNav?: { results: boolean; portalOnly?: boolean } }>().props.portalNav;
+    // R-09: a portal-only account (student / guardian) gets no staff modules.
     const mainNavItems: NavItem[] = getSisModuleNavItems()
-        .filter((item) => !item.sidebarOnly)
+        .filter((item) => !item.sidebarOnly && portalNav?.portalOnly !== true)
         .map((item) => ({
             title: item.title,
             href: item.href,

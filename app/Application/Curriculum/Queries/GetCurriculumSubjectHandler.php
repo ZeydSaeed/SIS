@@ -27,6 +27,8 @@ final class GetCurriculumSubjectHandler
             isRequired: $row->isRequired,
             subjectOrder: $row->subjectOrder,
             status: $row->status,
+            theoryHours: $row->theoryHours,
+            practicalHours: $row->practicalHours,
         );
     }
 }

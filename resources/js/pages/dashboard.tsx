@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { ScrollText } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
@@ -46,9 +47,14 @@ function tileMatchesQuery(item: SisModuleNavItem, query: string): boolean {
 function DashboardWorkspace() {
     const i18n = t();
     const [searchQuery, setSearchQuery] = useState('');
-    const allTiles = useMemo(
-        () => getSisModuleNavItems().filter((item) => !item.sidebarOnly),
-        [],
+    // R-09 (EXAMIS): a portal-only account (student / guardian) gets «نتائجي» instead of the staff modules.
+    const portalOnly = usePage<{ portalNav?: { portalOnly?: boolean } }>().props.portalNav?.portalOnly === true;
+    const allTiles = useMemo<SisModuleNavItem[]>(
+        () =>
+            portalOnly
+                ? [{ title: i18n.portalResults.title, href: '/portal/results', icon: ScrollText }]
+                : getSisModuleNavItems().filter((item) => !item.sidebarOnly),
+        [portalOnly, i18n.portalResults.title],
     );
 
     const titlebarSearch = useMemo(

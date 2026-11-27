@@ -23,7 +23,7 @@ class CreateSubjectRequest extends FormRequest
             'code' => ['required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'name_en' => ['nullable', 'string', 'max:255'],
-            'subject_type' => ['required', 'integer', 'in:1,2,3'],
+            'subject_type' => ['required', 'integer', 'in:1,2,3,4'],
             'credit_hours' => ['nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['nullable', 'integer', 'min:0', 'max:1000'],

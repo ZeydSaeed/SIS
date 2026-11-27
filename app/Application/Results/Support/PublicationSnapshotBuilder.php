@@ -69,7 +69,8 @@ final class PublicationSnapshotBuilder
 
                 continue;
             }
-            $official = $row[$command->kind]['official'];
+            // Only annual / gpa reach this point (transcript is handled above, term never comes here).
+            $official = ($command->kind === 'gpa' ? $row['gpa'] : $row['annual'])['official'];
             $entries[] = $official !== null && ! $official['incomplete']
                 ? ['enrollment_id' => $row['enrollment_id'], 'version' => $official['version'], 'value' => $official['value']]
                 : null;

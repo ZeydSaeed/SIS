@@ -20,6 +20,8 @@ class LinkCurriculumSubjectRequest extends FormRequest
         return array_merge([
             'subject_id' => ['required', 'integer', 'min:1'],
             'weekly_hours' => ['nullable', 'integer', 'min:1', 'max:40'],
+            'theory_hours' => ['nullable', 'integer', 'min:0', 'max:40'],
+            'practical_hours' => ['nullable', 'integer', 'min:0', 'max:40'],
             'is_required' => ['nullable', 'boolean'],
             'subject_order' => ['nullable', 'integer', 'min:0', 'max:999'],
             'curriculum_id' => ['prohibited'],

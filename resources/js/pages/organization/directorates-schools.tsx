@@ -748,7 +748,7 @@ function DirectoratesSchoolsPage({ directorates, current_school_id: currentSchoo
                                 </div>
 
                                 {collapsed ? null : (
-                                    <div className="sis-branches-detail__form">
+                                    <div className="sis-branches-detail__form sis-detail-form--boxed">
                                         <RegistryTextField
                                             label={d.directorateName}
                                             editing={canManageDirectorates}

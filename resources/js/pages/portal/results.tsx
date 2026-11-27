@@ -1,11 +1,10 @@
-import {
-    AttendanceTable,
-    useAttendanceMessages,
-    type AttendanceColumn,
-} from '@/components/attendance/attendance-chrome';
-import { ExamisPage } from '@/components/examis/examis-chrome';
-import { t } from '@/i18n';
+import { Head } from '@inertiajs/react';
+import { ScrollText } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
+import { EmptyState } from '@/components/sis/empty-state';
+import { PageHeader } from '@/components/sis/page-header';
+import { t } from '@/i18n';
 import type { BreadcrumbItem } from '@/types';
 
 type Published = {
@@ -14,6 +13,13 @@ type Published = {
     incomplete: boolean;
     published_at: string;
 } | null;
+
+type Term = {
+    term_name: string;
+    subject_name: string;
+    value: string | null;
+    incomplete: boolean;
+};
 
 type Row = {
     enrollment_id: number;
@@ -24,107 +30,124 @@ type Row = {
     annual: Published;
     gpa: Published;
     transcript: Published;
-    terms: {
-        term_name: string;
-        subject_name: string;
-        value: string | null;
-        incomplete: boolean;
-    }[];
+    terms: Term[];
 };
 
 type PageProps = { rows: Row[] };
 
-export default function PortalResults(props: PageProps) {
+function fill(template: string, params: Record<string, string>): string {
+    return Object.entries(params).reduce(
+        (text, [key, value]) => text.replace(`:${key}`, value),
+        template,
+    );
+}
+
+/** «نتائجي» — only results the school has published; the server sends nothing else to this page. */
+export default function PortalResults({ rows }: PageProps) {
     const i18n = t();
+    const p = i18n.portalResults;
     const breadcrumbs: BreadcrumbItem[] = [
-        { title: i18n.portalResults.title, href: '/portal/results' },
+        { title: p.title, href: '/portal/results' },
+    ];
+
+    const value = (v: Published) =>
+        v === null ? (
+            <span className="text-muted-foreground">{p.none}</span>
+        ) : (
+            <span className="flex flex-col">
+                <span>
+                    <bdi dir="ltr">{v.value ?? p.none}</bdi>
+                    {v.incomplete ? (
+                        <span className="text-muted-foreground ms-2">
+                            ({p.incomplete})
+                        </span>
+                    ) : null}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                    {fill(p.publishedAt, { at: v.published_at.slice(0, 10) })}
+                </span>
+            </span>
+        );
+
+    const termColumns: DataTableColumn<Term>[] = [
+        { id: 'term', header: p.term, cell: (r) => r.term_name },
+        { id: 'subject', header: p.subject, cell: (r) => r.subject_name },
+        {
+            id: 'value',
+            header: p.value,
+            cell: (r) => (
+                <span>
+                    <bdi dir="ltr">{r.value ?? p.none}</bdi>
+                    {r.incomplete ? (
+                        <span className="text-muted-foreground ms-2">
+                            ({p.incomplete})
+                        </span>
+                    ) : null}
+                </span>
+            ),
+        },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <PortalResultsBody {...props} />
-        </AppLayout>
-    );
-}
+            <Head title={p.title} />
+            <div className="sis-table-theme sis-ops-hub flex min-w-0 flex-col gap-4 p-4">
+                <PageHeader
+                    title={p.title}
+                    description={p.description}
+                    icon={<ScrollText className="size-6" aria-hidden />}
+                />
 
-/** «نتائجي» — only results the school has published; nothing else is ever sent to this page. */
-function PortalResultsBody({ rows }: PageProps) {
-    const p = t().portalResults;
-    useAttendanceMessages(
-        rows.length === 0 ? [{ key: 'none', text: p.empty, tone: 'info' }] : [],
-        p.title,
-    );
-
-    const cell = (value: Published) =>
-        value === null ? (
-            p.none
-        ) : (
-            <span>
-                <span dir="ltr">{value.value ?? p.none}</span>
-                {value.incomplete ? ` · ${p.incomplete}` : ''}
-                {` · ${p.publishedAt.replace(':at', value.published_at.slice(0, 10))}`}
-            </span>
-        );
-
-    const columns: AttendanceColumn<Row>[] = [
-        { id: 'student', header: p.student, cell: (row) => row.student_name },
-        {
-            id: 'code',
-            header: p.code,
-            kind: 'text',
-            cell: (row) => <span dir="ltr">{row.student_code}</span>,
-        },
-        { id: 'year', header: p.year, kind: 'text', cell: (row) => row.year_name },
-        {
-            id: 'class',
-            header: p.class,
-            kind: 'text',
-            cell: (row) => row.class_name,
-        },
-        {
-            id: 'annual',
-            header: p.annual,
-            kind: 'text',
-            cell: (row) => cell(row.annual),
-        },
-        { id: 'gpa', header: p.gpa, kind: 'text', cell: (row) => cell(row.gpa) },
-        {
-            id: 'transcript',
-            header: p.transcript,
-            kind: 'text',
-            cell: (row) =>
-                row.transcript === null ? (
-                    p.none
+                {rows.length === 0 ? (
+                    <EmptyState title={p.emptyTitle} description={p.empty} />
                 ) : (
-                    <span dir="ltr">{row.transcript.value}</span>
-                ),
-        },
-        {
-            id: 'terms',
-            header: p.terms,
-            kind: 'text',
-            cell: (row) =>
-                row.terms.length === 0
-                    ? p.none
-                    : row.terms
-                          .map(
-                              (x) =>
-                                  `${x.term_name} · ${x.subject_name}: ${x.value ?? p.none}${x.incomplete ? ` (${p.incomplete})` : ''}`,
-                          )
-                          .join(' — '),
-        },
-    ];
-
-    return (
-        <ExamisPage title={p.title} windowId="portal.results">
-            <AttendanceTable
-                caption={p.title}
-                storageKey="portal.results"
-                columns={columns}
-                rows={rows}
-                rowKey={(row) => row.enrollment_id}
-                emptyText={p.empty}
-            />
-        </ExamisPage>
+                    rows.map((row) => (
+                        <section
+                            key={row.enrollment_id}
+                            aria-labelledby={`portal-result-${row.enrollment_id}`}
+                            className="flex min-w-0 flex-col gap-3 rounded-md border p-4"
+                        >
+                            <h2
+                                id={`portal-result-${row.enrollment_id}`}
+                                className="text-base font-semibold"
+                            >
+                                {row.student_name} — {row.year_name} —{' '}
+                                {row.class_name}
+                            </h2>
+                            <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                                <div className="flex flex-col gap-1">
+                                    <dt className="text-muted-foreground">
+                                        {p.annual}
+                                    </dt>
+                                    <dd>{value(row.annual)}</dd>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <dt className="text-muted-foreground">
+                                        {p.gpa}
+                                    </dt>
+                                    <dd>{value(row.gpa)}</dd>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <dt className="text-muted-foreground">
+                                        {p.transcript}
+                                    </dt>
+                                    <dd>{value(row.transcript)}</dd>
+                                </div>
+                            </dl>
+                            {row.terms.length > 0 ? (
+                                <DataTable
+                                    columns={termColumns}
+                                    rows={row.terms}
+                                    rowKey={(r) =>
+                                        `${r.term_name}-${r.subject_name}`
+                                    }
+                                    caption={p.terms}
+                                />
+                            ) : null}
+                        </section>
+                    ))
+                )}
+            </div>
+        </AppLayout>
     );
 }

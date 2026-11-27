@@ -59,10 +59,12 @@ class HandleInertiaRequests extends Middleware
             'attendanceShell' => fn () => $request->is('attendance', 'attendance/*') ? app(\App\Http\Support\AttendanceShellData::class)->build($request) : null,
             // Leave pages: the side calendar + day card + leave-rate card share one server payload.
             'leaveShell' => fn () => $request->is('leave', 'leave/*') ? app(\App\Http\Support\LeaveShellData::class)->build($request) : null,
-            // Exams / grades / results pages: the sections the viewer may open (the shared «الأقسام» ribbon group).
-            'examisShell' => fn () => $request->is('exams', 'exams/*', 'grades', 'grades/*', 'results', 'results/*') ? app(\App\Http\Support\ExamisShellData::class)->build($request) : null,
-            // Portal: the «نتائجي» sidebar entry only for viewers the portal results gate admits (the page re-checks).
-            'portalNav' => fn () => ['results' => $request->user()?->can('viewPortalOfficial') ?? false],
+            // EXAMIS U-02: the «نتائجي» sidebar entry only for viewers the portal results gate admits (the page re-checks).
+            // R-09: a portal-only account (student / guardian) sees no staff modules in the sidebar.
+            'portalNav' => fn () => [
+                'results' => $request->user()?->can('viewPortalOfficial') ?? false,
+                'portalOnly' => $request->user() !== null && app(\App\Security\Authorization\PortalPartyAccessService::class)->isPortalOnly($request->user()),
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
