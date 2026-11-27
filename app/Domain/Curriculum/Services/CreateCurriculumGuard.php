@@ -26,9 +26,13 @@ final class CreateCurriculumGuard
         ?int $branchId = null,
         ?int $classId = null,
         ?int $sectionId = null,
+        ?int $plannedSubjectCount = null,
     ): ?string {
         if (trim($name) === '') {
             return 'curriculum.curriculum_name_invalid';
+        }
+        if ($plannedSubjectCount !== null && ($plannedSubjectCount < 1 || $plannedSubjectCount > 200)) {
+            return 'curriculum.planned_subject_count_invalid';
         }
         if ($academicYearId < 1 || ! $this->curricula->academicYearExists($academicYearId)) {
             return 'curriculum.academic_year_invalid';
@@ -47,6 +51,11 @@ final class CreateCurriculumGuard
         if ($sectionId !== null && $branchId !== null) {
             // A curriculum per branch / department / section: sections A and B of one class may differ.
             if ($this->curricula->activeScopeExists($schoolId, $academicYearId, $branchId, $departmentId, $sectionId)) {
+                return 'curriculum.curriculum_exists';
+            }
+        } elseif ($classId !== null && $branchId !== null) {
+            // A class-level curriculum (each teacher names his section): one per branch / department / class.
+            if ($this->curricula->activeClassScopeExists($schoolId, $academicYearId, $branchId, $departmentId, $classId)) {
                 return 'curriculum.curriculum_exists';
             }
         } elseif ($departmentId !== null

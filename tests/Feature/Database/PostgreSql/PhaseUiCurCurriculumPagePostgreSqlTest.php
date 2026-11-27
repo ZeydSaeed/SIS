@@ -100,6 +100,7 @@ final class PhaseUiCurCurriculumPagePostgreSqlTest extends PostgreSqlIntegration
                 'department_id' => $departmentId,
                 'class_id' => $classId,
                 'section_id' => $sectionId,
+                'planned_subject_count' => 1,
             ]);
 
         $curriculumId = (int) DB::table(SchemaHelper::qualified('curriculum', 'curricula'))

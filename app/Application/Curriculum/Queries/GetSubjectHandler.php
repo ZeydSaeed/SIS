@@ -33,6 +33,7 @@ final class GetSubjectHandler
             abbreviation: $s->abbreviation,
             colorHue: $s->colorHue,
             subjectTypes: $s->subjectTypes,
+            subjectTypeHours: $s->subjectTypeHours,
         );
     }
 }

@@ -23,6 +23,8 @@ class CreateCurriculumRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'specialization_id' => ['nullable', 'integer', 'min:1'],
             'department_id' => ['nullable', 'integer', 'min:1'],
+            // «عدد المواد» the curriculum should have (fewer = accepted, «غير مكتمل»).
+            'planned_subject_count' => ['nullable', 'integer', 'between:1,200'],
             'subject_ids' => ['sometimes', 'array', 'max:200'],
             'subject_ids.*' => ['integer', 'min:1', 'distinct'],
             'school_id' => ['prohibited'],

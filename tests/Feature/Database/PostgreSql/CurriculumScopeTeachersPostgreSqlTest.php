@@ -23,26 +23,25 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
     use InteractsWithSecurity;
 
     #[Test]
-    public function a_curriculum_names_its_branch_specialization_class_and_section(): void
+    public function a_curriculum_names_its_branch_specialization_and_class_and_each_teacher_his_section(): void
     {
         $ctx = $this->seedSchool('CST-A');
 
-        // The page requires the full place.
+        // Branch, specialization and class are required; the section is chosen per teacher (optional here).
         $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-a-0')
-            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null]))
-            ->assertSessionHasErrors('section_id');
-
-        $first = $this->createCurriculum($ctx, 'cst-a-1', 'A');
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['class_id' => null]))
+            ->assertSessionHasErrors('class_id');
+        $first = $this->createClassCurriculum($ctx, 'cst-a-1');
         $row = DB::table('curriculum.curricula')->where('id', $first)->first();
-        $this->assertSame([$ctx['branch'], $ctx['department'], $ctx['class'], $ctx['sectionA']], [
-            (int) $row->branch_id, (int) $row->department_id, (int) $row->class_id, (int) $row->section_id,
+        $this->assertSame([$ctx['branch'], $ctx['department'], $ctx['class']], [
+            (int) $row->branch_id, (int) $row->department_id, (int) $row->class_id,
         ]);
+        $this->assertNull($row->section_id);
 
-        // One active curriculum per branch / specialization / section; section B of the same class is its own.
+        // One active class-level curriculum per branch / specialization / class.
         $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-a-2')
-            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A'))
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null]))
             ->assertSessionHasErrors(['curriculum' => 'curriculum.curriculum_exists']);
-        $this->createCurriculum($ctx, 'cst-a-3', 'B');
 
         // Every part must belong to the one above it.
         $i = 0;
@@ -52,7 +51,7 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
             [['grade_level_id' => $ctx['otherGrade']], 'curriculum.class_grade_mismatch'],
         ] as [$override, $code]) {
             $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-a-bad-'.$i++)
-                ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'C', $override))
+                ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'B', $override))
                 ->assertSessionHasErrors(['curriculum' => $code]);
         }
 
@@ -71,46 +70,44 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
                 ->component('curriculum/curricula')
                 ->where('curricula.data.0.branch_id', $ctx['branch'])
                 ->where('curricula.data.0.class_id', $ctx['class'])
-                ->where('curricula.data.0.section_id', $ctx['sectionA'])
                 ->where('curricula.data.0.is_complete', false)
-                ->has('filterOptions.sections'));
+                ->has('filterOptions.sections')
+                ->has('teacherOptions'));
     }
 
     #[Test]
-    public function each_subject_gets_one_teacher_or_a_main_teacher_and_assistants(): void
+    public function each_section_gets_its_teachers_several_main_teachers_and_assistants(): void
     {
         $ctx = $this->seedSchool('CST-B');
-        $curriculumId = $this->createCurriculum($ctx, 'cst-b-c', 'A');
+        $curriculumId = $this->createClassCurriculum($ctx, 'cst-b-c');
         $line = $this->linkSubject($curriculumId, $ctx['networks'], 'cst-b-l');
-        [$main, $helper1, $helper2, $next] = array_map(
+        [$teacherA, $teacherB, $helper, $second] = array_map(
             fn (string $code): int => $this->registerTeacher($ctx, $code),
             ['EMP-CSTB-1', 'EMP-CSTB-2', 'EMP-CSTB-3', 'EMP-CSTB-4'],
         );
 
-        $this->assignTeacher($line, $helper1, 2, 'b1')->assertSessionHasErrors(['teacher' => 'teachers.curriculum_assistant_needs_main']);
-        $this->assignTeacher($line, $main, 1, 'b2')->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
-        $this->assignTeacher($line, $next, 1, 'b3')->assertSessionHasErrors(['teacher' => 'teachers.curriculum_main_exists']);
-        $this->assignTeacher($line, $helper1, 2, 'b4')->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
-        $this->assignTeacher($line, $helper2, 2, 'b5')->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
-        $this->assignTeacher($line, $helper1, 2, 'b6')->assertSessionHasErrors(['teacher' => 'teachers.curriculum_teacher_exists']);
+        // Section A: an assistant needs a main teacher of section A first.
+        $this->assignTeacher($line, $helper, 2, 'b1', $ctx['sectionA'])->assertSessionHasErrors(['teacher' => 'teachers.curriculum_assistant_needs_main']);
+        $this->assignTeacher($line, $teacherA, 1, 'b2', $ctx['sectionA'])->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
+        // Several main teachers are allowed; the same teacher twice in the same section is not.
+        $this->assignTeacher($line, $second, 1, 'b3', $ctx['sectionA'])->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
+        $this->assignTeacher($line, $helper, 2, 'b4', $ctx['sectionA'])->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
+        $this->assignTeacher($line, $helper, 2, 'b5', $ctx['sectionA'])->assertSessionHasErrors(['teacher' => 'teachers.curriculum_teacher_exists']);
+        // A section of another class is refused.
+        $this->assignTeacher($line, $teacherB, 1, 'b6', $ctx['otherSection'])->assertSessionHasErrors(['teacher' => 'teachers.assignment_section_invalid']);
 
-        // The assignment carries the curriculum's place, so grade entry / timetable see it.
+        // Only section A is taught yet: not complete. Section B by another teacher completes it.
+        $this->actingAs($ctx['user'])->withSession(['current_school_id' => $ctx['school']])
+            ->get('/curriculum/curricula/'.$curriculumId)
+            ->assertInertia(fn (Assert $page) => $page->where('curriculum.is_complete', false)->etc());
+        $this->assignTeacher($line, $teacherB, 1, 'b7', $ctx['sectionB'])->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
+
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
-        $mainRow = DB::table('teachers.teaching_assignments')->where('teacher_id', $main)->first();
+        $rowA = DB::table('teachers.teaching_assignments')->where('teacher_id', $teacherA)->first();
         $this->assertSame([1, $line, $ctx['branch'], $ctx['department'], $ctx['class'], $ctx['sectionA'], $ctx['networks']], [
-            (int) $mainRow->role, (int) $mainRow->curriculum_subject_id, (int) $mainRow->branch_id, (int) $mainRow->department_id,
-            (int) $mainRow->class_id, (int) $mainRow->section_id, (int) $mainRow->subject_id,
+            (int) $rowA->role, (int) $rowA->curriculum_subject_id, (int) $rowA->branch_id, (int) $rowA->department_id,
+            (int) $rowA->class_id, (int) $rowA->section_id, (int) $rowA->subject_id,
         ]);
-        $this->assertTrue(DB::table('teachers.teacher_subjects')->where('teacher_id', $main)->where('subject_id', $ctx['networks'])->exists());
-
-        // The main teacher stays while assistants remain; «تغيير المدرس الرئيسي» replaces him (history kept).
-        $this->from('/curriculum/curricula/'.$curriculumId)
-            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers/'.$mainRow->id.'/end')
-            ->assertSessionHasErrors(['teacher' => 'teachers.curriculum_main_has_assistants']);
-        $this->from('/curriculum/curricula/'.$curriculumId)->withHeader('X-Idempotency-Key', 'cst-b-replace')
-            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers', ['teacher_id' => $next, 'teacher_role' => 1, 'replace_main' => 1])
-            ->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
-        $this->assertSame(2, (int) DB::table('teachers.teaching_assignments')->where('id', $mainRow->id)->value('status'));
 
         $this->actingAs($ctx['user'])->withSession(['current_school_id' => $ctx['school']])
             ->get('/curriculum/curricula/'.$curriculumId)
@@ -118,22 +115,80 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
             ->assertInertia(fn (Assert $page) => $page
                 ->component('curriculum/show')
                 ->where('curriculum.is_complete', true)
-                ->where('curriculum.staffed_count', 1)
-                ->has('linkedSubjects.0.teachers', 3)
-                ->where('linkedSubjects.0.teachers.0.teacher_id', $next)
-                ->where('linkedSubjects.0.teachers.0.role', 1)
+                ->has('linkedSubjects.0.teachers', 4)
                 ->has('teacherOptions', 4));
+
+        // One of two main teachers of section A may leave; the last one stays while the assistant remains.
+        $this->from('/curriculum/curricula/'.$curriculumId)
+            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers/'.$rowA->id.'/end')
+            ->assertSessionHas('success', 'flash.curriculum.teacherRemoved');
+        $secondRow = (int) DB::table('teachers.teaching_assignments')->where('teacher_id', $second)->value('id');
+        $this->from('/curriculum/curricula/'.$curriculumId)
+            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers/'.$secondRow.'/end')
+            ->assertSessionHasErrors(['teacher' => 'teachers.curriculum_main_has_assistants']);
 
         // A curriculum with teachers keeps its specialization.
         $this->from('/curriculum/curricula/'.$curriculumId)->withHeader('X-Idempotency-Key', 'cst-b-move')
             ->patch('/curriculum/curricula/'.$curriculumId, ['department_id' => $ctx['secondDepartment']])
             ->assertSessionHasErrors(['curriculum' => 'curriculum.scope_locked_by_teachers']);
+    }
 
-        // An assistant can leave.
-        $helperRow = (int) DB::table('teachers.teaching_assignments')->where('teacher_id', $helper2)->value('id');
-        $this->from('/curriculum/curricula/'.$curriculumId)
-            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers/'.$helperRow.'/end')
-            ->assertSessionHas('success', 'flash.curriculum.teacherRemoved');
+    #[Test]
+    public function a_curriculum_states_its_number_of_subjects_and_fewer_is_accepted_but_incomplete(): void
+    {
+        $ctx = $this->seedSchool('CST-H');
+
+        // «عدد المواد» is required on the page.
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-h-0')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => null]))
+            ->assertSessionHasErrors('planned_subject_count');
+
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-h-1')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => 3]))
+            ->assertSessionHas('success', 'flash.curriculum.created');
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
+        $curriculumId = (int) DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->value('id');
+        $this->assertSame(3, (int) DB::table('curriculum.curricula')->where('id', $curriculumId)->value('planned_subject_count'));
+
+        // 1 of 3 subjects, with its teacher: accepted, «غير مكتمل», 33%.
+        $line = $this->linkSubject($curriculumId, $ctx['networks'], 'cst-h-l1');
+        $teacher = $this->registerTeacher($ctx, 'EMP-CSTH-1');
+        $this->assignTeacher($line, $teacher, 1, 'h1')->assertSessionHas('success');
+        $this->actingAs($ctx['user'])->withSession(['current_school_id' => $ctx['school']])
+            ->get('/curriculum/curricula/'.$curriculumId)
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('curriculum.planned_subject_count', 3)
+                ->where('curriculum.subject_count', 1)
+                ->where('curriculum.subjects_percent', 33)
+                ->where('curriculum.is_complete', false)
+                ->etc());
+
+        // The stated number lowered to 1 (edit): complete.
+        $this->from('/curriculum/curricula/'.$curriculumId)->withHeader('X-Idempotency-Key', 'cst-h-2')
+            ->patch('/curriculum/curricula/'.$curriculumId, ['planned_subject_count' => 1])
+            ->assertSessionHas('success', 'flash.curriculum.updated');
+        $this->actingAs($ctx['user'])->withSession(['current_school_id' => $ctx['school']])
+            ->get('/curriculum/curricula/'.$curriculumId)
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('curriculum.subjects_percent', 100)
+                ->where('curriculum.is_complete', true)
+                ->etc());
+    }
+
+    #[Test]
+    public function one_teacher_may_teach_all_sections(): void
+    {
+        $ctx = $this->seedSchool('CST-G');
+        $curriculumId = $this->createClassCurriculum($ctx, 'cst-g-c');
+        $line = $this->linkSubject($curriculumId, $ctx['networks'], 'cst-g-l');
+        $teacher = $this->registerTeacher($ctx, 'EMP-CSTG-1');
+
+        // No section = all sections of the class: complete at once.
+        $this->assignTeacher($line, $teacher, 1, 'g1')->assertSessionHas('success', 'flash.curriculum.teacherAssigned');
+        $this->assignTeacher($line, $teacher, 1, 'g2', $ctx['sectionA'])->assertSessionHasErrors(['teacher' => 'teachers.curriculum_teacher_exists']);
+        $this->actingAs($ctx['user'])->withSession(['current_school_id' => $ctx['school']])
+            ->get('/curriculum/curricula/'.$curriculumId)
+            ->assertInertia(fn (Assert $page) => $page->where('curriculum.is_complete', true)->etc());
     }
 
     #[Test]
@@ -160,6 +215,62 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
         $this->assertFalse(DB::table('teachers.teacher_subjects')->where('teacher_id', $teacher)->exists());
         $this->from('/curriculum')->post('/curriculum/subjects/'.$ctx['networks'].'/delete')
             ->assertSessionHas('success', 'flash.curriculum.subjectDeleted');
+    }
+
+    #[Test]
+    public function creating_a_curriculum_assigns_each_part_its_teachers_in_one_step(): void
+    {
+        $ctx = $this->seedSchool('CST-F');
+        // «نظري + عملي»: the trigger adds the primary type (3), the second type is added like the page does.
+        DB::table('curriculum.subjects')->where('id', $ctx['networks'])->update(['subject_type' => 3]);
+        DB::table('curriculum.subject_types')->insertOrIgnore(['subject_id' => $ctx['networks'], 'subject_type' => 4]);
+        DB::table('curriculum.subject_types')->where('subject_id', $ctx['networks'])->where('subject_type', 1)->delete();
+        [$theory, $practical, $helper] = array_map(
+            fn (string $code): int => $this->registerTeacher($ctx, $code),
+            ['EMP-CSTF-1', 'EMP-CSTF-2', 'EMP-CSTF-3'],
+        );
+
+        // A refused teacher (not of the school) undoes the whole curriculum.
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-f-bad')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A') + [
+                'subject_ids' => [$ctx['networks']],
+                'teachers' => [['subject_id' => $ctx['networks'], 'subject_type' => 4, 'teacher_id' => 999999, 'teacher_role' => 1]],
+            ])
+            ->assertSessionHasErrors(['curriculum' => 'teachers.not_in_school_year']);
+        $this->assertSame(0, DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->count());
+
+        // نظري → one teacher; عملي → another with an assistant (sent before its main teacher: mains go first).
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-f-ok')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A') + [
+                'subject_ids' => [$ctx['networks'], $ctx['security']],
+                'teachers' => [
+                    ['subject_id' => $ctx['networks'], 'subject_type' => 3, 'teacher_id' => $helper, 'teacher_role' => 2],
+                    ['subject_id' => $ctx['networks'], 'subject_type' => 4, 'teacher_id' => $theory, 'teacher_role' => 1],
+                    ['subject_id' => $ctx['networks'], 'subject_type' => 3, 'teacher_id' => $practical, 'teacher_role' => 1],
+                    ['subject_id' => $ctx['security'], 'subject_type' => null, 'teacher_id' => $theory, 'teacher_role' => 1],
+                ],
+            ])
+            ->assertSessionHas('success', 'flash.curriculum.created');
+
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
+        $curriculumId = (int) DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->value('id');
+        $line = (int) DB::table('curriculum.curriculum_subjects')->where('curriculum_id', $curriculumId)->where('subject_id', $ctx['networks'])->value('id');
+        $parts = DB::table('teachers.teaching_assignments')->where('curriculum_subject_id', $line)->orderBy('teacher_id')
+            ->get(['teacher_id', 'role', 'subject_type'])->map(fn ($r) => [(int) $r->teacher_id, (int) $r->role, (int) $r->subject_type])->all();
+        $this->assertSame([[$theory, 1, 4], [$practical, 1, 3], [$helper, 2, 3]], $parts);
+
+        $this->actingAs($ctx['user'])->withSession(['current_school_id' => $ctx['school']])
+            ->get('/curriculum/curricula/'.$curriculumId)
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('curriculum.is_complete', true)
+                ->where('curriculum.staffed_count', 2)
+                ->etc());
+
+        // A whole-subject main teacher next to part main teachers, or a part the subject does not have, is refused.
+        $this->assignTeacher($line, $helper, 1, 'f-whole')->assertSessionHasErrors(['teacher' => 'teachers.curriculum_part_conflict']);
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-assign-f-part')
+            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers', ['teacher_id' => $helper, 'teacher_role' => 2, 'subject_type' => 1])
+            ->assertSessionHasErrors(['teacher' => 'teachers.teaching_part_invalid']);
     }
 
     #[Test]
@@ -213,10 +324,22 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
         $this->assertSame(1, DB::table('teachers.teaching_assignments')->where('curriculum_subject_id', $keep)->where('status', 1)->count());
     }
 
-    private function assignTeacher(int $line, int $teacher, int $role, string $key): \Illuminate\Testing\TestResponse
+    private function assignTeacher(int $line, int $teacher, int $role, string $key, ?int $section = null): \Illuminate\Testing\TestResponse
     {
         return $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-assign-'.$key)
-            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers', ['teacher_id' => $teacher, 'teacher_role' => $role]);
+            ->post('/curriculum/curriculum-subjects/'.$line.'/teachers', ['teacher_id' => $teacher, 'teacher_role' => $role, 'section_id' => $section]);
+    }
+
+    /** A class-level curriculum (no section — each teacher names his own). @param  array<string, mixed>  $ctx */
+    private function createClassCurriculum(array $ctx, string $key): int
+    {
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', $key)
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null]))
+            ->assertSessionHas('success', 'flash.curriculum.created');
+
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
+
+        return (int) DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->whereNull('section_id')->value('id');
     }
 
     /** @param  array<string, mixed>  $ctx */
@@ -247,6 +370,7 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
             'department_id' => $ctx['department'],
             'class_id' => $ctx['class'],
             'section_id' => $section === 'B' ? $ctx['sectionB'] : $ctx['sectionA'],
+            'planned_subject_count' => 1,
         ], $override);
     }
 

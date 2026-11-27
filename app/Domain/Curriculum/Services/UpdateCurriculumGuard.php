@@ -26,6 +26,10 @@ final class UpdateCurriculumGuard
         if (array_key_exists('name', $fields) && trim((string) $fields['name']) === '') {
             return 'curriculum.curriculum_name_invalid';
         }
+        if (array_key_exists('planned_subject_count', $fields) && $fields['planned_subject_count'] !== null
+            && ((int) $fields['planned_subject_count'] < 1 || (int) $fields['planned_subject_count'] > 200)) {
+            return 'curriculum.planned_subject_count_invalid';
+        }
         $current = $this->curricula->findActiveInSchool($schoolId, $curriculumId);
         if ($current !== null && array_key_exists('department_id', $fields)
             && $fields['department_id'] !== $current->departmentId

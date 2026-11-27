@@ -1,4 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
+import { orderSubjectTypes, typeHourTotals, type SubjectHoursSource } from '@/lib/subject-type-order';
+import { TypeHourTotalsBar, typeHourTotalsLine } from '@/components/curriculum/type-hour-totals';
 import {
     BookOpen,
     BookOpenCheck,
@@ -120,8 +122,11 @@ export type CurriculumRow = {
     subject_count?: number;
     total_hours?: number;
     staffed_count?: number;
-    /** «مكتمل»: it has subjects and every one of them has its main teacher. */
+    /** «مكتمل»: it has its stated number of subjects and every one of them has its main teachers. */
     is_complete?: boolean;
+    /** «عدد المواد» it should have (null = not stated) and the share reached (0–100). */
+    planned_subject_count?: number | null;
+    subjects_percent?: number | null;
 };
 
 /** A teacher of a subject in a curriculum: role 1 = مدرس المادة (الرئيسي), 2 = مدرس مساعد. */
@@ -131,6 +136,11 @@ export type CurriculumLineTeacher = {
     name: string;
     employee_code: string;
     role: 1 | 2;
+    /** The part taught (one of the subject's types); null = the whole subject. */
+    subject_type?: number | null;
+    /** The section taught; null = all sections. */
+    section_id?: number | null;
+    section_name?: string | null;
 };
 
 export type TeacherOption = { id: number; name: string; employee_code: string };
@@ -138,7 +148,10 @@ export type TeacherOption = { id: number; name: string; employee_code: string };
 /** «المناهج» overview icon by the curriculum's class: an open book, a checked book, a graduation cap. */
 const CURRICULUM_STAGE_ICONS: LucideIcon[] = [BookOpen, BookOpenCheck, GraduationCap];
 
-function curriculaOverviewCards(rows: CurriculumRow[]): OverviewCard[] {
+function curriculaOverviewCards(
+    rows: CurriculumRow[],
+    subjectOf: (name: string) => SubjectHoursSource | undefined,
+): OverviewCard[] {
     const stages = [...new Set(rows.map((row) => row.grade_level_id))].sort((a, b) => a - b);
     const tones = ['submitted', 'interview', 'waitlisted', 'transfer', 'under-review'];
 
@@ -150,9 +163,19 @@ function curriculaOverviewCards(rows: CurriculumRow[]): OverviewCard[] {
             return {
                 key: `curriculum-${row.id}`,
                 // «مكتمل» once every subject has its main teacher.
-                label: `${row.name} · ${row.is_complete ? t().curriculum.planComplete : t().curriculum.planIncomplete}`,
+                label: `${row.name} · ${row.is_complete ? t().curriculum.planComplete : t().curriculum.planIncomplete}${
+                    !row.is_complete && row.subjects_percent !== null && row.subjects_percent !== undefined ? ` (${row.subjects_percent}%)` : ''
+                }`,
                 icon: CURRICULUM_STAGE_ICONS[stage] ?? ScrollText,
                 count: row.subject_count ?? 0,
+                // «مجموع الساعات» of its subjects: أساسي · اختصاص · نظري · عملي · الكلي.
+                detail: typeHourTotalsLine(
+                    typeHourTotals(
+                        (row.subjects ?? []).map(
+                            (subject) => subjectOf(subject.name) ?? { subject_type: subject.subject_type, credit_hours: subject.credit_hours },
+                        ),
+                    ),
+                ),
                 // An inactive curriculum is greyed like a withdrawn application.
                 tone: row.status === 1 ? (tones[stage % tones.length] ?? 'submitted') : 'withdrawn',
                 href: `/curriculum/curricula/${row.id}`,
@@ -168,6 +191,8 @@ export type SubjectRow = {
     subject_type: number;
     /** «نوع المادة» — every type (one or several); subject_type is the first. */
     subject_types?: number[];
+    /** Weekly hours of each type (type → hours), e.g. { "3": 2, "4": 3 }. */
+    subject_type_hours?: Record<string, number | null>;
     credit_hours: number | null;
     max_grade: number;
     pass_grade: number;
@@ -195,6 +220,15 @@ export type LinkedSubjectRow = {
     status: number;
     /** «المدرسون» of the subject in this curriculum (main teacher first) — on the curriculum page. */
     teachers?: CurriculumLineTeacher[];
+    /** The subject's types — the parts a teacher may take (نظري، عملي …). */
+    subject_types?: number[];
+    /** The subject's own data for the curriculum page's table (absent on the list page). */
+    subject_name_en?: string | null;
+    subject_type?: number | null;
+    subject_type_hours?: Record<string, number | null>;
+    credit_hours?: number | null;
+    max_grade?: number | null;
+    pass_grade?: number | null;
 };
 
 export type CurriculumPagination = {
@@ -249,6 +283,8 @@ export type CurriculumPageProps = {
     linkedSubjects: LinkedSubjectRow[];
     filters: CurriculumPageFilters;
     filterOptions: CurriculumFilterOptions;
+    /** «المناهج»: the year's teachers for «إنشاء منهج دراسي». */
+    teacherOptions?: TeacherOption[];
     authorization: {
         canView: boolean;
         canManage: boolean;
@@ -330,14 +366,59 @@ export function subjectTypeLabel(
     return i18n.subjectTypeCore;
 }
 
-/** A subject's types as one label («عملي + نظري»); rows without a set show their one type. */
-export function subjectTypesLabel(
-    row: { subject_type: number; subject_types?: number[] },
+type SubjectTypesRow = { subject_type: number; subject_types?: number[]; subject_type_hours?: Record<string, number | null> };
+
+export { orderSubjectTypes, SUBJECT_TYPE_ORDER } from '@/lib/subject-type-order';
+
+function typesOfRow(row: SubjectTypesRow): number[] {
+    return orderSubjectTypes(row.subject_types && row.subject_types.length > 0 ? row.subject_types : [row.subject_type]);
+}
+
+/** «نوع المادة» column: the type names only, in display order («نظري + عملي»); rows without a set show their one type. */
+export function subjectTypesLabel(row: SubjectTypesRow, i18n: ReturnType<typeof t>['curriculum']): string {
+    return typesOfRow(row)
+        .map((type) => subjectTypeLabel(Number(type), i18n))
+        .join(' + ');
+}
+
+/**
+ * «نوع المادة» on the subjects page: each type with its hours, in display order — «نظري (2 ساعة) + عملي (4 ساعة)».
+ * Without hours on the types, the subject's own hours follow the names («نظري + عملي (1 ساعة)»).
+ */
+export function subjectTypesWithHoursLabel(
+    row: SubjectTypesRow & { credit_hours?: number | null },
     i18n: ReturnType<typeof t>['curriculum'],
 ): string {
-    const types = row.subject_types && row.subject_types.length > 0 ? row.subject_types : [row.subject_type];
+    const types = typesOfRow(row);
+    const perType = types.map((type) => row.subject_type_hours?.[String(type)]);
+    const hoursText = (hours: number): string => i18n.hoursSuffix.replace(':n', String(hours));
+    if (perType.some((hours) => hours !== null && hours !== undefined)) {
+        return types
+            .map((type, i) => {
+                const hours = perType[i];
 
-    return types.map((type) => subjectTypeLabel(Number(type), i18n)).join(' + ');
+                return hours === null || hours === undefined
+                    ? subjectTypeLabel(Number(type), i18n)
+                    : `${subjectTypeLabel(Number(type), i18n)} (${hoursText(hours)})`;
+            })
+            .join(' + ');
+    }
+    const names = types.map((type) => subjectTypeLabel(Number(type), i18n)).join(' + ');
+
+    return row.credit_hours === null || row.credit_hours === undefined ? names : `${names} (${hoursText(row.credit_hours)})`;
+}
+
+/**
+ * «الساعات» column: each type's hours in the order of the types («2 + 2»; one type → «2»); without hours on the
+ * types, the subject's hours.
+ */
+export function subjectHoursLabel(row: SubjectTypesRow & { credit_hours?: number | null }): string {
+    const perType = typesOfRow(row).map((type) => row.subject_type_hours?.[String(type)]);
+    if (perType.some((hours) => hours !== null && hours !== undefined)) {
+        return perType.map((hours) => (hours === null || hours === undefined ? '—' : String(hours))).join(' + ');
+    }
+
+    return row.credit_hours === null || row.credit_hours === undefined ? '—' : String(row.credit_hours);
 }
 
 const CURRICULUM_FILTERS_STORAGE_KEY = 'sis.curriculum.pageFilters.v1';
@@ -555,6 +636,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
     const filterOptions = useMemo<CurriculumFilterOptions>(
         () => ({
             classes: props.filterOptions?.classes ?? [],
+            sections: props.filterOptions?.sections ?? [],
             branches: props.filterOptions?.branches ?? [],
             departments: props.filterOptions?.departments ?? [],
             specializations: props.filterOptions?.specializations ?? [],
@@ -746,7 +828,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
 
     // On first mount, re-apply stored filters to the request if the URL lagged behind.
     useEffect(() => {
-        if (filtersHydratedRef.current) {
+        // The overview shows every curriculum: the list's stored filters must not carry it off to the list.
+        if (filtersHydratedRef.current || isOverviewPage) {
             return;
         }
         filtersHydratedRef.current = true;
@@ -796,7 +879,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
 
     // Sticky empty years (e.g. 2025-2026) hide students/enrollments/admission — pin back to current.
     useEffect(() => {
-        if (filters.all_curricula) {
+        if (filters.all_curricula || isOverviewPage) {
             return;
         }
 
@@ -1091,6 +1174,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
             name_en: string;
             subject_type: number;
             subject_types?: number[];
+            subject_type_hours?: Record<string, number | null>;
             credit_hours: number | null;
             max_grade: number;
             pass_grade: number;
@@ -1105,6 +1189,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                 name_en: fromDb.name_en?.trim() || '',
                 subject_type: fromDb.subject_type,
                 subject_types: fromDb.subject_types,
+                subject_type_hours: fromDb.subject_type_hours,
                 credit_hours: fromDb.credit_hours,
                 max_grade: fromDb.max_grade,
                 pass_grade: fromDb.pass_grade,
@@ -1263,6 +1348,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
             name: string;
             name_en: string;
             subject_type: number;
+            subject_types?: number[];
+            subject_type_hours?: Record<string, number | null>;
             credit_hours: number;
             max_grade: number;
             status: number;
@@ -1280,6 +1367,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                     id: fromDb?.id ?? null,
                     name_en: fromDb?.name_en?.trim() || '',
                     status: fromDb?.status ?? 1,
+                    subject_types: fromDb?.subject_types,
+                    subject_type_hours: fromDb?.subject_type_hours,
                 });
             }
         }
@@ -1760,7 +1849,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                         tone: 'submitted',
                         href: '/curriculum/curricula',
                     },
-                    ...curriculaOverviewCards(curricula.data),
+                    ...curriculaOverviewCards(curricula.data, (name) => subjectsByName.get(name)),
                 ]}
             />
         );
@@ -1851,7 +1940,6 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                                                     </SortButton>
                                                 </th>
                                                 <th className="sis-curriculum-type-col" aria-sort={ariaSort(subjectSort, 'type')}><SortButton sort={subjectSort} column="type">{c.subjectType}</SortButton></th>
-                                                <th className="sis-curriculum-hours-col" aria-sort={ariaSort(subjectSort, 'hours')}><SortButton sort={subjectSort} column="hours">{c.creditHours}</SortButton></th>
                                                 <th aria-sort={ariaSort(subjectSort, 'max')}><SortButton sort={subjectSort} column="max">{c.maxGrade}</SortButton></th>
                                                 <th aria-sort={ariaSort(subjectSort, 'pass')}><SortButton sort={subjectSort} column="pass">{c.passGrade}</SortButton></th>
                                                 <th className="sis-curriculum-prereq-col" aria-sort={ariaSort(subjectSort, 'prereq')}><SortButton sort={subjectSort} column="prereq">{c.prerequisitesColumn}</SortButton></th>
@@ -1897,11 +1985,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                                                                 : '—'}
                                                         </div>
                                                     </td>
-                                                    <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
-                                                        {subjectTypesLabel(row, c)}
-                                                    </td>
-                                                    <td className="sis-admission-drafts-table__text sis-curriculum-hours-col" dir="ltr">
-                                                        {row.credit_hours ?? '—'}
+                                                    <td className="sis-admission-drafts-table__text sis-curriculum-type-col" style={{ whiteSpace: 'nowrap' }}>
+                                                        {subjectTypesWithHoursLabel(row, c)}
                                                     </td>
                                                     <td className="sis-admission-drafts-table__text" dir="ltr">
                                                         {row.max_grade}
@@ -2107,10 +2192,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                                                     </div>
                                                 </td>
                                                 <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
-                                                    {subjectTypeLabel(subject.subject_type, c)}
+                                                    {subjectTypesLabel(subject, c)}
                                                 </td>
                                                 <td className="sis-admission-drafts-table__text sis-curriculum-hours-col" dir="ltr">
-                                                    {subject.credit_hours}
+                                                    <span dir="ltr" style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{subjectHoursLabel(subject)}</span>
                                                 </td>
                                                 <td className="sis-admission-drafts-table__text" dir="ltr">
                                                     {subject.max_grade}
@@ -2134,6 +2219,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                                 </table>
                             </div>
                         </div>
+                        {visiblePlanSubjectRows.length > 0 ? (
+                            // «مجموع الساعات» of the curricula shown: أساسي، اختصاص، نظري، عملي، الكلي.
+                            <TypeHourTotalsBar totals={typeHourTotals(visiblePlanSubjectRows)} className="mt-2" />
+                        ) : null}
                         {visiblePlanSubjectRows.length > 0 ? (
                             <nav
                                 className="sis-admission-drafts-pagination"
@@ -2200,6 +2289,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                     filterOptions={filterOptions}
                     defaultAcademicYearId={filters.academic_year_id}
                     subjects={subjects.data}
+                    teacherOptions={props.teacherOptions ?? []}
                     onClose={() => setPlanCreateOpen(false)}
                 />
             ) : null}
@@ -2407,7 +2497,12 @@ export function LinkSubjectDialog({
                                 onChange={(value) => {
                                     setSubjectId(value);
                                     const subject = availableSubjects.find((s) => String(s.id) === value);
-                                    if (subject?.credit_hours != null) {
+                                    const practicalOfType = subject?.subject_type_hours?.['3'];
+                                    if (subject?.credit_hours != null && practicalOfType != null) {
+                                        // The subject's own «عملي» hours; the rest of its hours are «نظري».
+                                        setPracticalHours(String(practicalOfType));
+                                        setTheoryHours(String(Math.max(0, subject.credit_hours - practicalOfType)));
+                                    } else if (subject?.credit_hours != null) {
                                         // A practical subject's default hours go to «عملي», the rest to «نظري».
                                         if (subject.subject_type === 3) {
                                             setTheoryHours('0');

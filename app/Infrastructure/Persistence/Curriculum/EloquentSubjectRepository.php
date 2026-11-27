@@ -20,19 +20,24 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
     {
         return [
             ...self::SELECT_COLUMNS,
-            DB::raw("(SELECT string_agg(st.subject_type::text, ',' ORDER BY st.subject_type) FROM curriculum.subject_types st WHERE st.subject_id = curriculum.subjects.id) AS subject_types"),
+            // «3:2,4:» = عملي 2 h, نظري (no hours).
+            DB::raw("(SELECT string_agg(st.subject_type::text || ':' || COALESCE(st.hours::text, ''), ',' ORDER BY st.subject_type) FROM curriculum.subject_types st WHERE st.subject_id = curriculum.subjects.id) AS subject_types"),
         ];
     }
 
-    public function replaceTypes(int $subjectId, array $types): void
+    public function replaceTypes(int $subjectId, array $typeHours): void
     {
-        $types = array_values(array_unique(array_map('intval', $types)));
         $table = SchemaHelper::qualified('curriculum', 'subject_types');
-        DB::table($table)->where('subject_id', $subjectId)->whereNotIn('subject_type', $types)->delete();
-        DB::table($table)->insertOrIgnore(array_map(
-            static fn (int $type): array => ['subject_id' => $subjectId, 'subject_type' => $type],
-            $types,
-        ));
+        DB::table($table)->where('subject_id', $subjectId)->whereNotIn('subject_type', array_keys($typeHours))->delete();
+        DB::table($table)->upsert(
+            array_map(
+                static fn (int $type, ?int $hours): array => ['subject_id' => $subjectId, 'subject_type' => $type, 'hours' => $hours],
+                array_keys($typeHours),
+                array_values($typeHours),
+            ),
+            ['subject_id', 'subject_type'],
+            ['hours'],
+        );
     }
 
     public function codeExists(string $code): bool
@@ -217,6 +222,17 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
 
     private function map(object $row): SubjectSnapshot
     {
+        // «3:2,4:» → [3 => 2, 4 => null]; rows that predate the set keep their one type.
+        $typeHours = [];
+        $packed = property_exists($row, 'subject_types') ? (string) ($row->subject_types ?? '') : '';
+        foreach ($packed === '' ? [] : explode(',', $packed) as $pair) {
+            [$type, $hours] = array_pad(explode(':', $pair, 2), 2, '');
+            $typeHours[(int) $type] = $hours === '' ? null : (int) $hours;
+        }
+        if ($typeHours === []) {
+            $typeHours[(int) $row->subject_type] = null;
+        }
+
         $prerequisitesText = property_exists($row, 'prerequisites_text') && $row->prerequisites_text !== null
             ? (string) $row->prerequisites_text
             : null;
@@ -236,9 +252,8 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
                 : null,
             abbreviation: property_exists($row, 'abbreviation') && $row->abbreviation !== null ? (string) $row->abbreviation : null,
             colorHue: property_exists($row, 'color_hue') && $row->color_hue !== null ? (int) $row->color_hue : null,
-            subjectTypes: property_exists($row, 'subject_types') && $row->subject_types !== null && $row->subject_types !== ''
-                ? array_map('intval', explode(',', (string) $row->subject_types))
-                : [(int) $row->subject_type],
+            subjectTypes: array_keys($typeHours),
+            subjectTypeHours: $typeHours,
         );
     }
 }

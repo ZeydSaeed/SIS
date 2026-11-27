@@ -27,6 +27,9 @@ class CreateSubjectRequest extends FormRequest
             // «نوع المادة» takes several values (عملي + نظري …); subject_type alone = one type (older callers).
             'subject_types' => ['sometimes', 'array', 'min:1', 'max:4'],
             'subject_types.*' => ['integer', 'in:1,2,3,4', 'distinct'],
+            // Weekly hours of each chosen type (type → hours), e.g. {"3": 2, "4": 3}; sent with subject_types.
+            'subject_type_hours' => ['sometimes', 'array'],
+            'subject_type_hours.*' => ['nullable', 'integer', 'min:0', 'max:40'],
             'credit_hours' => ['nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['nullable', 'integer', 'min:0', 'max:1000'],

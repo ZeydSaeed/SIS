@@ -61,6 +61,7 @@ final class ListSubjectsHandler
             abbreviation: $row->abbreviation,
             colorHue: $row->colorHue,
             subjectTypes: $row->subjectTypes,
+            subjectTypeHours: $row->subjectTypeHours,
         );
     }
 }

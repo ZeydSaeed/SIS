@@ -22,6 +22,7 @@ interface CurriculumRepositoryInterface
         ?int $branchId = null,
         ?int $classId = null,
         ?int $sectionId = null,
+        ?int $plannedSubjectCount = null,
     ): int;
 
     public function departmentActiveInSchool(int $schoolId, int $departmentId): bool;
@@ -42,6 +43,16 @@ interface CurriculumRepositoryInterface
         int $branchId,
         ?int $departmentId,
         int $sectionId,
+        ?int $exceptCurriculumId = null,
+    ): bool;
+
+    /** An active class-level curriculum (no section) already covers this branch / department / class (optionally ignoring one). */
+    public function activeClassScopeExists(
+        int $schoolId,
+        int $academicYearId,
+        int $branchId,
+        ?int $departmentId,
+        int $classId,
         ?int $exceptCurriculumId = null,
     ): bool;
 

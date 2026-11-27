@@ -20,5 +20,7 @@ final readonly class TeachingAssignmentData
         public int $role = 1,
         /** The curriculum subject line it was assigned on («المناهج»); null when set on «المعلمون». */
         public ?int $curriculumSubjectId = null,
+        /** The part of the subject taught (one of its types: نظري، عملي …); null = the whole subject. */
+        public ?int $subjectType = null,
     ) {}
 }

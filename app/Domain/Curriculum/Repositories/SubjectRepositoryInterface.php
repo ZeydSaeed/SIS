@@ -45,11 +45,11 @@ interface SubjectRepositoryInterface
     ): array;
 
     /**
-     * The subject's set of types becomes exactly these (curriculum.subject_types).
+     * The subject's set of types becomes exactly these, each with its hours (curriculum.subject_types).
      *
-     * @param  list<int>  $types
+     * @param  array<int, ?int>  $typeHours  type → weekly hours (null = not given)
      */
-    public function replaceTypes(int $subjectId, array $types): void;
+    public function replaceTypes(int $subjectId, array $typeHours): void;
 
     public function deactivate(int $subjectId): bool;
 

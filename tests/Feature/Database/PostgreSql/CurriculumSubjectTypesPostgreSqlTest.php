@@ -65,12 +65,47 @@ final class CurriculumSubjectTypesPostgreSqlTest extends PostgreSqlIntegrationTe
         $this->assertSame([1, 3], $this->typesOf($mixed));
         $this->assertSame(1, (int) DB::table('curriculum.subjects')->where('id', $mixed)->value('subject_type'));
 
+        // Hours per type: عملي 2 + نظري 3 → the subject's hours are their total (5).
+        $this->from('/curriculum')->withHeader('X-Idempotency-Key', 'sty-6')
+            ->post('/curriculum/subjects', ['code' => 'STY-6', 'name' => 'الكهرباء العملية', 'subject_types' => [4, 3], 'subject_type_hours' => ['3' => 2, '4' => 3], 'credit_hours' => 9])
+            ->assertSessionHas('success', 'flash.curriculum.subjectCreated');
+        $hoursSubject = (int) DB::table('curriculum.subjects')->where('code', 'STY-6')->value('id');
+        $this->assertSame([3 => 2, 4 => 3], $this->hoursOf($hoursSubject));
+        $this->assertSame(5, (int) DB::table('curriculum.subjects')->where('id', $hoursSubject)->value('credit_hours'));
+        $this->actingAs($user)->withSession(['current_school_id' => $schoolId])
+            ->get('/curriculum')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('subjects.data', fn ($rows) => collect($rows)->contains(
+                    fn ($row) => $row['id'] === $hoursSubject && $row['subject_type_hours'] == ['3' => 2, '4' => 3],
+                ))
+                ->etc());
+        // Editing the hours (and dropping «نظري») updates the set and the total; hours outside 0–40 are refused.
+        $this->from('/curriculum')->withHeader('X-Idempotency-Key', 'sty-7')
+            ->patch('/curriculum/subjects/'.$hoursSubject, ['subject_types' => [3], 'subject_type_hours' => ['3' => 4, '4' => 3]])
+            ->assertSessionHas('success', 'flash.curriculum.subjectUpdated');
+        $this->assertSame([3 => 4], $this->hoursOf($hoursSubject));
+        $this->assertSame(4, (int) DB::table('curriculum.subjects')->where('id', $hoursSubject)->value('credit_hours'));
+        $this->from('/curriculum')->withHeader('X-Idempotency-Key', 'sty-8')
+            ->patch('/curriculum/subjects/'.$hoursSubject, ['subject_types' => [3], 'subject_type_hours' => ['3' => 50]])
+            ->assertSessionHasErrors('subject_type_hours.3');
+
         // Any writer keeps the primary type in the set (trigger), and «حذف» takes the set with the subject.
         DB::table('curriculum.subjects')->where('id', $single)->update(['subject_type' => 2]);
         $this->assertSame([1, 2], $this->typesOf($single));
         $this->from('/curriculum')->post('/curriculum/subjects/'.$mixed.'/delete')
             ->assertSessionHas('success', 'flash.curriculum.subjectDeleted');
         $this->assertSame([], $this->typesOf($mixed));
+    }
+
+    /** @return array<int, ?int> */
+    private function hoursOf(int $subjectId): array
+    {
+        $out = [];
+        foreach (DB::table('curriculum.subject_types')->where('subject_id', $subjectId)->orderBy('subject_type')->get(['subject_type', 'hours']) as $row) {
+            $out[(int) $row->subject_type] = $row->hours === null ? null : (int) $row->hours;
+        }
+
+        return $out;
     }
 
     /** @return list<int> */

@@ -36,15 +36,11 @@ final class ReactivateCurriculumHandler implements CommandHandler
         if ($inactive === null) {
             return ReactivateCurriculumResult::failure(['curriculum.curriculum_not_found']);
         }
-        // One active curriculum per branch / department / section (curricula_active_scope_unique).
-        if ($inactive->sectionId !== null && $inactive->branchId !== null && $this->curricula->activeScopeExists(
-            $command->schoolId,
-            $inactive->academicYearId,
-            $inactive->branchId,
-            $inactive->departmentId,
-            $inactive->sectionId,
-            $command->curriculumId,
-        )) {
+        // One active curriculum per branch / department / section, or per class when it names no section.
+        $duplicate = $inactive->branchId !== null && ($inactive->sectionId !== null
+            ? $this->curricula->activeScopeExists($command->schoolId, $inactive->academicYearId, $inactive->branchId, $inactive->departmentId, $inactive->sectionId, $command->curriculumId)
+            : ($inactive->classId !== null && $this->curricula->activeClassScopeExists($command->schoolId, $inactive->academicYearId, $inactive->branchId, $inactive->departmentId, $inactive->classId, $command->curriculumId)));
+        if ($duplicate) {
             return ReactivateCurriculumResult::failure(['curriculum.curriculum_exists']);
         }
 

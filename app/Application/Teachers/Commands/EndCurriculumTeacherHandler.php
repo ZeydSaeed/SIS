@@ -35,8 +35,17 @@ final class EndCurriculumTeacherHandler implements CommandHandler
             if ($assignment['status'] !== TeachingAssignmentStatus::Active) {
                 return EndCurriculumTeacherResult::failure('teachers.assignment_not_active');
             }
-            [, $assistants] = $this->teachers->lineTeacherCounts($command->schoolId, $command->curriculumSubjectId);
-            $error = $this->roles->endError($assignment['role'], $assistants);
+            // A main teacher stays while an assistant of his part / section would be left without one.
+            $error = $this->roles->endError(
+                [
+                    'id' => $assignment['id'],
+                    'teacher_id' => $assignment['teacher_id'],
+                    'role' => $assignment['role'],
+                    'subject_type' => $assignment['subject_type'],
+                    'section_id' => $assignment['section_id'],
+                ],
+                $this->teachers->activeLineAssignments($command->schoolId, $command->curriculumSubjectId),
+            );
             if ($error !== null) {
                 return EndCurriculumTeacherResult::failure($error);
             }

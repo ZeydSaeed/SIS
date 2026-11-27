@@ -47,6 +47,12 @@ final class EloquentCurriculumLineCatalogAdapter implements CurriculumLineCatalo
             sectionId: $nullable($row->section_id),
             lineActive: (int) $row->line_status === self::ACTIVE,
             curriculumActive: (int) $row->curriculum_status === self::ACTIVE,
+            subjectTypes: DB::table(SchemaHelper::qualified('curriculum', 'subject_types'))
+                ->where('subject_id', (int) $row->subject_id)
+                ->orderBy('subject_type')
+                ->pluck('subject_type')
+                ->map(static fn ($type): int => (int) $type)
+                ->all(),
         );
     }
 }

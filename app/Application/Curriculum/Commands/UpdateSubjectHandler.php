@@ -12,7 +12,7 @@ use App\Domain\Curriculum\Events\SubjectUpdated;
 use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
 use App\Domain\Curriculum\Services\UpdateSubjectGuard;
 use App\Domain\Curriculum\Support\CurriculumIdempotencyGuard;
-use App\Domain\Curriculum\ValueObjects\SubjectType;
+use App\Domain\Curriculum\ValueObjects\SubjectTypeSet;
 use App\Domain\Shared\ValueObjects\DisplayAppearance;
 
 final class UpdateSubjectHandler implements CommandHandler
@@ -37,16 +37,23 @@ final class UpdateSubjectHandler implements CommandHandler
         }
 
         $fields = $command->fields;
-        // «نوع المادة»: the new set (or the one type an older caller sends); its first type is the primary one.
+        // «نوع المادة»: the new set with its hours (or the one type an older caller sends); its first type is the
+        // primary one, and the subject's hours become the types' total when any are given.
         $types = null;
         if (array_key_exists('subject_types', $fields) || array_key_exists('subject_type', $fields)) {
-            $types = SubjectType::normalizeSet((array) ($fields['subject_types'] ?? [$fields['subject_type']]));
+            $types = SubjectTypeSet::from(
+                (array) ($fields['subject_types'] ?? [$fields['subject_type']]),
+                (array) ($fields['subject_type_hours'] ?? []),
+            );
             if ($types === null) {
                 return UpdateSubjectResult::failure(['curriculum.subject_type_invalid']);
             }
-            unset($fields['subject_types']);
-            $fields['subject_type'] = $types[0];
+            $fields['subject_type'] = $types->primary();
+            if ($types->totalHours() !== null) {
+                $fields['credit_hours'] = $types->totalHours();
+            }
         }
+        unset($fields['subject_types'], $fields['subject_type_hours']);
 
         $error = $this->guard->rejectionCode($command->subjectId, $fields);
         if ($error !== null) {
@@ -64,7 +71,7 @@ final class UpdateSubjectHandler implements CommandHandler
                 (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             );
             if ($types !== null) {
-                $this->subjects->replaceTypes($command->subjectId, $types);
+                $this->subjects->replaceTypes($command->subjectId, $types->hours);
             }
             $this->outbox->stage(new SubjectUpdated($command->subjectId, new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['subject_id' => $command->subjectId]);

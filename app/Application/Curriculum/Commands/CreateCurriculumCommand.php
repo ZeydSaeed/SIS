@@ -23,5 +23,7 @@ final readonly class CreateCurriculumCommand implements Command
         public ?int $branchId = null,
         public ?int $classId = null,
         public ?int $sectionId = null,
+        /** «عدد المواد» it should have (null = not stated). */
+        public ?int $plannedSubjectCount = null,
     ) {}
 }

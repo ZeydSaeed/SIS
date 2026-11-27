@@ -17,11 +17,13 @@ final readonly class CurriculumLinePlacement
         public ?int $sectionId,
         public bool $lineActive,
         public bool $curriculumActive,
+        /** @var list<int> the subject's types — the parts a teacher may take (نظري، عملي …) */
+        public array $subjectTypes = [],
     ) {}
 
-    /** Teachers are assigned only once the curriculum names its branch, class and section. */
+    /** Teachers are assigned only once the curriculum names its branch and class (each teacher names his section). */
     public function isPlaced(): bool
     {
-        return $this->branchId !== null && $this->classId !== null && $this->sectionId !== null;
+        return $this->branchId !== null && $this->classId !== null;
     }
 }

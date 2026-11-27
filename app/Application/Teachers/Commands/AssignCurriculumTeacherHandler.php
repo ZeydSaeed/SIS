@@ -13,7 +13,6 @@ use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\Services\CurriculumTeacherGuard;
 use App\Domain\Teachers\Services\TeachingAssignmentGuard;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
-use App\Domain\Teachers\ValueObjects\TeachingRole;
 
 /**
  * Records the teacher on the curriculum line as a teaching assignment (the one record of who teaches what where:
@@ -52,13 +51,16 @@ final class AssignCurriculumTeacherHandler implements CommandHandler
                 return AssignCurriculumTeacherResult::failure('teachers.not_in_school_year');
             }
 
-            $mainId = $this->teachers->lineMainAssignmentId($command->schoolId, $line->lineId);
+            // The section taught: the curriculum's own section when it names one, else the chosen one (null = all).
+            $section = $line->sectionId ?? $command->sectionId;
+            $assignments = $this->teachers->activeLineAssignments($command->schoolId, $line->lineId);
             $error = $this->roles->assignError(
                 $line,
+                $command->teacherId,
                 $command->role,
-                $mainId !== null,
-                $this->teachers->teacherActiveOnLine($command->schoolId, $line->lineId, $command->teacherId),
-                $command->replaceMain,
+                $command->subjectType,
+                $section,
+                $assignments,
             );
             if ($error !== null) {
                 return AssignCurriculumTeacherResult::failure($error);
@@ -74,11 +76,12 @@ final class AssignCurriculumTeacherHandler implements CommandHandler
                 branchId: $line->branchId,
                 departmentId: $line->departmentId,
                 classId: $line->classId,
-                sectionId: $line->sectionId,
+                sectionId: $section,
                 effectiveFrom: $now->format('Y-m-d'),
                 at: $now->format('Y-m-d H:i:s'),
                 role: $command->role,
                 curriculumSubjectId: $line->lineId,
+                subjectType: $command->subjectType,
             );
             $placementError = $this->placement->error($data);
             if ($placementError !== null) {
@@ -89,10 +92,6 @@ final class AssignCurriculumTeacherHandler implements CommandHandler
                 return AssignCurriculumTeacherResult::failure('teachers.assignment_exists');
             }
 
-            if ($command->role === TeachingRole::Main && $mainId !== null) {
-                // «تغيير المدرس الرئيسي»: the previous main teacher's row is ended (history kept), then replaced.
-                $this->teachers->endTeachingAssignment($command->schoolId, $mainId, $now->format('Y-m-d'), $data->at);
-            }
             if ($this->teachers->findSubjectAssignmentId($command->teacherId, $line->subjectId, $line->academicYearId, $command->schoolId) === null) {
                 $this->teachers->assignSubject($command->teacherId, $line->subjectId, $line->academicYearId, $command->schoolId, $data->at);
             }

@@ -18,5 +18,7 @@ final readonly class CreateSubjectCommand implements Command
         public ?string $prerequisitesText = null,
         /** @var list<int> every type of the subject; empty = just $subjectType */
         public array $subjectTypes = [],
+        /** @var array<int|string, ?int> type → weekly hours of that type */
+        public array $subjectTypeHours = [],
     ) {}
 }

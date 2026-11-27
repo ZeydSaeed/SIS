@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Curriculum;
 use App\Application\Curriculum\Commands\AddSubjectPrerequisiteCommand;
 use App\Application\Curriculum\Commands\AddSubjectPrerequisiteHandler;
 use App\Application\Curriculum\Commands\CreateCurriculumCommand;
-use App\Application\Curriculum\Commands\CreateCurriculumHandler;
+use App\Application\Curriculum\Commands\CreateCurriculumWithTeachersCommand;
+use App\Application\Curriculum\Commands\CreateCurriculumWithTeachersHandler;
 use App\Application\Curriculum\Commands\CreateSubjectCommand;
 use App\Application\Curriculum\Commands\CreateSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateCurriculumCommand;
@@ -65,6 +66,8 @@ use App\Application\Teachers\Commands\EndCurriculumTeacherCommand;
 use App\Application\Teachers\Commands\EndCurriculumTeacherHandler;
 use App\Application\Teachers\Queries\ListCurriculumTeachersHandler;
 use App\Application\Teachers\Queries\ListCurriculumTeachersQuery;
+use App\Application\Teachers\Queries\ListTeacherOptionsHandler;
+use App\Application\Teachers\Queries\ListTeacherOptionsQuery;
 use App\Http\Requests\Curriculum\AssignCurriculumTeacherRequest;
 use App\Http\Requests\Curriculum\CreateCurriculumPageRequest;
 use App\Http\Requests\Curriculum\EndCurriculumTeacherRequest;
@@ -112,6 +115,7 @@ final class CurriculumPageController extends Controller
         EnrollmentReadRepositoryInterface $enrollmentReads,
         ListSubjectCurriculumUsageHandler $usageHandler,
         ListCurriculumLineStatsHandler $statsHandler,
+        ListTeacherOptionsHandler $teacherOptionsHandler,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -220,6 +224,8 @@ final class CurriculumPageController extends Controller
             'name_en' => $dto->nameEn,
             'subject_type' => $dto->subjectType,
             'subject_types' => $dto->subjectTypes,
+            // type → hours as an object ({"3": 2, "4": 3}).
+            'subject_type_hours' => (object) $dto->subjectTypeHours,
             'credit_hours' => $dto->creditHours,
             'max_grade' => $dto->maxGrade,
             'pass_grade' => $dto->passGrade,
@@ -327,6 +333,10 @@ final class CurriculumPageController extends Controller
             'curricula' => $curriculaPayload,
             'subjects' => $subjectsPayload,
             'linkedSubjects' => $linkedSubjects,
+            // «إنشاء منهج دراسي»: the year's teachers for each subject's «المدرسون».
+            'teacherOptions' => $curriculaPage && $academicYearId !== null
+                ? $teacherOptionsHandler->handle(new ListTeacherOptionsQuery($schoolId, $academicYearId))
+                : [],
             'filters' => [
                 'academic_year_id' => $allCurricula ? null : $academicYearId,
                 'all_curricula' => $allCurricula,
@@ -363,11 +373,18 @@ final class CurriculumPageController extends Controller
 
     public function storeCurriculum(
         CreateCurriculumPageRequest $request,
-        CreateCurriculumHandler $handler,
+        CreateCurriculumWithTeachersHandler $handler,
     ): RedirectResponse {
         $schoolId = $this->schoolContext->requireId();
         $subjectIds = $request->validated('subject_ids') ?? [];
-        $result = $handler->handle(new CreateCurriculumCommand(
+        $teachers = array_map(static fn (array $row): array => [
+            'subject_id' => (int) $row['subject_id'],
+            'subject_type' => isset($row['subject_type']) ? (int) $row['subject_type'] : null,
+            'teacher_id' => (int) $row['teacher_id'],
+            'role' => (int) $row['teacher_role'],
+            'section_id' => isset($row['section_id']) ? (int) $row['section_id'] : null,
+        ], array_values((array) ($request->validated('teachers') ?? [])));
+        $result = $handler->handle(new CreateCurriculumWithTeachersCommand(new CreateCurriculumCommand(
             schoolId: $schoolId,
             academicYearId: (int) $request->validated('academic_year_id'),
             gradeLevelId: (int) $request->validated('grade_level_id'),
@@ -380,8 +397,9 @@ final class CurriculumPageController extends Controller
             departmentId: (int) $request->validated('department_id'),
             branchId: (int) $request->validated('branch_id'),
             classId: (int) $request->validated('class_id'),
-            sectionId: (int) $request->validated('section_id'),
-        ));
+            sectionId: $request->validated('section_id') !== null ? (int) $request->validated('section_id') : null,
+            plannedSubjectCount: (int) $request->validated('planned_subject_count'),
+        ), $teachers));
 
         if ($result->failed()) {
             return redirect()->back()->withErrors([
@@ -418,6 +436,11 @@ final class CurriculumPageController extends Controller
         if ($request->exists('department_id')) {
             $fields['department_id'] = $request->validated('department_id') !== null
                 ? (int) $request->validated('department_id')
+                : null;
+        }
+        if ($request->exists('planned_subject_count')) {
+            $fields['planned_subject_count'] = $request->validated('planned_subject_count') !== null
+                ? (int) $request->validated('planned_subject_count')
                 : null;
         }
 
@@ -539,6 +562,7 @@ final class CurriculumPageController extends Controller
             idempotencyKey: $this->idempotencyKey($request),
             prerequisitesText: $request->validated('prerequisites_text'),
             subjectTypes: array_map('intval', (array) ($request->validated('subject_types') ?? [])),
+            subjectTypeHours: (array) ($request->validated('subject_type_hours') ?? []),
         ));
 
         if ($result->failed()) {
@@ -564,7 +588,7 @@ final class CurriculumPageController extends Controller
         UpdateSubjectHandler $handler,
     ): RedirectResponse {
         $fields = [];
-        foreach (['name', 'name_en', 'subject_type', 'subject_types', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text', 'abbreviation', 'color_hue'] as $key) {
+        foreach (['name', 'name_en', 'subject_type', 'subject_types', 'subject_type_hours', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text', 'abbreviation', 'color_hue'] as $key) {
             if ($request->exists($key)) {
                 $fields[$key] = $request->validated($key);
             }
@@ -741,8 +765,9 @@ final class CurriculumPageController extends Controller
             curriculumSubjectId: $link,
             teacherId: (int) $request->validated('teacher_id'),
             role: (int) $request->validated('teacher_role'),
-            replaceMain: $request->boolean('replace_main'),
             idempotencyKey: $this->idempotencyKey($request),
+            subjectType: $request->validated('subject_type') !== null ? (int) $request->validated('subject_type') : null,
+            sectionId: $request->validated('section_id') !== null ? (int) $request->validated('section_id') : null,
         ));
 
         if ($result->failed()) {
@@ -945,11 +970,15 @@ final class CurriculumPageController extends Controller
                 'id' => $subject->id,
                 'code' => $subject->code,
                 'name' => $subject->name,
+                'name_en' => $subject->nameEn,
                 'subject_type' => $subject->subjectType,
                 'credit_hours' => $subject->creditHours,
                 'max_grade' => $subject->maxGrade,
                 'pass_grade' => $subject->passGrade,
                 'status' => $subject->status,
+                'subject_types' => $subject->subjectTypes,
+                // type → hours as an object ({"3": 2, "4": 3}).
+                'subject_type_hours' => (object) $subject->subjectTypeHours,
             ];
         }
 
@@ -970,12 +999,24 @@ final class CurriculumPageController extends Controller
                 'is_required' => $link->isRequired,
                 'subject_order' => $link->subjectOrder,
                 'status' => $link->status,
+                // The parts a teacher may take (نظري، عملي …).
+                'subject_types' => $subject['subject_types'] ?? [],
+                // The subjects table: «الاسم بالانكليزي», «نوع المادة مع الساعات», «الدرجة العظمى», «درجة النجاح».
+                'subject_name_en' => $subject['name_en'] ?? null,
+                'subject_type' => $subject['subject_type'] ?? null,
+                'subject_type_hours' => $subject['subject_type_hours'] ?? (object) [],
+                'credit_hours' => $subject['credit_hours'] ?? null,
+                'max_grade' => $subject['max_grade'] ?? null,
+                'pass_grade' => $subject['pass_grade'] ?? null,
                 'teachers' => array_map(static fn (array $row): array => [
                     'assignment_id' => $row['assignment_id'],
                     'teacher_id' => $row['teacher_id'],
                     'name' => $row['teacher_name'],
                     'employee_code' => $row['employee_code'],
                     'role' => $row['role'],
+                    'subject_type' => $row['subject_type'],
+                    'section_id' => $row['section_id'],
+                    'section_name' => $row['section_id'] !== null ? ($meta['sectionNames'][$row['section_id']] ?? null) : null,
                 ], $curriculumTeachers['byLine'][$link->id] ?? []),
             ];
 
@@ -1325,6 +1366,7 @@ final class CurriculumPageController extends Controller
             'class_name' => $dto->classId !== null ? ($meta['classNames'][$dto->classId] ?? null) : null,
             'section_id' => $dto->sectionId,
             'section_name' => $dto->sectionId !== null ? ($meta['sectionNames'][$dto->sectionId] ?? null) : null,
+            'planned_subject_count' => $dto->plannedSubjectCount,
             'status' => $dto->status,
             'academic_year_id' => $dto->academicYearId,
             'school_id' => $dto->schoolId,
@@ -1344,6 +1386,10 @@ final class CurriculumPageController extends Controller
         $stats = $statsHandler->handle(new ListCurriculumLineStatsQuery(
             $schoolId,
             array_map(static fn (array $row): int => (int) $row['id'], $rows),
+            array_combine(
+                array_map(static fn (array $row): int => (int) $row['id'], $rows),
+                array_map(static fn (array $row): ?int => $row['planned_subject_count'] ?? null, $rows),
+            ),
         ));
 
         return array_map(static fn (array $row): array => $row + ($stats[(int) $row['id']] ?? []), $rows);

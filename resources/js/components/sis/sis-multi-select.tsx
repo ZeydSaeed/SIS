@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getPortalRoot, placeMenu, type SisListSelectOption } from '@/components/sis/sis-list-select';
+import { useDragScroll } from '@/hooks/use-drag-scroll';
 
 type SisMultiSelectProps = {
     /** The chosen values; empty = «الكل» (nothing is filtered). */
@@ -15,6 +16,10 @@ type SisMultiSelectProps = {
     triggerClassName?: string;
     menuClassName?: string;
     dir?: 'rtl' | 'ltr';
+    /** The trigger lists every chosen name in full, one per line (it grows with them). Default off. */
+    wrapChosen?: boolean;
+    /** The open list shows its scrollbar and is browsed by dragging (mouse or touch), smoothly. Default off. */
+    scrollableMenu?: boolean;
 };
 
 /** The widest text (in characters) a ribbon field shows before it falls back to the count («3 / 10»). */
@@ -35,7 +40,7 @@ export function multiSelectSummary(values: readonly string[], options: readonly 
  * The list control with several choices at once (same look as `SisListSelect`): a first «كل …» row clears the choice,
  * every other row toggles; the menu stays open while choosing.
  */
-export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel, disabled = false, className, triggerClassName, menuClassName, dir = 'rtl' }: SisMultiSelectProps) {
+export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel, disabled = false, className, triggerClassName, menuClassName, dir = 'rtl', wrapChosen = false, scrollableMenu = false }: SisMultiSelectProps) {
     const listId = useId();
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLUListElement>(null);
@@ -49,8 +54,10 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
     const [triggerWidth, setTriggerWidth] = useState(0);
     // Several choices: show every name while they fit the cell, else «n / total» (re-measured when names or width change).
     const [overflowing, setOverflowing] = useState(false);
-    const summary = chosenLabels.length === 0 ? allLabel : chosenLabels.length === 1 || !overflowing ? namesText : countText;
+    const summary = chosenLabels.length === 0 ? allLabel : chosenLabels.length === 1 || !overflowing || wrapChosen ? namesText : countText;
     const isChosen = (value: string) => (value === '' ? values.length === 0 : values.includes(value));
+    // A long list (every teacher) is browsed by dragging; an option is then chosen by a click, not a press.
+    const dragScrollRef = useDragScroll<HTMLUListElement>(open && scrollableMenu, 'input, textarea, button, a');
 
     useEffect(() => {
         const trigger = triggerRef.current;
@@ -120,14 +127,18 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
         open && typeof document !== 'undefined'
             ? createPortal(
                   <ul
-                      ref={menuRef}
+                      ref={(node) => {
+                          menuRef.current = node;
+                          dragScrollRef(node);
+                      }}
                       id={listId}
                       role="listbox"
                       aria-multiselectable="true"
                       dir={dir}
                       data-sis-list-select=""
                       data-sis-align-exempt=""
-                      className={`sis-list-select__menu sis-list-select__menu--multi sis-scroll-hidden${menuClassName ? ` ${menuClassName}` : ''}`}
+                      className={`sis-list-select__menu sis-list-select__menu--multi${scrollableMenu ? '' : ' sis-scroll-hidden'}${menuClassName ? ` ${menuClassName}` : ''}`}
+                      style={scrollableMenu ? { overflowY: 'auto', scrollbarWidth: 'thin' } : undefined}
                       aria-label={ariaLabel}
                   >
                       {rows.map((row, index) => (
@@ -140,9 +151,14 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
                               onMouseEnter={() => setActiveIndex(index)}
                               onPointerDown={(event) => {
                                   event.preventDefault();
+                                  if (scrollableMenu) {
+                                      // Left to the list: a drag scrolls it, a click (below) chooses.
+                                      return;
+                                  }
                                   event.stopPropagation();
                                   toggle(row.value);
                               }}
+                              onClick={scrollableMenu ? () => toggle(row.value) : undefined}
                           >
                               <span className="sis-list-select__check" aria-hidden="true">
                                   {isChosen(row.value) ? '✓' : ''}
@@ -164,6 +180,7 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
                 disabled={disabled}
                 dir={dir}
                 className={`sis-list-select__trigger${triggerClassName ? ` ${triggerClassName}` : ''}`}
+                style={wrapChosen ? { height: 'auto', minHeight: '2.15rem', alignItems: 'flex-start' } : undefined}
                 aria-label={ariaLabel}
                 aria-haspopup="listbox"
                 aria-expanded={open}
@@ -204,9 +221,25 @@ export function SisMultiSelect({ values, options, onChange, allLabel, ariaLabel,
                     }
                 }}
             >
-                <span ref={valueRef} className="sis-list-select__value" title={namesText || undefined}>
-                    {summary}
-                </span>
+                {wrapChosen && chosenLabels.length > 0 ? (
+                    // Each chosen name in full on its own line; the field grows with them.
+                    <span
+                        ref={valueRef}
+                        className="sis-list-select__value"
+                        title={chosenLabels.join('\n')}
+                        style={{ display: 'block', overflow: 'visible', lineHeight: 1.35, whiteSpace: 'nowrap', textOverflow: 'clip' }}
+                    >
+                        {chosenLabels.map((label) => (
+                            <span key={label} style={{ display: 'block' }}>
+                                {label}
+                            </span>
+                        ))}
+                    </span>
+                ) : (
+                    <span ref={valueRef} className="sis-list-select__value" title={namesText || undefined}>
+                        {summary}
+                    </span>
+                )}
             </button>
             {menu}
         </span>

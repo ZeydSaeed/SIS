@@ -67,6 +67,7 @@ final class ListCurriculaHandler
             branchId: $row->branchId,
             classId: $row->classId,
             sectionId: $row->sectionId,
+            plannedSubjectCount: $row->plannedSubjectCount,
         );
     }
 }

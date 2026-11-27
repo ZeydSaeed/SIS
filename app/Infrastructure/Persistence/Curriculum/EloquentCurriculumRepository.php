@@ -13,7 +13,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
 {
     private const COLUMNS = [
         'id', 'school_id', 'academic_year_id', 'grade_level_id', 'specialization_id', 'department_id', 'name', 'status',
-        'branch_id', 'class_id', 'section_id',
+        'branch_id', 'class_id', 'section_id', 'planned_subject_count',
     ];
 
     public function gradeLevelExists(int $gradeLevelId): bool
@@ -139,6 +139,29 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->exists();
     }
 
+    public function activeClassScopeExists(
+        int $schoolId,
+        int $academicYearId,
+        int $branchId,
+        ?int $departmentId,
+        int $classId,
+        ?int $exceptCurriculumId = null,
+    ): bool {
+        $this->bindSchool($schoolId);
+
+        // Same predicate as the partial unique index curricula_active_class_scope_unique.
+        return DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('branch_id', $branchId)
+            ->whereRaw('COALESCE(department_id, 0) = ?', [$departmentId ?? 0])
+            ->where('class_id', $classId)
+            ->whereNull('section_id')
+            ->where('status', CurriculumStatus::Active->value)
+            ->when($exceptCurriculumId !== null, fn ($q) => $q->where('id', '<>', $exceptCurriculumId))
+            ->exists();
+    }
+
     public function hasLineTeachers(int $schoolId, int $curriculumId): bool
     {
         $this->bindSchool($schoolId);
@@ -158,25 +181,34 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         }
         $this->bindSchool($schoolId);
 
-        // Lines that have an active main teacher (at most one per line — partial unique index).
-        $mains = DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments'))
-            ->select('curriculum_subject_id')
-            ->where('school_id', $schoolId)
-            ->where('status', 1)
-            ->where('role', 1)
-            ->whereNotNull('curriculum_subject_id');
+        // A line is staffed when it has a main teacher and, for every part of the subject (each of its types) and every
+        // section it is taught in — the curriculum's own section, else each active section of its class (none: the
+        // class as a whole) — some active main teacher covers both: his part is that part or the whole subject
+        // (subject_type NULL), his section is that section or all sections (section_id NULL).
+        $main = "SELECT 1 FROM teachers.teaching_assignments ta WHERE ta.curriculum_subject_id = cs.id AND ta.school_id = ?
+            AND ta.status = 1 AND ta.role = 1";
+        $sections = "SELECT c.section_id AS id WHERE c.section_id IS NOT NULL
+            UNION ALL SELECT s.id FROM enrollment.sections s WHERE c.section_id IS NULL AND s.class_id = c.class_id AND s.status = 1
+            UNION ALL SELECT NULL WHERE c.section_id IS NULL
+                AND NOT EXISTS (SELECT 1 FROM enrollment.sections s2 WHERE s2.class_id = c.class_id AND s2.status = 1)";
+        $staffed = "COUNT(*) FILTER (WHERE EXISTS ({$main}) AND NOT EXISTS (
+                SELECT 1 FROM curriculum.subject_types st CROSS JOIN LATERAL ({$sections}) sec
+                WHERE st.subject_id = cs.subject_id
+                AND NOT EXISTS ({$main} AND (ta.subject_type IS NULL OR ta.subject_type = st.subject_type)
+                    AND (ta.section_id IS NULL OR ta.section_id = sec.id)))) AS staffed";
 
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'curriculum_subjects').' as cs')
-            ->leftJoinSub($mains, 'm', 'm.curriculum_subject_id', '=', 'cs.id')
+            ->join(SchemaHelper::qualified('curriculum', 'curricula').' as c', 'c.id', '=', 'cs.curriculum_id')
             ->whereIn('cs.curriculum_id', $ids)
             ->where('cs.status', 1)
             ->groupBy('cs.curriculum_id')
-            ->get([
+            ->select([
                 'cs.curriculum_id',
                 DB::raw('COUNT(*) AS subjects'),
                 DB::raw('COALESCE(SUM(cs.weekly_hours), 0) AS hours'),
-                DB::raw('COUNT(m.curriculum_subject_id) AS staffed'),
-            ]);
+            ])
+            ->selectRaw($staffed, [$schoolId, $schoolId])
+            ->get();
 
         $stats = [];
         foreach ($rows as $row) {
@@ -201,6 +233,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         ?int $branchId = null,
         ?int $classId = null,
         ?int $sectionId = null,
+        ?int $plannedSubjectCount = null,
     ): int {
         $this->bindSchool($schoolId);
         // The department is the single source; the specialization is its 1:1 mirror, filled unless one is given.
@@ -216,6 +249,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             'branch_id' => $branchId ?? $this->branchOfDepartment($departmentId),
             'class_id' => $classId,
             'section_id' => $sectionId,
+            'planned_subject_count' => $plannedSubjectCount,
             'name' => $name,
             'status' => CurriculumStatus::Active->value,
             'created_at' => $createdAt,
@@ -340,7 +374,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             ->get([
                 'c.id', 'c.school_id', 'c.academic_year_id', 'c.grade_level_id',
                 'c.specialization_id', 'c.department_id', 'c.name', 'c.status',
-                'c.branch_id', 'c.class_id', 'c.section_id',
+                'c.branch_id', 'c.class_id', 'c.section_id', 'c.planned_subject_count',
             ]);
 
         return [
@@ -406,6 +440,9 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         }
         if (array_key_exists('specialization_id', $fields)) {
             $payload['specialization_id'] = $fields['specialization_id'];
+        }
+        if (array_key_exists('planned_subject_count', $fields)) {
+            $payload['planned_subject_count'] = $fields['planned_subject_count'];
         }
         if (array_key_exists('department_id', $fields)) {
             $payload['department_id'] = $fields['department_id'];
@@ -640,6 +677,7 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
             branchId: isset($row->branch_id) ? (int) $row->branch_id : null,
             classId: isset($row->class_id) ? (int) $row->class_id : null,
             sectionId: isset($row->section_id) ? (int) $row->section_id : null,
+            plannedSubjectCount: isset($row->planned_subject_count) ? (int) $row->planned_subject_count : null,
         );
     }
 

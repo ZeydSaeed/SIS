@@ -24,6 +24,7 @@ class UpdateCurriculumRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'specialization_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'department_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'planned_subject_count' => ['sometimes', 'nullable', 'integer', 'between:1,200'],
             'academic_year_id' => ['prohibited'],
             'grade_level_id' => ['prohibited'],
             'school_id' => ['prohibited'],
@@ -35,7 +36,7 @@ class UpdateCurriculumRequest extends FormRequest
     {
         $this->idempotencyWithValidator($validator);
         $validator->after(function (Validator $validator): void {
-            if (! $this->exists('name') && ! $this->exists('specialization_id') && ! $this->exists('department_id')) {
+            if (! $this->exists('name') && ! $this->exists('specialization_id') && ! $this->exists('department_id') && ! $this->exists('planned_subject_count')) {
                 $validator->errors()->add('fields', 'At least one of name, specialization_id or department_id is required.');
             }
         });

@@ -1,13 +1,17 @@
 import { router, usePage } from '@inertiajs/react';
-import { BookOpen, ListChecks, Pencil, Plus } from 'lucide-react';
+import { BookOpen, CircleSlash, Clock, ListChecks, Pencil, Plus, RotateCcw, Trash2, UserMinus, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CurriculumPlanSheetDialog } from '@/components/curriculum/curriculum-plan-sheet';
+import { TypeHourTotalsBar } from '@/components/curriculum/type-hour-totals';
 import {
     LinkSubjectDialog,
     newIdempotencyKey,
+    orderSubjectTypes,
+    subjectTypeLabel,
     patchWithIdempotency,
     postWithIdempotency,
     statusLabel,
+    subjectTypesWithHoursLabel,
     type CurriculumFilterOptions,
     type CurriculumLineTeacher,
     type CurriculumPagination,
@@ -20,6 +24,7 @@ import { ConfirmDialog } from '@/components/sis/confirm-dialog';
 import { DataTable, type DataTableColumn } from '@/components/sis/data-table';
 import { OpsFormField, OpsTextInput } from '@/components/sis/ops-form-field';
 import { PageHeader } from '@/components/sis/page-header';
+import { sisListPageClass } from '@/components/sis/page-theme';
 import type { ChromeTabId } from '@/components/sis/chrome-tabs';
 import {
     useActivePageRibbonTab,
@@ -41,6 +46,7 @@ import {
     collectInertiaErrorMessages,
     resolveErrorMessage,
 } from '@/lib/format-inertia-errors';
+import { typeHourTotals } from '@/lib/subject-type-order';
 
 export type PrerequisiteRow = {
     id: number;
@@ -98,6 +104,7 @@ export type CurriculumShowProps = {
 
 type ConfirmState =
     | { kind: 'link-delete'; id: number }
+    | { kind: 'links-delete'; ids: number[] }
     | { kind: 'prereq-delete'; id: number }
     | { kind: 'plan-delete' }
     | { kind: 'link-deactivate'; id: number }
@@ -184,10 +191,17 @@ export function CurriculumDetail(props: CurriculumShowProps) {
     const [teacherAssign, setTeacherAssign] = useState<{
         lineId: number;
         name: string;
-        hasMain: boolean;
+        /** The subject's parts ('' = the whole subject) and the line's main teachers by part. */
+        parts: string[];
+        mains: string[];
+        part: string;
         teacherId: string;
-        mode: 'main' | 'assistant' | 'replace';
+        mode: 'main' | 'assistant';
+        /** The section taught ('' = all sections of the class). */
+        section: string;
     } | null>(null);
+    /** A part (or the whole subject, '') has its main teacher; a whole-subject main covers every part. */
+    const partHasMain = (mains: string[], part: string): boolean => mains.includes(part) || mains.includes('');
 
     const visitShow = (overrides: Record<string, string | number | null | undefined> = {}): void => {
         const next = {
@@ -341,187 +355,160 @@ export function CurriculumDetail(props: CurriculumShowProps) {
         row.theory_hours != null || row.practical_hours != null
             ? { theory: row.theory_hours ?? null, practical: row.practical_hours ?? null }
             : { theory: row.weekly_hours, practical: null };
-    const hoursCell = (value: number | null) =>
-        value !== null && value > 0 ? <span dir="ltr">{value}</span> : '—';
-    const hoursTotals = activeLinkedSubjects.reduce(
-        (sum, row) => {
-            const split = splitOf(row);
-
-            return {
-                theory: sum.theory + (split.theory ?? 0),
-                practical: sum.practical + (split.practical ?? 0),
-            };
-        },
-        { theory: 0, practical: 0 },
+    /** «تحديد» of the subjects table: the lines the «تحرير» commands act on. */
+    const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
+    /** «إلغاء إسناد مدرس»: the line whose teachers are listed. */
+    const [teacherRemoveLineId, setTeacherRemoveLineId] = useState<number | null>(null);
+    const selectedLines = useMemo(
+        () => linkedSubjects.filter((row) => selectedLineIds.includes(row.id)),
+        [linkedSubjects, selectedLineIds],
     );
+    const singleLine = selectedLines.length === 1 ? (selectedLines[0] ?? null) : null;
+    const allLinesSelected = linkedSubjects.length > 0 && selectedLines.length === linkedSubjects.length;
+    const toggleLine = (id: number): void =>
+        setSelectedLineIds((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
+    // Drop selections of lines that are gone (deleted / reloaded).
+    useEffect(() => {
+        setSelectedLineIds((current) => current.filter((id) => linkedSubjects.some((row) => row.id === id)));
+    }, [linkedSubjects]);
 
-    const linkedColumns: DataTableColumn<LinkedSubjectRow>[] = [
-        {
-            id: 'subject',
-            header: c.subjectName,
-            cell: (row) => row.subject_name ?? <span dir="ltr">{row.subject_id}</span>,
-        },
-        {
-            id: 'code',
-            header: c.subjectCode,
-            cell: (row) =>
-                row.subject_code ? <span dir="ltr">{row.subject_code}</span> : '—',
-            hideOnMobile: true,
-        },
-        {
-            id: 'theory',
-            header: c.theoryHours,
-            cell: (row) => hoursCell(splitOf(row).theory),
-        },
-        {
-            id: 'practical',
-            header: c.practicalHours,
-            cell: (row) => hoursCell(splitOf(row).practical),
-        },
-        {
-            id: 'hours',
-            header: c.totalHours,
-            cell: (row) => hoursCell(row.weekly_hours),
-        },
-        {
-            id: 'required',
-            header: c.isRequired,
-            cell: (row) => (row.is_required ? c.requiredYes : c.requiredNo),
-        },
-        {
-            id: 'order',
-            header: c.subjectOrder,
-            cell: (row) => <span dir="ltr">{row.subject_order}</span>,
-            hideOnMobile: true,
-        },
-        {
-            id: 'teachers',
-            header: c.teachers,
-            cell: (row) => {
-                const teachers: CurriculumLineTeacher[] = row.teachers ?? [];
-                if (teachers.length === 0) {
-                    return c.noTeacher;
-                }
+    const teachersOf = (row: LinkedSubjectRow, role: 1 | 2): CurriculumLineTeacher[] =>
+        (row.teachers ?? []).filter((teacher) => teacher.role === role);
+    const teacherText = (teacher: CurriculumLineTeacher): string =>
+        [
+            teacher.name,
+            teacher.subject_type ? subjectTypeLabel(teacher.subject_type, c) : null,
+            teacher.section_name ?? null,
+        ]
+            .filter(Boolean)
+            .join(' — ');
 
-                return (
-                    <span className="flex flex-col gap-1">
-                        {teachers.map((teacher) => (
-                            <span key={teacher.assignment_id} className="flex flex-wrap items-center gap-1">
-                                <span>
-                                    {teacher.name} ({teacher.role === 1 ? c.mainTeacher : c.assistantTeacher})
-                                </span>
-                                {canManage && row.status === 1 ? (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            setConfirm({
-                                                kind: 'teacher-remove',
-                                                lineId: row.id,
-                                                assignmentId: teacher.assignment_id,
-                                            })
-                                        }
-                                    >
-                                        {c.removeTeacher}
-                                    </Button>
-                                ) : null}
-                            </span>
-                        ))}
-                    </span>
-                );
+    const openTeacherAssign = (row: LinkedSubjectRow): void => {
+        const mains = teachersOf(row, 1).map((teacher) => (teacher.subject_type ? String(teacher.subject_type) : ''));
+        const types = row.subject_types ?? [];
+        const parts = types.length > 1 ? ['', ...orderSubjectTypes(types).map(String)] : [''];
+        const part = mains.length > 0 && !mains.includes('') ? (mains[0] ?? '') : parts.length > 1 ? (parts[1] ?? '') : '';
+        setTeacherAssign({
+            lineId: row.id,
+            name: row.subject_name ?? String(row.subject_id),
+            parts,
+            mains,
+            part,
+            teacherId: '',
+            mode: partHasMain(mains, part) ? 'assistant' : 'main',
+            section: curriculum.section_id ? String(curriculum.section_id) : '',
+        });
+    };
+
+    const openHoursEdit = (row: LinkedSubjectRow): void => {
+        const split = splitOf(row);
+        setHoursEdit({
+            id: row.id,
+            name: row.subject_name ?? String(row.subject_id),
+            theory: split.theory === null ? '' : String(split.theory),
+            practical: split.practical === null ? '' : String(split.practical),
+        });
+    };
+
+    /** «نوع المادة مع الساعات» and the totals under the table: the subject's own types and hours. */
+    const subjectHoursSource = (row: LinkedSubjectRow) => ({
+        subject_type: row.subject_type ?? row.subject_types?.[0] ?? 1,
+        subject_types: row.subject_types,
+        subject_type_hours: row.subject_type_hours,
+        credit_hours: row.credit_hours ?? row.weekly_hours,
+    });
+    const typeTotals = typeHourTotals(activeLinkedSubjects.map(subjectHoursSource));
+
+    const editRibbonGroups = useMemo((): PageRibbonGroup[] => {
+        if (!canManage) {
+            return [];
+        }
+        const open = curriculum.status === 1;
+
+        return [
+            {
+                id: 'curriculum-show-edit-plan',
+                label: c.editRibbonCurriculum,
+                commands: [
+                    ...(open
+                        ? [{ id: 'edit-plan', label: c.editPlan, icon: Pencil, tone: 'edit' as const, onSelect: () => setPlanDialogOpen(true) }]
+                        : []),
+                    {
+                        id: 'delete-plan',
+                        label: c.deleteCurriculum,
+                        icon: Trash2,
+                        tone: 'delete' as const,
+                        onSelect: () => setConfirm({ kind: 'plan-delete' }),
+                    },
+                ],
             },
-        },
-        {
-            id: 'status',
-            header: i18n.common.status,
-            cell: (row) => statusLabel(row.status, i18n.status.active, i18n.status.inactive),
-        },
-        {
-            id: 'actions',
-            header: c.actions,
-            cell: (row) =>
-                canManage ? (
-                    row.status === 1 ? (
-                        <span className="flex flex-wrap gap-1">
-                            {curriculum.status === 1 ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const hasMain = (row.teachers ?? []).some((teacher) => teacher.role === 1);
-                                        setTeacherAssign({
-                                            lineId: row.id,
-                                            name: row.subject_name ?? String(row.subject_id),
-                                            hasMain,
-                                            teacherId: '',
-                                            mode: hasMain ? 'assistant' : 'main',
-                                        });
-                                    }}
-                                >
-                                    {c.assignTeacher}
-                                </Button>
-                            ) : null}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    const split = splitOf(row);
-                                    setHoursEdit({
-                                        id: row.id,
-                                        name: row.subject_name ?? String(row.subject_id),
-                                        theory: split.theory === null ? '' : String(split.theory),
-                                        practical: split.practical === null ? '' : String(split.practical),
-                                    });
-                                }}
-                            >
-                                {c.editHours}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirm({ kind: 'link-deactivate', id: row.id })}
-                            >
-                                {c.deactivate}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setConfirm({ kind: 'link-delete', id: row.id })}
-                            >
-                                {i18n.common.delete}
-                            </Button>
-                        </span>
-                    ) : (
-                        <span className="flex flex-wrap gap-1">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirm({ kind: 'link-reactivate', id: row.id })}
-                            >
-                                {c.reactivate}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setConfirm({ kind: 'link-delete', id: row.id })}
-                            >
-                                {i18n.common.delete}
-                            </Button>
-                        </span>
-                    )
-                ) : (
-                    '—'
-                ),
-        },
-    ];
+            {
+                id: 'curriculum-show-edit-subjects',
+                label: c.editRibbonSubjects,
+                commands: [
+                    ...(open
+                        ? [{ id: 'link-subject', label: c.addLinkedSubject, icon: Plus, onSelect: () => setLinkDialogOpen(true) }]
+                        : []),
+                    {
+                        id: 'edit-hours',
+                        label: c.editHours,
+                        icon: Clock,
+                        disabled: singleLine === null || singleLine.status !== 1,
+                        title: c.selectOneSubject,
+                        onSelect: () => (singleLine ? openHoursEdit(singleLine) : undefined),
+                    },
+                    ...(open
+                        ? [
+                              {
+                                  id: 'assign-teacher',
+                                  label: c.assignTeacher,
+                                  icon: UserPlus,
+                                  disabled: singleLine === null || singleLine.status !== 1,
+                                  title: c.selectOneSubject,
+                                  onSelect: () => (singleLine ? openTeacherAssign(singleLine) : undefined),
+                              },
+                          ]
+                        : []),
+                    {
+                        id: 'remove-teacher',
+                        label: c.removeTeacher,
+                        icon: UserMinus,
+                        disabled: singleLine === null || (singleLine.teachers ?? []).length === 0,
+                        title: c.selectOneSubject,
+                        onSelect: () => (singleLine ? setTeacherRemoveLineId(singleLine.id) : undefined),
+                    },
+                    singleLine !== null && singleLine.status !== 1
+                        ? {
+                              id: 'reactivate-line',
+                              label: c.reactivate,
+                              icon: RotateCcw,
+                              onSelect: () => setConfirm({ kind: 'link-reactivate', id: singleLine.id }),
+                          }
+                        : {
+                              id: 'deactivate-line',
+                              label: c.deactivate,
+                              icon: CircleSlash,
+                              disabled: singleLine === null,
+                              title: c.selectOneSubject,
+                              onSelect: () => (singleLine ? setConfirm({ kind: 'link-deactivate', id: singleLine.id }) : undefined),
+                          },
+                    {
+                        id: 'delete-lines',
+                        label: c.removeLinkedSubject,
+                        icon: Trash2,
+                        tone: 'delete' as const,
+                        disabled: selectedLines.length === 0,
+                        title: c.selectSubjects,
+                        onSelect: () => setConfirm({ kind: 'links-delete', ids: selectedLines.map((row) => row.id) }),
+                    },
+                ],
+            },
+        ];
+        // openHoursEdit / openTeacherAssign read the latest row when pressed.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [c, canManage, curriculum.status, curriculum.section_id, selectedLines, singleLine]);
 
+    useRegisterPageRibbon('edit', editRibbonGroups);
     const prereqColumns: DataTableColumn<PrerequisiteRow>[] = [
         {
             id: 'subject',
@@ -637,6 +624,35 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             case 'link-delete':
                 router.post(`/curriculum/curriculum-subjects/${confirm.id}/delete`, {}, { preserveScroll: true, onFinish: done });
                 break;
+            case 'links-delete': {
+                // One after another: each «حذف آمن» reloads the page; a refusal stops the rest.
+                const queue = [...confirm.ids];
+                const next = (): void => {
+                    const id = queue.shift();
+                    if (id === undefined) {
+                        setSelectedLineIds([]);
+                        done();
+
+                        return;
+                    }
+                    router.post(`/curriculum/curriculum-subjects/${id}/delete`, {}, {
+                        preserveScroll: true,
+                        onSuccess: (visit) => {
+                            const errors = (visit.props.errors ?? {}) as Record<string, unknown>;
+                            if (Object.keys(errors).length > 0) {
+                                done();
+
+                                return;
+                            }
+                            next();
+                        },
+                        onError: () => done(),
+                        onCancel: () => done(),
+                    });
+                };
+                next();
+                break;
+            }
             case 'prereq-delete':
                 router.post(`/curriculum/prerequisites/${confirm.id}/delete`, {}, { preserveScroll: true, onFinish: done });
                 break;
@@ -698,6 +714,14 @@ export function CurriculumDetail(props: CurriculumShowProps) {
         switch (confirm.kind) {
             case 'link-delete':
                 return { title: i18n.common.delete, description: c.deleteLinkConfirm };
+            case 'links-delete':
+                return {
+                    title: c.removeLinkedSubject,
+                    description:
+                        confirm.ids.length === 1
+                            ? c.deleteLinkConfirm
+                            : c.deleteLinksConfirm.replace(':n', String(confirm.ids.length)),
+                };
             case 'prereq-delete':
                 return { title: i18n.common.delete, description: c.deletePrerequisiteConfirm };
             case 'plan-delete':
@@ -741,7 +765,7 @@ export function CurriculumDetail(props: CurriculumShowProps) {
     ];
 
     return (
-        <div className="sis-ops-hub flex flex-col gap-4 p-4" dir="rtl" lang="ar">
+        <div className={`${sisListPageClass({ enrollments: false, hiddenScroll: true })} gap-4 p-4`} dir="rtl" lang="ar">
             <PageHeader
                 title={curriculum.name}
                 description={c.showDescription}
@@ -753,19 +777,24 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                 }
             />
 
+            {/* Above the table: الفرع · الاختصاص · الصف · الشعبة. */}
+            <dl
+                className="grid grid-cols-2 gap-2 rounded-md border border-[color:var(--sis-powder-blue)] p-2 text-center sm:grid-cols-4"
+                aria-label={c.showTitle}
+            >
+                {[
+                    [c.branch, curriculum.branch_name ?? '—'],
+                    [c.department, curriculum.department_name ?? '—'],
+                    [c.gradeLevel, curriculum.grade_level_name ?? String(curriculum.grade_level_id)],
+                    [c.section, curriculum.section_name ?? '—'],
+                ].map(([label, value]) => (
+                    <div key={label}>
+                        <dt className="text-muted-foreground text-xs">{label}</dt>
+                        <dd className="text-base font-semibold">{value}</dd>
+                    </div>
+                ))}
+            </dl>
             <div className="text-muted-foreground flex flex-wrap gap-3 text-sm">
-                <span>
-                    {c.branch}: {curriculum.branch_name ?? '—'}
-                </span>
-                <span>
-                    {c.department}: {curriculum.department_name ?? '—'}
-                </span>
-                <span>
-                    {c.gradeLevel}: {curriculum.grade_level_name ?? curriculum.grade_level_id}
-                </span>
-                <span>
-                    {c.section}: {curriculum.section_name ?? '—'}
-                </span>
                 <span>
                     {c.planCompleteness}: {curriculum.is_complete ? c.planComplete : c.planIncomplete} (
                     {c.planCompletenessDetail
@@ -773,6 +802,14 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                         .replace(':total', String(curriculum.subject_count ?? 0))}
                     )
                 </span>
+                {curriculum.planned_subject_count ? (
+                    <span>
+                        {c.subjectsProgress
+                            .replace(':n', String(curriculum.subject_count ?? 0))
+                            .replace(':planned', String(curriculum.planned_subject_count))
+                            .replace(':percent', String(curriculum.subjects_percent ?? 0))}
+                    </span>
+                ) : null}
                 <span>
                     {i18n.common.status}:{' '}
                     {statusLabel(curriculum.status, i18n.status.active, i18n.status.inactive)}
@@ -829,54 +866,104 @@ export function CurriculumDetail(props: CurriculumShowProps) {
             ) : null}
 
             {activeTab === 'subjects' ? (
-                <section className="flex flex-col gap-2" role="tabpanel">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-lg font-semibold">{c.linkedSubjectsTitle}</h2>
-                        {canManage && curriculum.status === 1 ? (
-                            <Button type="button" size="sm" onClick={() => setLinkDialogOpen(true)}>
-                                <Plus className="size-4" aria-hidden />
-                                {c.addLinkedSubject}
-                            </Button>
-                        ) : null}
-                    </div>
-                    <DataTable
-                        columns={linkedColumns}
-                        rows={linkedSubjects}
-                        rowKey={(row) => row.id}
-                        emptyTitle={c.linkedEmptyTitle}
-                        emptyDescription={c.linkedEmptyDesc}
-                        caption={c.linkedSubjectsCaption}
-                        mobileCard={(row) => (
-                            <div className="rounded-md border border-[color:var(--sis-powder-blue)] bg-[color-mix(in_srgb,var(--sis-powder-blue)_18%,white)] p-3">
-                                <div className="font-semibold">
-                                    {row.subject_name ?? row.subject_id}
-                                </div>
-                                <div className="text-sm opacity-80">
-                                    {row.is_required ? c.requiredYes : c.requiredNo}
-                                </div>
+                <section className="flex flex-col gap-2" role="tabpanel" aria-label={c.linkedSubjectsTitle}>
+                    <h2 className="text-lg font-semibold">{c.linkedSubjectsTitle}</h2>
+                    {linkedSubjects.length === 0 ? (
+                        <p className="px-1 py-2 text-sm">
+                            {c.linkedEmptyTitle} — {c.linkedEmptyDesc}
+                        </p>
+                    ) : (
+                        <div className="sis-admission-periods-table sis-admission-drafts-table">
+                            <div className="sis-admission-drafts-table__scroller">
+                                <table>
+                                    <caption className="sr-only">{c.linkedSubjectsCaption}</caption>
+                                    <thead>
+                                        <tr>
+                                            <th className="sis-admission-drafts-table__select">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={allLinesSelected}
+                                                    onChange={() =>
+                                                        setSelectedLineIds(allLinesSelected ? [] : linkedSubjects.map((row) => row.id))
+                                                    }
+                                                    aria-label={c.selectAllVisible}
+                                                />
+                                            </th>
+                                            <th className="sis-admission-drafts-table__name-head">{c.subjectName}</th>
+                                            <th className="sis-admission-drafts-table__name-head">{c.subjectNameEn}</th>
+                                            <th>{c.subjectTypeWithHours}</th>
+                                            <th>{c.maxGrade}</th>
+                                            <th>{c.passGrade}</th>
+                                            <th>{c.mainTeacher}</th>
+                                            <th>{c.assistantTeacherColumn}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {linkedSubjects.map((row) => {
+                                            const selected = selectedLineIds.includes(row.id);
+                                            const name = row.subject_name ?? String(row.subject_id);
+                                            const mains = teachersOf(row, 1);
+                                            const assistants = teachersOf(row, 2);
+
+                                            return (
+                                                <tr
+                                                    key={row.id}
+                                                    className={selected ? 'sis-admission-periods-table__row--selected' : undefined}
+                                                    onClick={() => toggleLine(row.id)}
+                                                >
+                                                    <td className="sis-admission-drafts-table__select">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selected}
+                                                            onChange={() => toggleLine(row.id)}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            aria-label={name}
+                                                        />
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__name">
+                                                        {name}
+                                                        {row.status !== 1 ? ` ${c.inactiveSuffix}` : ''}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__name" dir="ltr">
+                                                        {row.subject_name_en?.trim() ? row.subject_name_en : '—'}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text">
+                                                        {subjectTypesWithHoursLabel(subjectHoursSource(row), c)}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text" dir="ltr">
+                                                        {row.max_grade ?? '—'}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text" dir="ltr">
+                                                        {row.pass_grade ?? '—'}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text">
+                                                        {mains.length === 0
+                                                            ? c.noTeacher
+                                                            : mains.map((teacher) => (
+                                                                  <span key={teacher.assignment_id} className="block">
+                                                                      {teacherText(teacher)}
+                                                                  </span>
+                                                              ))}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text">
+                                                        {assistants.length === 0
+                                                            ? c.noAssistant
+                                                            : assistants.map((teacher) => (
+                                                                  <span key={teacher.assignment_id} className="block">
+                                                                      {teacherText(teacher)}
+                                                                  </span>
+                                                              ))}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
-                        )}
-                    />
-                    {/* Plan totals (active subjects): مجموع النظري · مجموع العملي · المجموع الكلي. */}
-                    {activeLinkedSubjects.length > 0 ? (
-                        <dl
-                            className="grid grid-cols-3 gap-2 rounded-md border border-[color:var(--sis-powder-blue)] p-3 text-center"
-                            aria-label={c.totalAll}
-                        >
-                            {[
-                                [c.totalTheory, hoursTotals.theory],
-                                [c.totalPractical, hoursTotals.practical],
-                                [c.totalAll, hoursTotals.theory + hoursTotals.practical],
-                            ].map(([label, value]) => (
-                                <div key={String(label)}>
-                                    <dt className="text-muted-foreground text-sm">{label}</dt>
-                                    <dd className="text-lg font-semibold" dir="ltr">
-                                        {value}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                    ) : null}
+                        </div>
+                    )}
+                    {/* Under the table: مجموع ساعات الأساسي · الاختصاص · النظري · العملي · الكلي (active subjects). */}
+                    {activeLinkedSubjects.length > 0 ? <TypeHourTotalsBar totals={typeTotals} /> : null}
                 </section>
             ) : null}
 
@@ -1247,7 +1334,8 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                                 postWithIdempotency(`/curriculum/curriculum-subjects/${teacherAssign.lineId}/teachers`, {
                                     teacher_id: Number(teacherAssign.teacherId),
                                     teacher_role: teacherAssign.mode === 'assistant' ? 2 : 1,
-                                    replace_main: teacherAssign.mode === 'replace',
+                                    subject_type: teacherAssign.part === '' ? null : Number(teacherAssign.part),
+                                    section_id: teacherAssign.section === '' ? null : Number(teacherAssign.section),
                                 });
                                 setTeacherAssign(null);
                             }}
@@ -1269,24 +1357,54 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                                     onChange={(value) => setTeacherAssign({ ...teacherAssign, teacherId: value })}
                                 />
                             </OpsFormField>
+                            {teacherAssign.parts.length > 1 ? (
+                                <OpsFormField label={c.teachingPart} name="subject_type">
+                                    <SisListSelect
+                                        name="subject_type"
+                                        ariaLabel={c.teachingPart}
+                                        value={teacherAssign.part}
+                                        options={teacherAssign.parts.map((part) => ({
+                                            value: part,
+                                            label: part === '' ? c.wholeSubject : subjectTypeLabel(Number(part), c),
+                                        }))}
+                                        onChange={(value) =>
+                                            setTeacherAssign({
+                                                ...teacherAssign,
+                                                part: value,
+                                                mode: partHasMain(teacherAssign.mains, value) ? 'assistant' : 'main',
+                                            })
+                                        }
+                                    />
+                                </OpsFormField>
+                            ) : null}
+                            {curriculum.section_id ? null : (
+                                <OpsFormField label={c.section} name="section_id">
+                                    <SisListSelect
+                                        name="section_id"
+                                        ariaLabel={c.section}
+                                        value={teacherAssign.section}
+                                        options={[
+                                            { value: '', label: c.allSections },
+                                            ...(filterOptions.sections ?? [])
+                                                .filter((section) => section.class_id === curriculum.class_id)
+                                                .map((section) => ({ value: String(section.id), label: section.name })),
+                                        ]}
+                                        onChange={(value) => setTeacherAssign({ ...teacherAssign, section: value })}
+                                    />
+                                </OpsFormField>
+                            )}
                             <OpsFormField label={c.teacherRole} name="teacher_role">
                                 <SisListSelect
                                     name="teacher_role"
                                     ariaLabel={c.teacherRole}
                                     value={teacherAssign.mode}
-                                    options={
-                                        teacherAssign.hasMain
-                                            ? [
-                                                  { value: 'assistant', label: c.assistantTeacher },
-                                                  { value: 'replace', label: c.replaceMainTeacher },
-                                              ]
-                                            : [{ value: 'main', label: c.mainTeacher }]
-                                    }
+                                    options={[
+                                        // Several main teachers are allowed; an assistant needs one (the server checks).
+                                        { value: 'main', label: c.mainTeacher },
+                                        { value: 'assistant', label: c.assistantTeacher },
+                                    ]}
                                     onChange={(value) =>
-                                        setTeacherAssign({
-                                            ...teacherAssign,
-                                            mode: value === 'replace' ? 'replace' : value === 'assistant' ? 'assistant' : 'main',
-                                        })
+                                        setTeacherAssign({ ...teacherAssign, mode: value === 'assistant' ? 'assistant' : 'main' })
                                     }
                                 />
                             </OpsFormField>
@@ -1300,6 +1418,62 @@ export function CurriculumDetail(props: CurriculumShowProps) {
                             </div>
                         </form>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            {/* «إلغاء إسناد مدرس» (تحرير): the selected subject's teachers, each with its own «إلغاء الإسناد». */}
+            <Dialog
+                open={teacherRemoveLineId !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setTeacherRemoveLineId(null);
+                    }
+                }}
+            >
+                <DialogContent className="sis-ops-hub sm:max-w-md" dir="rtl" lang="ar">
+                    {(() => {
+                        const line = linkedSubjects.find((row) => row.id === teacherRemoveLineId);
+                        const teachers = line?.teachers ?? [];
+
+                        return (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>{c.removeTeacherTitle}</DialogTitle>
+                                    <DialogDescription>{line?.subject_name ?? ''}</DialogDescription>
+                                </DialogHeader>
+                                {teachers.length === 0 ? (
+                                    <p className="text-sm">{c.noTeacher}</p>
+                                ) : (
+                                    <ul className="flex flex-col gap-2">
+                                        {teachers.map((teacher) => (
+                                            <li key={teacher.assignment_id} className="flex items-center justify-between gap-2">
+                                                <span className="text-sm">
+                                                    {teacher.role === 1 ? c.mainTeacher : c.assistantTeacher}: {teacherText(teacher)}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        if (line) {
+                                                            setTeacherRemoveLineId(null);
+                                                            setConfirm({
+                                                                kind: 'teacher-remove',
+                                                                lineId: line.id,
+                                                                assignmentId: teacher.assignment_id,
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    {c.removeTeacher}
+                                                </Button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </>
+                        );
+                    })()}
                 </DialogContent>
             </Dialog>
 

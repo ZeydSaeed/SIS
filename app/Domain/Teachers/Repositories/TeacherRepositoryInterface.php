@@ -60,26 +60,21 @@ interface TeacherRepositoryInterface
     public function addTeachingAssignment(TeachingAssignmentData $data): int;
 
     /**
-     * @return array{teacher_id:int, subject_id:int, status:int, role:int, curriculum_subject_id:?int}|null
+     * @return array{id:int, teacher_id:int, subject_id:int, status:int, role:int, curriculum_subject_id:?int, subject_type:?int, section_id:?int}|null
      */
     public function findTeachingAssignment(int $schoolId, int $assignmentId): ?array;
 
     /**
-     * Active teachers of a curriculum subject line by role.
+     * The line's active teaching assignments (part null = whole subject, section null = all sections).
      *
-     * @return array{0: int, 1: int} [main count, assistant count]
+     * @return list<array{id: int, teacher_id: int, role: int, subject_type: ?int, section_id: ?int}>
      */
-    public function lineTeacherCounts(int $schoolId, int $curriculumSubjectId): array;
-
-    /** Id of the line's active main teacher row, or null. */
-    public function lineMainAssignmentId(int $schoolId, int $curriculumSubjectId): ?int;
-
-    public function teacherActiveOnLine(int $schoolId, int $curriculumSubjectId, int $teacherId): bool;
+    public function activeLineAssignments(int $schoolId, int $curriculumSubjectId): array;
 
     /**
      * Active teachers of every subject line of a curriculum (one query), main teacher first.
      *
-     * @return list<array{assignment_id:int, curriculum_subject_id:int, teacher_id:int, teacher_name:string, employee_code:string, role:int}>
+     * @return list<array{assignment_id:int, curriculum_subject_id:int, teacher_id:int, teacher_name:string, employee_code:string, role:int, subject_type:?int, section_id:?int}>
      */
     public function listCurriculumLineTeachers(int $schoolId, int $curriculumId): array;
 

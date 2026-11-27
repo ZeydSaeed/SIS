@@ -37,6 +37,8 @@ type Draft = {
     /** الصف (enrollment.classes id) and الشعبة of that class. */
     class_id: string;
     section_id: string;
+    /** «عدد المواد» it should have. */
+    planned_subject_count: string;
     status: string;
 };
 
@@ -218,6 +220,7 @@ function toDraft(plan: CurriculumRow): Draft {
         department_id: plan.department_id !== null ? String(plan.department_id) : '',
         class_id: plan.class_id ? String(plan.class_id) : '',
         section_id: plan.section_id ? String(plan.section_id) : '',
+        planned_subject_count: plan.planned_subject_count ? String(plan.planned_subject_count) : '',
         status: String(Number(plan.status) === 1 ? 1 : 2),
     };
 }
@@ -394,12 +397,8 @@ function CurriculumPlanRecordForm({
         draft.name.trim() !== '' &&
         draft.academic_year_id !== '' &&
         draft.grade_level_id !== '' &&
-        // A new curriculum names its full place: الفرع، الاختصاص، الصف، الشعبة.
-        (!isCreate ||
-            (draft.branch_id !== '' &&
-                draft.department_id !== '' &&
-                draft.class_id !== '' &&
-                draft.section_id !== '')) &&
+        // A new curriculum names its place: الفرع، الاختصاص، الصف (the section is chosen per teacher).
+        (!isCreate || (draft.branch_id !== '' && draft.department_id !== '' && draft.class_id !== '')) &&
         !saving;
 
     const setField = <K extends keyof Draft>(key: K, value: Draft[K]): void => {
@@ -525,6 +524,7 @@ function CurriculumPlanRecordForm({
             {
                 name: draft.name.trim(),
                 department_id: draft.department_id === '' ? null : Number(draft.department_id),
+                planned_subject_count: draft.planned_subject_count === '' ? null : Number(draft.planned_subject_count),
             },
             {
                 preserveScroll: true,
@@ -594,7 +594,8 @@ function CurriculumPlanRecordForm({
 
         return (
             draft.name.trim() !== plan.name.trim() ||
-            draft.department_id !== currentDepartment
+            draft.department_id !== currentDepartment ||
+            draft.planned_subject_count !== (plan.planned_subject_count ? String(plan.planned_subject_count) : '')
         );
     };
 
@@ -697,6 +698,15 @@ function CurriculumPlanRecordForm({
                         fieldClassName="sis-enrollment-record-sheet__field--wide"
                         inputRef={isCreate ? nameInputRef : undefined}
                         onChange={(value) => setField('name', value)}
+                    />
+                    <SheetTextField
+                        label={c.plannedSubjectCount}
+                        editing={fieldsEditable}
+                        value={draft.planned_subject_count}
+                        display={plan.planned_subject_count ? String(plan.planned_subject_count) : '—'}
+                        dir="ltr"
+                        fieldClassName="sis-student-record-form__status-field"
+                        onChange={(value) => setField('planned_subject_count', value.replace(/[^0-9]/g, ''))}
                     />
                     {isCreate ? (
                         <div className="sis-admission-sheet__field sis-student-record-form__status-field">
@@ -823,7 +833,6 @@ function CurriculumPlanRecordForm({
                             value={draft.section_id}
                             display={sectionDisplay}
                             includeBlank
-                            required
                             options={sectionOptions}
                             fieldClassName="sis-enrollment-record-sheet__field--narrow"
                             onChange={(value) => {

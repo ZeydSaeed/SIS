@@ -15,6 +15,8 @@ export type OverviewCard = {
     count?: number | string;
     /** A `sis-follow-up-tone--*` name (the follow-up overview's colours). */
     tone: string;
+    /** Smaller lines under the label, one per item (e.g. a curriculum's hour totals). */
+    detail?: string[];
     href: string;
 };
 
@@ -225,6 +227,13 @@ export function ModuleOverview({
                                             <span className="sis-follow-up-card__label">
                                                 {card.label}
                                             </span>
+                                            {card.detail && card.detail.length > 0 ? (
+                                                <span className="flex w-full flex-col text-center text-xs leading-snug opacity-80">
+                                                    {card.detail.map((line) => (
+                                                        <span key={line}>{line}</span>
+                                                    ))}
+                                                </span>
+                                            ) : null}
                                             {card.count !== undefined ? (
                                                 <span
                                                     className="sis-follow-up-card__count"

@@ -20,5 +20,7 @@ final readonly class SubjectSnapshot
         public ?int $colorHue = null,
         /** «نوع المادة» — every type of the subject (one or several, ascending); subjectType is the first. */
         public array $subjectTypes = [],
+        /** @var array<int, ?int> type → weekly hours of that type (null = not given) */
+        public array $subjectTypeHours = [],
     ) {}
 }
