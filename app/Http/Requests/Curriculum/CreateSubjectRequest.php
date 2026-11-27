@@ -23,7 +23,10 @@ class CreateSubjectRequest extends FormRequest
             'code' => ['required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'name_en' => ['nullable', 'string', 'max:255'],
-            'subject_type' => ['required', 'integer', 'in:1,2,3,4'],
+            'subject_type' => ['required_without:subject_types', 'integer', 'in:1,2,3,4'],
+            // «نوع المادة» takes several values (عملي + نظري …); subject_type alone = one type (older callers).
+            'subject_types' => ['sometimes', 'array', 'min:1', 'max:4'],
+            'subject_types.*' => ['integer', 'in:1,2,3,4', 'distinct'],
             'credit_hours' => ['nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['nullable', 'integer', 'min:0', 'max:1000'],

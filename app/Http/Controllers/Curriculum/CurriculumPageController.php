@@ -219,6 +219,7 @@ final class CurriculumPageController extends Controller
             'name' => $dto->name,
             'name_en' => $dto->nameEn,
             'subject_type' => $dto->subjectType,
+            'subject_types' => $dto->subjectTypes,
             'credit_hours' => $dto->creditHours,
             'max_grade' => $dto->maxGrade,
             'pass_grade' => $dto->passGrade,
@@ -529,7 +530,7 @@ final class CurriculumPageController extends Controller
             code: (string) $request->validated('code'),
             name: (string) $request->validated('name'),
             nameEn: $request->validated('name_en'),
-            subjectType: (int) $request->validated('subject_type'),
+            subjectType: (int) ($request->validated('subject_type') ?? 0),
             creditHours: $request->validated('credit_hours') !== null
                 ? (int) $request->validated('credit_hours')
                 : null,
@@ -537,6 +538,7 @@ final class CurriculumPageController extends Controller
             passGrade: (int) ($request->validated('pass_grade') ?? 50),
             idempotencyKey: $this->idempotencyKey($request),
             prerequisitesText: $request->validated('prerequisites_text'),
+            subjectTypes: array_map('intval', (array) ($request->validated('subject_types') ?? [])),
         ));
 
         if ($result->failed()) {
@@ -562,7 +564,7 @@ final class CurriculumPageController extends Controller
         UpdateSubjectHandler $handler,
     ): RedirectResponse {
         $fields = [];
-        foreach (['name', 'name_en', 'subject_type', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text', 'abbreviation', 'color_hue'] as $key) {
+        foreach (['name', 'name_en', 'subject_type', 'subject_types', 'credit_hours', 'max_grade', 'pass_grade', 'prerequisites_text', 'abbreviation', 'color_hue'] as $key) {
             if ($request->exists($key)) {
                 $fields[$key] = $request->validated($key);
             }

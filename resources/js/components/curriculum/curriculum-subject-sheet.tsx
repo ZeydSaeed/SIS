@@ -6,6 +6,7 @@ import { SheetSection } from '@/components/sis/admission-sheet';
 import { AppearanceFields } from '@/components/sis/appearance-fields';
 import { usePageError } from '@/components/sis/page-error-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
+import { SisMultiSelect } from '@/components/sis/sis-multi-select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { WindowControls } from '@/components/window-controls';
@@ -20,6 +21,8 @@ export type CurriculumSubjectSheetSubject = {
     name: string;
     name_en?: string | null;
     subject_type: number;
+    /** «نوع المادة» — every type of the subject (one or several); subject_type is the first. */
+    subject_types?: number[];
     credit_hours: number | null;
     max_grade: number;
     pass_grade: number;
@@ -36,7 +39,8 @@ type Draft = {
     code: string;
     name: string;
     name_en: string;
-    subject_type: string;
+    /** Chosen types ('1'…'4'), ascending; at least one to save. */
+    subject_types: string[];
     credit_hours: string;
     max_grade: string;
     pass_grade: string;
@@ -102,12 +106,23 @@ function subjectTypeLabel(
     return curriculumI18n.subjectTypeCore;
 }
 
+/** The subject's types: its set, or its one type for rows that predate the set. */
+function typesOf(subject: CurriculumSubjectSheetSubject): string[] {
+    const types = subject.subject_types && subject.subject_types.length > 0 ? subject.subject_types : [subject.subject_type ?? 1];
+
+    return [...new Set(types.map((type) => Number(type)))].sort((a, b) => a - b).map(String);
+}
+
+function sortTypes(values: string[]): string[] {
+    return [...new Set(values)].sort((a, b) => Number(a) - Number(b));
+}
+
 function toDraft(subject: CurriculumSubjectSheetSubject): Draft {
     return {
         code: subject.code ?? '',
         name: subject.name ?? '',
         name_en: subject.name_en?.trim() ?? '',
-        subject_type: String(subject.subject_type ?? 1),
+        subject_types: typesOf(subject),
         credit_hours: subject.credit_hours !== null ? String(subject.credit_hours) : '',
         max_grade: String(subject.max_grade ?? 100),
         pass_grade: String(subject.pass_grade ?? 50),
@@ -218,6 +233,54 @@ function SheetListField({
     );
 }
 
+/** «نوع المادة»: several choices at once (عملي + نظري …) — the shared multi-select in the sheet's look. */
+function SheetMultiListField({
+    label,
+    editing,
+    values,
+    display,
+    options,
+    onChange,
+    emptyLabel,
+    fieldClassName = '',
+}: {
+    label: string;
+    editing: boolean;
+    values: string[];
+    display: string;
+    options: Array<{ value: string; label: string }>;
+    onChange: (values: string[]) => void;
+    emptyLabel: string;
+    fieldClassName?: string;
+}) {
+    const filled = values.length > 0;
+
+    return (
+        <div className={`sis-admission-sheet__field ${fieldClassName}`.trim()}>
+            <span className="sis-admission-sheet__label">
+                {label}
+                <span aria-hidden="true"> *</span>
+            </span>
+            {editing ? (
+                <SisMultiSelect
+                    values={values}
+                    options={options}
+                    onChange={onChange}
+                    allLabel={emptyLabel}
+                    ariaLabel={label}
+                    className={`sis-admission-sheet-list-select${filled ? ' sis-admission-draft-field--filled' : ''}`}
+                    triggerClassName={`sis-admission-sheet__control sis-admission-draft-select${
+                        filled ? ' sis-admission-draft-field--filled' : ''
+                    }`}
+                    menuClassName="sis-admission-sheet-list-select__menu"
+                />
+            ) : (
+                <div className={filledControlClass(isFilled(display), false)}>{display}</div>
+            )}
+        </div>
+    );
+}
+
 function SubjectRecordForm({
     subject,
     canManage,
@@ -285,12 +348,14 @@ function SubjectRecordForm({
 
     const statusDisplay =
         Number(draft.status) === 1 ? i18n.status.active : i18n.status.inactive;
-    const typeDisplay = subjectTypeLabel(Number(draft.subject_type), c);
+    const typeDisplay =
+        draft.subject_types.map((type) => subjectTypeLabel(Number(type), c)).join(' + ') || '—';
     const fieldsEditable = (isCreate || editing) && canManage;
     const canSave =
         canManage &&
         fieldsEditable &&
         draft.name.trim() !== '' &&
+        draft.subject_types.length > 0 &&
         Number(draft.max_grade) > 0 &&
         Number(draft.pass_grade) >= 0 &&
         Number(draft.pass_grade) <= Number(draft.max_grade) &&
@@ -311,7 +376,7 @@ function SubjectRecordForm({
                 code,
                 name,
                 name_en: draft.name_en.trim() === '' ? null : draft.name_en.trim(),
-                subject_type: Number(draft.subject_type),
+                subject_types: draft.subject_types.map(Number),
                 credit_hours: draft.credit_hours === '' ? null : Number(draft.credit_hours),
                 max_grade: Number(draft.max_grade),
                 pass_grade: Number(draft.pass_grade),
@@ -358,7 +423,7 @@ function SubjectRecordForm({
         return (
             draft.name.trim() !== subject.name.trim() ||
             draftNameEn !== subjectNameEn ||
-            Number(draft.subject_type) !== Number(subject.subject_type) ||
+            draft.subject_types.join(',') !== typesOf(subject).join(',') ||
             draftCredit !== subjectCredit ||
             Number(draft.max_grade) !== Number(subject.max_grade) ||
             Number(draft.pass_grade) !== Number(subject.pass_grade) ||
@@ -389,7 +454,7 @@ function SubjectRecordForm({
             {
                 name: draft.name.trim(),
                 name_en: draft.name_en.trim() === '' ? null : draft.name_en.trim(),
-                subject_type: Number(draft.subject_type),
+                subject_types: draft.subject_types.map(Number),
                 credit_hours: draft.credit_hours === '' ? null : Number(draft.credit_hours),
                 max_grade: Number(draft.max_grade),
                 pass_grade: Number(draft.pass_grade),
@@ -605,14 +670,15 @@ function SubjectRecordForm({
                 title={c.subjectGradesSection}
             >
                 <div className="sis-admission-sheet__row sis-admission-sheet__row--track5 sis-enrollment-record-sheet__placement-row">
-                    <SheetListField
+                    <SheetMultiListField
                         label={c.subjectType}
                         editing={fieldsEditable}
-                        value={draft.subject_type}
+                        values={draft.subject_types}
                         display={typeDisplay}
                         options={typeOptions}
+                        emptyLabel={c.subjectTypeChoose}
                         fieldClassName="sis-enrollment-record-sheet__field--wide"
-                        onChange={(value) => setField('subject_type', value)}
+                        onChange={(values) => setField('subject_types', sortTypes(values))}
                     />
                     <SheetTextField
                         label={c.creditHours}

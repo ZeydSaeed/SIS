@@ -284,3 +284,9 @@ ALTER TABLE attendance.records SET (
 | `teachers.teaching_assignments` | partial `UNIQUE(curriculum_subject_id) WHERE status = 1 AND role = 1 AND curriculum_subject_id IS NOT NULL` | integrity (one active main teacher per line) + `lineMainAssignmentId` |
 
 No index on `curricula.branch_id / class_id / section_id`: the table is small per school and reads already narrow by `(school_id, academic_year_id, grade_level_id)`; revisit with EXPLAIN if branch/class deletes become slow.
+
+## Subject types (2026-11-27, migration `2026_11_27_140000`)
+
+| Table | Index | Query it serves |
+|-------|-------|-----------------|
+| `curriculum.subject_types` | `PRIMARY KEY (subject_id, subject_type)` (2026-11-27, `2026_11_27_140000`) | a subject's type set (correlated `string_agg` per subject row), «حذف المادة», type filter `EXISTS` |

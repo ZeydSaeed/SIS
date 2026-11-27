@@ -12,6 +12,7 @@ use App\Domain\Curriculum\Events\SubjectCreated;
 use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
 use App\Domain\Curriculum\Services\CreateSubjectGuard;
 use App\Domain\Curriculum\Support\CurriculumIdempotencyGuard;
+use App\Domain\Curriculum\ValueObjects\SubjectType;
 
 final class CreateSubjectHandler implements CommandHandler
 {
@@ -34,10 +35,16 @@ final class CreateSubjectHandler implements CommandHandler
             return CreateSubjectResult::fromIdempotency((int) $cached['subject_id']);
         }
 
+        // «نوع المادة»: one or several; the first (ascending) is the primary type kept on the subject.
+        $types = SubjectType::normalizeSet($command->subjectTypes !== [] ? $command->subjectTypes : [$command->subjectType]);
+        if ($types === null) {
+            return CreateSubjectResult::failure(['curriculum.subject_type_invalid']);
+        }
+
         $error = $this->guard->rejectionCode(
             $command->code,
             $command->name,
-            $command->subjectType,
+            $types[0],
             $command->creditHours,
             $command->maxGrade,
             $command->passGrade,
@@ -53,18 +60,19 @@ final class CreateSubjectHandler implements CommandHandler
             $prerequisitesText = null;
         }
 
-        $id = $this->unitOfWork->transaction(function () use ($command, $key, $prerequisitesText): int {
+        $id = $this->unitOfWork->transaction(function () use ($command, $key, $prerequisitesText, $types): int {
             $id = $this->subjects->create(
                 $command->code,
                 $command->name,
                 $command->nameEn,
-                $command->subjectType,
+                $types[0],
                 $command->creditHours,
                 $command->maxGrade,
                 $command->passGrade,
                 (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
                 $prerequisitesText,
             );
+            $this->subjects->replaceTypes($id, $types);
             $this->outbox->stage(new SubjectCreated($id, $command->code, new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['subject_id' => $id]);
 

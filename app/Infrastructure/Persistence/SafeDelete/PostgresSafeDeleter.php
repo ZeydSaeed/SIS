@@ -65,6 +65,7 @@ final class PostgresSafeDeleter implements SafeDeleter
             'scope' => 'TRUE',
             'owned' => [
                 'DELETE FROM curriculum.prerequisites WHERE subject_id = {id} OR prerequisite_subject_id = {id}',
+                'DELETE FROM curriculum.subject_types WHERE subject_id = {id}',
             ],
         ],
         // «حذف من المناهج وحذف المادة»: the owner confirmed the warning — the subject's lines in this school's
@@ -79,6 +80,7 @@ final class PostgresSafeDeleter implements SafeDeleter
                 'DELETE FROM teachers.teacher_subjects ts WHERE ts.subject_id = {id} AND ts.school_id = {school} AND NOT EXISTS (SELECT 1 FROM teachers.teaching_assignments ta WHERE ta.teacher_id = ts.teacher_id AND ta.subject_id = ts.subject_id AND ta.school_id = ts.school_id)',
                 'DELETE FROM curriculum.curriculum_subjects WHERE subject_id = {id} AND curriculum_id IN (SELECT id FROM curriculum.curricula WHERE school_id = {school})',
                 'DELETE FROM curriculum.prerequisites WHERE subject_id = {id} OR prerequisite_subject_id = {id}',
+                'DELETE FROM curriculum.subject_types WHERE subject_id = {id}',
             ],
         ],
         // Curriculum of this school: its subject lines and the teachers set on them go with it — and a teacher's

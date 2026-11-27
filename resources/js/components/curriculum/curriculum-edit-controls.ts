@@ -146,7 +146,7 @@ export function editFilterEquals(
 }
 
 export function matchesCurriculumEditFilter(
-    row: { status: number; subject_type: number },
+    row: { status: number; subject_type: number; subject_types?: number[] },
     filter: CurriculumEditFilter,
 ): boolean {
     switch (filter.kind) {
@@ -155,7 +155,10 @@ export function matchesCurriculumEditFilter(
         case 'status':
             return Number(row.status) === filter.value;
         case 'type':
-            return Number(row.subject_type) === filter.value;
+            // Any of the subject's types (an «عملي + نظري» subject is under both).
+            return (row.subject_types && row.subject_types.length > 0 ? row.subject_types : [row.subject_type])
+                .map(Number)
+                .includes(filter.value);
         case 'superseded':
             return Number(row.status) !== 1;
         default:

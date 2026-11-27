@@ -877,6 +877,21 @@ Seeded: مدرس، مدرس أول، مدرس مساعد، أستاذ، أستا
 **Indexes:** `UNIQUE(code)`, `BTREE(status)`  
 **Constraints (CUR-U02):** `subject_type IN (1,2,3)`, `status IN (1,2)`, `pass_grade <= max_grade`; hard DELETE rejected by trigger.  
 **v1 HTTP:** `POST/GET …/curriculum/subjects`; `PATCH …/subjects/{id}`; `POST …/subjects/{id}/deactivate|reactivate`.
+**«نوع المادة» — several types (2026-11-27, migration `2026_11_27_140000`):** `subject_type` is now the subject's **primary** type (the first of its set, ascending 1 أساسي · 2 اختصاص · 3 عملي · 4 نظري) — attendance and the timetable read it; the full set is `curriculum.subject_types`. Trigger `subjects_primary_type_in_set` (AFTER INSERT / UPDATE OF subject_type) puts the primary type into the set for every writer.
+
+### `curriculum.subject_types` (2026-11-27, migration `2026_11_27_140000`)
+
+Every type of a subject (عملي + نظري, أساسي + عملي …). Global like `curriculum.subjects` (no school_id, no RLS).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| subject_id | BIGINT | FK → curriculum.subjects (restrict) |
+| subject_type | SMALLINT | NOT NULL, CHECK BETWEEN 1 AND 4 |
+| created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
+
+**Keys:** `PRIMARY KEY (subject_id, subject_type)` — the subject's set by PK (list reads use a correlated `string_agg` on it); no other index (the timetable's practical-subject list scans this small catalogue table).
+**Writes:** `CreateSubject` / `UpdateSubject` (`subject_types`, or one `subject_type` from older callers) replace the set in the same transaction; «حذف المادة» deletes the set with the subject (safe delete). The «المواد» type filter matches any type of the set.
+
 
 ### `curriculum.curricula`
 

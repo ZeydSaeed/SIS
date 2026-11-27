@@ -32,6 +32,7 @@ final class GetSubjectHandler
             prerequisitesText: $s->prerequisitesText,
             abbreviation: $s->abbreviation,
             colorHue: $s->colorHue,
+            subjectTypes: $s->subjectTypes,
         );
     }
 }

@@ -44,6 +44,13 @@ interface SubjectRepositoryInterface
         int $perPage,
     ): array;
 
+    /**
+     * The subject's set of types becomes exactly these (curriculum.subject_types).
+     *
+     * @param  list<int>  $types
+     */
+    public function replaceTypes(int $subjectId, array $types): void;
+
     public function deactivate(int $subjectId): bool;
 
     public function reactivate(int $subjectId): bool;

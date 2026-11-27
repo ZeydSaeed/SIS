@@ -3,6 +3,14 @@
 سجل موجز بالأحدث أولًا. تاريخ الكود الكامل في `git log`؛ تغييرات EXAMIS في `docs/examis/EXAMIS-CHANGELOG.md`؛ تقارير الوحدات في `docs/SIS-CHANGE-REPORT-*.md`.
 يُسجَّل ما نُفّذ فعلًا فقط، مع نتيجة الاختبار أو `NOT RUN`.
 
+## 2026-11-27 — «نوع المادة» اختيار متعدد (جلسة `f3e0d7ae`، بعد commit `73e3387`)
+
+- **قاعدة بيانات:** migration `2026_11_27_140000_create_curriculum_subject_types` — جدول `curriculum.subject_types` (PK subject_id + subject_type، FK restrict، CHECK 1–4) + trigger يضع النوع الأساسي في المجموعة لكل كاتب؛ backfill. `subjects.subject_type` = النوع الأساسي (الأول تصاعديًا) يبقى للحضور والجدول. up/down/up نجحت على قاعدة مؤقتة.
+- **الواجهة:** حقل «نوع المادة» في ورقة المادة صار اختيارًا متعددًا (`SisMultiSelect` الموجود)؛ القائمة تعرض «عملي + نظري»، والفلتر يطابق أي نوع. الطلب `subject_types[]`؛ `subject_type` وحده ما زال مقبولًا (API).
+- **الجدول الدراسي:** «المواد العملية» = كل مادة بين أنواعها «عملي».
+- **`sis` الحية:** طُبّقت الـ migration وحدها (`--path`) — ضرورية وإلا تتعطل صفحة المواد بالكود الجديد؛ 4 مواد موجودة أخذت نوعها. فحص قراءة فقط لصفحة المواد: نجح.
+- **الاختبارات:** `CurriculumSubjectTypesPostgreSqlTest` 1/1 (29 تأكيدًا)؛ المجموعة الأوسع 204/211 — الفاشلة كلها EXAMIS سابقة لا علاقة لها (GradeEntrySheet، ExamSeating، GradeReviewWeb، ResultPublicationWeb)؛ Unit/Domain 140/140؛ `tsc` لا جديد؛ `architecture:validate` لا جديد؛ `npm run build` نجح. المتصفح: NOT RUN.
+
 ## 2026-11-27 — المواد والمناهج: صفحتان، مكان المنهج، مدرسو المواد، الحذف المتسلسل (جلسة `f3e0d7ae`)
 
 - **قاعدة بيانات:** migration `2026_11_27_130000_curriculum_scope_and_subject_teachers` (إضافية، قابلة للتراجع — up/down/up نجحت على قاعدة مؤقتة):

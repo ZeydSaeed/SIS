@@ -18,5 +18,7 @@ final readonly class SubjectSnapshot
         /** «الاختصار واللون» shown on the timetable (null = default). */
         public ?string $abbreviation = null,
         public ?int $colorHue = null,
+        /** «نوع المادة» — every type of the subject (one or several, ascending); subjectType is the first. */
+        public array $subjectTypes = [],
     ) {}
 }

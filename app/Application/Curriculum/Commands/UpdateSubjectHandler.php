@@ -12,6 +12,7 @@ use App\Domain\Curriculum\Events\SubjectUpdated;
 use App\Domain\Curriculum\Repositories\SubjectRepositoryInterface;
 use App\Domain\Curriculum\Services\UpdateSubjectGuard;
 use App\Domain\Curriculum\Support\CurriculumIdempotencyGuard;
+use App\Domain\Curriculum\ValueObjects\SubjectType;
 use App\Domain\Shared\ValueObjects\DisplayAppearance;
 
 final class UpdateSubjectHandler implements CommandHandler
@@ -35,22 +36,36 @@ final class UpdateSubjectHandler implements CommandHandler
             return UpdateSubjectResult::fromIdempotency((int) $cached['subject_id']);
         }
 
-        $error = $this->guard->rejectionCode($command->subjectId, $command->fields);
+        $fields = $command->fields;
+        // «نوع المادة»: the new set (or the one type an older caller sends); its first type is the primary one.
+        $types = null;
+        if (array_key_exists('subject_types', $fields) || array_key_exists('subject_type', $fields)) {
+            $types = SubjectType::normalizeSet((array) ($fields['subject_types'] ?? [$fields['subject_type']]));
+            if ($types === null) {
+                return UpdateSubjectResult::failure(['curriculum.subject_type_invalid']);
+            }
+            unset($fields['subject_types']);
+            $fields['subject_type'] = $types[0];
+        }
+
+        $error = $this->guard->rejectionCode($command->subjectId, $fields);
         if ($error !== null) {
             return UpdateSubjectResult::failure([$error]);
         }
 
-        $fields = $command->fields;
         if (array_key_exists('abbreviation', $fields)) {
             $fields['abbreviation'] = DisplayAppearance::of($fields['abbreviation'], null)->abbreviation;
         }
 
-        $this->unitOfWork->transaction(function () use ($command, $key, $fields): void {
+        $this->unitOfWork->transaction(function () use ($command, $key, $fields, $types): void {
             $this->subjects->updateActive(
                 $command->subjectId,
                 $fields,
                 (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             );
+            if ($types !== null) {
+                $this->subjects->replaceTypes($command->subjectId, $types);
+            }
             $this->outbox->stage(new SubjectUpdated($command->subjectId, new \DateTimeImmutable));
             $this->idempotency->store($key, self::COMMAND_NAME, ['subject_id' => $command->subjectId]);
         });

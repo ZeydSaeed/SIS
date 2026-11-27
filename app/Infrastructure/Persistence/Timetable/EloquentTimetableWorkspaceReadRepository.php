@@ -171,10 +171,11 @@ final class EloquentTimetableWorkspaceReadRepository implements TimetableWorkspa
 
     public function practicalSubjectIds(): array
     {
-        return DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
+        // Every subject with «عملي» among its types (curriculum.subject_types), not only primary-practical ones.
+        return DB::table(SchemaHelper::qualified('curriculum', 'subject_types'))
             ->where('subject_type', self::PRACTICAL)
-            ->orderBy('id')
-            ->pluck('id')
+            ->orderBy('subject_id')
+            ->pluck('subject_id')
             ->map(static fn ($id): int => (int) $id)
             ->all();
     }

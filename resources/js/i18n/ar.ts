@@ -3929,6 +3929,7 @@ export const ar = {
             'سيُحذف المنهج نهائياً مع مواده وإسناد مدرسيها (تبقى المواد نفسها في قائمة المواد)، ولا يمكن التراجع. هل تريد المتابعة؟',
         section: 'الشعبة',
         classLabel: 'الصف',
+        subjectTypeChoose: 'اختر نوعاً أو أكثر',
         planComplete: 'مكتمل',
         planIncomplete: 'غير مكتمل',
         planCompleteness: 'اكتمال المنهج',

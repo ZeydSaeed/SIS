@@ -21,6 +21,9 @@ class UpdateSubjectRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'name_en' => ['sometimes', 'nullable', 'string', 'max:255'],
             'subject_type' => ['sometimes', 'integer', 'in:1,2,3,4'],
+            // «نوع المادة» takes several values (عملي + نظري …); subject_type alone = one type (older callers).
+            'subject_types' => ['sometimes', 'array', 'min:1', 'max:4'],
+            'subject_types.*' => ['integer', 'in:1,2,3,4', 'distinct'],
             'credit_hours' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:40'],
             'max_grade' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'pass_grade' => ['sometimes', 'integer', 'min:0', 'max:1000'],

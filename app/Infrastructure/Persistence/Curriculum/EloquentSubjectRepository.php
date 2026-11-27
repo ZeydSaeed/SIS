@@ -15,6 +15,26 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         'max_grade', 'pass_grade', 'status', 'prerequisites_text', 'abbreviation', 'color_hue',
     ];
 
+    /** The columns plus the subject's type set as «1,3» (primary-key lookup per row; no N+1). */
+    private function columns(): array
+    {
+        return [
+            ...self::SELECT_COLUMNS,
+            DB::raw("(SELECT string_agg(st.subject_type::text, ',' ORDER BY st.subject_type) FROM curriculum.subject_types st WHERE st.subject_id = curriculum.subjects.id) AS subject_types"),
+        ];
+    }
+
+    public function replaceTypes(int $subjectId, array $types): void
+    {
+        $types = array_values(array_unique(array_map('intval', $types)));
+        $table = SchemaHelper::qualified('curriculum', 'subject_types');
+        DB::table($table)->where('subject_id', $subjectId)->whereNotIn('subject_type', $types)->delete();
+        DB::table($table)->insertOrIgnore(array_map(
+            static fn (int $type): array => ['subject_id' => $subjectId, 'subject_type' => $type],
+            $types,
+        ));
+    }
+
     public function codeExists(string $code): bool
     {
         return DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
@@ -61,7 +81,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $row = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->where('id', $subjectId)
             ->where('status', SubjectStatus::Active->value)
-            ->first(self::SELECT_COLUMNS);
+            ->first($this->columns());
 
         return $row === null ? null : $this->map($row);
     }
@@ -71,7 +91,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $row = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->where('id', $subjectId)
             ->where('status', SubjectStatus::Inactive->value)
-            ->first(self::SELECT_COLUMNS);
+            ->first($this->columns());
 
         return $row === null ? null : $this->map($row);
     }
@@ -81,7 +101,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->where('status', SubjectStatus::Active->value)
             ->orderBy('code')
-            ->get(self::SELECT_COLUMNS);
+            ->get($this->columns());
 
         return $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all();
     }
@@ -91,7 +111,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
         $rows = DB::table(SchemaHelper::qualified('curriculum', 'subjects'))
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [SubjectStatus::Active->value])
             ->orderBy('code')
-            ->get(self::SELECT_COLUMNS);
+            ->get($this->columns());
 
         return $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all();
     }
@@ -109,7 +129,11 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             $query->where('status', $status);
         }
         if ($subjectType !== null) {
-            $query->where('subject_type', $subjectType);
+            // Any of its types (an «عملي + نظري» subject is listed under both).
+            $query->whereExists(fn ($q) => $q->selectRaw('1')
+                ->from(SchemaHelper::qualified('curriculum', 'subject_types').' as st')
+                ->whereColumn('st.subject_id', 'curriculum.subjects.id')
+                ->where('st.subject_type', $subjectType));
         }
 
         $needle = trim($q);
@@ -130,7 +154,7 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
             ->orderBy('code')
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)
-            ->get(self::SELECT_COLUMNS);
+            ->get($this->columns());
 
         return [
             'items' => $rows->map(fn ($row): SubjectSnapshot => $this->map($row))->all(),
@@ -212,6 +236,9 @@ final class EloquentSubjectRepository implements SubjectRepositoryInterface
                 : null,
             abbreviation: property_exists($row, 'abbreviation') && $row->abbreviation !== null ? (string) $row->abbreviation : null,
             colorHue: property_exists($row, 'color_hue') && $row->color_hue !== null ? (int) $row->color_hue : null,
+            subjectTypes: property_exists($row, 'subject_types') && $row->subject_types !== null && $row->subject_types !== ''
+                ? array_map('intval', explode(',', (string) $row->subject_types))
+                : [(int) $row->subject_type],
         );
     }
 }

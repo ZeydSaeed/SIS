@@ -166,6 +166,8 @@ export type SubjectRow = {
     name: string;
     name_en?: string | null;
     subject_type: number;
+    /** «نوع المادة» — every type (one or several); subject_type is the first. */
+    subject_types?: number[];
     credit_hours: number | null;
     max_grade: number;
     pass_grade: number;
@@ -326,6 +328,16 @@ export function subjectTypeLabel(
     }
 
     return i18n.subjectTypeCore;
+}
+
+/** A subject's types as one label («عملي + نظري»); rows without a set show their one type. */
+export function subjectTypesLabel(
+    row: { subject_type: number; subject_types?: number[] },
+    i18n: ReturnType<typeof t>['curriculum'],
+): string {
+    const types = row.subject_types && row.subject_types.length > 0 ? row.subject_types : [row.subject_type];
+
+    return types.map((type) => subjectTypeLabel(Number(type), i18n)).join(' + ');
 }
 
 const CURRICULUM_FILTERS_STORAGE_KEY = 'sis.curriculum.pageFilters.v1';
@@ -1078,6 +1090,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
             name: string;
             name_en: string;
             subject_type: number;
+            subject_types?: number[];
             credit_hours: number | null;
             max_grade: number;
             pass_grade: number;
@@ -1091,6 +1104,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                 name: fromDb.name,
                 name_en: fromDb.name_en?.trim() || '',
                 subject_type: fromDb.subject_type,
+                subject_types: fromDb.subject_types,
                 credit_hours: fromDb.credit_hours,
                 max_grade: fromDb.max_grade,
                 pass_grade: fromDb.pass_grade,
@@ -1132,7 +1146,13 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
             case 'nameEn':
                 return row.name_en.trim();
             case 'type':
-                return subjectTypeLabel(row.subject_type as Parameters<typeof subjectTypeLabel>[0], c);
+                return subjectTypesLabel(
+                    {
+                        subject_type: Number(row.subject_type),
+                        subject_types: (row as { subject_types?: number[] }).subject_types,
+                    },
+                    c,
+                );
             case 'hours':
                 return row.credit_hours === null || row.credit_hours === undefined ? null : Number(row.credit_hours);
             case 'max':
@@ -1357,7 +1377,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                     } else if (apply.value === 2 && target.status === 1) {
                         postWithIdempotency(`/curriculum/subjects/${target.id}/deactivate`);
                     }
-                } else if (target.subject_type !== apply.value) {
+                } else if (
+                    // «نوع المادة» from the ribbon sets that one type (a mixed subject becomes just it).
+                    (target.subject_types ?? [target.subject_type]).join(',') !== String(apply.value)
+                ) {
                     patchWithIdempotency(`/curriculum/subjects/${target.id}`, {
                         name: target.name,
                         subject_type: apply.value,
@@ -1875,7 +1898,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                                                         </div>
                                                     </td>
                                                     <td className="sis-admission-drafts-table__text sis-curriculum-type-col">
-                                                        {subjectTypeLabel(row.subject_type, c)}
+                                                        {subjectTypesLabel(row, c)}
                                                     </td>
                                                     <td className="sis-admission-drafts-table__text sis-curriculum-hours-col" dir="ltr">
                                                         {row.credit_hours ?? '—'}

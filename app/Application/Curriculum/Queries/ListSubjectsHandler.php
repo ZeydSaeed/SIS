@@ -60,6 +60,7 @@ final class ListSubjectsHandler
             prerequisitesText: $row->prerequisitesText,
             abbreviation: $row->abbreviation,
             colorHue: $row->colorHue,
+            subjectTypes: $row->subjectTypes,
         );
     }
 }

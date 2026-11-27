@@ -16,5 +16,7 @@ final readonly class CreateSubjectCommand implements Command
         public int $passGrade,
         public ?string $idempotencyKey,
         public ?string $prerequisitesText = null,
+        /** @var list<int> every type of the subject; empty = just $subjectType */
+        public array $subjectTypes = [],
     ) {}
 }
