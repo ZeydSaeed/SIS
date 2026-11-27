@@ -8,7 +8,7 @@
 - **قاعدة `sis`:** جداول المواد/المناهج/المعلمين فارغة والعدادات = 1؛ migration `2026_11_27_130000` مطبّقة؛ `2026_10_27_100000_create_bank_questions_and_versions` معلّقة عمدًا (EXAMIS).
 - **ملفات هذه الجلسة:** الـ migration، Curriculum (Domain/Application/Infrastructure/Http)، Teachers (`AssignCurriculumTeacher*`، `EndCurriculumTeacher*`، `ListCurriculumTeachers*`، `CurriculumTeacherGuard`، `TeachingRole`، `CurriculumLinePlacement`، `CurriculumLineCatalogPort` + adapter)، `PostgresSafeDeleter`، `routes/web.php`، الواجهة (`curriculum-plan-sheet/detail/workspace`، `ar.ts`)، الاختبارات، blueprint + indexing-matrix. الملفات المعدّلة قبلها من جلسة سابقة (فصل الصفحتين) أُكملت ولم تُحذف.
 - **الاختبارات:** `CurriculumScopeTeachersPostgreSqlTest` 5/5، `CurriculumTeacherGuardTest` 3/3، 205/211 في المجموعة الأوسع (6 فاشلة سابقة ولا علاقة لها: GradeEntrySheet/ExamSeating — مسارات غير موجودة في HEAD؛ GraduationWritePath معروف). المتصفح: **NOT RUN**.
-- **قرارات المالك (2026-11-27):** المواد تبقى عند حذف المنهج (PD-006 ACCEPTED)؛ طلب commit — حُفظ عمل المواد والمناهج في commit على `V2` (دون ملفات جلسة `1ab08ec2`). ما زالت الموافقة على migration `sis` (PD-005) للعلم.
+- **قرارات المالك (2026-11-27):** المواد تبقى عند حذف المنهج (PD-006 ACCEPTED)؛ طلب commit — حُفظ عمل المواد والمناهج في commit على `V2` (دون ملفات جلسة `1ab08ec2`). وافق المالك على migration `sis` (PD-005)؛ commit `54cea74` مدفوع إلى `origin/V2`.
 - **التالي المقترح:** فحص الواجهة في المتصفح (إنشاء منهج بالشعبة، إسناد مدرسين، الحذف). **لا تفعل:** لا `git stash` على الشجرة المشتركة؛ لا تطبّق migration البنك على `sis`.
 
 ---
