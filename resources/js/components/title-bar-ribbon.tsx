@@ -748,6 +748,8 @@ export function TitleBarRibbon({
         path === '/attendance' || path.startsWith('/attendance/');
     const isTeachersPage =
         path === '/teachers' || path.startsWith('/teachers/');
+    // «النتائج» pages take the «المناهج» ribbon surface (owner's request, 2026-11-28): styling only.
+    const isResultsPage = path === '/results' || path.startsWith('/results/');
     // Pages may own any chrome tab via registration (SSOT). home/edit/add merge with
     // static chrome; lists/tools/reports are replaced when the page registers them.
     const pageOwnsContentTab =
@@ -971,7 +973,7 @@ export function TitleBarRibbon({
         isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
         isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
         isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
-        isCurriculumPage ? 'sis-ribbon--curriculum-page' : '',
+        isCurriculumPage || isResultsPage ? 'sis-ribbon--curriculum-page' : '',
         isEnrollmentsPage ? 'sis-ribbon--enrollments-page' : '',
         isStudentsPage ? 'sis-ribbon--students-page' : '',
         isAdmissionPage ? 'sis-ribbon--admission-page' : '',
@@ -1074,7 +1076,7 @@ export function TitleBarRibbon({
                 isEnrollmentsRibbon ? 'sis-ribbon--enrollments-edit' : '',
                 isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
                 isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
-                isCurriculumPage ? 'sis-ribbon--curriculum-page' : '',
+                isCurriculumPage || isResultsPage ? 'sis-ribbon--curriculum-page' : '',
                 isEnrollmentsPage ? 'sis-ribbon--enrollments-page' : '',
                 isStudentsPage ? 'sis-ribbon--students-page' : '',
                 isAdmissionPage ? 'sis-ribbon--admission-page' : '',

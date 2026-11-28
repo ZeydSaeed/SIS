@@ -396,7 +396,8 @@ export function AppSidebarHeader({
     const currentPath = (page.url.split('?')[0] ?? page.url);
     const isCurriculumPage =
         currentPath === '/curriculum' || currentPath.startsWith('/curriculum/');
-    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments', '/organization', '/teachers', '/timetable', '/attendance', '/leave'].some(
+    // «النتائج» (2026-11-28): the same Word tabs as «المناهج» (owner's request).
+    const hasWordTabs = ['/curriculum', '/students', '/admission', '/enrollments', '/organization', '/teachers', '/timetable', '/attendance', '/leave', '/results'].some(
         (base) => currentPath === base || currentPath.startsWith(`${base}/`),
     );
 
