@@ -748,14 +748,17 @@ History of moves made on the transfers page (append-only — UPDATE/DELETE rejec
 | last_name | VARCHAR(100) | NOT NULL — اللقب |
 | full_name | VARCHAR(255) | NOT NULL — first · father · grandfather · last |
 | specialization_field | VARCHAR(255) | تخصص الشهادة (certificate), not the branch department |
+| degree | SMALLINT | nullable, CHECK 1–6 — «الشهادة الحاصل عليها» (TeacherDegree: 1 إعدادية · 2 دبلوم · 3 بكالوريوس · 4 دبلوم عالي · 5 ماجستير · 6 دكتوراه); NULL = not stated (2026-11-28, `2026_11_28_110000`) |
 | hire_date | DATE | |
 | status | SMALLINT | NOT NULL DEFAULT 1 |
+| access_locked | BOOLEAN | NOT NULL DEFAULT false — «قفل»: no sign-in through the teacher link (stored; read by the link sign-in when it exists) (2026-11-28, `2026_11_28_110000`) |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
 
 **Indexes:** `UNIQUE(employee_code)`, `BTREE(status)`  
 **Security (Phase 8-U04):** FORCE RLS via `EXISTS teacher_schools` for current school (SELECT/UPDATE). INSERT `WITH CHECK` requires `app.current_school_id` only (register before membership). Hard DELETE rejected by trigger.  
 **v1 HTTP:** Register + Update profile; `POST …/change-employee-code` for code value change (8.4-U01).
+**Web (2026-11-28):** `employee_code` is shown as «الرقم التعريفي»; `POST /teachers/{id}/new-code` makes one (`TeacherCodeGenerator`: XXXX-XXXX starting with T, alphabet without look-alikes — the cyber_security teachers' shape) through ChangeTeacherEmployeeCode; `POST /teachers/access-lock` sets `access_locked` for a selection; `PATCH /teachers/{id}` takes `degree`.
 
 ### `teachers.teacher_schools`
 

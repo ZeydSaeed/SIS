@@ -14,6 +14,7 @@ use App\Application\Teachers\Support\TeacherNameFormatter;
 use App\Domain\Teachers\Support\TeacherIdempotencyGuard;
 use App\Domain\Teachers\Services\TeacherIdentityGuard;
 use App\Domain\Teachers\Services\TeacherTitleGuard;
+use App\Domain\Teachers\ValueObjects\TeacherDegree;
 use App\Domain\Teachers\ValueObjects\TeacherWorkloadLimits;
 
 final class UpdateTeacherHandler implements CommandHandler
@@ -53,7 +54,8 @@ final class UpdateTeacherHandler implements CommandHandler
             return UpdateTeacherResult::failure(['teachers.name_required']);
         }
 
-        $profileError = $this->title->profileRejection($command->employmentType, $command->updateTitle, $command->academicTitleId, $command->abbreviation);
+        $profileError = $this->title->profileRejection($command->employmentType, $command->updateTitle, $command->academicTitleId, $command->abbreviation)
+            ?? TeacherDegree::rejection($command->updateDegree, $command->degree);
         if ($profileError !== null) {
             return UpdateTeacherResult::failure([$profileError]);
         }
@@ -87,6 +89,7 @@ final class UpdateTeacherHandler implements CommandHandler
             if ($command->userId !== null) {
                 $fields['user_id'] = $command->userId;
             }
+            $fields += TeacherDegree::columns($command->updateDegree, $command->degree);
             $fields += TeacherTitleGuard::columns($command->updateTitle, $command->academicTitleId, $command->abbreviation);
             $this->teachers->updateTeacher($command->teacherId, $fields);
             if ($command->academicYearId !== null) {

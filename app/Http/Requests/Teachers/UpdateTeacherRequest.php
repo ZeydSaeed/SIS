@@ -38,6 +38,7 @@ class UpdateTeacherRequest extends FormRequest
             // «اللقب العلمي» / «الاختصار» (replaced together when sent).
             'academic_title_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'abbreviation' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'degree' => ['sometimes', 'nullable', 'integer', 'between:1,6'],
             'employee_code' => ['prohibited'],
             'school_id' => ['prohibited'],
             'status' => ['prohibited'],

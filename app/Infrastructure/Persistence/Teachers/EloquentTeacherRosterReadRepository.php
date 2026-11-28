@@ -30,6 +30,7 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
                 'ts.is_primary', 'ts.employment_type',
                 'ts.weekly_lessons_min', 'ts.weekly_lessons_max', 'ts.daily_lessons_max',
                 't.abbreviation', 't.color_hue', 't.academic_title_id',
+                't.degree', 't.access_locked',
             ]);
 
         return [
@@ -53,6 +54,8 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
                 'abbreviation' => $r->abbreviation !== null ? (string) $r->abbreviation : null,
                 'color_hue' => $r->color_hue !== null ? (int) $r->color_hue : null,
                 'academic_title_id' => $r->academic_title_id !== null ? (int) $r->academic_title_id : null,
+                'degree' => $r->degree !== null ? (int) $r->degree : null,
+                'access_locked' => (bool) $r->access_locked,
             ])->all(),
             'total' => $total,
         ];
@@ -61,6 +64,7 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
     public function teachingAssignments(int $schoolId, int $academicYearId): array
     {
         $this->bindSchool($schoolId);
+        $types = SchemaHelper::qualified('curriculum', 'subject_types');
 
         return DB::table(SchemaHelper::qualified('teachers', 'teaching_assignments').' as ta')
             ->join(SchemaHelper::qualified('curriculum', 'subjects').' as sub', 'sub.id', '=', 'ta.subject_id')
@@ -74,11 +78,18 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
             ->orderBy('ta.teacher_id')
             ->orderBy('sub.name')
             ->orderBy('ta.id')
-            ->get([
+            ->select([
                 'ta.id', 'ta.teacher_id', 'ta.subject_id', 'sub.name as subject_name',
                 'ta.branch_id', 'b.name as branch_name', 'ta.department_id', 'd.name as department_name',
                 'ta.class_id', 'c.name as class_name', 'ta.section_id', 's.name as section_name', 'ta.effective_from',
+                'ta.curriculum_subject_id', 'ta.role', 'ta.subject_type',
             ])
+            // Hours of the taught part, or of every part when the whole subject is taught (PK subject_id, subject_type).
+            ->addSelect(DB::raw("CASE WHEN ta.subject_type IS NULL
+                THEN (SELECT SUM(st.hours) FROM {$types} st WHERE st.subject_id = ta.subject_id)
+                ELSE (SELECT st.hours FROM {$types} st WHERE st.subject_id = ta.subject_id AND st.subject_type = ta.subject_type)
+                END AS hours"))
+            ->get()
             ->map(static fn (object $r): array => [
                 'id' => (int) $r->id,
                 'teacher_id' => (int) $r->teacher_id,
@@ -93,6 +104,10 @@ final class EloquentTeacherRosterReadRepository implements TeacherRosterReadRepo
                 'section_id' => $r->section_id !== null ? (int) $r->section_id : null,
                 'section_name' => $r->section_name !== null ? (string) $r->section_name : null,
                 'effective_from' => substr((string) $r->effective_from, 0, 10),
+                'curriculum_subject_id' => $r->curriculum_subject_id !== null ? (int) $r->curriculum_subject_id : null,
+                'role' => (int) $r->role,
+                'subject_type' => $r->subject_type !== null ? (int) $r->subject_type : null,
+                'hours' => $r->hours !== null ? (int) $r->hours : null,
             ])
             ->all();
     }

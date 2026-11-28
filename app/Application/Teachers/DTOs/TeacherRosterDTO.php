@@ -12,6 +12,7 @@ final readonly class TeacherRosterDTO
      * @param  array<int, list<int>>  $subjectIdsByTeacher  teacher id → assigned subject ids (المواد المسندة)
      * @param  array<int, list<array<string, mixed>>>  $assignmentsByTeacher  teacher id → active teaching assignments
      * @param  array{general: list<int>, by_department: array<int, list<int>>}  $curriculumSubjects  subject picker
+     * @param  array<int, int>  $hoursByTeacher  teacher id → «الحصص الإجمالية» (hours of all their active teachings)
      */
     public function __construct(
         public array $teachers,
@@ -19,5 +20,6 @@ final readonly class TeacherRosterDTO
         public array $subjectIdsByTeacher,
         public array $assignmentsByTeacher,
         public array $curriculumSubjects = ['general' => [], 'by_department' => []],
+        public array $hoursByTeacher = [],
     ) {}
 }

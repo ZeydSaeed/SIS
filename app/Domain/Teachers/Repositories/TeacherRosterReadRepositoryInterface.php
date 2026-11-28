@@ -13,7 +13,8 @@ interface TeacherRosterReadRepositoryInterface
      *     items: list<array{id:int, employee_code:string, first_name:string, father_name:?string,
      *         grandfather_name:?string, last_name:string, full_name:string, national_id:?string,
      *         specialization_field:?string, hire_date:?string, status:int, is_primary:bool,
-     *         employment_type:?int, weekly_lessons_min:?int, weekly_lessons_max:?int, daily_lessons_max:?int}>,
+     *         employment_type:?int, weekly_lessons_min:?int, weekly_lessons_max:?int, daily_lessons_max:?int,
+     *         degree:?int, access_locked:bool}>,
      *     total: int
      * }
      */
@@ -24,7 +25,9 @@ interface TeacherRosterReadRepositoryInterface
      *
      * @return list<array{id:int, teacher_id:int, subject_id:int, subject_name:string,
      *     branch_id:int, branch_name:string, department_id:?int, department_name:?string,
-     *     class_id:?int, class_name:?string, section_id:?int, section_name:?string, effective_from:string}>
+     *     class_id:?int, class_name:?string, section_id:?int, section_name:?string, effective_from:string,
+     *     curriculum_subject_id:?int, role:int, subject_type:?int, hours:?int}>
+     *     hours = the taught part's hours (curriculum.subject_types), or the subject's parts summed when the whole subject is taught
      */
     public function teachingAssignments(int $schoolId, int $academicYearId): array;
 

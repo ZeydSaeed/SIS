@@ -30,5 +30,8 @@ final readonly class UpdateTeacherCommand implements Command
         public bool $updateTitle = false,
         public ?int $academicTitleId = null,
         public ?string $abbreviation = null,
+        /** When true «الشهادة الحاصل عليها» (TeacherDegree; null = not stated) replaces the stored one. */
+        public bool $updateDegree = false,
+        public ?int $degree = null,
     ) {}
 }

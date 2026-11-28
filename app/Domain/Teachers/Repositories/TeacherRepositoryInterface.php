@@ -132,6 +132,8 @@ interface TeacherRepositoryInterface
      *     specialization_field?:?string,
      *     hire_date?:?string,
      *     user_id?:?int,
+     *     degree?:?int,
+     *     access_locked?:bool,
      *     updated_at:string
      * }  $fields
      */

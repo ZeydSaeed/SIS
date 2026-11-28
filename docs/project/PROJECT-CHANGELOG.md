@@ -3,6 +3,44 @@
 سجل موجز بالأحدث أولًا. تاريخ الكود الكامل في `git log`؛ تغييرات EXAMIS في `docs/examis/EXAMIS-CHANGELOG.md`؛ تقارير الوحدات في `docs/SIS-CHANGE-REPORT-*.md`.
 يُسجَّل ما نُفّذ فعلًا فقط، مع نتيجة الاختبار أو `NOT RUN`.
 
+## 2026-11-28 — صفحة المنهج (`/curriculum/curricula/{id}`): شريط تمرير أفقي رفيع (جلسة `5e7bb484`)
+
+- `app.css`: صنف جديد `sis-scroll-x-thin` — شريط أفقي 4px (Mist، ويصير Steel عند المرور عليه) يظهر فقط حين يزيد عرض المحتوى، مع تمرير سلس (`scroll-behavior: smooth`، يتوقف مع `prefers-reduced-motion`) و`overscroll-behavior-x: contain`. الشريط العمودي يبقى مخفيًا. في Firefox يُستعمل `scrollbar-width: thin`.
+- طُبّق على جدول مواد المنهج (`curriculum-sheet.tsx`، فيظهر أيضًا في صفحة «كل المناهج») وعلى جداول `DataTable` داخل صفحة المنهج فقط (الصنف `sis-curriculum-detail` على الغلاف).
+- **إصلاح بعد ملاحظة المالك:** صفحة المنهج لم تكن تتمرر عموديًا أصلًا (المحتوى مقصوص)، لأن `.sis-page-surface:has(.sis-admission-page) > .sis-admission-page { overflow: hidden }` (0,3,0) كانت تغلب `sis-scroll-hidden`. الحل: صنف جديد `sis-scroll-y-thin` (شريط عمودي 6px ظاهر على اليسار في RTL، تمرير سلس) بدل `hiddenScroll` على غلاف `curriculum-detail.tsx`. صار وزن الصنفين أربعة أصناف (0,4,0)، لأن `.sis-students-page .sis-admission-drafts-table__scroller { scrollbar-width: none }` كانت تُخفي الشريط الأفقي.
+- `npm run build` نجح. `tsc`: لا أخطاء جديدة (20 قديمة).
+- فحص Chrome headless على صفحة ثابتة بالـ CSS المبني والأصناف نفسها: `overflow-y: auto`، شريط عمودي 6px، `scroll-behavior: smooth`؛ الأفقي 4px عند المحتوى الأعرض. الصفحة الحية ببياناتها: `NOT RUN`.
+- **تنقّل سلس (طلب المالك):** غلاف صفحة المنهج يستعمل `useDragScroll` الموجود (كما في نافذة «إنشاء منهج»): سحب المحتوى بالفأرة/اللمس مع انزلاق يتباطأ بعد الإفلات، عجلة تنزلق إلى موضعها، ولا يُختار شيء بعد سحب. الحقول والأزرار والروابط والتسميات لا تبدأ سحبًا. الغلاف `tabIndex=-1` ويأخذ التركيز عند الفتح (إن لم يكن شيء آخر مركّزًا) فتعمل الأسهم وPage Up/Down وHome/End مباشرة. أثر جانبي: تحديد نص الجدول بالسحب لم يعد ممكنًا في هذه الصفحة. `tsc` لا جديد، `npm run build` نجح، السلوك في المتصفح `NOT RUN`.
+
+## 2026-11-28 — «المعلمون»: الرقم التعريفي، القفل، الشهادة، أعمدة التدريس؛ تصفير واستيراد 91 معلمًا من cyber_security (جلسة `5e7bb484`)
+
+- **cyber_security: قراءة فقط.** سكربت في مجلد الجلسة المؤقت قرأ `grade_teachers` (+ فك تشفير الرمز بمفتاح ذلك التطبيق) و`grade_subject_teachers` بـ SELECT فقط، عبر PHP 8.5. لم يُعدَّل فيه شيء.
+- **قاعدة البيانات:** migration `2026_11_28_110000_add_degree_and_access_lock_to_teachers`: `teachers.teachers.degree` (1–6) و`access_locked` (false). **طُبّقت على `sis` بـ `--path`** (بنك الأسئلة باقٍ معلّقًا). blueprint محدّث.
+- **الخادم:**
+  - `TeacherCodeGenerator`: رمز بالشكل XXXX-XXXX يبدأ بـ T، بأبجدية cyber_security.
+  - `AssignTeacherNewCode*`: «تعيين رقم جديد» عبر `ChangeTeacherEmployeeCodeHandler`.
+  - `SetTeachersAccessLock*`: «قفل» / «فتح القفل» لعدة معلمين.
+  - `TeacherDegree` + `degree` في `UpdateTeacher`.
+  - قراءة الجدول تضيف لكل إسناد: `role`، `subject_type`، `hours`، `assistant_names` (`TeachingAssistantMatcher`)، ولكل معلم `total_hours`.
+  - مساران جديدان: `teachers.new-code` و`teachers.access-lock`.
+- **الواجهة (`teachers/index.tsx`، `ar.ts`):**
+  - أعمدة جديدة: الشهادة، اللقب العلمي، نوع التعيين، الصف، الشعبة، الحصص الإجمالية.
+  - «المواد المسندة» تعرض نوع المادة، ومع التوسيع المدرس المساعد.
+  - «الرقم الوظيفي» صار «الرقم التعريفي»، وتظهر علامة قفل بجانبه.
+  - «تحرير»: «تعيين رقم جديد» (مع تأكيد) و«قفل» بدل «الجدول الدراسي».
+  - حقل الشهادة في نافذة التعديل. وُسم نوع التعيين في عمود الحالة أُزيل لأنه صار عمودًا مستقلًا.
+- **البيانات في `sis`:**
+  - حُذف الـ 21 معلمًا التجريبيون عبر `PostgresSafeDeleter::deleteMany('teacher', 1, …)` (لم يكن لهم ما يمنع الحذف).
+  - العدادات أُعيدت إلى 1.
+  - استُورد 91 معلمًا عبر `RegisterTeacherHandler` (المدرسة 1، السنة 1)، بالاسم مقسّمًا (عبد/أبو مع الكلمة التالية) والرقم التعريفي والتخصص والحالة «نشط».
+  - التحقق: 91/91 مطابقة للمصدر، 0 فروق. الإسنادات الـ 34 لم تُستورد بقرار المالك.
+- **الاختبارات:**
+  - `TeachersCodeLockDegreePostgreSqlTest` جديد: 5/5.
+  - `--filter "Teacher|Curriculum"` على قاعدة مؤقتة `sis_test_tch`: 124/128. الفاشلة الثلاث `GradeEntrySheetPostgreSqlTest` سابقة (PR-07).
+  - `tsc`: لا جديد (20). `npm run build` نجح.
+  - `architecture:validate`: لا مخالفة جديدة. `UpdateTeacherHandler` 11 كما في HEAD.
+  - المتصفح: `NOT RUN`.
+
 ## 2026-11-28 — عنوان المنهج سطر نصي واحد؛ حدود لكل خلايا جدول المواد (جلسة `f3e0d7ae`)
 
 - **واجهة فقط.** `curriculum-sheet.tsx`: صفحة المنهج وصفحة «كل المناهج».

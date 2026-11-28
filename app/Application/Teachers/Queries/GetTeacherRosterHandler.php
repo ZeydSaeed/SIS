@@ -7,6 +7,7 @@ use App\Application\Contracts\QueryHandler;
 use App\Application\Teachers\DTOs\TeacherRosterDTO;
 use App\Domain\Teachers\Repositories\TeacherRepositoryInterface;
 use App\Domain\Teachers\Repositories\TeacherRosterReadRepositoryInterface;
+use App\Domain\Teachers\Services\TeachingAssistantMatcher;
 
 /**
  * One school's teaching staff for a year: three queries (teachers, subjects, assignments), no N+1.
@@ -32,9 +33,21 @@ final class GetTeacherRosterHandler implements QueryHandler
             $subjectIdsByTeacher[$assignment->teacherId][] = $assignment->subjectId;
         }
 
+        $names = [];
+        foreach ($page['items'] as $teacher) {
+            $names[$teacher['id']] = $teacher['full_name'];
+        }
+
+        $rows = $this->roster->teachingAssignments($query->schoolId, $query->academicYearId);
+        $assistantNames = TeachingAssistantMatcher::namesPerRow($rows, $names);
         $assignmentsByTeacher = [];
-        foreach ($this->roster->teachingAssignments($query->schoolId, $query->academicYearId) as $row) {
+        $hoursByTeacher = [];
+        foreach ($rows as $index => $row) {
+            $row['assistant_names'] = $assistantNames[$index];
             $assignmentsByTeacher[$row['teacher_id']][] = $row;
+            if ($row['hours'] !== null) {
+                $hoursByTeacher[$row['teacher_id']] = ($hoursByTeacher[$row['teacher_id']] ?? 0) + $row['hours'];
+            }
         }
 
         return new TeacherRosterDTO(
@@ -43,6 +56,8 @@ final class GetTeacherRosterHandler implements QueryHandler
             subjectIdsByTeacher: $subjectIdsByTeacher,
             assignmentsByTeacher: $assignmentsByTeacher,
             curriculumSubjects: $this->roster->curriculumSubjectIds($query->schoolId, $query->academicYearId),
+            hoursByTeacher: $hoursByTeacher,
         );
     }
+
 }

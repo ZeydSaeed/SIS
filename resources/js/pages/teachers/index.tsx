@@ -2,7 +2,6 @@ import { Head, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeftRight,
     BookOpen,
-    CalendarRange,
     ClipboardCheck,
     CheckCircle2,
     ChevronDown,
@@ -18,6 +17,9 @@ import {
     PlusCircle,
     Presentation,
     IdCard,
+    KeyRound,
+    Lock,
+    LockOpen,
     Trash2,
     UserCheck,
     UserX,
@@ -102,6 +104,13 @@ type Assignment = {
     class_name: string | null;
     section_id: number | null;
     section_name: string | null;
+    /** TeachingRole: 1 مدرس المادة · 2 مدرس مساعد. */
+    role?: number;
+    /** SubjectType of the part taught (1 أساسي · 2 اختيارية · 3 عملي · 4 نظري); null = the whole subject. */
+    subject_type?: number | null;
+    hours?: number | null;
+    /** «المدرس المساعد» of a main teaching (server read model). */
+    assistant_names?: string[];
 };
 
 type Teacher = {
@@ -125,6 +134,12 @@ type Teacher = {
     abbreviation?: string | null;
     color_hue?: number | null;
     academic_title_id?: number | null;
+    /** «الشهادة الحاصل عليها» (TeacherDegree 1–6). */
+    degree?: number | null;
+    /** «قفل»: no sign-in through the link. */
+    access_locked?: boolean;
+    /** «الحصص الإجمالية»: hours of all active teachings. */
+    total_hours?: number | null;
     subject_ids: number[];
     assignments: Assignment[];
 };
@@ -177,6 +192,7 @@ type TeacherForm = {
     hire_date: string;
     academic_title_id: string;
     abbreviation: string;
+    degree: string;
 };
 
 /** section_code: shared SSOT code A / B / C (sis-class-section-options), resolved to the class's section on save. */
@@ -192,6 +208,9 @@ type TeachingForm = {
 const ACTIVE = 1;
 const INACTIVE = 2;
 const EMPLOYMENT_TYPES = [1, 2, 3, 4, 5] as const;
+/** TeacherDegree: 1 إعدادية · 2 دبلوم · 3 بكالوريوس · 4 دبلوم عالي · 5 ماجستير · 6 دكتوراه. */
+const DEGREES = [1, 2, 3, 4, 5, 6] as const;
+const ASSISTANT_ROLE = 2;
 /** ملاك = staff ID card · مكلف = assigned task · تنسيب = moved in from another post · محاضر = lecture · عقد = signed contract. */
 const EMPLOYMENT_ICONS: Record<number, LucideIcon> = {
     1: IdCard,
@@ -335,6 +354,7 @@ const EMPTY_FORM: TeacherForm = {
     hire_date: '',
     academic_title_id: '',
     abbreviation: '',
+    degree: '',
 };
 
 const EMPTY_TEACHING: TeachingForm = {
@@ -377,7 +397,31 @@ function formOf(teacher: Teacher): TeacherForm {
                 ? ''
                 : String(teacher.academic_title_id),
         abbreviation: teacher.abbreviation ?? '',
+        degree: teacher.degree == null ? '' : String(teacher.degree),
     };
+}
+
+/** «نوع المادة» of a teaching part (curriculum labels); null = the whole subject. */
+function subjectTypeLabel(type: number | null | undefined): string | null {
+    const c = t().curriculum;
+    switch (type) {
+        case 1:
+            return c.subjectTypeCore;
+        case 2:
+            return c.subjectTypeElective;
+        case 3:
+            return c.subjectTypePractical;
+        case 4:
+            return c.subjectTypeTheory;
+        default:
+            return null;
+    }
+}
+
+function uniqueJoined(values: Array<string | null>): string {
+    const list = [...new Set(values.filter((v): v is string => v !== null && v !== ''))];
+
+    return list.length === 0 ? '—' : list.join('، ');
 }
 
 function matchesFilter(teacher: Teacher, key: FilterKey): boolean {
@@ -510,12 +554,7 @@ function StatusCell({ teacher }: { teacher: Teacher }) {
         <span className="sis-teachers-status">
             <StatusBadge icon={active ? CheckCircle2 : CircleSlash}>
                 {active ? tc.statusActive : tc.statusInactive}
-            </StatusBadge>{' '}
-            <span className="sis-org-tag">
-                {teacher.employment_type === null
-                    ? tc.noEmploymentType
-                    : tc.employmentTypes[teacher.employment_type]}
-            </span>
+            </StatusBadge>
         </span>
     );
 }
@@ -638,7 +677,38 @@ function TeachersPage({
     const [confirmDeactivate, setConfirmDeactivate] = useState(false);
     /** «حذف» (safe delete) of the one selected teacher. */
     const [confirmDelete, setConfirmDelete] = useState(false);
+    /** «تعيين رقم جديد» of the one selected teacher. */
+    const [confirmNewCode, setConfirmNewCode] = useState(false);
     const [endTarget, setEndTarget] = useState<Assignment | null>(null);
+
+    const titleName = (row: Teacher): string | null =>
+        row.academic_title_id == null
+            ? null
+            : (academicTitles.find((x) => x.id === row.academic_title_id)?.name ?? null);
+    /** «الصف الذي يدرّس فيه»: the classes of the teacher's active teachings. */
+    const classCell = (row: Teacher): string =>
+        uniqueJoined(row.assignments.map((a) => a.class_name));
+    /** «الشعبة»: A / B / C of those teachings («كل الشعب» when a class is taught whole). */
+    const sectionCell = (row: Teacher): string =>
+        uniqueJoined(
+            row.assignments.map((a) =>
+                a.class_id === null
+                    ? null
+                    : a.section_id === null
+                      ? tc.allSections
+                      : resolveSisSectionCode(a.section_id, sectionRefs) ||
+                        a.section_name,
+            ),
+        );
+    /** One teaching: «المادة (نظري)» and «(مساعد)» when the teacher assists. */
+    const teachingLabel = (a: Assignment, name: string): string => {
+        const type = subjectTypeLabel(a.subject_type);
+        const parts = [type, a.role === ASSISTANT_ROLE ? tc.asAssistant : null].filter(
+            (v): v is string => v !== null,
+        );
+
+        return parts.length === 0 ? name : `${name} (${parts.join('، ')})`;
+    };
 
     const filteredRows = useMemo(() => {
         const tokens = searchTokens(query);
@@ -660,6 +730,18 @@ function TeachersPage({
                 return row.employee_code;
             case 'specialization':
                 return row.specialization_field;
+            case 'degree':
+                return row.degree ?? null;
+            case 'title':
+                return titleName(row);
+            case 'employment':
+                return row.employment_type;
+            case 'class':
+                return classCell(row);
+            case 'section':
+                return sectionCell(row);
+            case 'hours':
+                return row.total_hours ?? null;
             case 'subjectsCount':
                 return row.subject_ids.length;
             case 'subjects':
@@ -692,8 +774,8 @@ function TeachersPage({
     useEffect(() => setPageNumber(1), [filterKey, rosterFilters, query]);
 
     useAutoFitTableColumns(tableRef, scrollerRef, {
-        storageKey: 'teachers.list.v3',
-        columnSignature: `${canManage ? 'select' : 'readonly'}:v3`,
+        storageKey: 'teachers.list.v4',
+        columnSignature: `${canManage ? 'select' : 'readonly'}:v4`,
         enabled: displayRows.length > 0,
         rowsKey: displayRows.map((row) => row.id).join(','),
     });
@@ -719,6 +801,12 @@ function TeachersPage({
         actionIds.length === 1
             ? (teachers.find((row) => row.id === actionIds[0]) ?? null)
             : null;
+    /** Every selected teacher is already locked → the ribbon offers «فتح القفل». */
+    const allLocked =
+        actionIds.length > 0 &&
+        actionIds.every(
+            (id) => teachers.find((row) => row.id === id)?.access_locked === true,
+        );
 
     useEffect(() => {
         if (selectAllRef.current) {
@@ -842,6 +930,7 @@ function TeachersPage({
                     !(await request('patch', `/teachers/${teacherId}`, {
                         ...payload,
                         ...workload,
+                        degree: f.degree === '' ? null : Number(f.degree),
                     }))
                 ) {
                     return false;
@@ -1117,22 +1206,31 @@ function TeachersPage({
                 disabled: !hasSelection,
                 onSelect: () => openSelection(true),
             },
-            {
-                // «الجدول الدراسي» of the selected teacher(s) only.
-                id: 'teachers-timetable',
-                label: tc.openTimetable,
-                icon: CalendarRange,
-                title: selectionTitle(tc.openTimetable),
-                disabled: !hasSelection,
-                onSelect: () =>
-                    router.get('/timetable', {
-                        view: 'teacher',
-                        teacher_ids: actionIds.join(','),
-                    }),
-            },
         ];
         if (canManage) {
             recordCommands.push(
+                {
+                    // «تعيين رقم جديد»: a generated «الرقم التعريفي» (XXXX-XXXX, starts with T).
+                    id: 'teachers-new-code',
+                    label: tc.newCode,
+                    icon: KeyRound,
+                    title: single === null ? tc.needsSingle : tc.newCodeTitle,
+                    disabled: single === null || saving,
+                    onSelect: () => setConfirmNewCode(true),
+                },
+                {
+                    // «قفل»: no sign-in through the link (toggle for the selection).
+                    id: 'teachers-access-lock',
+                    label: allLocked ? tc.unlock : tc.lock,
+                    icon: allLocked ? LockOpen : Lock,
+                    title: selectionTitle(allLocked ? tc.unlockTitle : tc.lockTitle),
+                    pressed: allLocked,
+                    disabled: !hasSelection || saving,
+                    onSelect: () =>
+                        void bulk('/teachers/access-lock', {
+                            locked: !allLocked,
+                        }),
+                },
                 {
                     id: 'teachers-edit',
                     label: i18n.common.edit,
@@ -1278,6 +1376,7 @@ function TeachersPage({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         actionIds,
+        allLocked,
         canManage,
         counts,
         filterKey,
@@ -1488,6 +1587,13 @@ function TeachersPage({
                       ...sheetTeacher.subject_ids,
                   ]),
               ];
+    const degreeOptions = [
+        { value: '', label: tc.noDegree },
+        ...DEGREES.map((degree) => ({
+            value: String(degree),
+            label: tc.degrees[degree],
+        })),
+    ];
     const employmentOptions = [
         { value: '', label: tc.noEmploymentType },
         ...EMPLOYMENT_TYPES.map((type) => ({
@@ -1574,6 +1680,11 @@ function TeachersPage({
                                                             {tc.employeeCode}
                                                         </SortButton>
                                                     </th>
+                                                    <th aria-sort={ariaSort(sort, 'degree')}>
+                                                        <SortButton sort={sort} column="degree">
+                                                            {tc.degree}
+                                                        </SortButton>
+                                                    </th>
                                                     <th
                                                         title={
                                                             tc.certificateSpecializationHint
@@ -1586,6 +1697,26 @@ function TeachersPage({
                                                             }
                                                         </SortButton>
                                                     </th>
+                                                    <th aria-sort={ariaSort(sort, 'title')}>
+                                                        <SortButton sort={sort} column="title">
+                                                            {tc.academicTitle}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th aria-sort={ariaSort(sort, 'employment')}>
+                                                        <SortButton sort={sort} column="employment">
+                                                            {tc.employmentType}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th aria-sort={ariaSort(sort, 'class')}>
+                                                        <SortButton sort={sort} column="class">
+                                                            {tc.classColumn}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th aria-sort={ariaSort(sort, 'section')}>
+                                                        <SortButton sort={sort} column="section">
+                                                            {tc.section}
+                                                        </SortButton>
+                                                    </th>
                                                     <th aria-sort={ariaSort(sort, 'subjectsCount')}>
                                                         <SortButton sort={sort} column="subjectsCount">
                                                             {tc.subjectsCountColumn}
@@ -1594,6 +1725,11 @@ function TeachersPage({
                                                     <th className="sis-teachers-table__subjects-head" aria-sort={ariaSort(sort, 'subjects')}>
                                                         <SortButton sort={sort} column="subjects">
                                                             {tc.subjectsColumn}
+                                                        </SortButton>
+                                                    </th>
+                                                    <th title={tc.totalHoursHint} aria-sort={ariaSort(sort, 'hours')}>
+                                                        <SortButton sort={sort} column="hours">
+                                                            {tc.totalHours}
                                                         </SortButton>
                                                     </th>
                                                     <th aria-sort={ariaSort(sort, 'status')}>
@@ -1651,16 +1787,32 @@ function TeachersPage({
                                                                     subjectId,
                                                             )?.subject_name ??
                                                             `#${subjectId}`;
+                                                        /** «المادة (نظري، عملي)» — the parts this teacher teaches. */
+                                                        const subjectWithTypes = (
+                                                            subjectId: number,
+                                                        ) => {
+                                                            const types = [
+                                                                ...new Set(
+                                                                    row.assignments
+                                                                        .filter((a) => a.subject_id === subjectId)
+                                                                        .map((a) => subjectTypeLabel(a.subject_type))
+                                                                        .filter((v): v is string => v !== null),
+                                                                ),
+                                                            ];
+
+                                                            return types.length === 0
+                                                                ? subjectName(subjectId)
+                                                                : `${subjectName(subjectId)} (${types.join('، ')})`;
+                                                        };
                                                         const subjectChip = (
                                                             subjectId: number,
+                                                            label: string = subjectWithTypes(subjectId),
                                                         ) => (
                                                             <SubjectChip
                                                                 tone={subjectTone.get(
                                                                     subjectId,
                                                                 )}
-                                                                name={subjectName(
-                                                                    subjectId,
-                                                                )}
+                                                                name={label}
                                                                 query={query}
                                                             />
                                                         );
@@ -1738,7 +1890,14 @@ function TeachersPage({
                                                                     </CellScroll>
                                                                 </td>
                                                                 <td>
-                                                                    <span dir="ltr">
+                                                                    <span
+                                                                        dir="ltr"
+                                                                        title={
+                                                                            row.access_locked
+                                                                                ? tc.accessLockedHint
+                                                                                : undefined
+                                                                        }
+                                                                    >
                                                                         <HighlightedText
                                                                             text={
                                                                                 row.employee_code
@@ -1747,7 +1906,23 @@ function TeachersPage({
                                                                                 query
                                                                             }
                                                                         />
+                                                                        {row.access_locked ? (
+                                                                            <>
+                                                                                {' '}
+                                                                                <Lock
+                                                                                    size={13}
+                                                                                    aria-label={
+                                                                                        tc.accessLockedHint
+                                                                                    }
+                                                                                />
+                                                                            </>
+                                                                        ) : null}
                                                                     </span>
+                                                                </td>
+                                                                <td>
+                                                                    {row.degree == null
+                                                                        ? '—'
+                                                                        : tc.degrees[row.degree]}
                                                                 </td>
                                                                 <td>
                                                                     <CellScroll>
@@ -1760,6 +1935,24 @@ function TeachersPage({
                                                                                 query
                                                                             }
                                                                         />
+                                                                    </CellScroll>
+                                                                </td>
+                                                                <td>
+                                                                    {titleName(row) ?? '—'}
+                                                                </td>
+                                                                <td>
+                                                                    {row.employment_type === null
+                                                                        ? '—'
+                                                                        : tc.employmentTypes[row.employment_type]}
+                                                                </td>
+                                                                <td>
+                                                                    <CellScroll>
+                                                                        {classCell(row)}
+                                                                    </CellScroll>
+                                                                </td>
+                                                                <td>
+                                                                    <CellScroll>
+                                                                        {sectionCell(row)}
                                                                     </CellScroll>
                                                                 </td>
                                                                 <td>
@@ -1833,10 +2026,19 @@ function TeachersPage({
                                                                                             >
                                                                                                 {subjectChip(
                                                                                                     assignment.subject_id,
+                                                                                                    teachingLabel(
+                                                                                                        assignment,
+                                                                                                        subjectName(
+                                                                                                            assignment.subject_id,
+                                                                                                        ),
+                                                                                                    ),
                                                                                                 )}{' '}
                                                                                                 {placeOf(
                                                                                                     assignment,
                                                                                                 )}
+                                                                                                {(assignment.assistant_names ?? []).length > 0
+                                                                                                    ? ` · ${tc.assistantTeacher}: ${(assignment.assistant_names ?? []).join('، ')}`
+                                                                                                    : ''}
                                                                                             </span>
                                                                                         ),
                                                                                     )}
@@ -1876,6 +2078,11 @@ function TeachersPage({
                                                                             )}
                                                                         </div>
                                                                     )}
+                                                                </td>
+                                                                <td>
+                                                                    <span dir="ltr">
+                                                                        {row.total_hours ?? '—'}
+                                                                    </span>
                                                                 </td>
                                                                 <td
                                                                     className={tableStatusCellClass(
@@ -2051,6 +2258,20 @@ function TeachersPage({
                                 value={sheet.form.specialization_field}
                                 onChange={setSheetField('specialization_field')}
                             />
+                            {sheet.id !== null ? (
+                                <RegistryListField
+                                    label={tc.degree}
+                                    editing={sheetEditing}
+                                    value={sheet.form.degree}
+                                    display={
+                                        sheet.form.degree === ''
+                                            ? tc.noDegree
+                                            : tc.degrees[Number(sheet.form.degree)]
+                                    }
+                                    options={degreeOptions}
+                                    onChange={setSheetField('degree')}
+                                />
+                            ) : null}
                             <RegistryListField
                                 label={tc.academicTitle}
                                 editing={sheetEditing}
@@ -2552,6 +2773,27 @@ function TeachersPage({
                 onOpenChange={(open) => {
                     if (!open && !saving) {
                         setConfirmDelete(false);
+                    }
+                }}
+            />
+            <ConfirmDialog
+                open={confirmNewCode && single !== null}
+                title={tc.newCode}
+                description={`${tc.newCodeConfirm}${single !== null ? ` (${single.full_name} — ${single.employee_code})` : ''}`}
+                confirmLabel={tc.newCode}
+                confirmPending={saving}
+                onConfirm={() => {
+                    if (single === null) {
+                        return;
+                    }
+                    void run(
+                        () => request('post', `/teachers/${single.id}/new-code`, {}),
+                        () => setConfirmNewCode(false),
+                    ).finally(() => setConfirmNewCode(false));
+                }}
+                onOpenChange={(open) => {
+                    if (!open && !saving) {
+                        setConfirmNewCode(false);
                     }
                 }}
             />

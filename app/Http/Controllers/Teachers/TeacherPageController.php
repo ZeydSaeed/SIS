@@ -13,6 +13,8 @@ use App\Application\Organization\Queries\GetBranchStructureHandler;
 use App\Application\Organization\Queries\GetBranchStructureQuery;
 use App\Application\Teachers\Commands\AddTeachingAssignmentCommand;
 use App\Application\Teachers\Commands\AddTeachingAssignmentHandler;
+use App\Application\Teachers\Commands\AssignTeacherNewCodeCommand;
+use App\Application\Teachers\Commands\AssignTeacherNewCodeHandler;
 use App\Application\Teachers\Commands\AssignTeacherSubjectCommand;
 use App\Application\Teachers\Commands\AssignTeacherSubjectHandler;
 use App\Application\Teachers\Commands\ChangeTeachersStatusCommand;
@@ -25,6 +27,8 @@ use App\Application\Teachers\Commands\EndTeachingAssignmentCommand;
 use App\Application\Teachers\Commands\EndTeachingAssignmentHandler;
 use App\Application\Teachers\Commands\RegisterTeacherCommand;
 use App\Application\Teachers\Commands\RegisterTeacherHandler;
+use App\Application\Teachers\Commands\SetTeachersAccessLockCommand;
+use App\Application\Teachers\Commands\SetTeachersAccessLockHandler;
 use App\Application\Teachers\Commands\SetTeachersEmploymentTypeCommand;
 use App\Application\Teachers\Commands\SetTeachersEmploymentTypeHandler;
 use App\Application\Teachers\Commands\UnlinkTeacherSubjectCommand;
@@ -42,12 +46,14 @@ use App\Application\Teachers\Commands\UpdateTeacherAppearanceHandler;
 use App\Http\Requests\Teachers\UpdateTeacherAppearanceRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Teachers\AddTeachingAssignmentRequest;
+use App\Http\Requests\Teachers\AssignTeacherNewCodeRequest;
 use App\Http\Requests\Teachers\AssignTeacherSubjectRequest;
 use App\Http\Requests\Teachers\ChangeTeachersStatusRequest;
 use App\Http\Requests\Teachers\DeactivateTeacherRequest;
 use App\Http\Requests\Teachers\EndTeachingAssignmentRequest;
 use App\Http\Requests\Teachers\ReactivateTeacherRequest;
 use App\Http\Requests\Teachers\RegisterTeacherRequest;
+use App\Http\Requests\Teachers\SetTeachersAccessLockRequest;
 use App\Http\Requests\Teachers\SetTeachersEmploymentTypeRequest;
 use App\Http\Requests\Teachers\UnlinkTeacherSubjectRequest;
 use App\Http\Requests\Teachers\UpdateTeacherRequest;
@@ -109,6 +115,7 @@ final class TeacherPageController extends Controller
                 static fn (array $t): array => $t + [
                     'subject_ids' => $result->subjectIdsByTeacher[$t['id']] ?? [],
                     'assignments' => $result->assignmentsByTeacher[$t['id']] ?? [],
+                    'total_hours' => $result->hoursByTeacher[$t['id']] ?? null,
                 ],
                 $result->teachers,
             );
@@ -258,6 +265,8 @@ final class TeacherPageController extends Controller
             updateTitle: $request->has('academic_title_id') || $request->has('abbreviation'),
             academicTitleId: $this->nullableInt($request->validated('academic_title_id')),
             abbreviation: $request->validated('abbreviation'),
+            updateDegree: $request->has('degree'),
+            degree: $this->nullableInt($request->validated('degree')),
         ));
 
         return $this->respond($request, $result, 'teachers.web.update', 'updated', 'teacher:'.$teacher, 'flash.teachers.updated');
@@ -356,6 +365,32 @@ final class TeacherPageController extends Controller
         ));
 
         return $this->respond($request, $result, 'teachers.web.bulk_employment_type', 'updated', 'teachers:'.implode(',', $result->teacherIds), 'flash.teachers.employmentTypeChanged');
+    }
+
+    /** «تعيين رقم جديد» — the application makes the selected teacher a new «الرقم التعريفي». */
+    public function assignNewCode(int $teacher, AssignTeacherNewCodeRequest $request, AssignTeacherNewCodeHandler $handler): RedirectResponse
+    {
+        $result = $handler->handle(new AssignTeacherNewCodeCommand(
+            schoolId: $this->schoolContext->requireId(),
+            teacherId: $teacher,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.new_code', 'updated', 'teacher:'.$teacher, 'flash.teachers.newCodeAssigned');
+    }
+
+    /** «قفل» / «فتح القفل» — whether the selected teachers may sign in through the link. */
+    public function accessLock(SetTeachersAccessLockRequest $request, SetTeachersAccessLockHandler $handler): RedirectResponse
+    {
+        $locked = (bool) $request->validated('locked');
+        $result = $handler->handle(new SetTeachersAccessLockCommand(
+            schoolId: $this->schoolContext->requireId(),
+            teacherIds: array_map('intval', (array) $request->validated('teacher_ids')),
+            locked: $locked,
+            idempotencyKey: $request->header('X-Idempotency-Key'),
+        ));
+
+        return $this->respond($request, $result, 'teachers.web.access_lock', $locked ? 'locked' : 'unlocked', 'teachers:'.implode(',', $result->teacherIds), $locked ? 'flash.teachers.accessLocked' : 'flash.teachers.accessUnlocked');
     }
 
     public function addAssignment(int $teacher, AddTeachingAssignmentRequest $request, AddTeachingAssignmentHandler $handler): RedirectResponse

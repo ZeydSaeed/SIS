@@ -275,6 +275,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{teacher}/subjects/unlink', [TeacherPageController::class, 'unlinkSubject'])->whereNumber('teacher')->name('subjects.unlink');
         Route::post('/bulk-status', [TeacherPageController::class, 'bulkStatus'])->name('bulk-status');
         Route::post('/bulk-employment-type', [TeacherPageController::class, 'bulkEmploymentType'])->name('bulk-employment-type');
+        // «تعيين رقم جديد» (generated «الرقم التعريفي») and «قفل» (no sign-in through the link).
+        Route::post('/{teacher}/new-code', [TeacherPageController::class, 'assignNewCode'])->whereNumber('teacher')->name('new-code');
+        Route::post('/access-lock', [TeacherPageController::class, 'accessLock'])->name('access-lock');
         Route::post('/{teacher}/assignments', [TeacherPageController::class, 'addAssignment'])->whereNumber('teacher')->name('assignments.add');
         Route::post('/{teacher}/assignments/{assignment}/end', [TeacherPageController::class, 'endAssignment'])
             ->whereNumber('teacher')
