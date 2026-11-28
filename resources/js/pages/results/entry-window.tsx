@@ -9,10 +9,12 @@ import {
     Factory,
     FilterX,
     GraduationCap,
+    Layers,
     LayoutGrid,
     Lock,
     LockOpen,
     Megaphone,
+    Rows3,
     Sprout,
     SquareCheck,
     type LucideIcon,
@@ -33,14 +35,13 @@ import { useRegisterPageTitlebarHome } from "@/components/sis/page-titlebar-home
 import { RibbonFilterField } from "@/components/sis/ribbon-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import AppLogo from "@/components/app-logo";
+import { SheetSection } from "@/components/sis/admission-sheet";
+import { WindowControls } from "@/components/window-controls";
+import { useSheetMaximize } from "@/hooks/use-sheet-maximize";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
+import { useSmoothDialogDrag } from "@/hooks/use-smooth-dialog-drag";
 import AppLayout from "@/layouts/app-layout";
 import { t } from "@/i18n";
 import type { BreadcrumbItem } from "@/types";
@@ -98,7 +99,7 @@ type PlaceGroup = {
     className: string;
     department: string;
     label: string;
-    sections: Array<{ key: string; label: string }>;
+    sections: Array<{ key: string; name: string; label: string }>;
 };
 
 const pass = (chosen: string[], value: string): boolean =>
@@ -153,6 +154,7 @@ function placeGroups(
                     ].join(" — "),
                     sections: sections.map((row) => ({
                         key: `${base}|${row.id}`,
+                        name: row.name,
                         label: `${labels.section} ${row.name}`,
                     })),
                 });
@@ -493,6 +495,178 @@ function branchIcon(name: string): LucideIcon {
     return name.includes("تجار") ? Briefcase : Building2;
 }
 
+/** One chosen section in «نشر النتائج؟». */
+type ChosenRow = {
+    key: string;
+    branch: string;
+    department: string;
+    className: string;
+    section: string;
+};
+
+/**
+ * «نشر النتائج؟» in the system's window (the sheets' chrome: dark hero, drag, maximise, close). Not modal: no overlay,
+ * the page behind stays usable (owner's request, 2026-11-28). The chosen sections are a table, then «النواقص».
+ */
+function PublishSheet({
+    rows,
+    onClose,
+    onPublish,
+}: {
+    rows: ChosenRow[];
+    onClose: () => void;
+    onPublish: () => void;
+}) {
+    const i18n = t();
+    const w = i18n.results.entryWindow;
+    const { contentRef, heroDragProps, bringToFront, resizeHandles } =
+        useSmoothDialogDrag(true, {
+            resizable: true,
+            minSize: { width: 560, height: 280 },
+        });
+    const { maximized, toggleMaximize, maximizeClassName } =
+        useSheetMaximize(contentRef);
+    // Up and down by dragging the content with the mouse (it glides on and slows down) or the wheel (eased).
+    const bodyRef = useDragScroll<HTMLDivElement>(true);
+
+    return (
+        <Dialog
+            open
+            modal={false}
+            onOpenChange={(open) => {
+                if (!open) {
+                    onClose();
+                }
+            }}
+        >
+            <DialogContent
+                ref={contentRef}
+                // The «معلومات التسجيل» window's own classes (owner's request): same chrome, colours and order.
+                className={`sis-admission-draft-dialog sis-admission-sheet-dialog sis-student-sheet-dialog sis-enrollment-record-sheet sis-results-publish-dialog${maximizeClassName}`}
+                overlayClassName="sis-admission-sheet-dialog__overlay"
+                dir="rtl"
+                lang="ar"
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => event.preventDefault()}
+                onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownCapture={bringToFront}
+            >
+                <DialogTitle className="sr-only">{w.confirmTitle}</DialogTitle>
+                {maximized ? null : resizeHandles}
+                <div className="sis-admission-draft-form sis-admission-sheet sis-student-record-form sis-results-publish-sheet">
+                    <header
+                        className="sis-admission-sheet__hero"
+                        {...(maximized ? {} : heroDragProps)}
+                    >
+                        <WindowControls
+                            className="sis-admission-sheet__window-controls"
+                            label={i18n.window.controls}
+                            minimizeLabel={i18n.window.minimize}
+                            maximizeLabel={i18n.window.maximize}
+                            restoreLabel={i18n.window.restore}
+                            closeLabel={i18n.window.close}
+                            minimizable={false}
+                            maximizable
+                            maximized={maximized}
+                            onMaximize={toggleMaximize}
+                            onClose={onClose}
+                        />
+                        <div className="sis-admission-sheet__hero-copy">
+                            <p className="sis-admission-sheet__hero-title">
+                                {w.confirmTitle}
+                            </p>
+                        </div>
+                        <div className="sis-admission-sheet__hero-logo">
+                            <AppLogo
+                                tone="on-dark"
+                                className="sis-admission-sheet__logo"
+                            />
+                        </div>
+                    </header>
+
+                    <div
+                        ref={bodyRef}
+                        className="sis-results-publish-sheet__body"
+                    >
+                        <SheetSection
+                            id="results-publish-chosen"
+                            title={`${w.chosenTitle} (${rows.length})`}
+                        >
+                            <div className="sis-admission-periods-table sis-admission-drafts-table">
+                                <div className="sis-admission-drafts-table__scroller">
+                                    <table>
+                                        <caption className="sr-only">
+                                            {w.chosenTitle}
+                                        </caption>
+                                        <thead>
+                                            <tr>
+                                                <th className="sis-admission-drafts-table__name-head">
+                                                    {w.branch}
+                                                </th>
+                                                <th className="sis-admission-drafts-table__name-head">
+                                                    {w.department}
+                                                </th>
+                                                <th className="sis-admission-drafts-table__name-head">
+                                                    {w.classLabel}
+                                                </th>
+                                                <th className="sis-admission-drafts-table__name-head">
+                                                    {w.sectionLabel}
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {rows.map((row) => (
+                                                <tr key={row.key}>
+                                                    <td className="sis-admission-drafts-table__text">
+                                                        {row.branch}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text">
+                                                        {row.department}
+                                                    </td>
+                                                    <td className="sis-admission-drafts-table__text">
+                                                        {row.className}
+                                                    </td>
+                                                    <td
+                                                        className="sis-admission-drafts-table__text"
+                                                        dir="ltr"
+                                                    >
+                                                        {row.section}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </SheetSection>
+                        <SheetSection
+                            id="results-publish-missing"
+                            title={w.showMissing}
+                        >
+                            <MissingTable />
+                        </SheetSection>
+                    </div>
+
+                    {/* As «معلومات التسجيل»: «إلغاء» first, then the window's own action. */}
+                    <div className="sis-admission-sheet__actions">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                        >
+                            {w.cancel}
+                        </Button>
+                        <Button type="button" onClick={onPublish}>
+                            {w.publish}
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function EntryWindowContent({ structure, filters }: Props) {
     const w = t().results.entryWindow;
     const { academicYears } = usePage().props as {
@@ -526,8 +700,13 @@ function EntryWindowContent({ structure, filters }: Props) {
             new Map(structure.branches.map((row, index) => [row.name, index])),
         [structure.branches],
     );
-    const places = groups.flatMap((group) =>
-        group.sections.map((section) => section.key),
+    // Memoised: «تحرير» depends on it, and a new array each render re-registered the ribbon in a loop (blank page).
+    const places = useMemo(
+        () =>
+            groups.flatMap((group) =>
+                group.sections.map((section) => section.key),
+            ),
+        [groups],
     );
     // Each branch is its own block (owner's request, 2026-11-28), in the school's branch order.
     // «حالة»: the cards show only the sections of the chosen view (empty cards are left out).
@@ -603,14 +782,21 @@ function EntryWindowContent({ structure, filters }: Props) {
         setConfirming(false);
     };
 
-    const chosenLabels = groups.flatMap((group) =>
+    const chosenRows: ChosenRow[] = groups.flatMap((group) =>
         group.sections
             .filter((section) => chosen.has(section.key))
-            .map((section) => `${group.label} — ${section.label}`),
+            .map((section) => ({
+                key: section.key,
+                branch: group.branch,
+                department: group.department,
+                className: group.className,
+                section: section.name,
+            })),
     );
 
     // «تحرير» as on «المناهج» (owner's request, 2026-11-28): «إجراءات», «حالة» with counts, «توزيعات». Every command
-    // stays available; when it cannot act now it says why instead of being greyed out.
+    // stays available; when it cannot act now it says why instead of being greyed out. Ids and labels never change
+    // with the state (the state shows as «pressed»), so the icons keep their places when one is pressed.
     const editGroups = useMemo((): PageRibbonGroup[] => {
         const needChoice = (run: () => void) => () => {
             if (chosen.size === 0) {
@@ -621,27 +807,28 @@ function EntryWindowContent({ structure, filters }: Props) {
             run();
         };
         const actions: PageRibbonCommand[] = [
-            entryOpen
-                ? {
-                      id: "entry-close",
-                      label: w.close,
-                      icon: Lock,
-                      iconTone: "warning",
-                      onSelect: () => setEntryOpen(false),
-                  }
-                : {
-                      id: "entry-open",
-                      label: w.open,
-                      icon: LockOpen,
-                      iconTone: "ok",
-                      onSelect: () =>
-                          anyPublished
-                              ? showInfo(w.hideBeforeOpen)
-                              : setEntryOpen(true),
-                  },
+            {
+                id: "entry-open",
+                label: w.open,
+                icon: LockOpen,
+                iconTone: "ok",
+                pressed: entryOpen,
+                onSelect: () =>
+                    anyPublished
+                        ? showInfo(w.hideBeforeOpen)
+                        : setEntryOpen(true),
+            },
+            {
+                id: "entry-close",
+                label: w.close,
+                icon: Lock,
+                iconTone: "warning",
+                pressed: !entryOpen,
+                onSelect: () => setEntryOpen(false),
+            },
             {
                 id: "missing",
-                label: showMissing ? w.hideMissing : w.showMissing,
+                label: w.showMissing,
                 icon: AlertTriangle,
                 iconTone: "amber",
                 pressed: showMissing,
@@ -649,10 +836,7 @@ function EntryWindowContent({ structure, filters }: Props) {
             },
             {
                 id: "publish",
-                label:
-                    all && published.size === 0
-                        ? w.publishAll
-                        : w.publishChosen,
+                label: w.publish,
                 icon: Megaphone,
                 iconTone: "education",
                 onSelect: needChoice(() =>
@@ -734,15 +918,15 @@ function EntryWindowContent({ structure, filters }: Props) {
             pressed: statusView === view.id,
             onSelect: () => setStatusView(view.id),
         }));
-        // «توزيعات»: tick (or untick) every free section of a branch or of a class at once.
+        // «توزيعات»: every branch, specialization, class and section of the school; pressing one ticks (or unticks)
+        // its free sections among the places shown (the «الصفحة الرئيسية» filters).
         const pick = (
             id: string,
             label: string,
             icon: LucideIcon,
             tone: NonNullable<PageRibbonCommand["iconTone"]>,
-            cards: PlaceGroup[],
+            keys: string[],
         ): PageRibbonCommand => {
-            const keys = freeKeys(cards, published);
             const every =
                 keys.length > 0 && keys.every((key) => chosen.has(key));
 
@@ -761,46 +945,92 @@ function EntryWindowContent({ structure, filters }: Props) {
                           : toggle(keys, !every),
             };
         };
-        const branchNames = [...new Set(groups.map((group) => group.branch))];
-        const classes = [
-            ...new Map(
-                groups.map((group) => [group.classId, group.className]),
-            ).entries(),
-        ];
-        const distribution: PageRibbonCommand[] = [
-            ...branchNames.map((name) =>
-                pick(
-                    `branch-${name}`,
-                    name,
-                    branchIcon(name),
-                    "forest",
-                    groups.filter((group) => group.branch === name),
-                ),
-            ),
-            ...classes.map(([classId, className]) =>
-                pick(
-                    `class-${classId}`,
-                    className,
-                    GraduationCap,
-                    "authority",
-                    groups.filter((group) => group.classId === classId),
-                ),
+        const keysOf = (match: (group: PlaceGroup) => boolean) =>
+            freeKeys(groups.filter(match), published);
+        const departmentNames = [
+            ...new Set(
+                structure.departments
+                    .filter((row) => row.branch_id !== null)
+                    .map((row) => row.name),
             ),
         ];
+        const sectionNames = [
+            ...new Set(structure.sections.map((row) => row.name)),
+        ].sort((a, b) => a.localeCompare(b, "en"));
+        const orderedClasses = [...structure.classes].sort(
+            (a, b) => a.grade_level_id - b.grade_level_id || a.id - b.id,
+        );
+        const branches = structure.branches.map((row) =>
+            pick(
+                `branch-${row.id}`,
+                row.name,
+                branchIcon(row.name),
+                "forest",
+                keysOf((group) => group.branch === row.name),
+            ),
+        );
+        const departments = departmentNames.map((name) =>
+            pick(
+                `department-${name}`,
+                name,
+                Layers,
+                "sky",
+                keysOf((group) => group.department === name),
+            ),
+        );
+        const classes = orderedClasses.map((row) =>
+            pick(
+                `class-${row.id}`,
+                row.name,
+                GraduationCap,
+                "authority",
+                keysOf((group) => group.classId === row.id),
+            ),
+        );
+        const sections = sectionNames.map((name) =>
+            pick(
+                `section-${name}`,
+                `${w.section} ${name}`,
+                Rows3,
+                "education",
+                groups
+                    .flatMap((group) => group.sections)
+                    .filter(
+                        (section) =>
+                            section.name === name &&
+                            !published.has(section.key),
+                    )
+                    .map((section) => section.key),
+            ),
+        );
 
         return [
             { id: "actions", label: w.ribbonActions, commands: actions },
             { id: "status", label: w.ribbonStatus, commands: status },
             {
-                id: "distribution",
-                label: w.ribbonDistribution,
-                commands: distribution,
+                id: "distribution-branches",
+                label: w.distBranches,
+                commands: branches,
+            },
+            {
+                id: "distribution-departments",
+                label: w.distDepartments,
+                commands: departments,
+            },
+            {
+                id: "distribution-classes",
+                label: w.distClasses,
+                commands: classes,
+            },
+            {
+                id: "distribution-sections",
+                label: w.distSections,
+                commands: sections,
             },
         ];
         // toggle only sets this page's state.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        all,
         allPublished,
         anyPublished,
         chosen,
@@ -811,6 +1041,7 @@ function EntryWindowContent({ structure, filters }: Props) {
         showInfo,
         showMissing,
         statusView,
+        structure,
         w,
     ]);
     useRegisterPageRibbon("edit", editGroups);
@@ -1068,23 +1299,13 @@ function EntryWindowContent({ structure, filters }: Props) {
                     {showMissing && chosen.size > 0 ? <MissingTable /> : null}
                 </section>
 
-                <Dialog open={confirming} onOpenChange={setConfirming}>
-                    <DialogContent className="sm:max-w-3xl" dir="rtl">
-                        <DialogTitle>{w.confirmTitle}</DialogTitle>
-                        <DialogDescription>
-                            {chosenLabels.join("، ")}
-                        </DialogDescription>
-                        <div className="flex max-h-[55vh] flex-col gap-3 overflow-y-auto">
-                            <MissingTable />
-                        </div>
-                        <DialogFooter className="gap-2">
-                            <DialogClose asChild>
-                                <Button variant="outline">{w.cancel}</Button>
-                            </DialogClose>
-                            <Button onClick={publish}>{w.publish}</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                {confirming ? (
+                    <PublishSheet
+                        rows={chosenRows}
+                        onClose={() => setConfirming(false)}
+                        onPublish={publish}
+                    />
+                ) : null}
             </div>
         </>
     );

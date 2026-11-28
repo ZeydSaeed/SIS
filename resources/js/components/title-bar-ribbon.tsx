@@ -844,7 +844,8 @@ export function TitleBarRibbon({
 
     // «الجدول الدراسي» and «الحضور»: a group that does not fit the window folds into one button that opens its
     // commands (طي / إظهار); the other pages keep every group in the strip and scroll it sideways.
-    const accordion = isTimetablePage || isAttendancePage;
+    // «النتائج» too (owner's request, 2026-11-28): every icon shows; a group that does not fit folds (طي / إظهار).
+    const accordion = isTimetablePage || isAttendancePage || isResultsPage;
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const [collapsedCount, setCollapsedCount] = useState(0);
     // Groups stay unfolded: a strip wider than the window first tightens its spacing (before it ever scrolls).
@@ -974,6 +975,7 @@ export function TitleBarRibbon({
         isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
         isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
         isCurriculumPage || isResultsPage ? 'sis-ribbon--curriculum-page' : '',
+        isResultsPage ? 'sis-ribbon--results-page' : '',
         isEnrollmentsPage ? 'sis-ribbon--enrollments-page' : '',
         isStudentsPage ? 'sis-ribbon--students-page' : '',
         isAdmissionPage ? 'sis-ribbon--admission-page' : '',
@@ -1077,6 +1079,7 @@ export function TitleBarRibbon({
                 isStudentsRibbon ? 'sis-ribbon--students-edit' : '',
                 isCurriculumRibbon ? 'sis-ribbon--curriculum-edit' : '',
                 isCurriculumPage || isResultsPage ? 'sis-ribbon--curriculum-page' : '',
+                isResultsPage ? 'sis-ribbon--results-page' : '',
                 isEnrollmentsPage ? 'sis-ribbon--enrollments-page' : '',
                 isStudentsPage ? 'sis-ribbon--students-page' : '',
                 isAdmissionPage ? 'sis-ribbon--admission-page' : '',

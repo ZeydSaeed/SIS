@@ -1381,6 +1381,13 @@ body:has(.sis-chrome--word-tabs:not(.sis-chrome--sheets-above))
     max-width: 20rem;
 }
 
+/* «النتائج» (2026-11-28): a group stays on one line (no second row cut by the ribbon height, icons hidden);
+   a group that does not fit folds into its button (title-bar-ribbon accordion). */
+.sis-ribbon--results-page.sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__items {
+    flex-wrap: nowrap;
+    max-width: none;
+}
+
 /* Status/distribution keep normal icon+label size like Add/Home tabs */
 .sis-ribbon--fit .sis-ribbon__group--commands .sis-ribbon__item {
     min-width: 3.4rem;
@@ -12287,6 +12294,107 @@ button.sis-admission-drafts-table__transition:focus-visible:not(:disabled) {
     height: var(--sis-sheet-h, fit-content) !important;
     min-height: 0 !important;
     max-height: var(--sis-sheet-h, min(92vh, 100%)) !important;
+}
+
+/* «نشر النتائج؟» (/results/entry-window, 2026-11-28): the sheets' window, not modal (no overlay). */
+.sis-admission-draft-dialog.sis-results-publish-dialog,
+.sis-admission-sheet-dialog.sis-results-publish-dialog {
+    z-index: 90001 !important;
+    width: var(--sis-sheet-w, min(96vw, 52rem)) !important;
+    max-width: min(
+        var(--sis-sheet-w, 64rem),
+        calc(100vw - var(--sis-admission-sidebar-rail) - (2 * var(--sis-admission-sidebar-gap)))
+    ) !important;
+    height: var(--sis-sheet-h, fit-content) !important;
+    min-height: 0 !important;
+    max-height: var(--sis-sheet-h, min(88vh, 100%)) !important;
+}
+
+.sis-results-publish-dialog.sis-admission-sheet-dialog--maximized {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: 100vh !important;
+    max-height: none !important;
+    margin: 0 !important;
+    transform: none !important;
+}
+
+.sis-results-publish-dialog .sis-results-publish-sheet {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+/* The chosen / missing tables fit the window: four short columns, no sideways scroll. */
+.sis-results-publish-dialog .sis-admission-drafts-table table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+}
+
+.sis-results-publish-dialog .sis-admission-drafts-table th,
+.sis-results-publish-dialog .sis-admission-drafts-table td {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+}
+
+.sis-results-publish-sheet__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+    padding: 0.75rem;
+    /* Up and down only (owner's request): no sideways bar; a thin bar on the start side, smooth and contained. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sis-mist) transparent;
+    cursor: grab;
+}
+
+.sis-results-publish-sheet__body::-webkit-scrollbar {
+    width: 6px;
+    height: 0;
+}
+
+.sis-results-publish-sheet__body::-webkit-scrollbar-thumb {
+    background: var(--sis-mist);
+    border-radius: 999px;
+}
+
+/* The window's tables fit it: never a sideways scroll or bar. */
+.sis-results-publish-dialog .sis-admission-sheet__section,
+.sis-results-publish-dialog .sis-admission-drafts-table,
+.sis-results-publish-dialog .sis-admission-drafts-table__scroller,
+.sis-results-publish-dialog .sis-admission-drafts-table table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+.sis-results-publish-dialog .sis-admission-drafts-table__scroller {
+    overflow-x: hidden !important;
+    scrollbar-width: none !important;
+}
+
+.sis-results-publish-dialog .sis-admission-drafts-table__scroller::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Opens in the middle of the screen (not of the content pane beside the sidebar) until it is dragged. */
+html body .sis-admission-sheet-dialog.sis-admission-draft-dialog.sis-student-sheet-dialog.sis-results-publish-dialog:not([data-placed='true']):not([data-resized='true']) {
+    top: 50vh !important;
+    left: 50vw !important;
+    transform: translate(-50%, -50%) !important;
 }
 
 .sis-placement-history-dialog.sis-admission-sheet-dialog--maximized {
