@@ -69,26 +69,13 @@ final class GradesResultsPickersWebPostgreSqlTest extends PostgreSqlIntegrationT
         $s = $this->scene();
         $this->as(['ResultsViewer'], $s['school']);
 
-        $this->get('/results?academic_year_id='.$s['year_id'].'&q='.urlencode($s['code']))->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('results/index')
-            ->where('picker.candidates', fn ($rows) => collect($rows)->pluck('enrollment_id')->all() === [$s['enrollment_id']])
-            ->where('picker.student', null));
-
-        // No search, no student chosen: the year's students of this school are listed to choose from.
-        $this->get('/results?academic_year_id='.$s['year_id'])->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('picker.candidates', fn ($rows) => collect($rows)->pluck('enrollment_id')->contains($s['enrollment_id'])
-                && ! collect($rows)->pluck('enrollment_id')->contains($s['foreign']['enrollment_id'])));
-
-        $foreignCode = (string) DB::table(SchemaHelper::qualified('students', 'students'))->where('id', $s['foreign']['student_id'])->value('student_code');
-        $this->get('/results?academic_year_id='.$s['year_id'].'&q='.urlencode($foreignCode))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('picker.candidates', []));
-
+        // /results is the layout-only board since 2026-11-28 (no picker); the student picker lives on /results/show.
         $this->get("/results/show?academic_year_id={$s['year_id']}&enrollment_id={$s['enrollment_id']}")->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('results/show')
             ->where('picker.student.student_name', $s['name']));
 
         // Another school's enrollment is not found, on every results page.
-        foreach (['/results', '/results/show', '/results/transcript'] as $path) {
+        foreach (['/results/show', '/results/transcript'] as $path) {
             $this->get("{$path}?academic_year_id={$s['year_id']}&enrollment_id={$s['foreign']['enrollment_id']}")->assertNotFound();
         }
     }

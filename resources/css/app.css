@@ -22250,3 +22250,226 @@ body .sis-admission-sheet-dialog.sis-leave-window.sis-leave-window.sis-leave-win
 [data-nav-drop-target='after'] {
     box-shadow: inset 0 -2px 0 var(--sis-oxford);
 }
+
+/* ==========================================================================
+   «النتائج» board (/results, 2026-11-28) — the cyber_security control panel's layout: a progress strip with its
+   legend, then one soft card per item (round badge with a line picture, title, progress bar). Pictures, bars,
+   styling and order only; nothing is read. The nine tile colours are that panel's own (palette 700 / 100 / 50).
+   ========================================================================== */
+.sis-results-board {
+    --board-text: var(--sis-oxford);
+    --board-muted: color-mix(in srgb, var(--sis-oxford) 68%, white);
+    --board-track: color-mix(in srgb, var(--sis-mist) 18%, white);
+    --board-edge: color-mix(in srgb, var(--sis-mist) 35%, white);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    color: var(--board-text);
+}
+
+.sis-results-tile--1 { --tile: oklch(0.45 0.117 150); --tile-on: oklch(0.98 0.031 150); --tile-soft: oklch(0.955 0.055 150); }
+.sis-results-tile--2 { --tile: oklch(0.45 0.095 235); --tile-on: oklch(0.98 0.01 235); --tile-soft: oklch(0.955 0.025 235); }
+.sis-results-tile--3 { --tile: oklch(0.45 0.08 262.8); --tile-on: oklch(0.98 0.009 262.8); --tile-soft: oklch(0.955 0.021 262.8); }
+.sis-results-tile--4 { --tile: oklch(0.45 0.095 74.1); --tile-on: oklch(0.98 0.015 74.1); --tile-soft: oklch(0.955 0.035 74.1); }
+.sis-results-tile--5 { --tile: oklch(0.421 0.152 29.5); --tile-on: oklch(0.98 0.009 29.5); --tile-soft: oklch(0.955 0.022 29.5); }
+.sis-results-tile--6 {
+    --tile: color-mix(in oklch, oklch(0.45 0.08 262.8) 50%, oklch(0.421 0.152 29.5));
+    --tile-on: oklch(0.98 0.009 262.8);
+    --tile-soft: color-mix(in oklch, oklch(0.955 0.021 262.8) 50%, oklch(0.955 0.022 29.5));
+}
+.sis-results-tile--7 { --tile: oklch(0.45 0.038 128.5); --tile-on: oklch(0.98 0.015 128.5); --tile-soft: oklch(0.955 0.016 128.5); }
+.sis-results-tile--8 {
+    --tile: color-mix(in oklch, oklch(0.45 0.117 150) 50%, oklch(0.45 0.095 235));
+    --tile-on: oklch(0.98 0.031 150);
+    --tile-soft: color-mix(in oklch, oklch(0.955 0.055 150) 50%, oklch(0.955 0.025 235));
+}
+.sis-results-tile--9 {
+    --tile: color-mix(in oklch, oklch(0.45 0.095 74.1) 50%, oklch(0.421 0.152 29.5));
+    --tile-on: oklch(0.98 0.015 74.1);
+    --tile-soft: color-mix(in oklch, oklch(0.955 0.035 74.1) 50%, oklch(0.955 0.022 29.5));
+}
+
+.sis-results-board__progress {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding: 1rem;
+    border: 1px solid var(--board-edge);
+    border-radius: 0.5rem;
+    background: #ffffff;
+}
+
+.sis-results-board__progress-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.sis-results-board__strip {
+    display: flex;
+    gap: 0.25rem;
+    width: 100%;
+    height: 0.75rem;
+}
+
+.sis-results-board__strip-part {
+    flex: 1 1 0;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--board-track);
+}
+
+.sis-results-board__fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--tile);
+}
+
+.sis-results-board__legend {
+    display: grid;
+    gap: 0.5rem 1.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+}
+
+.sis-results-board__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sis-results-board__dot {
+    flex-shrink: 0;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 999px;
+    background: var(--tile);
+}
+
+.sis-results-board__legend-label {
+    font-weight: 500;
+}
+
+.sis-results-board__legend-share {
+    color: var(--board-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.sis-results-board__cards {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
+}
+
+.sis-results-board__cell {
+    width: 100%;
+}
+
+.sis-results-board__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    height: 100%;
+    padding: 1.25rem;
+    border: 1px solid color-mix(in oklch, var(--tile) 30%, transparent);
+    border-radius: 0.75rem;
+    background: var(--tile-soft);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    text-align: center;
+    transition: box-shadow 150ms ease;
+}
+
+.sis-results-board__card:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.sis-results-board__badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 999px;
+    background: var(--tile);
+    color: var(--tile-on);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--tile) 25%, transparent);
+}
+
+.sis-results-board__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+}
+
+.sis-results-board__title {
+    font-weight: 600;
+    color: var(--board-text);
+}
+
+.sis-results-board__card-progress {
+    display: grid;
+    gap: 0.25rem;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 0.25rem;
+}
+
+.sis-results-board__card-progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--board-muted);
+}
+
+.sis-results-board__card-share {
+    font-weight: 600;
+    color: var(--board-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.sis-results-board__card-bar {
+    display: block;
+    width: 100%;
+    height: 0.5rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #ffffff;
+}
+
+@media (min-width: 40rem) {
+    .sis-results-board__legend {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sis-results-board__cell {
+        width: 16rem;
+    }
+}
+
+@media (min-width: 64rem) {
+    .sis-results-board__legend {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sis-results-board__card {
+        transition: none;
+    }
+}

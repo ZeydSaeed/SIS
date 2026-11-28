@@ -31,67 +31,17 @@ final class ResultsPageController extends Controller
         private readonly AcademicYearContextResolver $academicYears,
     ) {}
 
-    public function index(Request $request, ListOfficialTermResultsHandler $handler): Response
+    /**
+     * «النتائج» board (owner's request, 2026-11-28): the cyber_security control panel's layout — pictures, bars and
+     * order only. It reads no results, grades, students, teachers, subjects or curricula, so it records no
+     * results-data access. The term-results list that was here is removed; /results/show, /term and /transcript stay.
+     */
+    public function index(): Response
     {
         $this->authorize('viewOfficial', TermResultRecord::class);
+        $this->schoolContext->requireId();
 
-        $schoolId = $this->schoolContext->requireId();
-        $user = $request->user();
-        assert($user !== null);
-
-        $requestedYear = $request->filled('academic_year_id')
-            ? (int) $request->query('academic_year_id')
-            : null;
-        $academicYearId = $this->academicYears->resolve($requestedYear);
-        $enrollmentId = $request->filled('enrollment_id')
-            ? (int) $request->query('enrollment_id')
-            : null;
-
-        $rows = [];
-        if ($academicYearId !== null && $enrollmentId !== null && $enrollmentId > 0) {
-            $items = $handler->handle(new ListOfficialTermResultsQuery(
-                schoolId: $schoolId,
-                enrollmentId: $enrollmentId,
-                academicYearId: $academicYearId,
-            ));
-            $rows = array_map(
-                static fn (OfficialTermResultListItemDTO $dto): array => [
-                    'school_id' => $dto->schoolId,
-                    'enrollment_id' => $dto->enrollmentId,
-                    'academic_year_id' => $dto->academicYearId,
-                    'term_result_id' => $dto->termResultId,
-                    'term_id' => $dto->termId,
-                    'subject_id' => $dto->subjectId,
-                    'weighted_total' => $dto->weightedTotal,
-                    'pass_fail' => $dto->passFail,
-                    'incomplete' => $dto->incomplete,
-                ],
-                $items,
-            );
-        }
-
-        $this->securityAudit->record(
-            SecurityEventType::ResultsDataAccess,
-            'results.web.terms.index',
-            'allowed',
-            $user,
-            'term_results',
-            [
-                'academic_year_id' => $academicYearId,
-                'enrollment_id' => $enrollmentId,
-                'count' => count($rows),
-            ],
-        );
-
-        return Inertia::render('results/index', [
-            'results' => [
-                'data' => $rows,
-            ],
-            'filters' => [
-                'academic_year_id' => $academicYearId,
-                'enrollment_id' => $enrollmentId,
-            ],
-        ]);
+        return Inertia::render('results/index');
     }
 
     public function show(

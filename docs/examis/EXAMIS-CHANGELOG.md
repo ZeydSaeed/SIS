@@ -2,6 +2,20 @@
 
 التغييرات السابقة لهذا البروتوكول (U1–U15، A1–A3، B، C، إرجاع الصفحات) مسجلة في تاريخ Git (`bc4de38` … `4472454`) و`docs/sis/exams/SIS-EXAM-REQUIREMENTS-TRACEABILITY.md`.
 
+## 2026-11-28 — «النتائج» (`/results`): لوحة بتصميم لوحة تحكم cyber_security — بطلب المالك (جلسة `5e7bb484`)
+
+- **cyber_security: قراءة فقط.** قُرئت `overview.tsx` و`settings-tabs.tsx` و`settings-icons.tsx` و`status-tiles.tsx` وألوان `themes.css`/`palette.css` والنصوص العربية من `lang/ar.json`. لم يُعدَّل فيه شيء.
+- **حُذف** محتوى `/results` السابق (قائمة نتائج الفصل بمعرّف التسجيل + فلتر السنة + روابط الصفحات الفرعية).
+- **جديد:**
+  - `components/results/results-board.tsx`: شريط «نسبة الإنجاز في كل بطاقة» مع مفتاح الألوان، ثم 9 بطاقات بنفس الترتيب والألوان. كل بطاقة فيها شارة دائرية بالرسم، والعنوان، وشريط تقدّم.
+  - `components/results/results-board-icons.tsx`: الرسوم التسعة.
+  - `app.css`: قسم «النتائج» board، فيه ألوان البطاقات التسعة بقيم oklch نفسها.
+  - مفاتيح `results.board.*` في `ar.ts` و`en.ts`.
+- **بلا شريط جانبي أو شريط أدوات من cyber_security، وبلا بيانات:** لا مدرسين ولا مواد ولا مناهج ولا درجات ولا طلاب. الأشرطة فارغة والنسب «—».
+- **الخادم:** `ResultsPageController::index` يتحقق من `viewOfficial` وسياق المدرسة ثم يعرض `results/index` بلا خصائص. لا قراءة للنتائج، فلا يُسجَّل حدث وصول إلى البيانات.
+- **باقية كما هي:** الصفحات `/results/show` و`/term` و`/transcript` و`/publications` و`/term-publications` ومساراتها. الوصول إليها الآن بعنوانها فقط، فرابطها كان في الصفحة المحذوفة.
+- **الاختبارات:** حُدّث `PhaseUiResTermResultsPagePostgreSqlTest` (يتحقق أن `results` و`filters` غير موجودة) و`GradesResultsPickersWebPostgreSqlTest` (أُزيلت منه فحوص منتقي `/results`). النتائج في T-0134.
+
 ## 2026-10-27 مساءً (2) — إكمال واجهة بنك الأسئلة (L-F7، L-F8) — بموافقة المالك
 
 **جديد:**

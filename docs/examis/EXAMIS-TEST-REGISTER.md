@@ -284,6 +284,8 @@
 | T-0130 | لقطات قبل/بعد | `runs/2026-10-27-closure/screens/` (قبل) و`screens-after/` (بعد) | البطاقة والرابط صارا خفيفين؛ التاريخ العربي ظهر مقلوبًا داخل `dir="ltr"` → أُزيل الاتجاه المفروض، صار «16:16 ،2026/10/27» صحيحًا |
 | T-0131 | ملاحظات خارج البنك | لقطات `/exams` و`/students` بالإنجليزية؛ صفحة 403 | (أ) في LTR يُرسم الشريط الجانبي يمينًا فوق المحتوى مع فراغ يسار — عام في SIS، موجود قبل التغيير (L-F9)؛ (ب) 403/404 على الويب = صفحة Laravel الافتراضية بالإنجليزية «This action is unauthorized» لكل الوحدات (L-F10) |
 | T-0132 | TypeScript الكامل | `tsc --noEmit` (`--max-old-space-size=1536`) | 20 = خط الأساس (نفس الملفات)، 0 في البنك |
+| T-0134 | لوحة «النتائج» (2026-11-28) | قاعدة مؤقتة `sis_test_res` (حُذفت بعد الفحص)، `--filter "PhaseUiResTermResultsPage\|GradesResultsPickersWeb\|PhaseOpsPageContentGuest\|TermAndTranscriptPublication\|PortalResultsPage\|ExamisDemoDataWeb"` | 32: 24 ناجحة و8 فاشلة. **الفاشلة الثمانية نفسها على HEAD قبل التغيير** (git stash): 6 في `ExamisDemoDataWeb` (رسائل flash لصفحة الدرجات)، و`the_grades_page_lists…` (`sessions`)، و`the_results_picker…` (`picker.*` غير موجودة؛ صارت تفشل عند `/results/show` بدل `/results`). لا فشل جديد |
+| T-0135 | لوحة «النتائج» — فحوص أخرى | `tsc --noEmit` · `npm run build` · `architecture:validate --fitness` · `pint --test` · لقطة Chrome headless لنسخة ثابتة بالـ CSS المبني | 20 = خط الأساس (أخطاء `results/show,term,transcript` قديمة) · نجح · نفس المخالفات القديمة · passed · التصميم مطابق. الصفحة الحية: `NOT RUN` |
 | T-0133 | معمارية | `architecture:validate --fitness` · `feature-check Bank` | نفس المخالفات القديمة (الفرق: composer audit حسب الشبكة)، 0 في البنك · passed |
 
 ## 2. نتائج سابقة (من `docs/sis/exams/SIS-EXAM-FINAL-REPORT.md` — غير مُعاد التحقق، وقبل إرجاع الصفحات)

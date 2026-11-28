@@ -26,8 +26,9 @@ final class PhaseUiResTermResultsPagePostgreSqlTest extends PostgreSqlIntegratio
         $this->get('/results')
             ->assertSuccessful()
             ->assertInertia(fn ($page) => $page
+                // The «النتائج» board (2026-11-28): layout only — no results data on the page.
                 ->component('results/index')
-                ->has('results.data')
-                ->has('filters'));
+                ->missing('results')
+                ->missing('filters'));
     }
 }
