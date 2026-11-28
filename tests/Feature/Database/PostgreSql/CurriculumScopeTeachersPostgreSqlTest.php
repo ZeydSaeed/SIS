@@ -176,6 +176,110 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
     }
 
     #[Test]
+    public function editing_a_curriculum_replaces_its_subjects_and_teachers_in_one_step(): void
+    {
+        $ctx = $this->seedSchool('CST-I');
+        $third = $this->createSubjectRow('THR-CST-I', 'الرياضيات');
+        [$t1, $t2] = array_map(fn (string $code): int => $this->registerTeacher($ctx, $code), ['EMP-CSTI-1', 'EMP-CSTI-2']);
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-i-c')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => 2]) + [
+                'subject_ids' => [$ctx['networks'], $ctx['security']],
+                'teachers' => [['subject_id' => $ctx['networks'], 'subject_type' => null, 'section_id' => null, 'teacher_id' => $t1, 'teacher_role' => 1]],
+            ])
+            ->assertSessionHas('success', 'flash.curriculum.created');
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
+        $id = (int) DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->value('id');
+        $keptLine = (int) DB::table('curriculum.curriculum_subjects')->where('curriculum_id', $id)->where('subject_id', $ctx['networks'])->value('id');
+
+        $edit = fn (array $override, string $key) => $this->from('/curriculum/curricula/'.$id)->withHeader('X-Idempotency-Key', $key)
+            ->put('/curriculum/curricula/'.$id.'/full', array_merge($this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => 3, 'name' => 'منهج معدّل']), [
+                'subject_ids' => [$ctx['networks'], $third],
+                'teachers' => [
+                    ['subject_id' => $ctx['networks'], 'subject_type' => null, 'section_id' => $ctx['sectionA'], 'teacher_id' => $t2, 'teacher_role' => 1],
+                    ['subject_id' => $third, 'subject_type' => null, 'section_id' => null, 'teacher_id' => $t1, 'teacher_role' => 1],
+                ],
+            ], $override));
+
+        // A refused teacher undoes the whole edit.
+        $edit(['teachers' => [['subject_id' => $third, 'subject_type' => null, 'section_id' => null, 'teacher_id' => 999999, 'teacher_role' => 1]]], 'cst-i-bad')
+            ->assertSessionHasErrors(['curriculum' => 'teachers.not_in_school_year']);
+        $this->assertSame(2, DB::table('curriculum.curricula')->where('id', $id)->value('planned_subject_count'));
+        $this->assertTrue(DB::table('curriculum.curriculum_subjects')->where('curriculum_id', $id)->where('subject_id', $ctx['security'])->exists());
+
+        $edit([], 'cst-i-ok')->assertSessionHas('success', 'flash.curriculum.updated');
+        $row = DB::table('curriculum.curricula')->where('id', $id)->first();
+        $this->assertSame(['منهج معدّل', 3], [$row->name, (int) $row->planned_subject_count]);
+        $subjects = DB::table('curriculum.curriculum_subjects')->where('curriculum_id', $id)->orderBy('subject_id')->pluck('subject_id')->map(fn ($v) => (int) $v)->all();
+        $this->assertSame([$ctx['networks'], $third], $subjects);
+        // The kept subject keeps its line; its teacher changed (old one ended, history kept).
+        $this->assertTrue(DB::table('curriculum.curriculum_subjects')->where('id', $keptLine)->exists());
+        $this->assertSame(2, (int) DB::table('teachers.teaching_assignments')->where('curriculum_subject_id', $keptLine)->where('teacher_id', $t1)->value('status'));
+        $this->assertSame($ctx['sectionA'], (int) DB::table('teachers.teaching_assignments')->where('curriculum_subject_id', $keptLine)->where('teacher_id', $t2)->where('status', 1)->value('section_id'));
+
+        // Moved to another specialization: the assignments follow the new place.
+        $this->from('/curriculum/curricula/'.$id)->withHeader('X-Idempotency-Key', 'cst-i-move')
+            ->put('/curriculum/curricula/'.$id.'/full', array_merge($this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => 2, 'department_id' => $ctx['secondDepartment']]), [
+                'subject_ids' => [$ctx['networks']],
+                'teachers' => [['subject_id' => $ctx['networks'], 'subject_type' => null, 'section_id' => null, 'teacher_id' => $t2, 'teacher_role' => 1]],
+            ]))
+            ->assertSessionHas('success', 'flash.curriculum.updated');
+        $active = DB::table('teachers.teaching_assignments')->where('curriculum_subject_id', $keptLine)->where('status', 1)->get(['teacher_id', 'department_id']);
+        $this->assertCount(1, $active);
+        $this->assertSame([$t2, $ctx['secondDepartment']], [(int) $active[0]->teacher_id, (int) $active[0]->department_id]);
+    }
+
+    #[Test]
+    public function a_curriculum_never_has_more_subjects_than_its_stated_number(): void
+    {
+        $ctx = $this->seedSchool('CST-J');
+        $third = $this->createSubjectRow('THR-CST-J', 'الرياضيات');
+
+        // Three subjects for «عدد المواد» 2: refused, nothing made.
+        $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-j-over')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => 2]) + [
+                'subject_ids' => [$ctx['networks'], $ctx['security'], $third],
+            ])
+            ->assertSessionHasErrors(['curriculum' => 'curriculum.subjects_exceed_planned']);
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
+        $this->assertFalse(DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->exists());
+
+        // Two: made, and the new curriculum opens on its own page.
+        $made = $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-j-ok')
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => 2]) + [
+                'subject_ids' => [$ctx['networks'], $ctx['security']],
+            ]);
+        DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);
+        $id = (int) DB::table('curriculum.curricula')->where('school_id', $ctx['school'])->value('id');
+        $made->assertRedirect('/curriculum/curricula/'.$id)->assertSessionHas('success', 'flash.curriculum.created');
+
+        // A third one, alone or by editing, waits for a larger number.
+        $this->from('/curriculum/curricula/'.$id)->withHeader('X-Idempotency-Key', 'cst-j-link')
+            ->post('/curriculum/curricula/'.$id.'/subjects', ['subject_id' => $third, 'theory_hours' => 2, 'is_required' => true])
+            ->assertSessionHasErrors();
+        $editTo = fn (int $planned, string $key) => $this->from('/curriculum/curricula/'.$id)->withHeader('X-Idempotency-Key', $key)
+            ->put('/curriculum/curricula/'.$id.'/full', $this->curriculumPayload($ctx, 'A', ['section_id' => null, 'planned_subject_count' => $planned]) + [
+                'subject_ids' => [$ctx['networks'], $ctx['security'], $third],
+            ]);
+        $editTo(2, 'cst-j-edit-over')->assertSessionHasErrors(['curriculum' => 'curriculum.subjects_exceed_planned']);
+        $this->assertSame(2, DB::table('curriculum.curriculum_subjects')->where('curriculum_id', $id)->where('status', 1)->count());
+
+        // The number raised with it: accepted.
+        $editTo(3, 'cst-j-edit-ok')->assertSessionHas('success', 'flash.curriculum.updated');
+        $this->assertSame(3, DB::table('curriculum.curriculum_subjects')->where('curriculum_id', $id)->where('status', 1)->count());
+
+        // And it cannot drop below the subjects it has.
+        $this->from('/curriculum/curricula/'.$id)->withHeader('X-Idempotency-Key', 'cst-j-lower')
+            ->patch('/curriculum/curricula/'.$id, ['planned_subject_count' => 2])
+            ->assertSessionHasErrors();
+        $this->assertSame(3, (int) DB::table('curriculum.curricula')->where('id', $id)->value('planned_subject_count'));
+    }
+
+    private function createSubjectRow(string $code, string $name): int
+    {
+        return $this->createSubject($code, $name);
+    }
+
+    #[Test]
     public function one_teacher_may_teach_all_sections(): void
     {
         $ctx = $this->seedSchool('CST-G');
@@ -195,7 +299,7 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
     public function deleting_a_curriculum_takes_its_subjects_and_their_teachers(): void
     {
         $ctx = $this->seedSchool('CST-C');
-        $curriculumId = $this->createCurriculum($ctx, 'cst-c-c', 'A');
+        $curriculumId = $this->createCurriculum($ctx, 'cst-c-c', 'A', 2);
         $lineA = $this->linkSubject($curriculumId, $ctx['networks'], 'cst-c-l1');
         $lineB = $this->linkSubject($curriculumId, $ctx['security'], 'cst-c-l2');
         $teacher = $this->registerTeacher($ctx, 'EMP-CSTC-1');
@@ -241,7 +345,7 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
 
         // نظري → one teacher; عملي → another with an assistant (sent before its main teacher: mains go first).
         $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', 'cst-f-ok')
-            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A') + [
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, 'A', ['planned_subject_count' => 2]) + [
                 'subject_ids' => [$ctx['networks'], $ctx['security']],
                 'teachers' => [
                     ['subject_id' => $ctx['networks'], 'subject_type' => 3, 'teacher_id' => $helper, 'teacher_role' => 2],
@@ -299,7 +403,7 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
     public function deleting_a_subject_takes_it_out_of_the_curricula_first(): void
     {
         $ctx = $this->seedSchool('CST-D');
-        $curriculumA = $this->createCurriculum($ctx, 'cst-d-a', 'A');
+        $curriculumA = $this->createCurriculum($ctx, 'cst-d-a', 'A', 2);
         $curriculumB = $this->createCurriculum($ctx, 'cst-d-b', 'B');
         $lineA = $this->linkSubject($curriculumA, $ctx['networks'], 'cst-d-l1');
         $lineB = $this->linkSubject($curriculumB, $ctx['networks'], 'cst-d-l2');
@@ -343,10 +447,10 @@ final class CurriculumScopeTeachersPostgreSqlTest extends PostgreSqlIntegrationT
     }
 
     /** @param  array<string, mixed>  $ctx */
-    private function createCurriculum(array $ctx, string $key, string $section): int
+    private function createCurriculum(array $ctx, string $key, string $section, int $planned = 1): int
     {
         $this->from('/curriculum/curricula')->withHeader('X-Idempotency-Key', $key)
-            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, $section))
+            ->post('/curriculum/curricula', $this->curriculumPayload($ctx, $section, ['planned_subject_count' => $planned]))
             ->assertSessionHas('success', 'flash.curriculum.created');
 
         DB::statement("SELECT set_config('app.current_school_id', ?, true)", [(string) $ctx['school']]);

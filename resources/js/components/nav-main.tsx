@@ -7,9 +7,14 @@ import {
 } from '@/components/ui/sidebar';
 import { OVERVIEW_SUFFIX } from '@/components/sis/module-overview';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { useNavOrder } from '@/hooks/use-nav-order';
 import type { NavItem } from '@/types';
 
+const itemKey = (item: NavItem): string => item.href.toString();
+
 export function NavMain({ items = [] }: { items: NavItem[] }) {
+    // The user's own order: drop one item on another to swap them (kept in this browser).
+    const { ordered, itemProps } = useNavOrder('sidebar', items, itemKey);
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const currentQuery = new URLSearchParams(usePage().url.split('?')[1] ?? '');
 
@@ -50,14 +55,21 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
     return (
         <SidebarGroup className="px-2 py-0">
             <SidebarMenu>
-                {items.map((item) => (
+                {ordered.map((item, index) => (
                     <SidebarMenuItem key={item.href.toString()}>
                         <SidebarMenuButton
                             asChild
                             isActive={isActive(item.href.toString())}
                             tooltip={{ children: item.title }}
                         >
-                            <Link href={item.href} prefetch>
+                            <Link
+                                href={item.href}
+                                prefetch
+                                {...itemProps(item.href.toString(), {
+                                    previous: ordered[index - 1]?.href.toString(),
+                                    next: ordered[index + 1]?.href.toString(),
+                                })}
+                            >
                                 {item.icon ? <item.icon /> : null}
                                 <span>{item.title}</span>
                             </Link>

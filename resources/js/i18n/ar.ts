@@ -1740,6 +1740,7 @@ export const ar = {
                 'لا يُجمع مدرس رئيسي للمادة كاملة مع مدرسين رئيسيين لأجزائها (نظري / عملي).',
             'curriculum.teacher_subject_not_in_curriculum': 'المدرس مسند لمادة ليست في المنهج.',
             'curriculum.planned_subject_count_invalid': 'عدد المواد يجب أن يكون بين 1 و200.',
+            'curriculum.subjects_exceed_planned': 'مواد المنهج أكثر من «عدد المواد». غيّر عدد المواد أولًا أو أزل مادة.',
             'teachers.curriculum_main_has_assistants':
                 'هذا آخر مدرس أساسي لهذه الشعبة / الجزء وله مدرسون مساعدون؛ أضف مدرساً أساسياً آخر أو ألغِ إسناد المساعدين أولاً.',
             'curriculum.specialization_invalid': 'التخصص غير صالح.',
@@ -3841,7 +3842,8 @@ export const ar = {
         saveCurriculum: 'حفظ',
         createCurriculumHint:
             'اختر السنة والفرع والاختصاص والصف، ثم انقل المواد إلى المنهج.',
-        editPlan: 'تعديل البرنامج',
+        editPlan: 'تعديل منهج',
+        editCurriculumTitle: 'تعديل منهج دراسي',
         planDetailsSection: 'بيانات المنهج',
         planPlacementSection: 'الفرع والاختصاص',
         planCreatedContinue: 'تم حفظ المنهج — يمكنك إدخال المنهج التالي',
@@ -3982,6 +3984,9 @@ export const ar = {
         removeTeacherTitle: 'إلغاء إسناد مدرس',
         selectOneSubject: 'حدّد مادة واحدة من الجدول',
         selectSubjects: 'حدّد مادة أو أكثر من الجدول',
+        noCurriculumForFilter: 'لا يوجد منهج بهذه الفلترة',
+        selectCurriculum: 'تحديد المنهج',
+        selectCurriculumFirst: 'حدّد منهجًا: مربع التحديد في عنوانه',
         inactiveSuffix: '(معطّلة)',
         deletePrerequisiteConfirm: 'سيُحذف هذا المتطلب السابق نهائياً. هل تريد المتابعة؟',
         deleteAlreadyInactive: 'المواد المحددة معطّلة مسبقاً أو غير قابلة للحذف.',

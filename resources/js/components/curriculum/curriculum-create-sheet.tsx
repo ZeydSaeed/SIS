@@ -7,6 +7,7 @@ import {
     type YearOption,
 } from '@/components/sis/ops-year-filter';
 import { usePageError } from '@/components/sis/page-error-context';
+import { resolveErrorMessage } from '@/lib/format-inertia-errors';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { SisMultiSelect } from '@/components/sis/sis-multi-select';
 import { ariaSort, SortButton, useTableSort, type TableSort } from '@/components/sis/table-sort';
@@ -19,6 +20,8 @@ import {
     orderSubjectTypes,
     subjectTypeLabel,
     type CurriculumFilterOptions,
+    type CurriculumRow,
+    type LinkedSubjectRow,
     type SubjectRow,
     type TeacherOption,
 } from '@/components/curriculum/curriculum-workspace';
@@ -40,8 +43,31 @@ type Props = {
     subjects: SubjectRow[];
     /** The year's teachers — each subject's «المدرسون». */
     teacherOptions?: TeacherOption[];
+    /** «تعديل منهج»: the same window, filled with the curriculum, its subjects and their teachers; every field editable. */
+    editing?: { curriculum: CurriculumRow; lines: LinkedSubjectRow[] };
     onClose: () => void;
 };
+
+/** A curriculum's current teachers as the window's assignments: one per (part, section) of each subject. */
+function groupsFromLines(lines: LinkedSubjectRow[]): SubjectTeachers {
+    const out: SubjectTeachers = {};
+    for (const line of lines) {
+        const groups = new Map<string, AssignmentGroup>();
+        for (const teacher of line.teachers ?? []) {
+            const part = teacher.subject_type ? String(teacher.subject_type) : '0';
+            const section = teacher.section_id ? String(teacher.section_id) : '';
+            const key = `${part}|${section}`;
+            const group = groups.get(key) ?? { part, sections: section === '' ? [] : [section], mains: [], assistants: [] };
+            (teacher.role === 1 ? group.mains : group.assistants).push(String(teacher.teacher_id));
+            groups.set(key, group);
+        }
+        if (groups.size > 0) {
+            out[line.subject_id] = [...groups.values()];
+        }
+    }
+
+    return out;
+}
 
 /**
  * One «إسناد مدرس للمادة»: a part of the subject (its type; '0' = the whole subject), the sections taught (none = all
@@ -359,7 +385,7 @@ function PlannedSubjectsTable({
                                                             <span className="sis-admission-sheet__label">{c.teachingPart}</span>
                                                             <SisListSelect
                                                                 value={group.part}
-                                                                options={parts.map((part) => ({
+                                                                options={['0', ...parts].map((part) => ({
                                                                     value: part,
                                                                     label: part === '0' ? c.wholeSubject : subjectTypeLabel(Number(part), c),
                                                                 }))}
@@ -551,8 +577,14 @@ export function CurriculumCreateSheetDialog({
     defaultAcademicYearId,
     subjects,
     teacherOptions = [],
+    editing,
     onClose,
 }: Props) {
+    const editedCurriculum = editing?.curriculum ?? null;
+    const editedLines = useMemo(
+        () => (editing?.lines ?? []).filter((line) => line.status === 1).sort((a, b) => a.subject_order - b.subject_order),
+        [editing?.lines],
+    );
     const i18n = t();
     const c = i18n.curriculum;
     const { showInertiaErrors, showSuccess, showError } = usePageError();
@@ -569,19 +601,26 @@ export function CurriculumCreateSheetDialog({
     // «المنهج الدراسي» grows with each subject's «اسناد مدرس للمادة»: its list scrolls up / down on its own.
     const plannedBodyRef = useDragScroll<HTMLDivElement>(true, 'input, textarea, select, button, a, [role="combobox"], [role="option"], .sis-admission-sheet__hero, [data-drag-scroll-ignore]');
 
+    // In «تعديل منهج» every field starts from the curriculum.
     const [academicYearId, setAcademicYearId] = useState(
-        defaultAcademicYearId ? String(defaultAcademicYearId) : '',
+        editedCurriculum ? String(editedCurriculum.academic_year_id) : defaultAcademicYearId ? String(defaultAcademicYearId) : '',
     );
-    const [branchId, setBranchId] = useState('');
+    const [branchId, setBranchId] = useState(editedCurriculum?.branch_id ? String(editedCurriculum.branch_id) : '');
     /** الاختصاص — department of the selected branch. */
-    const [departmentId, setDepartmentId] = useState('');
+    const [departmentId, setDepartmentId] = useState(editedCurriculum?.department_id ? String(editedCurriculum.department_id) : '');
     const [gradeLevelId, setGradeLevelId] = useState(
-        filterOptions.classes[0] ? String(filterOptions.classes[0].grade_level_id) : '',
+        editedCurriculum
+            ? String(editedCurriculum.grade_level_id)
+            : filterOptions.classes[0]
+              ? String(filterOptions.classes[0].grade_level_id)
+              : '',
     );
-    const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeachers>({});
+    const [subjectTeachers, setSubjectTeachers] = useState<SubjectTeachers>(() => groupsFromLines(editedLines));
     /** «عدد المواد» the curriculum should have; fewer is accepted but «غير مكتمل». */
-    const [plannedCount, setPlannedCount] = useState('');
-    const [plannedIds, setPlannedIds] = useState<number[]>([]);
+    const [plannedCount, setPlannedCount] = useState(
+        editedCurriculum ? String(editedCurriculum.planned_subject_count ?? editedLines.length) : '',
+    );
+    const [plannedIds, setPlannedIds] = useState<number[]>(() => editedLines.map((line) => line.subject_id));
     const [availableSelected, setAvailableSelected] = useState<number[]>([]);
     const [plannedSelected, setPlannedSelected] = useState<number[]>([]);
     const [availablePage, setAvailablePage] = useState(1);
@@ -691,7 +730,9 @@ export function CurriculumCreateSheetDialog({
         departmentId !== '' &&
         classId !== null &&
         Number(plannedCount) >= 1 &&
-        plannedIds.length > 0;
+        plannedIds.length > 0 &&
+        // Never more subjects than «عدد المواد» (raise the count to add more).
+        plannedIds.length <= Number(plannedCount);
 
     const toggleId = (
         id: number,
@@ -710,16 +751,14 @@ export function CurriculumCreateSheetDialog({
             return;
         }
 
-        setPlannedIds((current) => {
-            const next = [...current];
-            for (const id of availableSelected) {
-                if (!next.includes(id)) {
-                    next.push(id);
-                }
-            }
-
-            return next;
-        });
+        // «عدد المواد» is the ceiling: only as many as still fit are added.
+        const limit = Number(plannedCount) >= 1 ? Number(plannedCount) : Number.POSITIVE_INFINITY;
+        const adding = availableSelected.filter((id) => !plannedIds.includes(id));
+        const room = Math.max(0, limit - plannedIds.length);
+        if (adding.length > room) {
+            showError(resolveErrorMessage('curriculum.subjects_exceed_planned'));
+        }
+        setPlannedIds([...plannedIds, ...adding.slice(0, room)]);
         setAvailableSelected([]);
         setPlannedPage(1);
     };
@@ -766,12 +805,15 @@ export function CurriculumCreateSheetDialog({
             return;
         }
 
-        const planName = suggestCurriculumName(
-            filterOptions,
-            branchId,
-            departmentId,
-            gradeLevelId,
-        );
+        // The name follows the place; an edited curriculum in the same place keeps its own name.
+        const samePlace =
+            editedCurriculum !== null &&
+            String(editedCurriculum.branch_id ?? '') === branchId &&
+            String(editedCurriculum.department_id ?? '') === departmentId &&
+            String(editedCurriculum.grade_level_id) === gradeLevelId;
+        const planName = samePlace
+            ? editedCurriculum.name
+            : suggestCurriculumName(filterOptions, branchId, departmentId, gradeLevelId);
         if (planName === '') {
             showError(i18n.errors.requiredFields);
 
@@ -779,9 +821,7 @@ export function CurriculumCreateSheetDialog({
         }
 
         setSaving(true);
-        router.post(
-            '/curriculum/curricula',
-            {
+        const payload = {
                 academic_year_id: Number(academicYearId),
                 grade_level_id: Number(gradeLevelId),
                 name: planName,
@@ -791,24 +831,29 @@ export function CurriculumCreateSheetDialog({
                 planned_subject_count: Number(plannedCount),
                 subject_ids: plannedIds,
                 teachers: teacherRows(),
+        };
+        const options = {
+            preserveScroll: true,
+            headers: { 'X-Idempotency-Key': newIdempotencyKey('curriculum') },
+            onError: (errors: Record<string, string>) => {
+                showInertiaErrors(errors, editedCurriculum ? i18n.errors.saveFailed : i18n.errors.createFailed);
+                setSaving(false);
             },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['curricula', 'filters', 'filterOptions', 'authorization', 'flash'],
-                headers: { 'X-Idempotency-Key': newIdempotencyKey('curriculum') },
-                onError: (errors) => {
-                    showInertiaErrors(errors, i18n.errors.createFailed);
-                    setSaving(false);
-                },
-                onSuccess: () => {
-                    setSaving(false);
-                    showSuccess({ description: c.createCurriculumTitle });
-                    onClose();
-                },
-                onFinish: () => setSaving(false),
+            onSuccess: () => {
+                setSaving(false);
+                showSuccess({ description: editedCurriculum ? c.editCurriculumTitle : c.createCurriculumTitle });
+                onClose();
             },
-        );
+            onFinish: () => setSaving(false),
+        };
+        if (editedCurriculum) {
+            // «تعديل منهج»: the whole curriculum — place, subjects, teachers — in one step.
+            router.put(`/curriculum/curricula/${editedCurriculum.id}/full`, payload, options);
+
+            return;
+        }
+        // The new curriculum opens on its own page (the server redirects there).
+        router.post('/curriculum/curricula', payload, options);
     };
 
     return (
@@ -840,7 +885,7 @@ export function CurriculumCreateSheetDialog({
                 onEscapeKeyDown={(event) => event.preventDefault()}
             >
                 {maximized ? null : resizeHandles}
-                <DialogTitle className="sr-only">{c.createCurriculumTitle}</DialogTitle>
+                <DialogTitle className="sr-only">{editedCurriculum ? c.editCurriculumTitle : c.createCurriculumTitle}</DialogTitle>
 
                 <article
                     className="sis-admission-draft-form sis-admission-sheet sis-student-record-form sis-curriculum-subject-sheet sis-curriculum-create-sheet__form"
@@ -864,7 +909,9 @@ export function CurriculumCreateSheetDialog({
                             onClose={onClose}
                         />
                         <div className="sis-admission-sheet__hero-copy">
-                            <p className="sis-admission-sheet__hero-title">{c.createCurriculumTitle}</p>
+                            <p className="sis-admission-sheet__hero-title">
+                                {editedCurriculum ? c.editCurriculumTitle : c.createCurriculumTitle}
+                            </p>
                         </div>
                         <div className="sis-admission-sheet__hero-logo">
                             <AppLogo tone="on-dark" className="sis-admission-sheet__logo" />

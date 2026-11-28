@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ListChecks, type LucideIcon } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { sisListPageClass } from '@/components/sis/page-theme';
 import { useRegisterPageTitlebarHome } from '@/components/sis/page-titlebar-home-context';
 import { useRegisterPageTitlebarSearch } from '@/components/sis/page-titlebar-search-context';
@@ -15,9 +15,14 @@ export type OverviewCard = {
     count?: number | string;
     /** A `sis-follow-up-tone--*` name (the follow-up overview's colours). */
     tone: string;
-    /** Smaller lines under the label, one per item (e.g. a curriculum's hour totals). */
-    detail?: string[];
+
     href: string;
+    /** Lines drawn instead of the label, one under the other (e.g. a curriculum's branch, specialization, class …). */
+    lines?: string[];
+    /** The icon alone, in the card's colour — no filled circle behind it. */
+    bareIcon?: boolean;
+    /** Its own colour (e.g. one per curriculum), instead of its tone's: card, icon, and its bar part. */
+    color?: string;
 };
 
 /** Overview paths end with `/overview` (e.g. `/students/overview`); the list keeps the module's own path. */
@@ -77,21 +82,27 @@ export function ModuleOverview({
     /** The share bar and legend (categories that add up to one whole). Off for a module made of sections. */
     withBar?: boolean;
     /** The bar and legend's shares when they differ from the cards (a module made of sections, e.g. the day's attendance). */
-    segments?: Array<{ key: string; label: string; count: number; tone: string }>;
+    /** `share` (0–1), when given, is what the legend shows for the part (e.g. a curriculum's completion). */
+    segments?: Array<{ key: string; label: string; count: number; tone: string; share?: number; color?: string }>;
     /** What pressing a card does, for screen readers (default «عرض القائمة»). */
     openLabel?: string;
 }) {
     const text = t().overview;
     const all = cards.find((card) => card.key === 'all');
     const drawn = cards.filter((card) => card.key !== 'all');
-    const parts = (segments ?? drawn.map((card) => ({ key: card.key, label: card.label, count: card.count, tone: card.tone }))).filter(
-        (part): part is { key: string; label: string; count: number; tone: string } => typeof part.count === 'number',
+    const parts = (
+        segments ??
+        drawn.map((card) => ({ key: card.key, label: card.label, count: card.count, tone: card.tone, share: undefined, color: card.color }))
+    ).filter(
+        (part): part is { key: string; label: string; count: number; tone: string; share?: number; color?: string } =>
+            typeof part.count === 'number',
     );
     // A module made of sections keeps its legend even when nothing was recorded; categories hide when empty.
     const shown = segments === undefined ? parts.filter((card) => card.count > 0) : parts;
     const total = parts.reduce((sum, card) => sum + card.count, 0);
     const showBar = withBar && (segments !== undefined || total > 0);
     const share = (count: number) => (total > 0 ? count / total : 0);
+    const shareOf = (part: { count: number; share?: number }) => part.share ?? share(part.count);
 
     useRegisterPageTitlebarSearch(
         useMemo(
@@ -150,8 +161,9 @@ export function ModuleOverview({
                                             style={{
                                                 flexGrow: card.count,
                                                 flexBasis: 0,
+                                                ...(card.color ? { background: card.color } : {}),
                                             }}
-                                            title={`${card.label} · ${card.count} (${percent.format(share(card.count))})`}
+                                            title={`${card.label} · ${percent.format(shareOf(card))}`}
                                         />
                                     ))}
                                 </div>
@@ -168,6 +180,7 @@ export function ModuleOverview({
                                                 >
                                                     <span
                                                         className={`sis-follow-up-legend__dot sis-follow-up-tone--${card.tone}`}
+                                                        style={card.color ? { background: card.color } : undefined}
                                                         aria-hidden
                                                     />
                                                     <span className="sis-follow-up-legend__label">
@@ -177,9 +190,7 @@ export function ModuleOverview({
                                                         className="sis-follow-up-legend__share"
                                                         dir="ltr"
                                                     >
-                                                        {percent.format(
-                                                            share(card.count),
-                                                        )}
+                                                        {percent.format(shareOf(card))}
                                                     </span>
                                                 </li>
                                             ))}
@@ -213,27 +224,41 @@ export function ModuleOverview({
                                             key={card.key}
                                             href={card.href}
                                             className={`sis-follow-up-card sis-follow-up-tone--${card.tone}`}
+                                            // Its own colour feeds the card's background, edge and icon (the overview's --card-* rules).
+                                            style={card.color ? ({ '--card-hue': card.color, '--card-fill': card.color } as CSSProperties) : undefined}
                                             aria-label={`${card.label}${card.count !== undefined ? `: ${card.count}` : ''} — ${openLabel ?? text.open}`}
                                         >
                                             <span
                                                 className="sis-follow-up-card__avatar"
                                                 aria-hidden
+                                                style={
+                                                    card.bareIcon
+                                                        ? {
+                                                              background: 'transparent',
+                                                              boxShadow: 'none',
+                                                              color: 'var(--card-hue, var(--follow-up-tone))',
+                                                              width: '3rem',
+                                                              height: '3rem',
+                                                          }
+                                                        : undefined
+                                                }
                                             >
                                                 <card.icon
-                                                    className="size-5"
-                                                    strokeWidth={2}
+                                                    className={card.bareIcon ? 'size-10' : 'size-5'}
+                                                    strokeWidth={card.bareIcon ? 1.75 : 2}
                                                 />
                                             </span>
-                                            <span className="sis-follow-up-card__label">
-                                                {card.label}
-                                            </span>
-                                            {card.detail && card.detail.length > 0 ? (
-                                                <span className="flex w-full flex-col text-center text-xs leading-snug opacity-80">
-                                                    {card.detail.map((line) => (
-                                                        <span key={line}>{line}</span>
+                                            {card.lines !== undefined ? (
+                                                <span className="sis-follow-up-card__label" style={{ flexDirection: 'column', gap: '0.15rem' }}>
+                                                    {card.lines.map((line, index) => (
+                                                        <span key={`${index}-${line}`}>{line}</span>
                                                     ))}
                                                 </span>
-                                            ) : null}
+                                            ) : (
+                                                <span className="sis-follow-up-card__label">
+                                                    {card.label}
+                                                </span>
+                                            )}
                                             {card.count !== undefined ? (
                                                 <span
                                                     className="sis-follow-up-card__count"

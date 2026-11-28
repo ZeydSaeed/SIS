@@ -50,6 +50,7 @@ final class CreateCurriculumHandler implements CommandHandler
             $command->classId,
             $command->sectionId,
             $command->plannedSubjectCount,
+            subjectCount: $command->subjectIds === [] ? null : count(array_unique(array_map('intval', $command->subjectIds))),
         );
         if ($error !== null) {
             return CreateCurriculumResult::failure([$error]);

@@ -36,6 +36,12 @@ final class ReactivateCurriculumSubjectHandler implements CommandHandler
         if ($link === null) {
             return ReactivateCurriculumSubjectResult::failure(['curriculum.curriculum_subject_not_found']);
         }
+        // «عدد المواد» is the ceiling: a returned subject may not go past it.
+        $curriculum = $this->curricula->findActiveInSchool($command->schoolId, $link->curriculumId);
+        if ($curriculum !== null && $curriculum->plannedSubjectCount !== null
+            && count($this->curricula->listActiveLinks($command->schoolId, $link->curriculumId)) >= $curriculum->plannedSubjectCount) {
+            return ReactivateCurriculumSubjectResult::failure(['curriculum.subjects_exceed_planned']);
+        }
 
         $this->unitOfWork->transaction(function () use ($command, $key, $link): void {
             $this->curricula->reactivateLink($command->schoolId, $command->linkId);

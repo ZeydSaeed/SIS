@@ -1,11 +1,9 @@
 import { router, usePage } from '@inertiajs/react';
-import { orderSubjectTypes, typeHourTotals, type SubjectHoursSource } from '@/lib/subject-type-order';
-import { TypeHourTotalsBar, typeHourTotalsLine } from '@/components/curriculum/type-hour-totals';
+import { orderSubjectTypes, typeHourTotals } from '@/lib/subject-type-order';
+import { specializationIcon } from '@/lib/specialization-icon';
+import { TypeHourTotalsBar } from '@/components/curriculum/type-hour-totals';
 import {
-    BookOpen,
-    BookOpenCheck,
     CheckCircle2,
-    GraduationCap,
     ScrollText,
     CircleSlash,
     Eye,
@@ -15,7 +13,6 @@ import {
     Pencil,
     Trash2,
     XCircle,
-    type LucideIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -145,39 +142,89 @@ export type CurriculumLineTeacher = {
 
 export type TeacherOption = { id: number; name: string; employee_code: string };
 
-/** «المناهج» overview icon by the curriculum's class: an open book, a checked book, a graduation cap. */
-const CURRICULUM_STAGE_ICONS: LucideIcon[] = [BookOpen, BookOpenCheck, GraduationCap];
 
-function curriculaOverviewCards(
-    rows: CurriculumRow[],
-    subjectOf: (name: string) => SubjectHoursSource | undefined,
-): OverviewCard[] {
-    const stages = [...new Set(rows.map((row) => row.grade_level_id))].sort((a, b) => a - b);
-    const tones = ['submitted', 'interview', 'waitlisted', 'transfer', 'under-review'];
+/** A curriculum's completion: 100 when complete; else its subjects' share of «عدد المواد» (below 100). */
+function curriculumCompletion(row: CurriculumRow): number {
+    if (row.is_complete) {
+        return 100;
+    }
 
+    return Math.min(99, Math.max(0, Math.round(row.subjects_percent ?? 0)));
+}
+
+/** The overview bar: how complete the curricula are together (12% complete → 12% of the bar). */
+/** The overview's order (by class, then name) and each curriculum's colour — the same on its card and its bar part. */
+const CURRICULUM_TONES = ['submitted', 'interview', 'waitlisted', 'transfer', 'under-review', 'vocational', 'rejected'];
+
+/**
+ * A curriculum's own colour, different for each one and the same on every page (its card, its bar part, its sheet on
+ * «كل المناهج»): hues spread by the golden angle from its id; an inactive curriculum is grey.
+ */
+export function curriculumColor(row: Pick<CurriculumRow, 'id' | 'status'>): string {
+    return row.status === 1 ? `hsl(${Math.round((row.id * 137.508) % 360)} 70% 45%)` : '#79716b';
+}
+
+/** A curriculum's tone class (a `sis-follow-up-tone--*` name): fixed by its id; an inactive one is greyed. */
+export function curriculumTone(row: Pick<CurriculumRow, 'id' | 'status'>): string {
+    return row.status === 1 ? (CURRICULUM_TONES[row.id % CURRICULUM_TONES.length] ?? 'submitted') : 'withdrawn';
+}
+
+function orderedCurricula(rows: CurriculumRow[]): Array<{ row: CurriculumRow; tone: string }> {
     return [...rows]
         .sort((a, b) => a.grade_level_id - b.grade_level_id || a.name.localeCompare(b.name, 'ar'))
-        .map((row) => {
-            const stage = stages.indexOf(row.grade_level_id);
+        .map((row) => ({ row, tone: curriculumTone(row) }));
+}
+
+/** The overview bar: a part per curriculum, as long as it is complete; the legend gives each curriculum's completion. */
+function curriculaCompletionSegments(
+    rows: CurriculumRow[],
+): Array<{ key: string; label: string; count: number; tone: string; share: number; color: string }> {
+    return orderedCurricula(rows).map(({ row, tone }) => ({
+        key: `curriculum-${row.id}`,
+        // Short (الاختصاص — الصف) so the legend leaves the cards their width.
+        label: [row.department_name ?? row.specialization_name ?? row.branch_name, row.grade_level_name].filter(Boolean).join(' — ') || row.name,
+        count: curriculumCompletion(row),
+        tone,
+        color: curriculumColor(row),
+        share: curriculumCompletion(row) / 100,
+    }));
+}
+
+/** «تحرير ← حالة» on the cards: a curriculum is نشط / غير نشط by its own status, and of a type when a subject of it is. */
+export function curriculumFilterRow(
+    row: CurriculumRow,
+    subjectOf: (name: string) => SubjectRow | undefined,
+): { status: number; subject_type: number; subject_types: number[] } {
+    const types = [
+        ...new Set(
+            (row.subjects ?? []).flatMap((subject) => subjectOf(subject.name)?.subject_types ?? [subject.subject_type]),
+        ),
+    ];
+
+    return { status: row.status, subject_type: types[0] ?? 0, subject_types: types };
+}
+
+function curriculaOverviewCards(rows: CurriculumRow[]): OverviewCard[] {
+    return orderedCurricula(rows).map(({ row, tone }) => {
+            const c = t().curriculum;
+            // «مكتمل» once it has its subjects and every subject has its main teacher.
+            const completeness = `${row.is_complete ? c.planComplete : c.planIncomplete} (${curriculumCompletion(row)}%)`;
 
             return {
                 key: `curriculum-${row.id}`,
-                // «مكتمل» once every subject has its main teacher.
-                label: `${row.name} · ${row.is_complete ? t().curriculum.planComplete : t().curriculum.planIncomplete}${
-                    !row.is_complete && row.subjects_percent !== null && row.subjects_percent !== undefined ? ` (${row.subjects_percent}%)` : ''
-                }`,
-                icon: CURRICULUM_STAGE_ICONS[stage] ?? ScrollText,
-                count: row.subject_count ?? 0,
-                // «مجموع الساعات» of its subjects: أساسي · اختصاص · نظري · عملي · الكلي.
-                detail: typeHourTotalsLine(
-                    typeHourTotals(
-                        (row.subjects ?? []).map(
-                            (subject) => subjectOf(subject.name) ?? { subject_type: subject.subject_type, credit_hours: subject.credit_hours },
-                        ),
-                    ),
-                ),
-                // An inactive curriculum is greyed like a withdrawn application.
-                tone: row.status === 1 ? (tones[stage % tones.length] ?? 'submitted') : 'withdrawn',
+                label: `${row.name} · ${completeness}`,
+                // الفرع · الاختصاص · الصف · الشعبة · الاكتمال — one per line.
+                lines: [
+                    row.branch_name ?? '—',
+                    row.department_name ?? row.specialization_name ?? '—',
+                    row.grade_level_name ?? '—',
+                    row.section_name ?? c.allSections,
+                    completeness,
+                ],
+                icon: specializationIcon(row.department_name ?? row.specialization_name),
+                bareIcon: true,
+                tone,
+                color: curriculumColor(row),
                 href: `/curriculum/curricula/${row.id}`,
             };
         });
@@ -224,6 +271,8 @@ export type LinkedSubjectRow = {
     subject_types?: number[];
     /** The subject's own data for the curriculum page's table (absent on the list page). */
     subject_name_en?: string | null;
+    /** The subject's own status (1 نشط / 2 غير نشط) — the line may stay active while its subject is not. */
+    subject_status?: number | null;
     subject_type?: number | null;
     subject_type_hours?: Record<string, number | null>;
     credit_hours?: number | null;
@@ -479,6 +528,12 @@ function clearCurriculumStoredFilters(): void {
     }
 }
 
+/** Opens «المناهج» filtered: the list reads these filters back exactly as if they were chosen on it. */
+/** «المناهج» overview: a card per curriculum. */
+const CURRICULA_OVERVIEW_PATH = '/curriculum/curricula/overview';
+/** «كل المناهج»: every curriculum as on its own page. */
+export const ALL_CURRICULA_PATH = '/curriculum/curricula/all';
+
 function omitEmpty(
     params: Record<string, string | number | null | undefined>,
 ): Record<string, string | number> {
@@ -599,7 +654,10 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
     const pageUrl = usePage().url;
     // Two pages, one workspace: «المواد» = /curriculum, «المناهج» = /curriculum/curricula (each with its own overview).
     const activeView = props.view;
-    const basePath = activeView === 'curricula' ? '/curriculum/curricula' : '/curriculum';
+    const isCurriculaOverview = isOverviewPage && activeView === 'curricula';
+    // «المناهج» overview: its filters stay on the cards (the overview), not the list.
+    const basePath =
+        activeView === 'curricula' ? (isCurriculaOverview ? CURRICULA_OVERVIEW_PATH : '/curriculum/curricula') : '/curriculum';
     useOverviewHome(basePath, !isOverviewPage);
     const curricula = useMemo(
         () => normalizePagedRows<CurriculumRow>(props.curricula),
@@ -721,15 +779,17 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
     const yearCatalog = academicYears ?? [];
 
     // Filters persist in session until the user changes or clears them.
-    const [selectedYear, setSelectedYear] = useState(() => readCurriculumStoredFilters()?.year ?? '');
+    // The «المناهج» overview opens on every curriculum: stored filters do not narrow it.
+    const readStoredFilters = () => (isOverviewPage && filters.all_curricula ? null : readCurriculumStoredFilters());
+    const [selectedYear, setSelectedYear] = useState(() => readStoredFilters()?.year ?? '');
     const [selectedBranch, setSelectedBranch] = useState(
-        () => readCurriculumStoredFilters()?.branch ?? filters.branch,
+        () => readStoredFilters()?.branch ?? filters.branch,
     );
     const [selectedSpec, setSelectedSpec] = useState(
-        () => readCurriculumStoredFilters()?.specialization ?? filters.specialization,
+        () => readStoredFilters()?.specialization ?? filters.specialization,
     );
     const [selectedClass, setSelectedClass] = useState(() => {
-        const stored = readCurriculumStoredFilters();
+        const stored = readStoredFilters();
         if (stored?.classKey) {
             return stored.classKey;
         }
@@ -1261,6 +1321,38 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [catalogSubjectRows, editFilter, subjectSort.key, subjectSort.direction]);
 
+    /** «المناهج» overview cards: the year's curricula that match الفرع · الاختصاص · الصف (all of them with «كل المناهج»). */
+    const placeFilteredCurricula = useMemo(() => {
+        if (filters.all_curricula) {
+            return curricula.data;
+        }
+        const classLabels = splitSelection(selectedClass).map((key) => sisClassLabel(key));
+        const classKeys = splitSelection(selectedClass);
+        const branchNames = splitSelection(selectedBranch);
+        const specNames = splitSelection(selectedSpec);
+
+        return curricula.data.filter(
+            (row) =>
+                (branchNames.length === 0 || branchNames.includes(row.branch_name ?? '')) &&
+                (specNames.length === 0 || specNames.includes(row.department_name ?? row.specialization_name ?? '')) &&
+                (classLabels.length === 0 ||
+                    classLabels.includes(row.grade_level_name ?? '') ||
+                    filterOptions.classes.some(
+                        (item) =>
+                            item.grade_level_id === row.grade_level_id &&
+                            (classLabels.includes(item.name) || classKeys.includes(String(item.id))),
+                    )),
+        );
+    }, [curricula.data, filterOptions.classes, filters.all_curricula, selectedBranch, selectedClass, selectedSpec]);
+    /** Each card's «حالة» row (status + its subjects' types) — the «تحرير» filters and counts on the overview. */
+    const overviewFilterRows = useMemo(
+        () => placeFilteredCurricula.map((row) => curriculumFilterRow(row, (name) => subjectsByName.get(name))),
+        [placeFilteredCurricula, subjectsByName],
+    );
+    const overviewCurricula = useMemo(
+        () => placeFilteredCurricula.filter((_, index) => matchesCurriculumEditFilter(overviewFilterRows[index]!, editFilter)),
+        [editFilter, overviewFilterRows, placeFilteredCurricula],
+    );
     const catalogCurriculumRows = useMemo(() => {
         const classLabels = splitSelection(selectedClass).map((key) => sisClassLabel(key));
         const classKeys = splitSelection(selectedClass);
@@ -1611,8 +1703,12 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
             },
         ];
 
-        const statusCountSource =
-            activeView === 'subjects' ? catalogSubjectRows : curriculumPlanSubjectRows;
+        // The «المناهج» cards count curricula; the lists count subjects.
+        const statusCountSource = isCurriculaOverview
+            ? overviewFilterRows
+            : activeView === 'subjects'
+              ? catalogSubjectRows
+              : curriculumPlanSubjectRows;
 
         const statusCommands: PageRibbonCommand[] = CURRICULUM_STATUS_TABS.map((tab) => {
             const label = c[tab.labelKey];
@@ -1698,6 +1794,8 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
         hasSelection,
         i18n.common.delete,
         i18n.common.edit,
+        isCurriculaOverview,
+        overviewFilterRows,
         openSelectedSubjectsSheet,
         requestDeleteSelected,
         selectedNames,
@@ -1705,6 +1803,7 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
         i18n.appearance,
     ]);
 
+    // «تحرير» stays the curricula page's own; on the cards its «حالة» / «توزيع سابق» filter the cards.
     useRegisterPageRibbon('edit', editRibbonGroups);
 
     const tableRef = useRef<HTMLTableElement>(null);
@@ -1840,16 +1939,18 @@ export function CurriculumWorkspace(props: CurriculumPageProps & { view: Curricu
                 listPath="/curriculum/curricula"
                 allLabel={overviewText.allCurricula}
                 openLabel={overviewText.openCurriculum}
+                segments={curriculaCompletionSegments(overviewCurricula)}
                 cards={[
                     {
+                        // «كل المناهج»: a page with every curriculum as on its own page, in order.
                         key: 'all',
                         label: overviewText.allCurricula,
                         icon: ScrollText,
-                        count: curricula.data.length,
+                        count: overviewCurricula.length,
                         tone: 'submitted',
-                        href: '/curriculum/curricula',
+                        href: ALL_CURRICULA_PATH,
                     },
-                    ...curriculaOverviewCards(curricula.data, (name) => subjectsByName.get(name)),
+                    ...curriculaOverviewCards(overviewCurricula),
                 ]}
             />
         );

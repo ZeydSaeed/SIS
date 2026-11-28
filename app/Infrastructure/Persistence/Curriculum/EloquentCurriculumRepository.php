@@ -77,6 +77,28 @@ final class EloquentCurriculumRepository implements CurriculumRepositoryInterfac
         return $id === null ? null : (int) $id;
     }
 
+    public function updatePlacement(int $schoolId, int $curriculumId, array $place, string $updatedAt): bool
+    {
+        $this->bindSchool($schoolId);
+
+        return DB::table(SchemaHelper::qualified('curriculum', 'curricula'))
+            ->where('id', $curriculumId)
+            ->where('school_id', $schoolId)
+            ->where('status', CurriculumStatus::Active->value)
+            ->update([
+                'academic_year_id' => $place['academic_year_id'],
+                'grade_level_id' => $place['grade_level_id'],
+                'branch_id' => $place['branch_id'],
+                'department_id' => $place['department_id'],
+                // The specialization is the department's 1:1 mirror.
+                'specialization_id' => $this->specializationOfDepartment($schoolId, $place['department_id']),
+                'class_id' => $place['class_id'],
+                'name' => $place['name'],
+                'planned_subject_count' => $place['planned_subject_count'],
+                'updated_at' => $updatedAt,
+            ]) > 0;
+    }
+
     public function branchActiveInSchool(int $schoolId, int $branchId): bool
     {
         return DB::table(SchemaHelper::qualified('organization', 'branches'))

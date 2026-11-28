@@ -19,7 +19,8 @@ final class LinkCurriculumSubjectGuard
         ?int $weeklyHours,
         int $subjectOrder,
     ): ?string {
-        if ($this->curricula->findActiveInSchool($schoolId, $curriculumId) === null) {
+        $curriculum = $this->curricula->findActiveInSchool($schoolId, $curriculumId);
+        if ($curriculum === null) {
             return 'curriculum.curriculum_not_found';
         }
         if ($this->subjects->findActive($subjectId) === null) {
@@ -33,10 +34,15 @@ final class LinkCurriculumSubjectGuard
         }
         // Linking it again used to answer «done» while keeping the old hours: the link is changed from its own row.
         // (An inactive link is reactivated by linking — that path stays.)
-        foreach ($this->curricula->listActiveLinks($schoolId, $curriculumId) as $link) {
+        $activeLinks = $this->curricula->listActiveLinks($schoolId, $curriculumId);
+        foreach ($activeLinks as $link) {
             if ($link->subjectId === $subjectId) {
                 return 'curriculum.subject_already_linked';
             }
+        }
+        // «عدد المواد» is the ceiling: one more subject needs a larger count first.
+        if ($curriculum->plannedSubjectCount !== null && count($activeLinks) >= $curriculum->plannedSubjectCount) {
+            return 'curriculum.subjects_exceed_planned';
         }
 
         return null;

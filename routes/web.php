@@ -345,10 +345,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // «المناهج» is its own page (and overview), apart from «المواد» (/curriculum).
         Route::get('/curricula', [CurriculumPageController::class, 'index'])->name('curricula.index');
         Route::get('/curricula/overview', [CurriculumPageController::class, 'index'])->name('curricula.overview');
+        // «كل المناهج»: every curriculum as on its own page, in order.
+        Route::get('/curricula/all', [CurriculumPageController::class, 'allCurricula'])->name('curricula.all');
         Route::get('/curricula/{curriculum}', [CurriculumPageController::class, 'show'])
             ->whereNumber('curriculum')
             ->name('show');
         Route::post('/curricula', [CurriculumPageController::class, 'storeCurriculum'])->name('curricula.store');
+        // «تعديل منهج»: the whole curriculum (place, subjects, teachers) in one step.
+        Route::put('/curricula/{curriculum}/full', [CurriculumPageController::class, 'syncCurriculum'])
+            ->whereNumber('curriculum')
+            ->name('curricula.sync');
         Route::patch('/curricula/{curriculum}', [CurriculumPageController::class, 'updateCurriculum'])
             ->whereNumber('curriculum')
             ->name('curricula.update');

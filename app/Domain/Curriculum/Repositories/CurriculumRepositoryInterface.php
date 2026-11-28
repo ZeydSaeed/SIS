@@ -27,6 +27,13 @@ interface CurriculumRepositoryInterface
 
     public function departmentActiveInSchool(int $schoolId, int $departmentId): bool;
 
+    /**
+     * «تعديل منهج»: the active curriculum's year, place, name and «عدد المواد» become these (section kept).
+     *
+     * @param  array{academic_year_id: int, grade_level_id: int, branch_id: int, department_id: int, class_id: int, name: string, planned_subject_count: ?int}  $place
+     */
+    public function updatePlacement(int $schoolId, int $curriculumId, array $place, string $updatedAt): bool;
+
     public function branchActiveInSchool(int $schoolId, int $branchId): bool;
 
     public function departmentActiveInBranch(int $departmentId, int $branchId): bool;

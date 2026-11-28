@@ -7,6 +7,9 @@ use App\Application\Curriculum\Commands\AddSubjectPrerequisiteHandler;
 use App\Application\Curriculum\Commands\CreateCurriculumCommand;
 use App\Application\Curriculum\Commands\CreateCurriculumWithTeachersCommand;
 use App\Application\Curriculum\Commands\CreateCurriculumWithTeachersHandler;
+use App\Application\Curriculum\Commands\UpdateCurriculumWithTeachersCommand;
+use App\Application\Curriculum\Commands\UpdateCurriculumWithTeachersHandler;
+use App\Http\Requests\Curriculum\UpdateCurriculumPageRequest;
 use App\Application\Curriculum\Commands\CreateSubjectCommand;
 use App\Application\Curriculum\Commands\CreateSubjectHandler;
 use App\Application\Curriculum\Commands\DeactivateCurriculumCommand;
@@ -125,7 +128,8 @@ final class CurriculumPageController extends Controller
         }
 
         $schoolId = $this->schoolContext->requireId();
-        $allCurricula = $request->boolean('all_curricula');
+        $allCurricula = $request->boolean('all_curricula')
+            || ($request->routeIs('curriculum.curricula.overview') && ! $request->has('all_curricula') && ! $request->filled('academic_year_id'));
         $requestedYear = (! $allCurricula && $request->filled('academic_year_id'))
             ? (int) $request->query('academic_year_id')
             : null;
@@ -416,7 +420,52 @@ final class CurriculumPageController extends Controller
             ['from_idempotency' => $result->fromIdempotencyCache],
         );
 
-        return redirect()->back()->with('success', 'flash.curriculum.created');
+        // The new curriculum opens on its own page.
+        return redirect()->route('curriculum.show', ['curriculum' => $result->curriculumId])
+            ->with('success', 'flash.curriculum.created');
+    }
+
+    /** «تعديل منهج»: the whole curriculum — year, place, name, «عدد المواد», subjects and teachers — in one step. */
+    public function syncCurriculum(
+        int $curriculum,
+        UpdateCurriculumPageRequest $request,
+        UpdateCurriculumWithTeachersHandler $handler,
+    ): RedirectResponse {
+        $result = $handler->handle(new UpdateCurriculumWithTeachersCommand(
+            schoolId: $this->schoolContext->requireId(),
+            curriculumId: $curriculum,
+            academicYearId: (int) $request->validated('academic_year_id'),
+            gradeLevelId: (int) $request->validated('grade_level_id'),
+            branchId: (int) $request->validated('branch_id'),
+            departmentId: (int) $request->validated('department_id'),
+            classId: (int) $request->validated('class_id'),
+            name: (string) $request->validated('name'),
+            plannedSubjectCount: (int) $request->validated('planned_subject_count'),
+            subjectIds: array_map(static fn (mixed $id): int => (int) $id, (array) ($request->validated('subject_ids') ?? [])),
+            teachers: array_map(static fn (array $row): array => [
+                'subject_id' => (int) $row['subject_id'],
+                'subject_type' => isset($row['subject_type']) ? (int) $row['subject_type'] : null,
+                'teacher_id' => (int) $row['teacher_id'],
+                'role' => (int) $row['teacher_role'],
+                'section_id' => isset($row['section_id']) ? (int) $row['section_id'] : null,
+            ], array_values((array) ($request->validated('teachers') ?? []))),
+            idempotencyKey: $this->idempotencyKey($request),
+        ));
+
+        if ($result->failed()) {
+            return redirect()->back()->withErrors(['curriculum' => $result->errors[0] ?? 'curriculum.curriculum_update_failed']);
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataModified,
+            'curriculum.web.curricula.sync',
+            'updated',
+            $request->user(),
+            'curriculum:'.$curriculum,
+            ['subjects' => count((array) ($request->validated('subject_ids') ?? []))],
+        );
+
+        return redirect()->back()->with('success', 'flash.curriculum.updated');
     }
 
     public function updateCurriculum(
@@ -942,6 +991,7 @@ final class CurriculumPageController extends Controller
         ListEnrollmentSubjectsHandler $enrollmentSubjectsHandler,
         ListCurriculumTeachersHandler $teachersHandler,
         ListCurriculumLineStatsHandler $statsHandler,
+        ListCurriculaHandler $curriculaHandler,
     ): Response {
         $user = $request->user();
         assert($user !== null);
@@ -958,68 +1008,35 @@ final class CurriculumPageController extends Controller
         $filterOptions = $enrollmentReads->listFilterOptions($schoolId, $dto->academicYearId);
         $meta = $this->buildLabelMaps($filterOptions);
         [$plan] = $this->withLineStats([$this->mapCurriculumRow($dto, $meta)], $schoolId, $statsHandler);
+        // «الصفحة الرئيسية» filters switch the curriculum shown on this page: every curriculum's place (all years, light).
+        $places = $curriculaHandler->handle(new ListCurriculaQuery(
+            schoolId: $schoolId,
+            academicYearId: null,
+            includeInactive: true,
+            page: 1,
+            perPage: 100,
+            paginate: true,
+        ));
+        assert(isset($places['items']));
+        $placeKeys = array_flip(['id', 'name', 'academic_year_id', 'branch_name', 'department_name', 'specialization_name', 'grade_level_id', 'grade_level_name', 'class_id', 'status']);
+        $curriculumPlaces = array_map(
+            fn (CurriculumDTO $row): array => array_intersect_key($this->mapCurriculumRow($row, $meta), $placeKeys),
+            $places['items'],
+        );
         // «المدرسون» of each subject line (main teacher first) and the school's teachers for the year.
         $curriculumTeachers = $teachersHandler->handle(new ListCurriculumTeachersQuery($schoolId, $curriculum, $dto->academicYearId));
 
-        $activeSubjects = $subjectsHandler->handle(new ListSubjectsQuery(includeInactive: false));
-        assert(is_array($activeSubjects) && ! isset($activeSubjects['items']));
-        $subjectById = [];
-        foreach ($activeSubjects as $subject) {
-            assert($subject instanceof SubjectDTO);
-            $subjectById[$subject->id] = [
-                'id' => $subject->id,
-                'code' => $subject->code,
-                'name' => $subject->name,
-                'name_en' => $subject->nameEn,
-                'subject_type' => $subject->subjectType,
-                'credit_hours' => $subject->creditHours,
-                'max_grade' => $subject->maxGrade,
-                'pass_grade' => $subject->passGrade,
-                'status' => $subject->status,
-                'subject_types' => $subject->subjectTypes,
-                // type → hours as an object ({"3": 2, "4": 3}).
-                'subject_type_hours' => (object) $subject->subjectTypeHours,
-            ];
-        }
-
-        $links = $linksHandler->handle(new ListCurriculumSubjectsQuery($schoolId, $curriculum, true)) ?? [];
-        $linkedSubjects = [];
+        $subjectById = $this->subjectRowsById($subjectsHandler);
+        [$links, $linkedSubjects] = $this->linkedSubjectRows(
+            $schoolId,
+            $curriculum,
+            $subjectById,
+            $curriculumTeachers['byLine'],
+            $meta,
+            $linksHandler,
+        );
         $prerequisites = [];
         foreach ($links as $link) {
-            $subject = $subjectById[$link->subjectId] ?? null;
-            $linkedSubjects[] = [
-                'id' => $link->id,
-                'curriculum_id' => $link->curriculumId,
-                'subject_id' => $link->subjectId,
-                'subject_code' => $subject['code'] ?? null,
-                'subject_name' => $subject['name'] ?? null,
-                'weekly_hours' => $link->weeklyHours,
-                'theory_hours' => $link->theoryHours,
-                'practical_hours' => $link->practicalHours,
-                'is_required' => $link->isRequired,
-                'subject_order' => $link->subjectOrder,
-                'status' => $link->status,
-                // The parts a teacher may take (نظري، عملي …).
-                'subject_types' => $subject['subject_types'] ?? [],
-                // The subjects table: «الاسم بالانكليزي», «نوع المادة مع الساعات», «الدرجة العظمى», «درجة النجاح».
-                'subject_name_en' => $subject['name_en'] ?? null,
-                'subject_type' => $subject['subject_type'] ?? null,
-                'subject_type_hours' => $subject['subject_type_hours'] ?? (object) [],
-                'credit_hours' => $subject['credit_hours'] ?? null,
-                'max_grade' => $subject['max_grade'] ?? null,
-                'pass_grade' => $subject['pass_grade'] ?? null,
-                'teachers' => array_map(static fn (array $row): array => [
-                    'assignment_id' => $row['assignment_id'],
-                    'teacher_id' => $row['teacher_id'],
-                    'name' => $row['teacher_name'],
-                    'employee_code' => $row['employee_code'],
-                    'role' => $row['role'],
-                    'subject_type' => $row['subject_type'],
-                    'section_id' => $row['section_id'],
-                    'section_name' => $row['section_id'] !== null ? ($meta['sectionNames'][$row['section_id']] ?? null) : null,
-                ], $curriculumTeachers['byLine'][$link->id] ?? []),
-            ];
-
             foreach ($prereqHandler->handle(new ListSubjectPrerequisitesQuery($link->subjectId, true)) as $prereq) {
                 $prerequisites[] = [
                     'id' => $prereq->id,
@@ -1089,6 +1106,7 @@ final class CurriculumPageController extends Controller
             'linkedSubjects' => $linkedSubjects,
             'prerequisites' => $prerequisites,
             'subjectOptions' => array_values($subjectById),
+            'curriculumPlaces' => $curriculumPlaces,
             'teacherOptions' => $curriculumTeachers['options'],
             'enrollments' => [
                 'data' => array_map(static fn ($e): array => $e->toArray(), $enrollmentsResult['items']),
@@ -1226,6 +1244,193 @@ final class CurriculumPageController extends Controller
         );
 
         return redirect()->back()->with('success', 'flash.curriculum.enrollmentSubjectAssigned');
+    }
+
+    /**
+     * Every subject of the school (inactive too: a line whose subject was set «غير نشط» keeps its name and can be
+     * set «نشط» again), by id, as the curriculum page reads it.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function subjectRowsById(ListSubjectsHandler $subjectsHandler): array
+    {
+        $subjects = $subjectsHandler->handle(new ListSubjectsQuery(includeInactive: true));
+        assert(is_array($subjects) && ! isset($subjects['items']));
+        $subjectById = [];
+        foreach ($subjects as $subject) {
+            assert($subject instanceof SubjectDTO);
+            $subjectById[$subject->id] = [
+                'id' => $subject->id,
+                'code' => $subject->code,
+                'name' => $subject->name,
+                'name_en' => $subject->nameEn,
+                'subject_type' => $subject->subjectType,
+                'credit_hours' => $subject->creditHours,
+                'max_grade' => $subject->maxGrade,
+                'pass_grade' => $subject->passGrade,
+                'status' => $subject->status,
+                'subject_types' => $subject->subjectTypes,
+                // type → hours as an object ({"3": 2, "4": 3}).
+                'subject_type_hours' => (object) $subject->subjectTypeHours,
+            ];
+        }
+
+        return $subjectById;
+    }
+
+    /**
+     * A curriculum's subject lines as its table shows them: the subject's own data and «المدرسون» of each line.
+     *
+     * @param  array<int, array<string, mixed>>  $subjectById
+     * @param  array<int, list<array<string, mixed>>>  $teachersByLine
+     * @param  array<string, mixed>  $meta
+     * @return array{0: list<\App\Application\Curriculum\DTOs\CurriculumSubjectDTO>, 1: list<array<string, mixed>>}
+     */
+    private function linkedSubjectRows(
+        int $schoolId,
+        int $curriculumId,
+        array $subjectById,
+        array $teachersByLine,
+        array $meta,
+        ListCurriculumSubjectsHandler $linksHandler,
+    ): array {
+        $links = $linksHandler->handle(new ListCurriculumSubjectsQuery($schoolId, $curriculumId, true)) ?? [];
+        $rows = [];
+        foreach ($links as $link) {
+            $subject = $subjectById[$link->subjectId] ?? null;
+            $rows[] = [
+                'id' => $link->id,
+                'curriculum_id' => $link->curriculumId,
+                'subject_id' => $link->subjectId,
+                'subject_code' => $subject['code'] ?? null,
+                'subject_name' => $subject['name'] ?? null,
+                'weekly_hours' => $link->weeklyHours,
+                'theory_hours' => $link->theoryHours,
+                'practical_hours' => $link->practicalHours,
+                'is_required' => $link->isRequired,
+                'subject_order' => $link->subjectOrder,
+                'status' => $link->status,
+                // The parts a teacher may take (نظري، عملي …).
+                'subject_types' => $subject['subject_types'] ?? [],
+                // The subjects table: «الاسم بالانكليزي», «نوع المادة مع الساعات», «الدرجة العظمى», «درجة النجاح».
+                'subject_name_en' => $subject['name_en'] ?? null,
+                'subject_status' => $subject['status'] ?? null,
+                'subject_type' => $subject['subject_type'] ?? null,
+                'subject_type_hours' => $subject['subject_type_hours'] ?? (object) [],
+                'credit_hours' => $subject['credit_hours'] ?? null,
+                'max_grade' => $subject['max_grade'] ?? null,
+                'pass_grade' => $subject['pass_grade'] ?? null,
+                'teachers' => array_map(static fn (array $row): array => [
+                    'assignment_id' => $row['assignment_id'],
+                    'teacher_id' => $row['teacher_id'],
+                    'name' => $row['teacher_name'],
+                    'employee_code' => $row['employee_code'],
+                    'role' => $row['role'],
+                    'subject_type' => $row['subject_type'],
+                    'section_id' => $row['section_id'],
+                    'section_name' => $row['section_id'] !== null ? ($meta['sectionNames'][$row['section_id']] ?? null) : null,
+                ], $teachersByLine[$link->id] ?? []),
+            ];
+        }
+
+        return [$links, $rows];
+    }
+
+    /**
+     * «كل المناهج»: every curriculum (all years) as on its own page — heading, subjects, teachers, completeness,
+     * hour totals — ordered by year (newest first), class, then name; ten to a page.
+     */
+    public function allCurricula(
+        Request $request,
+        EnrollmentReadRepositoryInterface $enrollmentReads,
+        ListCurriculaHandler $curriculaHandler,
+        ListCurriculumSubjectsHandler $linksHandler,
+        ListSubjectsHandler $subjectsHandler,
+        ListCurriculumTeachersHandler $teachersHandler,
+        ListCurriculumLineStatsHandler $statsHandler,
+    ): Response {
+        $user = $request->user();
+        assert($user !== null);
+        if (! $user->can('viewCurriculum')) {
+            throw new AuthorizationException('This action is unauthorized.');
+        }
+
+        $schoolId = $this->schoolContext->requireId();
+        $result = $curriculaHandler->handle(new ListCurriculaQuery(
+            schoolId: $schoolId,
+            academicYearId: null,
+            includeInactive: true,
+            page: 1,
+            perPage: 100,
+            paginate: true,
+        ));
+        assert(isset($result['items']));
+        $dtos = $result['items'];
+        usort($dtos, static fn (CurriculumDTO $a, CurriculumDTO $b): int => [$b->academicYearId, $a->gradeLevelId, $a->name] <=> [$a->academicYearId, $b->gradeLevelId, $b->name]);
+
+        $perPage = 10;
+        $total = count($dtos);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min(max(1, (int) $request->query('page', 1)), $lastPage);
+        $pageDtos = array_slice($dtos, ($page - 1) * $perPage, $perPage);
+
+        // Labels come from each curriculum's own year (classes and sections are per year); «تعديل منهج» reads the same.
+        $metaByYear = [];
+        $filterOptionsByYear = [];
+        $rows = [];
+        foreach ($pageDtos as $dto) {
+            $year = $dto->academicYearId;
+            if (! isset($metaByYear[$year])) {
+                $options = $enrollmentReads->listFilterOptions($schoolId, $year);
+                $metaByYear[$year] = $this->buildLabelMaps($options);
+                $filterOptionsByYear[$year] = [
+                    'classes' => $options['classes'] ?? [],
+                    'sections' => $options['sections'] ?? [],
+                    'branches' => $options['branches'] ?? [],
+                    'departments' => $options['departments'] ?? [],
+                    'specializations' => $options['specializations'] ?? [],
+                ];
+            }
+            $rows[] = $this->mapCurriculumRow($dto, $metaByYear[$year]);
+        }
+        $rows = $this->withLineStats($rows, $schoolId, $statsHandler);
+
+        $subjectById = $this->subjectRowsById($subjectsHandler);
+        $sheets = [];
+        $teacherOptionsByYear = [];
+        foreach ($pageDtos as $index => $dto) {
+            // Bounded: ten curricula a page, two reads each (lines, teachers).
+            $teachers = $teachersHandler->handle(new ListCurriculumTeachersQuery($schoolId, $dto->id, $dto->academicYearId));
+            $teacherOptionsByYear[$dto->academicYearId] ??= $teachers['options'];
+            [, $lines] = $this->linkedSubjectRows(
+                $schoolId,
+                $dto->id,
+                $subjectById,
+                $teachers['byLine'],
+                $metaByYear[$dto->academicYearId],
+                $linksHandler,
+            );
+            $sheets[] = ['curriculum' => $rows[$index], 'linkedSubjects' => $lines];
+        }
+
+        $this->securityAudit->record(
+            SecurityEventType::CurriculumDataAccess,
+            'curriculum.web.curricula.all',
+            'listed',
+            $user,
+            'school:'.$schoolId,
+            ['curricula_count' => count($sheets), 'page' => $page],
+        );
+
+        return Inertia::render('curriculum/curricula-all', [
+            'sheets' => $sheets,
+            'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'last_page' => $lastPage],
+            // «تحرير ← تعديل»: the «تعديل منهج» window of the chosen curriculum.
+            'subjectOptions' => array_values($subjectById),
+            'filterOptionsByYear' => (object) $filterOptionsByYear,
+            'teacherOptionsByYear' => (object) $teacherOptionsByYear,
+            'authorization' => ['canManage' => $user->can('manageCurriculum')],
+        ]);
     }
 
     /**

@@ -30,6 +30,11 @@ final class UpdateCurriculumGuard
             && ((int) $fields['planned_subject_count'] < 1 || (int) $fields['planned_subject_count'] > 200)) {
             return 'curriculum.planned_subject_count_invalid';
         }
+        // «عدد المواد» cannot drop below the subjects the curriculum already has.
+        if (array_key_exists('planned_subject_count', $fields) && $fields['planned_subject_count'] !== null
+            && (int) $fields['planned_subject_count'] < count($this->curricula->listActiveLinks($schoolId, $curriculumId))) {
+            return 'curriculum.subjects_exceed_planned';
+        }
         $current = $this->curricula->findActiveInSchool($schoolId, $curriculumId);
         if ($current !== null && array_key_exists('department_id', $fields)
             && $fields['department_id'] !== $current->departmentId

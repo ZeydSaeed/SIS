@@ -27,12 +27,19 @@ final class CreateCurriculumGuard
         ?int $classId = null,
         ?int $sectionId = null,
         ?int $plannedSubjectCount = null,
+        /** When editing: the curriculum itself does not count as a duplicate. */
+        ?int $exceptCurriculumId = null,
+        /** The subjects it will have: never more than «عدد المواد» (raise the count first). */
+        ?int $subjectCount = null,
     ): ?string {
         if (trim($name) === '') {
             return 'curriculum.curriculum_name_invalid';
         }
         if ($plannedSubjectCount !== null && ($plannedSubjectCount < 1 || $plannedSubjectCount > 200)) {
             return 'curriculum.planned_subject_count_invalid';
+        }
+        if ($plannedSubjectCount !== null && $subjectCount !== null && $subjectCount > $plannedSubjectCount) {
+            return 'curriculum.subjects_exceed_planned';
         }
         if ($academicYearId < 1 || ! $this->curricula->academicYearExists($academicYearId)) {
             return 'curriculum.academic_year_invalid';
@@ -50,16 +57,16 @@ final class CreateCurriculumGuard
         }
         if ($sectionId !== null && $branchId !== null) {
             // A curriculum per branch / department / section: sections A and B of one class may differ.
-            if ($this->curricula->activeScopeExists($schoolId, $academicYearId, $branchId, $departmentId, $sectionId)) {
+            if ($this->curricula->activeScopeExists($schoolId, $academicYearId, $branchId, $departmentId, $sectionId, $exceptCurriculumId)) {
                 return 'curriculum.curriculum_exists';
             }
         } elseif ($classId !== null && $branchId !== null) {
             // A class-level curriculum (each teacher names his section): one per branch / department / class.
-            if ($this->curricula->activeClassScopeExists($schoolId, $academicYearId, $branchId, $departmentId, $classId)) {
+            if ($this->curricula->activeClassScopeExists($schoolId, $academicYearId, $branchId, $departmentId, $classId, $exceptCurriculumId)) {
                 return 'curriculum.curriculum_exists';
             }
         } elseif ($departmentId !== null
-            && $this->curricula->activeCurriculumExists($schoolId, $academicYearId, $gradeLevelId, $departmentId)) {
+            && $this->curricula->activeCurriculumExists($schoolId, $academicYearId, $gradeLevelId, $departmentId, $exceptCurriculumId)) {
             return 'curriculum.curriculum_exists';
         }
         if ($specializationId !== null) {

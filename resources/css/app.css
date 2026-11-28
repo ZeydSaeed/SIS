@@ -22131,3 +22131,16 @@ body .sis-admission-sheet-dialog.sis-leave-window.sis-leave-window.sis-leave-win
     max-width: calc(100vw - 1rem) !important;
     max-height: calc(100dvh - 1rem) !important;
 }
+
+/* Drag-and-drop reordering of sidebar module icons — see hooks/use-nav-order.ts */
+[data-nav-dragging='true'] {
+    opacity: 0.45;
+}
+
+[data-nav-drop-target='before'] {
+    box-shadow: inset 0 2px 0 var(--sis-oxford);
+}
+
+[data-nav-drop-target='after'] {
+    box-shadow: inset 0 -2px 0 var(--sis-oxford);
+}
