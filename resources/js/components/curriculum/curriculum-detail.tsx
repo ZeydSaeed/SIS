@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import { Eye, ListChecks, Palette, Pencil, Trash2, XCircle } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CurriculumCreateSheetDialog } from '@/components/curriculum/curriculum-create-sheet';
 import { useCurriculumDetailHomeRibbon, type CurriculumPlace } from '@/components/curriculum/curriculum-detail-home-ribbon';
 import { CurriculumPlaceHeading, CurriculumPlaceStatus, CurriculumSheet } from '@/components/curriculum/curriculum-sheet';
@@ -38,6 +38,7 @@ import {
 } from '@/components/sis/page-ribbon-context';
 import { SisListSelect } from '@/components/sis/sis-list-select';
 import { Button } from '@/components/ui/button';
+import { useDragScroll } from '@/hooks/use-drag-scroll';
 import { t } from '@/i18n';
 import {
     collectInertiaErrorMessages,
@@ -172,6 +173,21 @@ export function CurriculumDetail(props: CurriculumShowProps) {
     const chromeTab = useActivePageRibbonTab();
     const setActiveChromeTab = useSetActivePageRibbonTab();
     const syncingChromeRef = useRef(false);
+    // The page glides: drag the content (mouse / touch) or turn the wheel and it eases there; after a drag it coasts
+    // and slows down. It takes the keyboard (arrows, Page Up/Down, Home/End) without a click first.
+    const dragScrollRef = useDragScroll<HTMLDivElement>(
+        true,
+        'input, textarea, select, button, a, label, [role="combobox"], [role="option"], [data-drag-scroll-ignore]',
+    );
+    const pageRef = useCallback(
+        (node: HTMLDivElement | null) => {
+            dragScrollRef(node);
+            if (node !== null && document.activeElement === document.body) {
+                node.focus({ preventScroll: true });
+            }
+        },
+        [dragScrollRef],
+    );
 
     const [planDialogOpen, setPlanDialogOpen] = useState(false);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -730,7 +746,13 @@ export function CurriculumDetail(props: CurriculumShowProps) {
     ];
 
     return (
-        <div className={`${sisListPageClass({ enrollments: false, hiddenScroll: true })} gap-4 p-4`} dir="rtl" lang="ar">
+        <div
+            ref={pageRef}
+            tabIndex={-1}
+            className={`${sisListPageClass({ enrollments: false, extra: 'sis-curriculum-detail sis-scroll-y-thin' })} gap-4 p-4 outline-none`}
+            dir="rtl"
+            lang="ar"
+        >
             {/* The subjects view holds the heading in its card; the other views show it above. */}
             {activeTab !== 'subjects' ? (
                 <>

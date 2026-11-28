@@ -158,7 +158,7 @@ export function CurriculumSheet({
             ) : (
                 <div className={`sis-admission-periods-table sis-admission-drafts-table ${GRID_CLASS}`}>
                     <style>{GRID_STYLE}</style>
-                    <div className="sis-admission-drafts-table__scroller">
+                    <div className="sis-admission-drafts-table__scroller sis-scroll-x-thin">
                         <table>
                             <caption className="sr-only">{c.linkedSubjectsCaption}</caption>
                             <thead>

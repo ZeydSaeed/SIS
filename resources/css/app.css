@@ -3063,6 +3063,112 @@ input[type='reset']:disabled {
     display: none;
 }
 
+/* Very thin horizontal scrollbar, shown only when the content is wider than its box (RTL: starts at the right and
+   scrolls toward the left). Smooth, contained scrolling; the vertical bar stays hidden. The four-fold class outweighs
+   the table scrollers' own `scrollbar-width: none` (`.sis-students-page .sis-admission-drafts-table__scroller`). Chromium: scrollbar-width/color must stay `auto`, otherwise the
+   ::-webkit-scrollbar rules below are ignored; Firefox (no ::-webkit-scrollbar) gets `thin`. */
+.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin,
+.sis-curriculum-detail .sis-data-table.sis-data-table {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+    -ms-overflow-style: auto;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    .sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin,
+    .sis-curriculum-detail .sis-data-table.sis-data-table {
+        scrollbar-width: thin;
+        scrollbar-color: var(--sis-mist) transparent;
+    }
+}
+
+.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin::-webkit-scrollbar,
+.sis-curriculum-detail .sis-data-table.sis-data-table::-webkit-scrollbar {
+    display: block;
+    width: 0;
+    height: 4px;
+}
+
+.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin::-webkit-scrollbar-track,
+.sis-curriculum-detail .sis-data-table.sis-data-table::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin::-webkit-scrollbar-thumb,
+.sis-curriculum-detail .sis-data-table.sis-data-table::-webkit-scrollbar-thumb {
+    background: var(--sis-mist);
+    border-radius: 999px;
+}
+
+.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin::-webkit-scrollbar-thumb:hover,
+.sis-curriculum-detail .sis-data-table.sis-data-table::-webkit-scrollbar-thumb:hover {
+    background: var(--sis-steel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin.sis-scroll-x-thin,
+    .sis-curriculum-detail .sis-data-table.sis-data-table {
+        scroll-behavior: auto;
+    }
+}
+
+/* A page that scrolls up and down inside the app shell with its own thin, always-visible bar (RTL: on the left).
+   Fills the space the shell leaves (flex 1 1 0 + min-height 0, so it never grows past the window), smooth and
+   contained; the horizontal axis is left to the tables' own scrollers. Same Chromium/Firefox split as above.
+   Four-fold class: outweighs `.sis-page-surface:has(.sis-admission-page) > .sis-admission-page { overflow: hidden }`
+   (0,3,0), which otherwise clips the page so it cannot scroll at all. */
+.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+    -ms-overflow-style: auto;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    .sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin {
+        scrollbar-width: thin;
+        scrollbar-color: var(--sis-steel) transparent;
+    }
+}
+
+.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+    height: 0;
+}
+
+.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin::-webkit-scrollbar-thumb {
+    background: var(--sis-mist);
+    border-radius: 999px;
+}
+
+.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin::-webkit-scrollbar-thumb:hover,
+.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin::-webkit-scrollbar-thumb:active {
+    background: var(--sis-steel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin.sis-scroll-y-thin {
+        scroll-behavior: auto;
+    }
+}
+
 .sis-list-select {
     position: relative;
     display: block;
