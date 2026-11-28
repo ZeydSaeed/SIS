@@ -15,8 +15,8 @@ export type OverviewCard = {
     count?: number | string;
     /** A `sis-follow-up-tone--*` name (the follow-up overview's colours). */
     tone: string;
-
-    href: string;
+    /** Where pressing the card goes; absent = a card that only shows (not a link). */
+    href?: string;
     /** Lines drawn instead of the label, one under the other (e.g. a curriculum's branch, specialization, class …). */
     lines?: string[];
     /** The icon alone, in the card's colour — no filled circle behind it. */
@@ -219,15 +219,13 @@ export function ModuleOverview({
                                 </div>
 
                                 <div className="sis-follow-up-cards">
-                                    {drawn.map((card) => (
-                                        <Link
-                                            key={card.key}
-                                            href={card.href}
-                                            className={`sis-follow-up-card sis-follow-up-tone--${card.tone}`}
-                                            // Its own colour feeds the card's background, edge and icon (the overview's --card-* rules).
-                                            style={card.color ? ({ '--card-hue': card.color, '--card-fill': card.color } as CSSProperties) : undefined}
-                                            aria-label={`${card.label}${card.count !== undefined ? `: ${card.count}` : ''} — ${openLabel ?? text.open}`}
-                                        >
+                                    {drawn.map((card) => {
+                                        const style = card.color
+                                            ? ({ '--card-hue': card.color, '--card-fill': card.color } as CSSProperties)
+                                            : undefined;
+                                        const name = `${card.label}${card.count !== undefined ? `: ${card.count}` : ''}`;
+                                        const body = (
+                                            <>
                                             <span
                                                 className="sis-follow-up-card__avatar"
                                                 aria-hidden
@@ -267,8 +265,32 @@ export function ModuleOverview({
                                                     {card.count}
                                                 </span>
                                             ) : null}
-                                        </Link>
-                                    ))}
+                                            </>
+                                        );
+
+                                        // Its own colour feeds the card's background, edge and icon (the overview's --card-* rules).
+                                        return card.href !== undefined ? (
+                                            <Link
+                                                key={card.key}
+                                                href={card.href}
+                                                className={`sis-follow-up-card sis-follow-up-tone--${card.tone}`}
+                                                style={style}
+                                                aria-label={`${name} — ${openLabel ?? text.open}`}
+                                            >
+                                                {body}
+                                            </Link>
+                                        ) : (
+                                            <div
+                                                key={card.key}
+                                                className={`sis-follow-up-card sis-follow-up-tone--${card.tone}`}
+                                                style={{ ...style, cursor: 'default' }}
+                                                role="group"
+                                                aria-label={name}
+                                            >
+                                                {body}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

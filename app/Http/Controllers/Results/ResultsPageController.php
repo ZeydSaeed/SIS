@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Results;
 
+use App\Application\Enrollment\Contracts\EnrollmentReadRepositoryInterface;
 use App\Application\Results\DTOs\OfficialTermResultListItemDTO;
 use App\Application\Results\Queries\GetIssuedTranscriptMetadataHandler;
 use App\Application\Results\Queries\GetIssuedTranscriptMetadataQuery;
@@ -42,6 +43,32 @@ final class ResultsPageController extends Controller
         $this->schoolContext->requireId();
 
         return Inertia::render('results/index');
+    }
+
+    /**
+     * «إدخال الدرجات / إعلان النتائج للطلبة» (owner's request, 2026-11-28): the cyber_security «?tab=window» page laid
+     * out in SIS. The «الصفوف والشعب» come from the school's own structure (الفرع · الاختصاص · الصف · الشعبة of the
+     * year, the curriculum pages' filter options). Opening entry and publishing save nothing yet (owner's choice: no
+     * grades, students or results are read), so there is no results-data access to record.
+     */
+    public function entryWindow(Request $request, EnrollmentReadRepositoryInterface $enrollmentReads): Response
+    {
+        $this->authorize('viewOfficial', TermResultRecord::class);
+        $schoolId = $this->schoolContext->requireId();
+
+        $requestedYear = $request->filled('academic_year_id') ? (int) $request->query('academic_year_id') : null;
+        $academicYearId = $this->academicYears->resolve($requestedYear);
+        $options = $academicYearId !== null ? $enrollmentReads->listFilterOptions($schoolId, $academicYearId) : [];
+
+        return Inertia::render('results/entry-window', [
+            'structure' => [
+                'branches' => $options['branches'] ?? [],
+                'departments' => $options['departments'] ?? [],
+                'classes' => $options['classes'] ?? [],
+                'sections' => $options['sections'] ?? [],
+            ],
+            'filters' => ['academic_year_id' => $academicYearId],
+        ]);
     }
 
     public function show(

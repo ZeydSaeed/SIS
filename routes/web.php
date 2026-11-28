@@ -427,6 +427,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('results')->name('results.')->middleware('require.school.context')->group(function (): void {
         Route::get('/', [ResultsPageController::class, 'index'])->name('index');
+        // «إدخال الدرجات / إعلان النتائج للطلبة» (2026-11-28): the cyber_security window tab's layout only — no data, saves nothing.
+        Route::get('/entry-window', [ResultsPageController::class, 'entryWindow'])->name('entry_window');
         Route::get('/show', [ResultsPageController::class, 'show'])->name('show');
         Route::get('/term', [ResultsPageController::class, 'term'])->name('term');
         Route::get('/transcript', [ResultsPageController::class, 'transcript'])->name('transcript');

@@ -31,4 +31,28 @@ final class PhaseUiResTermResultsPagePostgreSqlTest extends PostgreSqlIntegratio
                 ->missing('results')
                 ->missing('filters'));
     }
+
+    #[Test]
+    public function results_viewer_opens_the_entry_window_page_with_the_school_structure_only(): void
+    {
+        $this->get('/results/entry-window')->assertRedirect('/login');
+
+        $schoolId = $this->createSchool('SCH-RES-EW', 'Results entry window');
+        $this->createAcademicYear();
+        $this->actingAsResultsViewerForSchool($schoolId);
+
+        // «إدخال الدرجات / إعلان النتائج للطلبة» (2026-11-28): the school's الفرع · الاختصاص · الصف · الشعبة only —
+        // no grades, students or results are sent.
+        $this->get('/results/entry-window')
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->component('results/entry-window')
+                ->has('structure.branches')
+                ->has('structure.departments')
+                ->has('structure.classes')
+                ->has('structure.sections')
+                ->has('filters.academic_year_id')
+                ->missing('results')
+                ->missing('students'));
+    }
 }
